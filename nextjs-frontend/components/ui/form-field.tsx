@@ -1,8 +1,7 @@
 import type { InputHTMLAttributes, ReactNode } from "react";
 
 import { FieldError } from "@/components/ui/FormError";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/field";
 import type { FormState } from "@/lib/definitions";
 
 type FormFieldProps = InputHTMLAttributes<HTMLInputElement> & {
@@ -25,8 +24,10 @@ export function FormField({
   const errorId = `${id}-error`;
   const invalid = Boolean(state?.errors?.[name]?.length);
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
+    <div className="grid gap-1.5">
+      <label htmlFor={id} className="text-[13px] font-bold text-fg-strong">
+        {label}
+      </label>
       <Input
         id={id}
         name={name}

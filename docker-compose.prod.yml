@@ -59,8 +59,6 @@ services:
     build:
       context: ./nextjs-frontend
       dockerfile: Dockerfile.prod
-      args:
-        API_BASE_URL: http://backend:8000
     environment:
       API_BASE_URL: http://backend:8000
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}

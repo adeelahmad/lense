@@ -30,7 +30,7 @@ export function LoginForm({
             First time here?{" "}
             <Link
               href="/setup"
-              className="font-medium text-foreground underline underline-offset-4"
+              className="font-medium text-fg underline underline-offset-4"
             >
               Set up this archive
             </Link>
@@ -39,7 +39,7 @@ export function LoginForm({
       }
     >
       {notice && (
-        <p role="status" className="rounded-md bg-muted px-3 py-2 text-sm">
+        <p role="status" className="rounded-md bg-surface-neutral px-3 py-2 text-sm">
           {notice}
         </p>
       )}
@@ -63,7 +63,7 @@ export function LoginForm({
           hint={
             <Link
               href="/password-recovery"
-              className="ml-auto text-sm text-muted-foreground underline-offset-4 hover:underline"
+              className="ml-auto text-sm text-fg-secondary underline-offset-4 hover:underline"
             >
               Forgot your password?
             </Link>

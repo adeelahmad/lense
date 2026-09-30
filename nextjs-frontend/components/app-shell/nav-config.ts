@@ -1,14 +1,16 @@
 import {
-  Activity,
-  FolderOpen,
-  LayoutDashboard,
-  Library,
+  AudioLines,
+  ChartNoAxesColumn,
+  HardDriveDownload,
+  House,
+  LibraryBig,
   type LucideIcon,
-  MessageSquare,
-  Network,
+  MessagesSquare,
   Search,
   Settings,
-  Users,
+  Shield,
+  Waypoints,
+  Workflow,
 } from "lucide-react";
 
 export type NavItem = {
@@ -17,49 +19,33 @@ export type NavItem = {
   icon: LucideIcon;
   /** Only shown to archive administrators. */
   adminOnly?: boolean;
+  /** A count shown next to the label (library size, speakers to review). */
+  countKey?: "recordings" | "reviews";
+  /** Draw a divider after this item. */
+  divider?: boolean;
 };
 
-export type NavSection = { label?: string; items: NavItem[] };
-
-/**
- * The app's primary navigation. Sections without a page yet land on the
- * "not built yet" page inside the shell.
- */
-export const NAV: NavSection[] = [
-  {
-    items: [
-      { label: "Overview", href: "/", icon: LayoutDashboard },
-      { label: "Library", href: "/recordings", icon: Library },
-      { label: "Search", href: "/search", icon: Search },
-    ],
-  },
-  {
-    label: "Explore",
-    items: [
-      { label: "Speakers", href: "/speakers", icon: Users },
-      { label: "Entities", href: "/entities", icon: Network },
-      { label: "Collections", href: "/collections", icon: FolderOpen },
-      { label: "Chat", href: "/chat", icon: MessageSquare },
-    ],
-  },
-  {
-    label: "Manage",
-    items: [
-      { label: "Jobs", href: "/jobs", icon: Activity },
-      { label: "Settings", href: "/settings", icon: Settings, adminOnly: true },
-    ],
-  },
+/** Primary navigation, in the design's order (Nav.dc.html). */
+export const NAV: NavItem[] = [
+  { label: "Home", href: "/", icon: House },
+  { label: "Library", href: "/library", icon: LibraryBig, countKey: "recordings" },
+  { label: "Search", href: "/search", icon: Search },
+  { label: "Chat", href: "/chat", icon: MessagesSquare },
+  { label: "Speakers", href: "/speakers", icon: AudioLines, countKey: "reviews" },
+  { label: "Graph", href: "/graph", icon: Waypoints },
+  { label: "Reports", href: "/reports", icon: ChartNoAxesColumn, divider: true },
+  { label: "Pipelines", href: "/pipelines", icon: Workflow },
+  { label: "Sources", href: "/sources", icon: HardDriveDownload },
+  { label: "Settings", href: "/settings", icon: Settings, adminOnly: true },
+  { label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
 ];
 
-export function navFor(admin: boolean): NavSection[] {
-  return NAV.map((section) => ({
-    ...section,
-    items: section.items.filter((item) => admin || !item.adminOnly),
-  })).filter((section) => section.items.length > 0);
+export function navFor(admin: boolean): NavItem[] {
+  return NAV.filter((item) => admin || !item.adminOnly);
 }
 
 export function isActive(pathname: string, href: string): boolean {
-  return href === "/"
-    ? pathname === "/"
-    : pathname === href || pathname.startsWith(`${href}/`);
+  if (href === "/") return pathname === "/";
+  if (href === "/library") return pathname === "/library" || pathname.startsWith("/library/") || pathname.startsWith("/recordings/");
+  return pathname === href || pathname.startsWith(`${href}/`);
 }

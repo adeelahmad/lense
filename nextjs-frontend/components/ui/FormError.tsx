@@ -12,7 +12,7 @@ export function FormError({
   const error = state?.server_validation_error || state?.server_error;
   if (!error) return null;
   return (
-    <p role="alert" className={cn("text-sm text-destructive", className)}>
+    <p role="alert" className={cn("text-sm text-red-dark", className)}>
       {error}
     </p>
   );
@@ -33,7 +33,7 @@ export function FieldError({
   const errors = state?.errors?.[field];
   if (!errors?.length) return null;
   return (
-    <div id={id} className={cn("text-sm text-destructive", className)}>
+    <div id={id} className={cn("text-sm text-red-dark", className)}>
       {errors.length === 1 ? (
         <p>{errors[0]}</p>
       ) : (

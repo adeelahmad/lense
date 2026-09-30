@@ -6,7 +6,7 @@ export default function AppNotFound() {
       <h1 className="text-2xl font-semibold tracking-tight">
         Nothing here yet
       </h1>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-fg-secondary">
         This page doesn&apos;t exist, or this part of Lens hasn&apos;t been
         built yet.
       </p>

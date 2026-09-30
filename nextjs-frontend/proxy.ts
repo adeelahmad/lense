@@ -29,8 +29,6 @@ export default auth((req) => {
 });
 
 export const config = {
-  // Skip Auth.js routes, the API/media paths proxied to the backend (next.config.mjs), and assets.
-  matcher: [
-    "/((?!api/|_next/|embed/|iiif/|reports/|static/|favicon\\.ico|icon\\.svg|robots\\.txt).*)",
-  ],
+  // Skip Auth.js, the backend paths (proxied by route handlers, see lib/api/backend-proxy.ts), Next's files and assets.
+  matcher: ["/((?!api/|_next/|embed/|iiif/|reports/|static/|fonts/|favicon\\.ico|icon\\.svg|robots\\.txt).*)"],
 };

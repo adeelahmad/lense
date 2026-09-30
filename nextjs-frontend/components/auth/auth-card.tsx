@@ -1,39 +1,18 @@
 import type { ReactNode } from "react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-} from "@/components/ui/card";
+import { Brand } from "@/components/brand";
 
-export function AuthCard({
-  title,
-  description,
-  children,
-  footer,
-}: {
-  title: string;
-  description?: ReactNode;
-  children: ReactNode;
-  footer?: ReactNode;
-}) {
+/** The centred card used by sign-in, setup and password reset (Access AC1–AC2). */
+export function AuthCard({ title, description, children, footer }: { title: string; description?: ReactNode; children: ReactNode; footer?: ReactNode }) {
   return (
-    <Card>
-      <CardHeader className="text-center">
-        <h1 className="text-2xl font-semibold leading-none tracking-tight">
-          {title}
-        </h1>
-        {description && <CardDescription>{description}</CardDescription>}
-      </CardHeader>
-      <CardContent className="grid gap-6">
-        {children}
-        {footer && (
-          <div className="text-center text-sm text-muted-foreground">
-            {footer}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="flex flex-col items-center gap-8">
+      <Brand size={26} />
+      <section className="w-full rounded-xl border border-border bg-background p-7 shadow-1">
+        <h1 className="text-[22px] font-bold leading-tight tracking-[-.01em] text-fg">{title}</h1>
+        {description && <div className="mt-1.5 text-[14px] leading-normal text-fg-secondary">{description}</div>}
+        <div className="mt-6 grid gap-5">{children}</div>
+        {footer && <div className="mt-6 text-center text-[13.5px] text-fg-secondary">{footer}</div>}
+      </section>
+    </div>
   );
 }

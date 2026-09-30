@@ -14,6 +14,7 @@ export function SubmitButton({
   const { pending } = useFormStatus();
   return (
     <Button
+      variant="primary"
       className="w-full"
       type="submit"
       disabled={pending}

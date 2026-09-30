@@ -2,22 +2,21 @@ import { isActive, navFor } from "@/components/app-shell/nav-config";
 import { safeCallbackUrl } from "@/lib/definitions";
 
 describe("navigation", () => {
-  const labels = (admin: boolean) =>
-    navFor(admin).flatMap((s) => s.items.map((i) => i.label));
+  const labels = (admin: boolean) => navFor(admin).map((i) => i.label);
 
-  it("shows Settings to admins only", () => {
-    expect(labels(true)).toContain("Settings");
+  it("shows Settings and Admin to admins only", () => {
+    expect(labels(true)).toEqual(expect.arrayContaining(["Settings", "Admin"]));
     expect(labels(false)).not.toContain("Settings");
-    expect(labels(false)).toEqual(
-      expect.arrayContaining(["Library", "Search", "Jobs"]),
-    );
+    expect(labels(false)).not.toContain("Admin");
+    expect(labels(false)).toEqual(expect.arrayContaining(["Home", "Library", "Search", "Chat", "Speakers", "Graph", "Reports", "Pipelines", "Sources"]));
   });
 
   it("matches the active section", () => {
     expect(isActive("/", "/")).toBe(true);
-    expect(isActive("/recordings/12", "/")).toBe(false);
-    expect(isActive("/recordings/12", "/recordings")).toBe(true);
-    expect(isActive("/recordingsx", "/recordings")).toBe(false);
+    expect(isActive("/library", "/")).toBe(false);
+    expect(isActive("/recordings/12", "/library")).toBe(true);
+    expect(isActive("/speakers/4", "/speakers")).toBe(true);
+    expect(isActive("/speakersx", "/speakers")).toBe(false);
   });
 });
 
