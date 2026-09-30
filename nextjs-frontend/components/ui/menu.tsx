@@ -27,6 +27,7 @@ export function MenuItem({
   danger,
   disabled,
   asChild,
+  className,
 }: {
   children: ReactNode;
   onSelect?: () => void;
@@ -35,15 +36,19 @@ export function MenuItem({
   danger?: boolean;
   disabled?: boolean;
   asChild?: boolean;
+  className?: string;
 }) {
   return (
     <M.Item
       asChild={asChild}
       disabled={disabled}
-      onSelect={onSelect}
+      // Runs once the menu has closed: a dialog opened in the same tick keeps the menu's pointer lock on <body>, and
+      // the whole page stops responding after that dialog closes.
+      onSelect={onSelect && (() => window.setTimeout(onSelect, 0))}
       className={cn(
         "flex h-9 cursor-pointer select-none items-center gap-2.5 rounded-sm px-2.5 text-[13.5px] outline-none data-[disabled]:cursor-not-allowed data-[highlighted]:bg-surface-neutral data-[disabled]:opacity-50 [&_svg]:size-4 [&_svg]:text-fg-secondary",
         danger ? "text-red-dark" : "text-fg",
+        className,
       )}
     >
       {asChild ? (

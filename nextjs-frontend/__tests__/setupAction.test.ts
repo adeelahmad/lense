@@ -18,13 +18,13 @@ const valid = {
   name: "Ada",
   email: "ada@example.com",
   password: "long enough pw",
-  passwordConfirm: "long enough pw",
 };
 
 describe("setup action", () => {
   it("creates the admin, ends the setup session and signs in", async () => {
     (Auth.setup as jest.Mock).mockResolvedValue({
       data: { refresh_token: "r1" },
+      response: { status: 200 },
     });
 
     await setup(undefined, form(valid));
@@ -49,7 +49,7 @@ describe("setup action", () => {
   it("validates the form", async () => {
     const result = await setup(
       undefined,
-      form({ ...valid, code: "", password: "short", passwordConfirm: "other" }),
+      form({ ...valid, code: "", password: "short" }),
     );
 
     expect(Auth.setup).not.toHaveBeenCalled();
@@ -57,33 +57,55 @@ describe("setup action", () => {
       errors: {
         code: ["Enter the setup code from the server log."],
         password: ["Use at least 10 characters."],
-        passwordConfirm: ["Passwords must match."],
       },
     });
   });
 
-  it("checks that the passwords match", async () => {
-    const result = await setup(
-      undefined,
-      form({ ...valid, passwordConfirm: "something else" }),
-    );
-
-    expect(result).toEqual({
-      errors: { passwordConfirm: ["Passwords must match."] },
-    });
-  });
-
-  it("shows the backend's refusal", async () => {
+  it("puts a wrong or closed setup code under the code field", async () => {
     (Auth.setup as jest.Mock).mockResolvedValue({
       error: { detail: "setup is closed or the code is wrong" },
+      response: { status: 403 },
     });
 
     const result = await setup(undefined, form(valid));
 
     expect(result).toEqual({
-      server_validation_error: "setup is closed or the code is wrong",
+      errors: {
+        code: [
+          "Setup is closed or the code is wrong. Copy the code again from the server log.",
+        ],
+      },
     });
     expect(signIn).not.toHaveBeenCalled();
+  });
+
+  it("puts the backend's email and password refusals under their fields", async () => {
+    (Auth.setup as jest.Mock).mockResolvedValue({
+      error: { detail: "that email already has an account" },
+      response: { status: 400 },
+    });
+    expect(await setup(undefined, form(valid))).toEqual({
+      errors: { email: ["That email already has an account."] },
+    });
+
+    (Auth.setup as jest.Mock).mockResolvedValue({
+      error: { detail: "passwords need at least 10 characters" },
+      response: { status: 400 },
+    });
+    expect(await setup(undefined, form(valid))).toEqual({
+      errors: { password: ["Passwords need at least 10 characters."] },
+    });
+  });
+
+  it("shows other refusals as a form error", async () => {
+    (Auth.setup as jest.Mock).mockResolvedValue({
+      error: { detail: "something else" },
+      response: { status: 400 },
+    });
+
+    expect(await setup(undefined, form(valid))).toEqual({
+      server_validation_error: "Something else.",
+    });
   });
 
   it("handles network failures", async () => {

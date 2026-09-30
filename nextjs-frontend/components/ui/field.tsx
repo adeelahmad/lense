@@ -75,7 +75,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
 
 export type Option = { value: string; label: string; disabled?: boolean };
 
-export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement> & { options: (Option | string)[]; invalid?: boolean; size?: "sm" | "md" }>(
+export const Select = forwardRef<HTMLSelectElement, Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> & { options: (Option | string)[]; invalid?: boolean; size?: "sm" | "md" }>(
   function Select({ className, options, invalid, size = "md", ...props }, ref) {
     return (
       <span className={cn("relative inline-flex", className?.includes("w-") ? "" : "w-full")}>

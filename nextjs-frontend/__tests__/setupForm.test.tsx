@@ -3,32 +3,44 @@ import "@testing-library/jest-dom";
 
 import { setup } from "@/components/actions/setup-action";
 import { SetupForm } from "@/components/auth/setup-form";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/components/actions/setup-action", () => ({ setup: jest.fn() }));
+
+function renderForm() {
+  return render(
+    <TooltipProvider>
+      <SetupForm />
+    </TooltipProvider>,
+  );
+}
+
+function fill(values: { code?: string; name?: string; email?: string; password?: string }) {
+  for (const [label, value] of [
+    ["Setup code", values.code],
+    ["Name", values.name],
+    ["Email", values.email],
+    ["Password", values.password],
+  ] as const) {
+    if (value !== undefined)
+      fireEvent.change(screen.getByLabelText(label), { target: { value } });
+  }
+}
+
+const valid = {
+  code: "c0de",
+  name: "Ada",
+  email: "ada@example.com",
+  password: "long enough pw",
+};
 
 describe("SetupForm", () => {
   it("submits the first admin's details", async () => {
     (setup as jest.Mock).mockResolvedValue(undefined);
-    render(<SetupForm />);
+    renderForm();
 
-    fireEvent.change(screen.getByLabelText("Setup code"), {
-      target: { value: "c0de" },
-    });
-    fireEvent.change(screen.getByLabelText("Name"), {
-      target: { value: "Ada" },
-    });
-    fireEvent.change(screen.getByLabelText("Email"), {
-      target: { value: "ada@example.com" },
-    });
-    fireEvent.change(screen.getByLabelText("Password"), {
-      target: { value: "long enough pw" },
-    });
-    fireEvent.change(screen.getByLabelText("Confirm password"), {
-      target: { value: "long enough pw" },
-    });
-    fireEvent.click(
-      screen.getByRole("button", { name: /create administrator/i }),
-    );
+    fill(valid);
+    fireEvent.click(screen.getByRole("button", { name: /create admin account/i }));
 
     await waitFor(() => {
       const expected = new FormData();
@@ -36,27 +48,70 @@ describe("SetupForm", () => {
       expected.set("name", "Ada");
       expected.set("email", "ada@example.com");
       expected.set("password", "long enough pw");
-      expected.set("passwordConfirm", "long enough pw");
       expect(setup).toHaveBeenCalledWith(undefined, expected);
     });
   });
 
-  it("shows field and form errors", async () => {
-    (setup as jest.Mock).mockResolvedValue({
-      errors: { password: ["Use at least 10 characters."] },
-      server_validation_error: "setup is closed or the code is wrong",
-    });
-    render(<SetupForm />);
+  it("checks the password as you type and waits for a complete form", () => {
+    renderForm();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: /create administrator/i }),
-    );
+    fill({ ...valid, password: "lens-arch" });
 
     expect(
-      await screen.findByText("Use at least 10 characters."),
+      screen.getByText("9 of 10 characters — add at least 1 more"),
     ).toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "setup is closed or the code is wrong",
+    expect(screen.getByLabelText("Password")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    const button = screen.getByRole("button", { name: /create admin account/i });
+    expect(button).toHaveAttribute("aria-disabled", "true");
+
+    fireEvent.click(button);
+    expect(setup).not.toHaveBeenCalled();
+  });
+
+  it("shows a wrong code under the setup code", async () => {
+    (setup as jest.Mock).mockResolvedValue({
+      errors: {
+        code: [
+          "Setup is closed or the code is wrong. Copy the code again from the server log.",
+        ],
+      },
+    });
+    renderForm();
+
+    fill(valid);
+    fireEvent.click(screen.getByRole("button", { name: /create admin account/i }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Setup code")).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      ),
+    );
+    expect(screen.getByLabelText("Setup code")).toHaveAccessibleDescription(
+      /setup is closed or the code is wrong/i,
+    );
+
+    // Editing the code clears its error.
+    fill({ code: "c0de2" });
+    expect(screen.getByLabelText("Setup code")).not.toHaveAttribute(
+      "aria-invalid",
+    );
+  });
+
+  it("shows other failures above the button", async () => {
+    (setup as jest.Mock).mockResolvedValue({
+      server_error: "An unexpected error occurred. Please try again later.",
+    });
+    renderForm();
+
+    fill(valid);
+    fireEvent.click(screen.getByRole("button", { name: /create admin account/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "An unexpected error occurred",
     );
   });
 });

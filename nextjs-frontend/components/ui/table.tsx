@@ -9,7 +9,9 @@ import { cn } from "@/lib/utils";
 /** Real table semantics; rows 53px, hairline dividers, compact header. */
 export function Table({ className, children, ...props }: HTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-x-auto">
+    // relative: screen-reader-only text in the cells is positioned inside the scroller, so a wide table scrolls here
+    // rather than widening the page.
+    <div className="relative w-full overflow-x-auto">
       <table className={cn("w-full border-collapse text-[13.5px]", className)} {...props}>
         {children}
       </table>

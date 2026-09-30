@@ -17,21 +17,27 @@ export const loginSchema = z.object({
   password: z.string().min(1, { message: "Enter your password." }),
 });
 
-export const setupSchema = z
-  .object({
-    code: z
-      .string()
-      .trim()
-      .min(1, { message: "Enter the setup code from the server log." }),
-    name: z.string().trim().max(80).optional(),
-    email,
-    password: newPassword,
-    passwordConfirm: z.string(),
-  })
-  .refine((data) => data.password === data.passwordConfirm, {
-    message: "Passwords must match.",
-    path: ["passwordConfirm"],
-  });
+/** First-run setup (Access AC1): the one-time code from the server log and the first admin's account. */
+export const setupSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(1, { message: "Enter the setup code from the server log." }),
+  name: z.string().trim().max(80).optional(),
+  email,
+  password: newPassword,
+});
+
+/**
+ * The password rule as you type: null while it's fine (or still empty), otherwise
+ * "9 of 10 characters — add at least 1 more".
+ */
+export function passwordShortBy(password: string): string | null {
+  const n = [...password].length;
+  if (!n || n >= PASSWORD_MIN_LENGTH) return null;
+  const more = PASSWORD_MIN_LENGTH - n;
+  return `${n} of ${PASSWORD_MIN_LENGTH} characters — add at least ${more} more`;
+}
 
 export const passwordResetSchema = z.object({ email });
 
@@ -55,6 +61,8 @@ export type FormState =
       server_validation_error?: string;
       server_error?: string;
       message?: string;
+      /** Sign-in was refused for too many attempts; the form waits before trying again. */
+      throttled?: boolean;
     }
   | undefined;
 

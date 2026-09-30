@@ -22,8 +22,9 @@ describe("LoginForm", () => {
 
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(screen.getByText(/forgot your password\? ask an admin/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /forgot your password/i }),
+      screen.getByRole("link", { name: /reset link by email/i }),
     ).toHaveAttribute("href", "/password-recovery");
     expect(
       screen.queryByRole("link", { name: /set up/i }),
@@ -91,5 +92,36 @@ describe("LoginForm", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Your password was changed.",
     );
+  });
+
+  it("keeps the email after a wrong password", async () => {
+    (login as jest.Mock).mockResolvedValue({
+      server_validation_error: "Wrong email or password.",
+    });
+    render(<LoginForm />);
+
+    fillAndSubmit();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Wrong email or password.",
+    );
+    expect(screen.getByLabelText("Email")).toHaveValue("me@example.com");
+  });
+
+  it("waits after too many attempts", async () => {
+    (login as jest.Mock).mockResolvedValue({
+      server_validation_error: "Too many attempts; try again in a few minutes.",
+      throttled: true,
+    });
+    render(<LoginForm />);
+
+    fillAndSubmit();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Too many attempts",
+    );
+    expect(
+      screen.getByRole("button", { name: /try again in a few minutes/i }),
+    ).toBeDisabled();
   });
 });

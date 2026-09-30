@@ -18,6 +18,11 @@ function isPublic(pathname: string): boolean {
  */
 export default auth((req) => {
   const { pathname, search } = req.nextUrl;
+  // The API's "share a moment" links point at the site root (`/?iiif-content=…`); /iiif opens them. Redirect first,
+  // so a signed-out visitor keeps the moment through sign-in.
+  if (pathname === "/" && req.nextUrl.searchParams.has("iiif-content")) {
+    return NextResponse.redirect(new URL(`/iiif${search}`, req.nextUrl));
+  }
   if (isPublic(pathname)) return;
 
   if (!req.auth || req.auth.error) {
@@ -30,5 +35,7 @@ export default auth((req) => {
 
 export const config = {
   // Skip Auth.js, the backend paths (proxied by route handlers, see lib/api/backend-proxy.ts), Next's files and assets.
-  matcher: ["/((?!api/|_next/|embed/|iiif/|reports/|static/|fonts/|favicon\\.ico|icon\\.svg|robots\\.txt).*)"],
+  // Under /iiif only the backend's IIIF resources are skipped (collection, discovery, auth, /iiif/<id>/…); the app's own
+  // IIIF pages (/iiif, /iiif/collections/…, /iiif/import, /iiif/metadata/…) need the session like any other page.
+  matcher: ["/((?!api/|_next/|embed/|iiif/(?:collection(?!s)|discovery|auth|\\d)|reports/|static/|fonts/|favicon\\.ico|icon\\.svg|robots\\.txt).*)"],
 };

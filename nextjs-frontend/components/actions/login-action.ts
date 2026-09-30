@@ -31,12 +31,14 @@ export async function login(
     });
   } catch (err) {
     if (err instanceof CredentialsSignin) {
-      return {
-        server_validation_error:
-          err.code === "throttled"
-            ? "Too many attempts. Try again in a few minutes."
-            : "Wrong email or password.",
-      };
+      // The backend's own messages (429 and 401 from /auth/login).
+      return err.code === "throttled"
+        ? {
+            server_validation_error:
+              "Too many attempts; try again in a few minutes.",
+            throttled: true,
+          }
+        : { server_validation_error: "Wrong email or password." };
     }
     if (err instanceof AuthError) {
       console.error("Sign-in error:", err);

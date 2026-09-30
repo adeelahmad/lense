@@ -8,26 +8,14 @@ import { safeCallbackUrl } from "@/lib/definitions";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ callbackUrl?: string; reset?: string }>;
-}) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string; reset?: string }> }) {
   const { callbackUrl, reset } = await searchParams;
   const destination = safeCallbackUrl(callbackUrl);
 
   const session = await auth();
   if (session && !session.error) redirect(destination);
+  // Nobody can sign in before the first admin exists (Access AC1).
+  if (await isSetupRequired()) redirect("/setup");
 
-  return (
-    <LoginForm
-      callbackUrl={destination}
-      setupRequired={await isSetupRequired()}
-      notice={
-        reset
-          ? "Your password was changed. Sign in with the new one."
-          : undefined
-      }
-    />
-  );
+  return <LoginForm callbackUrl={destination} notice={reset ? "Your password was changed. Sign in with the new one." : undefined} />;
 }

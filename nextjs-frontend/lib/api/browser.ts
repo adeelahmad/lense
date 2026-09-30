@@ -5,6 +5,24 @@ import { useMemo } from "react";
 
 import { createClient, createConfig, type Client } from "@/app/openapi-client/client";
 import type { ClientOptions } from "@/app/openapi-client/types.gen";
+import { holdUntilSignedIn, refreshedToken } from "@/lib/auth/reauth";
+
+/**
+ * Fetch for the API client: a 401 on a signed-in request first tries a silent session refresh, then holds the
+ * request while the "You've been signed out" dialog asks for the password (Access AC3), and replays it with the
+ * new token. The caller just sees the replayed response, so nothing on the page is lost.
+ */
+export const fetchWithReauth: typeof fetch = async (input, init) => {
+  const request = input instanceof Request && !init ? input : new Request(input, init);
+  const auth = request.headers.get("Authorization");
+  const retry = auth ? request.clone() : null;
+  const response = await fetch(request);
+  if (response.status !== 401 || !retry) return response;
+  const token = (await refreshedToken(auth)) ?? (await holdUntilSignedIn({ method: request.method, url: request.url }));
+  const headers = new Headers(retry.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+  return fetch(new Request(retry, { headers }));
+};
 
 /**
  * The typed API client for client components. Requests go to this origin's /api/v1, which next.config.mjs
@@ -22,6 +40,7 @@ export function useApiClient(): Client {
         createConfig<ClientOptions>({
           baseUrl: "",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
+          fetch: fetchWithReauth,
         }),
       ),
     [token],

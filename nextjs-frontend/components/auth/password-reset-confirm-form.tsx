@@ -1,40 +1,41 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState } from "react";
 
 import { passwordResetConfirm } from "@/components/actions/password-reset-action";
-import { AuthCard } from "@/components/auth/auth-card";
-import { FormError } from "@/components/ui/FormError";
-import { FormField } from "@/components/ui/form-field";
-import { SubmitButton } from "@/components/ui/submitButton";
-import { PASSWORD_MIN_LENGTH } from "@/lib/definitions";
+import { AuthAlert, AuthCard } from "@/components/auth/auth-card";
+import { AuthField } from "@/components/auth/auth-field";
+import { AuthSubmit } from "@/components/auth/auth-submit";
+import { useFormAction } from "@/components/auth/use-form-action";
+import { PASSWORD_MIN_LENGTH, passwordShortBy } from "@/lib/definitions";
 
+/** Choose a new password from the emailed reset link. */
 export function PasswordResetConfirmForm({ token }: { token: string }) {
-  const [state, dispatch] = useActionState(passwordResetConfirm, undefined);
+  const { state, pending, onSubmit, action } = useFormAction(passwordResetConfirm);
+  const [password, setPassword] = useState("");
+  const error = state?.server_validation_error || state?.server_error;
 
   return (
-    <AuthCard title="Choose a new password">
-      <form action={dispatch} className="grid gap-4" noValidate>
+    <AuthCard title="Choose a new password" description="Saving it signs your account out on every device.">
+      {error && <AuthAlert tone="error">{error}</AuthAlert>}
+      <form action={action} onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         <input type="hidden" name="token" value={token} />
-        <FormField
+        <AuthField
           name="password"
           label="New password"
           type="password"
           autoComplete="new-password"
-          minLength={PASSWORD_MIN_LENGTH}
           required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          hint={`At least ${PASSWORD_MIN_LENGTH} characters`}
+          error={passwordShortBy(password)}
           state={state}
         />
-        <FormField
-          name="passwordConfirm"
-          label="Confirm password"
-          type="password"
-          autoComplete="new-password"
-          required
-          state={state}
-        />
-        <FormError state={state} />
-        <SubmitButton text="Change password" pendingText="Saving…" />
+        <AuthField name="passwordConfirm" label="Confirm password" type="password" autoComplete="new-password" required state={state} />
+        <AuthSubmit pending={pending} pendingText="Saving…">
+          Change password
+        </AuthSubmit>
       </form>
     </AuthCard>
   );

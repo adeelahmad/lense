@@ -95,7 +95,8 @@ describe("login action", () => {
     );
 
     expect(result).toEqual({
-      server_validation_error: "Too many attempts. Try again in a few minutes.",
+      server_validation_error: "Too many attempts; try again in a few minutes.",
+      throttled: true,
     });
   });
 
