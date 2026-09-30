@@ -7,7 +7,9 @@ import pathlib
 import shutil
 import sys
 
-from .domain import analyze, graph, ingest, render, search as searchmod, speakers as spk, store
+from .domain import analyze, graph, ingest, render, store
+from .domain import search as searchmod
+from .domain import speakers as spk
 
 
 def run_steps(db, cfg, which, ns=None, limit=0, force=False, recording=None, audio=None, log=print):
@@ -162,6 +164,7 @@ def platform_main(argv, config):
     import getpass
     import threading
     import time
+
     from .domain import auth, jobs, settings, sources
     ap = argparse.ArgumentParser(prog="lens-archive")
     sub = ap.add_subparsers(dest="cmd", required=True)
