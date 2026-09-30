@@ -34,14 +34,30 @@ def parse_sv(raw):
 
 # ---------- files ----------
 def probe(path):
+    ch = 0
     try:
         out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=channels,codec_type",
                               "-of", "json", str(path)], capture_output=True, text=True, timeout=120)
         j = json.loads(out.stdout or "{}")
         dur = float(j.get("format", {}).get("duration") or 0)
         ch = max([s.get("channels", 0) for s in j.get("streams", []) if s.get("codec_type") == "audio"] or [0])
-        return (int(dur * 1000) or None), (int(ch) or None)
+        if dur:
+            return int(dur * 1000) or None, int(ch) or None
     except (OSError, ValueError, subprocess.TimeoutExpired):
+        pass
+    dur, wav_ch = _probe_wav(path)
+    return dur, (int(ch) or None) or wav_ch
+
+
+def _probe_wav(path):
+    """Duration and channels of a PCM WAV file without ffprobe (else the duration falls back to the transcript's end)."""
+    import wave
+
+    try:
+        with wave.open(str(path), "rb") as w:
+            rate, frames, ch = w.getframerate(), w.getnframes(), w.getnchannels()
+        return (int(frames * 1000 / rate) or None) if rate else None, ch or None
+    except (OSError, EOFError, wave.Error):
         return None, None
 
 

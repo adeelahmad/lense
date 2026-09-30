@@ -77,9 +77,9 @@ def color_of(sid):
 def recording_stats(db, rid):
     rec = db.one("SELECT stats FROM $r", r=store.R("recording", rid))
     st = (rec or {}).get("stats") or {}
-    names = speaker_names(db, [s["speaker_id"] for s in st.get("speakers", [])])
-    for s in st.get("speakers", []):
-        s["name"], s["color"] = names.get(s["speaker_id"], "Unattributed"), color_of(s["speaker_id"])
+    names = speaker_names(db, [s.get("speaker_id") for s in st.get("speakers", [])])
+    for s in st.get("speakers", []):  # an unattributed speaker has no speaker_id (stored stats drop None values)
+        s["name"], s["color"] = names.get(s.get("speaker_id"), "Unattributed"), color_of(s.get("speaker_id"))
     return st
 
 

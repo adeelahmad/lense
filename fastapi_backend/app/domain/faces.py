@@ -22,7 +22,8 @@ def mode(db, sid):
     return (db.one("SELECT faces_mode FROM $s", s=R("space", sid)) or {}).get("faces_mode") or "off"
 
 
-def set_mode(db, sid, new, purpose=None, user=None):
+def set_mode(db, sid, new, purpose=None, user=None, cfg=None):
+    """off, detect or recognize. Turning faces off deletes all face data (with cfg, the crops on disk too)."""
     if new not in MODES:
         raise ValueError(f"face mode is one of {', '.join(MODES)}")
     if new == "recognize" and not (purpose or "").strip():
@@ -33,7 +34,7 @@ def set_mode(db, sid, new, purpose=None, user=None):
         db.q("UPDATE face SET embedding = NONE WHERE space = $s", s=sid)
         db.q("UPDATE face_track SET embedding = NONE WHERE space = $s", s=sid)
     if new == "off":
-        delete_namespace(db, None, sid, keep_mode=True)
+        delete_namespace(db, cfg, sid, keep_mode=True)
 
 
 def _vec(v):
