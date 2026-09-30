@@ -149,7 +149,7 @@ export function SpeakerStack({ colors, max = 4 }: { colors: string[]; max?: numb
   );
 }
 
-const EMOJI: Record<string, string> = {
+export const EMOJI: Record<string, string> = {
   Neutral: "😐",
   Happy: "🙂",
   Joy: "😄",

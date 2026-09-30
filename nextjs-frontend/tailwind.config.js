@@ -15,7 +15,7 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ["DM Sans", "ui-sans-serif", "system-ui", "sans-serif"],
-        serif: ["Source Serif 4", "Georgia", "serif"],
+        serif: ['"Source Serif 4"', "Georgia", "serif"],
         mono: ["JetBrains Mono", "ui-monospace", "Menlo", "monospace"],
       },
       colors: {
