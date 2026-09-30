@@ -539,6 +539,11 @@ export function speakerStats(stats: Record<string, unknown> | null | undefined):
   return list.map((s) => ({ ...s, share: total ? s.talkMs / total : 0 }));
 }
 
+/** A title as the API stores it: whitespace collapsed to single spaces, trimmed. */
+export function cleanTitle(s: string): string {
+  return s.replace(/\s+/g, " ").trim();
+}
+
 /** Emotions worth a chip: the backend writes "Unknown" (or nothing) when it couldn't tell. */
 export function showEmotion(e: string | null | undefined): e is string {
   return Boolean(e && e !== "Unknown" && e !== "unknown");

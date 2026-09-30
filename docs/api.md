@@ -62,6 +62,7 @@ GET    /api/v1/namespaces/{name}/wordcloud.svg
 ```
 GET    /api/v1/recordings
 GET    /api/v1/recordings/{rid}
+PATCH  /api/v1/recordings/{rid}
 GET    /api/v1/recordings/{rid}/player
 GET    /api/v1/recordings/{rid}/embed-link
 GET    /api/v1/recordings/{rid}/audio
@@ -94,6 +95,10 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 | `limit`, `offset` | one page (default 500 rows, at most 1000) |
 
 The body is the page's rows; the `X-Total-Count` header says how many recordings match on all pages.
+
+`PATCH /recordings/{rid}` with `{"title": …}` renames a recording (editors; whitespace is collapsed, at most 200
+characters). It is audited as `recording.rename`; the recording's report page follows the new title and is rebuilt,
+and a published recording shows up as an Update in the IIIF change feed.
 
 ## imports
 

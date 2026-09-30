@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 /** Header (R1): breadcrumb, title, actions, the meta line, and the running / failed banners. */
 export function RecordingHeader() {
   const r = useRec();
-  const { rec, model, ns, transcriptOnly } = r;
+  const { rec, model, ns, transcriptOnly, canEdit, openRename } = r;
   const { setNamespace } = useArchive();
   const pipelines = usePipelines();
   const source = sourceLabel(rec);
@@ -74,12 +74,16 @@ export function RecordingHeader() {
           <span className="truncate" title={model.title}>
             {model.title}
           </span>
-          <Tooltip content="Renaming recordings isn't available yet">
+          <Tooltip content={canEdit ? "Rename" : needRole("editor", ns)}>
             <button
               type="button"
               aria-label="Rename recording"
-              aria-disabled
-              className="grid size-7 shrink-0 cursor-not-allowed place-items-center rounded-sm text-fg-muted opacity-60"
+              aria-disabled={!canEdit || undefined}
+              onClick={canEdit ? openRename : undefined}
+              className={cn(
+                "grid size-7 shrink-0 place-items-center rounded-sm text-fg-muted",
+                canEdit ? "hover:bg-surface-neutral hover:text-fg" : "cursor-not-allowed opacity-60",
+              )}
             >
               <Pencil className="size-[15px]" />
             </button>
@@ -293,6 +297,9 @@ function MoreMenu({ compact }: { compact?: boolean }) {
             </MenuItem>
             <MenuItem icon={<RefreshCw />} disabled={!r.canEdit} onSelect={r.openReprocess}>
               Reprocess…
+            </MenuItem>
+            <MenuItem icon={<Pencil />} disabled={!r.canEdit} onSelect={r.openRename}>
+              Rename…
             </MenuItem>
             <MenuItem icon={<RotateCw />} onSelect={() => r.setTab("history")}>
               History

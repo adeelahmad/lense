@@ -86,6 +86,12 @@ class Player(ResponseModel):
     media: dict[str, Any] | None = None
 
 
+class RecordingUpdate(RequestModel):
+    """The fields to change; the others stay as they are."""
+
+    title: str | None = Field(None, min_length=1, max_length=200, description="whitespace is collapsed")
+
+
 class ReprocessRequest(RequestModel):
     steps: list[str | dict[str, Any]] | None = Field(None, description="default: the namespace's pipeline")
     pipeline: int | None = None

@@ -1,33 +1,82 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { useRec } from "@/components/recording/context";
 import { ShareEmbedDialog } from "@/components/sharing/share-dialog";
 import { useEdits, useRecordingActions } from "@/components/recording/hooks";
 import { orderedSteps, reprocessOptions, STEP_HELP, toggleStep, type StepKey } from "@/components/recording/jobs";
+import { cleanTitle } from "@/components/recording/model";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/field";
+import { Checkbox, Field, Input } from "@/components/ui/field";
 import { STEP_LABEL } from "@/components/ui/loop";
 import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-export type DialogState = null | { kind: "reprocess" } | { kind: "share"; startMs?: number };
+export type DialogState = null | { kind: "reprocess" } | { kind: "rename" } | { kind: "share"; startMs?: number };
 
-/** The page's dialogs: Reprocess (R9) and Share / Embed. */
+/** The page's dialogs: Reprocess (R9), Rename and Share / Embed. */
 export function RecordingDialogs({ state, onClose }: { state: DialogState; onClose: () => void }) {
   return (
     <>
       <ReprocessDialog open={state?.kind === "reprocess"} onOpenChange={(o) => !o && onClose()} />
+      <RenameDialog open={state?.kind === "rename"} onOpenChange={(o) => !o && onClose()} />
       <ShareSlot
         open={state?.kind === "share"}
         startMs={state?.kind === "share" ? state.startMs : undefined}
         onOpenChange={(o) => !o && onClose()}
       />
     </>
+  );
+}
+
+/** Rename the recording (editors). Its report page follows the new title. */
+export function RenameDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { id, model } = useRec();
+  const { rename } = useRecordingActions(id);
+  const [title, setTitle] = useState(model.title);
+  useEffect(() => {
+    if (open) setTitle(model.title);
+  }, [open, model.title]);
+  const clean = cleanTitle(title);
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!clean || clean === model.title) return onOpenChange(false);
+    rename.mutate(clean, { onSuccess: () => onOpenChange(false) });
+  };
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Rename recording"
+      description="The new title shows everywhere: the Library, search, reports and shared links."
+    >
+      <form onSubmit={submit} className="flex flex-col gap-5">
+        <Field label="Title">
+          {(f) => (
+            <Input
+              id={f.id}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
+              autoFocus
+              onFocus={(e) => e.currentTarget.select()}
+            />
+          )}
+        </Field>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" disabled={!clean || rename.isPending}>
+            {rename.isPending ? "Saving…" : "Rename"}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
 

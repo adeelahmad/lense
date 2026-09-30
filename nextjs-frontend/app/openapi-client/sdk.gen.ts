@@ -77,6 +77,9 @@ import type {
   GetRecordingData,
   GetRecordingResponses,
   GetRecordingErrors,
+  UpdateRecordingData,
+  UpdateRecordingResponses,
+  UpdateRecordingErrors,
   GetPlayerData,
   GetPlayerResponses,
   GetPlayerErrors,
@@ -820,6 +823,23 @@ export class Recordings {
     return (options.client ?? client).get<GetRecordingResponses, GetRecordingErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}",
       ...options,
+    });
+  }
+
+  /**
+   * Update Recording
+   * Rename a recording (editors). Its report is rebuilt with the new title.
+   */
+  public static updateRecording<ThrowOnError extends boolean = false>(
+    options: Options<UpdateRecordingData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).patch<UpdateRecordingResponses, UpdateRecordingErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

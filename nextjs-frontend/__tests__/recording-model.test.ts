@@ -5,6 +5,7 @@ import {
   ariaTimeText,
   axisTicks,
   chapterAt,
+  cleanTitle,
   entityRanges,
   findInSegments,
   fold,
@@ -189,6 +190,13 @@ describe("normalizePlayer", () => {
   it("stretches the duration to the last line when the stored one is short", () => {
     const m = normalizePlayer({ ...PLAYER, duration_ms: 1000 } as Player);
     expect(m.durationMs).toBe(17440);
+  });
+});
+
+describe("cleanTitle", () => {
+  it("collapses whitespace the way the API stores titles", () => {
+    expect(cleanTitle("  Capsid   design\nepisode ")).toBe("Capsid design episode");
+    expect(cleanTitle(" \t ")).toBe("");
   });
 });
 

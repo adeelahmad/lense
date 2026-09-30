@@ -195,6 +195,7 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
       setEditing,
       openReprocess: () => setDialog({ kind: "reprocess" }),
       openShare: (startMs) => setDialog({ kind: "share", startMs }),
+      openRename: () => setDialog({ kind: "rename" }),
     }),
     [
       id,

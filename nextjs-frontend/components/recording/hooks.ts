@@ -234,6 +234,16 @@ export function useRecordingActions(id: number) {
     },
     onError: fail("Couldn't save the change"),
   });
+  const rename = useMutation({
+    mutationFn: (title: string) => data(Recordings.updateRecording({ client, path: { rid: id }, body: { title } })),
+    onSuccess: (updated) => {
+      qc.setQueryData(rk.detail(id), (old: RecordingDetail | undefined) => (old ? { ...old, ...updated } : old));
+      void refresh();
+      void qc.invalidateQueries({ queryKey: ["recordings"] });
+      toast({ title: "Renamed", tone: "green" });
+    },
+    onError: fail("Couldn't rename the recording"),
+  });
   const renameSpeaker = useMutation({
     mutationFn: (v: { sid: number; name: string }) =>
       data(
@@ -282,6 +292,7 @@ export function useRecordingActions(id: number) {
     reprocess,
     retry,
     editSegment,
+    rename,
     renameSpeaker,
     mergeSpeaker,
     refresh,

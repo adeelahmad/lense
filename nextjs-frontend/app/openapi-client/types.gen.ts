@@ -3411,6 +3411,18 @@ export type RecordingSummary = {
 };
 
 /**
+ * RecordingUpdate
+ * The fields to change; the others stay as they are.
+ */
+export type RecordingUpdate = {
+  /**
+   * Title
+   * whitespace is collapsed
+   */
+  title?: string | null;
+};
+
+/**
  * RefreshRequest
  */
 export type RefreshRequest = {
@@ -5706,6 +5718,36 @@ export type GetRecordingResponses = {
 };
 
 export type GetRecordingResponse = GetRecordingResponses[keyof GetRecordingResponses];
+
+export type UpdateRecordingData = {
+  body: RecordingUpdate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}";
+};
+
+export type UpdateRecordingErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateRecordingError = UpdateRecordingErrors[keyof UpdateRecordingErrors];
+
+export type UpdateRecordingResponses = {
+  /**
+   * Successful Response
+   */
+  200: Recording;
+};
+
+export type UpdateRecordingResponse = UpdateRecordingResponses[keyof UpdateRecordingResponses];
 
 export type GetPlayerData = {
   body?: never;

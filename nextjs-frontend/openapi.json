@@ -1316,6 +1316,57 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Update Recording",
+        "description": "Rename a recording (editors). Its report is rebuilt with the new title.",
+        "operationId": "update_recording",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordingUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recording"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/recordings/{rid}/player": {
@@ -12424,6 +12475,28 @@
           "media_kind"
         ],
         "title": "RecordingSummary"
+      },
+      "RecordingUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "whitespace is collapsed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RecordingUpdate",
+        "description": "The fields to change; the others stay as they are."
       },
       "RefreshRequest": {
         "properties": {

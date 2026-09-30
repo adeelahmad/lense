@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import datetime as dt
+import os
+import pathlib
 from collections import defaultdict
 
-from . import render, store
+from . import metadata, render, store
 
 R = store.R
 STATUSES = ("new", "transcribed", "diarized", "analyzed", "error")
@@ -202,3 +204,25 @@ def summaries(db, rows):
             }
         )
     return out
+
+
+def rename(db, cfg, rid, title):
+    """A new title (whitespace collapsed, at most 200 characters). Returns (old, new).
+
+    The recording's report page is named after its title, so the page moves with it; the report job that follows
+    rewrites the title inside."""
+    title = " ".join((title or "").split())[:200]
+    if not title:
+        raise ValueError("the title can't be empty")
+    rec = db.one("SELECT title, space FROM $r", r=R("recording", rid))
+    if not rec:
+        raise KeyError(rid)
+    if rec.get("title") == title:
+        return title, title
+    db.q("UPDATE $r SET title = $t", r=R("recording", rid), t=title)
+    folder = pathlib.Path(cfg["data_dir"]) / "reports" / (store.space_names(db).get(rec["space"]) or "_")
+    old, new = folder / f"{render.slug(rec.get('title'))}-{rid}.html", folder / f"{render.slug(title)}-{rid}.html"
+    if old != new and old.exists():
+        os.replace(old, new)
+    metadata.touched(db, cfg, rid)  # IIIF harvesters see an Update for a published recording
+    return rec.get("title"), title

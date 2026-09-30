@@ -29,6 +29,7 @@ from app.schemas.recordings import (
     RecordingSort,
     RecordingState,
     RecordingSummary,
+    RecordingUpdate,
     ReprocessRequest,
     SegmentEdit,
     SegmentUpdate,
@@ -125,6 +126,21 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     ]
     d["jobs"] = jobs.list_jobs(db, recording=rid, limit=5)
     return Recording.model_validate(sign_urls(d))
+
+
+@router.patch("/{rid}")
+def update_recording(rid: int, body: RecordingUpdate, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Recording:
+    """Rename a recording (editors). Its report is rebuilt with the new title."""
+    rec = acl.recording(rid, "editor")
+    if body.title is None:
+        raise HTTPException(400, "send a title")
+    with domain_errors():
+        before, after = library.rename(db, cfg, rid, body.title)
+    if before != after:
+        auth.audit(db, user.as_audit(), "recording.rename", f"recording:{rid}", {"from": before, "to": after})
+        if rec.get("analyzed_at"):
+            jobs.enqueue(db, rid, ["report"], by=user.email)
+    return get_recording(rid, acl, db, cfg)
 
 
 @router.get("/{rid}/player")

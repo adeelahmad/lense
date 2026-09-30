@@ -15,6 +15,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - `speaker` takes speaker ids. Speakers belong to one namespace, so the web app's speaker filter lists everyone
       who speaks in the namespaces in scope by name and sends every id with that name.
     - The Needs attention and Processing tab counts come from the server too.
+- **Rename recordings.** Editors rename a recording from the pencil next to its title (or ⋯ → Rename on a phone):
+  `PATCH /api/v1/recordings/{rid}` with `title`, audited as `recording.rename`. The report page is renamed with it,
+  so its link keeps working, and a report job rewrites the title inside; IIIF harvesters see an Update.
 
 Tooling:
 

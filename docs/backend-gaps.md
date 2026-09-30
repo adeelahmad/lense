@@ -24,7 +24,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | Saved views | `/views` (list, create, delete) |
 | "Edited by me" tab | `?edited_by=me` |
 | Source and language filters | `path`/`remote` and `language` in `RecordingSummary` |
-| Rename a recording | `PATCH /recordings/{id}` with `title` |
 | Move to another namespace | `POST /recordings/{id}/move {namespace, rediarize}` |
 | Delete | `DELETE /recordings/{id}` |
 | Bulk export as one file | `POST /recordings/export` returning a zip |
