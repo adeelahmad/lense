@@ -143,6 +143,9 @@ async def stream_events(request: Request, user: CurrentUser, since: str = "", on
     spaces = None if user.admin else set(user.roles)
 
     async def gen() -> AsyncIterator[str]:
+        # A comment first, so clients (and proxies that hold headers until the first byte) see the stream open now
+        # rather than at the first change or keep-alive.
+        yield ": open\n\n"
         last = since or store.now()
         quiet = 0
         while True:

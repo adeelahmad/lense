@@ -81,7 +81,7 @@ def search(db, q, ns=None, speaker=None, emotion=None, recording=None, limit=50,
     cap = min(1000, (offset + limit) * 3 + 50)
     fields = "record::id(id) AS id, recording, idx, t0, t1, emotion, speaker, space, text"
     rows = None
-    if getattr(db, "fulltext", None):
+    if db.ready_fulltext():
         conds, sel = [], []
         for k, g in enumerate(groups, 1):
             params[f"q{k}"] = " ".join(g["words"] + g["phrases"])
@@ -145,7 +145,7 @@ def _screen(db, groups, where_f, cap, base):
     """Hits in text read off video frames (OCR), ranked alongside the transcript."""
     params = {k: v for k, v in base.items() if k in ("m0", "m1", "sp", "allowed", "rec") or k.startswith("q")}
     rows = None
-    if getattr(db, "fulltext", None):
+    if db.ready_fulltext():
         conds = [f"text @{k}@ $q{k}" for k in range(1, len(groups) + 1)]
         sel = [f"search::highlight($m0, $m1, {k}) AS h{k}, search::score({k}) AS s{k}" for k in range(1, len(groups) + 1)]
         try:

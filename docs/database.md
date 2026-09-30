@@ -19,6 +19,13 @@ SURREAL_POOL_SIZE=8     # connections per process (servers only)
 The Docker setups run SurrealDB 3.2.4 on the `surrealkv` storage engine. Lens is tested with the Python SDK's embedded
 engine and with SurrealDB 2.3 and 3.2 servers.
 
+!!! note "Embedded mode is for trying Lens and small archives"
+    The embedded engine (SurrealDB 2.x inside the Python SDK) is slow to write and its full-text index loses entries
+    when the database is closed and reopened. Lens repairs the index once per process, before the first search (the
+    API does it at startup, `lens` commands that don't search skip it), which takes about 30 ms per transcript
+    segment: seconds for a few thousand segments, but about ten minutes for 20,000. Beyond a few thousand segments,
+    run a SurrealDB server; the Docker setups already do.
+
 !!! warning "Use `surrealkv` (or RocksDB/TiKV) for servers, not `memory`"
     Under concurrent writes, SurrealDB 3.2.4's `memory` engine occasionally loses updates (we reproduced duplicate ids
     from an atomic counter). `surrealkv` is exact under the same load.
@@ -56,6 +63,9 @@ single statements and for `run()` transactions (which roll back as a whole, so r
   deletes only the extras.
 * **Multi-statement `query()` in the Python SDK** only checks the first statement's result. Transactions go through
   `DB.run()`, which checks every statement.
+* **The embedded full-text index loses postings on reopen** (the `SEARCH` index of the 2.x embedded engine): after a
+  restart, searches silently missed most segments. `DB.ready_fulltext()` rebuilds it once per process before the
+  first full-text query; `tests/domain/test_search_index.py` covers it. Servers (3.x `FULLTEXT`) are unaffected.
 * **`NONE` drops fields.** Settings saved in the app are stored as JSON text, so "cleared" survives.
 
 ## Backups

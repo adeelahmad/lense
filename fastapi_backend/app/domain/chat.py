@@ -62,7 +62,7 @@ def retrieve(db, question, spaces, scope=None, k=8):
     hits = {}
     for w in words:
         rows = None
-        if getattr(db, "fulltext", None):
+        if db.ready_fulltext():
             try:
                 rows = db.rows(f"SELECT record::id(id) AS id, recording, idx, search::score(1) AS s FROM segment WHERE text @1@ $w AND {where} LIMIT 50", w=w, **p)
             except Exception:  # noqa: BLE001 - fall back to a plain scan

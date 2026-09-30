@@ -11,9 +11,11 @@ import copy
 import datetime as dt
 import os
 import pathlib
+import logging
 import queue
 import random
 import re
+import threading
 import time
 
 EMOTIONS = ["Neutral", "Happy", "Joy", "Amusement", "Relief", "Surprise", "Anxiety",
@@ -186,6 +188,8 @@ class DB:
                        "password": os.environ.get("SURREAL_PASS") or d.get("password") or "root"}
         self._target = (os.environ.get("SURREAL_NS") or d["namespace"], os.environ.get("SURREAL_DB") or d["database"])
         size = 1 if self.embedded else max(1, int(pool_size or os.environ.get("SURREAL_POOL_SIZE") or d.get("pool_size") or 8))
+        self.fulltext = None  # FULLTEXT (3.x), SEARCH (2.x) or None; set by connect()
+        self._text_ready, self._text_lock = not self.embedded, threading.Lock()
         self._pool: queue.LifoQueue = queue.LifoQueue()
         self._all = []
         try:
@@ -263,6 +267,24 @@ class DB:
 
     def next_id(self, table):
         return int(self.values("UPSERT $r SET n += 1 RETURN VALUE n", r=R("seq", table))[0])
+
+    def ready_fulltext(self):
+        """The full-text index kind (FULLTEXT or SEARCH) once it can be trusted; None when there is none.
+
+        The embedded engine (SurrealDB 2.x inside the Python SDK) loses postings from its SEARCH index when the
+        database is closed and reopened: after a restart, searches silently miss most segments. So the first
+        full-text query in each process rebuilds the index; writes made after that are indexed correctly. SurrealDB
+        servers don't have the problem, so this is a no-op for them. Callers run full-text queries only through this.
+        """
+        if self.fulltext and not self._text_ready:
+            with self._text_lock:
+                if not self._text_ready:
+                    t = time.time()
+                    for index, table in (("segment_text", "segment"), ("ocr_text", "ocr_span")):
+                        self.q(f"REBUILD INDEX IF EXISTS {index} ON {table}")
+                    self._text_ready = True
+                    logging.getLogger("lens").info("rebuilt the embedded full-text index in %.1fs", time.time() - t)
+        return self.fulltext
 
     def ping(self):
         self.q("RETURN 1")
@@ -438,6 +460,7 @@ def reindex(db, cfg):
             pass
     db.q(_analyzer(cfg))
     db.fulltext = _text_index(db)
+    db._text_ready = True  # just built from the current data
 
 
 def ns_id(db, name, create=True):

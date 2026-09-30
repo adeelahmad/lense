@@ -251,6 +251,8 @@ def search(db, base, q, rids, page_url, page=0):
     if not words or not rids:
         return empty
     try:
+        if not db.ready_fulltext():
+            raise LookupError("no full-text index on this engine")
         rows = db.rows("SELECT recording, idx, t0, t1, text FROM segment WHERE text @1@ $q AND recording IN $r LIMIT 2000", q=" ".join(words), r=list(rids))
     except Exception:  # noqa: BLE001 - no full-text index on this engine
         rows = [s for s in db.rows("SELECT recording, idx, t0, t1, text FROM segment WHERE recording IN $r", r=list(rids))
