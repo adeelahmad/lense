@@ -82,6 +82,10 @@ Audio, video, frames and word clouds are loaded by `<audio>`, `<video>` and `<im
 in every response that contains media, and only to callers who may read that recording. Media endpoints accept a
 signed link, a share link (`?s=…`) or a bearer token. Byte ranges are supported so players can seek.
 
+Only links the server writes are signed: in API responses, the fields that hold links (`media.LINK_KEYS`); in the
+embed and report pages, links to the recordings the page is about. Text that people or models write (a title, a
+transcript line, metadata, a chat answer) is never signed, however much it looks like a link.
+
 ## Design decisions
 
 * **SurrealDB, not Postgres.** The engine leans on SurrealDB's graph edges (`mentions`, `same_as`), BM25 full-text

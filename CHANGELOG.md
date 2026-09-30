@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Fix (security): only the server's own media links are signed.** Text shaped like a media link
+  (`/api/v1/recordings/12/audio`) came back signed: titles and transcript lines in API responses, and anything in the
+  embed and report pages, including the transcript data inside them. Someone who could rename a recording or correct
+  its transcript could get a working link to the audio, video or frames of any recording, in namespaces they have no
+  role in. Responses now sign only the fields that hold links; the embed page signs only its recording's links, and a
+  report page only those of its namespace's recordings.
 - **Library: filters, sorting and counts on the server.** The Library's filters, tabs and sorting now look at every
   recording you can read, not just the rows loaded so far, and the page no longer says it can't.
   `GET /api/v1/recordings` takes `q`, `status` (the recording statuses plus the job states `processing` and `failed`),

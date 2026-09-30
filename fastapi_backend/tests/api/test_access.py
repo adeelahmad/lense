@@ -174,3 +174,21 @@ def test_recording_responses_sign_links(client, db, cfg, folder):
     row = [r for r in client.get("/api/v1/recordings", headers=h).json() if r["id"] == rid][0]
     path, q = _split(row["poster"])
     assert path == f"/api/v1/recordings/{rid}/frames/f0.jpg" and q["sig"]
+
+
+def test_only_the_servers_links_are_signed(client, new_client, db, cfg, folder):
+    """Text shaped like a media link (a title, a transcript line) is never signed: it could name any recording."""
+    rid, _ = _audio_recording(db, cfg, folder)
+    _a, _b, call = seed(db, cfg, folder)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    h = login(client, "ed@x.io", "editor password 1")
+    victim = f"/api/v1/recordings/{call}/audio"  # in calls, where this editor has no role
+    r = client.patch(f"/api/v1/recordings/{rid}", json={"title": victim}, headers=h)
+    assert r.status_code == 200 and r.json()["title"] == victim
+    assert next(x for x in client.get("/api/v1/recordings", headers=h).json() if x["id"] == rid)["title"] == victim
+    assert client.get(f"/api/v1/recordings/{rid}", headers=h).json()["title"] == victim
+    assert client.patch(f"/api/v1/recordings/{rid}/segments/0", json={"text": victim}, headers=h).status_code == 200
+    p = client.get(f"/api/v1/recordings/{rid}/player", headers=h).json()
+    assert p["title"] == victim and p["segments"][0]["text"] == victim
+    assert "sig=" in p["audio"]  # the recording's own audio link is still signed
+    assert new_client().get(victim).status_code == 401

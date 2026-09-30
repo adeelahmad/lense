@@ -98,3 +98,22 @@ def test_reports_are_served_by_signed_link(client, new_client, env, db, cfg):
     (pathlib.Path(cfg["data_dir"]) / "reports" / "pods" / "brief--1.html").write_text("<p>hi</p>")
     r = anon.get(sign_path("/reports/pods/brief--1.html"))
     assert r.status_code == 200 and "script-src 'none'" in r.headers["content-security-policy"]
+
+
+def test_pages_sign_only_their_own_recordings(client, new_client, env, db, cfg):
+    """A transcript line naming another recording's media stays unsigned in the embed and report pages."""
+    clip, he, anon = env["clip"], env["he"], new_client()
+    victim = f"/api/v1/recordings/{env['call']}/audio"  # in calls, where this editor has no role
+    line = f'see "{victim}" and {victim}'
+    assert client.patch(f"/api/v1/recordings/{clip}/segments/0", json={"text": line}, headers=he).status_code == 200
+    unsigned = re.compile(re.escape(victim) + r"\?")
+    own = re.compile(rf"/api/v1/recordings/{clip}/audio\?[^\"\\]*sig=")
+
+    page = anon.get(client.get(f"/api/v1/recordings/{clip}/embed-link", headers=he).json()["url"]).text
+    assert victim in page and not unsigned.search(page)
+    assert own.search(page)  # the page's own audio still plays
+
+    render.build_reports(db, cfg, log=quiet)
+    page = anon.get(client.get(f"/api/v1/recordings/{clip}", headers=he).json()["report_url"]).text
+    assert victim in page and not unsigned.search(page)
+    assert own.search(page)

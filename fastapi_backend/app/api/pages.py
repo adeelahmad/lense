@@ -22,7 +22,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.api.deps import Acl, Cfg, Db
-from app.api.media import sign_html_links
+from app.api.media import sign_page_links
 from app.api.v1.routes.recordings import has_audio
 from app.config import settings
 from app.core.security import sign_path
@@ -32,13 +32,7 @@ from app.domain.store import API
 router = APIRouter(include_in_schema=False, tags=["pages"])
 
 REPORT_NAME = re.compile(r"[\w.-]+\.html")
-MEDIA_IN_HTML = re.compile(rf"{re.escape(API)}/recordings/\d+/(?:audio|media|wordcloud\.svg|frames/[\w.-]+)(?=[\"'\\])")
 REPORT_HREF = re.compile(r'href="([\w.-]+\.html)"')
-
-
-def sign_media_links(page: str) -> str:
-    """Sign every unsigned media link (audio, video, frames, word clouds) in a page, including inside embedded JSON."""
-    return MEDIA_IN_HTML.sub(lambda m: sign_path(m.group(0)), page)
 
 
 @router.get("/")
@@ -53,23 +47,22 @@ def embed(rid: int, acl: Acl, db: Db, cfg: Cfg, t: float = 0, s: str = "") -> HT
     """The embeddable player for one recording. Needs a share link (``?s=``) or a signed link."""
     acl.recording(rid, share=s)
     audio = f"{API}/recordings/{rid}/audio" if has_audio(db, cfg, rid) else None
-    return HTMLResponse(sign_media_links(render.embed_page(db, cfg, rid, t, audio_url=audio)))
+    return HTMLResponse(sign_page_links(render.embed_page(db, cfg, rid, t, audio_url=audio), {rid}))
 
 
 @router.get("/reports/{ns}/{name}", response_class=HTMLResponse)
-def report_file(ns: str, name: str, acl: Acl, cfg: Cfg) -> HTMLResponse:
-    if not acl.signed():
-        acl.namespace(ns)
-    else:
-        acl.nsid(ns)  # a signed link to a namespace that no longer exists
+def report_file(ns: str, name: str, acl: Acl, db: Db, cfg: Cfg) -> HTMLResponse:
+    # a signed link (to a namespace that still exists) or a role in the namespace
+    sid = acl.nsid(ns) if acl.signed() else acl.namespace(ns)
     p = pathlib.Path(cfg["data_dir"]) / "reports" / ns / (name or "index.html")
     if not REPORT_NAME.fullmatch(name) or not p.is_file():
         raise HTTPException(404, "not found")
-    page = sign_media_links(sign_html_links(p.read_text(encoding="utf-8")))
+    own = set(db.values("SELECT VALUE record::id(id) FROM recording WHERE space = $s", s=sid))  # the namespace's recordings
+    page = sign_page_links(p.read_text(encoding="utf-8"), own)
     page = REPORT_HREF.sub(lambda m: f'href="{html.escape(sign_path(f"/reports/{ns}/{m.group(1)}"))}"', page)
     return HTMLResponse(page, headers={"Cache-Control": "private, no-store"})
 
 
 @router.get("/reports/{ns}/", response_class=HTMLResponse)
-def report_index(ns: str, acl: Acl, cfg: Cfg) -> HTMLResponse:
-    return report_file(ns, "index.html", acl, cfg)
+def report_index(ns: str, acl: Acl, db: Db, cfg: Cfg) -> HTMLResponse:
+    return report_file(ns, "index.html", acl, db, cfg)
