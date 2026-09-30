@@ -15,7 +15,12 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.domain import auth, store  # noqa: E402
 
 
-def make_cfg(folder: pathlib.Path, url: str = "mem://", **overrides):
+# Tests use an in-memory SurrealDB; LENS_TEST_SURREAL_URL=ws://host:8000 runs them against a server instead
+# (each test gets its own database there).
+TEST_URL = os.environ.get("LENS_TEST_SURREAL_URL", "mem://")
+
+
+def make_cfg(folder: pathlib.Path, url: str = TEST_URL, **overrides):
     base = {
         "data_dir": str(folder / "data"),
         "database": {"url": url, "database": "t" + uuid.uuid4().hex[:10]},

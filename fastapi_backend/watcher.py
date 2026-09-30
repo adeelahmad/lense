@@ -2,12 +2,13 @@ import time
 import re
 import subprocess
 import os
+import sys
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from threading import Timer
 
-# Updated regex to include main.py, schemas.py, and all .py files in app/routes
-WATCHER_REGEX_PATTERN = re.compile(r"(main\.py|schemas\.py|routes/.*\.py)$")
+# Changes to the app, its schemas or its routes regenerate the OpenAPI schema (and so the frontend client)
+WATCHER_REGEX_PATTERN = re.compile(r"(main\.py|schemas/.*\.py|api/.*\.py)$")
 APP_PATH = "app"
 
 
@@ -38,7 +39,7 @@ class MyHandler(FileSystemEventHandler):
         """Run mypy type checks and print output."""
         print("Running mypy type checks...")
         result = subprocess.run(
-            ["uv", "run", "mypy", "app"],
+            [sys.executable, "-m", "mypy"],
             capture_output=True,
             text=True,
             check=False,
@@ -56,13 +57,7 @@ class MyHandler(FileSystemEventHandler):
         print("Proceeding with OpenAPI schema generation...")
         try:
             subprocess.run(
-                [
-                    "uv",
-                    "run",
-                    "python",
-                    "-m",
-                    "commands.generate_openapi_schema",
-                ],
+                [sys.executable, "-m", "commands.generate_openapi_schema"],
                 check=True,
             )
             print("OpenAPI schema generation completed successfully.")

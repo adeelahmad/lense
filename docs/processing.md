@@ -1,0 +1,143 @@
+# Processing
+
+How recordings move through Lens: where they come from, what each step does, and how speakers, entities and the knowledge graph are built. Every step can be started from the web app, the API or the `lens` command line.
+
+## Steps
+
+- `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped.
+- `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. A file that fails is marked and the batch carries on.
+- `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
+  matches voiceprints against the namespace's speakers.
+- `analyze` finds entities, chapters, keywords and talk statistics; `summarize` (optional) calls any OpenAI-compatible
+  server; `report` writes static HTML per recording and per namespace, with word clouds.
+
+Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
+
+## Importing transcripts
+
+Formats: .txt, .md, .markdown, .mdx, .docx, .doc, .pdf, .srt, .vtt, .json (lens, Whisper or a list of segments) and
+.jsonl (SenseVoice chunk files; overlapping windows are stitched). Pasted text works too.
+
+    lens import podcasts episode.docx --audio episode.mp3 --speakers "SPEAKER_00=Host A,SPEAKER_01=Host B"
+    pbpaste | lens import notes - --title "Standup"
+    lens import notes minutes.pdf --format text
+
+In the web app, Import takes pasted text, a chosen file or one dropped on the text box, and analyses it straight away.
+
+Speakers are recognised from `Name: text`, `[12:30] Name: text`, `Name (12:30): text`, Otter/Zoom/Teams exports (a
+`Name  12:30` line, then what they said), `speaker|emotion|text` lines, and the speakers in SRT/VTT and JSON. Anything
+else becomes paragraphs split into segments of about 40 words with estimated times. Markdown and MDX are reduced to text
+first: front matter or the first heading becomes the title; imports, exports, JSX and code blocks are dropped. PDFs need a
+text layer, so OCR scans first. Named speakers are reused within the namespace; generic labels (SPEAKER_00, S1, CH0)
+become new speakers.
+
+## Speakers and namespaces
+
+Speaker ids belong to one namespace. Per recording, `diarize.engine: auto` works like this:
+
+- If the file is genuinely two-channel (left and right carry different voices), each channel is one speaker. That separation is exact and free.
+- Otherwise, voices are clustered from embeddings. Short backchannels take the label of the nearest long turn.
+- Or set the engine to `pyannote`.
+
+Each voice gets a voiceprint (SpeechBrain ECAPA, up to `sample_seconds` of that speaker's clearest audio). The voiceprint is matched one-to-one against the namespace registry:
+
+- At or above `match_threshold`, it reuses the existing speaker and updates the centroid.
+- Between `review_threshold` and `match_threshold`, it creates a new speaker plus a suggested merge for you to confirm.
+- Below that, it creates a new speaker.
+
+You can rename and merge speakers in the web app or the CLI (`lens speakers …`), and every merge can be undone. Speakers in different namespaces are never merged. You can link them as the same person, and with `speakers.cross_namespace: suggest` the graph shows likely voice matches as dashed edges.
+
+## Knowledge graph
+
+Nodes are speakers and named things. Edges are:
+
+- speakers who were in a recording together,
+- who mentions what,
+- what is mentioned together,
+- same-person links.
+
+`graph: shared` puts a namespace in the global graph, where named things with the same name join into one node across namespaces. `graph: isolated` keeps it to its own graph. The API takes `scope=global` or `scope=ns:<name>`.
+
+## Entities and the graph explorer
+
+People, organisations, products, places, events, works and topics are extracted from every transcript. Dates and
+numbers are extracted too, but hidden unless asked for.
+
+- **Index** (`GET /api/v1/entities`):
+  - Search forgives misspellings and covers aliases.
+  - Filters: type, namespace, speaker, recording, date range, minimum mentions, and hidden entities.
+  - Sorts: most mentioned, most recordings, most recent, rising, and name.
+  - Options: grouping by name across namespaces, a twelve-month sparkline, and facets.
+- **Entity page:** its details and aliases, paged mentions (each line with the words highlighted, linking to its moment),
+  a timeline by month or week and namespace, and connections (entities mentioned together, speakers, recordings).
+- **Explorer:**
+  - `GET /api/v1/graph/explore?focus=e12` gives the neighbourhood of an entity or speaker. Depth is one or two hops, and it
+    can be filtered by type, edge kind and strength, within one namespace or all shared ones.
+  - `GET /api/v1/graph/path?a=…&b=…` gives the shortest chain between two nodes, with the lines that support each link.
+- **Curation** (editors of the entity's namespace):
+  - **Rename:** the old name stays as an alias. It can optionally correct the words in every transcript line, with a
+    dry-run preview first, then re-analysis.
+  - **Change type, and hide or restore.**
+  - **Merge:** with undo.
+  - **Mark two entities as not the same.**
+  - **Move or remove a single mention.**
+  - **Link the same thing across namespaces.**
+- **Merge suggestions:** same letters (ignoring case, spaces and punctuation), acronyms, one name containing the other,
+  close spellings, and names that sound alike (likely transcription errors).
+
+Curation survives re-analysis: merged names become aliases, and moved or removed mentions become per-line overrides.
+Everything is audited. People who can't read a namespace never see its entities, mentions or graph nodes, and requests
+about them come back as not found.
+
+## Search
+
+All words must appear, matched after English stemming ("exploit" also finds exploits and exploiting); "quoted phrases"
+must appear as written; OR separates alternatives. Filter by namespace, speaker, emotion or recording. For archives that
+aren't in English set `search.stemming: none` and run `lens reindex`. Prefix search (`expl*`) from the SQLite
+version is gone; stemming covers most of what it was used for.
+
+## Background work
+
+Imports, pipeline runs and folder scans return at once and run as jobs stored in SurrealDB. The server runs
+`workers.inline` workers itself; more can run anywhere that reaches the database, each limited to the steps it can do.
+A job whose next step a worker can't run goes back on the queue for one that can, so a Mac can transcribe with mlx while
+the container does the rest. Jobs can be cancelled and retried from the failed step; a job whose worker stops
+responding is retried. `GET /api/v1/events` streams job progress (server-sent events).
+
+    lens worker --steps transcribe,diarize     # e.g. on the Mac, with SURREAL_URL pointing at the server
+
+## Storage sources
+
+Admins add sources in the app (`/api/v1/sources`): S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB,
+WebDAV, or a folder on this machine. A watched folder maps a path on a source to a namespace, with include/exclude
+patterns, audio and/or transcripts, a polling interval, how long a file must be unchanged before it is picked up, and
+whether files already there are imported (backfill). New audio is queued for the full pipeline; new transcripts are
+imported and analysed. Audio stays where it is: it is copied to a cache for processing and streamed from the source for
+playback.
+
+- Credentials are encrypted in the database (AES-GCM, key from `ARCHIVE_SECRET_KEY` or `data_dir/secret.key`) and given
+  to rclone in a private temporary config file per call. For Dropbox, Drive and OneDrive, paste the token from
+  `rclone authorize dropbox` (or drive, onedrive); tokens rclone refreshes are saved back.
+- Folders on this machine can only be watched inside `sources.local_roots`, and the rclone binary can only be set in
+  archive.yaml: the web app can neither open up the server's disk nor choose what runs.
+
+## Pipelines and templates
+
+A pipeline is a named, versioned list of steps; each namespace can choose its default (otherwise: transcribe, diarize,
+analyze, summarize, report). Imports, watched folders and reprocessing use the namespace's pipeline; steps that need
+audio skip themselves for imported transcripts. Steps:
+
+- `transcribe`, `diarize`, `analyze`, `summarize`, and `report` (the built-in report).
+- `llm`: renders a prompt template, sends it to the configured model, checks the reply against the template's JSON
+  Schema and saves it as a named output (e.g. `meeting_notes`).
+- `report` with a template: renders an HTML page into the namespace's reports. These pages may not run scripts.
+- `export`: renders a template to a file (Markdown, text, HTML...) and can copy it to a storage source.
+
+Any step can carry a condition: `min_minutes`, `max_minutes`, `source` (audio or transcript), `languages`.
+
+Templates are versioned (publish, history, diff) and rendered in a sandboxed Jinja environment. It can't reach Python
+internals, caps output size, and escapes HTML in reports. Templates see `recording`, `speakers`, `segments`,
+`transcript` (trimmed to `llm.max_chars`), `sections`, `entities`, `keywords`, `summary`, `stats` and `outputs`. A
+fresh archive starts with three: Meeting notes (prompt), Markdown transcript (export) and One-page brief (report).
+`POST /api/v1/templates/preview` renders any template, saved or not, against a recording, and with `run: true` also asks
+the model.

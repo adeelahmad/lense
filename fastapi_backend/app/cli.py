@@ -28,7 +28,7 @@ def run_steps(db, cfg, which, ns=None, limit=0, force=False, recording=None, aud
 
 
 def _main_base(argv=None):
-    ap = argparse.ArgumentParser(prog="lens-archive", description="Local-first archive for recorded speech.")
+    ap = argparse.ArgumentParser(prog="lens", description="Lens: an archive for recorded speech and video.")
     ap.add_argument("--config", help="YAML config (default: $ARCHIVE_CONFIG or ./archive.yaml)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("init", help="write a starter archive.yaml")
@@ -83,18 +83,22 @@ def _main_base(argv=None):
         dst = pathlib.Path(a.path)
         if dst.exists():
             sys.exit(f"{dst} already exists")
-        src = pathlib.Path(__file__).resolve().parent.parent / "config.example.yaml"
+        src = pathlib.Path(__file__).resolve().parent.parent / "archive.example.yaml"
         if src.exists():
             shutil.copy(src, dst)
         else:
             dst.write_text("data_dir: ./archive-data\nnamespaces:\n  default:\n    paths: [./recordings]\n")
-        print(f"wrote {dst}; edit the namespaces, then run: lens-archive run")
+        print(f"wrote {dst}; edit the namespaces, then run: lens run")
         return
     cfg = store.load_config(a.config)
     if a.cmd == "serve":
-        from .server import serve
-        print(f"lens-archive on http://{a.host or cfg['server']['host']}:{a.port or cfg['server']['port']}")
-        serve(cfg, a.host, a.port)
+        import os
+
+        import uvicorn
+
+        if a.config:
+            os.environ["ARCHIVE_CONFIG"] = a.config
+        uvicorn.run("app.main:app", host=a.host or cfg["server"]["host"], port=a.port or cfg["server"]["port"], proxy_headers=True)
         return
     conn = store.connect(cfg)
     try:
@@ -109,7 +113,7 @@ def _main_base(argv=None):
                 rid = ingest.import_text(conn, cfg, a.ns, sys.stdin.read(), a.title, a.format, names)
             else:
                 rid = ingest.import_transcript(conn, cfg, a.ns, a.transcript, a.audio, a.title, names, a.format)
-            print(f"imported recording {rid} into {a.ns}; next: lens-archive analyze && lens-archive report")
+            print(f"imported recording {rid} into {a.ns}; next: lens analyze && lens report")
         elif a.cmd == "speakers":
             if a.action == "list":
                 for s in spk.list_speakers(conn, store.ns_id(conn, a.ns, create=False)):
@@ -118,7 +122,7 @@ def _main_base(argv=None):
             elif a.action == "rename":
                 spk.rename(conn, a.id, a.name)
             elif a.action == "merge":
-                print("merge id", spk.merge(conn, a.src, a.dst), "(undo with: lens-archive speakers undo <id>)")
+                print("merge id", spk.merge(conn, a.src, a.dst), "(undo with: lens speakers undo <id>)")
             elif a.action == "undo":
                 spk.undo(conn, a.merge_id)
             elif a.action == "link":
@@ -166,7 +170,7 @@ def platform_main(argv, config):
     import time
 
     from .domain import auth, jobs, settings, sources
-    ap = argparse.ArgumentParser(prog="lens-archive")
+    ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
     us = sub.add_parser("users", help="accounts and namespace roles").add_subparsers(dest="action", required=True)
     x = us.add_parser("add")

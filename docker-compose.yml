@@ -1,74 +1,104 @@
+# Local development stack: SurrealDB, the API (hot reload), a job worker, the Next.js frontend and MailHog.
+#   cp fastapi_backend/.env.example fastapi_backend/.env   (set ACCESS_SECRET_KEY)
+#   cp nextjs-frontend/.env.example nextjs-frontend/.env.local   (set AUTH_SECRET)
+#   docker compose up
+# The first-admin setup code is printed in the backend log.
+
+x-backend: &backend
+  build:
+    context: fastapi_backend
+    args:
+      DEV: "true"
+      EXTRAS: ${EXTRAS:-}
+  env_file:
+    - path: fastapi_backend/.env
+      required: false
+  environment: &backend-env
+    ACCESS_SECRET_KEY: ${ACCESS_SECRET_KEY:-dev-only-access-secret-change-me}
+    SURREAL_URL: ws://surrealdb:8000
+    SURREAL_USER: ${SURREAL_USER:-root}
+    SURREAL_PASS: ${SURREAL_PASS:-root}
+    ARCHIVE_CONFIG: /app/docker/archive.yaml
+    RUN_BACKGROUND: "false"
+    MAIL_SERVER: mailhog
+    MAIL_PORT: "1025"
+    MAIL_FROM: lens@example.com
+    MAIL_STARTTLS: "False"
+    USE_CREDENTIALS: "False"
+    FRONTEND_URL: http://localhost:3000
+    CORS_ORIGINS: '["http://localhost:3000"]'
+    OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
+  volumes:
+    - ./fastapi_backend:/app
+    - backend-venv:/opt/venv
+    - archive-data:/data
+    - ./local-shared-data:/app/shared-data
+    - ${AUDIO_DIR:-./local-audio}:/audio:ro
+  depends_on:
+    surrealdb:
+      condition: service_healthy
+  networks: [lens]
+
 services:
+  surrealdb:
+    image: surrealdb/surrealdb:v3.2.4
+    command: start --log info --user ${SURREAL_USER:-root} --pass ${SURREAL_PASS:-root} surrealkv:/data/lens.db
+    user: root                      # the image's default user cannot write to a fresh named volume
+    ports:
+      - "127.0.0.1:8001:8000"       # lets native workers on this machine (mlx on a Mac) share the database
+    volumes:
+      - surreal-data:/data
+    healthcheck:
+      test: ["CMD", "/surreal", "is-ready", "--endpoint", "http://localhost:8000"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [lens]
+
   backend:
-    build:
-      context: fastapi_backend
-    environment:
-      - OPENAPI_OUTPUT_FILE=./shared-data/openapi.json
-      - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/mydatabase
-      - TEST_DATABASE_URL=postgresql+asyncpg://postgres:password@db:5433/testdatabase
-      - MAIL_SERVER=mailhog
+    <<: *backend
+    command: ./start.sh
     ports:
       - "8000:8000"
-    networks:
-      - my_network
-    volumes:
-      - ./fastapi_backend:/app
-      - fastapi-venv:/app/.venv
-      - ./local-shared-data:/app/shared-data
-    depends_on:
-      - db
-  db:
-    image: postgres:17
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: mydatabase
-    ports:
-      - "5432:5432"
-    networks:
-      - my_network
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-  db_test:
-    image: postgres:17
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: testdatabase
-    ports:
-      - "5433:5432"
-    networks:
-      - my_network
-    restart: always
+
+  worker:
+    <<: *backend
+    command: lens worker
+    healthcheck:
+      disable: true
+
   frontend:
     build:
       context: ./nextjs-frontend
     user: node
     ports:
       - "3000:3000"
-    networks:
-      - my_network
     environment:
       NODE_ENV: development
       API_BASE_URL: http://backend:8000
+      AUTH_SECRET: ${AUTH_SECRET:-dev-only-auth-secret-change-me}
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: http://localhost:3000
       OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
     volumes:
       - ./nextjs-frontend:/app
       - nextjs-node-modules:/app/node_modules
       - ./local-shared-data:/app/shared-data
+    networks: [lens]
+
   mailhog:
     image: mailhog/mailhog
     ports:
-      - "1025:1025" # SMTP server
+      - "1025:1025" # SMTP
       - "8025:8025" # Web UI
-    networks:
-      - my_network
+    networks: [lens]
 
 volumes:
-  postgres_data:
+  surreal-data:
+  archive-data:
+  backend-venv:
   nextjs-node-modules:
-  fastapi-venv:
 
 networks:
-  my_network:
+  lens:
     driver: bridge

@@ -1,40 +1,25 @@
 # Changelog
 
-This changelog references changes made both to the FastAPI backend, `fastapi_backend`, and the
-frontend TypeScript client, `nextjs-frontend`.
+The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are versioned together.
 
-!!! note
-    The backend and the frontend are versioned together, that is, they have the same version number.
-    When you update the backend, you should also update the frontend to the same version.
+## 0.2.0 <small>September 30, 2026</small> {id="0.2.0"}
 
-## 0.0.8 <small>December 17, 2025</small> {id="0.0.8"}
+Lens moves from a single-process prototype to a platform on the Next.js FastAPI template.
 
-- Upgrade Next.js version to latest version
-
-## 0.0.7 <small>October 24, 2025</small> {id="0.0.7"}
-
-- Upgrade @hey-api/openapi-ts version to ^0.83.1
-
-## 0.0.6 <small>September 1, 2025</small> {id="0.0.6"}
-
-- Upgrade Next.js version to 15.5.0
-
-## 0.0.5 <small>July 9, 2025</small> {id="0.0.5"}
-
-- Items Pagination
-
-## 0.0.4 <small>July 9, 2025</small> {id="0.0.4"}
-
-- Fix ESlint missing for pre-commit
-
-## 0.0.3 <small>April 23, 2025</small> {id="0.0.3"}
-
-- Created docs
-
-## 0.0.2 <small>March 12, 2025</small> {id="0.0.2"}
-
-- Generate release draft using github actions
-
-## 0.0.1 <small>March 12, 2025</small> {id="0.0.1"}
-
-- Initial release
+- **Backend**
+    - The prototype's processing engine now lives in `app/domain`, unchanged in behaviour.
+    - The API is split into routers under `/api/v1` with Pydantic request and response models, so the OpenAPI schema
+      and the frontend's typed client cover every endpoint.
+    - Authentication: short-lived JWT access tokens and rotating refresh tokens (with reuse detection) for NextAuth,
+      replacing session cookies and CSRF tokens; password reset by email; API tokens unchanged.
+    - Media is served through signed links, since `<audio>` and `<img>` can't send bearer tokens.
+    - SurrealDB: a connection pool for servers, and automatic retries of write conflicts.
+    - Workers run as their own process (`lens worker`); the API can still run them inline for development.
+    - Removed the template's Postgres, SQLAlchemy, Alembic, fastapi-users and Vercel backend deployment.
+- **Frontend**
+    - NextAuth (Auth.js v5) with a credentials provider backed by the API, token refresh, first-run setup and password
+      reset. Public registration is gone: admins invite people.
+    - A typed API client wired to the session, and rewrites so media and IIIF are served from the web app's origin.
+- **Operations**
+    - Docker Compose for development (SurrealDB, API, worker, web app, MailHog) and a production-shaped compose file.
+    - CI runs lint, type checks, an OpenAPI drift check and the tests against embedded SurrealDB and a SurrealDB server.

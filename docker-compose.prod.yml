@@ -1,0 +1,79 @@
+# Production-like stack: images built without dev tools, no source mounts, no hot reload.
+#   ACCESS_SECRET_KEY=... AUTH_SECRET=... SURREAL_PASS=... ARCHIVE_SECRET_KEY=... docker compose -f docker-compose.prod.yml up -d
+# Put an HTTPS reverse proxy in front of the frontend (port 3000) before exposing it; IIIF auth requires HTTPS.
+
+x-backend: &backend
+  build:
+    context: fastapi_backend
+    args:
+      EXTRAS: ${EXTRAS:-}
+  environment:
+    ACCESS_SECRET_KEY: ${ACCESS_SECRET_KEY:?set ACCESS_SECRET_KEY}
+    ARCHIVE_SECRET_KEY: ${ARCHIVE_SECRET_KEY:?set ARCHIVE_SECRET_KEY}
+    SURREAL_URL: ws://surrealdb:8000
+    SURREAL_USER: ${SURREAL_USER:-root}
+    SURREAL_PASS: ${SURREAL_PASS:?set SURREAL_PASS}
+    RUN_BACKGROUND: "false"
+    FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    CORS_ORIGINS: '["${FRONTEND_URL:-http://localhost:3000}"]'
+    ARCHIVE_ALLOWED_HOSTS: ${ARCHIVE_ALLOWED_HOSTS:-backend,localhost,127.0.0.1}
+    MAIL_SERVER: ${MAIL_SERVER:-}
+    MAIL_PORT: ${MAIL_PORT:-587}
+    MAIL_USERNAME: ${MAIL_USERNAME:-}
+    MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+    MAIL_FROM: ${MAIL_FROM:-}
+  volumes:
+    - archive-data:/data
+    - ${AUDIO_DIR:-./local-audio}:/audio:ro
+  depends_on:
+    surrealdb:
+      condition: service_healthy
+  restart: unless-stopped
+  networks: [lens]
+
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:v3.2.4
+    command: start --log info --user ${SURREAL_USER:-root} --pass ${SURREAL_PASS:?set SURREAL_PASS} surrealkv:/data/lens.db
+    user: root
+    volumes:
+      - surreal-data:/data
+    healthcheck:
+      test: ["CMD", "/surreal", "is-ready", "--endpoint", "http://localhost:8000"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [lens]
+
+  backend:
+    <<: *backend
+
+  worker:
+    <<: *backend
+    command: lens worker
+    healthcheck:
+      disable: true
+
+  frontend:
+    build:
+      context: ./nextjs-frontend
+      dockerfile: Dockerfile.prod
+    environment:
+      API_BASE_URL: http://backend:8000
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on: [backend]
+    restart: unless-stopped
+    networks: [lens]
+
+volumes:
+  surreal-data:
+  archive-data:
+
+networks:
+  lens:
+    driver: bridge

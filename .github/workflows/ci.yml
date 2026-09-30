@@ -5,107 +5,113 @@ on:
   pull_request:
 
 jobs:
-  build-fastapi:
-    name: FastAPI CI
-
+  backend:
+    name: FastAPI (embedded SurrealDB)
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        working-directory: ./fastapi_backend
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
-      ACCESS_SECRET_KEY: ${{ secrets.ACCESS_SECRET_KEY }}
-      RESET_PASSWORD_SECRET_KEY: ${{ secrets.RESET_PASSWORD_SECRET_KEY }}
-      VERIFICATION_SECRET_KEY: ${{ secrets.VERIFICATION_SECRET_KEY }}
-      CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
-
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: testdatabase
-        ports:
-          - 5433:5432
-
+      ACCESS_SECRET_KEY: ci-access-secret-key-0123456789abcdef
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: System packages (ffmpeg, tesseract)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg tesseract-ocr
+
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - name: Install
+        run: uv sync --frozen
 
-      - name: Install the project
-        working-directory: ./fastapi_backend
-        run: uv sync --all-extras --dev
+      - name: Lint
+        run: uv run ruff check . && uv run ruff format --check app/api app/core app/schemas tests
 
-      - name: Run tests
-        working-directory: ./fastapi_backend
-        run: uv run coverage run -m pytest
+      - name: Type check
+        run: uv run mypy
 
-      - name: Generate XML coverage report
-        working-directory: ./fastapi_backend
+      - name: OpenAPI schema is up to date
+        run: |
+          OPENAPI_OUTPUT_FILE=/tmp/openapi.json uv run python -m commands.generate_openapi_schema
+          diff -u ../nextjs-frontend/openapi.json /tmp/openapi.json
+
+      - name: Tests
+        run: uv run coverage run -m pytest -n auto
+
+      - name: Coverage report
         run: uv run coverage xml -o coverage.xml
 
-      - name: Coveralls GitHub Action
-        uses: coverallsapp/github-action@v2.3.4
+      - uses: coverallsapp/github-action@v2.3.4
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           flag-name: python-coverage
           parallel: true
-          path-to-lcov: fastapi_backend/coverage.xml
+          file: fastapi_backend/coverage.xml
 
-  build-frontend:
-    name: Next.js CI
-
+  backend-surrealdb-server:
+    name: FastAPI (SurrealDB server)
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        working-directory: ./fastapi_backend
+    env:
+      ACCESS_SECRET_KEY: ci-access-secret-key-0123456789abcdef
+      LENS_TEST_SURREAL_URL: ws://127.0.0.1:8000
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v4
+      - name: Start SurrealDB
+        run: |
+          # surrealkv, not memory: the memory engine loses concurrent writes (SurrealDB 3.2.4)
+          docker run -d --name surreal -p 8000:8000 surrealdb/surrealdb:v3.2.4 start --user root --pass root surrealkv:/tmp/lens.db
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/health && break; sleep 1; done
+      - name: System packages (ffmpeg, tesseract)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg tesseract-ocr
+      - uses: astral-sh/setup-uv@v5
         with:
-          version: 9
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - name: Tests against the server
+        run: uv run pytest -n 4
+
+  frontend:
+    name: Next.js
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./nextjs-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
           run_install: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-
-      - name: Install Node dependencies
-        working-directory: ./nextjs-frontend
-        run: pnpm install
-
-      - name: Run tests
-        working-directory: ./nextjs-frontend
-        run: pnpm run coverage
-
-      - name: Coveralls GitHub Action
-        uses: coverallsapp/github-action@v2.3.4
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: nextjs-frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm tsc
+      - run: pnpm coverage
+      - name: Build
+        run: pnpm build
+        env:
+          API_BASE_URL: http://localhost:8000
+          AUTH_SECRET: ci-auth-secret
+      - uses: coverallsapp/github-action@v2.3.4
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           flag-name: node-coverage
           parallel: true
 
   finish:
-
     name: Coveralls
-
-    needs: [ build-fastapi, build-frontend ]
-
+    needs: [backend, frontend]
     runs-on: ubuntu-latest
-
     steps:
-      - name: Close parallel build
-        uses: coverallsapp/github-action@v2.3.4
+      - uses: coverallsapp/github-action@v2.3.4
         with:
           parallel-finished: true
           carryforward: "python-coverage,node-coverage"

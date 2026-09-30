@@ -1,7 +1,7 @@
-# lens-archive configuration. Paths are relative to this file.
+# Lens processing configuration (the API reads it from $ARCHIVE_CONFIG, default ./archive.yaml). Paths are relative to this file.
 data_dir: ./archive-data            # embedded SurrealDB, model cache, reports, locks
 
-database:                           # SURREAL_URL / _USER / _PASS / _NS / _DB override these
+database:                           # SURREAL_URL / _USER / _PASS / _NS / _DB / _POOL_SIZE override these
   url: null                         # null: embedded (surrealkv under data_dir); ws://127.0.0.1:8000 for a server
   namespace: archive
   database: main

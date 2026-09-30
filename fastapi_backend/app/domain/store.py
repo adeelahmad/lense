@@ -12,7 +12,9 @@ import datetime as dt
 import os
 import pathlib
 import queue
+import random
 import re
+import time
 
 EMOTIONS = ["Neutral", "Happy", "Joy", "Amusement", "Relief", "Surprise", "Anxiety",
             "Guilt", "Sad", "Angry", "Fear", "Disgust", "Shame", "Love"]
@@ -150,12 +152,26 @@ def _plain(v):
     return v
 
 
+RETRIES = 8
+
+
+def _retryable(err):
+    """SurrealDB's optimistic transactions fail with a write conflict when two touch the same record at once."""
+    m = str(err)
+    return "can be retried" in m or "Transaction conflict" in m or "Write conflict" in m
+
+
+def _backoff(attempt):
+    time.sleep(min(0.5, 0.005 * 2 ** attempt) * (0.5 + random.random()))
+
+
 class DB:
     """A thread-safe SurrealDB handle.
 
-    Embedded engines (surrealkv://, mem://) allow one connection per process, so every query shares it under a lock.
+    Embedded engines (surrealkv://, mem://) allow one connection per process, so every query waits for it.
     A SurrealDB server (ws://, http://) gets a small pool of connections, so concurrent requests don't queue behind
     each other. Each query() call runs one statement on one connection; run() sends a transaction on one connection.
+    Statements that lose a write conflict to a concurrent one (SurrealDB reports these as retryable) are retried.
     """
 
     def __init__(self, cfg, pool_size=None):
@@ -200,8 +216,14 @@ class DB:
             self._pool.put(c)
 
     def q(self, sql, **v):
-        with self.conn() as c:
-            return c.query(sql, v)
+        for attempt in range(RETRIES + 1):
+            try:
+                with self.conn() as c:
+                    return c.query(sql, v)
+            except Exception as e:  # noqa: BLE001
+                if attempt == RETRIES or not _retryable(e):
+                    raise
+                _backoff(attempt)
 
     def rows(self, sql, **v):
         r = self.q(sql, **v)
@@ -220,12 +242,20 @@ class DB:
     def run(self, statements, **v):
         """Several statements as one transaction; raises if any of them fails."""
         sql = "BEGIN TRANSACTION;\n" + ";\n".join(statements) + ";\nCOMMIT TRANSACTION;"
-        with self.conn() as c:
-            raw = c.query_raw(sql, v)
-        items = raw.get("result") if isinstance(raw, dict) else raw
-        if isinstance(raw, dict) and raw.get("error"):
-            raise RuntimeError(raw["error"])
-        errors = [(n, str(it.get("result"))) for n, it in enumerate(items or []) if isinstance(it, dict) and it.get("status") not in (None, "OK")]
+        for attempt in range(RETRIES + 1):
+            with self.conn() as c:
+                raw = c.query_raw(sql, v)
+            items = raw.get("result") if isinstance(raw, dict) else raw
+            if isinstance(raw, dict) and raw.get("error"):
+                if attempt < RETRIES and _retryable(raw["error"]):
+                    _backoff(attempt)
+                    continue
+                raise RuntimeError(raw["error"])
+            errors = [(n, str(it.get("result"))) for n, it in enumerate(items or []) if isinstance(it, dict) and it.get("status") not in (None, "OK")]
+            if errors and attempt < RETRIES and any(_retryable(m) for _, m in errors):
+                _backoff(attempt)  # the whole transaction was rolled back, so running it again is safe
+                continue
+            break
         if errors:  # report the statement that failed, not the ones skipped because of it
             n, msg = next((e for e in errors if "not executed due to a failed transaction" not in e[1]), errors[0])
             stmt = statements[n - 1] if 0 < n <= len(statements) else "?"

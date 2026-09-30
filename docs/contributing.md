@@ -1,57 +1,58 @@
 # Contributing
 
-We can always use your help to improve Next.js FastAPI Template! Please feel free to tackle existing [issues](https://github.com/vintasoftware/nextjs-fastapi-template/issues). If you have a new idea, please create a thread on [Discussions](https://github.com/vintasoftware/django-ai-assistant/discussions).
+## Setup
 
-Please follow this guide to learn more about how to develop and test the project locally, before opening a pull request.
-
-## Local Dev Setup
-
-### Clone the repo
+Follow [Get started](get-started.md), then install the pre-commit hooks:
 
 ```bash
-git clone git@github.com:vintasoftware/nextjs-fastapi-template.git
+cd fastapi_backend && uv run pre-commit install -c ../.pre-commit-config.yaml
 ```
 
-Check the [Get Started](get-started.md#setup) page to complete the setup.
+## Backend
 
+```bash
+cd fastapi_backend
+uv run pytest -n auto                    # all tests, in-memory SurrealDB
+LENS_TEST_SURREAL_URL=ws://127.0.0.1:8000 uv run pytest -n 4   # the same tests against a SurrealDB server (surrealkv engine)
+uv run ruff check . && uv run ruff format .
+uv run mypy
+```
 
-## Install pre-commit hooks
+Tests live in `tests/api` (HTTP, through `TestClient`) and `tests/domain` (the engine). Fixtures in
+`tests/conftest.py` give every test a fresh database, data folder and app; `tests/helpers.py` has sample transcripts,
+`seed()`, `make_user()` and `login()`.
 
-Check the [Additional Settings - Install pre-commit hooks](additional-settings.md#pre-commit-setup) section to complete the setup.
+Conventions for new endpoints:
 
+* One router module per area in `app/api/v1/routes/`, registered in `app/api/v1/router.py`. The function name becomes
+  the generated client's method name, so make it read well (`list_recordings`, `merge_speaker`).
+* Request bodies are `RequestModel`s and responses `ResponseModel`s (`app/schemas/`).
+* Check access with the `deps` dependencies (`Writer`, `AdminWriter`, `Acl.need()`, `Acl.recording()`): namespaces a
+  caller can't read must answer 404, not 403.
+* Keep HTTP out of `app/domain`; raise `ValueError`/`KeyError` there and wrap calls in `domain_errors()`.
+* Pass responses that contain media links through `sign_urls()`.
 
-It's critical to run the pre-commit hooks before pushing your code to follow the project's code style, and avoid linting errors.
+After changing routes or schemas, regenerate the schema and the client (the dev watchers do this for you):
 
-## Updating the OpenAPI schema
+```bash
+uv run python -m commands.generate_openapi_schema && (cd ../nextjs-frontend && pnpm generate-client)
+```
 
-It's critical to update the OpenAPI schema when you make changes to the FastAPI routes or related files:
+## Frontend
 
-Check the [Additional Settings - Manual execution of hot reload commands](additional-settings.md#manual-execution-of-hot-reload-commands) section to run the command.
-
-## Tests
-
-Check the [Additional Settings - Testing](additional-settings.md#testing) section to run the tests.
+```bash
+cd nextjs-frontend
+pnpm test && pnpm lint && pnpm tsc && pnpm build
+```
 
 ## Documentation
 
-We use [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) to generate the documentation from markdown files.
-Check the files in the `docs` directory.
-
-To run the documentation locally, you need to run:
-
-```bash
-uv run mkdocs serve
-```
+The docs are these Markdown files, built with mkdocs-material: `cd fastapi_backend && uv run mkdocs serve -f ../mkdocs.yml`.
 
 ## Release
 
-!!! info
-    The backend and the frontend are versioned together, that is, they should have the same version number.
+The backend and frontend share a version number.
 
-To release and publish a new version, follow these steps:
-
-1. Update the version in `fastapi_backend/pyproject.toml`, `nextjs-frontend/package.json`.
-2. Update the changelog in `CHANGELOG.md`.
-3. Open a PR with the changes.
-4. Once the PR is merged, run the [Release GitHub Action](https://github.com/vintasoftware/nextjs-fastapi-template/actions/workflows/release.yml) to create a draft release.
-5. Review the draft release, ensure the description has at least the associated changelog entry, and publish it.
+1. Update the version in `fastapi_backend/pyproject.toml` and `nextjs-frontend/package.json`.
+2. Add a `CHANGELOG.md` entry.
+3. Open a PR; once merged, run the Release workflow to draft the GitHub release.

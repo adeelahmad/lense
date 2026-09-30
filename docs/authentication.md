@@ -1,0 +1,67 @@
+# Authentication
+
+## People and roles
+
+There is no public sign-up. The first admin is created with a one-time **setup code** that the API prints in its log
+on first start (or `lens users add you@example.com --admin`). Admins then add people and give them roles per
+namespace: viewer, editor or owner.
+
+Passwords are hashed with scrypt and need at least 10 characters. Failed sign-ins are throttled per email and address
+(8 per 15 minutes). Unknown emails take as long to reject as wrong passwords.
+
+## The web app: NextAuth with API tokens
+
+```
+login form ──► NextAuth Credentials provider ──► POST /api/v1/auth/login
+                                                  ◄── { access_token (JWT, 15 min), refresh_token, expires_in, user }
+NextAuth stores both in its encrypted session cookie (JWT strategy).
+Server components / actions ──► API with  Authorization: Bearer <access_token>
+Shortly before expiry, NextAuth's jwt callback ──► POST /api/v1/auth/refresh  (rotates the refresh token)
+Sign out ──► POST /api/v1/auth/logout (ends the session on the API too)
+```
+
+* **Access tokens** are short-lived JWTs (`ACCESS_TOKEN_EXPIRE_SECONDS`, default 15 minutes) naming the account and
+  the session. Every request checks that the account is still active and the session still exists, so disabling
+  someone or signing out takes effect immediately.
+* **Refresh tokens** are random, stored only as hashes, one session per signed-in device, valid for
+  `server.session_hours`. Each refresh rotates the token. A rotated token that comes back within 60 seconds is
+  accepted (two tabs refreshing at once); after that it ends the whole session, because it was probably copied.
+* Changing a password or disabling an account ends all of that person's sessions.
+
+| Endpoint | |
+|---|---|
+| `GET /api/v1/auth/status` | `{setup_required}`: the sign-in page shows the setup form when true |
+| `POST /api/v1/auth/setup` | first admin, with the setup code |
+| `POST /api/v1/auth/login` · `/refresh` · `/logout` | token pairs |
+| `GET /api/v1/auth/me` | the account, roles by namespace, and how the caller authenticated |
+| `POST /api/v1/auth/password/forgot` · `/reset` | email a one-time reset link (60 minutes); answers the same for unknown emails |
+
+Reset emails go through the SMTP server in `MAIL_*`; without one, the link is written to the API log.
+
+## API tokens
+
+For scripts and integrations: `POST /api/v1/tokens` (while signed in) returns `la_…` once. Tokens are **read** or
+**write** scoped, expire after `days` (0: never) and can be revoked.
+
+```bash
+curl -H "Authorization: Bearer la_…" https://lens.example.org/api/v1/recordings
+```
+
+## Share links and signed links
+
+* **Share links** give read-only access to one recording's player and embed, expire, and can be revoked:
+  `POST/DELETE /api/v1/recordings/<id>/share`.
+* **Signed links** are what the API puts in responses for media (`?exp=&sig=`); see [Architecture](architecture.md#media).
+  `GET /api/v1/recordings/<id>/embed-link` returns a signed `/embed/<id>` link for people who can read the recording.
+
+## IIIF viewers
+
+Other IIIF viewers sign in through the IIIF Authorization Flow 2.0: the access service at `/iiif/auth/access` is a
+small sign-in page served by the API, which sets a `SameSite=None; Secure` cookie scoped to IIIF; the token service
+posts a token only to the viewer's origin; the probe service answers with a short-lived signed link. See
+[IIIF](iiif.md).
+
+## Audit
+
+Changes to people, roles, settings, sources, shares, tokens and curation go into the audit log (`GET /api/v1/audit`,
+admins).
