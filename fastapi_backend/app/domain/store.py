@@ -475,6 +475,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS permission SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS permission_account ON permission FIELDS account",
     "DEFINE INDEX IF NOT EXISTS permission_recording ON permission FIELDS recording",
+    # someone asking for permission on a recording: access_request:<rid>-<account>, the latest request only
+    "DEFINE TABLE IF NOT EXISTS access_request SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS access_request_recording ON access_request FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS access_request_status ON access_request FIELDS status",
     "DEFINE TABLE IF NOT EXISTS login_session SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS login_session_account ON login_session FIELDS account",
     "DEFINE INDEX IF NOT EXISTS login_session_sid ON login_session FIELDS sid",

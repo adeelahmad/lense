@@ -95,6 +95,15 @@ import type {
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionResponses,
   RemoveRecordingPermissionErrors,
+  ListAccessRequestsData,
+  ListAccessRequestsResponses,
+  ListAccessRequestsErrors,
+  ApproveAccessRequestData,
+  ApproveAccessRequestResponses,
+  ApproveAccessRequestErrors,
+  DeclineAccessRequestData,
+  DeclineAccessRequestResponses,
+  DeclineAccessRequestErrors,
   GetPlayerData,
   GetPlayerResponses,
   GetPlayerErrors,
@@ -455,6 +464,11 @@ import type {
   GetPublicRecordingData,
   GetPublicRecordingResponses,
   GetPublicRecordingErrors,
+  RequestAccessData,
+  RequestAccessResponses,
+  RequestAccessErrors,
+  ListPendingAccessRequestsData,
+  ListPendingAccessRequestsResponses,
 } from "./types.gen";
 import { client } from "./client.gen";
 
@@ -952,6 +966,45 @@ export class Recordings {
       ThrowOnError
     >({
       url: "/api/v1/recordings/{rid}/permissions/{account}",
+      ...options,
+    });
+  }
+
+  /**
+   * List Access Requests
+   * Requests for access to the recording (owners), newest first; pending ones wait for an answer.
+   */
+  public static listAccessRequests<ThrowOnError extends boolean = false>(
+    options: Options<ListAccessRequestsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<ListAccessRequestsResponses, ListAccessRequestsErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/requests",
+      ...options,
+    });
+  }
+
+  /**
+   * Approve Access Request
+   * Approve a request (owners): the person gets permission on the recording.
+   */
+  public static approveAccessRequest<ThrowOnError extends boolean = false>(
+    options: Options<ApproveAccessRequestData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<ApproveAccessRequestResponses, ApproveAccessRequestErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/requests/{account}/approve",
+      ...options,
+    });
+  }
+
+  /**
+   * Decline Access Request
+   * Decline a request (owners). They can ask again.
+   */
+  public static declineAccessRequest<ThrowOnError extends boolean = false>(
+    options: Options<DeclineAccessRequestData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<DeclineAccessRequestResponses, DeclineAccessRequestErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/requests/{account}/decline",
       ...options,
     });
   }
@@ -2621,6 +2674,39 @@ export class Public {
   ) {
     return (options.client ?? client).get<GetPublicRecordingResponses, GetPublicRecordingErrors, ThrowOnError>({
       url: "/api/v1/public/recordings/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Request Access
+   * Ask for access to a recording (signed in, without permission): its closed parts, or a restricted one. Asking
+   * again replaces the earlier request. The namespace's owners hear of it by email when mail is set up; they approve
+   * (which gives permission) or decline in the recording's access settings.
+   */
+  public static requestAccess<ThrowOnError extends boolean = false>(options: Options<RequestAccessData, ThrowOnError>) {
+    return (options.client ?? client).post<RequestAccessResponses, RequestAccessErrors, ThrowOnError>({
+      url: "/api/v1/public/recordings/{rid}/request",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class AccessRequests {
+  /**
+   * List Pending Access Requests
+   * Requests waiting for an answer, for recordings in the namespaces you own (all of them for admins), newest
+   * first. Each is answered in its recording's access settings.
+   */
+  public static listPendingAccessRequests<ThrowOnError extends boolean = false>(
+    options?: Options<ListPendingAccessRequestsData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ListPendingAccessRequestsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/access-requests",
       ...options,
     });
   }

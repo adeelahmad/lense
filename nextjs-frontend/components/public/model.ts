@@ -5,7 +5,7 @@
 import type { AccessPart } from "@/components/access/model";
 import { first, langName, type Meta, type Person } from "@/components/iiif/metadata-model";
 import { rightsFor } from "@/components/iiif/rights";
-import { shortDate } from "@/lib/format";
+import { relative, shortDate } from "@/lib/format";
 
 /** The public page of a recording, the link to share. */
 export function publicPath(id: number): string {
@@ -115,7 +115,7 @@ export function closedNote(
     title,
     body: opts.signedIn
       ? `Only ${who}, and people it’s shared with, can ${w.verb(kind)}.`
-      : `Only ${who}, and people it’s shared with, can ${w.verb(kind)}. Sign in if that’s you.`,
+      : `Only ${who}, and people it’s shared with, can ${w.verb(kind)}. Sign in to see it if you have access, or to ask for it.`,
   };
 }
 
@@ -186,4 +186,20 @@ export function descriptionRows(meta: Meta | null | undefined): Row[] {
 /** Only http(s) links are followed; anything else shows as text. */
 export function safeHref(href: string | null | undefined): string | null {
   return href && /^https?:\/\//i.test(href) ? href : null;
+}
+
+/** Where someone's request for access stands, or the invitation to ask (a locked recording is closed as a whole). */
+export function requestLine(
+  req: { status: string; at?: string | null; decided_at?: string | null } | null | undefined,
+  ns: string,
+  locked = false,
+  now = Date.now(),
+): string {
+  if (req?.status === "pending")
+    return `You asked for access ${relative(req.at, now)}; the owners of ${ns} haven’t answered yet.`;
+  if (req?.status === "declined")
+    return `The owners of ${ns} declined your request ${relative(req.decided_at, now)}. You can ask again.`;
+  return locked
+    ? `You can ask the owners of ${ns} for access.`
+    : `Parts of this recording are closed. You can ask the owners of ${ns} for access to all of it.`;
 }

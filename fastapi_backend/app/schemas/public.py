@@ -6,10 +6,24 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from app.schemas.common import AccessLevel, AccessPart, ResponseModel
+from app.schemas.common import AccessLevel, AccessPart, RequestModel, ResponseModel
 from app.schemas.recordings import MediaKind
 
 View = Literal["full", "public", "locked"]
+RequestStatus = Literal["pending", "approved", "declined"]
+
+
+class PublicRequest(ResponseModel):
+    """Someone's latest request for access to a recording."""
+
+    status: RequestStatus
+    at: str | None = None
+    message: str | None = None
+    decided_at: str | None = None
+
+
+class PublicRequestCreate(RequestModel):
+    message: str | None = Field(None, max_length=1000, description="why they'd like access, for the owners")
 
 
 class PublicMedia(ResponseModel):
@@ -73,6 +87,8 @@ class PublicRecording(ResponseModel):
     transcript: PublicTranscript | None = None
     chapters: list[PublicChapter] | None = None
     closed: list[AccessPart] = Field(description="parts the recording has that this visitor can't use")
+    can_request: bool = Field(False, description="signed in without permission, with something closed: they may ask for access")
+    request: PublicRequest | None = Field(None, description="their latest request for access, if they made one")
 
 
 class PublicCard(ResponseModel):

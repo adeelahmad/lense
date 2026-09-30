@@ -1,0 +1,16 @@
+<html>
+  <body>
+    <p>Hello,</p>
+
+    <p>{{ who }} asked for access to <b>{{ title }}</b>{% if namespace %} in {{ namespace }}{% endif %}.</p>
+
+    {% if message %}<blockquote>{{ message }}</blockquote>{% endif %}
+
+    <p>You can give or refuse it in the recording's access settings:</p>
+
+    <p><a href="{{ link }}">Open the recording</a></p>
+
+    <p>Best regards,<br>
+    Lens</p>
+  </body>
+</html>

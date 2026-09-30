@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Recordings } from "@/app/openapi-client";
-import type { Permission, RecordingAccess, RecordingAccessUpdate } from "@/app/openapi-client/types.gen";
+import type { AccessRequest, Permission, RecordingAccess, RecordingAccessUpdate } from "@/app/openapi-client/types.gen";
 import { accessSummary } from "@/components/access/model";
 import { keys as iiifKeys } from "@/components/iiif/queries";
 import { useToast } from "@/components/ui/toast";
@@ -82,5 +82,44 @@ export function useTakePermission(rid: number) {
       toast({ title: "Permission taken away", body: `${p.email} no longer sees what isn’t open to everyone.` });
     },
     onError: (e) => toast({ title: "Couldn’t take the permission away", body: (e as Error).message, tone: "red" }),
+  });
+}
+
+export const requestsKey = (rid: number) => ["recording", rid, "requests"] as const;
+
+/** Requests for access to a recording (owners). */
+export function useAccessRequests(rid: number, enabled = true) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: requestsKey(rid),
+    queryFn: () => data(Recordings.listAccessRequests({ client, path: { rid } })),
+    enabled,
+  });
+}
+
+/** Approve (which gives permission) or decline a request. */
+export function useDecideRequest(rid: number) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: ({ req, approve }: { req: AccessRequest; approve: boolean }) =>
+      data(
+        (approve ? Recordings.approveAccessRequest : Recordings.declineAccessRequest)({
+          client,
+          path: { rid, account: req.account },
+        }),
+      ),
+    onSuccess: (list: AccessRequest[], { req, approve }) => {
+      qc.setQueryData(requestsKey(rid), list);
+      void qc.invalidateQueries({ queryKey: permissionsKey(rid) });
+      void qc.invalidateQueries({ queryKey: ["access-requests"] });
+      toast(
+        approve
+          ? { title: "Request approved", body: `${req.email} sees all of it now.`, tone: "green" }
+          : { title: "Request declined", body: `${req.email} can ask again.` },
+      );
+    },
+    onError: (e) => toast({ title: "Couldn’t answer the request", body: (e as Error).message, tone: "red" }),
   });
 }

@@ -16,7 +16,7 @@ from tests.helpers import login, make_user, quiet, seed, write_wav
 
 @pytest.fixture
 def env(app, db, cfg, folder, client):
-    a, _b, call = seed(db, cfg, folder)
+    a, b, call = seed(db, cfg, folder)
     wav, tr = folder / "clip.wav", folder / "clip.txt"
     write_wav(wav)
     tr.write_text(CLIP)
@@ -31,6 +31,7 @@ def env(app, db, cfg, folder, client):
     return {
         "app": app,
         "a": a,
+        "b": b,
         "call": call,
         "clip": clip,
         "wav": wav,
@@ -114,3 +115,62 @@ def test_permission_opens_iiif(client, env):
     # other recordings stay closed to them
     res = viewer.get(f"/iiif/auth/probe/{env['a']}/transcript", headers={"Authorization": f"Bearer {msg['accessToken']}"}).json()
     assert res["status"] == 403
+
+
+def test_asking_for_access(client, new_client, env, db, cfg, monkeypatch):
+    from app.api.v1.routes import public as public_routes
+    from app.domain import metadata
+
+    sent = []
+    monkeypatch.setattr(public_routes, "send_access_request_email", lambda *args: sent.append(args))
+    clip, call, ho, he, hg = env["clip"], env["call"], env["ho"], env["he"], env["hg"]
+    hr = login(client, "root@x.io", "root password 1")
+    metadata.save(db, cfg, clip, {"access": "public", "open": ["transcript"]})  # the audio and chapters are closed
+    metadata.save(db, cfg, call, {"access": "restricted"})
+    page = f"/api/v1/public/recordings/{clip}"
+    ask = f"{page}/request"
+
+    d = client.get(page, headers=hg).json()
+    assert (d["can_request"], d["request"]) == (True, None)
+    assert new_client().post(ask, json={}).status_code == 401  # visitors sign in first
+    r = client.post(ask, headers=hg, json={"message": "  For my thesis on capsids.  "})
+    assert r.status_code == 200 and (r.json()["status"], r.json()["message"]) == ("pending", "For my thesis on capsids.")
+    assert [(s[0], s[1], s[2]) for s in sent] == [(["own@x.io"], "guest (guest@x.io)", clip)]  # the namespace's owners hear of it
+    assert client.get(page, headers=hg).json()["request"]["status"] == "pending"
+    client.post(ask, headers=hg, json={"message": "Please?"})
+    assert len(sent) == 1  # asking again the same day updates the message, without another email
+
+    # owners see it on the recording and in their inbox; editors don't answer requests
+    reqs = client.get(f"/api/v1/recordings/{clip}/requests", headers=ho).json()
+    assert [(x["email"], x["status"], x["message"]) for x in reqs] == [("guest@x.io", "pending", "Please?")]
+    assert client.get(f"/api/v1/recordings/{clip}/requests", headers=he).status_code == 403
+    assert [x["recording"] for x in client.get("/api/v1/access-requests", headers=ho).json()] == [clip]
+    assert client.get("/api/v1/access-requests", headers=he).json() == []
+    guest = reqs[0]["account"]
+    assert client.post(f"/api/v1/recordings/{clip}/requests/{guest}/approve", headers=he).status_code == 403
+    # approving gives permission
+    done = client.post(f"/api/v1/recordings/{clip}/requests/{guest}/approve", headers=ho).json()
+    assert (done[0]["status"], done[0]["decided_by"]) == ("approved", "own@x.io")
+    d = client.get(page, headers=hg).json()
+    assert (d["view"], d["granted"], d["can_request"], d["media"] is not None) == ("full", True, False, True)
+    assert [p["email"] for p in client.get(f"/api/v1/recordings/{clip}/permissions", headers=ho).json()] == ["guest@x.io"]
+    assert client.post(f"/api/v1/recordings/{clip}/requests/{guest}/approve", headers=ho).status_code == 404
+    assert client.get("/api/v1/access-requests", headers=ho).json() == []
+    assert client.post(ask, headers=hg, json={}).status_code == 400  # they see all of it now
+
+    # a restricted recording: its namespace has no owner, so admins hear of it; declined, they may ask again
+    r = client.post(f"/api/v1/public/recordings/{call}/request", headers=hg, json={})
+    assert r.json()["status"] == "pending" and sent[-1][:3] == (["root@x.io"], "guest (guest@x.io)", call)
+    assert client.post(f"/api/v1/recordings/{call}/requests/{guest}/decline", headers=hr).json()[0]["status"] == "declined"
+    d = client.get(f"/api/v1/public/recordings/{call}", headers=hg).json()
+    assert (d["view"], d["can_request"], d["request"]["status"]) == ("locked", True, "declined")
+    client.post(f"/api/v1/public/recordings/{call}/request", headers=hg, json={})
+    assert len(sent) == 3  # a new request after a decline is news again
+    actions = sorted(x["action"] for x in db.rows("SELECT action FROM audit_log WHERE action CONTAINS 'request'"))
+    assert actions == ["recording.request.approve", "recording.request.decline"]
+
+    # nothing to ask for: everything open, a private recording, or a member
+    metadata.save(db, cfg, env["a"], {"access": "public"})
+    assert client.post(f"/api/v1/public/recordings/{env['a']}/request", headers=hg, json={}).status_code == 400
+    assert client.post(f"/api/v1/public/recordings/{env['b']}/request", headers=hg, json={}).status_code == 404
+    assert client.post(ask, headers=he, json={}).status_code == 400

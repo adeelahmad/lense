@@ -1665,6 +1665,165 @@
         }
       }
     },
+    "/api/v1/recordings/{rid}/requests": {
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "List Access Requests",
+        "description": "Requests for access to the recording (owners), newest first; pending ones wait for an answer.",
+        "operationId": "list_access_requests",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AccessRequest"
+                  },
+                  "title": "Response Recordings-List Access Requests"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{rid}/requests/{account}/approve": {
+      "post": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Approve Access Request",
+        "description": "Approve a request (owners): the person gets permission on the recording.",
+        "operationId": "approve_access_request",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "account",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Account"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AccessRequest"
+                  },
+                  "title": "Response Recordings-Approve Access Request"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{rid}/requests/{account}/decline": {
+      "post": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Decline Access Request",
+        "description": "Decline a request (owners). They can ask again.",
+        "operationId": "decline_access_request",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "account",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Account"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AccessRequest"
+                  },
+                  "title": "Response Recordings-Decline Access Request"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/recordings/{rid}/player": {
       "get": {
         "tags": [
@@ -7845,10 +8004,201 @@
           }
         }
       }
+    },
+    "/api/v1/public/recordings/{rid}/request": {
+      "post": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Request Access",
+        "description": "Ask for access to a recording (signed in, without permission): its closed parts, or a restricted one. Asking\nagain replaces the earlier request. The namespace's owners hear of it by email when mail is set up; they approve\n(which gives permission) or decline in the recording's access settings.",
+        "operationId": "request_access",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicRequestCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicRequest"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-requests": {
+      "get": {
+        "tags": [
+          "access requests"
+        ],
+        "summary": "List Pending Access Requests",
+        "description": "Requests waiting for an answer, for recordings in the namespaces you own (all of them for admins), newest\nfirst. Each is answered in its recording's access settings.",
+        "operationId": "list_pending_access_requests",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AccessRequest"
+                  },
+                  "type": "array",
+                  "title": "Response Access Requests-List Pending Access Requests"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AccessRequest": {
+        "properties": {
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "account": {
+            "type": "integer",
+            "title": "Account"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "declined"
+            ],
+            "title": "Status"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recording",
+          "account",
+          "email",
+          "status"
+        ],
+        "title": "AccessRequest",
+        "description": "Someone asking for permission on a recording (docs/access.md)."
+      },
       "AnswerCheck": {
         "properties": {
           "claims": {
@@ -13333,6 +13683,23 @@
             "type": "array",
             "title": "Closed",
             "description": "parts the recording has that this visitor can't use"
+          },
+          "can_request": {
+            "type": "boolean",
+            "title": "Can Request",
+            "description": "signed in without permission, with something closed: they may ask for access",
+            "default": false
+          },
+          "request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "their latest request for access, if they made one"
           }
         },
         "additionalProperties": true,
@@ -13349,6 +13716,79 @@
         ],
         "title": "PublicRecording",
         "description": "A recording as this visitor may see it: all of it with permission, else its page, description and open parts,\nor (restricted, signed in) its title only. Parts left out are null."
+      },
+      "PublicRequest": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "declined"
+            ],
+            "title": "Status"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "PublicRequest",
+        "description": "Someone's latest request for access to a recording."
+      },
+      "PublicRequestCreate": {
+        "properties": {
+          "message": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "why they'd like access, for the owners"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PublicRequestCreate"
       },
       "PublicResult": {
         "properties": {

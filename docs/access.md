@@ -5,8 +5,8 @@ Lens follows the roles and permissions matrix of Aviary, the audio and video acc
 closed. Who may open what depends on who is asking.
 
 !!! note "Being built"
-    Recordings' access settings, permission on a recording, the web app, IIIF and the pages for visitors (home,
-    collections, search and a recording's page) follow this model now. Access requests and IP groups come next.
+    Recordings' access settings, permission on a recording, requests for access, the web app, IIIF and the pages for
+    visitors (home, collections, search and a recording's page) follow this model now. IP groups come next.
 
 ## A recording's access
 
@@ -54,6 +54,15 @@ cookie, and its media and transcript through the Authorization Flow. Face crops 
 publishes them. Permission doesn't open the workspace: that stays with the namespace's members.
 
 In the matrix, view and edit permission open the same pages; Lens has one permission for both.
+
+## Asking for access
+
+Someone signed in without permission can ask a recording's owners for access: to the closed parts of a public
+recording, or to a restricted one (on its "content locked" page), with a message if they like. The namespace's owners
+(admins, when it has none) get an email when mail is set up, and see the request in the recording's Access dialog and
+on Home under Needs attention. Approving gives the person permission; declining lets them ask again. The page tells
+them where their request stands. Asking again while a request waits only updates its message, and emails the owners
+at most once a day; answers are audited.
 
 ## Pages
 

@@ -3,11 +3,18 @@
 import { UserRound, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { useGivePermission, usePermissions, useTakePermission } from "@/components/access/hooks";
+import {
+  useAccessRequests,
+  useDecideRequest,
+  useGivePermission,
+  usePermissions,
+  useTakePermission,
+} from "@/components/access/hooks";
 import { permissionLine } from "@/components/access/model";
 import { Button, IconButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/states";
+import { relative } from "@/lib/format";
 
 /**
  * People given permission on one recording (docs/access.md): they see all of it on the pages visitors see and in
@@ -98,6 +105,62 @@ export function PeopleWithPermission({ rid, ns }: { rid: number; ns: string }) {
       ) : (
         <p className="text-[12.5px] text-fg-muted">Nobody yet.</p>
       )}
+    </section>
+  );
+}
+
+/** Requests for access waiting for an owner's answer (gold ◆: a person decides). Approving gives permission. */
+export function RequestsWaiting({ rid }: { rid: number }) {
+  const q = useAccessRequests(rid);
+  const decide = useDecideRequest(rid);
+  const pending = (q.data ?? []).filter((r) => r.status === "pending");
+  if (!pending.length) return null;
+  return (
+    <section
+      aria-labelledby="requests-heading"
+      className="flex flex-col gap-2 rounded-md border border-gold-border bg-gold-surface px-3 py-3"
+    >
+      <h3 id="requests-heading" className="flex items-center gap-1.5 text-[13px] font-bold text-fg-strong">
+        <span aria-hidden className="text-gold-dark">
+          ◆
+        </span>
+        {pending.length === 1 ? "Someone asks for access" : `${pending.length} people ask for access`}
+      </h3>
+      <ul aria-label="Requests for access" className="flex flex-col">
+        {pending.map((r) => (
+          <li
+            key={r.account}
+            className="flex flex-wrap items-start gap-x-3 gap-y-2 border-t border-gold-border py-2 first:border-t-0"
+          >
+            <span className="flex min-w-0 flex-1 basis-[220px] flex-col gap-0.5">
+              <span className="truncate text-[13px] font-semibold text-fg">{r.name || r.email}</span>
+              <span className="truncate text-[12px] text-fg-secondary">
+                {r.name ? `${r.email} · ` : ""}asked {relative(r.at)}
+              </span>
+              {r.message && <q className="text-[12.5px] leading-[1.45] text-fg">{r.message}</q>}
+            </span>
+            <span className="flex gap-2">
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={decide.isPending}
+                onClick={() => decide.mutate({ req: r, approve: true })}
+                aria-label={`Approve ${r.email}`}
+              >
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                disabled={decide.isPending}
+                onClick={() => decide.mutate({ req: r, approve: false })}
+                aria-label={`Decline ${r.email}`}
+              >
+                Decline
+              </Button>
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

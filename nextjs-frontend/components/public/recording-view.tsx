@@ -26,6 +26,7 @@ import {
   safeHref,
 } from "@/components/public/model";
 import { useSignInHref } from "@/components/public/public-shell";
+import { RequestAccess } from "@/components/public/request-access";
 import { Centered, LoadError, Unavailable } from "@/components/public/states";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
@@ -83,6 +84,7 @@ function Locked({ rec }: { rec: Rec }) {
           This recording is restricted: only members of {rec.namespace ?? "its namespace"}, and people it’s shared with,
           can open it.
         </p>
+        {rec.can_request && <RequestAccess rec={rec} className="mt-2 w-full text-left" />}
       </section>
     </Centered>
   );
@@ -134,6 +136,7 @@ function RecordingBody({ rec, signedIn, start }: { rec: Rec; signedIn: boolean; 
             {rec.access === "public" ? ", not only the parts open to everyone." : "."}
           </Banner>
         )}
+        {rec.can_request && <RequestAccess rec={rec} />}
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="flex min-w-0 flex-col gap-5">
             <MediaCard rec={rec} duration={duration} signedIn={signedIn} />

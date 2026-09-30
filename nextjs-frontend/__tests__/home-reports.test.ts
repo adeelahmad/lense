@@ -1,4 +1,12 @@
-import type { ApiToken, Job, RecordingSummary, Source, Speaker, Watch } from "@/app/openapi-client/types.gen";
+import type {
+  AccessRequest,
+  ApiToken,
+  Job,
+  RecordingSummary,
+  Source,
+  Speaker,
+  Watch,
+} from "@/app/openapi-client/types.gen";
 import { buildAttention, greeting } from "@/components/home/attention";
 import { latestJobs } from "@/components/library/model";
 import { cloudSizes, monthlyBuckets, overview, rangeBounds, rangeLabel, talkTime } from "@/components/reports/model";
@@ -181,6 +189,34 @@ describe("needs attention", () => {
       meta: "2 voice matches to review in podcasts",
     });
     expect(items.find((i) => i.key === "token-1")?.title).toBe("API token “ci” expires in 3 days");
+  });
+
+  it("asks owners to answer requests for access", () => {
+    const requests = [
+      {
+        recording: 12,
+        title: "Episode 13",
+        namespace: "podcasts",
+        account: 7,
+        email: "ana@example.org",
+        name: "Ana",
+        message: "For my thesis on capsids.",
+        at: new Date(NOW - 3_600_000).toISOString(),
+        status: "pending",
+      },
+      { recording: 13, account: 8, email: "bo@example.org", status: "approved" },
+    ] as AccessRequest[];
+    const items = buildAttention({ latestJobs: new Map(), recent: [], nsById: new Map(), requests, now: NOW });
+    expect(items).toEqual([
+      {
+        key: "request-12-7",
+        kind: "gate",
+        title: "Ana asked for access to Episode 13",
+        meta: "“For my thesis on capsids.” · 1 hour ago · podcasts",
+        action: { label: "Review", do: { type: "link", href: "/recordings/12#access" } },
+        namespace: "podcasts",
+      },
+    ]);
   });
 
   it("greets by the time of day", () => {

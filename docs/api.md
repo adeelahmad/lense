@@ -68,6 +68,9 @@ PUT    /api/v1/recordings/{rid}/access
 GET    /api/v1/recordings/{rid}/permissions
 POST   /api/v1/recordings/{rid}/permissions
 DELETE /api/v1/recordings/{rid}/permissions/{account}
+GET    /api/v1/recordings/{rid}/requests
+POST   /api/v1/recordings/{rid}/requests/{account}/approve
+POST   /api/v1/recordings/{rid}/requests/{account}/decline
 GET    /api/v1/recordings/{rid}/player
 GET    /api/v1/recordings/{rid}/embed-link
 GET    /api/v1/recordings/{rid}/audio
@@ -116,7 +119,9 @@ announced in the IIIF change feed. [Access](access.md) explains what each level 
 `/recordings/{rid}/permissions` lists the people given permission on the recording (owners). `POST` with `{"email":
 …}` gives it to the account with that address (404 when there is none, 400 for members of the namespace, who already
 see all of it); `DELETE …/{account}` takes it away. Both answer with the list and are audited as
-`recording.permission.give` and `recording.permission.take`.
+`recording.permission.give` and `recording.permission.take`. `/recordings/{rid}/requests` lists the requests for access
+(owners); approving one gives permission, declining lets the person ask again (audited as
+`recording.request.approve` and `recording.request.decline`).
 
 ## imports
 
@@ -305,6 +310,8 @@ GET    /api/v1/public/home
 GET    /api/v1/public/collections/{name}
 GET    /api/v1/public/search
 GET    /api/v1/public/recordings/{rid}
+POST   /api/v1/public/recordings/{rid}/request
+GET    /api/v1/access-requests
 ```
 
 `GET /public/home` lists the featured public recordings (for everyone, members too) and the collections the caller
@@ -326,5 +333,9 @@ recordings and closed transcripts match on the title only.
   transcript files to download when the transcript is open to everyone) and `chapters` (the index).
 * `locked`: a restricted recording, for someone signed in without permission: its title and namespace only.
 
-Parts the caller can't use are `null` and listed in `closed`. Recordings the caller may not see at all (restricted ones
+Parts the caller can't use are `null` and listed in `closed`. For someone signed in without permission,
+`can_request` says whether they may ask for access (something is closed to them) and `request` is their latest request.
+`POST …/request` with an optional `message` asks the owners (400 when the caller already sees all of it, or when all of
+it is open to everyone); asking again replaces the request. `GET /access-requests` lists the requests waiting for an
+answer in the namespaces the caller owns. Recordings the caller may not see at all (restricted ones
 to visitors who aren't signed in, private ones to anyone without permission) answer 404, as missing ones do.

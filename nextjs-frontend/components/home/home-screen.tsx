@@ -5,7 +5,7 @@ import { AudioLines, ChartNoAxesColumn, FileAudio, MessagesSquare } from "lucide
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { Recordings, Sources, Speakers, Tokens } from "@/app/openapi-client";
+import { AccessRequests, Recordings, Sources, Speakers, Tokens } from "@/app/openapi-client";
 import { buildAttention, greeting, type AttentionItem } from "@/components/home/attention";
 import { QuickImport } from "@/components/home/quick-import";
 import { rememberView, useRecentViews, type ViewedKind } from "@/components/home/recently-viewed";
@@ -123,6 +123,13 @@ export function HomeScreen() {
     queryFn: () => data(Tokens.listTokens({ client })),
     staleTime: 60_000,
   });
+  const owns = namespaces.some((n) => can("owner", n.name));
+  const requests = useQuery({
+    queryKey: ["access-requests"],
+    queryFn: () => data(AccessRequests.listPendingAccessRequests({ client })),
+    enabled: owns,
+    staleTime: 30_000,
+  });
   const reviewable = namespaces.map((n) => n.name).filter((n) => (!namespace || n === namespace) && can("editor", n));
   const speakerQs = useQueries({
     queries: reviewable.map((ns) => ({
@@ -152,11 +159,24 @@ export function HomeScreen() {
         namespace: ns,
         speakers: speakerQs[i]?.data?.speakers ?? [],
       })),
+      requests: (requests.data ?? []).filter((r) => inScope(r.namespace)),
       tokens: tokens.data,
     });
     // Only what this person can act on: failures in namespaces where they can't edit stay out of their way.
     return all.filter((it) => it.namespace === undefined || can("editor", it.namespace));
-  }, [latest, recent.data, nsById, admin, sources.data, watches.data, tokens.data, namespace, reviewKey, can]);
+  }, [
+    latest,
+    recent.data,
+    nsById,
+    admin,
+    sources.data,
+    watches.data,
+    requests.data,
+    tokens.data,
+    namespace,
+    reviewKey,
+    can,
+  ]);
 
   const act = async (it: AttentionItem) => {
     const a = it.action.do;

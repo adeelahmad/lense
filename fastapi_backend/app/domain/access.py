@@ -162,6 +162,90 @@ def take(db, rid, account):
     return had
 
 
+# ---------- asking for access ----------
+REQUEST_FIELDS = "recording, account, message, at, status, decided_by, decided_at"
+
+
+def _request_id(rid, account):
+    return R("access_request", f"{rid}-{account}")
+
+
+def ask(db, rid, account, message=None):
+    """Someone without permission asks for it (their latest request is the one that counts)."""
+    db.q(
+        "UPSERT $r CONTENT $d",
+        r=_request_id(rid, account),
+        d=store.clean({"recording": rid, "account": account, "message": message or None, "at": store.now(), "status": "pending"}),
+    )
+    return request_of(db, rid, account)
+
+
+def request_of(db, rid, account):
+    """Someone's latest request for a recording, or None."""
+    return db.one(f"SELECT {REQUEST_FIELDS} FROM $r", r=_request_id(rid, account)) if account else None
+
+
+def requests(db, rids=None, spaces=None, status=None):
+    """Requests with who asked and for what, newest first: for some recordings, or for the recordings of some
+    namespaces; only those with this status when given."""
+    cond, p = [], {}
+    if rids is not None:
+        cond.append("recording IN $rids")
+        p["rids"] = sorted(rids)
+    if status:
+        cond.append("status = $st")
+        p["st"] = status
+    rows = db.rows(f"SELECT {REQUEST_FIELDS} FROM access_request" + (f" WHERE {' AND '.join(cond)}" if cond else ""), **p)
+    if not rows:
+        return []
+    recs = {
+        r["id"]: r
+        for r in db.rows(
+            "SELECT record::id(id) AS id, title, space FROM recording WHERE id IN $ids",
+            ids=[R("recording", i) for i in {x["recording"] for x in rows}],
+        )
+    }
+    accounts = {
+        a["id"]: a
+        for a in db.rows(
+            "SELECT record::id(id) AS id, email, name FROM account WHERE id IN $ids",
+            ids=[R("account", i) for i in {x["account"] for x in rows}],
+        )
+    }
+    names = store.space_names(db)
+    out = []
+    for x in rows:
+        rec, who = recs.get(x["recording"]), accounts.get(x["account"])
+        if not rec or not who or (spaces is not None and rec["space"] not in spaces):
+            continue
+        out.append({**x, "title": rec.get("title"), "namespace": names.get(rec["space"]), "email": who["email"], "name": who.get("name")})
+    return sorted(out, key=lambda x: x.get("at") or "", reverse=True)
+
+
+def decide(db, rid, account, approve, by=None):
+    """Answer a pending request: approving it gives permission. False when there is no pending request."""
+    req = request_of(db, rid, account)
+    if not req or req.get("status") != "pending":
+        return False
+    if approve:
+        give(db, rid, account, by)
+    db.q(
+        "UPDATE $r SET status = $s, decided_by = $by, decided_at = $at",
+        r=_request_id(rid, account),
+        s="approved" if approve else "declined",
+        by=by,
+        at=store.now(),
+    )
+    return True
+
+
+def owners(db, space):
+    """The email addresses of a namespace's owners (members with the owner role; admins when it has none)."""
+    ids = db.values("SELECT VALUE account FROM membership WHERE space = $s AND role = 'owner'", s=space)
+    cond = "id IN $ids" if ids else "admin = true"
+    return db.values(f"SELECT VALUE email FROM account WHERE {cond} AND disabled != true", ids=[R("account", i) for i in ids])
+
+
 def view(a, permitted, signed_in):
     """What someone sees of a recording, after Aviary's matrix (docs/access.md).
 

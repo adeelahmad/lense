@@ -22,6 +22,7 @@ from app.domain import metadata as md
 from app.domain.store import API, DB
 from app.schemas.common import AccessLevel, Ok
 from app.schemas.recordings import (
+    AccessRequest,
     EmbedLink,
     JobQueued,
     MediaKind,
@@ -219,6 +220,36 @@ def remove_recording_permission(rid: int, account: int, acl: Acl, user: Writer, 
     email = (auth.get_account(db, account) or {}).get("email")
     auth.audit(db, user.as_audit(), "recording.permission.take", f"recording:{rid}", {"email": email})
     return [Permission.model_validate(p) for p in acc.people(db, rid)]
+
+
+@router.get("/{rid}/requests")
+def list_access_requests(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[AccessRequest]:
+    """Requests for access to the recording (owners), newest first; pending ones wait for an answer."""
+    acl.recording(rid, "owner")
+    return [AccessRequest.model_validate(x) for x in acc.requests(db, rids=[rid])]
+
+
+def _decide(rid: int, account: int, approve: bool, acl: Acl, user: Any, db: DB) -> list[AccessRequest]:
+    acl.recording(rid, "owner")
+    req = acc.request_of(db, rid, account)
+    if not acc.decide(db, rid, account, approve, user.email):
+        raise HTTPException(404, "no request waits for an answer")
+    email = (auth.get_account(db, account) or {}).get("email")
+    action = "recording.request.approve" if approve else "recording.request.decline"
+    auth.audit(db, user.as_audit(), action, f"recording:{rid}", {"email": email, "message": (req or {}).get("message")})
+    return [AccessRequest.model_validate(x) for x in acc.requests(db, rids=[rid])]
+
+
+@router.post("/{rid}/requests/{account}/approve")
+def approve_access_request(rid: int, account: int, acl: Acl, user: Writer, db: Db) -> list[AccessRequest]:
+    """Approve a request (owners): the person gets permission on the recording."""
+    return _decide(rid, account, True, acl, user, db)
+
+
+@router.post("/{rid}/requests/{account}/decline")
+def decline_access_request(rid: int, account: int, acl: Acl, user: Writer, db: Db) -> list[AccessRequest]:
+    """Decline a request (owners). They can ask again."""
+    return _decide(rid, account, False, acl, user, db)
 
 
 @router.get("/{rid}/player")

@@ -8,6 +8,7 @@ import {
   markParts,
   momentPath,
   publicPath,
+  requestLine,
   safeHref,
   searchPath,
 } from "@/components/public/model";
@@ -67,7 +68,7 @@ describe("public recording page", () => {
   it("says who can open a closed part, and asks visitors to sign in", () => {
     expect(closedNote("media", { ns: "podcasts", signedIn: false, kind: "audio" })).toEqual({
       title: "The audio isn’t open to everyone",
-      body: "Only members of podcasts, and people it’s shared with, can listen to it. Sign in if that’s you.",
+      body: "Only members of podcasts, and people it’s shared with, can listen to it. Sign in to see it if you have access, or to ask for it.",
     });
     expect(closedNote("media", { ns: "podcasts", signedIn: true, kind: "video" }).body).toBe(
       "Only members of podcasts, and people it’s shared with, can watch it.",
@@ -123,5 +124,19 @@ describe("public recording page", () => {
     expect(safeHref("javascript:alert(1)")).toBeNull();
     expect(safeHref("/api/v1/recordings/3/audio")).toBeNull();
     expect(safeHref(null)).toBeNull();
+  });
+
+  it("says where a request for access stands", () => {
+    const now = Date.parse("2026-09-30T20:00:00Z");
+    expect(requestLine(null, "podcasts", false, now)).toBe(
+      "Parts of this recording are closed. You can ask the owners of podcasts for access to all of it.",
+    );
+    expect(requestLine(undefined, "podcasts", true, now)).toBe("You can ask the owners of podcasts for access.");
+    expect(requestLine({ status: "pending", at: "2026-09-30T19:00:00Z" }, "podcasts", false, now)).toBe(
+      "You asked for access 1 hour ago; the owners of podcasts haven’t answered yet.",
+    );
+    expect(requestLine({ status: "declined", decided_at: "2026-09-28T20:00:00Z" }, "podcasts", true, now)).toBe(
+      "The owners of podcasts declined your request 2 days ago. You can ask again.",
+    );
   });
 });

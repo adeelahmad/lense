@@ -17,6 +17,7 @@ from app.api.v1.routes import (
     pipelines,
     public,
     recordings,
+    requests,
     search,
     sources,
     speakers,
@@ -48,5 +49,6 @@ for module in (
     collections,
     batches,
     public,
+    requests,
 ):
     api_router.include_router(module.router)

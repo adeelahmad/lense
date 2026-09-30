@@ -63,6 +63,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `DELETE /api/v1/recordings/{rid}/permissions/{account}`.
     - Fix: IIIF resources of a recording that isn't public now also open with the IIIF access cookie, and the
       signed links the auth probe hands out work for them (they answered 404, so viewers couldn't play them).
+- **Asking for access** (Aviary's "request access"). Signed-in people without permission ask a recording's owners for
+  access from its page: to a public recording's closed parts, or to a restricted one, with an optional message; the
+  page shows where their request stands. Owners hear of it by email (when mail is set up), in the recording's Access
+  dialog and on Home under Needs attention, and approve (which gives permission) or decline, audited.
+  `POST /api/v1/public/recordings/{rid}/request`, `GET /api/v1/recordings/{rid}/requests`,
+  `POST …/requests/{account}/approve|decline`, `GET /api/v1/access-requests`.
 
 Tooling:
 

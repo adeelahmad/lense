@@ -30,7 +30,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `FRONTEND_URL` | `http://localhost:3000` | links in emails |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | origins allowed to call the API from a browser |
 | `OPENAPI_URL` | `/openapi.json` | `""` disables `/docs` and the schema |
-| `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, `MAIL_STARTTLS`, `MAIL_SSL_TLS`, `USE_CREDENTIALS`, `VALIDATE_CERTS` | | SMTP for password reset; without `MAIL_SERVER` reset links are logged |
+| `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, `MAIL_STARTTLS`, `MAIL_SSL_TLS`, `USE_CREDENTIALS`, `VALIDATE_CERTS` | | SMTP for password reset and for telling owners about requests for access; without `MAIL_SERVER` the links are logged |
 
 ## Frontend environment
 

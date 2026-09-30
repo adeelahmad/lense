@@ -160,6 +160,11 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
     api.seek(start * 1000, { manual: true });
   }, [api, start]);
 
+  // #access (Home's "Needs attention" and access request emails link that way) opens the access settings.
+  useEffect(() => {
+    if (window.location.hash === "#access") setDialog({ kind: "access" });
+  }, []);
+
   const value = useMemo<RecordingCtx>(
     () => ({
       id,

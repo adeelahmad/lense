@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { AccessFields } from "@/components/access/access-fields";
 import { useRecordingAccess, useSaveAccess } from "@/components/access/hooks";
-import { PeopleWithPermission } from "@/components/access/people";
+import { PeopleWithPermission, RequestsWaiting } from "@/components/access/people";
 import { ALL_PARTS, accessLabel, accessPatch, partsText, type AccessValue } from "@/components/access/model";
 import { CopyButton } from "@/components/iiif/collections";
 import { publicPath } from "@/components/public/model";
@@ -156,6 +156,7 @@ export function AccessDialog({ open, onOpenChange }: { open: boolean; onOpenChan
               )}
             </p>
           )}
+          {canPublish && <RequestsWaiting rid={id} />}
           {canPublish && ns && <PeopleWithPermission rid={id} ns={ns} />}
           <div className="flex items-center justify-end gap-2">
             {!canPublish && (

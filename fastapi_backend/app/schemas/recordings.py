@@ -133,6 +133,22 @@ class Permission(ResponseModel):
     at: str | None = None
 
 
+class AccessRequest(ResponseModel):
+    """Someone asking for permission on a recording (docs/access.md)."""
+
+    recording: int
+    title: str | None = None
+    namespace: str | None = None
+    account: int
+    email: str
+    name: str | None = None
+    message: str | None = None
+    at: str | None = None
+    status: Literal["pending", "approved", "declined"]
+    decided_by: str | None = None
+    decided_at: str | None = None
+
+
 class PermissionAdd(RequestModel):
     email: str = Field(min_length=3, max_length=320, description="the address of an account in this archive")
 
