@@ -47,10 +47,7 @@ describe("setup action", () => {
   });
 
   it("validates the form", async () => {
-    const result = await setup(
-      undefined,
-      form({ ...valid, code: "", password: "short" }),
-    );
+    const result = await setup(undefined, form({ ...valid, code: "", password: "short" }));
 
     expect(Auth.setup).not.toHaveBeenCalled();
     expect(result).toEqual({
@@ -71,9 +68,7 @@ describe("setup action", () => {
 
     expect(result).toEqual({
       errors: {
-        code: [
-          "Setup is closed or the code is wrong. Copy the code again from the server log.",
-        ],
+        code: ["Setup is closed or the code is wrong. Copy the code again from the server log."],
       },
     });
     expect(signIn).not.toHaveBeenCalled();

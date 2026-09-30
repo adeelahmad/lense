@@ -17,11 +17,20 @@ type SortKey = "name" | "talk" | "recordings" | "last";
 /** SP1: a namespace's speakers — talk time, recordings, voiceprint, last heard. Rows open the profile. */
 export function Registry({ speakers, heard }: { speakers: Speaker[]; heard: Map<number, string> }) {
   const router = useRouter();
-  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "talk", dir: "desc" });
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({
+    key: "talk",
+    dir: "desc",
+  });
   const max = Math.max(1, ...speakers.map((s) => s.talk_ms ?? 0));
   const rows = useMemo(() => {
     const v = (s: Speaker): string | number =>
-      sort.key === "name" ? s.display.toLowerCase() : sort.key === "talk" ? (s.talk_ms ?? 0) : sort.key === "recordings" ? (s.recordings ?? 0) : (heard.get(s.id) ?? "");
+      sort.key === "name"
+        ? s.display.toLowerCase()
+        : sort.key === "talk"
+          ? (s.talk_ms ?? 0)
+          : sort.key === "recordings"
+            ? (s.recordings ?? 0)
+            : (heard.get(s.id) ?? "");
     return [...speakers].sort((a, b) => {
       const x = v(a);
       const y = v(b);
@@ -32,7 +41,11 @@ export function Registry({ speakers, heard }: { speakers: Speaker[]; heard: Map<
   const by = (key: SortKey) => ({
     active: sort.key === key,
     dir: sort.dir,
-    onSort: () => setSort((s) => ({ key, dir: s.key === key && s.dir === "desc" ? "asc" : key === "name" ? "asc" : "desc" })),
+    onSort: () =>
+      setSort((s) => ({
+        key,
+        dir: s.key === key && s.dir === "desc" ? "asc" : key === "name" ? "asc" : "desc",
+      })),
   });
   return (
     <div className="overflow-hidden rounded-md border border-border">
@@ -61,16 +74,30 @@ export function Registry({ speakers, heard }: { speakers: Speaker[]; heard: Map<
               <Td>
                 <span className="flex items-center gap-2.5">
                   <SpeakerAvatar s={s} />
-                  <a href={`/speakers/${s.id}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-fg hover:text-fg-accent hover:underline">
+                  <a
+                    href={`/speakers/${s.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="font-semibold text-fg hover:text-fg-accent hover:underline"
+                  >
                     {s.display}
                   </a>
-                  {isUnnamed(s) && <span className="inline-flex h-5 items-center rounded-pill border border-gold-border bg-gold-surface px-[7px] text-[11px] font-semibold text-gold-dark">unnamed</span>}
+                  {isUnnamed(s) && (
+                    <span className="inline-flex h-5 items-center rounded-pill border border-gold-border bg-gold-surface px-[7px] text-[11px] font-semibold text-gold-dark">
+                      unnamed
+                    </span>
+                  )}
                 </span>
               </Td>
               <Td>
                 <span className="tabular flex items-center gap-2">
                   <span className="h-[5px] w-[60px] overflow-hidden rounded-pill bg-surface-neutral" aria-hidden>
-                    <span className="block h-full" style={{ width: `${Math.max(2, ((s.talk_ms ?? 0) / max) * 100)}%`, background: speakerTone(s.id) }} />
+                    <span
+                      className="block h-full"
+                      style={{
+                        width: `${Math.max(2, ((s.talk_ms ?? 0) / max) * 100)}%`,
+                        background: speakerTone(s.id),
+                      }}
+                    />
                   </span>
                   {talkTime(s.talk_ms)}
                 </span>
@@ -92,7 +119,9 @@ export function Registry({ speakers, heard }: { speakers: Speaker[]; heard: Map<
                   </Tooltip>
                 )}
               </Td>
-              <Td className="tabular hidden text-fg-secondary lg:table-cell">{heard.get(s.id) ? shortDate(heard.get(s.id)) : "—"}</Td>
+              <Td className="tabular hidden text-fg-secondary lg:table-cell">
+                {heard.get(s.id) ? shortDate(heard.get(s.id)) : "—"}
+              </Td>
               <Td>
                 <ChevronRight aria-hidden className="size-4 text-fg-muted" />
               </Td>

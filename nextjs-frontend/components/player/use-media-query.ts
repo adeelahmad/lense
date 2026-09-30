@@ -11,7 +11,10 @@ export function useMediaQuery(query: string): boolean {
       m.addEventListener("change", onChange);
       return () => m.removeEventListener("change", onChange);
     },
-    () => (typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia(query).matches : false),
+    () =>
+      typeof window !== "undefined" && typeof window.matchMedia === "function"
+        ? window.matchMedia(query).matches
+        : false,
     () => false,
   );
 }

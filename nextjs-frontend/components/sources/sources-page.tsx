@@ -24,7 +24,11 @@ import { plural } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-const GLYPH = { ok: ["✓", "text-green-dark"], bad: ["✕", "text-red-dark"], unknown: ["–", "text-fg-muted"] } as const;
+const GLYPH = {
+  ok: ["✓", "text-green-dark"],
+  bad: ["✕", "text-red-dark"],
+  unknown: ["–", "text-fg-muted"],
+} as const;
 
 function HealthText({ source }: { source: Source }) {
   const h = healthOf(source.health);
@@ -46,7 +50,11 @@ function watchedText(ws: Watch[]) {
 }
 
 type Editing = { source: Source | null; replaceToken?: boolean } | null;
-type Watching = { source: { id: number; name: string }; path: string; watch?: Watch | null } | null;
+type Watching = {
+  source: { id: number; name: string };
+  path: string;
+  watch?: Watch | null;
+} | null;
 
 /** SO1–SO3: connections with their health, and the watched folders that import from them. */
 export function SourcesPage() {
@@ -60,10 +68,28 @@ export function SourcesPage() {
   const [watching, setWatching] = useState<Watching>(null);
   const [deleting, setDeleting] = useState<Source | null>(null);
 
-  const backends = useQuery({ queryKey: ["source-backends"], queryFn: () => data(Sources.listBackends({ client })), staleTime: Infinity, enabled: admin });
-  const sources = useQuery({ queryKey: ["sources"], queryFn: () => data(Sources.listSources({ client })), enabled: admin, refetchInterval: 60_000 });
-  const watches = useQuery({ queryKey: ["watches"], queryFn: () => data(Sources.listWatches({ client })), refetchInterval: 30_000 });
-  const pipelines = useQuery({ queryKey: ["pipelines"], queryFn: () => data(Pipelines.listPipelines({ client })), staleTime: 60_000 });
+  const backends = useQuery({
+    queryKey: ["source-backends"],
+    queryFn: () => data(Sources.listBackends({ client })),
+    staleTime: Infinity,
+    enabled: admin,
+  });
+  const sources = useQuery({
+    queryKey: ["sources"],
+    queryFn: () => data(Sources.listSources({ client })),
+    enabled: admin,
+    refetchInterval: 60_000,
+  });
+  const watches = useQuery({
+    queryKey: ["watches"],
+    queryFn: () => data(Sources.listWatches({ client })),
+    refetchInterval: 30_000,
+  });
+  const pipelines = useQuery({
+    queryKey: ["pipelines"],
+    queryFn: () => data(Pipelines.listPipelines({ client })),
+    staleTime: 60_000,
+  });
   const pipelineName = useMemo(() => {
     const m = new Map((pipelines.data?.pipelines ?? []).map((p) => [p.id, p.name]));
     return (w: Watch) => {
@@ -76,7 +102,11 @@ export function SourcesPage() {
     mutationFn: (s: Source) => data(Sources.testSource({ client, path: { sid: s.id } })),
     onSuccess: (h, s) => {
       void qc.invalidateQueries({ queryKey: ["sources"] });
-      toast(h.ok ? { tone: "green", title: "Connection OK", body: s.name } : { tone: "red", title: "Still failing", body: h.error ?? s.name });
+      toast(
+        h.ok
+          ? { tone: "green", title: "Connection OK", body: s.name }
+          : { tone: "red", title: "Still failing", body: h.error ?? s.name },
+      );
     },
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t test", body: e.message }),
   });
@@ -111,8 +141,24 @@ export function SourcesPage() {
           }}
         />
       )}
-      {watching && <WatchEditor open onOpenChange={(o) => !o && setWatching(null)} source={watching.source} path={watching.path} watch={watching.watch} />}
-      {deleting && <DeleteConnectionDialog open source={deleting} watches={bySource(deleting.id)} onOpenChange={(o) => !o && setDeleting(null)} onDeleted={() => setSelected(null)} />}
+      {watching && (
+        <WatchEditor
+          open
+          onOpenChange={(o) => !o && setWatching(null)}
+          source={watching.source}
+          path={watching.path}
+          watch={watching.watch}
+        />
+      )}
+      {deleting && (
+        <DeleteConnectionDialog
+          open
+          source={deleting}
+          watches={bySource(deleting.id)}
+          onOpenChange={(o) => !o && setDeleting(null)}
+          onDeleted={() => setSelected(null)}
+        />
+      )}
     </>
   );
 
@@ -121,11 +167,21 @@ export function SourcesPage() {
     const owner = can("owner");
     return (
       <div className="px-4 pb-10 pt-[18px] md:px-6">
-        <PageHeader title="Sources" meta={owner && watches.isSuccess ? `${plural(ws.length, "watched folder")} feeding your namespaces` : undefined} />
+        <PageHeader
+          title="Sources"
+          meta={
+            owner && watches.isSuccess ? `${plural(ws.length, "watched folder")} feeding your namespaces` : undefined
+          }
+        />
         {watches.isLoading ? (
           <SkeletonRows rows={4} />
         ) : watches.error ? (
-          <EmptyState tone="error" icon={<HardDriveDownload />} title="Couldn’t load watched folders" actions={<Button onClick={() => watches.refetch()}>Try again</Button>}>
+          <EmptyState
+            tone="error"
+            icon={<HardDriveDownload />}
+            title="Couldn’t load watched folders"
+            actions={<Button onClick={() => watches.refetch()}>Try again</Button>}
+          >
             {(watches.error as Error).message}
           </EmptyState>
         ) : !ws.length ? (
@@ -136,7 +192,10 @@ export function SourcesPage() {
           </EmptyState>
         ) : (
           <div className="flex flex-col gap-3">
-            <Banner>Admins manage connections. You see the watched folders that feed namespaces you own; they’re read-only here.</Banner>
+            <Banner>
+              Admins manage connections. You see the watched folders that feed namespaces you own; they’re read-only
+              here.
+            </Banner>
             {ws.map((w) => (
               <WatchCard key={w.id} watch={w} manage={false} showSource pipelineName={pipelineName(w)} />
             ))}
@@ -159,7 +218,14 @@ export function SourcesPage() {
           </span>
         )}
         <span className="flex-1" />
-        <Button size="sm" variant="primary" icon={<Plus />} onClick={() => setEditing({ source: null })} disabled={!backends.data} disabledReason="Loading the kinds of storage…">
+        <Button
+          size="sm"
+          variant="primary"
+          icon={<Plus />}
+          onClick={() => setEditing({ source: null })}
+          disabled={!backends.data}
+          disabledReason="Loading the kinds of storage…"
+        >
           Add connection
         </Button>
       </div>
@@ -167,7 +233,12 @@ export function SourcesPage() {
       {loading ? (
         <SkeletonRows rows={5} className="px-6" />
       ) : error ? (
-        <EmptyState tone="error" icon={<HardDriveDownload />} title="Couldn’t load sources" actions={<Button onClick={() => (sources.refetch(), watches.refetch())}>Try again</Button>}>
+        <EmptyState
+          tone="error"
+          icon={<HardDriveDownload />}
+          title="Couldn’t load sources"
+          actions={<Button onClick={() => (sources.refetch(), watches.refetch())}>Try again</Button>}
+        >
           {error.message}
         </EmptyState>
       ) : !all.length ? (
@@ -175,12 +246,18 @@ export function SourcesPage() {
           icon={<HardDriveDownload />}
           title="No connections yet"
           actions={
-            <Button variant="primary" icon={<Plus />} onClick={() => setEditing({ source: null })} disabled={!backends.data}>
+            <Button
+              variant="primary"
+              icon={<Plus />}
+              onClick={() => setEditing({ source: null })}
+              disabled={!backends.data}
+            >
               Add connection
             </Button>
           }
         >
-          Connect S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or a folder on this machine, then watch a folder to import new files as they arrive.
+          Connect S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or a folder on this machine, then watch a
+          folder to import new files as they arrive.
         </EmptyState>
       ) : (
         <>
@@ -216,7 +293,12 @@ export function SourcesPage() {
                       <TypeTile type={s.type} />
                     </Td>
                     <Td>
-                      <button type="button" onClick={() => setSelected(s.id)} aria-pressed={on} className="flex min-w-0 max-w-full flex-col gap-1 text-left">
+                      <button
+                        type="button"
+                        onClick={() => setSelected(s.id)}
+                        aria-pressed={on}
+                        className="flex min-w-0 max-w-full flex-col gap-1 text-left"
+                      >
                         <span className="truncate text-[13.5px] font-semibold leading-tight text-fg">{s.name}</span>
                         <span className="truncate text-[12px] text-fg-muted">{sourceSubtitle(s)}</span>
                       </button>
@@ -227,18 +309,33 @@ export function SourcesPage() {
                     <Td className="text-[13px] font-medium text-fg-strong">{watchedText(bySource(s.id))}</Td>
                     <Td className="last:pr-6">
                       <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        {bad && oauth && /token|auth|expired|unauthori[sz]ed|401|invalid_grant/i.test(s.health?.error ?? "") ? (
-                          <Button size="sm" variant="secondary" onClick={() => setEditing({ source: s, replaceToken: true })}>
+                        {bad &&
+                        oauth &&
+                        /token|auth|expired|unauthori[sz]ed|401|invalid_grant/i.test(s.health?.error ?? "") ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setEditing({ source: s, replaceToken: true })}
+                          >
                             Paste new token
                           </Button>
                         ) : bad || !s.health ? (
-                          <Button size="sm" variant="secondary" onClick={() => test.mutate(s)} disabled={test.isPending && test.variables?.id === s.id}>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => test.mutate(s)}
+                            disabled={test.isPending && test.variables?.id === s.id}
+                          >
                             {test.isPending && test.variables?.id === s.id ? "Testing…" : bad ? "Test again" : "Test"}
                           </Button>
                         ) : null}
                         <Menu>
                           <MenuTrigger asChild>
-                            <button type="button" aria-label={`More for ${s.name}`} className="grid size-8 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral hover:text-fg">
+                            <button
+                              type="button"
+                              aria-label={`More for ${s.name}`}
+                              className="grid size-8 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral hover:text-fg"
+                            >
                               <Ellipsis aria-hidden className="size-[18px]" />
                             </button>
                           </MenuTrigger>
@@ -246,7 +343,11 @@ export function SourcesPage() {
                             <MenuItem onSelect={() => setBrowsing(s)}>Browse folders</MenuItem>
                             <MenuItem onSelect={() => test.mutate(s)}>Test now</MenuItem>
                             <MenuItem onSelect={() => setEditing({ source: s })}>Edit connection</MenuItem>
-                            {oauth && <MenuItem onSelect={() => setEditing({ source: s, replaceToken: true })}>Paste new token</MenuItem>}
+                            {oauth && (
+                              <MenuItem onSelect={() => setEditing({ source: s, replaceToken: true })}>
+                                Paste new token
+                              </MenuItem>
+                            )}
                             <MenuSeparator />
                             <MenuItem danger onSelect={() => setDeleting(s)}>
                               Delete…
@@ -262,7 +363,10 @@ export function SourcesPage() {
           </Table>
 
           {current && (
-            <section aria-label={`${current.name}: watched folders`} className="flex flex-1 flex-col gap-3 bg-surface px-4 pb-8 pt-[18px] md:px-6">
+            <section
+              aria-label={`${current.name}: watched folders`}
+              className="flex flex-1 flex-col gap-3 bg-surface px-4 pb-8 pt-[18px] md:px-6"
+            >
               <div className="flex items-center gap-2.5">
                 <TypeTile type={current.type} size={22} />
                 <h2 className="min-w-0 truncate text-[16px] font-bold text-fg">{current.name}</h2>
@@ -278,18 +382,24 @@ export function SourcesPage() {
                     watch={w}
                     manage
                     pipelineName={pipelineName(w)}
-                    onEdit={() => setWatching({ source: { id: current.id, name: current.name }, path: w.path, watch: w })}
+                    onEdit={() =>
+                      setWatching({
+                        source: { id: current.id, name: current.name },
+                        path: w.path,
+                        watch: w,
+                      })
+                    }
                   />
                 ))
               ) : (
                 <p className="rounded-md border border-dashed border-border bg-background px-4 py-5 text-[13.5px] text-fg-secondary">
-                  No watched folders on this connection. Browse its folders and pick one to watch: new files there are imported into a namespace and run
-                  through its pipeline.
+                  No watched folders on this connection. Browse its folders and pick one to watch: new files there are
+                  imported into a namespace and run through its pipeline.
                 </p>
               )}
               <p className="mt-1 text-[12.5px] leading-normal text-fg-muted">
-                Scan counts: seen = files matched this scan · new = queued · waiting = still changing · skipped = already there or excluded · errors =
-                couldn’t read. Changes are found by polling; there are no webhooks.
+                Scan counts: seen = files matched this scan · new = queued · waiting = still changing · skipped =
+                already there or excluded · errors = couldn’t read. Changes are found by polling; there are no webhooks.
               </p>
             </section>
           )}

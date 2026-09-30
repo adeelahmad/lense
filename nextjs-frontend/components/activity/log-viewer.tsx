@@ -64,11 +64,22 @@ export function LogViewer({
         <h2 className="flex-1 text-[13px] font-bold text-fg">{heading}</h2>
         <span className="flex items-center gap-1.5 text-[12px] font-medium text-fg-muted">
           {live && <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-blue" />}
-          {live ? "Streaming · updates every 2 s" : finished ? "Streaming stopped · run finished" : "Streams here once it starts"}
+          {live
+            ? "Streaming · updates every 2 s"
+            : finished
+              ? "Streaming stopped · run finished"
+              : "Streams here once it starts"}
           {truncated ? " · last 200 lines" : ""}
         </span>
         {onDownload && (
-          <Button variant="ghost" size="sm" icon={<Download />} onClick={onDownload} disabled={!lines.length} disabledReason="Nothing logged yet">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<Download />}
+            onClick={onDownload}
+            disabled={!lines.length}
+            disabledReason="Nothing logged yet"
+          >
             Download
           </Button>
         )}

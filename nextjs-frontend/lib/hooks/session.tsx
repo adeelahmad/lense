@@ -29,8 +29,16 @@ const KEY = "lens.namespace";
 /** Who is signed in, their roles, and the current namespace. Every screen reads this for the role rule. */
 export function ArchiveProvider({ children }: { children: ReactNode }) {
   const client = useApiClient();
-  const me = useQuery({ queryKey: ["me"], queryFn: () => data(Auth.me({ client })), staleTime: 60_000 });
-  const ns = useQuery({ queryKey: ["namespaces"], queryFn: () => data(Namespaces.listNamespaces({ client })), staleTime: 30_000 });
+  const me = useQuery({
+    queryKey: ["me"],
+    queryFn: () => data(Auth.me({ client })),
+    staleTime: 60_000,
+  });
+  const ns = useQuery({
+    queryKey: ["namespaces"],
+    queryFn: () => data(Namespaces.listNamespaces({ client })),
+    staleTime: 30_000,
+  });
   const [namespace, setNs] = useState<string | null>(null);
 
   useEffect(() => {
@@ -61,7 +69,15 @@ export function ArchiveProvider({ children }: { children: ReactNode }) {
     const roleIn = (n: string | null | undefined) => (n ? (admin ? "owner" : roles[n]) : undefined);
     const can = (role: Role, n?: string | null) =>
       admin || (n ? RANK[roles[n] as Role] >= RANK[role] : Object.values(roles).some((r) => RANK[r] >= RANK[role]));
-    return { me: me.data, namespaces: ns.data ?? [], namespace, setNamespace, roleIn, can, admin };
+    return {
+      me: me.data,
+      namespaces: ns.data ?? [],
+      namespace,
+      setNamespace,
+      roleIn,
+      can,
+      admin,
+    };
   }, [me.data, ns.data, namespace, setNamespace]);
 
   return <ArchiveCtx.Provider value={value}>{children}</ArchiveCtx.Provider>;

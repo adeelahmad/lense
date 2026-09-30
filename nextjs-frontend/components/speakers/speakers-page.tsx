@@ -27,8 +27,13 @@ export function SpeakersPage() {
   const router = useRouter();
   const pathname = usePathname();
   const { namespaces, namespace: topNs } = useArchive();
-  const ns = params.get("ns") && namespaces.some((n) => n.name === params.get("ns")) ? params.get("ns")! : (topNs ?? namespaces[0]?.name ?? null);
-  const tab: Tab = (TABS as readonly string[]).includes(params.get("tab") ?? "") ? (params.get("tab") as Tab) : "registry";
+  const ns =
+    params.get("ns") && namespaces.some((n) => n.name === params.get("ns"))
+      ? params.get("ns")!
+      : (topNs ?? namespaces[0]?.name ?? null);
+  const tab: Tab = (TABS as readonly string[]).includes(params.get("tab") ?? "")
+    ? (params.get("tab") as Tab)
+    : "registry";
   const dir = useNamespaceSpeakers(ns);
   const index = useRecordingIndex();
   const voice = useVoiceSuggestions(ns ?? "");
@@ -42,9 +47,15 @@ export function SpeakersPage() {
 
   const speakers = useMemo(() => dir.data?.speakers ?? [], [dir.data]);
   const pairs = useMemo(() => reviewPairs(speakers), [speakers]);
-  const heard = useMemo(() => (ns ? lastHeard(speakers, index.data ?? [], ns) : new Map<number, string>()), [speakers, index.data, ns]);
+  const heard = useMemo(
+    () => (ns ? lastHeard(speakers, index.data ?? [], ns) : new Map<number, string>()),
+    [speakers, index.data, ns],
+  );
   const links = dir.data?.links ?? [];
-  const linkCount = links.length + voice.suggestions.filter((s) => !links.some((l) => [l.a, l.b].includes(s.a.id) && [l.a, l.b].includes(s.b.id))).length;
+  const linkCount =
+    links.length +
+    voice.suggestions.filter((s) => !links.some((l) => [l.a, l.b].includes(s.a.id) && [l.a, l.b].includes(s.b.id)))
+      .length;
 
   if (!namespaces.length)
     return (
@@ -66,7 +77,14 @@ export function SpeakersPage() {
           namespaces.length > 1 && (
             <label className="flex items-center gap-2 text-[13px] font-semibold text-fg-secondary">
               Namespace
-              <Select size="sm" className="w-[200px]" value={ns ?? ""} onChange={(e) => set("ns", e.target.value)} options={namespaces.map((n) => n.name)} aria-label="Namespace" />
+              <Select
+                size="sm"
+                className="w-[200px]"
+                value={ns ?? ""}
+                onChange={(e) => set("ns", e.target.value)}
+                options={namespaces.map((n) => n.name)}
+                aria-label="Namespace"
+              />
             </label>
           )
         }
@@ -76,10 +94,22 @@ export function SpeakersPage() {
         value={tab}
         onChange={(v) => set("tab", v === "registry" ? null : v)}
         items={[
-          { value: "registry", label: "Registry", count: dir.data ? speakers.length : undefined },
-          { value: "review", label: "Review queue", count: dir.data ? pairs.length : undefined },
+          {
+            value: "registry",
+            label: "Registry",
+            count: dir.data ? speakers.length : undefined,
+          },
+          {
+            value: "review",
+            label: "Review queue",
+            count: dir.data ? pairs.length : undefined,
+          },
           { value: "history", label: "Merge history" },
-          { value: "links", label: "Other namespaces", count: linkCount || undefined },
+          {
+            value: "links",
+            label: "Other namespaces",
+            count: linkCount || undefined,
+          },
         ]}
       />
       <div className="pt-1">
@@ -102,11 +132,18 @@ export function SpeakersPage() {
             {speakers.length ? (
               <Registry speakers={speakers} heard={heard} />
             ) : (
-              <EmptyState icon={<AudioLines />} title={`No speakers in ${ns} yet`} className="rounded-lg border border-border">
+              <EmptyState
+                icon={<AudioLines />}
+                title={`No speakers in ${ns} yet`}
+                className="rounded-lg border border-border"
+              >
                 Speakers appear once recordings are diarized, or when an imported transcript names them.
               </EmptyState>
             )}
-            <p className="m-0 text-[12.5px] leading-snug text-fg-secondary">Voiceprints are built from clean audio (Settings → Voice IDs). Speakers without one are still matched, less reliably.</p>
+            <p className="m-0 text-[12.5px] leading-snug text-fg-secondary">
+              Voiceprints are built from clean audio (Settings → Voice IDs). Speakers without one are still matched,
+              less reliably.
+            </p>
           </div>
         )}
         {dir.data && ns && tab === "review" && <ReviewQueue pairs={pairs} ns={ns} />}

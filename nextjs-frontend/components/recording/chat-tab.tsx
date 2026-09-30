@@ -8,7 +8,14 @@ import { useEffect, useRef, useState } from "react";
 
 import { Chats } from "@/app/openapi-client";
 import { usePlayerApi } from "@/components/player/media";
-import { applyChatEvent, citeParts, isRecordingChat, newAnswer, type Answer, type Passage } from "@/components/recording/chat-model";
+import {
+  applyChatEvent,
+  citeParts,
+  isRecordingChat,
+  newAnswer,
+  type Answer,
+  type Passage,
+} from "@/components/recording/chat-model";
 import { useRec } from "@/components/recording/context";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/states";
@@ -34,10 +41,18 @@ export function ChatTab() {
   const box = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
 
-  const chats = useQuery({ queryKey: ["chats"], queryFn: () => data(Chats.listChats({ client })), staleTime: 30_000 });
+  const chats = useQuery({
+    queryKey: ["chats"],
+    queryFn: () => data(Chats.listChats({ client })),
+    staleTime: 30_000,
+  });
   const existing = fresh ? null : (chats.data ?? []).find((c) => isRecordingChat(c.scope, id));
   const chatId = cid ?? existing?.id ?? null;
-  const chat = useQuery({ queryKey: ["chat", chatId], queryFn: () => data(Chats.getChat({ client, path: { cid: chatId as number } })), enabled: chatId != null });
+  const chat = useQuery({
+    queryKey: ["chat", chatId],
+    queryFn: () => data(Chats.getChat({ client, path: { cid: chatId as number } })),
+    enabled: chatId != null,
+  });
 
   useEffect(() => {
     if (chatDraft == null) return;
@@ -62,13 +77,26 @@ export function ChatTab() {
     try {
       let target = chatId;
       if (target == null) {
-        const made = await data(Chats.createChat({ client, body: { title: `About “${model.title}”`.slice(0, 120), scope: { recordings: [id] } } }));
+        const made = await data(
+          Chats.createChat({
+            client,
+            body: {
+              title: `About “${model.title}”`.slice(0, 120),
+              scope: { recordings: [id] },
+            },
+          }),
+        );
         target = made.id;
         setCid(made.id);
         setFresh(false);
         void qc.invalidateQueries({ queryKey: ["chats"] });
       }
-      for await (const ev of streamSSE(`/api/v1/chats/${target}/messages`, { method: "POST", body: { content: q }, accessToken: session?.accessToken, signal: ctl.signal })) {
+      for await (const ev of streamSSE(`/api/v1/chats/${target}/messages`, {
+        method: "POST",
+        body: { content: q },
+        accessToken: session?.accessToken,
+        signal: ctl.signal,
+      })) {
         setAnswer((a) => (a ? applyChatEvent(a, ev) : a));
       }
       setAnswer((a) => (a && a.status === "streaming" ? { ...a, status: "done" } : a));
@@ -77,7 +105,14 @@ export function ChatTab() {
     } catch (e) {
       if (ctl.signal.aborted) setAnswer((a) => (a ? { ...a, status: "stopped" } : a));
       else {
-        const msg = e instanceof ApiError ? e.message : e instanceof SSEError ? (e.status === 403 ? "This account can't start conversations (read-only token)." : "The chat service didn't answer.") : "The chat service didn't answer.";
+        const msg =
+          e instanceof ApiError
+            ? e.message
+            : e instanceof SSEError
+              ? e.status === 403
+                ? "This account can't start conversations (read-only token)."
+                : "The chat service didn't answer."
+              : "The chat service didn't answer.";
         setAnswer((a) => (a ? { ...a, status: "error", error: msg } : a));
       }
     }
@@ -91,7 +126,9 @@ export function ChatTab() {
         <span className="inline-flex h-6 items-center gap-1.5 rounded-pill border border-blue-border bg-blue-surface px-2.5 text-[12px] font-semibold text-blue-dark">
           <MessagesSquare className="size-3.5" /> This recording
         </span>
-        <span className="min-w-0 flex-1 truncate text-[12px] text-fg-muted">Answers come only from its transcript and cite the moment.</span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-fg-muted">
+          Answers come only from its transcript and cite the moment.
+        </span>
         {chatId != null && (
           <Button
             variant="ghost"
@@ -108,12 +145,19 @@ export function ChatTab() {
           </Button>
         )}
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4" aria-live="polite" aria-busy={streaming}>
+      <div
+        className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4"
+        aria-live="polite"
+        aria-busy={streaming}
+      >
         {chat.isLoading && chatId != null && <Skeleton className="w-3/4" />}
         {!messages.length && !answer && !chat.isLoading && (
           <div className="flex flex-col gap-2 py-6 text-center">
             <p className="text-[14px] font-bold text-fg">Ask about this recording</p>
-            <p className="text-[13px] leading-normal text-fg-secondary">For example: “What did they decide?”, “Who raised the budget?”. Select text in the transcript and choose Ask in chat to quote it.</p>
+            <p className="text-[13px] leading-normal text-fg-secondary">
+              For example: “What did they decide?”, “Who raised the budget?”. Select text in the transcript and choose
+              Ask in chat to quote it.
+            </p>
           </div>
         )}
         {messages.map((m) =>
@@ -138,8 +182,12 @@ export function ChatTab() {
               )
             )}
             {answer.status === "error" && (
-              <p role="alert" className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-fg-strong">
-                <b className="text-red-dark">No answer.</b> {answer.error} An admin can check the AI provider in Settings.
+              <p
+                role="alert"
+                className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-fg-strong"
+              >
+                <b className="text-red-dark">No answer.</b> {answer.error} An admin can check the AI provider in
+                Settings.
               </p>
             )}
             {answer.status === "stopped" && <p className="text-[12.5px] text-fg-muted">Stopped.</p>}
@@ -170,11 +218,24 @@ export function ChatTab() {
           className="max-h-40 min-h-10 flex-1 resize-none rounded-sm border border-border bg-background px-3 py-2 text-[14px] leading-snug text-fg outline-none placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)]"
         />
         {streaming ? (
-          <Button variant="secondary" size="md" icon={<Square />} onClick={() => abort.current?.abort()} aria-label="Stop the answer">
+          <Button
+            variant="secondary"
+            size="md"
+            icon={<Square />}
+            onClick={() => abort.current?.abort()}
+            aria-label="Stop the answer"
+          >
             Stop
           </Button>
         ) : (
-          <Button type="submit" variant="primary" size="md" icon={<ArrowUp />} disabled={!input.trim()} aria-label="Send">
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            icon={<ArrowUp />}
+            disabled={!input.trim()}
+            aria-label="Send"
+          >
             Ask
           </Button>
         )}
@@ -184,7 +245,11 @@ export function ChatTab() {
 }
 
 function Question({ text }: { text: string }) {
-  return <div className="ml-8 self-end whitespace-pre-wrap rounded-md rounded-br-xs bg-surface-neutral px-3.5 py-2.5 text-[14px] leading-snug text-fg">{text}</div>;
+  return (
+    <div className="ml-8 self-end whitespace-pre-wrap rounded-md rounded-br-xs bg-surface-neutral px-3.5 py-2.5 text-[14px] leading-snug text-fg">
+      {text}
+    </div>
+  );
 }
 
 function AnswerView({ text, passages, streaming }: { text: string; passages: Passage[]; streaming?: boolean }) {
@@ -192,19 +257,43 @@ function AnswerView({ text, passages, streaming }: { text: string; passages: Pas
   const api = usePlayerApi();
   const byN = new Map(passages.map((p) => [p.n, p]));
   return (
-    <div className={cn("whitespace-pre-wrap font-serif text-[15.5px] leading-[1.55] text-fg", streaming && "after:ml-0.5 after:inline-block after:h-4 after:w-1.5 after:animate-pulse after:bg-blue after:align-middle")}>
+    <div
+      className={cn(
+        "whitespace-pre-wrap font-serif text-[15.5px] leading-[1.55] text-fg",
+        streaming &&
+          "after:ml-0.5 after:inline-block after:h-4 after:w-1.5 after:animate-pulse after:bg-blue after:align-middle",
+      )}
+    >
       {citeParts(text).map((p, i) => {
         if (p.kind === "text") return <span key={i}>{p.text}</span>;
         const ps = byN.get(p.n);
-        if (!ps) return <sup key={i} className="text-fg-muted">[{p.n}]</sup>;
+        if (!ps)
+          return (
+            <sup key={i} className="text-fg-muted">
+              [{p.n}]
+            </sup>
+          );
         const label = `${tc(ps.t0 ?? 0)}${ps.speaker ? ` · ${ps.speaker}` : ""}`;
-        const cls = "mx-0.5 inline-flex h-[20px] items-center rounded-pill border border-blue-border bg-blue-surface px-1.5 align-[2px] font-sans text-[11.5px] font-semibold text-blue-dark hover:bg-blue hover:text-white";
+        const cls =
+          "mx-0.5 inline-flex h-[20px] items-center rounded-pill border border-blue-border bg-blue-surface px-1.5 align-[2px] font-sans text-[11.5px] font-semibold text-blue-dark hover:bg-blue hover:text-white";
         return ps.recording_id === id ? (
-          <button key={i} type="button" className={cls} title={ps.text} onClick={() => api.seek(ps.t0 ?? 0, { manual: true })} aria-label={`Go to ${label}`}>
+          <button
+            key={i}
+            type="button"
+            className={cls}
+            title={ps.text}
+            onClick={() => api.seek(ps.t0 ?? 0, { manual: true })}
+            aria-label={`Go to ${label}`}
+          >
             {label}
           </button>
         ) : (
-          <Link key={i} href={`/recordings/${ps.recording_id}?t=${Math.floor((ps.t0 ?? 0) / 1000)}`} className={cls} title={ps.text}>
+          <Link
+            key={i}
+            href={`/recordings/${ps.recording_id}?t=${Math.floor((ps.t0 ?? 0) / 1000)}`}
+            className={cls}
+            title={ps.text}
+          >
             {ps.title ?? "Recording"} · {label}
           </Link>
         );

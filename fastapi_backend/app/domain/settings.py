@@ -4,6 +4,7 @@ Precedence, lowest first: built-in defaults, archive.yaml, settings saved in the
 environment only holds what can't live in the database it unlocks (the connection, ARCHIVE_SECRET_KEY) and a
 break-glass override for allowed hosts (ARCHIVE_ALLOWED_HOSTS), so a bad setting can't lock everyone out.
 """
+
 from __future__ import annotations
 
 import base64
@@ -19,17 +20,47 @@ import threading
 from . import store
 
 R = store.R
-EDITABLE = {"transcribe": None, "diarize": None, "speakers": None, "analysis": None, "llm": None, "graph": None,
-            "search": None, "reports": None, "workers": None, "iiif": None, "ai": None,
-            "video": ("sample_seconds", "scene_threshold", "min_shot_seconds", "frame_width", "ocr_engine", "ocr_languages", "ocr_min_confidence",
-                      "face_engine", "face_cluster_threshold", "face_match_threshold", "face_review_threshold", "publish_faces"),
-            "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies")}
+EDITABLE = {
+    "transcribe": None,
+    "diarize": None,
+    "speakers": None,
+    "analysis": None,
+    "llm": None,
+    "graph": None,
+    "search": None,
+    "reports": None,
+    "workers": None,
+    "iiif": None,
+    "ai": None,
+    "video": (
+        "sample_seconds",
+        "scene_threshold",
+        "min_shot_seconds",
+        "frame_width",
+        "ocr_engine",
+        "ocr_languages",
+        "ocr_min_confidence",
+        "face_engine",
+        "face_cluster_threshold",
+        "face_match_threshold",
+        "face_review_threshold",
+        "publish_faces",
+    ),
+    "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies"),
+}
 SECRETS = {"llm": ("api_key",)}
-ENUMS = {("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"}, ("transcribe", "device"): {"auto", "cpu", "cuda", "mps"},
-         ("diarize", "engine"): {"auto", "channels", "cluster", "pyannote", "none"}, ("speakers", "embedder"): {"speechbrain", "none"},
-         ("speakers", "cross_namespace"): {"suggest", "off"}, ("analysis", "entities"): {"rules", "spacy"},
-         ("search", "stemming"): {"english", "none"}, ("reports", "audio"): {"link", "embed", "none"},
-         ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "none"}, ("video", "face_engine"): {"opencv", "insightface", "none"}}
+ENUMS = {
+    ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"},
+    ("transcribe", "device"): {"auto", "cpu", "cuda", "mps"},
+    ("diarize", "engine"): {"auto", "channels", "cluster", "pyannote", "none"},
+    ("speakers", "embedder"): {"speechbrain", "none"},
+    ("speakers", "cross_namespace"): {"suggest", "off"},
+    ("analysis", "entities"): {"rules", "spacy"},
+    ("search", "stemming"): {"english", "none"},
+    ("reports", "audio"): {"link", "embed", "none"},
+    ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "none"},
+    ("video", "face_engine"): {"opencv", "insightface", "none"},
+}
 ENV_OVERRIDES = {("server", "allowed_hosts"): "ARCHIVE_ALLOWED_HOSTS"}
 VIEWER_URL = re.compile(r"^https?://[^\s]+$")
 _KEYS, _KL = {}, threading.Lock()
@@ -58,12 +89,14 @@ def secret_key(cfg):
 def seal(cfg, value, context):
     """AES-GCM; the context (e.g. 'setting:llm.api_key') is bound in, so a ciphertext can't be moved to another field."""
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
     nonce = secrets.token_bytes(12)
     return "v1." + base64.urlsafe_b64encode(nonce + AESGCM(secret_key(cfg)).encrypt(nonce, value.encode(), context.encode())).decode()
 
 
 def unseal(cfg, sealed, context):
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
     raw = base64.urlsafe_b64decode(sealed[3:])
     return AESGCM(secret_key(cfg)).decrypt(raw[:12], raw[12:], context.encode()).decode()
 
@@ -121,11 +154,19 @@ def view(db, base):
         for k in SECRETS.get(sec, ()):
             if not isinstance(vals.get(k), dict):
                 vals[k] = {"secret": True, "set": False}
-        out[sec] = {"values": vals, "updated_at": (meta.get(sec) or {}).get("updated_at"), "updated_by": (meta.get(sec) or {}).get("updated_by"),
-                    "locked": [k for (s, k), env in ENV_OVERRIDES.items() if s == sec and os.environ.get(env)]}
-    out["bootstrap"] = {"database": db.url, "data_dir": base["data_dir"],
-                        "secret_key": "ARCHIVE_SECRET_KEY" if os.environ.get("ARCHIVE_SECRET_KEY") else "data_dir/secret.key",
-                        "rclone": base["sources"].get("rclone") or "rclone on PATH", "local_roots": base["sources"].get("local_roots") or []}
+        out[sec] = {
+            "values": vals,
+            "updated_at": (meta.get(sec) or {}).get("updated_at"),
+            "updated_by": (meta.get(sec) or {}).get("updated_by"),
+            "locked": [k for (s, k), env in ENV_OVERRIDES.items() if s == sec and os.environ.get(env)],
+        }
+    out["bootstrap"] = {
+        "database": db.url,
+        "data_dir": base["data_dir"],
+        "secret_key": "ARCHIVE_SECRET_KEY" if os.environ.get("ARCHIVE_SECRET_KEY") else "data_dir/secret.key",
+        "rclone": base["sources"].get("rclone") or "rclone on PATH",
+        "local_roots": base["sources"].get("local_roots") or [],
+    }
     return out
 
 
@@ -136,8 +177,17 @@ def _check(section, key, value, default):
     if (section, key) == ("iiif", "viewers"):
         # "Open in" links: [{name, url}], where the URL may use {manifest} and {content_state}. Only http(s) URLs,
         # since they become links in the web app.
-        if not (isinstance(value, list) and all(isinstance(v, dict) and set(v) <= {"name", "url"} and isinstance(v.get("name", ""), str)
-                                                and isinstance(v.get("url"), str) and VIEWER_URL.match(v["url"]) for v in value)):
+        if not (
+            isinstance(value, list)
+            and all(
+                isinstance(v, dict)
+                and set(v) <= {"name", "url"}
+                and isinstance(v.get("name", ""), str)
+                and isinstance(v.get("url"), str)
+                and VIEWER_URL.match(v["url"])
+                for v in value
+            )
+        ):
             raise ValueError("iiif.viewers is a list of {name, url} with an http(s) URL; the URL may use {manifest} and {content_state}")
         return value
     if default is None or value is None:
@@ -187,7 +237,15 @@ def save(db, base, section, changes, user=None):
         r = data.get("review_threshold", defaults["review_threshold"])
         if not (0 <= r <= m <= 1):
             raise ValueError("thresholds must satisfy 0 ≤ review ≤ match ≤ 1")
-    if section == "server" and "allowed_hosts" in data and not (data["allowed_hosts"] and all(isinstance(h, str) and h for h in data["allowed_hosts"])):
+    if (
+        section == "server"
+        and "allowed_hosts" in data
+        and not (data["allowed_hosts"] and all(isinstance(h, str) and h for h in data["allowed_hosts"]))
+    ):
         raise ValueError("server.allowed_hosts needs at least one host name")
-    db.q("UPSERT $r CONTENT $d", r=R("app_setting", section), d={"data": json.dumps(data), "sealed": sealed, "updated_at": store.now(), "updated_by": user})
+    db.q(
+        "UPSERT $r CONTENT $d",
+        r=R("app_setting", section),
+        d={"data": json.dumps(data), "sealed": sealed, "updated_at": store.now(), "updated_by": user},
+    )
     db.next_id("settings")

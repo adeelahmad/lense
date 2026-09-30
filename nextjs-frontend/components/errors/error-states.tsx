@@ -33,8 +33,14 @@ export function ErrorState({
   return (
     <div className={cn("flex flex-col overflow-hidden", className)}>
       {bar}
-      <div role={alert ? "alert" : undefined} className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center sm:p-8">
-        <span aria-hidden className="grid size-[52px] place-items-center rounded-[14px] bg-surface-neutral text-fg-secondary [&_svg]:size-[26px]">
+      <div
+        role={alert ? "alert" : undefined}
+        className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center sm:p-8"
+      >
+        <span
+          aria-hidden
+          className="grid size-[52px] place-items-center rounded-[14px] bg-surface-neutral text-fg-secondary [&_svg]:size-[26px]"
+        >
           {icon}
         </span>
         {code && <code className="font-mono text-[12px] font-medium text-fg-muted">{code}</code>}
@@ -65,18 +71,24 @@ export function NotFoundState({ className }: { className?: string }) {
         </>
       }
     >
-      The recording, speaker or page may have been deleted or moved, or the link has a typo. Namespaces you don’t belong to are never shown here.
+      The recording, speaker or page may have been deleted or moved, or the link has a typo. Namespaces you don’t belong
+      to are never shown here.
     </ErrorState>
   );
 }
 
 /** Network failures and gateway errors: the browser or the proxy couldn't reach the archive server. */
 export function isUnreachable(error: unknown): boolean {
-  if (error instanceof ApiError) return error.status === 0 || error.status === 502 || error.status === 503 || error.status === 504;
+  if (error instanceof ApiError)
+    return error.status === 0 || error.status === 502 || error.status === 503 || error.status === 504;
   return error instanceof TypeError && /fetch|network/i.test(error.message);
 }
 
-const GATEWAY: Record<number, string> = { 502: "502 Bad Gateway", 503: "503 Service Unavailable", 504: "504 Gateway Timeout" };
+const GATEWAY: Record<number, string> = {
+  502: "502 Bad Gateway",
+  503: "503 Service Unavailable",
+  504: "504 Gateway Timeout",
+};
 
 /** The code line on the unreachable screen: the gateway's status when there was one. */
 export function unreachableCode(error: unknown): string {
@@ -92,7 +104,17 @@ export function retryDelay(attempt: number): number {
  * Can't reach the server (Access AC6): a red strip counts down to the next automatic retry, with "Retry now".
  * `onRetry` may return a promise; the countdown restarts after a failed retry.
  */
-export function ServerUnreachable({ onRetry, statusHref, className, error }: { onRetry: () => unknown; statusHref?: string; className?: string; error?: unknown }) {
+export function ServerUnreachable({
+  onRetry,
+  statusHref,
+  className,
+  error,
+}: {
+  onRetry: () => unknown;
+  statusHref?: string;
+  className?: string;
+  error?: unknown;
+}) {
   const [attempt, setAttempt] = useState(0);
   const [left, setLeft] = useState(retryDelay(0));
   const [retrying, setRetrying] = useState(false);
@@ -132,14 +154,22 @@ export function ServerUnreachable({ onRetry, statusHref, className, error }: { o
       code={unreachableCode(error)}
       title="Can’t reach Lens Archive"
       bar={
-        <div role="alert" className="flex items-center gap-2.5 border-b border-red-border bg-red-surface px-4 py-2.5 text-[13px] font-medium leading-[1.3] text-fg">
+        <div
+          role="alert"
+          className="flex items-center gap-2.5 border-b border-red-border bg-red-surface px-4 py-2.5 text-[13px] font-medium leading-[1.3] text-fg"
+        >
           <span aria-hidden className="font-extrabold text-red">
             ✕
           </span>
           <span className="flex-1" aria-live="off">
             {retrying ? "Can’t reach the server. Retrying…" : `Can’t reach the server. Retrying in ${left} s…`}
           </span>
-          <button type="button" onClick={() => void retry()} disabled={retrying} className="font-bold text-blue hover:underline disabled:opacity-50">
+          <button
+            type="button"
+            onClick={() => void retry()}
+            disabled={retrying}
+            className="font-bold text-blue hover:underline disabled:opacity-50"
+          >
             Retry now
           </button>
         </div>
@@ -157,13 +187,26 @@ export function ServerUnreachable({ onRetry, statusHref, className, error }: { o
         </>
       }
     >
-      The server at {host} isn’t responding (attempt {attempt + 1}). Background jobs keep running on the server; this page reconnects on its own.
+      The server at {host} isn’t responding (attempt {attempt + 1}). Background jobs keep running on the server; this
+      page reconnects on its own.
     </ErrorState>
   );
 }
 
 /** An upload the server refused as too large (413): suggest a watched folder instead. */
-export function FileTooLarge({ name, size, limit, onRemove, className }: { name: string; size: number; limit: number; onRemove?: () => void; className?: string }) {
+export function FileTooLarge({
+  name,
+  size,
+  limit,
+  onRemove,
+  className,
+}: {
+  name: string;
+  size: number;
+  limit: number;
+  onRemove?: () => void;
+  className?: string;
+}) {
   return (
     <ErrorState
       className={className}
@@ -183,7 +226,8 @@ export function FileTooLarge({ name, size, limit, onRemove, className }: { name:
         </>
       }
     >
-      Uploads over {bytes(limit)} are refused. Put the file in a watched folder instead (no size limit), or compress it to m4a or opus.
+      Uploads over {bytes(limit)} are refused. Put the file in a watched folder instead (no size limit), or compress it
+      to m4a or opus.
     </ErrorState>
   );
 }

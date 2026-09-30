@@ -1,5 +1,19 @@
 import type { FaceTrack, ScreenText, Segment, Shot } from "@/components/recording/model";
-import { adjacentShot, blocks, faceBoxAt, faceLanes, fineTime, frameMs, groupByShot, initialZoom, screenTime, shotAt, textAt, timelineWindow, voiceSpans } from "@/components/recording/video/model";
+import {
+  adjacentShot,
+  blocks,
+  faceBoxAt,
+  faceLanes,
+  fineTime,
+  frameMs,
+  groupByShot,
+  initialZoom,
+  screenTime,
+  shotAt,
+  textAt,
+  timelineWindow,
+  voiceSpans,
+} from "@/components/recording/video/model";
 
 const shots: Shot[] = [
   { idx: 0, t0: 0, t1: 10_000, frame: "/f/0.jpg" },
@@ -24,7 +38,13 @@ const face = (over: Partial<FaceTrack> = {}): FaceTrack => ({
   cover: null,
   ...over,
 });
-const text = (id: string, t0: number, t1: number, t = "Q3 revenue", box: ScreenText["box"] = [0.1, 0.1, 0.3, 0.1]): ScreenText => ({ id, t0, t1, text: t, box, frame: null, edited: false });
+const text = (
+  id: string,
+  t0: number,
+  t1: number,
+  t = "Q3 revenue",
+  box: ScreenText["box"] = [0.1, 0.1, 0.3, 0.1],
+): ScreenText => ({ id, t0, t1, text: t, box, frame: null, edited: false });
 
 describe("time readouts", () => {
   it("shows hundredths", () => {
@@ -82,7 +102,16 @@ describe("timeline", () => {
     expect(initialZoom((3 * 60 + 42) * 60_000)).toBe(16);
   });
   it("turns spans into blocks inside the window", () => {
-    expect(blocks([[0, 10_000], [50_000, 60_000], [95_000, 120_000]], [0, 100_000])).toEqual([
+    expect(
+      blocks(
+        [
+          [0, 10_000],
+          [50_000, 60_000],
+          [95_000, 120_000],
+        ],
+        [0, 100_000],
+      ),
+    ).toEqual([
       [0, 10],
       [50, 10],
       [95, 5],
@@ -92,10 +121,42 @@ describe("timeline", () => {
   });
   it("builds voice lanes, merging short pauses", () => {
     const segs: Segment[] = [
-      { idx: 0, t0: 0, t1: 1000, speaker: "s1", text: "", emotion: null, event: null },
-      { idx: 1, t0: 1500, t1: 3000, speaker: "s1", text: "", emotion: null, event: null },
-      { idx: 2, t0: 3000, t1: 4000, speaker: "s2", text: "", emotion: null, event: null },
-      { idx: 3, t0: 9000, t1: 9500, speaker: "s1", text: "", emotion: null, event: null },
+      {
+        idx: 0,
+        t0: 0,
+        t1: 1000,
+        speaker: "s1",
+        text: "",
+        emotion: null,
+        event: null,
+      },
+      {
+        idx: 1,
+        t0: 1500,
+        t1: 3000,
+        speaker: "s1",
+        text: "",
+        emotion: null,
+        event: null,
+      },
+      {
+        idx: 2,
+        t0: 3000,
+        t1: 4000,
+        speaker: "s2",
+        text: "",
+        emotion: null,
+        event: null,
+      },
+      {
+        idx: 3,
+        t0: 9000,
+        t1: 9500,
+        speaker: "s1",
+        text: "",
+        emotion: null,
+        event: null,
+      },
     ];
     expect(voiceSpans(segs).get("s1")).toEqual([
       [0, 3000],
@@ -111,7 +172,11 @@ describe("timeline", () => {
 });
 
 describe("text on screen by shot", () => {
-  const spans = [text("a", 1000, 2000, "Q3 revenue"), text("b", 11_000, 12_000, "Project Atlas roadmap"), text("c", 12_000, 13_000, "Owner: T. Ellery")];
+  const spans = [
+    text("a", 1000, 2000, "Q3 revenue"),
+    text("b", 11_000, 12_000, "Project Atlas roadmap"),
+    text("c", 12_000, 13_000, "Owner: T. Ellery"),
+  ];
   it("groups lines under the shot they appear in", () => {
     expect(groupByShot(spans, shots).map((g) => [g.index, g.lines.map((l) => l.id)])).toEqual([
       [0, ["a"]],

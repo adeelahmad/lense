@@ -42,7 +42,11 @@ async function proxy(req: Request): Promise<Response> {
   upstream.headers.forEach((v, k) => {
     if (!HOP.has(k) && k !== "content-encoding") out.set(k, v);
   });
-  return new Response(openEventStream(upstream), { status: upstream.status, statusText: upstream.statusText, headers: out });
+  return new Response(openEventStream(upstream), {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: out,
+  });
 }
 
 /**
@@ -69,4 +73,12 @@ function openEventStream(upstream: Response): ReadableStream<Uint8Array> | null 
   });
 }
 
-export const handlers = { GET: proxy, HEAD: proxy, POST: proxy, PUT: proxy, PATCH: proxy, DELETE: proxy, OPTIONS: proxy };
+export const handlers = {
+  GET: proxy,
+  HEAD: proxy,
+  POST: proxy,
+  PUT: proxy,
+  PATCH: proxy,
+  DELETE: proxy,
+  OPTIONS: proxy,
+};

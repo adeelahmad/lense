@@ -2,7 +2,15 @@
  * People (Admin AD1–AD2): pending changes in the role matrix, and temporary passwords that are easy to read out.
  */
 export type Role = "viewer" | "editor" | "owner";
-export type Person = { id: number; email: string; name?: string | null; admin?: boolean; disabled?: boolean | null; last_login_at?: string | null; roles?: Record<string, Role> };
+export type Person = {
+  id: number;
+  email: string;
+  name?: string | null;
+  admin?: boolean;
+  disabled?: boolean | null;
+  last_login_at?: string | null;
+  roles?: Record<string, Role>;
+};
 
 /** One cell changed: a role in a namespace (null removes it), or the platform admin switch. */
 export type Pending = { uid: number; ns: string; role: Role | null } | { uid: number; admin: boolean };

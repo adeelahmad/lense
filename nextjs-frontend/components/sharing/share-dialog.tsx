@@ -65,7 +65,10 @@ export function ShareEmbedDialog({ recordingId, open, onOpenChange, startMs }: S
         ]}
       />
       {rec.error ? (
-        <p role="alert" className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-red-dark">
+        <p
+          role="alert"
+          className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-red-dark"
+        >
           Couldn’t load the recording: {(rec.error as Error).message}
         </p>
       ) : tab === "share" ? (
@@ -82,7 +85,15 @@ export function ShareEmbedDialog({ recordingId, open, onOpenChange, startMs }: S
           startSec={startSec}
         />
       ) : (
-        <EmbedBuilder recordingId={recordingId} title={title} canShare={canShare} whyNot={whyNot} created={created} onCreated={setCreated} startSec={startSec} />
+        <EmbedBuilder
+          recordingId={recordingId}
+          title={title}
+          canShare={canShare}
+          whyNot={whyNot}
+          created={created}
+          onCreated={setCreated}
+          startSec={startSec}
+        />
       )}
     </Dialog>
   );

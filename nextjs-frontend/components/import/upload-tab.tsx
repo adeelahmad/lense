@@ -1,6 +1,17 @@
 "use client";
 
-import { Captions, FileAudio, FileJson, FileScan, FileText, FileVideo, FileX, Loader2, Upload, type LucideIcon } from "lucide-react";
+import {
+  Captions,
+  FileAudio,
+  FileJson,
+  FileScan,
+  FileText,
+  FileVideo,
+  FileX,
+  Loader2,
+  Upload,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
@@ -17,10 +28,34 @@ import { bytes, count, plural, tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const TONE = {
-  ready: { box: "bg-surface-neutral text-fg-secondary", border: "border-border", meta: "text-fg-muted", glyph: "✓", glyphCls: "text-green" },
-  reading: { box: "bg-surface-neutral text-fg-secondary", border: "border-border", meta: "text-fg-muted", glyph: "", glyphCls: "" },
-  attention: { box: "bg-gold-surface text-gold-dark", border: "border-gold-border", meta: "text-gold-dark", glyph: "◆", glyphCls: "text-gold" },
-  blocked: { box: "bg-red-surface text-red", border: "border-red-border", meta: "text-red-dark", glyph: "✕", glyphCls: "text-red" },
+  ready: {
+    box: "bg-surface-neutral text-fg-secondary",
+    border: "border-border",
+    meta: "text-fg-muted",
+    glyph: "✓",
+    glyphCls: "text-green",
+  },
+  reading: {
+    box: "bg-surface-neutral text-fg-secondary",
+    border: "border-border",
+    meta: "text-fg-muted",
+    glyph: "",
+    glyphCls: "",
+  },
+  attention: {
+    box: "bg-gold-surface text-gold-dark",
+    border: "border-gold-border",
+    meta: "text-gold-dark",
+    glyph: "◆",
+    glyphCls: "text-gold",
+  },
+  blocked: {
+    box: "bg-red-surface text-red",
+    border: "border-red-border",
+    meta: "text-red-dark",
+    glyph: "✕",
+    glyphCls: "text-red",
+  },
 };
 
 export function fileIcon(it: Pick<Item, "file" | "status" | "problem">): LucideIcon {
@@ -39,7 +74,8 @@ export function fileIcon(it: Pick<Item, "file" | "status" | "problem">): LucideI
 export function fileMeta(it: Item): string {
   if (it.status === "reading") return `Reading… · ${bytes(it.file.size)}`;
   if (it.problem) {
-    if (it.problem.code === "audio") return `${it.kind === "video" ? "Video" : "Audio"} · ${bytes(it.file.size)} — can’t upload here`;
+    if (it.problem.code === "audio")
+      return `${it.kind === "video" ? "Video" : "Audio"} · ${bytes(it.file.size)} — can’t upload here`;
     if (it.problem.code === "unsupported") return "Unsupported file type";
     if (it.problem.code === "too-large") return `${bytes(it.file.size)} — over the upload limit`;
     return it.problem.title;
@@ -73,8 +109,23 @@ function FileRow({ it, selected, onSelect }: { it: Item; selected: boolean; onSe
           <span className="truncate text-[13px] font-semibold leading-tight text-fg">{it.file.name}</span>
           <span className={cn("truncate text-[11.5px] leading-tight", t.meta)}>{fileMeta(it)}</span>
         </span>
-        <span className={cn("text-[12px] font-bold", t.glyphCls)} aria-label={it.status === "reading" ? "Reading" : it.status === "ready" ? "Ready" : it.status === "attention" ? "Needs attention" : "Can’t import"}>
-          {it.status === "reading" ? <Loader2 className="size-3.5 animate-spin text-fg-muted" aria-hidden /> : <span aria-hidden>{t.glyph}</span>}
+        <span
+          className={cn("text-[12px] font-bold", t.glyphCls)}
+          aria-label={
+            it.status === "reading"
+              ? "Reading"
+              : it.status === "ready"
+                ? "Ready"
+                : it.status === "attention"
+                  ? "Needs attention"
+                  : "Can’t import"
+          }
+        >
+          {it.status === "reading" ? (
+            <Loader2 className="size-3.5 animate-spin text-fg-muted" aria-hidden />
+          ) : (
+            <span aria-hidden>{t.glyph}</span>
+          )}
         </span>
       </button>
     </li>
@@ -82,7 +133,17 @@ function FileRow({ it, selected, onSelect }: { it: Item; selected: boolean; onSe
 }
 
 /** Drop zone + the files, sorted into ready ✓, needs attention ◆ and can't import ✕. */
-export function FileList({ items, selected, onSelect, onAdd }: { items: Item[]; selected: string | null; onSelect: (id: string) => void; onAdd: (files: File[]) => void }) {
+export function FileList({
+  items,
+  selected,
+  onSelect,
+  onAdd,
+}: {
+  items: Item[];
+  selected: string | null;
+  onSelect: (id: string) => void;
+  onAdd: (files: File[]) => void;
+}) {
   const [over, setOver] = useState(false);
   const total = items.reduce((a, i) => a + i.file.size, 0);
   return (
@@ -109,7 +170,11 @@ export function FileList({ items, selected, onSelect, onAdd }: { items: Item[]; 
         <Upload className="size-4 shrink-0 text-blue" aria-hidden />
         <span>
           {items.length ? "Drop more files, or " : "Drop transcripts here, or "}
-          <button type="button" className="font-semibold text-blue underline-offset-2 hover:underline" onClick={async () => onAdd(await chooseFiles())}>
+          <button
+            type="button"
+            className="font-semibold text-blue underline-offset-2 hover:underline"
+            onClick={async () => onAdd(await chooseFiles())}
+          >
             browse
           </button>
         </span>
@@ -141,7 +206,17 @@ function Stat({ k, v }: { k: string; v: ReactNode }) {
 }
 
 /** Library I2: what's wrong with a file, and what to do instead. */
-export function ProblemCard({ it, onRemove, onReplace, className }: { it: Item; onRemove: () => void; onReplace: (files: File[]) => void; className?: string }) {
+export function ProblemCard({
+  it,
+  onRemove,
+  onReplace,
+  className,
+}: {
+  it: Item;
+  onRemove: () => void;
+  onReplace: (files: File[]) => void;
+  className?: string;
+}) {
   const { admin } = useArchive();
   const p = it.problem;
   if (!p) return null;
@@ -150,9 +225,18 @@ export function ProblemCard({ it, onRemove, onReplace, className }: { it: Item; 
   const kindLabel = extOf(it.file.name).slice(1).toUpperCase() || "File";
   const source = p.code === "audio" || p.code === "too-large";
   return (
-    <div className={cn("flex flex-col gap-3.5 rounded-lg border border-border bg-background p-5", className)} role="group" aria-label={`${it.file.name}: ${p.title}`}>
+    <div
+      className={cn("flex flex-col gap-3.5 rounded-lg border border-border bg-background p-5", className)}
+      role="group"
+      aria-label={`${it.file.name}: ${p.title}`}
+    >
       <div className="flex items-center gap-2.5">
-        <span className={cn("grid size-8 place-items-center rounded-[9px]", red ? "bg-red-surface text-red" : "bg-gold-surface text-gold-dark")}>
+        <span
+          className={cn(
+            "grid size-8 place-items-center rounded-[9px]",
+            red ? "bg-red-surface text-red" : "bg-gold-surface text-gold-dark",
+          )}
+        >
           <Icon className="size-[17px]" aria-hidden />
         </span>
         <span className="flex min-w-0 flex-col gap-[3px]">
@@ -171,7 +255,12 @@ export function ProblemCard({ it, onRemove, onReplace, className }: { it: Item; 
               <Link href="/sources">Use a source</Link>
             </Button>
           ) : (
-            <Button size="sm" variant="secondary" disabled disabledReason="Only admins set up sources. Ask an admin to watch a folder for this namespace.">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled
+              disabledReason="Only admins set up sources. Ask an admin to watch a folder for this namespace."
+            >
               Use a source
             </Button>
           )
@@ -225,7 +314,13 @@ export function FileDetail({
         <Stat k="Span" v={`${isUntimed(pv.format) ? "~" : ""}0:00 – ${tc(pv.duration_ms)}`} />
       </div>
       <PreviewLines preview={pv} max={4} />
-      <MappingField value={it.mapping} onChange={(mapping) => onPatch({ mapping, mappingTouched: true })} preview={pv} namespace={namespace} directory={directory} />
+      <MappingField
+        value={it.mapping}
+        onChange={(mapping) => onPatch({ mapping, mappingTouched: true })}
+        preview={pv}
+        namespace={namespace}
+        directory={directory}
+      />
       <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr]">
         <label className="flex flex-col gap-1.5">
           <span className="text-[13px] font-bold text-fg-strong">Title</span>
@@ -234,7 +329,10 @@ export function FileDetail({
         {namespaceControl}
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] font-bold text-fg-strong">Then run</span>
-          <span className="flex h-10 items-center truncate rounded-sm border border-dashed border-border bg-surface px-3.5 text-[14px] text-fg-secondary" title="Imports run the namespace’s pipeline. Change which one in Pipelines.">
+          <span
+            className="flex h-10 items-center truncate rounded-sm border border-dashed border-border bg-surface px-3.5 text-[14px] text-fg-secondary"
+            title="Imports run the namespace’s pipeline. Change which one in Pipelines."
+          >
             {pipeline}
           </span>
         </div>
@@ -243,13 +341,15 @@ export function FileDetail({
         <p className="flex gap-2.5 rounded-[10px] border border-gold-border bg-gold-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-strong">
           <span aria-hidden className="mt-1.5 size-2 shrink-0 rotate-45 bg-gold" />
           <span>
-            <b className="font-bold">No timestamps found.</b> This becomes a transcript-only recording; turn times are estimated from word count.
+            <b className="font-bold">No timestamps found.</b> This becomes a transcript-only recording; turn times are
+            estimated from word count.
           </span>
         </p>
       )}
       {audioTwin && (
         <p className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-secondary">
-          <b className="font-bold text-fg-strong">{audioTwin}</b> from this upload has the same name, but audio can’t be attached here yet — the transcript is imported on its own.
+          <b className="font-bold text-fg-strong">{audioTwin}</b> from this upload has the same name, but audio can’t be
+          attached here yet — the transcript is imported on its own.
         </p>
       )}
     </div>
@@ -258,7 +358,11 @@ export function FileDetail({
 
 /** An audio file in the upload whose name matches this transcript ("ep14.m4a" for "ep14-transcript.srt"). */
 export function audioTwinOf(it: Item, items: Item[]): string | undefined {
-  const norm = (s: string) => stemOf(s).toLowerCase().replace(/[-_ ]*(transcript|captions|subtitles|subs)$/, "");
+  const norm = (s: string) =>
+    stemOf(s)
+      .toLowerCase()
+      .replace(/[-_ ]*(transcript|captions|subtitles|subs)$/, "");
   const me = norm(it.file.name);
-  return items.find((x) => x !== it && (x.kind === "audio" || x.kind === "video") && norm(x.file.name) === me)?.file.name;
+  return items.find((x) => x !== it && (x.kind === "audio" || x.kind === "video") && norm(x.file.name) === me)?.file
+    .name;
 }

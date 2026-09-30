@@ -13,7 +13,13 @@ import { tc } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-type Item = { group: string; label: string; meta?: string; href: string; icon: React.ReactNode };
+type Item = {
+  group: string;
+  label: string;
+  meta?: string;
+  href: string;
+  icon: React.ReactNode;
+};
 
 /** ⌘K: jump to a recording or a page; ">" limits results to actions. */
 export function CommandPalette() {
@@ -38,7 +44,13 @@ export function CommandPalette() {
 
   const recs = useQuery({
     queryKey: ["palette-recordings", namespace],
-    queryFn: () => data(Recordings.listRecordings({ client, query: { ns: namespace, limit: 1000 } })),
+    queryFn: () =>
+      data(
+        Recordings.listRecordings({
+          client,
+          query: { ns: namespace, limit: 1000 },
+        }),
+      ),
     enabled: open,
     staleTime: 60_000,
   });
@@ -49,14 +61,38 @@ export function CommandPalette() {
     const t = actionsOnly ? term.slice(1).trim() : term;
     const match = (s: string) => !t || s.toLowerCase().includes(t);
     const actions: Item[] = [
-      ...(can("editor") ? [{ group: "Actions", label: "Import recordings or transcripts", href: "/import", icon: <Zap className="size-4" /> }] : []),
-      { group: "Actions", label: "Open Activity", href: "/activity", icon: <Zap className="size-4" /> },
-      { group: "Actions", label: "API tokens", href: "/account/tokens", icon: <Zap className="size-4" /> },
+      ...(can("editor")
+        ? [
+            {
+              group: "Actions",
+              label: "Import recordings or transcripts",
+              href: "/import",
+              icon: <Zap className="size-4" />,
+            },
+          ]
+        : []),
+      {
+        group: "Actions",
+        label: "Open Activity",
+        href: "/activity",
+        icon: <Zap className="size-4" />,
+      },
+      {
+        group: "Actions",
+        label: "API tokens",
+        href: "/account/tokens",
+        icon: <Zap className="size-4" />,
+      },
     ].filter((a) => match(a.label));
     if (actionsOnly) return actions;
     const pages: Item[] = navFor(admin)
       .filter((n) => match(n.label))
-      .map((n) => ({ group: "Pages", label: n.label, href: n.href, icon: <n.icon className="size-4" /> }));
+      .map((n) => ({
+        group: "Pages",
+        label: n.label,
+        href: n.href,
+        icon: <n.icon className="size-4" />,
+      }));
     const recordings: Item[] = t
       ? (recs.data ?? [])
           .filter((r) => match(r.title ?? ""))
@@ -91,14 +127,21 @@ export function CommandPalette() {
         <Search className="size-4 shrink-0" />
         <span className="flex-1 truncate">Jump to a recording, speaker or page…</span>
         <span className="hidden gap-1 sm:flex">
-          <kbd className="grid h-5 min-w-5 place-items-center rounded-xs border border-border bg-background px-1 font-sans text-[11px]">⌘</kbd>
-          <kbd className="grid h-5 min-w-5 place-items-center rounded-xs border border-border bg-background px-1 font-sans text-[11px]">K</kbd>
+          <kbd className="grid h-5 min-w-5 place-items-center rounded-xs border border-border bg-background px-1 font-sans text-[11px]">
+            ⌘
+          </kbd>
+          <kbd className="grid h-5 min-w-5 place-items-center rounded-xs border border-border bg-background px-1 font-sans text-[11px]">
+            K
+          </kbd>
         </span>
       </button>
       <D.Root open={open} onOpenChange={setOpen}>
         <D.Portal>
           <D.Overlay className="fixed inset-0 z-[100] bg-[var(--scrim)] backdrop-blur-[2px]" />
-          <D.Content className="fixed left-1/2 top-[12vh] z-[101] w-[calc(100vw-32px)] max-w-[600px] -translate-x-1/2 overflow-hidden rounded-lg bg-background shadow-3" aria-describedby={undefined}>
+          <D.Content
+            className="fixed left-1/2 top-[12vh] z-[101] w-[calc(100vw-32px)] max-w-[600px] -translate-x-1/2 overflow-hidden rounded-lg bg-background shadow-3"
+            aria-describedby={undefined}
+          >
             <D.Title className="sr-only">Jump to</D.Title>
             <div className="flex items-center gap-3 border-b border-border px-4">
               <Search className="size-4 text-fg-muted" />
@@ -130,7 +173,11 @@ export function CommandPalette() {
               <kbd className="rounded-xs border border-border px-1.5 text-[11px] text-fg-muted">esc</kbd>
             </div>
             <ul id="palette-list" ref={listRef} role="listbox" className="max-h-[50vh] overflow-y-auto p-2">
-              {items.length === 0 && <li className="px-3 py-6 text-center text-[13.5px] text-fg-secondary">{recs.isLoading ? "Searching…" : "No matches"}</li>}
+              {items.length === 0 && (
+                <li className="px-3 py-6 text-center text-[13.5px] text-fg-secondary">
+                  {recs.isLoading ? "Searching…" : "No matches"}
+                </li>
+              )}
               {items.map((it, i) => {
                 const header = it.group !== lastGroup ? it.group : null;
                 lastGroup = it.group;
@@ -144,7 +191,10 @@ export function CommandPalette() {
                       aria-selected={i === sel}
                       onMouseMove={() => setSel(i)}
                       onClick={() => go(it)}
-                      className={cn("flex w-full items-center gap-3 rounded-sm px-2.5 py-2 text-left text-[14px] text-fg", i === sel && "bg-hl")}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-sm px-2.5 py-2 text-left text-[14px] text-fg",
+                        i === sel && "bg-hl",
+                      )}
                     >
                       <span className="text-fg-secondary">{it.icon}</span>
                       <span className="min-w-0 flex-1 truncate">{it.label}</span>

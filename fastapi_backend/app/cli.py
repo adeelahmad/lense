@@ -1,4 +1,5 @@
 """Command line: batch steps, imports, speaker edits, search, reports and the server."""
+
 from __future__ import annotations
 
 import argparse
@@ -24,7 +25,12 @@ def run_steps(db, cfg, which, ns=None, limit=0, force=False, recording=None, aud
     if "summarize" in which:
         log("summarize:", analyze.summarize_pending(db, cfg, ns, limit, force, log), "recording(s)")
     if "report" in which:
-        log("report:", len(render.build_reports(db, cfg, ns, recording, audio, log)), "file(s) in", pathlib.Path(cfg["data_dir"]) / "reports")
+        log(
+            "report:",
+            len(render.build_reports(db, cfg, ns, recording, audio, log)),
+            "file(s) in",
+            pathlib.Path(cfg["data_dir"]) / "reports",
+        )
 
 
 def _main_base(argv=None):
@@ -33,10 +39,14 @@ def _main_base(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("init", help="write a starter archive.yaml")
     p.add_argument("--path", default="archive.yaml")
-    for name, helptext in (("scan", "register new files in each namespace's folders"), ("transcribe", "transcribe new recordings"),
-                           ("diarize", "split speakers and match voice IDs within each namespace"),
-                           ("analyze", "named things, keywords, sections and talk statistics"), ("summarize", "optional LLM summaries"),
-                           ("run", "scan, transcribe, diarize, analyze, summarize and report, resuming where it stopped")):
+    for name, helptext in (
+        ("scan", "register new files in each namespace's folders"),
+        ("transcribe", "transcribe new recordings"),
+        ("diarize", "split speakers and match voice IDs within each namespace"),
+        ("analyze", "named things, keywords, sections and talk statistics"),
+        ("summarize", "optional LLM summaries"),
+        ("run", "scan, transcribe, diarize, analyze, summarize and report, resuming where it stopped"),
+    ):
         p = sub.add_parser(name, help=helptext)
         p.add_argument("--ns")
         p.add_argument("--limit", type=int, default=0)
@@ -105,8 +115,16 @@ def _main_base(argv=None):
         if a.cmd in ("scan", "transcribe", "diarize", "analyze", "summarize", "run", "report"):
             which = ["scan", "transcribe", "diarize", "analyze", "summarize", "report"] if a.cmd == "run" else [a.cmd]
             with store.lock(cfg, "pipeline"):
-                run_steps(conn, cfg, which, a.ns, getattr(a, "limit", 0), getattr(a, "force", False),
-                          getattr(a, "recording", None), getattr(a, "audio", None))
+                run_steps(
+                    conn,
+                    cfg,
+                    which,
+                    a.ns,
+                    getattr(a, "limit", 0),
+                    getattr(a, "force", False),
+                    getattr(a, "recording", None),
+                    getattr(a, "audio", None),
+                )
         elif a.cmd == "import":
             names = dict(kv.split("=", 1) for kv in a.speakers.split(",")) if a.speakers else None
             if a.transcript == "-":
@@ -171,6 +189,7 @@ def platform_main(argv, config):
     import time
 
     from .domain import auth, jobs, settings, sources
+
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
     us = sub.add_parser("users", help="accounts and namespace roles").add_subparsers(dest="action", required=True)

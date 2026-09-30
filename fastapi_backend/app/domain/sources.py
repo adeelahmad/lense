@@ -5,6 +5,7 @@ this machine (only inside sources.local_roots). A watch maps a folder on a sourc
 recording queued for the whole pipeline; new transcripts are imported and queued for analysis. Credentials are stored
 encrypted and handed to rclone in a private temporary config file per call; OAuth tokens rclone refreshes are saved.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -22,11 +23,24 @@ from . import ingest, jobs, settings, store
 
 R = store.R
 BACKENDS = {
-    "s3": {"label": "Amazon S3 or S3-compatible", "fields": {"provider": "AWS", "region": "", "endpoint": "", "access_key_id": ""},
-           "secrets": ["secret_access_key"]},
+    "s3": {
+        "label": "Amazon S3 or S3-compatible",
+        "fields": {"provider": "AWS", "region": "", "endpoint": "", "access_key_id": ""},
+        "secrets": ["secret_access_key"],
+    },
     "dropbox": {"label": "Dropbox", "fields": {}, "secrets": ["token"], "oauth": "rclone authorize dropbox"},
-    "drive": {"label": "Google Drive", "fields": {"scope": "drive.readonly", "root_folder_id": ""}, "secrets": ["token"], "oauth": "rclone authorize drive"},
-    "onedrive": {"label": "OneDrive", "fields": {"drive_id": "", "drive_type": ""}, "secrets": ["token"], "oauth": "rclone authorize onedrive"},
+    "drive": {
+        "label": "Google Drive",
+        "fields": {"scope": "drive.readonly", "root_folder_id": ""},
+        "secrets": ["token"],
+        "oauth": "rclone authorize drive",
+    },
+    "onedrive": {
+        "label": "OneDrive",
+        "fields": {"drive_id": "", "drive_type": ""},
+        "secrets": ["token"],
+        "oauth": "rclone authorize onedrive",
+    },
     "sftp": {"label": "SFTP", "fields": {"host": "", "user": "", "port": "22"}, "secrets": ["pass", "key_pem"]},
     "smb": {"label": "SMB / Windows share", "fields": {"host": "", "user": "", "domain": ""}, "secrets": ["pass"]},
     "webdav": {"label": "WebDAV", "fields": {"url": "", "vendor": "other", "user": ""}, "secrets": ["pass"]},
@@ -34,8 +48,17 @@ BACKENDS = {
 }
 OBSCURED = {"pass"}  # rclone wants these obscured in its config file
 TRANSCRIPT_EXT = {".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".srt", ".vtt", ".json", ".jsonl"}
-WATCH = {"kinds": "both", "poll_minutes": 5, "stable_seconds": 30, "backfill": False, "include": [], "exclude": [], "steps": None,
-         "pipeline": None, "enabled": True}
+WATCH = {
+    "kinds": "both",
+    "poll_minutes": 5,
+    "stable_seconds": 30,
+    "backfill": False,
+    "include": [],
+    "exclude": [],
+    "steps": None,
+    "pipeline": None,
+    "enabled": True,
+}
 
 
 def _bin(cfg):
@@ -77,7 +100,11 @@ def _config(cfg, src):
 
 
 def _clean_err(text):
-    lines = [re.sub(r"^\d{4}/\d\d/\d\d \d\d:\d\d:\d\d\s+(ERROR|NOTICE|CRITICAL)\s*:?\s*", "", l).strip() for l in (text or "").splitlines() if l.strip()]
+    lines = [
+        re.sub(r"^\d{4}/\d\d/\d\d \d\d:\d\d:\d\d\s+(ERROR|NOTICE|CRITICAL)\s*:?\s*", "", l).strip()
+        for l in (text or "").splitlines()
+        if l.strip()
+    ]
     return (lines[-1] if lines else "")[:300]
 
 
@@ -103,8 +130,12 @@ def _writeback(db, cfg, src, conf):
 def run(db, cfg, src, argv, timeout=300):
     name, d, conf = _private_conf(cfg, src)
     try:
-        out = subprocess.run([_bin(cfg), "--config", conf, "--retries", "1", "--low-level-retries", "2", *argv(name)],
-                             capture_output=True, text=True, timeout=timeout)
+        out = subprocess.run(
+            [_bin(cfg), "--config", conf, "--retries", "1", "--low-level-retries", "2", *argv(name)],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
         _writeback(db, cfg, src, conf)
         if out.returncode:
             raise RuntimeError(_clean_err(out.stderr) or f"rclone exited with {out.returncode}")
@@ -118,7 +149,9 @@ def stream(db, cfg, sid, path, offset=0, count=None):
     src = get(db, sid)
     p = check_path(cfg, src, path)
     name, d, conf = _private_conf(cfg, src)
-    cmd = [_bin(cfg), "--config", conf, "cat", f"{name}:{p}", "--offset", str(offset)] + (["--count", str(count)] if count is not None else [])
+    cmd = [_bin(cfg), "--config", conf, "cat", f"{name}:{p}", "--offset", str(offset)] + (
+        ["--count", str(count)] if count is not None else []
+    )
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
     def chunks():
@@ -151,8 +184,17 @@ def check_path(cfg, src, path):
 
 
 def _entries(out, base):
-    return [{"path": f"{base}/{e['Path']}" if base else e["Path"], "rel": e["Path"], "name": e.get("Name") or pathlib.PurePosixPath(e["Path"]).name,
-             "dir": bool(e.get("IsDir")), "size": e.get("Size"), "modified": e.get("ModTime")} for e in json.loads(out or "[]")]
+    return [
+        {
+            "path": f"{base}/{e['Path']}" if base else e["Path"],
+            "rel": e["Path"],
+            "name": e.get("Name") or pathlib.PurePosixPath(e["Path"]).name,
+            "dir": bool(e.get("IsDir")),
+            "size": e.get("Size"),
+            "modified": e.get("ModTime"),
+        }
+        for e in json.loads(out or "[]")
+    ]
 
 
 def browse(db, cfg, sid, path=""):
@@ -225,9 +267,20 @@ def create(db, cfg, name, typ, params=None, secret_values=None, user=None):
     spec = _check_params(typ, params, secret_values)
     sid = db.next_id("storage_source")
     sealed = {k: settings.seal(cfg, str(v), f"source:{sid}:{k}") for k, v in (secret_values or {}).items() if isinstance(v, str) and v}
-    db.q("CREATE $r CONTENT $d", r=R("storage_source", sid), d=store.clean({"name": (name or spec["label"])[:80], "type": typ,
-                                                                            "params": {**spec["fields"], **(params or {})}, "sealed": sealed,
-                                                                            "created_at": store.now(), "created_by": user}))
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("storage_source", sid),
+        d=store.clean(
+            {
+                "name": (name or spec["label"])[:80],
+                "type": typ,
+                "params": {**spec["fields"], **(params or {})},
+                "sealed": sealed,
+                "created_at": store.now(),
+                "created_by": user,
+            }
+        ),
+    )
     return sid
 
 
@@ -240,28 +293,47 @@ def update(db, cfg, sid, name=None, params=None, secret_values=None):
             sealed.pop(k, None)
         elif isinstance(v, str):
             sealed[k] = settings.seal(cfg, v, f"source:{sid}:{k}")
-    db.q("UPDATE $r MERGE $d", r=R("storage_source", sid), d=store.clean({"name": name, "params": {**(src.get("params") or {}), **(params or {})} if params else None}))
+    db.q(
+        "UPDATE $r MERGE $d",
+        r=R("storage_source", sid),
+        d=store.clean({"name": name, "params": {**(src.get("params") or {}), **(params or {})} if params else None}),
+    )
     db.q("UPDATE $r SET sealed = $s", r=R("storage_source", sid), s=sealed)  # SET, not MERGE: a MERGE can't drop a removed secret
 
 
 def remove(db, sid):
     wids = db.values("SELECT VALUE record::id(id) FROM watch_path WHERE source = $s", s=sid)
-    db.run(["DELETE remote_file WHERE watch IN $w", "DELETE watch_path WHERE source = $s", "DELETE $r"], w=wids, s=sid, r=R("storage_source", sid))
+    db.run(
+        ["DELETE remote_file WHERE watch IN $w", "DELETE watch_path WHERE source = $s", "DELETE $r"],
+        w=wids,
+        s=sid,
+        r=R("storage_source", sid),
+    )
 
 
 def view(src):
     spec = BACKENDS[src["type"]]
-    return {"id": src["id"], "name": src["name"], "type": src["type"], "label": spec["label"], "params": src.get("params") or {},
-            "secrets": {k: {"secret": True, "set": k in (src.get("sealed") or {})} for k in spec["secrets"]}, "oauth": spec.get("oauth"),
-            "health": src.get("health"), "created_at": src.get("created_at")}
+    return {
+        "id": src["id"],
+        "name": src["name"],
+        "type": src["type"],
+        "label": spec["label"],
+        "params": src.get("params") or {},
+        "secrets": {k: {"secret": True, "set": k in (src.get("sealed") or {})} for k in spec["secrets"]},
+        "oauth": spec.get("oauth"),
+        "health": src.get("health"),
+        "created_at": src.get("created_at"),
+    }
 
 
 def list_sources(db):
     counts = {}
     for w in db.rows("SELECT source FROM watch_path"):
         counts[w["source"]] = counts.get(w["source"], 0) + 1
-    return [{**view(s), "watches": counts.get(s["id"], 0)} for s in
-            db.rows("SELECT record::id(id) AS id, name, type, params, sealed, health, created_at FROM storage_source ORDER BY id")]
+    return [
+        {**view(s), "watches": counts.get(s["id"], 0)}
+        for s in db.rows("SELECT record::id(id) AS id, name, type, params, sealed, health, created_at FROM storage_source ORDER BY id")
+    ]
 
 
 # ---------- watched folders ----------
@@ -287,8 +359,22 @@ def create_watch(db, cfg, sid, path, space, user=None, **opts):
     src = get(db, sid)
     p = check_path(cfg, src, path)
     wid = db.next_id("watch_path")
-    db.q("CREATE $r CONTENT $d", r=R("watch_path", wid), d=store.clean({**WATCH, **_check_watch(opts), "source": sid, "path": p, "space": space,
-                                                                        "created_at": store.now(), "created_by": user, "next_scan_at": store.now()}))
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("watch_path", wid),
+        d=store.clean(
+            {
+                **WATCH,
+                **_check_watch(opts),
+                "source": sid,
+                "path": p,
+                "space": space,
+                "created_at": store.now(),
+                "created_by": user,
+                "next_scan_at": store.now(),
+            }
+        ),
+    )
     return wid
 
 
@@ -301,8 +387,10 @@ def remove_watch(db, wid):
 
 
 def list_watches(db, spaces=None):
-    q = ("SELECT record::id(id) AS id, source, path, space, kinds, poll_minutes, stable_seconds, backfill, include, exclude, steps, enabled, "
-         "last_scan_at, next_scan_at, last_stats, last_error FROM watch_path")
+    q = (
+        "SELECT record::id(id) AS id, source, path, space, kinds, poll_minutes, stable_seconds, backfill, include, exclude, steps, enabled, "
+        "last_scan_at, next_scan_at, last_stats, last_error FROM watch_path"
+    )
     rows = db.rows(q + (" WHERE space IN $sp" if spaces is not None else ""), sp=sorted(spaces or []))
     names, srcs = store.space_names(db), {s["id"]: s["name"] for s in db.rows("SELECT record::id(id) AS id, name FROM storage_source")}
     return [{**r, "namespace": names.get(r["space"]), "source_name": srcs.get(r["source"])} for r in rows]
@@ -330,10 +418,23 @@ def _ingest(db, cfg, src, w, f, kind):
     if known:
         return known["id"]
     rid = db.next_id("recording")
-    db.q("CREATE $r CONTENT $d", r=R("recording", rid), d={"space": w["space"], "path": shown, "remote": {"source": src["id"], "path": f["path"]},
-                                                            "source": "audio", "fingerprint": fp, "fp_key": f"{w['space']}:{fp}", "title": title,
-                                                            "recorded_at": _when(f["modified"]).isoformat(timespec="seconds"), "size": f["size"],
-                                                            "status": "new", "created_at": store.now()})
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("recording", rid),
+        d={
+            "space": w["space"],
+            "path": shown,
+            "remote": {"source": src["id"], "path": f["path"]},
+            "source": "audio",
+            "fingerprint": fp,
+            "fp_key": f"{w['space']}:{fp}",
+            "title": title,
+            "recorded_at": _when(f["modified"]).isoformat(timespec="seconds"),
+            "size": f["size"],
+            "status": "new",
+            "created_at": store.now(),
+        },
+    )
     jobs.enqueue(db, rid, w.get("steps") or None, by=f"watch:{w['id']}", pipeline=w.get("pipeline"))
     return rid
 
@@ -346,14 +447,19 @@ def kind_of(cfg, w, f):
     if not kind or p.name.startswith(".") or (w.get("kinds") or "both") not in ("both", "audio" if kind == "audio" else "transcripts"):
         return None
     rel = f.get("rel", f["path"])
-    if (w.get("include") and not any(fnmatch.fnmatch(rel, g) for g in w["include"])) or any(fnmatch.fnmatch(rel, g) for g in w.get("exclude") or []):
+    if (w.get("include") and not any(fnmatch.fnmatch(rel, g) for g in w["include"])) or any(
+        fnmatch.fnmatch(rel, g) for g in w.get("exclude") or []
+    ):
         return None
     return kind
 
 
 def poll_watch(db, cfg, wid, log=print):
-    w = db.one("SELECT record::id(id) AS id, source, path, space, kinds, poll_minutes, stable_seconds, backfill, include, exclude, steps, pipeline, last_scan_at "
-               "FROM $r", r=R("watch_path", wid))
+    w = db.one(
+        "SELECT record::id(id) AS id, source, path, space, kinds, poll_minutes, stable_seconds, backfill, include, exclude, steps, pipeline, last_scan_at "
+        "FROM $r",
+        r=R("watch_path", wid),
+    )
     src = get(db, w["source"])
     first, now = not w.get("last_scan_at"), dt.datetime.now(dt.timezone.utc)
     known = {r["path"]: r for r in db.rows("SELECT path, size, modified, status FROM remote_file WHERE watch = $w", w=wid)}
@@ -384,13 +490,21 @@ def poll_watch(db, cfg, wid, log=print):
                 stats["errors"] += 1
                 log(f"  {f['path']}: {type(e).__name__}: {e}")
     nxt = (now + dt.timedelta(minutes=w.get("poll_minutes") or 5)).isoformat(timespec="seconds")
-    db.q("UPDATE $r SET last_scan_at = $t, next_scan_at = $n, last_stats = $s, last_error = NONE", r=R("watch_path", wid), t=store.now(), n=nxt, s=stats)
+    db.q(
+        "UPDATE $r SET last_scan_at = $t, next_scan_at = $n, last_stats = $s, last_error = NONE",
+        r=R("watch_path", wid),
+        t=store.now(),
+        n=nxt,
+        s=stats,
+    )
     return stats
 
 
 def poll_due(db, cfg, log=print):
     done = 0
-    for w in db.rows("SELECT record::id(id) AS id, poll_minutes, next_scan_at FROM watch_path WHERE enabled = true AND next_scan_at <= $n", n=store.now()):
+    for w in db.rows(
+        "SELECT record::id(id) AS id, poll_minutes, next_scan_at FROM watch_path WHERE enabled = true AND next_scan_at <= $n", n=store.now()
+    ):
         try:
             poll_watch(db, cfg, w["id"], log)
             done += 1

@@ -13,7 +13,11 @@ import { Avatar, Skeleton } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
 
-const NEXT: Record<ThemeChoice, ThemeChoice> = { system: "light", light: "dark", dark: "system" };
+const NEXT: Record<ThemeChoice, ThemeChoice> = {
+  system: "light",
+  light: "dark",
+  dark: "system",
+};
 const ITEM = "h-[38px] rounded-sm text-[14px] font-medium";
 
 /** "Editor in podcasts · Viewer in customer-calls", or the admin line. */
@@ -31,7 +35,12 @@ export function AccountMenu({ name, email }: { name?: string | null; email: stri
   const client = useApiClient();
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useTheme();
-  const tokens = useQuery({ queryKey: ["tokens"], queryFn: () => data(Tokens.listTokens({ client })), enabled: open, staleTime: 30_000 });
+  const tokens = useQuery({
+    queryKey: ["tokens"],
+    queryFn: () => data(Tokens.listTokens({ client })),
+    enabled: open,
+    staleTime: 30_000,
+  });
   const roles = (me?.roles ?? {}) as Record<string, string>;
   const owns = !admin && Object.values(roles).includes("owner");
   const display = me?.user.name || name || me?.user.email || email;
@@ -49,7 +58,9 @@ export function AccountMenu({ name, email }: { name?: string | null; email: stri
             <div className="truncate text-[12.5px] leading-none text-fg-muted">{me?.user.email || email}</div>
           </div>
         </div>
-        <div className="px-2.5 pb-1 pt-2 text-[12px] leading-normal text-fg-secondary">{me ? rolesSummary(admin, roles) : <Skeleton className="my-[3px] h-3 w-44" />}</div>
+        <div className="px-2.5 pb-1 pt-2 text-[12px] leading-normal text-fg-secondary">
+          {me ? rolesSummary(admin, roles) : <Skeleton className="my-[3px] h-3 w-44" />}
+        </div>
         <MenuItem asChild className={ITEM}>
           <Link href="/account">
             <UserRound />
@@ -74,7 +85,12 @@ export function AccountMenu({ name, email }: { name?: string | null; email: stri
         <MenuItem className={ITEM} icon={<SunMoon />} onSelect={() => setTheme(NEXT[theme])}>
           Appearance: {theme[0].toUpperCase() + theme.slice(1)}
         </MenuItem>
-        <MenuItem className={ITEM} icon={<Keyboard />} shortcut="?" onSelect={() => window.dispatchEvent(new CustomEvent("lens:shortcuts"))}>
+        <MenuItem
+          className={ITEM}
+          icon={<Keyboard />}
+          shortcut="?"
+          onSelect={() => window.dispatchEvent(new CustomEvent("lens:shortcuts"))}
+        >
           Keyboard shortcuts
         </MenuItem>
         <MenuItem className={ITEM} icon={<LogOut />} onSelect={() => void signOut({ redirectTo: "/login" })}>

@@ -23,7 +23,14 @@ import {
   type Trigger,
 } from "@/components/activity/job-model";
 import { JobListItem, JobStateIcon, StepSegments } from "@/components/activity/job-row";
-import { useJobActions, useJobList, usePeopleNames, useSpaceNames, useWorkerStates, useWorkers } from "@/components/activity/use-activity";
+import {
+  useJobActions,
+  useJobList,
+  usePeopleNames,
+  useSpaceNames,
+  useWorkerStates,
+  useWorkers,
+} from "@/components/activity/use-activity";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/menu";
@@ -69,7 +76,9 @@ function useAtTop() {
     const el = ref.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
     // The sticky top bar is 64px tall: the list counts as "at the top" while this marker shows below it.
-    const io = new IntersectionObserver(([e]) => setAtTop(e.isIntersecting), { rootMargin: "-64px 0px 0px 0px" });
+    const io = new IntersectionObserver(([e]) => setAtTop(e.isIntersecting), {
+      rootMargin: "-64px 0px 0px 0px",
+    });
     io.observe(el);
     return () => io.disconnect();
   }, []);
@@ -102,14 +111,22 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
   const toast = useToast();
   const { namespace, namespaces, can, me } = useArchive();
   const [status, setStatus] = useState("all");
-  const [filters, setFilters] = useState<{ ns: string; worker: string; trigger: string }>({ ns: "", worker: "", trigger: "" });
+  const [filters, setFilters] = useState<{
+    ns: string;
+    worker: string;
+    trigger: string;
+  }>({ ns: "", worker: "", trigger: "" });
   const [open, setOpen] = useState<Set<number>>(new Set());
   const [cancelling, setCancelling] = useState<JobRecord | null>(null);
-  const list = useJobList({ status: status === "all" ? undefined : status, limit: 200 });
+  const list = useJobList({
+    status: status === "all" ? undefined : status,
+    limit: 200,
+  });
   const batches = useQuery({
     queryKey: ["batches"],
     queryFn: () => data(Batches.listBatches({ client })),
-    refetchInterval: (q) => ((q.state.data ?? []).some((b) => ["running", "sample"].includes(b.status)) ? 5000 : 30_000),
+    refetchInterval: (q) =>
+      (q.state.data ?? []).some((b) => ["running", "sample"].includes(b.status)) ? 5000 : 30_000,
   });
   const workers = useWorkers();
   const states = useWorkerStates(workers.data, list.jobs);
@@ -120,13 +137,26 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
   const { ref: topRef, atTop } = useAtTop();
 
   const batchAction = useMutation({
-    mutationFn: ({ id, action }: { id: number; action: BatchAction }) => data(Batches.controlBatch({ client, path: { bid: id, action } })),
+    mutationFn: ({ id, action }: { id: number; action: BatchAction }) =>
+      data(Batches.controlBatch({ client, path: { bid: id, action } })),
     onSuccess: (_d, v) => {
-      toast({ title: { pause: "Batch paused", resume: "Batch resumed", continue: "Running the rest of the batch", retry: "Retrying the failed recordings" }[v.action] });
+      toast({
+        title: {
+          pause: "Batch paused",
+          resume: "Batch resumed",
+          continue: "Running the rest of the batch",
+          retry: "Retrying the failed recordings",
+        }[v.action],
+      });
       void qc.invalidateQueries({ queryKey: ["batches"] });
       void qc.invalidateQueries({ queryKey: ["jobs"] });
     },
-    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t change the batch", body: e.message }),
+    onError: (e: Error) =>
+      toast({
+        tone: "red",
+        title: "Couldn’t change the batch",
+        body: e.message,
+      }),
   });
 
   const nsFilter = filters.ns || namespace || "";
@@ -143,17 +173,25 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
       .filter((j) => !filters.trigger || j.created_by === filters.trigger)
       .map((j) => ({ id: `j${j.id}`, at: j.created_at ?? "", job: j }));
     if (status === "all" && !filters.worker && !filters.trigger)
-      for (const b of (batches.data ?? []) as BatchInfo[]) out.push({ id: `b${b.id}`, at: b.created_at ?? "", batch: b });
+      for (const b of (batches.data ?? []) as BatchInfo[])
+        out.push({ id: `b${b.id}`, at: b.created_at ?? "", batch: b });
     return out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
   }, [jobs, batches.data, status, nsFilter, filters.worker, filters.trigger, spaces]);
 
   // Keep what is on screen still while scrolled down; new runs wait behind a pill.
   const filterKey = `${status}|${nsFilter}|${filters.worker}|${filters.trigger}`;
-  const [shown, setShown] = useState<{ key: string; order: string[] }>({ key: "", order: [] });
+  const [shown, setShown] = useState<{ key: string; order: string[] }>({
+    key: "",
+    order: [],
+  });
   const view = reconcileOrder(shown.key === filterKey ? shown.order : [], items, atTop);
   const orderKey = view.order.join(",");
   useEffect(() => {
-    setShown((s) => (s.key === filterKey && s.order.join(",") === orderKey ? s : { key: filterKey, order: orderKey ? orderKey.split(",") : [] }));
+    setShown((s) =>
+      s.key === filterKey && s.order.join(",") === orderKey
+        ? s
+        : { key: filterKey, order: orderKey ? orderKey.split(",") : [] },
+    );
   }, [filterKey, orderKey]);
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const rows = view.order.map((id) => byId.get(id)).filter((i): i is Item => Boolean(i));
@@ -163,7 +201,8 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
   useEffect(() => {
     for (const j of jobs) {
       const before = lastStatus.current.get(j.id);
-      if (before && before !== j.status && ["succeeded", "failed", "cancelled"].includes(j.status)) announce(`j${j.id}`, `${j.title ?? `Run ${j.id}`}: ${jobPhase(j)}`);
+      if (before && before !== j.status && ["succeeded", "failed", "cancelled"].includes(j.status))
+        announce(`j${j.id}`, `${j.title ?? `Run ${j.id}`}: ${jobPhase(j)}`);
       lastStatus.current.set(j.id, j.status);
     }
   }, [jobs]);
@@ -179,7 +218,11 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
   };
   const workerOptions = [...new Set(jobs.map((j) => j.worker).filter(Boolean) as string[])].sort();
   const triggerOptions = [...new Set(jobs.map((j) => j.created_by).filter(Boolean) as string[])].sort();
-  const activeFilters = [filters.ns, filters.worker && `worker ${filters.worker}`, filters.trigger && triggerOf(filters.trigger, names, me?.user.email).label].filter(Boolean);
+  const activeFilters = [
+    filters.ns,
+    filters.worker && `worker ${filters.worker}`,
+    filters.trigger && triggerOf(filters.trigger, names, me?.user.email).label,
+  ].filter(Boolean);
 
   const jobAction = (j: JobRecord, big = false) => {
     const ns = nsOf(j);
@@ -217,9 +260,20 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
   const batchButton = (b: BatchInfo, big = false) => {
     const p = batchPhase(b);
     if (!p.action) return null;
-    const label = { pause: "Pause", resume: "Resume", continue: "Run the rest", retry: "Retry failed" }[p.action];
+    const label = {
+      pause: "Pause",
+      resume: "Resume",
+      continue: "Run the rest",
+      retry: "Retry failed",
+    }[p.action];
     return (
-      <Button variant={p.action === "continue" ? "primary" : "secondary"} size={big ? "md" : "sm"} className={cn(big && "h-11")} disabled={batchAction.isPending} onClick={() => batchAction.mutate({ id: b.id, action: p.action! })}>
+      <Button
+        variant={p.action === "continue" ? "primary" : "secondary"}
+        size={big ? "md" : "sm"}
+        className={cn(big && "h-11")}
+        disabled={batchAction.isPending}
+        onClick={() => batchAction.mutate({ id: b.id, action: p.action! })}
+      >
         {label}
       </Button>
     );
@@ -254,7 +308,9 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                   onClick={() => setStatus(c.value)}
                   className={cn(
                     "tabular flex h-[30px] items-center gap-1.5 rounded-pill border px-3 text-[12.5px] font-semibold transition-colors duration-fast",
-                    on ? "border-blue-border bg-blue-surface text-fg-accent" : "border-border bg-background text-fg-strong hover:bg-surface",
+                    on
+                      ? "border-blue-border bg-blue-surface text-fg-accent"
+                      : "border-border bg-background text-fg-strong hover:bg-surface",
                   )}
                 >
                   {c.label}
@@ -266,9 +322,17 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
           <span className="flex-1" />
           <Popover>
             <PopoverTrigger asChild>
-              <button type="button" className="inline-flex h-[30px] items-center gap-1.5 rounded-pill px-2 text-[12.5px] font-medium text-fg-muted hover:bg-surface-neutral hover:text-fg">
+              <button
+                type="button"
+                className="inline-flex h-[30px] items-center gap-1.5 rounded-pill px-2 text-[12.5px] font-medium text-fg-muted hover:bg-surface-neutral hover:text-fg"
+              >
                 <ListFilter aria-hidden className="size-3.5" />
-                {activeFilters.length ? <span className="font-semibold text-fg-accent">{activeFilters.join(" · ")}</span> : "Namespace · Worker · Trigger · Pipeline"} ▾
+                {activeFilters.length ? (
+                  <span className="font-semibold text-fg-accent">{activeFilters.join(" · ")}</span>
+                ) : (
+                  "Namespace · Worker · Trigger · Pipeline"
+                )}{" "}
+                ▾
               </button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-[300px] p-4">
@@ -279,12 +343,26 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                     className="h-8 text-[13px]"
                     value={filters.ns}
                     onChange={(e) => setFilters((f) => ({ ...f, ns: e.target.value }))}
-                    options={[{ value: "", label: namespace ? `${namespace} (top bar)` : "All namespaces" }, ...namespaces.map((n) => ({ value: n.name, label: n.name }))]}
+                    options={[
+                      {
+                        value: "",
+                        label: namespace ? `${namespace} (top bar)` : "All namespaces",
+                      },
+                      ...namespaces.map((n) => ({
+                        value: n.name,
+                        label: n.name,
+                      })),
+                    ]}
                   />
                 </label>
                 <label className="flex flex-col gap-1.5 text-[13px] font-bold text-fg-strong">
                   Worker
-                  <Select className="h-8 text-[13px]" value={filters.worker} onChange={(e) => setFilters((f) => ({ ...f, worker: e.target.value }))} options={[{ value: "", label: "Any worker" }, ...workerOptions]} />
+                  <Select
+                    className="h-8 text-[13px]"
+                    value={filters.worker}
+                    onChange={(e) => setFilters((f) => ({ ...f, worker: e.target.value }))}
+                    options={[{ value: "", label: "Any worker" }, ...workerOptions]}
+                  />
                 </label>
                 <label className="flex flex-col gap-1.5 text-[13px] font-bold text-fg-strong">
                   Trigger
@@ -292,19 +370,36 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                     className="h-8 text-[13px]"
                     value={filters.trigger}
                     onChange={(e) => setFilters((f) => ({ ...f, trigger: e.target.value }))}
-                    options={[{ value: "", label: "Anyone or anything" }, ...triggerOptions.map((t) => ({ value: t, label: triggerOf(t, names, me?.user.email).label }))]}
+                    options={[
+                      { value: "", label: "Anyone or anything" },
+                      ...triggerOptions.map((t) => ({
+                        value: t,
+                        label: triggerOf(t, names, me?.user.email).label,
+                      })),
+                    ]}
                   />
                 </label>
                 <label className="flex flex-col gap-1.5 text-[13px] font-bold text-fg-strong">
                   Pipeline
                   <Tooltip content="Runs don’t report which pipeline version they pinned yet">
                     <span tabIndex={0}>
-                      <Select className="h-8 text-[13px]" disabled value="" options={[{ value: "", label: "Not available yet" }]} aria-label="Pipeline (not available yet)" />
+                      <Select
+                        className="h-8 text-[13px]"
+                        disabled
+                        value=""
+                        options={[{ value: "", label: "Not available yet" }]}
+                        aria-label="Pipeline (not available yet)"
+                      />
                     </span>
                   </Tooltip>
                 </label>
                 {activeFilters.length > 0 && (
-                  <Button variant="link" size="sm" className="self-start" onClick={() => setFilters({ ns: "", worker: "", trigger: "" })}>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="self-start"
+                    onClick={() => setFilters({ ns: "", worker: "", trigger: "" })}
+                  >
                     Clear filters
                   </Button>
                 )}
@@ -334,11 +429,19 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
         {loading ? (
           <SkeletonRows rows={7} className="px-6" />
         ) : error ? (
-          <EmptyState tone="error" icon={<Cloud />} title="Couldn’t load runs" actions={<Button onClick={() => list.refetch()}>Try again</Button>}>
+          <EmptyState
+            tone="error"
+            icon={<Cloud />}
+            title="Couldn’t load runs"
+            actions={<Button onClick={() => list.refetch()}>Try again</Button>}
+          >
             {error.message}
           </EmptyState>
         ) : rows.length === 0 ? (
-          <EmptyState icon={<Cloud />} title={status === "all" && !activeFilters.length && !namespace ? "No runs yet" : "No runs match"}>
+          <EmptyState
+            icon={<Cloud />}
+            title={status === "all" && !activeFilters.length && !namespace ? "No runs yet" : "No runs match"}
+          >
             {status === "all" && !activeFilters.length && !namespace
               ? "Imports, watched folders and Reprocess start runs. They appear here as they happen."
               : "Try another status or clear the filters."}
@@ -350,7 +453,17 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
               {rows.map((it) => {
                 if (it.batch) {
                   const p = batchPhase(it.batch);
-                  return <JobListItem key={it.id} size="lg" status={p.icon} title={`${it.batch.label} · batch #${it.batch.id}`} sub={p.text} progress={p.share.done + p.share.failed} action={batchButton(it.batch, true)} />;
+                  return (
+                    <JobListItem
+                      key={it.id}
+                      size="lg"
+                      status={p.icon}
+                      title={`${it.batch.label} · batch #${it.batch.id}`}
+                      sub={p.text}
+                      progress={p.share.done + p.share.failed}
+                      action={batchButton(it.batch, true)}
+                    />
+                  );
                 }
                 const j = it.job!;
                 const cur = stepSpecs(j.steps)[Math.min(j.step_index ?? 0, Math.max(0, (j.steps?.length ?? 1) - 1))];
@@ -420,7 +533,10 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                                   aria-label={`${expanded ? "Hide" : "Show"} the recordings in ${b.label}`}
                                   className="-ml-1 grid size-6 shrink-0 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral"
                                 >
-                                  <ChevronRight aria-hidden className={cn("size-4 transition-transform duration-fast", expanded && "rotate-90")} />
+                                  <ChevronRight
+                                    aria-hidden
+                                    className={cn("size-4 transition-transform duration-fast", expanded && "rotate-90")}
+                                  />
                                 </button>
                                 <div className="flex min-w-0 flex-col gap-1">
                                   <span className="truncate text-[13.5px] font-semibold text-fg">{b.label}</span>
@@ -433,7 +549,9 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                             <Td>
                               <div className="flex flex-col gap-1.5">
                                 <StackedBar share={p.share} />
-                                <span className="tabular truncate text-[12.5px] font-medium text-fg-secondary">{p.text}</span>
+                                <span className="tabular truncate text-[12.5px] font-medium text-fg-secondary">
+                                  {p.text}
+                                </span>
                               </div>
                             </Td>
                             <Td className="text-[12.5px] text-fg-muted">—</Td>
@@ -441,7 +559,10 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                               <TriggerLabel t={triggerOf(b.created_by, names, me?.user.email)} />
                             </Td>
                             <Td className="text-[12.5px] text-fg-muted">—</Td>
-                            <Td className="tabular text-right text-[12.5px] text-fg-muted" title={absolute(b.created_at)}>
+                            <Td
+                              className="tabular text-right text-[12.5px] text-fg-muted"
+                              title={absolute(b.created_at)}
+                            >
                               {shortWhen(b.created_at)}
                             </Td>
                             <Td className="text-right last:pr-6">{batchButton(b)}</Td>
@@ -454,15 +575,27 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                                     {kids.map((j) => (
                                       <li key={j.id} className="flex items-center gap-3 py-2 text-[13px]">
                                         <JobStateIcon status={j.status} size={16} />
-                                        <Link href={`/activity/${j.id}`} className="min-w-0 flex-1 truncate font-semibold text-fg hover:underline">
+                                        <Link
+                                          href={`/activity/${j.id}`}
+                                          className="min-w-0 flex-1 truncate font-semibold text-fg hover:underline"
+                                        >
                                           {j.title ?? `Recording ${j.recording}`}
                                         </Link>
-                                        <span className={cn("truncate text-[12.5px]", j.status === "failed" ? "text-red-dark" : "text-fg-secondary")}>{phaseOf(j)}</span>
+                                        <span
+                                          className={cn(
+                                            "truncate text-[12.5px]",
+                                            j.status === "failed" ? "text-red-dark" : "text-fg-secondary",
+                                          )}
+                                        >
+                                          {phaseOf(j)}
+                                        </span>
                                       </li>
                                     ))}
                                   </ul>
                                 ) : (
-                                  <p className="pl-[58px] text-[13px] text-fg-secondary">Recordings in this batch appear here as they start.</p>
+                                  <p className="pl-[58px] text-[13px] text-fg-secondary">
+                                    Recordings in this batch appear here as they start.
+                                  </p>
                                 )}
                               </td>
                             </tr>
@@ -480,7 +613,10 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                         </Td>
                         <Td>
                           <div className="flex min-w-0 flex-col gap-1">
-                            <Link href={`/activity/${j.id}`} className="truncate text-[13.5px] font-semibold text-fg hover:underline">
+                            <Link
+                              href={`/activity/${j.id}`}
+                              className="truncate text-[13.5px] font-semibold text-fg hover:underline"
+                            >
                               {j.title ?? `Recording ${j.recording}`}
                             </Link>
                             <span className="truncate text-[12px] text-fg-muted">
@@ -503,7 +639,9 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                             </span>
                           </div>
                         </Td>
-                        <Td className="truncate text-[12.5px] font-medium text-fg-strong">{j.worker ?? <span className="text-fg-muted">—</span>}</Td>
+                        <Td className="truncate text-[12.5px] font-medium text-fg-strong">
+                          {j.worker ?? <span className="text-fg-muted">—</span>}
+                        </Td>
                         <Td>
                           <TriggerLabel t={triggerOf(j.created_by, names, me?.user.email)} />
                         </Td>
@@ -518,7 +656,9 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                 </tbody>
               </Table>
             </div>
-            {list.jobs.length >= 200 && <p className="px-6 py-3 text-[12.5px] text-fg-muted">Showing the 200 newest runs.</p>}
+            {list.jobs.length >= 200 && (
+              <p className="px-6 py-3 text-[12.5px] text-fg-muted">Showing the 200 newest runs.</p>
+            )}
           </>
         )}
       </div>

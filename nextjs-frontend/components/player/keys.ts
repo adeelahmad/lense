@@ -23,12 +23,33 @@ export type KeyInput = {
 };
 
 /** Widgets that take every key (menus, lists, grids, dialogs). */
-const OWN_ALL = new Set(["menu", "menuitem", "menuitemcheckbox", "menuitemradio", "menubar", "listbox", "option", "combobox", "grid", "gridcell", "tree", "treeitem", "spinbutton", "dialog", "alertdialog"]);
+const OWN_ALL = new Set([
+  "menu",
+  "menuitem",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "menubar",
+  "listbox",
+  "option",
+  "combobox",
+  "grid",
+  "gridcell",
+  "tree",
+  "treeitem",
+  "spinbutton",
+  "dialog",
+  "alertdialog",
+]);
 /** Widgets that move with arrows (and Home/End/Page keys) but leave the player's letters alone. */
 const OWN_ARROWS = new Set(["slider", "tab", "tablist", "radiogroup", "radio", "scrollbar"]);
 const NAV_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"]);
 
-type ElementLike = { tagName?: string; isContentEditable?: boolean; getAttribute?: (n: string) => string | null; parentElement?: ElementLike | null };
+type ElementLike = {
+  tagName?: string;
+  isContentEditable?: boolean;
+  getAttribute?: (n: string) => string | null;
+  parentElement?: ElementLike | null;
+};
 
 /**
  * Whether focus is somewhere that owns the key: text entry always; menus and lists everything; sliders, tabs and radio
@@ -46,7 +67,15 @@ export function focusOwnsKey(target: EventTarget | null | undefined, key: string
     if (OWN_ALL.has(role)) return true;
     if (OWN_ARROWS.has(role) && NAV_KEYS.has(key)) return true;
   }
-  if ((key === " " || key === "Enter") && (tag === "BUTTON" || tag === "A" || tag === "SUMMARY" || el.getAttribute?.("role") === "tab" || el.getAttribute?.("role") === "radio")) return true;
+  if (
+    (key === " " || key === "Enter") &&
+    (tag === "BUTTON" ||
+      tag === "A" ||
+      tag === "SUMMARY" ||
+      el.getAttribute?.("role") === "tab" ||
+      el.getAttribute?.("role") === "radio")
+  )
+    return true;
   return false;
 }
 

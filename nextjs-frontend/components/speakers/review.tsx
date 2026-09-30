@@ -19,8 +19,14 @@ import { needRole, useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 function Side({ s, player }: { s: Speaker; player: ReturnType<typeof useInlinePlayer> }) {
-  const { clips, isLoading } = useSpeakerClips(s.id, { recordings: 3, perRecording: 1, max: 3 });
-  const meta = [isUnnamed(s) ? "unnamed" : null, plural(s.recordings ?? 0, "recording"), talkTime(s.talk_ms)].filter(Boolean).join(" · ");
+  const { clips, isLoading } = useSpeakerClips(s.id, {
+    recordings: 3,
+    perRecording: 1,
+    max: 3,
+  });
+  const meta = [isUnnamed(s) ? "unnamed" : null, plural(s.recordings ?? 0, "recording"), talkTime(s.talk_ms)]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <section aria-label={s.display} className="flex flex-col gap-3 rounded-lg border border-border p-[18px]">
       <div className="flex items-center gap-2.5">
@@ -58,18 +64,37 @@ export function ReviewQueue({ pairs, ns }: { pairs: ReviewPair[]; ns: string }) 
     },
   });
   const merge = useMutation({
-    mutationFn: (p: ReviewPair) => data(Speakers.mergeSpeaker({ client, path: { sid: p.a.id }, body: { into: p.b.id } })),
+    mutationFn: (p: ReviewPair) =>
+      data(
+        Speakers.mergeSpeaker({
+          client,
+          path: { sid: p.a.id },
+          body: { into: p.b.id },
+        }),
+      ),
     onSuccess: (r, p) => {
       qc.invalidateQueries({ queryKey: ["speakers"] });
       qc.invalidateQueries({ queryKey: ["speaker-reviews"] });
-      toast({ title: `Merged ${p.a.display} into ${p.b.display}`, tone: "green", action: { label: "Undo", onClick: () => undo.mutate(r.merge_id) } });
+      toast({
+        title: `Merged ${p.a.display} into ${p.b.display}`,
+        tone: "green",
+        action: { label: "Undo", onClick: () => undo.mutate(r.merge_id) },
+      });
     },
   });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (!pair || e.metaKey || e.ctrlKey || e.altKey || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.isContentEditable) return;
+      if (
+        !pair ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) ||
+        t.isContentEditable
+      )
+        return;
       const k = e.key.toLowerCase();
       if (k === "s") setI((x) => (x + 1) % Math.max(1, pairs.length));
       else if (k === "m" && canMerge && !merge.isPending) merge.mutate(pair);
@@ -81,7 +106,8 @@ export function ReviewQueue({ pairs, ns }: { pairs: ReviewPair[]; ns: string }) 
   if (!pair)
     return (
       <EmptyState title="Nothing to review" className="rounded-lg border border-border">
-        When a new voice sounds close to someone already in {ns} — but not close enough to match on its own — the pair waits here for a person to decide.
+        When a new voice sounds close to someone already in {ns} — but not close enough to match on its own — the pair
+        waits here for a person to decide.
       </EmptyState>
     );
   const word = similarityWord(pair.score);
@@ -102,7 +128,9 @@ export function ReviewQueue({ pairs, ns }: { pairs: ReviewPair[]; ns: string }) 
             <span className="tabular -rotate-45 text-[16px] font-extrabold text-fg">{pair.score.toFixed(2)}</span>
           </span>
           <b className="text-[16px] font-bold capitalize text-fg">{word}</b>
-          <span className="text-[12.5px] leading-[1.45] text-fg-secondary">Close, but below the auto-match threshold (Settings → Voice IDs), so a person decides.</span>
+          <span className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            Close, but below the auto-match threshold (Settings → Voice IDs), so a person decides.
+          </span>
         </div>
         <Side s={pair.b} player={player} />
       </div>
@@ -110,16 +138,32 @@ export function ReviewQueue({ pairs, ns }: { pairs: ReviewPair[]; ns: string }) 
       {merge.isError && <Banner tone="error">{merge.error.message}</Banner>}
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
         <span className="min-w-[240px] flex-1 text-[13px] leading-[1.45] text-fg-secondary">
-          Merging moves {pair.a.display}’s {plural(pair.a.recordings ?? 0, "recording")} and voice samples into {pair.b.display}. You can undo it from Merge history.
+          Merging moves {pair.a.display}’s {plural(pair.a.recordings ?? 0, "recording")} and voice samples into{" "}
+          {pair.b.display}. You can undo it from Merge history.
         </span>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={() => setI((x) => (x + 1) % pairs.length)} disabled={pairs.length < 2} disabledReason="This is the only pair">
+          <Button
+            variant="ghost"
+            onClick={() => setI((x) => (x + 1) % pairs.length)}
+            disabled={pairs.length < 2}
+            disabledReason="This is the only pair"
+          >
             Skip
           </Button>
-          <Button variant="secondary" disabled disabledReason="Not available yet: the archive can’t record “not the same” for speakers">
+          <Button
+            variant="secondary"
+            disabled
+            disabledReason="Not available yet: the archive can’t record “not the same” for speakers"
+          >
             Not the same
           </Button>
-          <Button variant="approve" disabled={!canMerge || merge.isPending} disabledReason={canMerge ? undefined : needRole("editor", ns)} onClick={() => merge.mutate(pair)} className={cn(merge.isPending && "opacity-70")}>
+          <Button
+            variant="approve"
+            disabled={!canMerge || merge.isPending}
+            disabledReason={canMerge ? undefined : needRole("editor", ns)}
+            onClick={() => merge.mutate(pair)}
+            className={cn(merge.isPending && "opacity-70")}
+          >
             {merge.isPending ? "Merging…" : `Merge into ${pair.b.display}`}
           </Button>
         </div>

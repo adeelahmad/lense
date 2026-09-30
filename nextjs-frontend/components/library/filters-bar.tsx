@@ -29,12 +29,29 @@ const chipOff = "border-border bg-background font-medium text-fg-strong hover:bg
 const chipOn = "border-blue-border bg-blue-surface font-semibold text-fg-accent";
 
 /** A filter chip: blue while active (with × to clear it), otherwise a label with a chevron that opens its options. */
-function Chip({ label, active, onClear, children, width = 240 }: { label: ReactNode; active: boolean; onClear?: () => void; children: (close: () => void) => ReactNode; width?: number }) {
+function Chip({
+  label,
+  active,
+  onClear,
+  children,
+  width = 240,
+}: {
+  label: ReactNode;
+  active: boolean;
+  onClear?: () => void;
+  children: (close: () => void) => ReactNode;
+  width?: number;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <span className={cn(chipBase, active ? chipOn : chipOff, "pl-0 pr-0")}>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger className={cn("inline-flex h-full items-center gap-[5px] rounded-pill pl-[11px]", active && onClear ? "pr-1" : "pr-2")}>
+        <PopoverTrigger
+          className={cn(
+            "inline-flex h-full items-center gap-[5px] rounded-pill pl-[11px]",
+            active && onClear ? "pr-1" : "pr-2",
+          )}
+        >
           {label}
           {!(active && onClear) && <ChevronDown className="size-[13px]" aria-hidden />}
         </PopoverTrigger>
@@ -43,7 +60,12 @@ function Chip({ label, active, onClear, children, width = 240 }: { label: ReactN
         </PopoverContent>
       </Popover>
       {active && onClear && (
-        <button type="button" onClick={onClear} aria-label={`Clear ${typeof label === "string" ? label : "filter"}`} className="grid h-full place-items-center rounded-pill pl-0.5 pr-2 hover:text-fg">
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label={`Clear ${typeof label === "string" ? label : "filter"}`}
+          className="grid h-full place-items-center rounded-pill pl-0.5 pr-2 hover:text-fg"
+        >
           <X className="size-[13px]" />
         </button>
       )}
@@ -55,7 +77,12 @@ function Chip({ label, active, onClear, children, width = 240 }: { label: ReactN
 function DisabledChip({ label, reason }: { label: string; reason: string }) {
   return (
     <Tooltip content={reason}>
-      <span tabIndex={0} role="button" aria-disabled className={cn(chipBase, chipOff, "cursor-not-allowed pl-[11px] pr-2 opacity-50 hover:bg-background")}>
+      <span
+        tabIndex={0}
+        role="button"
+        aria-disabled
+        className={cn(chipBase, chipOff, "cursor-not-allowed pl-[11px] pr-2 opacity-50 hover:bg-background")}
+      >
         {label}
         <ChevronDown className="size-[13px]" aria-hidden />
       </span>
@@ -63,17 +90,36 @@ function DisabledChip({ label, reason }: { label: string; reason: string }) {
   );
 }
 
-function Option({ on, onClick, children, multi }: { on: boolean; onClick: () => void; children: ReactNode; multi?: boolean }) {
+function Option({
+  on,
+  onClick,
+  children,
+  multi,
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  multi?: boolean;
+}) {
   return (
     <button
       type="button"
       role={multi ? "menuitemcheckbox" : "menuitemradio"}
       aria-checked={on}
       onClick={onClick}
-      className={cn("flex h-9 w-full items-center gap-2.5 rounded-sm px-2.5 text-left text-[13.5px] text-fg hover:bg-surface-neutral", on && !multi && "font-semibold")}
+      className={cn(
+        "flex h-9 w-full items-center gap-2.5 rounded-sm px-2.5 text-left text-[13.5px] text-fg hover:bg-surface-neutral",
+        on && !multi && "font-semibold",
+      )}
     >
       {multi ? (
-        <span aria-hidden className={cn("grid size-[18px] shrink-0 place-items-center rounded-xs border-2 text-white", on ? "border-blue bg-blue" : "border-fg-secondary bg-background")}>
+        <span
+          aria-hidden
+          className={cn(
+            "grid size-[18px] shrink-0 place-items-center rounded-xs border-2 text-white",
+            on ? "border-blue bg-blue" : "border-fg-secondary bg-background",
+          )}
+        >
           {on && <Check className="size-3.5" strokeWidth={3} />}
         </span>
       ) : (
@@ -84,7 +130,17 @@ function Option({ on, onClick, children, multi }: { on: boolean; onClick: () => 
   );
 }
 
-function Radio<T extends string>({ value, options, onChange, close }: { value: T; options: Record<T, string>; onChange: (v: T) => void; close: () => void }) {
+function Radio<T extends string>({
+  value,
+  options,
+  onChange,
+  close,
+}: {
+  value: T;
+  options: Record<T, string>;
+  onChange: (v: T) => void;
+  close: () => void;
+}) {
   return (
     <div role="menu">
       {(Object.keys(options) as T[]).map((k) => (
@@ -104,10 +160,16 @@ function Radio<T extends string>({ value, options, onChange, close }: { value: T
 }
 
 /** The filter box. `/` focuses it (see the library's keyboard handler). */
-export const FilterInput = forwardRef<HTMLInputElement, { value: string; onChange: (v: string) => void; className?: string }>(function FilterInput({ value, onChange, className }, ref) {
+export const FilterInput = forwardRef<
+  HTMLInputElement,
+  { value: string; onChange: (v: string) => void; className?: string }
+>(function FilterInput({ value, onChange, className }, ref) {
   return (
     <span className={cn("relative block", className)}>
-      <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-muted" />
+      <Search
+        aria-hidden
+        className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-muted"
+      />
       <input
         ref={ref}
         type="search"
@@ -146,7 +208,8 @@ export function FiltersBar({
     return [...n.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [rows]);
 
-  const statusLabel = filters.statuses.length === 1 ? STATUS_FILTER_LABEL[filters.statuses[0]] : `${filters.statuses.length} statuses`;
+  const statusLabel =
+    filters.statuses.length === 1 ? STATUS_FILTER_LABEL[filters.statuses[0]] : `${filters.statuses.length} statuses`;
 
   const chips = (
     <>
@@ -165,7 +228,11 @@ export function FiltersBar({
                 <span className="flex items-center justify-between gap-2">
                   {name ?? "All namespaces"}
                   <span className="tabular text-[12px] font-normal text-fg-muted">
-                    {count(name ? ((namespaces.find((n) => n.name === name)?.recordings as number) ?? 0) : namespaces.reduce((a, n) => a + ((n.recordings as number) ?? 0), 0))}
+                    {count(
+                      name
+                        ? ((namespaces.find((n) => n.name === name)?.recordings as number) ?? 0)
+                        : namespaces.reduce((a, n) => a + ((n.recordings as number) ?? 0), 0),
+                    )}
                   </span>
                 </span>
               </Option>
@@ -173,14 +240,31 @@ export function FiltersBar({
           </div>
         )}
       </Chip>
-      <DisabledChip label="Source" reason="Not available yet: the recordings list doesn’t say which source each recording came from." />
-      <Chip label={filters.statuses.length ? `Status: ${statusLabel}` : "Status"} active={filters.statuses.length > 0} onClear={() => set({ statuses: [] })} width={220}>
+      <DisabledChip
+        label="Source"
+        reason="Not available yet: the recordings list doesn’t say which source each recording came from."
+      />
+      <Chip
+        label={filters.statuses.length ? `Status: ${statusLabel}` : "Status"}
+        active={filters.statuses.length > 0}
+        onClear={() => set({ statuses: [] })}
+        width={220}
+      >
         {() => (
           <div role="menu" aria-label="Status">
             {(Object.keys(STATUS_FILTER_LABEL) as StatusFilter[]).map((s) => {
               const on = filters.statuses.includes(s);
               return (
-                <Option key={s} multi on={on} onClick={() => set({ statuses: on ? filters.statuses.filter((x) => x !== s) : [...filters.statuses, s] })}>
+                <Option
+                  key={s}
+                  multi
+                  on={on}
+                  onClick={() =>
+                    set({
+                      statuses: on ? filters.statuses.filter((x) => x !== s) : [...filters.statuses, s],
+                    })
+                  }
+                >
                   {STATUS_FILTER_LABEL[s]}
                 </Option>
               );
@@ -188,7 +272,12 @@ export function FiltersBar({
           </div>
         )}
       </Chip>
-      <Chip label={filters.speaker ? `Speaker: ${filters.speaker}` : "Speaker"} active={Boolean(filters.speaker)} onClear={() => set({ speaker: null })} width={260}>
+      <Chip
+        label={filters.speaker ? `Speaker: ${filters.speaker}` : "Speaker"}
+        active={Boolean(filters.speaker)}
+        onClear={() => set({ speaker: null })}
+        width={260}
+      >
         {(close) => (
           <div>
             <input
@@ -217,20 +306,61 @@ export function FiltersBar({
                     </span>
                   </Option>
                 ))}
-              {!speakers.length && <p className="px-2.5 py-3 text-[13px] text-fg-muted">No speakers in the loaded recordings.</p>}
+              {!speakers.length && (
+                <p className="px-2.5 py-3 text-[13px] text-fg-muted">No speakers in the loaded recordings.</p>
+              )}
             </div>
           </div>
         )}
       </Chip>
-      <Chip label={filters.date === "any" ? "Date" : `Date: ${DATE_LABEL[filters.date].toLowerCase()}`} active={filters.date !== "any"} onClear={() => set({ date: "any" })} width={200}>
-        {(close) => <Radio<DateRange> value={filters.date} options={DATE_LABEL} onChange={(date) => set({ date })} close={close} />}
+      <Chip
+        label={filters.date === "any" ? "Date" : `Date: ${DATE_LABEL[filters.date].toLowerCase()}`}
+        active={filters.date !== "any"}
+        onClear={() => set({ date: "any" })}
+        width={200}
+      >
+        {(close) => (
+          <Radio<DateRange>
+            value={filters.date}
+            options={DATE_LABEL}
+            onChange={(date) => set({ date })}
+            close={close}
+          />
+        )}
       </Chip>
-      <Chip label={filters.duration === "any" ? "Duration" : `Duration: ${DURATION_LABEL[filters.duration].toLowerCase()}`} active={filters.duration !== "any"} onClear={() => set({ duration: "any" })} width={200}>
-        {(close) => <Radio<DurationRange> value={filters.duration} options={DURATION_LABEL} onChange={(duration) => set({ duration })} close={close} />}
+      <Chip
+        label={filters.duration === "any" ? "Duration" : `Duration: ${DURATION_LABEL[filters.duration].toLowerCase()}`}
+        active={filters.duration !== "any"}
+        onClear={() => set({ duration: "any" })}
+        width={200}
+      >
+        {(close) => (
+          <Radio<DurationRange>
+            value={filters.duration}
+            options={DURATION_LABEL}
+            onChange={(duration) => set({ duration })}
+            close={close}
+          />
+        )}
       </Chip>
-      <DisabledChip label="Language" reason="Not available yet: the recordings list doesn’t include each recording’s language." />
-      <Chip label={filters.media === "any" ? "Audio / text" : MEDIA_LABEL[filters.media]} active={filters.media !== "any"} onClear={() => set({ media: "any" })} width={200}>
-        {(close) => <Radio<MediaFilter> value={filters.media} options={MEDIA_LABEL} onChange={(media) => set({ media })} close={close} />}
+      <DisabledChip
+        label="Language"
+        reason="Not available yet: the recordings list doesn’t include each recording’s language."
+      />
+      <Chip
+        label={filters.media === "any" ? "Audio / text" : MEDIA_LABEL[filters.media]}
+        active={filters.media !== "any"}
+        onClear={() => set({ media: "any" })}
+        width={200}
+      >
+        {(close) => (
+          <Radio<MediaFilter>
+            value={filters.media}
+            options={MEDIA_LABEL}
+            onChange={(media) => set({ media })}
+            close={close}
+          />
+        )}
       </Chip>
       <DisabledChip label="Tags" reason="Not available yet: recordings can’t be tagged." />
     </>
@@ -249,7 +379,13 @@ export function FiltersBar({
       <FilterInput ref={inputRef} value={filters.q} onChange={(q) => set({ q })} className="w-[214px]" />
       {chips}
       <span className="flex-1" />
-      <Button variant="ghost" size="sm" disabled disabledReason="Not available yet: saved views need somewhere on the server to keep them." icon={<BookmarkPlus />}>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled
+        disabledReason="Not available yet: saved views need somewhere on the server to keep them."
+        icon={<BookmarkPlus />}
+      >
         Save view
       </Button>
     </div>

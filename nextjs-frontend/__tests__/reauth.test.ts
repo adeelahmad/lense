@@ -42,7 +42,10 @@ describe("the sign-in gate", () => {
   it("holds requests until the person signs in again, then resolves them all", async () => {
     const a = holdUntilSignedIn({ method: "GET", url: "/a" });
     const b = holdUntilSignedIn({ method: "PUT", url: "/api/v1/settings/llm" });
-    expect(getReauthState()).toEqual({ open: true, held: [expect.objectContaining({ url: "/a" }), expect.objectContaining({ url: "/api/v1/settings/llm" })] });
+    expect(getReauthState()).toEqual({
+      open: true,
+      held: [expect.objectContaining({ url: "/a" }), expect.objectContaining({ url: "/api/v1/settings/llm" })],
+    });
 
     signedInAgain("new-token");
 
@@ -72,7 +75,11 @@ describe("fetchWithReauth", () => {
 
   it("passes other answers straight through", async () => {
     global.fetch = jest.fn().mockResolvedValue(ok("fine"));
-    const res = await fetchWithReauth(new Request("http://x/api/v1/me", { headers: { Authorization: "Bearer a" } }));
+    const res = await fetchWithReauth(
+      new Request("http://x/api/v1/me", {
+        headers: { Authorization: "Bearer a" },
+      }),
+    );
     expect(await res.text()).toBe("fine");
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
@@ -88,7 +95,13 @@ describe("fetchWithReauth", () => {
     global.fetch = jest.fn().mockResolvedValueOnce(unauthorized()).mockResolvedValueOnce(ok("again"));
     setSessionRefresher(async () => "fresh");
 
-    const res = await fetchWithReauth(new Request("http://x/api/v1/users", { method: "POST", body: '{"a":1}', headers: { Authorization: "Bearer stale" } }));
+    const res = await fetchWithReauth(
+      new Request("http://x/api/v1/users", {
+        method: "POST",
+        body: '{"a":1}',
+        headers: { Authorization: "Bearer stale" },
+      }),
+    );
 
     expect(await res.text()).toBe("again");
     const replay = (global.fetch as jest.Mock).mock.calls[1][0] as Request;
@@ -102,22 +115,37 @@ describe("fetchWithReauth", () => {
     global.fetch = jest.fn().mockResolvedValueOnce(unauthorized()).mockResolvedValueOnce(ok("replayed"));
     setSessionRefresher(async () => null);
 
-    const pending = fetchWithReauth(new Request("http://x/api/v1/settings/llm", { method: "PUT", body: "{}", headers: { Authorization: "Bearer old" } }));
+    const pending = fetchWithReauth(
+      new Request("http://x/api/v1/settings/llm", {
+        method: "PUT",
+        body: "{}",
+        headers: { Authorization: "Bearer old" },
+      }),
+    );
     await new Promise((r) => setTimeout(r, 0));
-    expect(getReauthState()).toEqual({ open: true, held: [{ method: "PUT", url: "http://x/api/v1/settings/llm" }] });
+    expect(getReauthState()).toEqual({
+      open: true,
+      held: [{ method: "PUT", url: "http://x/api/v1/settings/llm" }],
+    });
 
     signedInAgain("after-sign-in");
     const res = await pending;
 
     expect(await res.text()).toBe("replayed");
-    expect(((global.fetch as jest.Mock).mock.calls[1][0] as Request).headers.get("Authorization")).toBe("Bearer after-sign-in");
+    expect(((global.fetch as jest.Mock).mock.calls[1][0] as Request).headers.get("Authorization")).toBe(
+      "Bearer after-sign-in",
+    );
   });
 
   it("doesn't reuse the same token as a refresh", async () => {
     global.fetch = jest.fn().mockResolvedValueOnce(unauthorized()).mockResolvedValueOnce(ok());
     setSessionRefresher(async () => "same");
 
-    const pending = fetchWithReauth(new Request("http://x/api/v1/me", { headers: { Authorization: "Bearer same" } }));
+    const pending = fetchWithReauth(
+      new Request("http://x/api/v1/me", {
+        headers: { Authorization: "Bearer same" },
+      }),
+    );
     await new Promise((r) => setTimeout(r, 0));
     expect(getReauthState().open).toBe(true);
     signedInAgain("new");

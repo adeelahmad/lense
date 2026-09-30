@@ -1,7 +1,17 @@
 import type { SearchHit } from "@/app/openapi-client/types.gen";
 import { computeFacets, groupByRecording } from "@/components/search/facets";
 import { recordingHref } from "@/components/search/links";
-import { activeFilterCount, filterToken, fromParams, hasTerms, normalizeEmotion, parseQuery, phrases, prefixWords, toParams } from "@/components/search/query";
+import {
+  activeFilterCount,
+  filterToken,
+  fromParams,
+  hasTerms,
+  normalizeEmotion,
+  parseQuery,
+  phrases,
+  prefixWords,
+  toParams,
+} from "@/components/search/query";
 import { decodeEntities, snippetText, splitSnippet } from "@/components/search/snippet";
 
 describe("parseQuery", () => {
@@ -10,9 +20,13 @@ describe("parseQuery", () => {
       text: '"system card" red-teaming OR evals',
       typed: { speaker: "Host B" },
     });
-    expect(parseQuery("ns:podcasts emotion:surprise recording:\"Episode 12\" cyber")).toEqual({
+    expect(parseQuery('ns:podcasts emotion:surprise recording:"Episode 12" cyber')).toEqual({
       text: "cyber",
-      typed: { namespace: "podcasts", emotion: "surprise", recording: "Episode 12" },
+      typed: {
+        namespace: "podcasts",
+        emotion: "surprise",
+        recording: "Episode 12",
+      },
     });
   });
 
@@ -21,7 +35,10 @@ describe("parseQuery", () => {
   });
 
   it("ignores empty filter values", () => {
-    expect(parseQuery('speaker:"" cyber')).toEqual({ text: "cyber", typed: {} });
+    expect(parseQuery('speaker:"" cyber')).toEqual({
+      text: "cyber",
+      typed: {},
+    });
   });
 });
 
@@ -44,9 +61,21 @@ describe("query helpers", () => {
   });
 
   it("round-trips URL state", () => {
-    const qs = toParams("red teaming", { namespace: "podcasts", speaker: 4, emotion: "Surprise" });
+    const qs = toParams("red teaming", {
+      namespace: "podcasts",
+      speaker: 4,
+      emotion: "Surprise",
+    });
     expect(qs).toBe("q=red+teaming&ns=podcasts&speaker=4&emotion=Surprise");
-    expect(fromParams(new URLSearchParams(qs))).toEqual({ q: "red teaming", filters: { namespace: "podcasts", speaker: 4, emotion: "Surprise", recording: undefined } });
+    expect(fromParams(new URLSearchParams(qs))).toEqual({
+      q: "red teaming",
+      filters: {
+        namespace: "podcasts",
+        speaker: 4,
+        emotion: "Surprise",
+        recording: undefined,
+      },
+    });
     expect(fromParams(new URLSearchParams("speaker=abc")).filters.speaker).toBeUndefined();
     expect(activeFilterCount({ namespace: "podcasts", recording: 3 })).toBe(2);
   });
@@ -64,13 +93,47 @@ describe("snippets", () => {
   });
 });
 
-const hit = (over: Partial<SearchHit>): SearchHit => ({ id: 1, recording_id: 1, t0: 0, t1: 1000, snippet: "", source: "said", ...over });
+const hit = (over: Partial<SearchHit>): SearchHit => ({
+  id: 1,
+  recording_id: 1,
+  t0: 0,
+  t1: 1000,
+  snippet: "",
+  source: "said",
+  ...over,
+});
 
 describe("facets and groups", () => {
   const hits = [
-    hit({ id: 1, recording_id: 1, title: "Episode 12", namespace: "podcasts", speaker_id: 2, speaker: "Alice", emotion: "Neutral", t0: 9000 }),
-    hit({ id: 2, recording_id: 1, title: "Episode 12", namespace: "podcasts", speaker_id: 1, speaker: "Bob", emotion: "Surprise", t0: 2000 }),
-    hit({ id: 3, recording_id: 3, title: "Renewal call", namespace: "customer-calls", speaker_id: 5, speaker: "Alice", emotion: "Unknown" }),
+    hit({
+      id: 1,
+      recording_id: 1,
+      title: "Episode 12",
+      namespace: "podcasts",
+      speaker_id: 2,
+      speaker: "Alice",
+      emotion: "Neutral",
+      t0: 9000,
+    }),
+    hit({
+      id: 2,
+      recording_id: 1,
+      title: "Episode 12",
+      namespace: "podcasts",
+      speaker_id: 1,
+      speaker: "Bob",
+      emotion: "Surprise",
+      t0: 2000,
+    }),
+    hit({
+      id: 3,
+      recording_id: 3,
+      title: "Renewal call",
+      namespace: "customer-calls",
+      speaker_id: 5,
+      speaker: "Alice",
+      emotion: "Unknown",
+    }),
   ];
 
   it("counts values and tells same-named speakers apart", () => {

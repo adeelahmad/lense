@@ -7,7 +7,19 @@ import { Fragment, useMemo, useState, type ReactNode } from "react";
 
 import { Admin } from "@/app/openapi-client";
 import { AdminFrame, usePeople } from "@/components/admin/admin-frame";
-import { actionGroup, detailText, filterEntries, GROUPS, personText, targetHref, targetText, toCsv, type AuditEntry, type Filters, type Lookup } from "@/components/admin/audit-model";
+import {
+  actionGroup,
+  detailText,
+  filterEntries,
+  GROUPS,
+  personText,
+  targetHref,
+  targetText,
+  toCsv,
+  type AuditEntry,
+  type Filters,
+  type Lookup,
+} from "@/components/admin/audit-model";
 import { isUnreachable } from "@/components/errors/error-states";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/field";
@@ -31,21 +43,48 @@ const RANGES: { days: number | null; label: string }[] = [
 
 function when(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}, ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+  return Number.isNaN(d.getTime())
+    ? iso
+    : `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}, ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-function FilterPill({ label, active, onClear, children }: { label: ReactNode; active: boolean; onClear: () => void; children: ReactNode }) {
+function FilterPill({
+  label,
+  active,
+  onClear,
+  children,
+}: {
+  label: ReactNode;
+  active: boolean;
+  onClear: () => void;
+  children: ReactNode;
+}) {
   return (
-    <span className={cn("inline-flex h-[30px] items-center rounded-pill border text-[12.5px] font-semibold", active ? "border-blue-border bg-blue-surface text-fg-accent" : "border-border bg-background text-fg-strong")}>
+    <span
+      className={cn(
+        "inline-flex h-[30px] items-center rounded-pill border text-[12.5px] font-semibold",
+        active ? "border-blue-border bg-blue-surface text-fg-accent" : "border-border bg-background text-fg-strong",
+      )}
+    >
       <Popover>
-        <PopoverTrigger className={cn("inline-flex h-full items-center gap-[5px] rounded-pill pl-[11px]", active ? "pr-1" : "pr-2 hover:bg-surface")}>
+        <PopoverTrigger
+          className={cn(
+            "inline-flex h-full items-center gap-[5px] rounded-pill pl-[11px]",
+            active ? "pr-1" : "pr-2 hover:bg-surface",
+          )}
+        >
           {label}
           {!active && <ChevronDown aria-hidden className="size-[13px]" />}
         </PopoverTrigger>
         <PopoverContent className="w-[240px] p-1.5">{children}</PopoverContent>
       </Popover>
       {active && (
-        <button type="button" aria-label="Clear this filter" onClick={onClear} className="mr-1 grid size-6 place-items-center rounded-full hover:bg-blue-border/40">
+        <button
+          type="button"
+          aria-label="Clear this filter"
+          onClick={onClear}
+          className="mr-1 grid size-6 place-items-center rounded-full hover:bg-blue-border/40"
+        >
           <X className="size-[13px]" />
         </button>
       )}
@@ -55,7 +94,16 @@ function FilterPill({ label, active, onClear, children }: { label: ReactNode; ac
 
 function Option({ on, onClick, children }: { on: boolean; onClick: () => void; children: ReactNode }) {
   return (
-    <button type="button" role="menuitemradio" aria-checked={on} onClick={onClick} className={cn("flex h-8 w-full items-center gap-2 rounded-sm px-2.5 text-left text-[13px]", on ? "bg-blue-surface font-semibold text-fg-accent" : "hover:bg-surface-neutral")}>
+    <button
+      type="button"
+      role="menuitemradio"
+      aria-checked={on}
+      onClick={onClick}
+      className={cn(
+        "flex h-8 w-full items-center gap-2 rounded-sm px-2.5 text-left text-[13px]",
+        on ? "bg-blue-surface font-semibold text-fg-accent" : "hover:bg-surface-neutral",
+      )}
+    >
       {children}
     </button>
   );
@@ -66,8 +114,15 @@ export function AuditPage() {
   const client = useApiClient();
   const { namespaces } = useArchive();
   const people = usePeople();
-  const audit = useQuery({ queryKey: ["audit"], queryFn: () => data(Admin.listAudit({ client, query: { limit: LIMIT } })) as Promise<AuditEntry[]> });
-  const [filters, setFilters] = useState<Filters>({ person: null, groups: [], sinceDays: 30 });
+  const audit = useQuery({
+    queryKey: ["audit"],
+    queryFn: () => data(Admin.listAudit({ client, query: { limit: LIMIT } })) as Promise<AuditEntry[]>,
+  });
+  const [filters, setFilters] = useState<Filters>({
+    person: null,
+    groups: [],
+    sinceDays: 30,
+  });
   const [asc, setAsc] = useState(false);
   const [offset, setOffset] = useState(0);
   const [open, setOpen] = useState<Set<number>>(new Set());
@@ -96,7 +151,9 @@ export function AuditPage() {
   const filtered = Boolean(filters.person || filters.groups.length || filters.sinceDays);
 
   const exportCsv = () => {
-    const blob = new Blob([toCsv(shown, look)], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([toCsv(shown, look)], {
+      type: "text/csv;charset=utf-8",
+    });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -116,7 +173,11 @@ export function AuditPage() {
     >
       <section className="flex flex-col gap-3.5">
         <div className="flex flex-wrap items-center gap-1.5">
-          <FilterPill label={filters.person ? personText(filters.person, look) : "Person"} active={Boolean(filters.person)} onClear={() => set({ person: null })}>
+          <FilterPill
+            label={filters.person ? personText(filters.person, look) : "Person"}
+            active={Boolean(filters.person)}
+            onClear={() => set({ person: null })}
+          >
             <Option on={!filters.person} onClick={() => set({ person: null })}>
               Anyone
             </Option>
@@ -126,19 +187,31 @@ export function AuditPage() {
               </Option>
             ))}
           </FilterPill>
-          <FilterPill label={filters.groups.length ? `Action: ${filters.groups.join(", ")}` : "Action"} active={filters.groups.length > 0} onClear={() => set({ groups: [] })}>
+          <FilterPill
+            label={filters.groups.length ? `Action: ${filters.groups.join(", ")}` : "Action"}
+            active={filters.groups.length > 0}
+            onClear={() => set({ groups: [] })}
+          >
             <div className="flex flex-col gap-2 p-1.5">
               {GROUPS.map((g) => (
                 <Checkbox
                   key={g.value}
                   label={g.label}
                   checked={filters.groups.includes(g.value)}
-                  onCheckedChange={(on) => set({ groups: on ? [...filters.groups, g.value] : filters.groups.filter((x) => x !== g.value) })}
+                  onCheckedChange={(on) =>
+                    set({
+                      groups: on ? [...filters.groups, g.value] : filters.groups.filter((x) => x !== g.value),
+                    })
+                  }
                 />
               ))}
             </div>
           </FilterPill>
-          <FilterPill label={RANGES.find((r) => r.days === filters.sinceDays)?.label ?? "Date"} active={filters.sinceDays != null} onClear={() => set({ sinceDays: null })}>
+          <FilterPill
+            label={RANGES.find((r) => r.days === filters.sinceDays)?.label ?? "Date"}
+            active={filters.sinceDays != null}
+            onClear={() => set({ sinceDays: null })}
+          >
             {RANGES.map((r) => (
               <Option key={r.label} on={filters.sinceDays === r.days} onClick={() => set({ sinceDays: r.days })}>
                 {r.label}
@@ -155,16 +228,27 @@ export function AuditPage() {
             <SkeletonRows rows={6} />
           </div>
         ) : audit.isError ? (
-          <EmptyState tone="error" icon={<ScrollText />} title={isUnreachable(audit.error) ? "Can’t reach the server" : "Couldn’t load the audit log"} actions={<Button onClick={() => audit.refetch()}>Try again</Button>}>
+          <EmptyState
+            tone="error"
+            icon={<ScrollText />}
+            title={isUnreachable(audit.error) ? "Can’t reach the server" : "Couldn’t load the audit log"}
+            actions={<Button onClick={() => audit.refetch()}>Try again</Button>}
+          >
             {audit.error.message}
           </EmptyState>
         ) : !shown.length ? (
           <EmptyState
             icon={<ScrollText />}
             title={filtered && all.length ? "No entries match these filters" : "Nothing recorded yet"}
-            actions={filtered && all.length ? <Button onClick={() => set({ person: null, groups: [], sinceDays: null })}>Clear filters</Button> : undefined}
+            actions={
+              filtered && all.length ? (
+                <Button onClick={() => set({ person: null, groups: [], sinceDays: null })}>Clear filters</Button>
+              ) : undefined
+            }
           >
-            {filtered && all.length ? undefined : "Sign-ins aren’t logged; changes to accounts, settings, sources, sharing and content are."}
+            {filtered && all.length
+              ? undefined
+              : "Sign-ins aren’t logged; changes to accounts, settings, sources, sharing and content are."}
           </EmptyState>
         ) : (
           <div className="overflow-hidden rounded-md border border-border">
@@ -207,13 +291,24 @@ export function AuditPage() {
                             }}
                             className="inline-flex items-center gap-1 rounded-xs"
                           >
-                            {expanded ? <ChevronDown aria-hidden className="size-3.5" /> : <ChevronRight aria-hidden className="size-3.5" />}
+                            {expanded ? (
+                              <ChevronDown aria-hidden className="size-3.5" />
+                            ) : (
+                              <ChevronRight aria-hidden className="size-3.5" />
+                            )}
                             {when(e.at)}
                           </button>
                         </Td>
                         <Td className="truncate font-semibold">{personText(e.email, look)}</Td>
                         <Td>
-                          <code className={cn("font-mono text-[12px] font-medium", actionGroup(e.action) === "sharing" ? "text-fg-accent" : "text-fg-strong")}>{e.action}</code>
+                          <code
+                            className={cn(
+                              "font-mono text-[12px] font-medium",
+                              actionGroup(e.action) === "sharing" ? "text-fg-accent" : "text-fg-strong",
+                            )}
+                          >
+                            {e.action}
+                          </code>
                         </Td>
                         <Td className="truncate">{targetText(e.target, e.action, look)}</Td>
                         <Td className="truncate text-fg-secondary">{detail || "—"}</Td>
@@ -225,13 +320,19 @@ export function AuditPage() {
                               <dt className="font-bold">Target</dt>
                               <dd>
                                 {href ? (
-                                  <Link href={href} className="font-semibold text-fg-accent hover:underline" onClick={(ev) => ev.stopPropagation()}>
+                                  <Link
+                                    href={href}
+                                    className="font-semibold text-fg-accent hover:underline"
+                                    onClick={(ev) => ev.stopPropagation()}
+                                  >
                                     {targetText(e.target, e.action, look)}
                                   </Link>
                                 ) : (
                                   targetText(e.target, e.action, look)
                                 )}
-                                {e.target && e.target !== targetText(e.target, e.action, look) && <code className="ml-2 font-mono text-[11.5px] text-fg-muted">{e.target}</code>}
+                                {e.target && e.target !== targetText(e.target, e.action, look) && (
+                                  <code className="ml-2 font-mono text-[11.5px] text-fg-muted">{e.target}</code>
+                                )}
                               </dd>
                               <dt className="font-bold">Details</dt>
                               <dd className="break-words">{detail || "No details recorded"}</dd>
@@ -240,7 +341,9 @@ export function AuditPage() {
                               <dt className="font-bold">Who</dt>
                               <dd>{e.email ?? "the system"}</dd>
                             </dl>
-                            <p className="mt-2 font-mono text-[11.5px] text-fg-muted">Values before a change and the request’s address aren’t recorded yet.</p>
+                            <p className="mt-2 font-mono text-[11.5px] text-fg-muted">
+                              Values before a change and the request’s address aren’t recorded yet.
+                            </p>
                           </td>
                         </tr>
                       )}
@@ -249,10 +352,20 @@ export function AuditPage() {
                 })}
               </tbody>
             </Table>
-            <Pagination offset={offset} limit={PAGE} total={shown.length} onChange={(o) => (setOffset(o), setOpen(new Set()))} className="justify-end border-t border-border" />
+            <Pagination
+              offset={offset}
+              limit={PAGE}
+              total={shown.length}
+              onChange={(o) => (setOffset(o), setOpen(new Set()))}
+              className="justify-end border-t border-border"
+            />
           </div>
         )}
-        {all.length >= LIMIT && <p className="text-[12px] text-fg-muted">Showing the newest {count(LIMIT)} entries; older ones are kept on the server.</p>}
+        {all.length >= LIMIT && (
+          <p className="text-[12px] text-fg-muted">
+            Showing the newest {count(LIMIT)} entries; older ones are kept on the server.
+          </p>
+        )}
       </section>
     </AdminFrame>
   );

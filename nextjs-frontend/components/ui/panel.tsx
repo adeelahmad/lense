@@ -48,7 +48,15 @@ export function Panel({
 }
 
 /** Section heading inside a page: 700/16. */
-export function SectionTitle({ children, actions, className }: { children: ReactNode; actions?: ReactNode; className?: string }) {
+export function SectionTitle({
+  children,
+  actions,
+  className,
+}: {
+  children: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={cn("mb-3 flex items-center gap-3", className)}>
       <h2 className="flex-1 text-[16px] font-bold leading-tight text-fg">{children}</h2>
@@ -58,6 +66,14 @@ export function SectionTitle({ children, actions, className }: { children: React
 }
 
 /** Small uppercase label (KEY POINTS, CHAPTERS). */
-export function Label({ children, className, as: Tag = "div" }: { children: ReactNode; className?: string; as?: "div" | "h3" | "span" | "dt" }) {
+export function Label({
+  children,
+  className,
+  as: Tag = "div",
+}: {
+  children: ReactNode;
+  className?: string;
+  as?: "div" | "h3" | "span" | "dt";
+}) {
   return <Tag className={cn("label-caps", className)}>{children}</Tag>;
 }

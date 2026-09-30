@@ -26,5 +26,8 @@ export function fitTabs(
   }
   const shown = tabs.filter((v) => v === active || fits.has(v));
   if (activeExtra) shown.push(activeExtra);
-  return { shown, overflow: [...tabs.filter((v) => !shown.includes(v)), ...extra.filter((v) => v !== activeExtra)] };
+  return {
+    shown,
+    overflow: [...tabs.filter((v) => !shown.includes(v)), ...extra.filter((v) => v !== activeExtra)],
+  };
 }

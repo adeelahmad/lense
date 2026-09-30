@@ -38,7 +38,10 @@ function useVisualNotes(jobs: JobInfo[]) {
     if (!j) return { noEngine: false, noFaces: false };
     const notes = stepNotes(j);
     const note = (type: string) => notes[j.steps.findIndex((s) => s.type === type)]?.notes.join(" ") ?? "";
-    return { noEngine: /no OCR engine/i.test(note("ocr")), noFaces: /no faces found/i.test(note("faces")) };
+    return {
+      noEngine: /no OCR engine/i.test(note("ocr")),
+      noFaces: /no faces found/i.test(note("faces")),
+    };
   }, [j]);
 }
 
@@ -47,11 +50,21 @@ function useVisualNotes(jobs: JobInfo[]) {
  * lanes for shots, voices, people and text on screen; tabs for shots, text on screen and people; the transcript from
  * the soundtrack beside it (side by side), under it (stacked) or as captions (theatre).
  */
-export function VideoLayout({ compact, onCommand }: { compact: boolean; onCommand: (fn: (c: VideoCommand) => void) => void }) {
+export function VideoLayout({
+  compact,
+  onCommand,
+}: {
+  compact: boolean;
+  onCommand: (fn: (c: VideoCommand) => void) => void;
+}) {
   const r = useRec();
   const { model, rec, state, jobs, tab, setTab } = r;
   const api = usePlayerApi();
-  const [overlays, setOverlays] = useState<Overlays>({ captions: true, faces: true, text: true });
+  const [overlays, setOverlays] = useState<Overlays>({
+    captions: true,
+    faces: true,
+    text: true,
+  });
   const [layout, setLayoutState] = useState<VideoLayoutMode>("side");
   const notes = useVisualNotes(jobs);
   useEffect(() => {
@@ -90,7 +103,11 @@ export function VideoLayout({ compact, onCommand }: { compact: boolean; onComman
     ...(mode !== "side" ? [{ value: "transcript" as PanelTab, label: "Transcript" }] : []),
     { value: "shots", label: "Shots", count: model.shots.length },
     { value: "text", label: "Text on screen", count: model.screenText.length },
-    { value: "people", label: "People on screen", count: model.facesMode === "off" ? "off" : model.faces.length },
+    {
+      value: "people",
+      label: "People on screen",
+      count: model.facesMode === "off" ? "off" : model.faces.length,
+    },
     { value: "summary", label: "Summary" },
     { value: "iiif", label: "IIIF" },
   ];
@@ -137,12 +154,18 @@ export function VideoLayout({ compact, onCommand }: { compact: boolean; onComman
     <div className={cn("flex flex-col", !compact && mode === "side" && "h-[calc(100dvh-4rem)] overflow-hidden")}>
       {compact ? (
         <div className="flex items-center gap-1.5 border-b border-border px-2 pb-2 pt-1">
-          <Link href="/library" aria-label="Back to the Library" className="grid size-11 shrink-0 place-items-center rounded-full hover:bg-surface-neutral">
+          <Link
+            href="/library"
+            aria-label="Back to the Library"
+            className="grid size-11 shrink-0 place-items-center rounded-full hover:bg-surface-neutral"
+          >
             <ChevronLeft className="size-[22px]" />
           </Link>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[15px] font-bold leading-tight text-fg">{model.title}</h1>
-            <p className="tabular truncate text-[12px] text-fg-muted">{[r.ns, tc(model.durationMs), "video"].filter(Boolean).join(" · ")}</p>
+            <p className="tabular truncate text-[12px] text-fg-muted">
+              {[r.ns, tc(model.durationMs), "video"].filter(Boolean).join(" · ")}
+            </p>
           </div>
           <HeaderActions compact />
         </div>
@@ -176,20 +199,38 @@ export function VideoLayout({ compact, onCommand }: { compact: boolean; onComman
       )}
       {compact && (state.phase === "analyzing" || state.phase === "failed") && <Banners className="mx-3 mt-2" />}
       <div className={cn("min-h-0 flex-1", mode === "side" ? "grid grid-cols-[minmax(0,1fr)_440px]" : "flex flex-col")}>
-        <div className={cn("flex min-h-0 min-w-0 flex-col", mode === "side" && "overflow-y-auto border-r border-border")}>
+        <div
+          className={cn("flex min-h-0 min-w-0 flex-col", mode === "side" && "overflow-y-auto border-r border-border")}
+        >
           <div className={cn("flex flex-col gap-2.5", compact ? "px-0 pt-0" : "px-5 pt-3.5")}>
-            <VideoStage overlays={mode === "theatre" ? { ...overlays, captions: true } : overlays} maxHeight={mode === "theatre" ? "74vh" : compact ? "40vh" : "56vh"} className={compact ? "rounded-none" : undefined} />
+            <VideoStage
+              overlays={mode === "theatre" ? { ...overlays, captions: true } : overlays}
+              maxHeight={mode === "theatre" ? "74vh" : compact ? "40vh" : "56vh"}
+              className={compact ? "rounded-none" : undefined}
+            />
             <div className={compact ? "px-4" : undefined}>
-              <VideoControls overlays={overlays} setOverlay={toggle} layout={mode} setLayout={setLayout} compact={compact} />
+              <VideoControls
+                overlays={overlays}
+                setOverlay={toggle}
+                layout={mode}
+                setLayout={setLayout}
+                compact={compact}
+              />
             </div>
           </div>
-          {state.job && isActive(state.job) && <VisualProgress job={state.job} className={compact ? "mx-4 mt-2.5" : "mx-5 mt-2.5"} />}
+          {state.job && isActive(state.job) && (
+            <VisualProgress job={state.job} className={compact ? "mx-4 mt-2.5" : "mx-5 mt-2.5"} />
+          )}
           <div className={compact ? "mx-4 mt-2.5" : "mx-5 mt-2.5"}>
             <VideoTimeline compact={compact} />
           </div>
           <div className="mt-2.5 flex min-h-[320px] flex-1 flex-col">
             <PanelTabs tabs={tabs} more={more} value={current} onChange={setTab} idBase="video" className="px-3.5" />
-            <PanelScroll id="video" tab={current} className={cn(mode === "side" ? "overflow-visible" : "", "gap-2.5 px-5 py-3")}>
+            <PanelScroll
+              id="video"
+              tab={current}
+              className={cn(mode === "side" ? "overflow-visible" : "", "gap-2.5 px-5 py-3")}
+            >
               {body}
             </PanelScroll>
           </div>
@@ -211,26 +252,55 @@ function VisualProgress({ job, className }: { job: JobInfo; className?: string }
   const cur = currentStep(job);
   const rows = steps.filter((s) => ["shots", "transcribe", "ocr", "faces"].includes(s.key ?? ""));
   if (!rows.length) return null;
-  const count: Record<string, number> = { shots: model.shots.length, ocr: model.screenText.length, faces: model.faces.length, transcribe: model.segments.length };
+  const count: Record<string, number> = {
+    shots: model.shots.length,
+    ocr: model.screenText.length,
+    faces: model.faces.length,
+    transcribe: model.segments.length,
+  };
   return (
-    <section className={cn("flex flex-col gap-2 rounded-md border border-blue-border bg-blue-surface px-3.5 py-3", className)} aria-label="Processing">
+    <section
+      className={cn("flex flex-col gap-2 rounded-md border border-blue-border bg-blue-surface px-3.5 py-3", className)}
+      aria-label="Processing"
+    >
       <dl className="m-0 grid grid-cols-[110px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 text-[12px]">
         {rows.map((s) => (
           <div key={s.key} className="contents">
             <dt className="text-fg-strong">{s.key === "transcribe" ? "Transcript" : s.label}</dt>
             <dd className="m-0">
-              <Progress value={s.state === "done" ? 1 : s.state === "current" ? undefined : 0} tone={s.state === "done" ? "green" : "intent"} label={`${s.label}: ${s.state}`} />
+              <Progress
+                value={s.state === "done" ? 1 : s.state === "current" ? undefined : 0}
+                tone={s.state === "done" ? "green" : "intent"}
+                label={`${s.label}: ${s.state}`}
+              />
             </dd>
-            <dd className={cn("tabular m-0 text-right", s.state === "current" ? "text-fg-accent" : s.state === "done" ? "text-green-dark" : "text-fg-muted")}>
-              {s.state === "done" ? `✓ ${count[s.key ?? ""] ?? ""}` : s.state === "current" ? "running" : s.state === "skipped" ? "skipped" : "waiting"}
+            <dd
+              className={cn(
+                "tabular m-0 text-right",
+                s.state === "current" ? "text-fg-accent" : s.state === "done" ? "text-green-dark" : "text-fg-muted",
+              )}
+            >
+              {s.state === "done"
+                ? `✓ ${count[s.key ?? ""] ?? ""}`
+                : s.state === "current"
+                  ? "running"
+                  : s.state === "skipped"
+                    ? "skipped"
+                    : "waiting"}
             </dd>
           </div>
         ))}
       </dl>
       <div className="flex items-center gap-3">
         <p className="min-w-0 flex-1 text-[13px] leading-snug text-fg-strong">
-          <b className="text-fg">{cur === "ocr" ? "Shots are ready; text on screen is being read." : cur === "faces" ? "Looking for people on screen." : "Processing the video."}</b> Lines and people appear in
-          the lanes and panels as they&apos;re found. You can watch and read now.
+          <b className="text-fg">
+            {cur === "ocr"
+              ? "Shots are ready; text on screen is being read."
+              : cur === "faces"
+                ? "Looking for people on screen."
+                : "Processing the video."}
+          </b>{" "}
+          Lines and people appear in the lanes and panels as they&apos;re found. You can watch and read now.
         </p>
         <Button asChild variant="ghost" size="sm">
           <Link href={`/activity/${job.id}`}>View job</Link>

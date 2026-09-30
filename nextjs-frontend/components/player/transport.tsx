@@ -4,7 +4,16 @@ import { Pause, Play, RotateCcw, RotateCw, Volume1, Volume2, VolumeX } from "luc
 
 import { usePlayerApi, usePlayerState } from "@/components/player/media";
 import { Switch } from "@/components/ui/field";
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger, Popover, PopoverContent, PopoverTrigger } from "@/components/ui/menu";
+import {
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuLabel,
+  MenuTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -20,20 +29,35 @@ export function PlayButton({ size = 38, noMediaReason }: { size?: number; noMedi
   const api = usePlayerApi();
   const { hasMedia, playing, status } = usePlayerState();
   const off = !hasMedia || status === "error";
-  const reason = !hasMedia ? (noMediaReason ?? "No audio — this recording is a transcript only") : status === "error" ? "The audio couldn't be loaded" : undefined;
+  const reason = !hasMedia
+    ? (noMediaReason ?? "No audio — this recording is a transcript only")
+    : status === "error"
+      ? "The audio couldn't be loaded"
+      : undefined;
   const btn = (
     <button
       type="button"
       aria-label={off ? `Play (unavailable: ${reason})` : playing ? "Pause (Space)" : "Play (Space)"}
       aria-disabled={off || undefined}
       onClick={() => !off && api.toggle()}
-      className={cn("grid shrink-0 place-items-center rounded-full text-white transition-colors duration-fast", off ? "cursor-not-allowed bg-border text-fg-muted" : "bg-blue hover:bg-blue-dark")}
+      className={cn(
+        "grid shrink-0 place-items-center rounded-full text-white transition-colors duration-fast",
+        off ? "cursor-not-allowed bg-border text-fg-muted" : "bg-blue hover:bg-blue-dark",
+      )}
       style={{ width: size, height: size }}
     >
-      {playing ? <Pause className="size-[45%]" fill="currentColor" strokeWidth={0} /> : <Play className="ml-[6%] size-[45%]" fill="currentColor" strokeWidth={0} />}
+      {playing ? (
+        <Pause className="size-[45%]" fill="currentColor" strokeWidth={0} />
+      ) : (
+        <Play className="ml-[6%] size-[45%]" fill="currentColor" strokeWidth={0} />
+      )}
     </button>
   );
-  return off ? <Tooltip content={reason}>{btn}</Tooltip> : <Tooltip content={playing ? "Pause (Space)" : "Play (Space)"}>{btn}</Tooltip>;
+  return off ? (
+    <Tooltip content={reason}>{btn}</Tooltip>
+  ) : (
+    <Tooltip content={playing ? "Pause (Space)" : "Play (Space)"}>{btn}</Tooltip>
+  );
 }
 
 /** ±10 s buttons (J / L). With no audio they still move the reading position. */
@@ -75,7 +99,10 @@ export function SpeedMenu({ className }: { className?: string }) {
         <button
           type="button"
           aria-label={`Playback speed, ${rateLabel(rate)}`}
-          className={cn("tabular h-7 rounded-pill border border-border px-[9px] text-[12px] font-semibold leading-7 text-fg-strong hover:bg-surface-neutral", className)}
+          className={cn(
+            "tabular h-7 rounded-pill border border-border px-[9px] text-[12px] font-semibold leading-7 text-fg-strong hover:bg-surface-neutral",
+            className,
+          )}
         >
           {rateLabel(rate)}
         </button>
@@ -98,7 +125,11 @@ export function SkipSilence() {
   return (
     <Tooltip content="Jump over pauses longer than 1.5 s between lines">
       <span>
-        <Switch checked={skipSilence} onCheckedChange={api.setSkipSilence} label={<span className="whitespace-nowrap text-[13px] text-fg-secondary">Skip silence</span>} />
+        <Switch
+          checked={skipSilence}
+          onCheckedChange={api.setSkipSilence}
+          label={<span className="whitespace-nowrap text-[13px] text-fg-secondary">Skip silence</span>}
+        />
       </span>
     </Tooltip>
   );
@@ -111,12 +142,21 @@ export function VolumeControl() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button type="button" aria-label={`Volume, ${muted ? "muted" : `${Math.round(volume * 100)}%`}`} className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral">
+        <button
+          type="button"
+          aria-label={`Volume, ${muted ? "muted" : `${Math.round(volume * 100)}%`}`}
+          className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral"
+        >
           <Icon className="size-[17px]" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="flex w-[200px] items-center gap-3 p-3">
-        <button type="button" aria-label={muted ? "Unmute" : "Mute"} onClick={() => api.setMuted(!muted)} className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral">
+        <button
+          type="button"
+          aria-label={muted ? "Unmute" : "Mute"}
+          onClick={() => api.setMuted(!muted)}
+          className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral"
+        >
           <Icon className="size-4" />
         </button>
         <input

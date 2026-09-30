@@ -8,7 +8,19 @@ describe("navigation", () => {
     expect(labels(true)).toEqual(expect.arrayContaining(["Settings", "Admin"]));
     expect(labels(false)).not.toContain("Settings");
     expect(labels(false)).not.toContain("Admin");
-    expect(labels(false)).toEqual(expect.arrayContaining(["Home", "Library", "Search", "Chat", "Speakers", "Graph", "Reports", "Pipelines", "Sources"]));
+    expect(labels(false)).toEqual(
+      expect.arrayContaining([
+        "Home",
+        "Library",
+        "Search",
+        "Chat",
+        "Speakers",
+        "Graph",
+        "Reports",
+        "Pipelines",
+        "Sources",
+      ]),
+    );
   });
 
   it("matches the active section", () => {

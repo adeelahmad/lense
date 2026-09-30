@@ -22,13 +22,25 @@ export function RecordingDialogs({ state, onClose }: { state: DialogState; onClo
   return (
     <>
       <ReprocessDialog open={state?.kind === "reprocess"} onOpenChange={(o) => !o && onClose()} />
-      <ShareSlot open={state?.kind === "share"} startMs={state?.kind === "share" ? state.startMs : undefined} onOpenChange={(o) => !o && onClose()} />
+      <ShareSlot
+        open={state?.kind === "share"}
+        startMs={state?.kind === "share" ? state.startMs : undefined}
+        onOpenChange={(o) => !o && onClose()}
+      />
     </>
   );
 }
 
 /** Share / Embed (Sharing area's dialog), opened at the current time when the page asks for it. */
-function ShareSlot({ open, startMs, onOpenChange }: { open: boolean; startMs?: number; onOpenChange: (o: boolean) => void }) {
+function ShareSlot({
+  open,
+  startMs,
+  onOpenChange,
+}: {
+  open: boolean;
+  startMs?: number;
+  onOpenChange: (o: boolean) => void;
+}) {
   const { id } = useRec();
   return <ShareEmbedDialog recordingId={id} open={open} onOpenChange={onOpenChange} startMs={startMs} />;
 }
@@ -39,7 +51,14 @@ function ShareSlot({ open, startMs, onOpenChange }: { open: boolean; startMs?: n
  */
 export function ReprocessDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { id, model, transcriptOnly } = useRec();
-  const options = useMemo(() => reprocessOptions({ video: model.media.kind === "video", hasAudio: !transcriptOnly }), [model.media.kind, transcriptOnly]);
+  const options = useMemo(
+    () =>
+      reprocessOptions({
+        video: model.media.kind === "video",
+        hasAudio: !transcriptOnly,
+      }),
+    [model.media.kind, transcriptOnly],
+  );
   const [selected, setSelected] = useState<Set<StepKey>>(() => new Set<StepKey>(["analyze", "summarize", "report"]));
   const edits = useEdits(id);
   const { reprocess } = useRecordingActions(id);
@@ -56,7 +75,15 @@ export function ReprocessDialog({ open, onOpenChange }: { open: boolean; onOpenC
       {
         onSuccess: (r) => {
           onOpenChange(false);
-          toast({ title: `Reprocessing: ${steps.map((s) => STEP_LABEL[s] ?? s).join(", ")}`, body: "The step timeline shows progress; the job is also in Activity.", tone: "intent", action: { label: "View job", onClick: () => router.push(`/activity/${r.job}`) } });
+          toast({
+            title: `Reprocessing: ${steps.map((s) => STEP_LABEL[s] ?? s).join(", ")}`,
+            body: "The step timeline shows progress; the job is also in Activity.",
+            tone: "intent",
+            action: {
+              label: "View job",
+              onClick: () => router.push(`/activity/${r.job}`),
+            },
+          });
         },
       },
     );
@@ -83,8 +110,20 @@ export function ReprocessDialog({ open, onOpenChange }: { open: boolean; onOpenC
         {options.map((o, i) => {
           const on = selected.has(o.key) && !o.disabled;
           const row = (
-            <li key={o.key} className={cn("grid grid-cols-[20px_1fr] items-center gap-3 px-3.5 py-3", i > 0 && "border-t border-border", o.disabled && "opacity-60")}>
-              <Checkbox checked={on} disabled={Boolean(o.disabled)} onCheckedChange={(v) => setSelected((s) => toggleStep(s, o.key, v, options))} aria-label={STEP_LABEL[o.key] ?? o.key} />
+            <li
+              key={o.key}
+              className={cn(
+                "grid grid-cols-[20px_1fr] items-center gap-3 px-3.5 py-3",
+                i > 0 && "border-t border-border",
+                o.disabled && "opacity-60",
+              )}
+            >
+              <Checkbox
+                checked={on}
+                disabled={Boolean(o.disabled)}
+                onCheckedChange={(v) => setSelected((s) => toggleStep(s, o.key, v, options))}
+                aria-label={STEP_LABEL[o.key] ?? o.key}
+              />
               <span className="flex flex-col gap-[3px]">
                 <span className="text-[14px] font-semibold leading-tight text-fg">{STEP_LABEL[o.key] ?? o.key}</span>
                 <span className="text-[12.5px] leading-snug text-fg-muted">{o.disabled ?? STEP_HELP[o.key]}</span>
@@ -102,22 +141,31 @@ export function ReprocessDialog({ open, onOpenChange }: { open: boolean; onOpenC
       </ul>
       {selected.has("diarize") && !transcriptOnly && speakerEdits > 0 && (
         <Warn>
-          Re-running <b>Diarize</b> replaces speaker turns, including your {speakerEdits} manual {speakerEdits === 1 ? "reassignment" : "reassignments"}.
+          Re-running <b>Diarize</b> replaces speaker turns, including your {speakerEdits} manual{" "}
+          {speakerEdits === 1 ? "reassignment" : "reassignments"}.
         </Warn>
       )}
       {selected.has("transcribe") && !transcriptOnly && textEdits > 0 && (
         <Warn>
-          Re-running <b>Transcribe</b> makes a new transcript: your {textEdits} corrected {textEdits === 1 ? "line is" : "lines are"} replaced.
+          Re-running <b>Transcribe</b> makes a new transcript: your {textEdits} corrected{" "}
+          {textEdits === 1 ? "line is" : "lines are"} replaced.
         </Warn>
       )}
-      {selected.has("summarize") && <p className="text-[12.5px] leading-snug text-fg-muted">Summarize needs an AI provider; without one the step is skipped and the summary stays as it is.</p>}
+      {selected.has("summarize") && (
+        <p className="text-[12.5px] leading-snug text-fg-muted">
+          Summarize needs an AI provider; without one the step is skipped and the summary stays as it is.
+        </p>
+      )}
     </Dialog>
   );
 }
 
 function Warn({ children }: { children: React.ReactNode }) {
   return (
-    <div role="status" className="flex gap-2.5 rounded-[10px] border border-gold-border bg-gold-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-strong">
+    <div
+      role="status"
+      className="flex gap-2.5 rounded-[10px] border border-gold-border bg-gold-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-strong"
+    >
       <span aria-hidden className="mt-1.5 size-2 shrink-0 rotate-45 bg-gold" />
       <span>{children}</span>
     </div>

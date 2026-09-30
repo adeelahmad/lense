@@ -3,7 +3,15 @@
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import * as SwitchPrimitive from "@radix-ui/react-switch";
 import { Check, ChevronDown, Search } from "lucide-react";
-import { forwardRef, useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import {
+  forwardRef,
+  useId,
+  useState,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { absolute } from "@/lib/format";
@@ -41,9 +49,17 @@ export function Field({
           {optional && <span className="ml-1 font-normal text-fg-muted">optional</span>}
         </label>
       )}
-      {children({ id, describedBy: error || hint ? msgId : undefined, invalid: Boolean(error) })}
+      {children({
+        id,
+        describedBy: error || hint ? msgId : undefined,
+        invalid: Boolean(error),
+      })}
       {(error || hint) && (
-        <p id={msgId} className={cn("text-[12.5px] leading-snug", error ? "text-red-dark" : "text-fg-muted")} role={error ? "alert" : undefined}>
+        <p
+          id={msgId}
+          className={cn("text-[12.5px] leading-snug", error ? "text-red-dark" : "text-fg-muted")}
+          role={error ? "alert" : undefined}
+        >
           {error || hint}
         </p>
       )}
@@ -51,23 +67,38 @@ export function Field({
   );
 }
 
-export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { mono?: boolean; invalid?: boolean }>(function Input(
-  { className, mono, invalid, ...props },
-  ref,
-) {
-  return <input ref={ref} aria-invalid={invalid || undefined} className={cn(control, "h-10 px-3.5", mono && "font-mono text-[13px]", className)} {...props} />;
+export const Input = forwardRef<
+  HTMLInputElement,
+  InputHTMLAttributes<HTMLInputElement> & { mono?: boolean; invalid?: boolean }
+>(function Input({ className, mono, invalid, ...props }, ref) {
+  return (
+    <input
+      ref={ref}
+      aria-invalid={invalid || undefined}
+      className={cn(control, "h-10 px-3.5", mono && "font-mono text-[13px]", className)}
+      {...props}
+    />
+  );
 });
 
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement> & { mono?: boolean; invalid?: boolean }>(function Textarea(
-  { className, mono, invalid, rows = 4, ...props },
-  ref,
-) {
+export const Textarea = forwardRef<
+  HTMLTextAreaElement,
+  TextareaHTMLAttributes<HTMLTextAreaElement> & {
+    mono?: boolean;
+    invalid?: boolean;
+  }
+>(function Textarea({ className, mono, invalid, rows = 4, ...props }, ref) {
   return (
     <textarea
       ref={ref}
       rows={rows}
       aria-invalid={invalid || undefined}
-      className={cn(control, "min-h-[88px] resize-y px-3.5 py-2.5 leading-normal", mono && "font-mono text-[13px]", className)}
+      className={cn(
+        control,
+        "min-h-[88px] resize-y px-3.5 py-2.5 leading-normal",
+        mono && "font-mono text-[13px]",
+        className,
+      )}
       {...props}
     />
   );
@@ -75,36 +106,50 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
 
 export type Option = { value: string; label: string; disabled?: boolean };
 
-export const Select = forwardRef<HTMLSelectElement, Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> & { options: (Option | string)[]; invalid?: boolean; size?: "sm" | "md" }>(
-  function Select({ className, options, invalid, size = "md", ...props }, ref) {
-    return (
-      <span className={cn("relative inline-flex", className?.includes("w-") ? "" : "w-full")}>
-        <select
-          ref={ref}
-          aria-invalid={invalid || undefined}
-          className={cn(control, "appearance-none pl-3.5 pr-9", size === "sm" ? "h-8 text-[13px]" : "h-10", className)}
-          {...props}
-        >
-          {options.map((o) => {
-            const v = typeof o === "string" ? { value: o, label: o } : o;
-            return (
-              <option key={v.value} value={v.value} disabled={v.disabled}>
-                {v.label}
-              </option>
-            );
-          })}
-        </select>
-        <ChevronDown aria-hidden className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-fg-secondary" />
-      </span>
-    );
-  },
-);
+export const Select = forwardRef<
+  HTMLSelectElement,
+  Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
+    options: (Option | string)[];
+    invalid?: boolean;
+    size?: "sm" | "md";
+  }
+>(function Select({ className, options, invalid, size = "md", ...props }, ref) {
+  return (
+    <span className={cn("relative inline-flex", className?.includes("w-") ? "" : "w-full")}>
+      <select
+        ref={ref}
+        aria-invalid={invalid || undefined}
+        className={cn(control, "appearance-none pl-3.5 pr-9", size === "sm" ? "h-8 text-[13px]" : "h-10", className)}
+        {...props}
+      >
+        {options.map((o) => {
+          const v = typeof o === "string" ? { value: o, label: o } : o;
+          return (
+            <option key={v.value} value={v.value} disabled={v.disabled}>
+              {v.label}
+            </option>
+          );
+        })}
+      </select>
+      <ChevronDown
+        aria-hidden
+        className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-fg-secondary"
+      />
+    </span>
+  );
+});
 
 /** The page-level search / filter box with a leading magnifier. */
-export const SearchInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function SearchInput({ className, ...props }, ref) {
+export const SearchInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function SearchInput(
+  { className, ...props },
+  ref,
+) {
   return (
     <span className={cn("relative block", className)}>
-      <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-muted" />
+      <Search
+        aria-hidden
+        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-muted"
+      />
       <input ref={ref} type="search" className={cn(control, "h-9 pl-9 pr-3 text-[13.5px]")} {...props} />
     </span>
   );
@@ -136,7 +181,13 @@ export function Checkbox({
         onCheckedChange={(v) => onCheckedChange?.(v === true)}
         className="grid size-[18px] shrink-0 place-items-center rounded-xs border-2 border-fg-secondary bg-background text-white transition-colors duration-fast data-[state=checked]:border-blue data-[state=checked]:bg-blue data-[state=indeterminate]:border-blue data-[state=indeterminate]:bg-blue disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <CheckboxPrimitive.Indicator>{checked === "indeterminate" ? <span className="block h-0.5 w-2 bg-white" /> : <Check className="size-3.5" strokeWidth={3} />}</CheckboxPrimitive.Indicator>
+        <CheckboxPrimitive.Indicator>
+          {checked === "indeterminate" ? (
+            <span className="block h-0.5 w-2 bg-white" />
+          ) : (
+            <Check className="size-3.5" strokeWidth={3} />
+          )}
+        </CheckboxPrimitive.Indicator>
       </CheckboxPrimitive.Root>
       {label && (
         <label htmlFor={id} className="cursor-pointer text-[14px] text-fg">
@@ -213,7 +264,15 @@ export function SecretField({
     return (
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
-          <Input id={id} value={`••••••••••••${hint ?? ""}`} readOnly disabled mono className="flex-1" aria-label="Secret is set" />
+          <Input
+            id={id}
+            value={`••••••••••••${hint ?? ""}`}
+            readOnly
+            disabled
+            mono
+            className="flex-1"
+            aria-label="Secret is set"
+          />
           <Button size="sm" variant="secondary" onClick={() => setReplacing(true)} disabled={disabled}>
             Replace
           </Button>
@@ -240,7 +299,16 @@ export function SecretField({
   }
   return (
     <div className="flex items-center gap-2">
-      <Input id={id} type="password" autoComplete="off" value={value ?? ""} onChange={(e) => onChange(e.target.value || undefined)} disabled={disabled} mono placeholder={isSet ? "New value" : "Not set"} />
+      <Input
+        id={id}
+        type="password"
+        autoComplete="off"
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value || undefined)}
+        disabled={disabled}
+        mono
+        placeholder={isSet ? "New value" : "Not set"}
+      />
       {replacing && (
         <Button
           size="sm"
@@ -263,7 +331,9 @@ export function EnvValue({ value, variable }: { value: ReactNode; variable?: str
     <div className="flex items-center gap-2 rounded-sm border border-dashed border-border bg-surface px-3.5 py-2 text-[13px]">
       <span className="font-mono text-fg-strong">{value}</span>
       {variable && <span className="ml-auto font-mono text-[12px] text-fg-muted">{variable}</span>}
-      <span className="rounded-pill bg-surface-neutral px-2 py-0.5 text-[11px] font-bold uppercase tracking-[.04em] text-fg-secondary">Set by environment</span>
+      <span className="rounded-pill bg-surface-neutral px-2 py-0.5 text-[11px] font-bold uppercase tracking-[.04em] text-fg-secondary">
+        Set by environment
+      </span>
     </div>
   );
 }

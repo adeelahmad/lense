@@ -32,13 +32,39 @@ export type BodyCtx = {
   dirty: boolean;
 };
 
-function F({ ctx, id, label, hint, options, className }: { ctx: BodyCtx; id: string; label?: ReactNode; hint?: ReactNode; options?: FieldSpec["options"]; className?: string }) {
+function F({
+  ctx,
+  id,
+  label,
+  hint,
+  options,
+  className,
+}: {
+  ctx: BodyCtx;
+  id: string;
+  label?: ReactNode;
+  hint?: ReactNode;
+  options?: FieldSpec["options"];
+  className?: string;
+}) {
   const spec = ctx.spec(id);
-  return <SettingField spec={options ? { ...spec, options } : spec} state={ctx.state(id)} label={label} hint={hint} className={className} />;
+  return (
+    <SettingField
+      spec={options ? { ...spec, options } : spec}
+      state={ctx.state(id)}
+      label={label}
+      hint={hint}
+      className={className}
+    />
+  );
 }
 
 function Sub({ children }: { children: ReactNode }) {
-  return <h3 className="border-t border-border pt-4 text-[15px] font-bold text-fg first:border-t-0 first:pt-0">{children}</h3>;
+  return (
+    <h3 className="border-t border-border pt-4 text-[15px] font-bold text-fg first:border-t-0 first:pt-0">
+      {children}
+    </h3>
+  );
 }
 
 const LANGUAGES: [string, string][] = [
@@ -56,7 +82,11 @@ const LANGUAGES: [string, string][] = [
   ["ko", "Korean"],
 ];
 
-const ENGINE_KEY: Record<string, [string, string]> = { sensevoice: ["sensevoice", "SenseVoice"], whisper: ["whisper", "Whisper"], "mlx-whisper": ["mlx_whisper", "mlx-whisper"] };
+const ENGINE_KEY: Record<string, [string, string]> = {
+  sensevoice: ["sensevoice", "SenseVoice"],
+  whisper: ["whisper", "Whisper"],
+  "mlx-whisper": ["mlx_whisper", "mlx-whisper"],
+};
 
 export function SectionBody({ ctx }: { ctx: BodyCtx }) {
   const v = (id: string) => ctx.values[id];
@@ -67,7 +97,10 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       const [key, name] = ENGINE_KEY[engine] ?? ENGINE_KEY.sensevoice;
       const lang = String(raw("transcribe.language") ?? "auto");
       const langs = LANGUAGES.some(([c]) => c === lang) ? LANGUAGES : [...LANGUAGES, [lang, lang] as [string, string]];
-      const models = (["sensevoice", "whisper", "mlx_whisper"] as const).map((k) => `${ENGINE_KEY[k === "mlx_whisper" ? "mlx-whisper" : k][1]} · ${String(raw(`transcribe.${k}.model`) || "default")}`);
+      const models = (["sensevoice", "whisper", "mlx_whisper"] as const).map(
+        (k) =>
+          `${ENGINE_KEY[k === "mlx_whisper" ? "mlx-whisper" : k][1]} · ${String(raw(`transcribe.${k}.model`) || "default")}`,
+      );
       return (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -76,7 +109,9 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="transcribe.language" options={langs.map(([value, label]) => ({ value, label }))} />
             <F ctx={ctx} id={`transcribe.${key}.model`} label={`Model for ${name}`} />
           </div>
-          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">Each engine remembers its own model: {models.join(", ")}. Auto uses the fastest device each worker has.</p>
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            Each engine remembers its own model: {models.join(", ")}. Auto uses the fastest device each worker has.
+          </p>
         </>
       );
     }
@@ -96,7 +131,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             </div>
           )}
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-            By channel suits call recorders that put each side on its own channel. Off keeps one speaker per recording. Leave min and max empty to let it decide.
+            By channel suits call recorders that put each side on its own channel. Off keeps one speaker per recording.
+            Leave min and max empty to let it decide.
           </p>
         </>
       );
@@ -104,9 +140,13 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return (
         <>
           <div className="flex flex-col gap-2.5 rounded-lg border border-border px-5 pb-4 pt-[18px]">
-            <ZoneBar match={v("speakers.match_threshold") as number} review={v("speakers.review_threshold") as number} />
+            <ZoneBar
+              match={v("speakers.match_threshold") as number}
+              review={v("speakers.review_threshold") as number}
+            />
             <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-              When valid, the three zones read: <b>new speaker</b> below review · <b>◆ review queue</b> between · <b>✓ auto-match</b> at match and above.
+              When valid, the three zones read: <b>new speaker</b> below review · <b>◆ review queue</b> between ·{" "}
+              <b>✓ auto-match</b> at match and above.
             </p>
           </div>
           <div className="grid gap-3.5 sm:grid-cols-3">
@@ -179,7 +219,11 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </div>
           <Sub>Faces</Sub>
           <F ctx={ctx} id="video.face_engine" />
-          <ZoneBar match={v("video.face_match_threshold") as number} review={v("video.face_review_threshold") as number} low="New face" />
+          <ZoneBar
+            match={v("video.face_match_threshold") as number}
+            review={v("video.face_review_threshold") as number}
+            low="New face"
+          />
           <div className="grid gap-3 sm:grid-cols-3">
             <F ctx={ctx} id="video.face_match_threshold" />
             <F ctx={ctx} id="video.face_review_threshold" />
@@ -188,7 +232,10 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <div className="border-t border-border py-3.5">
             <F ctx={ctx} id="video.publish_faces" />
           </div>
-          <p className="text-[12.5px] text-fg-muted">Whether a namespace detects or recognises faces is set by its owner. How long face data is kept isn’t configurable yet.</p>
+          <p className="text-[12.5px] text-fg-muted">
+            Whether a namespace detects or recognises faces is set by its owner. How long face data is kept isn’t
+            configurable yet.
+          </p>
         </>
       );
     case "workers":
@@ -202,7 +249,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </div>
           <F ctx={ctx} id="workers.steps" />
           <p className="text-[12.5px] leading-[1.45] text-fg-muted">
-            The number of built-in workers and their steps take effect when the server restarts. See which workers are alive in{" "}
+            The number of built-in workers and their steps take effect when the server restarts. See which workers are
+            alive in{" "}
             <Link href="/admin/health" className="font-semibold text-fg-accent hover:underline">
               System health
             </Link>
@@ -236,7 +284,9 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
   const llm = ctx.view.llm?.values ?? {};
   const secret = (llm.api_key ?? {}) as { set?: boolean };
   const key = ctx.state("llm.api_key");
-  const test = useMutation({ mutationFn: () => data(Admin.testLlm({ client })) });
+  const test = useMutation({
+    mutationFn: () => data(Admin.testLlm({ client })),
+  });
   return (
     <>
       <F ctx={ctx} id="llm.base_url" />
@@ -259,12 +309,17 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
         <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
           {test.isPending ? "Testing…" : "Test"}
         </Button>
-        <span className="text-[12px] text-fg-muted">{ctx.dirty ? "Tests the saved settings, not your unsaved changes" : "Asks the model for one word and reports the latency"}</span>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty
+            ? "Tests the saved settings, not your unsaved changes"
+            : "Asks the model for one word and reports the latency"}
+        </span>
       </div>
       {test.data &&
         (test.data.ok ? (
           <Banner tone="success" title="The model answered.">
-            {test.data.model ?? "Model"} · {test.data.ms} ms{test.data.reply ? ` · replied “${test.data.reply}”` : ""}
+            {test.data.model ?? "Model"} · {test.data.ms} ms
+            {test.data.reply ? ` · replied “${test.data.reply}”` : ""}
           </Banner>
         ) : (
           <Banner tone="error" title="The test failed.">
@@ -282,13 +337,18 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
   const enabled = Boolean(ctx.form["ai.tools"]);
   return (
     <>
-      <p className="text-[13px] leading-normal text-fg-secondary">The assistant uses the model set in LLM provider; it needs one that supports tool calls.</p>
+      <p className="text-[13px] leading-normal text-fg-secondary">
+        The assistant uses the model set in LLM provider; it needs one that supports tool calls.
+      </p>
       <F ctx={ctx} id="ai.tools" />
       <div className="flex flex-col gap-2">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Tools</span>
         <ul className="flex flex-col gap-2">
           {AI_TOOLS.map((t) => (
-            <li key={t.name} className={cn("grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-2.5", !enabled && "opacity-50")}>
+            <li
+              key={t.name}
+              className={cn("grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-2.5", !enabled && "opacity-50")}
+            >
               <Switch
                 aria-label={t.label}
                 checked={!off.includes(t.name)}
@@ -296,7 +356,9 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
                 onCheckedChange={(on) => tools.onChange(on ? off.filter((x) => x !== t.name) : [...off, t.name])}
               />
               <span className="text-[13px] font-medium leading-[1.3]">{t.label}</span>
-              <span className={cn("text-[11px] font-semibold", t.acts ? "text-gold-dark" : "text-fg-muted")}>{t.acts ? "needs approval" : "read"}</span>
+              <span className={cn("text-[11px] font-semibold", t.acts ? "text-gold-dark" : "text-fg-muted")}>
+                {t.acts ? "needs approval" : "read"}
+              </span>
             </li>
           ))}
         </ul>
@@ -326,7 +388,9 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
 
 function Reindex() {
   const client = useApiClient();
-  const run = useMutation({ mutationFn: () => data(Admin.reindexSearch({ client })) });
+  const run = useMutation({
+    mutationFn: () => data(Admin.reindexSearch({ client })),
+  });
   return (
     <div className="flex flex-col gap-2 rounded-md border border-blue-border bg-blue-surface px-3.5 py-3">
       <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold">
@@ -336,7 +400,10 @@ function Reindex() {
         </Button>
       </div>
       <span className="text-[12px] leading-[1.4] text-fg-secondary">
-        Search keeps using the old index until this finishes. {run.isSuccess ? "Progress isn’t reported yet; searches pick up the new index when it’s done." : "Run it after changing stemming."}
+        Search keeps using the old index until this finishes.{" "}
+        {run.isSuccess
+          ? "Progress isn’t reported yet; searches pick up the new index when it’s done."
+          : "Run it after changing stemming."}
       </span>
       {run.isError && <span className="text-[12px] text-red-dark">{run.error.message}</span>}
     </div>
@@ -350,7 +417,10 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
   const profiles = useQueries({
     queries: namespaces.map((n) => ({
       queryKey: ["namespace-metadata", n.name],
-      queryFn: async () => (await data(Metadata.getNamespaceMetadata({ client, path: { name: n.name } }))) as unknown as { profile: { default_access?: string } },
+      queryFn: async () =>
+        (await data(Metadata.getNamespaceMetadata({ client, path: { name: n.name } }))) as unknown as {
+          profile: { default_access?: string };
+        },
       staleTime: 60_000,
     })),
   });
@@ -359,7 +429,9 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
   useEffect(() => {
     if (!ready || inited.current) return;
     inited.current = true;
-    ctx.initNsAccess(Object.fromEntries(namespaces.map((n, i) => [n.name, profiles[i].data?.profile.default_access ?? "private"])));
+    ctx.initNsAccess(
+      Object.fromEntries(namespaces.map((n, i) => [n.name, profiles[i].data?.profile.default_access ?? "private"])),
+    );
   }, [ready]);
 
   return (
@@ -374,11 +446,25 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
             onChange={() => undefined}
             options={[
               { value: "3", label: "Presentation 3.0" },
-              { value: "4", label: "Presentation 4.0 (RC) — not available yet", disabled: true },
+              {
+                value: "4",
+                label: "Presentation 4.0 (RC) — not available yet",
+                disabled: true,
+              },
             ]}
           />
         </div>
-        <F ctx={ctx} id="iiif.rights" options={[{ value: "", label: "None" }, ...RIGHTS.map((r) => ({ value: r.uri, label: `${r.code} — ${r.name}` }))]} />
+        <F
+          ctx={ctx}
+          id="iiif.rights"
+          options={[
+            { value: "", label: "None" },
+            ...RIGHTS.map((r) => ({
+              value: r.uri,
+              label: `${r.code} — ${r.name}`,
+            })),
+          ]}
+        />
         <F ctx={ctx} id="iiif.attribution" />
         <F ctx={ctx} id="iiif.default_language" />
       </div>
@@ -387,7 +473,11 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
         <F ctx={ctx} id="iiif.provider.homepage" label="Homepage" />
         <F ctx={ctx} id="iiif.provider.logo" label="Logo" />
       </div>
-      <F ctx={ctx} id="iiif.layers" hint="Annotation layers are published only when a recording’s transcript is open." />
+      <F
+        ctx={ctx}
+        id="iiif.layers"
+        hint="Annotation layers are published only when a recording’s transcript is open."
+      />
       <div className="flex flex-col gap-1.5">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">
           External viewers <span className="font-normal text-fg-muted">· “Open in” buttons</span>
@@ -405,7 +495,11 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
           <p className="text-[12.5px] text-fg-muted">None yet.</p>
         )}
         <div className="flex items-center gap-2">
-          <Button size="xs" disabled disabledReason="The server can’t save viewer links from the app yet; set iiif.viewers in archive.yaml ({manifest} and {content_state} placeholders)">
+          <Button
+            size="xs"
+            disabled
+            disabledReason="The server can’t save viewer links from the app yet; set iiif.viewers in archive.yaml ({manifest} and {content_state} placeholders)"
+          >
             Add viewer
           </Button>
           <span className="text-[12px] text-fg-muted">Set in the server’s archive.yaml for now.</span>
@@ -417,7 +511,9 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <div className="flex flex-col gap-2">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Access per namespace</span>
-        <p className="text-[12.5px] text-fg-muted">The default for recordings that don’t set their own. Saved into each namespace’s metadata profile.</p>
+        <p className="text-[12.5px] text-fg-muted">
+          The default for recordings that don’t set their own. Saved into each namespace’s metadata profile.
+        </p>
         {!ready ? (
           <Skeleton className="h-24 w-full" />
         ) : (
@@ -425,10 +521,24 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
             {namespaces.map((n) => {
               const val = ctx.nsAccess[n.name] ?? "private";
               return (
-                <li key={n.name} className="grid items-center gap-2.5 text-[13px] font-medium sm:grid-cols-[170px_170px_minmax(0,1fr)]">
+                <li
+                  key={n.name}
+                  className="grid items-center gap-2.5 text-[13px] font-medium sm:grid-cols-[170px_170px_minmax(0,1fr)]"
+                >
                   <span>{n.name}</span>
-                  <Select aria-label={`Default access for ${n.name}`} size="sm" value={val} onChange={(e) => ctx.setNsAccess(n.name, e.target.value)} options={ACCESS.map((a) => ({ value: a.value, label: a.label }))} />
-                  <span className="text-[12.5px] font-normal leading-[1.3] text-fg-secondary">{ACCESS.find((a) => a.value === val)?.hint}</span>
+                  <Select
+                    aria-label={`Default access for ${n.name}`}
+                    size="sm"
+                    value={val}
+                    onChange={(e) => ctx.setNsAccess(n.name, e.target.value)}
+                    options={ACCESS.map((a) => ({
+                      value: a.value,
+                      label: a.label,
+                    }))}
+                  />
+                  <span className="text-[12.5px] font-normal leading-[1.3] text-fg-secondary">
+                    {ACCESS.find((a) => a.value === val)?.hint}
+                  </span>
                 </li>
               );
             })}
@@ -447,7 +557,12 @@ function Startup({ view }: { view: SettingsView }) {
   const rows: [string, ReactNode][] = [
     ["Database", b.database ?? "—"],
     ["Data folder", b.data_dir ?? "—"],
-    ["Encryption key", b.secret_key === "ARCHIVE_SECRET_KEY" ? "from env ARCHIVE_SECRET_KEY · set" : "a key file in the data folder (secret.key)"],
+    [
+      "Encryption key",
+      b.secret_key === "ARCHIVE_SECRET_KEY"
+        ? "from env ARCHIVE_SECRET_KEY · set"
+        : "a key file in the data folder (secret.key)",
+    ],
     ["rclone", b.rclone ?? "—"],
     ["Watchable folders", b.local_roots?.length ? b.local_roots.join(" · ") : "none: local folders can’t be watched"],
   ];
@@ -456,12 +571,19 @@ function Startup({ view }: { view: SettingsView }) {
       <div className="flex items-center gap-2">
         <Terminal aria-hidden className="size-4 text-fg-secondary" />
         <b className="flex-1 text-[17px] font-bold">Set at startup</b>
-        <span className="rounded-pill border border-border bg-background px-[7px] text-[10.5px] font-semibold leading-[18px] text-fg-secondary">Read-only</span>
+        <span className="rounded-pill border border-border bg-background px-[7px] text-[10.5px] font-semibold leading-[18px] text-fg-secondary">
+          Read-only
+        </span>
       </div>
-      <p className="text-[13px] leading-normal text-fg-secondary">These come from the server’s config file or environment and can only be changed there, followed by a restart.</p>
+      <p className="text-[13px] leading-normal text-fg-secondary">
+        These come from the server’s config file or environment and can only be changed there, followed by a restart.
+      </p>
       <dl>
         {rows.map(([k, val]) => (
-          <div key={k} className="grid gap-1 border-t border-border py-2 text-[13px] leading-[1.45] sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-2.5">
+          <div
+            key={k}
+            className="grid gap-1 border-t border-border py-2 text-[13px] leading-[1.45] sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-2.5"
+          >
             <dt className="text-fg-secondary">{k}</dt>
             <dd>
               <code className="break-all font-mono text-[12.5px] leading-normal">{val}</code>

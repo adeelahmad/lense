@@ -17,7 +17,11 @@ function LiveBadge() {
   const feed = useJobEvents();
   const live = feed === "live";
   return (
-    <Tooltip content={live ? "Rows update as runs change" : "Reconnecting to live updates; refreshing every few seconds meanwhile"}>
+    <Tooltip
+      content={
+        live ? "Rows update as runs change" : "Reconnecting to live updates; refreshing every few seconds meanwhile"
+      }
+    >
       <span tabIndex={0} className="flex items-center gap-1.5 text-[12.5px] font-medium text-fg-secondary">
         <span aria-hidden className={cn("size-[7px] rounded-full", live ? "bg-green" : "bg-fg-muted")} />
         {live ? "Live" : feed === "connecting" ? "Connecting…" : "Polling"}
@@ -33,14 +37,30 @@ export function ActivityPage({ tab }: { tab: "runs" | "workers" }) {
   const workers = useWorkers();
   const total = Object.values(list.counts).reduce((a, n) => a + n, 0);
   const c = list.counts;
-  const summary = [c.running ? `${c.running} running` : "", c.queued ? `${c.queued} queued` : "", c.failed ? `${c.failed} failed` : ""].filter(Boolean).join(" · ");
+  const summary = [
+    c.running ? `${c.running} running` : "",
+    c.queued ? `${c.queued} queued` : "",
+    c.failed ? `${c.failed} failed` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const tabs = (
     <Tabs
       aria-label="Activity"
       value={tab}
       items={[
-        { value: "runs", label: "Runs", count: list.isSuccess ? total : undefined, href: "/activity" },
-        { value: "workers", label: "Workers", count: admin && workers.data ? workers.data.length : undefined, href: "/activity?tab=workers" },
+        {
+          value: "runs",
+          label: "Runs",
+          count: list.isSuccess ? total : undefined,
+          href: "/activity",
+        },
+        {
+          value: "workers",
+          label: "Workers",
+          count: admin && workers.data ? workers.data.length : undefined,
+          href: "/activity?tab=workers",
+        },
       ]}
     />
   );

@@ -105,7 +105,10 @@ export type Health = { tone: "ok" | "bad" | "unknown"; text: string };
 export function healthOf(h: Source["health"], now = new Date()): Health {
   if (!h) return { tone: "unknown", text: "Not tested yet" };
   if (h.ok) return { tone: "ok", text: `OK · checked ${checkedAt(h.checked_at, now)}` };
-  return { tone: "bad", text: h.error?.trim() || "The test failed without a message" };
+  return {
+    tone: "bad",
+    text: h.error?.trim() || "The test failed without a message",
+  };
 }
 
 function checkedAt(iso: string | null | undefined, now: Date): string {
@@ -119,7 +122,10 @@ function checkedAt(iso: string | null | undefined, now: Date): string {
 
 // ---------- rclone authorize ----------
 
-export type TokenCheck = { ok: true; token: string; expiry?: Date; refreshes: boolean } | { ok: false; error: string } | { ok: null };
+export type TokenCheck =
+  | { ok: true; token: string; expiry?: Date; refreshes: boolean }
+  | { ok: false; error: string }
+  | { ok: null };
 
 /**
  * `rclone authorize dropbox` prints a JSON token between arrows ("Paste the following into your remote machine --->"
@@ -130,24 +136,71 @@ export function parseRcloneToken(text: string): TokenCheck {
   if (!t) return { ok: null };
   const start = t.indexOf("{");
   const end = t.lastIndexOf("}");
-  if (start < 0 || end <= start) return { ok: false, error: "That isn’t a token — paste the JSON that rclone printed, including the braces." };
+  if (start < 0 || end <= start)
+    return {
+      ok: false,
+      error: "That isn’t a token — paste the JSON that rclone printed, including the braces.",
+    };
   let v: unknown;
   try {
     v = JSON.parse(t.slice(start, end + 1));
   } catch {
-    return { ok: false, error: "That isn’t a token — paste the JSON that rclone printed, including the braces." };
+    return {
+      ok: false,
+      error: "That isn’t a token — paste the JSON that rclone printed, including the braces.",
+    };
   }
-  const o = v as { access_token?: unknown; refresh_token?: unknown; expiry?: unknown };
+  const o = v as {
+    access_token?: unknown;
+    refresh_token?: unknown;
+    expiry?: unknown;
+  };
   if (!o || typeof o !== "object" || typeof o.access_token !== "string" || !o.access_token)
-    return { ok: false, error: "This JSON has no access_token. Paste everything rclone printed between the arrows." };
+    return {
+      ok: false,
+      error: "This JSON has no access_token. Paste everything rclone printed between the arrows.",
+    };
   const expiry = typeof o.expiry === "string" && !Number.isNaN(Date.parse(o.expiry)) ? new Date(o.expiry) : undefined;
-  return { ok: true, token: JSON.stringify(v), expiry, refreshes: typeof o.refresh_token === "string" && Boolean(o.refresh_token) };
+  return {
+    ok: true,
+    token: JSON.stringify(v),
+    expiry,
+    refreshes: typeof o.refresh_token === "string" && Boolean(o.refresh_token),
+  };
 }
 
 // ---------- watched folders ----------
 
-const AUDIO = [".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".mp4", ".webm", ".amr", ".mov", ".mkv", ".m4v", ".avi"];
-const TRANSCRIPT = [".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".srt", ".vtt", ".json", ".jsonl"];
+const AUDIO = [
+  ".m4a",
+  ".mp3",
+  ".wav",
+  ".flac",
+  ".ogg",
+  ".opus",
+  ".aac",
+  ".mp4",
+  ".webm",
+  ".amr",
+  ".mov",
+  ".mkv",
+  ".m4v",
+  ".avi",
+];
+const TRANSCRIPT = [
+  ".txt",
+  ".text",
+  ".md",
+  ".markdown",
+  ".mdx",
+  ".docx",
+  ".doc",
+  ".pdf",
+  ".srt",
+  ".vtt",
+  ".json",
+  ".jsonl",
+];
 
 /** What a watched folder would do with a file, by extension (the backend's default lists). */
 export function fileKind(name: string): "audio" | "transcript" | "other" {
@@ -167,11 +220,23 @@ export function splitPatterns(text: string): string[] {
     .filter(Boolean);
 }
 
-const PICK: Record<string, string> = { audio: "audio only", transcripts: "transcripts only", both: "audio and transcripts" };
+const PICK: Record<string, string> = {
+  audio: "audio only",
+  transcripts: "transcripts only",
+  both: "audio and transcripts",
+};
 
 /** "→ customer-calls · audio only · every 5 min · wait 60 s · include *.m4a · steps: transcribe, diarize" */
-export function watchSummary(w: Pick<Watch, "namespace" | "kinds" | "poll_minutes" | "stable_seconds" | "include" | "exclude" | "steps">, pipelineName?: string | null): string {
-  const parts = [`→ ${w.namespace ?? "?"}`, PICK[w.kinds ?? "both"] ?? "audio and transcripts", `every ${w.poll_minutes ?? 5} min`, `wait ${w.stable_seconds ?? 30} s`];
+export function watchSummary(
+  w: Pick<Watch, "namespace" | "kinds" | "poll_minutes" | "stable_seconds" | "include" | "exclude" | "steps">,
+  pipelineName?: string | null,
+): string {
+  const parts = [
+    `→ ${w.namespace ?? "?"}`,
+    PICK[w.kinds ?? "both"] ?? "audio and transcripts",
+    `every ${w.poll_minutes ?? 5} min`,
+    `wait ${w.stable_seconds ?? 30} s`,
+  ];
   if (w.include?.length) parts.push(`include ${w.include.join(", ")}`);
   if (w.exclude?.length) parts.push(`exclude ${w.exclude.join(", ")}`);
   if (w.steps?.length) parts.push(`steps: ${w.steps.join(", ")}`);
@@ -182,13 +247,25 @@ export function watchSummary(w: Pick<Watch, "namespace" | "kinds" | "poll_minute
 export const SCAN_STATS: { key: string; label: string; help: string }[] = [
   { key: "seen", label: "seen", help: "files that matched this scan" },
   { key: "new", label: "new", help: "queued for import" },
-  { key: "waiting", label: "waiting", help: "still changing; picked up once they settle" },
-  { key: "skipped", label: "skipped", help: "already there before watching (no backfill) or excluded" },
+  {
+    key: "waiting",
+    label: "waiting",
+    help: "still changing; picked up once they settle",
+  },
+  {
+    key: "skipped",
+    label: "skipped",
+    help: "already there before watching (no backfill) or excluded",
+  },
   { key: "errors", label: "errors", help: "couldn’t be read" },
 ];
 
 /** "in 4 min", "now", "overdue" for the next scan. */
-export function nextScan(iso: string | null | undefined, enabled: boolean | null | undefined, now = Date.now()): string {
+export function nextScan(
+  iso: string | null | undefined,
+  enabled: boolean | null | undefined,
+  now = Date.now(),
+): string {
   if (enabled === false) return "paused";
   if (!iso) return "soon";
   const t = Date.parse(iso);
@@ -206,7 +283,12 @@ export function confirms(typed: string, name: string): boolean {
 
 // ---------- the connection form ----------
 
-export type BackendSpec = { label: string; fields: Record<string, string>; secrets: string[]; oauth?: string | null };
+export type BackendSpec = {
+  label: string;
+  fields: Record<string, string>;
+  secrets: string[];
+  oauth?: string | null;
+};
 
 export type ConnForm = {
   name: string;
@@ -221,20 +303,38 @@ export type ConnForm = {
 
 export function emptyForm(spec: BackendSpec, source?: Pick<Source, "name" | "params" | "secrets"> | null): ConnForm {
   const params: Record<string, string> = {};
-  for (const [k, def] of Object.entries(spec.fields)) params[k] = str((source?.params as Record<string, unknown> | undefined)?.[k] ?? def);
+  for (const [k, def] of Object.entries(spec.fields))
+    params[k] = str((source?.params as Record<string, unknown> | undefined)?.[k] ?? def);
   const keySet = Boolean(source?.secrets?.key_pem?.set);
-  return { name: source?.name ?? "", params, secrets: {}, sftpAuth: keySet && !source?.secrets?.pass?.set ? "key_pem" : "pass", tokenText: "" };
+  return {
+    name: source?.name ?? "",
+    params,
+    secrets: {},
+    sftpAuth: keySet && !source?.secrets?.pass?.set ? "key_pem" : "pass",
+    tokenText: "",
+  };
 }
 
 /** A name for a new connection, from what was typed ("SFTP · calls-gw", "S3 · eu-central-1", "Dropbox"). */
 export function suggestName(type: SourceType, params: Record<string, string>): string {
   const host = (params.host || params.url || "").replace(/^https?:\/\//, "").split(/[/:]/)[0];
-  const extra = type === "s3" ? [params.provider !== "AWS" ? params.provider : "", params.region].filter(Boolean).join(" ") : host;
-  return extra ? `${TYPE_NAME[type].replace(" / compatible", "")} · ${extra}` : TYPE_NAME[type] === "This machine" ? "Folder on this machine" : TYPE_NAME[type];
+  const extra =
+    type === "s3" ? [params.provider !== "AWS" ? params.provider : "", params.region].filter(Boolean).join(" ") : host;
+  return extra
+    ? `${TYPE_NAME[type].replace(" / compatible", "")} · ${extra}`
+    : TYPE_NAME[type] === "This machine"
+      ? "Folder on this machine"
+      : TYPE_NAME[type];
 }
 
 /** Problems that stop the test, by field; empty when the form can be sent. */
-export function validateForm(type: SourceType, spec: BackendSpec, form: ConnForm, editing: boolean, isSet: (k: string) => boolean = () => false): Record<string, string> {
+export function validateForm(
+  type: SourceType,
+  spec: BackendSpec,
+  form: ConnForm,
+  editing: boolean,
+  isSet: (k: string) => boolean = () => false,
+): Record<string, string> {
   const e: Record<string, string> = {};
   const need = (k: string, msg: string) => {
     if (!str(form.params[k])) e[k] = msg;
@@ -248,13 +348,15 @@ export function validateForm(type: SourceType, spec: BackendSpec, form: ConnForm
   if (type === "s3") {
     need("access_key_id", "Enter the access key ID.");
     if (!secret("secret_access_key")) e.secret_access_key = "Enter the secret access key.";
-    if (form.params.provider && form.params.provider !== "AWS" && !str(form.params.endpoint)) e.endpoint = "Enter the endpoint for this provider.";
+    if (form.params.provider && form.params.provider !== "AWS" && !str(form.params.endpoint))
+      e.endpoint = "Enter the endpoint for this provider.";
   }
   if (type === "sftp") {
     need("host", "Enter the host name.");
     need("user", "Enter the user name.");
     if (form.params.port && !/^\d{1,5}$/.test(form.params.port.trim())) e.port = "A port is a number, e.g. 22.";
-    if (!secret(form.sftpAuth)) e[form.sftpAuth] = form.sftpAuth === "pass" ? "Enter the password." : "Paste the private key.";
+    if (!secret(form.sftpAuth))
+      e[form.sftpAuth] = form.sftpAuth === "pass" ? "Enter the password." : "Paste the private key.";
   }
   if (type === "smb") need("host", "Enter the host name.");
   if (type === "webdav") {
@@ -264,7 +366,11 @@ export function validateForm(type: SourceType, spec: BackendSpec, form: ConnForm
 }
 
 /** The request body parts: every parameter the type has, and only the secrets that change. */
-export function buildPayload(spec: BackendSpec, form: ConnForm, type: SourceType): { params: Record<string, string>; secrets: Record<string, string | null> } {
+export function buildPayload(
+  spec: BackendSpec,
+  form: ConnForm,
+  type: SourceType,
+): { params: Record<string, string>; secrets: Record<string, string | null> } {
   const params: Record<string, string> = {};
   for (const k of Object.keys(spec.fields)) params[k] = str(form.params[k]);
   const secrets: Record<string, string | null> = {};

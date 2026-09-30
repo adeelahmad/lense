@@ -6,9 +6,7 @@ import { auth } from "@/auth";
 const PUBLIC_PATHS = ["/login", "/setup", "/password-recovery"];
 
 function isPublic(pathname: string): boolean {
-  return PUBLIC_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  );
+  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 /*
@@ -27,8 +25,7 @@ export default auth((req) => {
 
   if (!req.auth || req.auth.error) {
     const url = new URL("/login", req.nextUrl);
-    if (pathname !== "/")
-      url.searchParams.set("callbackUrl", pathname + search);
+    if (pathname !== "/") url.searchParams.set("callbackUrl", pathname + search);
     return NextResponse.redirect(url);
   }
 });
@@ -37,5 +34,7 @@ export const config = {
   // Skip Auth.js, the backend paths (proxied by route handlers, see lib/api/backend-proxy.ts), Next's files and assets.
   // Under /iiif only the backend's IIIF resources are skipped (collection, discovery, auth, /iiif/<id>/…); the app's own
   // IIIF pages (/iiif, /iiif/collections/…, /iiif/import, /iiif/metadata/…) need the session like any other page.
-  matcher: ["/((?!api/|_next/|embed/|iiif/(?:collection(?!s)|discovery|auth|\\d)|reports/|static/|fonts/|favicon\\.ico|icon\\.svg|robots\\.txt).*)"],
+  matcher: [
+    "/((?!api/|_next/|embed/|iiif/(?:collection(?!s)|discovery|auth|\\d)|reports/|static/|fonts/|favicon\\.ico|icon\\.svg|robots\\.txt).*)",
+  ],
 };

@@ -20,7 +20,19 @@ const BADGE: Record<WorkerState, { tone: "intent" | "neutral" | "gate"; word: st
   silent: { tone: "gate", word: "Silent" },
 };
 
-function WorkerCard({ w, state, jobs, staleMinutes, maxAttempts }: { w: WorkerInfo; state: WorkerState; jobs: JobRecord[]; staleMinutes: number; maxAttempts: number }) {
+function WorkerCard({
+  w,
+  state,
+  jobs,
+  staleMinutes,
+  maxAttempts,
+}: {
+  w: WorkerInfo;
+  state: WorkerState;
+  jobs: JobRecord[];
+  staleMinutes: number;
+  maxAttempts: number;
+}) {
   const current = w.current != null ? jobs.find((j) => j.id === Number(w.current)) : undefined;
   const steps = w.steps ?? [];
   const canTake = jobs.filter((j) => j.status === "queued" && j.next_step && steps.includes(j.next_step)).length;
@@ -30,13 +42,20 @@ function WorkerCard({ w, state, jobs, staleMinutes, maxAttempts }: { w: WorkerIn
   const Icon = state === "silent" ? Cpu : Server;
   let now: ReactNode;
   if (current) {
-    const step = stepSpecs(current.steps)[Math.min(current.step_index ?? 0, Math.max(0, (current.steps?.length ?? 1) - 1))];
+    const step = stepSpecs(current.steps)[
+      Math.min(current.step_index ?? 0, Math.max(0, (current.steps?.length ?? 1) - 1))
+    ];
     now = (
       <Link href={`/activity/${current.id}`} className="hover:underline">
         {step?.label ?? stepLabel(current.next_step ?? "")} · {current.title ?? `Recording ${current.recording}`}
       </Link>
     );
-  } else if (w.current != null) now = <Link href={`/activity/${String(w.current)}`} className="hover:underline">Run #{String(w.current)}</Link>;
+  } else if (w.current != null)
+    now = (
+      <Link href={`/activity/${String(w.current)}`} className="hover:underline">
+        Run #{String(w.current)}
+      </Link>
+    );
   else if (state === "silent")
     now =
       quietMin != null && quietMin >= staleMinutes
@@ -45,7 +64,13 @@ function WorkerCard({ w, state, jobs, staleMinutes, maxAttempts }: { w: WorkerIn
   else now = "Nothing running";
 
   return (
-    <article aria-label={w.name} className={cn("flex flex-col gap-3.5 rounded-lg border border-border bg-surface p-[18px]", state === "silent" && "opacity-[.85]")}>
+    <article
+      aria-label={w.name}
+      className={cn(
+        "flex flex-col gap-3.5 rounded-lg border border-border bg-surface p-[18px]",
+        state === "silent" && "opacity-[.85]",
+      )}
+    >
       <div className="flex items-center gap-2.5">
         <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-surface-neutral text-fg-secondary">
           <Icon aria-hidden className="size-[18px]" />
@@ -62,7 +87,10 @@ function WorkerCard({ w, state, jobs, staleMinutes, maxAttempts }: { w: WorkerIn
       </div>
       <div className="flex flex-wrap gap-1.5" aria-label="Steps it runs">
         {steps.map((s) => (
-          <span key={s} className="h-[22px] rounded-[6px] border border-border px-2 font-mono text-[11.5px] font-medium leading-5 text-fg-secondary">
+          <span
+            key={s}
+            className="h-[22px] rounded-[6px] border border-border px-2 font-mono text-[11.5px] font-medium leading-5 text-fg-secondary"
+          >
             {s}
           </span>
         ))}
@@ -72,7 +100,13 @@ function WorkerCard({ w, state, jobs, staleMinutes, maxAttempts }: { w: WorkerIn
         <div className="text-[13px] leading-snug text-fg-strong">{now}</div>
       </div>
       <div className="flex gap-2">
-        <Button variant="secondary" size="sm" icon={<Pause />} disabled disabledReason="Workers can’t be paused from the app yet">
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<Pause />}
+          disabled
+          disabledReason="Workers can’t be paused from the app yet"
+        >
           Pause
         </Button>
       </div>
@@ -104,27 +138,44 @@ export function WorkersView() {
     );
   if (workers.error)
     return (
-      <EmptyState tone="error" icon={<Server />} title="Couldn’t load workers" actions={<Button onClick={() => workers.refetch()}>Try again</Button>}>
+      <EmptyState
+        tone="error"
+        icon={<Server />}
+        title="Couldn’t load workers"
+        actions={<Button onClick={() => workers.refetch()}>Try again</Button>}
+      >
         {(workers.error as Error).message}
       </EmptyState>
     );
-  const ws = [...(workers.data ?? [])].sort((a, b) => (states[a.name] === "silent" ? 1 : 0) - (states[b.name] === "silent" ? 1 : 0) || a.name.localeCompare(b.name));
+  const ws = [...(workers.data ?? [])].sort(
+    (a, b) =>
+      (states[a.name] === "silent" ? 1 : 0) - (states[b.name] === "silent" ? 1 : 0) || a.name.localeCompare(b.name),
+  );
   if (!ws.length)
     return (
       <EmptyState icon={<Server />} title="No workers have checked in">
-        Start the server with background work on (RUN_BACKGROUND=true), or run <code className="font-mono text-[12.5px]">lens worker</code> on another machine.
+        Start the server with background work on (RUN_BACKGROUND=true), or run{" "}
+        <code className="font-mono text-[12.5px]">lens worker</code> on another machine.
       </EmptyState>
     );
   return (
     <div className="flex flex-col gap-4 px-4 py-5 md:px-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {ws.map((w) => (
-          <WorkerCard key={w.name} w={w} state={states[w.name]} jobs={list.jobs} staleMinutes={staleMinutes} maxAttempts={maxAttempts} />
+          <WorkerCard
+            key={w.name}
+            w={w}
+            state={states[w.name]}
+            jobs={list.jobs}
+            staleMinutes={staleMinutes}
+            maxAttempts={maxAttempts}
+          />
         ))}
       </div>
       <p className="max-w-[900px] text-[13px] leading-normal text-fg-secondary">
-        Steps each worker runs are shown as chips. A worker that stays silent past {staleMinutes} min (Settings → Workers) has its job retried on another
-        worker, up to {maxAttempts} attempts. Workers can’t be paused or drained from the app yet.
+        Steps each worker runs are shown as chips. A worker that stays silent past {staleMinutes} min (Settings →
+        Workers) has its job retried on another worker, up to {maxAttempts} attempts. Workers can’t be paused or drained
+        from the app yet.
       </p>
     </div>
   );

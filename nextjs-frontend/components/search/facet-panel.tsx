@@ -14,7 +14,19 @@ import { cn } from "@/lib/utils";
 
 type Group = { key: keyof SearchFilters; title: string; values: FacetValue[] };
 
-function FacetRow({ v, on, color, icon, onToggle }: { v: FacetValue; on: boolean; color?: string; icon?: string; onToggle: () => void }) {
+function FacetRow({
+  v,
+  on,
+  color,
+  icon,
+  onToggle,
+}: {
+  v: FacetValue;
+  on: boolean;
+  color?: string;
+  icon?: string;
+  onToggle: () => void;
+}) {
   return (
     <li>
       <button
@@ -27,7 +39,13 @@ function FacetRow({ v, on, color, icon, onToggle }: { v: FacetValue; on: boolean
           on ? "bg-blue-surface" : "hover:bg-surface-neutral",
         )}
       >
-        <span aria-hidden className={cn("grid size-[18px] place-items-center rounded-xs border-2", on ? "border-blue bg-blue text-white" : "border-fg-secondary bg-background")}>
+        <span
+          aria-hidden
+          className={cn(
+            "grid size-[18px] place-items-center rounded-xs border-2",
+            on ? "border-blue bg-blue text-white" : "border-fg-secondary bg-background",
+          )}
+        >
           {on && <Check className="size-3.5" strokeWidth={3} />}
         </span>
         <span className="flex min-w-0 items-center gap-1.5">
@@ -98,7 +116,13 @@ export function FacetPanel({
         const sel = current(g.key);
         const values = g.values.slice(0, 8);
         // A chosen value stays visible even when the words alone don't reach it.
-        if (sel && !values.some((v) => v.key === sel)) values.unshift({ key: sel, label: labels[g.key] ?? sel, count: 0, id: Number(sel) || undefined });
+        if (sel && !values.some((v) => v.key === sel))
+          values.unshift({
+            key: sel,
+            label: labels[g.key] ?? sel,
+            count: 0,
+            id: Number(sel) || undefined,
+          });
         if (!values.length) return null;
         return (
           <section key={g.key} aria-labelledby={`facet-${g.key}`} className="flex flex-col gap-0.5">
@@ -113,27 +137,46 @@ export function FacetPanel({
                   on={sel === v.key}
                   color={g.key === "speaker" && v.id != null ? speakerTone(v.id) : undefined}
                   icon={g.key === "emotion" ? (EMOJI[v.key] ?? "·") : undefined}
-                  onToggle={() => onToggle(g.key, sel === v.key ? undefined : g.key === "speaker" || g.key === "recording" ? Number(v.key) : v.key)}
+                  onToggle={() =>
+                    onToggle(
+                      g.key,
+                      sel === v.key ? undefined : g.key === "speaker" || g.key === "recording" ? Number(v.key) : v.key,
+                    )
+                  }
                 />
               ))}
             </ul>
           </section>
         );
       })}
-      {partial && <p className="m-0 px-1.5 text-[11.5px] leading-snug text-fg-muted">Counts cover the first 200 moments.</p>}
+      {partial && (
+        <p className="m-0 px-1.5 text-[11.5px] leading-snug text-fg-muted">Counts cover the first 200 moments.</p>
+      )}
       <section aria-labelledby="facet-saved" className="flex flex-col gap-1">
         <h3 id="facet-saved" className="px-1.5 pb-1.5 label-caps">
           Saved searches
         </h3>
-        {saved?.length === 0 && <p className="m-0 px-1.5 text-[12.5px] leading-snug text-fg-muted">Save a search to keep it here. It’s kept as a collection you can also chat with or run on.</p>}
+        {saved?.length === 0 && (
+          <p className="m-0 px-1.5 text-[12.5px] leading-snug text-fg-muted">
+            Save a search to keep it here. It’s kept as a collection you can also chat with or run on.
+          </p>
+        )}
         {(saved ?? []).map((c) => {
-          const f = (c.filter ?? {}) as { q?: string; namespaces?: string[]; speakers?: number[] };
+          const f = (c.filter ?? {}) as {
+            q?: string;
+            namespaces?: string[];
+            speakers?: number[];
+          };
           const p = new URLSearchParams();
           if (f.q) p.set("q", f.q);
           if (f.namespaces?.length === 1) p.set("ns", f.namespaces[0]);
           if (f.speakers?.length === 1) p.set("speaker", String(f.speakers[0]));
           return (
-            <Link key={c.id} href={`/search?${p}`} className="rounded-[6px] px-1.5 py-1.5 text-[13px] font-medium leading-snug text-fg-accent hover:bg-surface-neutral">
+            <Link
+              key={c.id}
+              href={`/search?${p}`}
+              className="rounded-[6px] px-1.5 py-1.5 text-[13px] font-medium leading-snug text-fg-accent hover:bg-surface-neutral"
+            >
               {c.name}
               {f.q && c.name !== f.q && <span className="font-normal text-fg-muted"> · {f.q}</span>}
             </Link>

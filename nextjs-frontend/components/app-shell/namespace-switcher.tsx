@@ -20,9 +20,15 @@ export function NamespaceSwitcher() {
         className="flex h-10 min-w-0 items-center gap-2.5 rounded-sm border border-border bg-background pl-3 pr-2.5 text-left hover:bg-surface"
         aria-label={`Namespace: ${namespace ?? "all namespaces"}. Change`}
       >
-        {namespace ? <Folder className="size-4 shrink-0 text-fg-secondary" /> : <Layers className="size-4 shrink-0 text-fg-secondary" />}
+        {namespace ? (
+          <Folder className="size-4 shrink-0 text-fg-secondary" />
+        ) : (
+          <Layers className="size-4 shrink-0 text-fg-secondary" />
+        )}
         <span className="flex min-w-0 flex-col">
-          <span className="text-[9.5px] font-bold uppercase leading-none tracking-[.06em] text-fg-muted">Namespace</span>
+          <span className="text-[9.5px] font-bold uppercase leading-none tracking-[.06em] text-fg-muted">
+            Namespace
+          </span>
           <span className="truncate text-[14px] font-bold leading-tight text-fg">{namespace ?? "All namespaces"}</span>
         </span>
         {role && <RoleChip role={role} className="hidden lg:inline-flex" />}
@@ -43,9 +49,16 @@ export function NamespaceSwitcher() {
                     setNamespace(name);
                     setOpen(false);
                   }}
-                  className={cn("flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-left hover:bg-surface-neutral", on && "bg-hl")}
+                  className={cn(
+                    "flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-left hover:bg-surface-neutral",
+                    on && "bg-hl",
+                  )}
                 >
-                  {name ? <Folder className="size-4 text-fg-secondary" /> : <Layers className="size-4 text-fg-secondary" />}
+                  {name ? (
+                    <Folder className="size-4 text-fg-secondary" />
+                  ) : (
+                    <Layers className="size-4 text-fg-secondary" />
+                  )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[14px] font-semibold text-fg">{name ?? "All namespaces"}</span>
                     <span className="block text-[12px] text-fg-muted">
@@ -59,7 +72,11 @@ export function NamespaceSwitcher() {
             );
           })}
         </ul>
-        {namespaces.length === 0 && <p className="px-3 py-4 text-[13px] text-fg-secondary">You don’t have a role in any namespace yet. Ask an admin to add you.</p>}
+        {namespaces.length === 0 && (
+          <p className="px-3 py-4 text-[13px] text-fg-secondary">
+            You don’t have a role in any namespace yet. Ask an admin to add you.
+          </p>
+        )}
       </PopoverContent>
     </Popover>
   );

@@ -31,13 +31,26 @@ export function useLibrary(ns: string | null) {
   const recordings = useInfiniteQuery({
     queryKey: recordingsKey(ns),
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => data(Recordings.listRecordings({ client, query: { ns: ns ?? undefined, limit: PAGE, offset: pageParam } })),
+    queryFn: ({ pageParam }) =>
+      data(
+        Recordings.listRecordings({
+          client,
+          query: { ns: ns ?? undefined, limit: PAGE, offset: pageParam },
+        }),
+      ),
     getNextPageParam: (last, pages) => (last.length < PAGE ? undefined : pages.length * PAGE),
     refetchInterval: running ? 10_000 : 60_000,
   });
 
   // When a job finishes (or fails), the recording's status changed: refresh the rows now rather than on the next tick.
-  const active = useMemo(() => (jobs.data?.jobs ?? []).filter((j) => isActiveJob(j)).map((j) => j.id).join(","), [jobs.data]);
+  const active = useMemo(
+    () =>
+      (jobs.data?.jobs ?? [])
+        .filter((j) => isActiveJob(j))
+        .map((j) => j.id)
+        .join(","),
+    [jobs.data],
+  );
   const prevActive = useRef(active);
   useEffect(() => {
     const before = prevActive.current.split(",").filter(Boolean);
@@ -69,7 +82,11 @@ export function useLibrary(ns: string | null) {
   return {
     rows,
     jobsByRecording,
-    jobsCounts: { running: counts.running ?? 0, queued: counts.queued ?? 0, failed: counts.failed ?? 0 },
+    jobsCounts: {
+      running: counts.running ?? 0,
+      queued: counts.queued ?? 0,
+      failed: counts.failed ?? 0,
+    },
     total,
     ms,
     recordings,
@@ -96,7 +113,12 @@ export function useWatchedSources(ns: string | null) {
     staleTime: 30_000,
   });
   const list = (watches.data ?? []).filter((w) => !ns || w.namespace === ns);
-  return { watches: list, sources: sources.data ?? [], loading: watches.isLoading, enabled: owner };
+  return {
+    watches: list,
+    sources: sources.data ?? [],
+    loading: watches.isLoading,
+    enabled: owner,
+  };
 }
 
 /**
@@ -112,7 +134,9 @@ export function useReviewsByRecording(nsList: string[]): Map<number, number> {
       staleTime: 60_000,
     })),
   });
-  const pending = dirs.flatMap((d) => (d.data?.speakers ?? []).filter((sp) => (sp.suggestions ?? []).length > 0)).slice(0, 40);
+  const pending = dirs
+    .flatMap((d) => (d.data?.speakers ?? []).filter((sp) => (sp.suggestions ?? []).length > 0))
+    .slice(0, 40);
   const recs = useQueries({
     queries: pending.map((sp) => ({
       queryKey: ["speaker-recordings", sp.id],

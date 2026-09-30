@@ -11,15 +11,12 @@ function refusal(status: number | undefined, message: string): FormState {
   if (status === 403 || /code is wrong|setup is closed/i.test(message)) {
     return {
       errors: {
-        code: [
-          "Setup is closed or the code is wrong. Copy the code again from the server log.",
-        ],
+        code: ["Setup is closed or the code is wrong. Copy the code again from the server log."],
       },
     };
   }
   if (/email/i.test(message)) return { errors: { email: [sentence(message)] } };
-  if (/password/i.test(message))
-    return { errors: { password: [sentence(message)] } };
+  if (/password/i.test(message)) return { errors: { password: [sentence(message)] } };
   return { server_validation_error: sentence(message) };
 }
 
@@ -29,10 +26,7 @@ function sentence(s: string): string {
 }
 
 /** Creates the first admin with the one-time code from the server log, then signs in. */
-export async function setup(
-  _prev: FormState,
-  formData: FormData,
-): Promise<FormState> {
+export async function setup(_prev: FormState, formData: FormData): Promise<FormState> {
   const validated = setupSchema.safeParse({
     code: formData.get("code") ?? "",
     name: formData.get("name") || undefined,

@@ -50,17 +50,11 @@ describe("login action", () => {
       }),
     );
 
-    expect(signIn).toHaveBeenCalledWith(
-      "credentials",
-      expect.objectContaining({ redirectTo: "/" }),
-    );
+    expect(signIn).toHaveBeenCalledWith("credentials", expect.objectContaining({ redirectTo: "/" }));
   });
 
   it("validates the fields before calling the backend", async () => {
-    const result = await login(
-      undefined,
-      form({ email: "nope", password: "" }),
-    );
+    const result = await login(undefined, form({ email: "nope", password: "" }));
 
     expect(signIn).not.toHaveBeenCalled();
     expect(result).toEqual({
@@ -74,10 +68,7 @@ describe("login action", () => {
   it("reports wrong credentials", async () => {
     (signIn as jest.Mock).mockRejectedValue(new CredentialsSignin());
 
-    const result = await login(
-      undefined,
-      form({ email: "a@a.com", password: "bad" }),
-    );
+    const result = await login(undefined, form({ email: "a@a.com", password: "bad" }));
 
     expect(result).toEqual({
       server_validation_error: "Wrong email or password.",
@@ -89,10 +80,7 @@ describe("login action", () => {
     err.code = "throttled";
     (signIn as jest.Mock).mockRejectedValue(err);
 
-    const result = await login(
-      undefined,
-      form({ email: "a@a.com", password: "bad" }),
-    );
+    const result = await login(undefined, form({ email: "a@a.com", password: "bad" }));
 
     expect(result).toEqual({
       server_validation_error: "Too many attempts; try again in a few minutes.",
@@ -104,10 +92,7 @@ describe("login action", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
     (signIn as jest.Mock).mockRejectedValue(new AuthError("boom"));
 
-    const result = await login(
-      undefined,
-      form({ email: "a@a.com", password: "x" }),
-    );
+    const result = await login(undefined, form({ email: "a@a.com", password: "x" }));
 
     expect(result).toEqual({
       server_error: "An unexpected error occurred. Please try again later.",
@@ -118,8 +103,6 @@ describe("login action", () => {
     const redirect = new Error("NEXT_REDIRECT");
     (signIn as jest.Mock).mockRejectedValue(redirect);
 
-    await expect(
-      login(undefined, form({ email: "a@a.com", password: "x" })),
-    ).rejects.toBe(redirect);
+    await expect(login(undefined, form({ email: "a@a.com", password: "x" }))).rejects.toBe(redirect);
   });
 });

@@ -33,7 +33,10 @@ export function QuickImport() {
         setOver(false);
         send.open(Array.from(e.dataTransfer.files));
       }}
-      className={cn("flex flex-col items-start gap-2.5 rounded-lg border-[1.5px] border-dashed border-blue-border p-[18px]", over && "border-blue bg-blue-surface")}
+      className={cn(
+        "flex flex-col items-start gap-2.5 rounded-lg border-[1.5px] border-dashed border-blue-border p-[18px]",
+        over && "border-blue bg-blue-surface",
+      )}
     >
       <h2 id="quick-import" className="text-[15px] font-bold leading-tight text-fg">
         Quick import
@@ -45,7 +48,8 @@ export function QuickImport() {
             <Link href="/import?tab=paste" className="font-semibold text-fg-accent hover:underline">
               paste text
             </Link>
-            .{target ? (
+            .
+            {target ? (
               <>
                 {" "}
                 They go into <b className="font-semibold text-fg-strong">{target}</b> unless you pick another namespace.
@@ -58,7 +62,13 @@ export function QuickImport() {
           "Importing needs the editor role in a namespace. Ask an owner to make you an editor."
         )}
       </p>
-      <Button variant="primary" size="sm" onClick={send.pick} disabled={!allowed} disabledReason={loading ? undefined : needRole("editor", namespace)}>
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={send.pick}
+        disabled={!allowed}
+        disabledReason={loading ? undefined : needRole("editor", namespace)}
+      >
         Choose files
       </Button>
     </section>

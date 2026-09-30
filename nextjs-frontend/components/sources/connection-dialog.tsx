@@ -40,7 +40,10 @@ function StepTrail({ step, editing }: { step: Step; editing: boolean }) {
       {steps.map((s, i) => (
         <li key={s.key} className="flex items-center gap-1.5">
           {i > 0 && <span aria-hidden>→</span>}
-          <span aria-current={s.key === step ? "step" : undefined} className={cn(s.key === step && "font-bold text-fg-accent")}>
+          <span
+            aria-current={s.key === step ? "step" : undefined}
+            className={cn(s.key === step && "font-bold text-fg-accent")}
+          >
             {s.label}
           </span>
         </li>
@@ -71,10 +74,15 @@ export function ConnectionDialog({
   const editing = Boolean(source);
   const [step, setStep] = useState<Step>(editing ? "details" : "type");
   const [type, setType] = useState<SourceType>(source?.type ?? "s3");
-  const [form, setForm] = useState<ConnForm>(() => emptyForm(backends[source?.type ?? "s3"] ?? { label: "", fields: {}, secrets: [] }, source));
+  const [form, setForm] = useState<ConnForm>(() =>
+    emptyForm(backends[source?.type ?? "s3"] ?? { label: "", fields: {}, secrets: [] }, source),
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [createdId, setCreatedId] = useState<number | null>(source?.id ?? null);
-  const [result, setResult] = useState<{ health: SourceHealth; ms: number } | null>(null);
+  const [result, setResult] = useState<{
+    health: SourceHealth;
+    ms: number;
+  } | null>(null);
   /** Secrets saved during this dialog (the source prop doesn't know about them yet). */
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
   const spec = backends[type];
@@ -86,7 +94,16 @@ export function ConnectionDialog({
     if (!open) return;
     setStep(editing ? "details" : "type");
     setType(source?.type ?? "s3");
-    setForm(emptyForm(backends[source?.type ?? "s3"] ?? { label: "", fields: {}, secrets: [] }, source));
+    setForm(
+      emptyForm(
+        backends[source?.type ?? "s3"] ?? {
+          label: "",
+          fields: {},
+          secrets: [],
+        },
+        source,
+      ),
+    );
     setErrors({});
     setCreatedId(source?.id ?? null);
     setResult(null);
@@ -109,11 +126,25 @@ export function ConnectionDialog({
         const body = buildPayload(spec, form, type);
         sent = body.secrets;
         if (id == null) {
-          const r = await data(Sources.createSource({ client, body: { type, name: suggestName(type, form.params), ...body } }));
+          const r = await data(
+            Sources.createSource({
+              client,
+              body: { type, name: suggestName(type, form.params), ...body },
+            }),
+          );
           id = r.id;
           health = r.health;
         } else {
-          const r = await data(Sources.updateSource({ client, path: { sid: id }, body: { ...body, ...(editing && form.name.trim() ? { name: form.name.trim() } : {}) } }));
+          const r = await data(
+            Sources.updateSource({
+              client,
+              path: { sid: id },
+              body: {
+                ...body,
+                ...(editing && form.name.trim() ? { name: form.name.trim() } : {}),
+              },
+            }),
+          );
           health = r.health;
         }
       }
@@ -142,7 +173,14 @@ export function ConnectionDialog({
   });
 
   const rename = useMutation({
-    mutationFn: (name: string) => data(Sources.updateSource({ client, path: { sid: createdId! }, body: { name } })),
+    mutationFn: (name: string) =>
+      data(
+        Sources.updateSource({
+          client,
+          path: { sid: createdId! },
+          body: { name },
+        }),
+      ),
     onSuccess: () => {
       refresh();
       toast({ tone: "green", title: "Connection added", body: form.name });
@@ -179,7 +217,7 @@ export function ConnectionDialog({
             ? "S3 or S3-compatible"
             : spec?.oauth
               ? `${TYPE_NAME[type]} · paste a token`
-              : spec?.label ?? TYPE_NAME[type]
+              : (spec?.label ?? TYPE_NAME[type])
         : step === "test"
           ? test.isPending
             ? "Testing…"
@@ -254,12 +292,28 @@ export function ConnectionDialog({
       <div className="flex flex-col gap-3">
         {editing && (
           <Field label="Name" error={errors.name}>
-            {({ id }) => <Input id={id} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}
+            {({ id }) => (
+              <Input id={id} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            )}
           </Field>
         )}
-        {spec ? <ConnectionFields type={type} spec={spec} form={form} onChange={setForm} errors={errors} saved={saved} isSet={isSet} replaceToken={replaceToken} /> : null}
+        {spec ? (
+          <ConnectionFields
+            type={type}
+            spec={spec}
+            form={form}
+            onChange={setForm}
+            errors={errors}
+            saved={saved}
+            isSet={isSet}
+            replaceToken={replaceToken}
+          />
+        ) : null}
         {errors._ && (
-          <p role="alert" className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-red-dark">
+          <p
+            role="alert"
+            className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-red-dark"
+          >
             {errors._}
           </p>
         )}
@@ -294,7 +348,13 @@ export function ConnectionDialog({
           >
             {test.isPending ? "" : ok ? "✓" : "✕"}
           </span>
-          <span>{test.isPending ? "Reaching the storage and listing its top folder…" : ok ? "Listed the top folder" : "Couldn’t list the top folder"}</span>
+          <span>
+            {test.isPending
+              ? "Reaching the storage and listing its top folder…"
+              : ok
+                ? "Listed the top folder"
+                : "Couldn’t list the top folder"}
+          </span>
           <span className="tabular text-[12px] text-fg-muted">{result ? `${result.ms} ms` : ""}</span>
         </div>
         {result && !ok && (
@@ -302,13 +362,22 @@ export function ConnectionDialog({
             <span aria-hidden className="font-extrabold text-red">
               ✕
             </span>
-            <code className="break-words font-mono text-[12.5px] text-fg">{result.health.error ?? "The test failed"}</code>
+            <code className="break-words font-mono text-[12.5px] text-fg">
+              {result.health.error ?? "The test failed"}
+            </code>
           </div>
         )}
-        {result && ok && <p className="text-[13px] text-fg-secondary">The archive can read this storage. {editing ? "Changes are saved." : "Give it a name you’ll recognise."}</p>}
+        {result && ok && (
+          <p className="text-[13px] text-fg-secondary">
+            The archive can read this storage. {editing ? "Changes are saved." : "Give it a name you’ll recognise."}
+          </p>
+        )}
         {result && !ok && (
           <p className="text-[12.5px] text-fg-secondary">
-            The text above is the storage’s own error. {editing ? "Your changes are saved." : "The connection is saved; you can fix the details, test again, or discard it."}
+            The text above is the storage’s own error.{" "}
+            {editing
+              ? "Your changes are saved."
+              : "The connection is saved; you can fix the details, test again, or discard it."}
           </p>
         )}
       </div>
@@ -334,7 +403,13 @@ export function ConnectionDialog({
     ) : (
       <>
         {!result?.health.ok && (
-          <Button size="sm" variant="danger-ghost" className="mr-auto" onClick={() => discard.mutate()} disabled={discard.isPending}>
+          <Button
+            size="sm"
+            variant="danger-ghost"
+            className="mr-auto"
+            onClick={() => discard.mutate()}
+            disabled={discard.isPending}
+          >
             Discard
           </Button>
         )}
@@ -359,7 +434,11 @@ export function ConnectionDialog({
     );
   } else {
     body = (
-      <Field label="Name" hint="Shown in the list, in watched folders and on imported recordings’ paths" error={errors.name}>
+      <Field
+        label="Name"
+        hint="Shown in the list, in watched folders and on imported recordings’ paths"
+        error={errors.name}
+      >
         {({ id, describedBy, invalid }) => (
           <Input
             id={id}
@@ -379,7 +458,11 @@ export function ConnectionDialog({
         <Button variant="ghost" onClick={() => setStep("test")}>
           Back
         </Button>
-        <Button variant="primary" disabled={!form.name.trim() || rename.isPending} onClick={() => rename.mutate(form.name.trim())}>
+        <Button
+          variant="primary"
+          disabled={!form.name.trim() || rename.isPending}
+          onClick={() => rename.mutate(form.name.trim())}
+        >
           {rename.isPending ? "Saving…" : "Save connection"}
         </Button>
       </>

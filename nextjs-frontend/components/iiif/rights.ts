@@ -2,7 +2,12 @@
  * Rights statements the backend accepts (metadata.RIGHTS_RX): Creative Commons licences and public-domain tools, and
  * RightsStatements.org statements. Values are the canonical http:// URIs IIIF expects.
  */
-export type RightsOption = { uri: string; code: string; name: string; group: "Creative Commons" | "RightsStatements.org" };
+export type RightsOption = {
+  uri: string;
+  code: string;
+  name: string;
+  group: "Creative Commons" | "RightsStatements.org";
+};
 
 const cc = (path: string, code: string, name: string): RightsOption => ({
   uri: `http://creativecommons.org/${path}`,
@@ -10,7 +15,12 @@ const cc = (path: string, code: string, name: string): RightsOption => ({
   name,
   group: "Creative Commons",
 });
-const rs = (id: string, name: string): RightsOption => ({ uri: `http://rightsstatements.org/vocab/${id}/1.0/`, code: id, name, group: "RightsStatements.org" });
+const rs = (id: string, name: string): RightsOption => ({
+  uri: `http://rightsstatements.org/vocab/${id}/1.0/`,
+  code: id,
+  name,
+  group: "RightsStatements.org",
+});
 
 export const RIGHTS: RightsOption[] = [
   cc("licenses/by/4.0/", "CC BY 4.0", "Attribution 4.0"),

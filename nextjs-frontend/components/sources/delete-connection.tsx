@@ -43,7 +43,12 @@ export function DeleteConnectionDialog({
       onOpenChange(false);
       onDeleted?.();
     },
-    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t delete the connection", body: e.message }),
+    onError: (e: Error) =>
+      toast({
+        tone: "red",
+        title: "Couldn’t delete the connection",
+        body: e.message,
+      }),
   });
   const ok = confirms(typed, source.name);
   const namespaces = [...new Set(watches.map((w) => w.namespace).filter(Boolean))];
@@ -56,13 +61,16 @@ export function DeleteConnectionDialog({
       className="max-w-[440px]"
       description={
         <>
-          This removes the connection{n ? (
+          This removes the connection
+          {n ? (
             <>
               {" "}
               and its <b className="text-fg">{plural(n, "watched folder")}</b>
             </>
           ) : null}
-          . Recordings already imported stay{namespaces.length ? ` in ${namespaces.join(", ")}` : ""}. Files in {STORAGE_NOUN[source.type]} aren’t touched.
+          . Recordings already imported stay
+          {namespaces.length ? ` in ${namespaces.join(", ")}` : ""}. Files in {STORAGE_NOUN[source.type]} aren’t
+          touched.
         </>
       }
       actions={

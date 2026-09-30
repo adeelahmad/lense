@@ -27,10 +27,19 @@ export function relative(iso: string | null | undefined, now = Date.now()): stri
     ["month", 31557600],
     ["year", Infinity],
   ];
-  const size: Record<string, number> = { second: 1, minute: 60, hour: 3600, day: 86400, week: 604800, month: 2629800, year: 31557600 };
+  const size: Record<string, number> = {
+    second: 1,
+    minute: 60,
+    hour: 3600,
+    day: 86400,
+    week: 604800,
+    month: 2629800,
+    year: 31557600,
+  };
   if (abs < 45) return "just now";
   for (const [unit, limit] of units) {
-    if (abs < limit) return rtf ? rtf.format(Math.round(diff / size[unit]), unit) : `${Math.round(abs / size[unit])} ${unit}s`;
+    if (abs < limit)
+      return rtf ? rtf.format(Math.round(diff / size[unit]), unit) : `${Math.round(abs / size[unit])} ${unit}s`;
   }
   return "—";
 }
@@ -43,10 +52,17 @@ export function shortDate(iso: string | null | undefined, withTime = false): str
   const today = new Date();
   const y = new Date(today);
   y.setDate(today.getDate() - 1);
-  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const time = d.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   if (d.toDateString() === today.toDateString()) return `Today, ${time}`;
   if (d.toDateString() === y.toDateString()) return `Yesterday, ${time}`;
-  const date = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const date = d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
   return withTime ? `${date}, ${time}` : date;
 }
 
@@ -76,7 +92,10 @@ export function bytes(n: number | null | undefined): string {
 }
 
 export function initials(name: string | null | undefined): string {
-  const parts = (name || "?").trim().split(/[\s@._-]+/).filter(Boolean);
+  const parts = (name || "?")
+    .trim()
+    .split(/[\s@._-]+/)
+    .filter(Boolean);
   return ((parts[0]?.[0] ?? "?") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 }
 

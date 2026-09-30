@@ -57,7 +57,10 @@ export function Waveform({
   const root = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
-  const pct = useCallback((ms: number) => (durationMs > 0 ? Math.max(0, Math.min(100, (ms / durationMs) * 100)) : 0), [durationMs]);
+  const pct = useCallback(
+    (ms: number) => (durationMs > 0 ? Math.max(0, Math.min(100, (ms / durationMs) * 100)) : 0),
+    [durationMs],
+  );
 
   usePlayerTick(
     useCallback(
@@ -93,7 +96,14 @@ export function Waveform({
     e.currentTarget.releasePointerCapture?.(e.pointerId);
   };
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const step: Record<string, number> = { ArrowLeft: -5000, ArrowRight: 5000, ArrowDown: -5000, ArrowUp: 5000, PageDown: -60_000, PageUp: 60_000 };
+    const step: Record<string, number> = {
+      ArrowLeft: -5000,
+      ArrowRight: 5000,
+      ArrowDown: -5000,
+      ArrowUp: 5000,
+      PageDown: -60_000,
+      PageUp: 60_000,
+    };
     if (e.key in step) api.seekBy(step[e.key], { manual: true });
     else if (e.key === "Home") api.seek(0, { manual: true });
     else if (e.key === "End") api.seek(durationMs, { manual: true });
@@ -102,7 +112,17 @@ export function Waveform({
     e.stopPropagation();
   };
 
-  const laneH = compact ? 14 : mode === "unsorted" ? 44 : mode === "timeline" ? 14 : lanes.length <= 2 ? 30 : lanes.length <= 4 ? 20 : 12;
+  const laneH = compact
+    ? 14
+    : mode === "unsorted"
+      ? 44
+      : mode === "timeline"
+        ? 14
+        : lanes.length <= 2
+          ? 30
+          : lanes.length <= 4
+            ? 20
+            : 12;
   const labelW = compact ? 0 : LABEL_W;
   const axis = useMemo(() => axisTicks(durationMs), [durationMs]);
 
@@ -123,23 +143,53 @@ export function Waveform({
       {!compact && (
         <div aria-hidden className="relative h-3.5" style={{ marginLeft: labelW }}>
           {chapters.map((c, i) => (
-            <span key={i} className="tabular absolute top-0 -translate-x-1/2 text-[9.5px] font-semibold leading-[14px] text-fg-muted" style={{ left: `${pct(c.t0)}%` }}>
+            <span
+              key={i}
+              className="tabular absolute top-0 -translate-x-1/2 text-[9.5px] font-semibold leading-[14px] text-fg-muted"
+              style={{ left: `${pct(c.t0)}%` }}
+            >
               {i + 1}
             </span>
           ))}
         </div>
       )}
-      <div className="relative flex flex-col gap-[3px]" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
+      <div
+        className="relative flex flex-col gap-[3px]"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
         {lanes.map((ln, i) => (
           <div key={ln.key} className="flex items-center" style={{ height: laneH }}>
             {!compact && (
-              <span className="flex shrink-0 items-center gap-[5px] overflow-hidden text-[11.5px] font-semibold leading-none text-fg-strong" style={{ width: labelW }} title={ln.name}>
+              <span
+                className="flex shrink-0 items-center gap-[5px] overflow-hidden text-[11.5px] font-semibold leading-none text-fg-strong"
+                style={{ width: labelW }}
+                title={ln.name}
+              >
                 <span aria-hidden className="size-2 shrink-0 rounded-[2px]" style={{ background: ln.color }} />
                 <span className="truncate pr-1">{ln.name}</span>
               </span>
             )}
-            <div ref={i === 0 ? track : undefined} className={cn("relative h-full flex-1 cursor-pointer overflow-hidden", mode === "timeline" && "rounded-xs bg-surface-neutral")}>
-              <LaneBody mode={mode} laneKey={ln.key} color={ln.color} segments={segments} envelope={envelope} durationMs={durationMs} bars={bars} laneKeys={lanes.map((l) => l.key)} progress={progress} />
+            <div
+              ref={i === 0 ? track : undefined}
+              className={cn(
+                "relative h-full flex-1 cursor-pointer overflow-hidden",
+                mode === "timeline" && "rounded-xs bg-surface-neutral",
+              )}
+            >
+              <LaneBody
+                mode={mode}
+                laneKey={ln.key}
+                color={ln.color}
+                segments={segments}
+                envelope={envelope}
+                durationMs={durationMs}
+                bars={bars}
+                laneKeys={lanes.map((l) => l.key)}
+                progress={progress}
+              />
             </div>
           </div>
         ))}
@@ -151,8 +201,18 @@ export function Waveform({
           </div>
         )}
         {showPlayhead && (
-          <div aria-hidden className="pointer-events-none absolute -bottom-[3px] -top-[3px] right-0" style={{ left: labelW }}>
-            <span className={cn("absolute inset-y-0 -ml-px w-0.5 rounded-[1px]", mode === "timeline" ? "bg-fg-secondary" : "bg-fg")} style={{ left: "var(--played)" }} />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -bottom-[3px] -top-[3px] right-0"
+            style={{ left: labelW }}
+          >
+            <span
+              className={cn(
+                "absolute inset-y-0 -ml-px w-0.5 rounded-[1px]",
+                mode === "timeline" ? "bg-fg-secondary" : "bg-fg",
+              )}
+              style={{ left: "var(--played)" }}
+            />
           </div>
         )}
       </div>
@@ -162,7 +222,10 @@ export function Waveform({
             <span
               key={i}
               title={k.tip}
-              className={cn("absolute top-0.5 -translate-x-1/2 text-[9px] font-bold leading-none", k.kind === "hit" ? "text-blue" : "text-fg-muted")}
+              className={cn(
+                "absolute top-0.5 -translate-x-1/2 text-[9px] font-bold leading-none",
+                k.kind === "hit" ? "text-blue" : "text-fg-muted",
+              )}
               style={{ left: `${pct(k.t)}%` }}
             >
               <span aria-hidden>{k.kind === "hit" ? "▲" : "●"}</span>
@@ -172,11 +235,18 @@ export function Waveform({
         </div>
       )}
       {!compact && (
-        <div aria-hidden className="tabular relative h-3 text-[10.5px] leading-none text-fg-muted" style={{ marginLeft: labelW }}>
+        <div
+          aria-hidden
+          className="tabular relative h-3 text-[10.5px] leading-none text-fg-muted"
+          style={{ marginLeft: labelW }}
+        >
           {axis.map((t, i) => (
             <span
               key={t}
-              className={cn("absolute top-0", i === 0 ? "" : i === axis.length - 1 ? "-translate-x-full" : "-translate-x-1/2")}
+              className={cn(
+                "absolute top-0",
+                i === 0 ? "" : i === axis.length - 1 ? "-translate-x-full" : "-translate-x-1/2",
+              )}
               style={{ left: `${pct(t)}%` }}
             >
               {tc(t)}
@@ -225,13 +295,24 @@ const LaneBody = memo(function LaneBody({
     }
     return laneBars(envelope, segments, durationMs, bars, laneKeys).get(laneKey) ?? [];
   }, [mode, bars, envelope, segments, durationMs, laneKeys, laneKey]);
-  const spans = useMemo(() => (mode === "timeline" ? (speakerSpans(segments, durationMs).get(laneKey) ?? []) : []), [mode, segments, durationMs, laneKey]);
+  const spans = useMemo(
+    () => (mode === "timeline" ? (speakerSpans(segments, durationMs).get(laneKey) ?? []) : []),
+    [mode, segments, durationMs, laneKey],
+  );
 
   if (mode === "timeline") {
     return (
       <>
         {spans.map(([a, b], i) => (
-          <span key={i} className="absolute inset-y-0" style={{ left: `${a * 100}%`, width: `${Math.max(0.25, (b - a) * 100)}%`, background: color }} />
+          <span
+            key={i}
+            className="absolute inset-y-0"
+            style={{
+              left: `${a * 100}%`,
+              width: `${Math.max(0.25, (b - a) * 100)}%`,
+              background: color,
+            }}
+          />
         ))}
       </>
     );

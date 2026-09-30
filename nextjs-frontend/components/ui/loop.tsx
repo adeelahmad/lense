@@ -42,9 +42,25 @@ const FILL: Record<Tone, [string, string]> = {
   neutral: ["var(--text-muted)", "var(--border)"],
 };
 
-export type LoopStep = { key?: string; label: string; sub?: ReactNode; tone?: Tone; state: "done" | "current" | "todo" | "failed" | "skipped" };
+export type LoopStep = {
+  key?: string;
+  label: string;
+  sub?: ReactNode;
+  tone?: Tone;
+  state: "done" | "current" | "todo" | "failed" | "skipped";
+};
 
-export function StepLoop({ steps, compact, label = "Pipeline steps", className }: { steps: LoopStep[]; compact?: boolean; label?: string; className?: string }) {
+export function StepLoop({
+  steps,
+  compact,
+  label = "Pipeline steps",
+  className,
+}: {
+  steps: LoopStep[];
+  compact?: boolean;
+  label?: string;
+  className?: string;
+}) {
   const base = compact ? 16 : 24;
   const big = compact ? 22 : 34;
   const box = compact ? 24 : 38;
@@ -66,7 +82,12 @@ export function StepLoop({ steps, compact, label = "Pipeline steps", className }
                   style={{
                     width: cur ? big : base,
                     height: cur ? big : base,
-                    background: state === "done" || cur || state === "failed" ? fill : state === "skipped" ? "var(--surface-neutral)" : pale,
+                    background:
+                      state === "done" || cur || state === "failed"
+                        ? fill
+                        : state === "skipped"
+                          ? "var(--surface-neutral)"
+                          : pale,
                     boxShadow: cur ? `0 0 0 3px var(--background), 0 0 0 5px ${fill}` : "none",
                     color: tone === "gate" && state !== "failed" ? "var(--text-primary)" : "#fff",
                     fontSize: compact ? 9 : 12,
@@ -77,13 +98,30 @@ export function StepLoop({ steps, compact, label = "Pipeline steps", className }
                 </span>
               </span>
               <span className="flex flex-col items-center gap-[3px] text-center">
-                <span className={cn("whitespace-nowrap text-fg", cur ? "font-bold" : "font-semibold", compact ? "text-[12px]" : "text-[13.5px]")}>{s.label}</span>
+                <span
+                  className={cn(
+                    "whitespace-nowrap text-fg",
+                    cur ? "font-bold" : "font-semibold",
+                    compact ? "text-[12px]" : "text-[13.5px]",
+                  )}
+                >
+                  {s.label}
+                </span>
                 {!compact && s.sub && (
-                  <span className={cn("tabular whitespace-nowrap text-[11.5px]", state === "failed" ? "text-red-dark" : "text-fg-muted")}>{s.sub}</span>
+                  <span
+                    className={cn(
+                      "tabular whitespace-nowrap text-[11.5px]",
+                      state === "failed" ? "text-red-dark" : "text-fg-muted",
+                    )}
+                  >
+                    {s.sub}
+                  </span>
                 )}
               </span>
             </span>
-            {!last && <span aria-hidden className="h-[1.5px] min-w-4 flex-1 bg-border" style={{ marginTop: box / 2 }} />}
+            {!last && (
+              <span aria-hidden className="h-[1.5px] min-w-4 flex-1 bg-border" style={{ marginTop: box / 2 }} />
+            )}
           </li>
         );
       })}
@@ -92,12 +130,57 @@ export function StepLoop({ steps, compact, label = "Pipeline steps", className }
 }
 
 type Verdict = "block" | "pass" | "pending" | "warn" | "info";
-const VERDICT: Record<Verdict, { c: string; bg: string; bd: string; g: string; word: string; role: "alert" | "status" }> = {
-  block: { c: "var(--aladdin-red)", bg: "bg-red-surface", bd: "border-red-border", g: "✕", word: "Blocked", role: "alert" },
-  pass: { c: "var(--aladdin-green)", bg: "bg-green-surface", bd: "border-green-border", g: "✓", word: "Passed", role: "status" },
-  pending: { c: "var(--aladdin-gold)", bg: "bg-gold-surface", bd: "border-gold-border", g: "", word: "Awaiting decision", role: "status" },
-  warn: { c: "var(--gold-dark)", bg: "bg-gold-surface", bd: "border-gold-border", g: "!", word: "Degraded", role: "status" },
-  info: { c: "var(--aladdin-blue)", bg: "bg-blue-surface", bd: "border-blue-border", g: "i", word: "Running", role: "status" },
+const VERDICT: Record<
+  Verdict,
+  {
+    c: string;
+    bg: string;
+    bd: string;
+    g: string;
+    word: string;
+    role: "alert" | "status";
+  }
+> = {
+  block: {
+    c: "var(--aladdin-red)",
+    bg: "bg-red-surface",
+    bd: "border-red-border",
+    g: "✕",
+    word: "Blocked",
+    role: "alert",
+  },
+  pass: {
+    c: "var(--aladdin-green)",
+    bg: "bg-green-surface",
+    bd: "border-green-border",
+    g: "✓",
+    word: "Passed",
+    role: "status",
+  },
+  pending: {
+    c: "var(--aladdin-gold)",
+    bg: "bg-gold-surface",
+    bd: "border-gold-border",
+    g: "",
+    word: "Awaiting decision",
+    role: "status",
+  },
+  warn: {
+    c: "var(--gold-dark)",
+    bg: "bg-gold-surface",
+    bd: "border-gold-border",
+    g: "!",
+    word: "Degraded",
+    role: "status",
+  },
+  info: {
+    c: "var(--aladdin-blue)",
+    bg: "bg-blue-surface",
+    bd: "border-blue-border",
+    g: "i",
+    word: "Running",
+    role: "status",
+  },
 };
 
 /** An outcome card: failed / passed / awaiting a person's decision (gold diamond) / degraded / running. */
@@ -123,7 +206,11 @@ export function VerdictCard({
       <span
         aria-hidden
         className="grid size-7 shrink-0 place-items-center text-[14px] font-extrabold text-white"
-        style={{ background: v.c, borderRadius: pending ? 6 : "50%", transform: pending ? "rotate(45deg) scale(.82)" : undefined }}
+        style={{
+          background: v.c,
+          borderRadius: pending ? 6 : "50%",
+          transform: pending ? "rotate(45deg) scale(.82)" : undefined,
+        }}
       >
         <span style={{ transform: pending ? "rotate(-45deg)" : undefined }}>{v.g}</span>
       </span>
@@ -140,11 +227,34 @@ export function VerdictCard({
 }
 
 /** A worker or model: two-letter disc in its tone, name, model, status. */
-export function AgentChip({ name, model, status, tone = "intent", className }: { name: string; model?: string; status?: string; tone?: Tone; className?: string }) {
+export function AgentChip({
+  name,
+  model,
+  status,
+  tone = "intent",
+  className,
+}: {
+  name: string;
+  model?: string;
+  status?: string;
+  tone?: Tone;
+  className?: string;
+}) {
   const c = FILL[tone][0];
   return (
-    <span className={cn("inline-flex items-center gap-2 rounded-pill border border-border bg-background py-1 pl-1 pr-3", className)}>
-      <span className="grid size-6 place-items-center rounded-full font-mono text-[11px] font-bold" style={{ background: c, color: tone === "gate" ? "var(--text-primary)" : "#fff" }}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-2 rounded-pill border border-border bg-background py-1 pl-1 pr-3",
+        className,
+      )}
+    >
+      <span
+        className="grid size-6 place-items-center rounded-full font-mono text-[11px] font-bold"
+        style={{
+          background: c,
+          color: tone === "gate" ? "var(--text-primary)" : "#fff",
+        }}
+      >
         {name.slice(0, 2)}
       </span>
       <span className="text-[13px] font-bold text-fg">{name}</span>

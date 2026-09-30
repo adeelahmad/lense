@@ -29,10 +29,26 @@ import { data, useApiClient } from "@/lib/api/browser";
 import { cn } from "@/lib/utils";
 
 export type SetMeta = <K extends Field>(field: K, value: Meta[K]) => void;
-export type FieldProps = { draft: Meta; set: SetMeta; errors: Partial<Record<Field, string>>; readOnly: boolean; readOnlyReason?: string };
+export type FieldProps = {
+  draft: Meta;
+  set: SetMeta;
+  errors: Partial<Record<Field, string>>;
+  readOnly: boolean;
+  readOnlyReason?: string;
+};
 
 /** "Title and summary  label · summary" with optional controls on the right. */
-export function SectionHead({ title, maps, children, id }: { title: ReactNode; maps?: string; children?: ReactNode; id?: string }) {
+export function SectionHead({
+  title,
+  maps,
+  children,
+  id,
+}: {
+  title: ReactNode;
+  maps?: string;
+  children?: ReactNode;
+  id?: string;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <h3 id={id} className="flex-1 text-[14px] font-bold leading-tight text-fg">
@@ -45,21 +61,49 @@ export function SectionHead({ title, maps, children, id }: { title: ReactNode; m
 
 function RemoveButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <button type="button" aria-label={label} onClick={onClick} disabled={disabled} className="grid size-7 shrink-0 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral hover:text-fg disabled:opacity-40">
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="grid size-7 shrink-0 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral hover:text-fg disabled:opacity-40"
+    >
       <X className="size-3.5" />
     </button>
   );
 }
 
-function AddButton({ children, onClick, disabled, reason }: { children: ReactNode; onClick: () => void; disabled?: boolean; reason?: string }) {
+function AddButton({
+  children,
+  onClick,
+  disabled,
+  reason,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  reason?: string;
+}) {
   return (
-    <Button variant="ghost" size="xs" icon={<Plus />} onClick={onClick} disabled={disabled} disabledReason={disabled ? reason : undefined} className="self-start">
+    <Button
+      variant="ghost"
+      size="xs"
+      icon={<Plus />}
+      onClick={onClick}
+      disabled={disabled}
+      disabledReason={disabled ? reason : undefined}
+      className="self-start"
+    >
       {children}
     </Button>
   );
 }
 
-const GLYPH = { full: ["✓", "text-green-dark"], partial: ["◐", "text-gold-dark"], empty: ["○", "text-fg-muted"] } as const;
+const GLYPH = {
+  full: ["✓", "text-green-dark"],
+  partial: ["◐", "text-gold-dark"],
+  empty: ["○", "text-fg-muted"],
+} as const;
 
 /** Title and summary per language, with language chips: ✓ both filled · ◐ one · ○ neither (MD1). */
 export function TitleSummary({
@@ -109,14 +153,24 @@ export function TitleSummary({
                 onClick={() => onLang(l)}
                 className={cn(
                   "inline-flex h-[26px] items-center gap-1 rounded-pill border px-[9px] text-[12px] font-semibold",
-                  on ? "border-blue bg-blue-surface text-fg-accent" : "border-border bg-background text-fg-strong hover:bg-surface",
+                  on
+                    ? "border-blue bg-blue-surface text-fg-accent"
+                    : "border-border bg-background text-fg-strong hover:bg-surface",
                 )}
               >
                 {l === "none" ? "any" : l}
                 <span aria-hidden className={cn("font-extrabold", c)}>
                   {g}
                 </span>
-                <span className="sr-only">{{ full: "title and summary filled", partial: "partly filled", empty: "empty" }[langStatus(draft, l)]}</span>
+                <span className="sr-only">
+                  {
+                    {
+                      full: "title and summary filled",
+                      partial: "partly filled",
+                      empty: "empty",
+                    }[langStatus(draft, l)]
+                  }
+                </span>
               </button>
             );
           })}
@@ -131,7 +185,15 @@ export function TitleSummary({
                 setAdding(false);
               }}
             >
-              <Input aria-label="Language code" placeholder="pt" value={code} onChange={(e) => setCode(e.target.value)} className="h-[26px] w-20 px-2 text-[12px]" autoFocus mono />
+              <Input
+                aria-label="Language code"
+                placeholder="pt"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                className="h-[26px] w-20 px-2 text-[12px]"
+                autoFocus
+                mono
+              />
               <Button type="submit" size="xs" variant="secondary" disabled={!codeOk}>
                 Add
               </Button>
@@ -149,9 +211,19 @@ export function TitleSummary({
           )}
         </div>
       </SectionHead>
-      <FormField label={`Title · ${lang === "none" ? "any language" : lang}`} error={errors.label ?? (titleMissing ? "Required by this namespace’s profile" : null)}>
+      <FormField
+        label={`Title · ${lang === "none" ? "any language" : lang}`}
+        error={errors.label ?? (titleMissing ? "Required by this namespace’s profile" : null)}
+      >
         {(f) => (
-          <Input id={f.id} aria-describedby={f.describedBy} invalid={f.invalid} value={inLang(draft.label, lang)} readOnly={readOnly} onChange={(e) => set("label", withLang(draft.label, lang, e.target.value))} />
+          <Input
+            id={f.id}
+            aria-describedby={f.describedBy}
+            invalid={f.invalid}
+            value={inLang(draft.label, lang)}
+            readOnly={readOnly}
+            onChange={(e) => set("label", withLang(draft.label, lang, e.target.value))}
+          />
         )}
       </FormField>
       <FormField
@@ -160,7 +232,15 @@ export function TitleSummary({
         error={errors.summary ?? (summaryMissing ? "Required by this namespace’s profile" : null)}
       >
         {(f) => (
-          <Textarea id={f.id} aria-describedby={f.describedBy} invalid={f.invalid} rows={4} value={inLang(draft.summary, lang)} readOnly={readOnly} onChange={(e) => set("summary", withLang(draft.summary, lang, e.target.value))} />
+          <Textarea
+            id={f.id}
+            aria-describedby={f.describedBy}
+            invalid={f.invalid}
+            rows={4}
+            value={inLang(draft.summary, lang)}
+            readOnly={readOnly}
+            onChange={(e) => set("summary", withLang(draft.summary, lang, e.target.value))}
+          />
         )}
       </FormField>
       {gaps.length > 0 && (
@@ -173,7 +253,9 @@ export function TitleSummary({
               const t = inLang(draft.label, g).trim();
               return (
                 <span key={g} className="block">
-                  {t ? "Title" : "Summary"} in <b>{g}</b> is filled, {t ? "summary" : "title"} in {g} is empty. Viewers fall back to {other && other !== g ? (other === "none" ? "another language" : other) : "another language"}.
+                  {t ? "Title" : "Summary"} in <b>{g}</b> is filled, {t ? "summary" : "title"} in {g} is empty. Viewers
+                  fall back to{" "}
+                  {other && other !== g ? (other === "none" ? "another language" : other) : "another language"}.
                 </span>
               );
             })}
@@ -181,7 +263,11 @@ export function TitleSummary({
         </div>
       )}
       {langs.length > 1 && lang !== langs[0] && !readOnly && (
-        <button type="button" onClick={() => onRemoveLang(lang)} className="self-start text-[12px] font-semibold text-red-dark hover:underline">
+        <button
+          type="button"
+          onClick={() => onRemoveLang(lang)}
+          className="self-start text-[12px] font-semibold text-red-dark hover:underline"
+        >
           Remove {lang === "none" ? "the language-less" : lang} title and summary
         </button>
       )}
@@ -190,7 +276,14 @@ export function TitleSummary({
 }
 
 /** Date (navDate) and the languages spoken. */
-export function DateLanguages({ draft, set, errors, readOnly, fromTranscribe, vocabulary }: FieldProps & { fromTranscribe: boolean; vocabulary?: string[] }) {
+export function DateLanguages({
+  draft,
+  set,
+  errors,
+  readOnly,
+  fromTranscribe,
+  vocabulary,
+}: FieldProps & { fromTranscribe: boolean; vocabulary?: string[] }) {
   const [code, setCode] = useState("");
   const langs = draft.language ?? [];
   const add = () => {
@@ -215,14 +308,39 @@ export function DateLanguages({ draft, set, errors, readOnly, fromTranscribe, vo
           />
         )}
       </FormField>
-      <FormField label="Languages spoken" hint={errors.language ? undefined : fromTranscribe ? "detected by Transcribe" : vocabulary?.length ? `This namespace uses: ${vocabulary.join(", ")}` : undefined} error={errors.language}>
+      <FormField
+        label="Languages spoken"
+        hint={
+          errors.language
+            ? undefined
+            : fromTranscribe
+              ? "detected by Transcribe"
+              : vocabulary?.length
+                ? `This namespace uses: ${vocabulary.join(", ")}`
+                : undefined
+        }
+        error={errors.language}
+      >
         {(f) => (
           <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-sm border border-border px-2 py-1.5">
             {langs.map((l) => (
-              <span key={l} className="inline-flex h-[26px] items-center gap-1 rounded-xs bg-surface-neutral px-[9px] text-[12px] font-semibold">
+              <span
+                key={l}
+                className="inline-flex h-[26px] items-center gap-1 rounded-xs bg-surface-neutral px-[9px] text-[12px] font-semibold"
+              >
                 {langName(l)} · {l}
                 {!readOnly && (
-                  <button type="button" aria-label={`Remove ${langName(l)}`} onClick={() => set("language", langs.filter((x) => x !== l))} className="text-fg-muted hover:text-fg">
+                  <button
+                    type="button"
+                    aria-label={`Remove ${langName(l)}`}
+                    onClick={() =>
+                      set(
+                        "language",
+                        langs.filter((x) => x !== l),
+                      )
+                    }
+                    className="text-fg-muted hover:text-fg"
+                  >
                     ×
                   </button>
                 )}
@@ -255,10 +373,27 @@ export function DateLanguages({ draft, set, errors, readOnly, fromTranscribe, vo
 type Row = Person & { kind: "creators" | "contributors" };
 
 /** Creators and contributors; people linked to the recording's speakers show it (MD1). */
-export function People({ draft, set, errors, readOnly, speakers }: FieldProps & { speakers: { id: number; name: string }[] }) {
-  const rows: Row[] = [...(draft.creators ?? []).map((p) => ({ ...p, kind: "creators" as const })), ...(draft.contributors ?? []).map((p) => ({ ...p, kind: "contributors" as const }))];
+export function People({
+  draft,
+  set,
+  errors,
+  readOnly,
+  speakers,
+}: FieldProps & { speakers: { id: number; name: string }[] }) {
+  const rows: Row[] = [
+    ...(draft.creators ?? []).map((p) => ({ ...p, kind: "creators" as const })),
+    ...(draft.contributors ?? []).map((p) => ({
+      ...p,
+      kind: "contributors" as const,
+    })),
+  ];
   const write = (next: Row[]) => {
-    const strip = (r: Row): Person => ({ name: r.name, role: r.role, uri: r.uri, speaker: r.speaker });
+    const strip = (r: Row): Person => ({
+      name: r.name,
+      role: r.role,
+      uri: r.uri,
+      speaker: r.speaker,
+    });
     set("creators", next.filter((r) => r.kind === "creators").map(strip));
     set("contributors", next.filter((r) => r.kind === "contributors").map(strip));
   };
@@ -270,12 +405,23 @@ export function People({ draft, set, errors, readOnly, speakers }: FieldProps & 
   return (
     <div className="flex flex-col gap-2">
       <SectionHead title="Creators and contributors" maps="dc:creator · dc:contributor" />
-      {rows.length === 0 && <p className="text-[13px] text-fg-muted">Nobody yet. Add the people who made or appear in this recording.</p>}
+      {rows.length === 0 && (
+        <p className="text-[13px] text-fg-muted">Nobody yet. Add the people who made or appear in this recording.</p>
+      )}
       {rows.map((r, i) => (
-        <div key={i} className="grid grid-cols-[minmax(0,1fr)_28px] items-start gap-2 rounded-[10px] border border-border px-2.5 py-2 sm:grid-cols-[minmax(0,1.2fr)_130px_minmax(0,0.8fr)_minmax(0,1fr)_28px] sm:items-center">
+        <div
+          key={i}
+          className="grid grid-cols-[minmax(0,1fr)_28px] items-start gap-2 rounded-[10px] border border-border px-2.5 py-2 sm:grid-cols-[minmax(0,1.2fr)_130px_minmax(0,0.8fr)_minmax(0,1fr)_28px] sm:items-center"
+        >
           <div className="flex min-w-0 items-center gap-2">
             <span aria-hidden className={cn("size-2.5 shrink-0 rounded-full", r.speaker ? "bg-blue" : "bg-fg-muted")} />
-            <Input aria-label="Name" value={r.name} readOnly={readOnly} onChange={(e) => update(i, { name: e.target.value })} className="h-8 text-[13.5px] font-semibold" />
+            <Input
+              aria-label="Name"
+              value={r.name}
+              readOnly={readOnly}
+              onChange={(e) => update(i, { name: e.target.value })}
+              className="h-8 text-[13.5px] font-semibold"
+            />
           </div>
           <div className="row-start-2 flex flex-wrap gap-2 sm:contents">
             <Select
@@ -290,14 +436,35 @@ export function People({ draft, set, errors, readOnly, speakers }: FieldProps & 
               ]}
               className="w-[130px]"
             />
-            <Input aria-label="Role" placeholder="role, e.g. host" value={r.role ?? ""} readOnly={readOnly} onChange={(e) => update(i, { role: e.target.value || null })} className="h-8 text-[13px] sm:w-auto" />
+            <Input
+              aria-label="Role"
+              placeholder="role, e.g. host"
+              value={r.role ?? ""}
+              readOnly={readOnly}
+              onChange={(e) => update(i, { role: e.target.value || null })}
+              className="h-8 text-[13px] sm:w-auto"
+            />
             {r.speaker ? (
-              <span className="self-center text-[12px] leading-[1.3] text-fg-muted">linked to speaker {speakerName(r.speaker) ?? `#${r.speaker}`} ✓</span>
+              <span className="self-center text-[12px] leading-[1.3] text-fg-muted">
+                linked to speaker {speakerName(r.speaker) ?? `#${r.speaker}`} ✓
+              </span>
             ) : (
-              <Input aria-label="Authority link (Wikidata or other URI)" placeholder="https://www.wikidata.org/wiki/Q…" value={r.uri ?? ""} readOnly={readOnly} mono onChange={(e) => update(i, { uri: e.target.value || null })} className="h-8 text-[12px]" />
+              <Input
+                aria-label="Authority link (Wikidata or other URI)"
+                placeholder="https://www.wikidata.org/wiki/Q…"
+                value={r.uri ?? ""}
+                readOnly={readOnly}
+                mono
+                onChange={(e) => update(i, { uri: e.target.value || null })}
+                className="h-8 text-[12px]"
+              />
             )}
           </div>
-          <RemoveButton label={`Remove ${r.name || "person"}`} disabled={readOnly} onClick={() => write(rows.filter((_, j) => j !== i))} />
+          <RemoveButton
+            label={`Remove ${r.name || "person"}`}
+            disabled={readOnly}
+            onClick={() => write(rows.filter((_, j) => j !== i))}
+          />
         </div>
       ))}
       {errors.creators && <p className="text-[12.5px] text-red-dark">{errors.creators}</p>}
@@ -312,9 +479,24 @@ export function People({ draft, set, errors, readOnly, speakers }: FieldProps & 
               value=""
               onChange={(e) => {
                 const s = speakers.find((x) => String(x.id) === e.target.value);
-                if (s) write([...rows, { name: s.name, role: "speaker", speaker: s.id, kind: "contributors" }]);
+                if (s)
+                  write([
+                    ...rows,
+                    {
+                      name: s.name,
+                      role: "speaker",
+                      speaker: s.id,
+                      kind: "contributors",
+                    },
+                  ]);
               }}
-              options={[{ value: "", label: "Add a speaker…" }, ...unlinked.map((s) => ({ value: String(s.id), label: s.name }))]}
+              options={[
+                { value: "", label: "Add a speaker…" },
+                ...unlinked.map((s) => ({
+                  value: String(s.id),
+                  label: s.name,
+                })),
+              ]}
               className="w-[180px]"
             />
           )}
@@ -324,10 +506,24 @@ export function People({ draft, set, errors, readOnly, speakers }: FieldProps & 
   );
 }
 
-type Option = { key: string; label: string; detail: string; source: string; icon: ReactNode; subject: Subject };
+type Option = {
+  key: string;
+  label: string;
+  detail: string;
+  source: string;
+  icon: ReactNode;
+  subject: Subject;
+};
 
 /** Subjects: namespace entities first, then the profile's vocabulary, or your own words (MD1 subject picker). */
-export function Subjects({ draft, set, errors, readOnly, namespace, vocabulary }: FieldProps & { namespace?: string | null; vocabulary?: string[] }) {
+export function Subjects({
+  draft,
+  set,
+  errors,
+  readOnly,
+  namespace,
+  vocabulary,
+}: FieldProps & { namespace?: string | null; vocabulary?: string[] }) {
   const client = useApiClient();
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -344,7 +540,18 @@ export function Subjects({ draft, set, errors, readOnly, namespace, vocabulary }
 
   const entities = useQuery({
     queryKey: ["subject-picker", namespace, debounced],
-    queryFn: () => data(Entities.listEntities({ client, query: { q: debounced, namespaces: namespace ?? undefined, limit: 6, sort: "mentions" } })),
+    queryFn: () =>
+      data(
+        Entities.listEntities({
+          client,
+          query: {
+            q: debounced,
+            namespaces: namespace ?? undefined,
+            limit: 6,
+            sort: "mentions",
+          },
+        }),
+      ),
     enabled: open && debounced.length > 1 && Boolean(namespace),
     staleTime: 30_000,
   });
@@ -352,7 +559,20 @@ export function Subjects({ draft, set, errors, readOnly, namespace, vocabulary }
   const options = useMemo<Option[]>(() => {
     const have = new Set(subjects.map((s) => s.label.toLowerCase()));
     const out: Option[] = [];
-    const items = ((entities.data as { items?: { id: number; name: string; type_label?: string; mentions?: number }[] } | undefined)?.items ?? []).filter((e) => !have.has(e.name.toLowerCase()));
+    const items = (
+      (
+        entities.data as
+          | {
+              items?: {
+                id: number;
+                name: string;
+                type_label?: string;
+                mentions?: number;
+              }[];
+            }
+          | undefined
+      )?.items ?? []
+    ).filter((e) => !have.has(e.name.toLowerCase()));
     for (const e of items)
       out.push({
         key: `e${e.id}`,
@@ -365,9 +585,27 @@ export function Subjects({ draft, set, errors, readOnly, namespace, vocabulary }
     const term = debounced.toLowerCase();
     for (const v of vocabulary ?? [])
       if (term && v.toLowerCase().includes(term) && !have.has(v.toLowerCase()))
-        out.push({ key: `v${v}`, label: v, detail: "This namespace’s vocabulary", source: "vocabulary", icon: <Tag />, subject: { label: v } });
-    if (q.trim() && !have.has(q.trim().toLowerCase()) && !out.some((o) => o.label.toLowerCase() === q.trim().toLowerCase()))
-      out.push({ key: "free", label: q.trim(), detail: "Add as your own subject", source: "", icon: <Plus />, subject: { label: q.trim() } });
+        out.push({
+          key: `v${v}`,
+          label: v,
+          detail: "This namespace’s vocabulary",
+          source: "vocabulary",
+          icon: <Tag />,
+          subject: { label: v },
+        });
+    if (
+      q.trim() &&
+      !have.has(q.trim().toLowerCase()) &&
+      !out.some((o) => o.label.toLowerCase() === q.trim().toLowerCase())
+    )
+      out.push({
+        key: "free",
+        label: q.trim(),
+        detail: "Add as your own subject",
+        source: "",
+        icon: <Plus />,
+        subject: { label: q.trim() },
+      });
     return out;
   }, [entities.data, vocabulary, debounced, q, subjects]);
 
@@ -390,11 +628,26 @@ export function Subjects({ draft, set, errors, readOnly, namespace, vocabulary }
           )}
         >
           {subjects.map((s, i) => (
-            <span key={`${s.label}${i}`} className="inline-flex h-[26px] items-center gap-[5px] rounded-xs bg-surface-neutral px-[9px] text-[12px] font-semibold">
+            <span
+              key={`${s.label}${i}`}
+              className="inline-flex h-[26px] items-center gap-[5px] rounded-xs bg-surface-neutral px-[9px] text-[12px] font-semibold"
+            >
               {s.label}
-              <span className="font-mono text-[10.5px] font-medium text-fg-muted">{s.entity ? "entity" : s.uri ? "URI" : vocabulary?.includes(s.label) ? "vocabulary" : ""}</span>
+              <span className="font-mono text-[10.5px] font-medium text-fg-muted">
+                {s.entity ? "entity" : s.uri ? "URI" : vocabulary?.includes(s.label) ? "vocabulary" : ""}
+              </span>
               {!readOnly && (
-                <button type="button" aria-label={`Remove subject ${s.label}`} onClick={() => set("subjects", subjects.filter((_, j) => j !== i))} className="text-fg-muted hover:text-fg">
+                <button
+                  type="button"
+                  aria-label={`Remove subject ${s.label}`}
+                  onClick={() =>
+                    set(
+                      "subjects",
+                      subjects.filter((_, j) => j !== i),
+                    )
+                  }
+                  className="text-fg-muted hover:text-fg"
+                >
                   ×
                 </button>
               )}
@@ -436,7 +689,11 @@ export function Subjects({ draft, set, errors, readOnly, namespace, vocabulary }
           )}
         </div>
         {open && options.length > 0 && (
-          <ul id={listId} role="listbox" className="absolute left-0 top-[calc(100%+6px)] z-30 w-full max-w-[460px] rounded-md border border-border bg-background p-1.5 shadow-3">
+          <ul
+            id={listId}
+            role="listbox"
+            className="absolute left-0 top-[calc(100%+6px)] z-30 w-full max-w-[460px] rounded-md border border-border bg-background p-1.5 shadow-3"
+          >
             {options.map((o, i) => (
               <li
                 key={o.key}
@@ -448,7 +705,10 @@ export function Subjects({ draft, set, errors, readOnly, namespace, vocabulary }
                   pick(o);
                 }}
                 onMouseEnter={() => setActive(i)}
-                className={cn("grid cursor-pointer grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-sm px-2.5 py-2 [&_svg]:size-[15px] [&_svg]:text-fg-secondary", i === active && "bg-blue-surface")}
+                className={cn(
+                  "grid cursor-pointer grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-sm px-2.5 py-2 [&_svg]:size-[15px] [&_svg]:text-fg-secondary",
+                  i === active && "bg-blue-surface",
+                )}
               >
                 {o.icon}
                 <span className="flex min-w-0 flex-col gap-[3px]">
@@ -462,25 +722,36 @@ export function Subjects({ draft, set, errors, readOnly, namespace, vocabulary }
         )}
       </div>
       <p className={cn("text-[12px] leading-[1.35]", errors.subjects ? "text-red-dark" : "text-fg-muted")}>
-        {errors.subjects ?? "Searches this namespace’s entities first, then its vocabulary. Wikidata, GeoNames and LCSH lookups aren’t available yet."}
+        {errors.subjects ??
+          "Searches this namespace’s entities first, then its vocabulary. Wikidata, GeoNames and LCSH lookups aren’t available yet."}
       </p>
     </div>
   );
 }
 
 /** Rights (a licence or statement URI) and the required attribution. */
-export function RightsAttribution({ draft, set, errors, readOnly, lang, attributionRequired }: FieldProps & { lang: string; attributionRequired: boolean }) {
+export function RightsAttribution({
+  draft,
+  set,
+  errors,
+  readOnly,
+  lang,
+  attributionRequired,
+}: FieldProps & { lang: string; attributionRequired: boolean }) {
   const known = rightsFor(draft.rights);
   const [custom, setCustom] = useState(Boolean(draft.rights && !known));
-  const attr = inLang(draft.attribution, lang) || inLang(draft.attribution, Object.keys(draft.attribution ?? {})[0] ?? lang);
-  const attrLang = draft.attribution?.[lang] ? lang : Object.keys(draft.attribution ?? {})[0] ?? lang;
+  const attr =
+    inLang(draft.attribution, lang) || inLang(draft.attribution, Object.keys(draft.attribution ?? {})[0] ?? lang);
+  const attrLang = draft.attribution?.[lang] ? lang : (Object.keys(draft.attribution ?? {})[0] ?? lang);
   return (
     <div className="grid gap-3.5 sm:grid-cols-2">
       <div className="flex flex-col gap-2">
         <SectionHead title="Rights" maps="rights" />
         {draft.rights && (
           <div className="flex min-w-0 items-center gap-2.5 rounded-[10px] border border-border px-3 py-2.5">
-            <span className="h-7 shrink-0 rounded-xs bg-fg px-2 text-[11px] font-extrabold leading-7 tracking-[.04em] text-background">{known?.code ?? "URI"}</span>
+            <span className="h-7 shrink-0 rounded-xs bg-fg px-2 text-[11px] font-extrabold leading-7 tracking-[.04em] text-background">
+              {known?.code ?? "URI"}
+            </span>
             <span className="flex min-w-0 flex-col gap-[3px]">
               <span className="text-[13px] font-semibold leading-tight">{known?.name ?? "Custom statement"}</span>
               <code className="truncate font-mono text-[11px] leading-tight text-fg-muted">{draft.rights}</code>
@@ -498,14 +769,36 @@ export function RightsAttribution({ draft, set, errors, readOnly, lang, attribut
               set("rights", e.target.value || null);
             }
           }}
-          options={[{ value: "", label: "None" }, ...RIGHTS.map((r) => ({ value: r.uri, label: `${r.code} — ${r.name}` })), { value: "other", label: "Other statement URI…" }]}
+          options={[
+            { value: "", label: "None" },
+            ...RIGHTS.map((r) => ({
+              value: r.uri,
+              label: `${r.code} — ${r.name}`,
+            })),
+            { value: "other", label: "Other statement URI…" },
+          ]}
         />
-        {custom && <Input aria-label="Rights statement URI" mono placeholder="http://rightsstatements.org/vocab/…" value={draft.rights ?? ""} readOnly={readOnly} onChange={(e) => set("rights", e.target.value ? canonicalRights(e.target.value) : null)} invalid={Boolean(errors.rights)} />}
-        <p className={cn("text-[12px] leading-[1.35]", errors.rights ? "text-red-dark" : "text-fg-muted")}>{errors.rights ?? "Pick a Creative Commons licence or a RightsStatements.org statement"}</p>
+        {custom && (
+          <Input
+            aria-label="Rights statement URI"
+            mono
+            placeholder="http://rightsstatements.org/vocab/…"
+            value={draft.rights ?? ""}
+            readOnly={readOnly}
+            onChange={(e) => set("rights", e.target.value ? canonicalRights(e.target.value) : null)}
+            invalid={Boolean(errors.rights)}
+          />
+        )}
+        <p className={cn("text-[12px] leading-[1.35]", errors.rights ? "text-red-dark" : "text-fg-muted")}>
+          {errors.rights ?? "Pick a Creative Commons licence or a RightsStatements.org statement"}
+        </p>
       </div>
       <div className="flex flex-col gap-2">
         <SectionHead title="Required attribution" maps="requiredStatement" />
-        <FormField error={errors.attribution ?? (attributionRequired && !attr ? "Required by this namespace’s profile" : null)} hint="Viewers show it next to the player">
+        <FormField
+          error={errors.attribution ?? (attributionRequired && !attr ? "Required by this namespace’s profile" : null)}
+          hint="Viewers show it next to the player"
+        >
           {(f) => (
             <Input
               id={f.id}
@@ -533,11 +826,33 @@ export function ProviderEditor({ draft, set, errors, readOnly }: FieldProps) {
     <div className="flex flex-col gap-2">
       <SectionHead title="Provider" maps="provider" />
       <div className="grid gap-3 sm:grid-cols-3">
-        <Input aria-label="Provider name" placeholder="Organisation name" value={p.name ?? ""} readOnly={readOnly} onChange={(e) => up({ name: e.target.value })} />
-        <Input aria-label="Provider homepage" placeholder="https://…" mono value={p.homepage ?? ""} readOnly={readOnly} onChange={(e) => up({ homepage: e.target.value || null })} />
-        <Input aria-label="Provider logo address" placeholder="https://…/logo.png" mono value={p.logo ?? ""} readOnly={readOnly} onChange={(e) => up({ logo: e.target.value || null })} />
+        <Input
+          aria-label="Provider name"
+          placeholder="Organisation name"
+          value={p.name ?? ""}
+          readOnly={readOnly}
+          onChange={(e) => up({ name: e.target.value })}
+        />
+        <Input
+          aria-label="Provider homepage"
+          placeholder="https://…"
+          mono
+          value={p.homepage ?? ""}
+          readOnly={readOnly}
+          onChange={(e) => up({ homepage: e.target.value || null })}
+        />
+        <Input
+          aria-label="Provider logo address"
+          placeholder="https://…/logo.png"
+          mono
+          value={p.logo ?? ""}
+          readOnly={readOnly}
+          onChange={(e) => up({ logo: e.target.value || null })}
+        />
       </div>
-      <p className={cn("text-[12px]", errors.provider ? "text-red-dark" : "text-fg-muted")}>{errors.provider ?? "Who holds the recording. Viewers show the name and logo."}</p>
+      <p className={cn("text-[12px]", errors.provider ? "text-red-dark" : "text-fg-muted")}>
+        {errors.provider ?? "Who holds the recording. Viewers show the name and logo."}
+      </p>
     </div>
   );
 }
@@ -550,19 +865,69 @@ export function IdentifiersLinks({ draft, set, errors, readOnly }: FieldProps) {
     <div className="flex flex-col gap-3.5">
       <div className="grid gap-3.5 sm:grid-cols-2">
         <FormField label="Related link (homepage)" error={errors.homepage}>
-          {(f) => <Input id={f.id} aria-describedby={f.describedBy} invalid={f.invalid} mono placeholder="https://…" value={draft.homepage ?? ""} readOnly={readOnly} onChange={(e) => set("homepage", e.target.value || null)} />}
+          {(f) => (
+            <Input
+              id={f.id}
+              aria-describedby={f.describedBy}
+              invalid={f.invalid}
+              mono
+              placeholder="https://…"
+              value={draft.homepage ?? ""}
+              readOnly={readOnly}
+              onChange={(e) => set("homepage", e.target.value || null)}
+            />
+          )}
         </FormField>
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] font-bold leading-tight text-fg-strong">Identifiers</span>
           {ids.map((id, i) => (
             <div key={i} className="grid grid-cols-[110px_minmax(0,1fr)_28px] items-center gap-2">
-              <Input aria-label="Identifier type" placeholder="type" value={id.type ?? ""} readOnly={readOnly} onChange={(e) => set("identifiers", ids.map((x, j) => (j === i ? { ...x, type: e.target.value || null } : x)))} className="h-8 text-[12.5px]" />
-              <Input aria-label="Identifier" mono value={id.value} readOnly={readOnly} onChange={(e) => set("identifiers", ids.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} className="h-8 text-[12.5px]" />
-              <RemoveButton label="Remove identifier" disabled={readOnly} onClick={() => set("identifiers", ids.filter((_, j) => j !== i))} />
+              <Input
+                aria-label="Identifier type"
+                placeholder="type"
+                value={id.type ?? ""}
+                readOnly={readOnly}
+                onChange={(e) =>
+                  set(
+                    "identifiers",
+                    ids.map((x, j) => (j === i ? { ...x, type: e.target.value || null } : x)),
+                  )
+                }
+                className="h-8 text-[12.5px]"
+              />
+              <Input
+                aria-label="Identifier"
+                mono
+                value={id.value}
+                readOnly={readOnly}
+                onChange={(e) =>
+                  set(
+                    "identifiers",
+                    ids.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)),
+                  )
+                }
+                className="h-8 text-[12.5px]"
+              />
+              <RemoveButton
+                label="Remove identifier"
+                disabled={readOnly}
+                onClick={() =>
+                  set(
+                    "identifiers",
+                    ids.filter((_, j) => j !== i),
+                  )
+                }
+              />
             </div>
           ))}
-          {!readOnly && <AddButton onClick={() => set("identifiers", [...ids, { type: null, value: "" }])}>Add identifier</AddButton>}
-          <p className={cn("text-[12px]", errors.identifiers ? "text-red-dark" : "text-fg-muted")}>{errors.identifiers ?? "dc:identifier · e.g. a catalogue number"}</p>
+          {!readOnly && (
+            <AddButton onClick={() => set("identifiers", [...ids, { type: null, value: "" }])}>
+              Add identifier
+            </AddButton>
+          )}
+          <p className={cn("text-[12px]", errors.identifiers ? "text-red-dark" : "text-fg-muted")}>
+            {errors.identifiers ?? "dc:identifier · e.g. a catalogue number"}
+          </p>
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -571,12 +936,48 @@ export function IdentifiersLinks({ draft, set, errors, readOnly }: FieldProps) {
         </span>
         {related.map((r, i) => (
           <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_28px] items-center gap-2">
-            <Input aria-label="Link address" mono placeholder="https://…" value={r.id} readOnly={readOnly} onChange={(e) => set("related", related.map((x, j) => (j === i ? { ...x, id: e.target.value } : x)))} className="h-8 text-[12.5px]" />
-            <Input aria-label="Link label" placeholder="label" value={r.label ?? ""} readOnly={readOnly} onChange={(e) => set("related", related.map((x, j) => (j === i ? { ...x, label: e.target.value || null } : x)))} className="h-8 text-[12.5px]" />
-            <RemoveButton label="Remove link" disabled={readOnly} onClick={() => set("related", related.filter((_, j) => j !== i))} />
+            <Input
+              aria-label="Link address"
+              mono
+              placeholder="https://…"
+              value={r.id}
+              readOnly={readOnly}
+              onChange={(e) =>
+                set(
+                  "related",
+                  related.map((x, j) => (j === i ? { ...x, id: e.target.value } : x)),
+                )
+              }
+              className="h-8 text-[12.5px]"
+            />
+            <Input
+              aria-label="Link label"
+              placeholder="label"
+              value={r.label ?? ""}
+              readOnly={readOnly}
+              onChange={(e) =>
+                set(
+                  "related",
+                  related.map((x, j) => (j === i ? { ...x, label: e.target.value || null } : x)),
+                )
+              }
+              className="h-8 text-[12.5px]"
+            />
+            <RemoveButton
+              label="Remove link"
+              disabled={readOnly}
+              onClick={() =>
+                set(
+                  "related",
+                  related.filter((_, j) => j !== i),
+                )
+              }
+            />
           </div>
         ))}
-        {!readOnly && <AddButton onClick={() => set("related", [...related, { id: "", label: null }])}>Add link</AddButton>}
+        {!readOnly && (
+          <AddButton onClick={() => set("related", [...related, { id: "", label: null }])}>Add link</AddButton>
+        )}
         {errors.related && <p className="text-[12px] text-red-dark">{errors.related}</p>}
       </div>
     </div>
@@ -586,7 +987,7 @@ export function IdentifiersLinks({ draft, set, errors, readOnly }: FieldProps) {
 /** Label / value pairs shown in viewers, in this order. Edits the given language; other languages are kept. */
 export function Pairs({ draft, set, errors, readOnly, lang }: FieldProps & { lang: string }) {
   const pairs: Pair[] = draft.metadata ?? [];
-  const langOf = (m: Pair["label"]) => (m?.[lang] ? lang : Object.keys(m ?? {})[0] ?? lang);
+  const langOf = (m: Pair["label"]) => (m?.[lang] ? lang : (Object.keys(m ?? {})[0] ?? lang));
   const edit = (i: number, part: "label" | "value", text: string) =>
     set(
       "metadata",
@@ -602,29 +1003,67 @@ export function Pairs({ draft, set, errors, readOnly, lang }: FieldProps & { lan
   return (
     <div className="flex flex-col gap-1.5">
       <SectionHead title="Label / value pairs" maps="metadata[] · shown in viewers, in this order" />
-      {pairs.length === 0 && <p className="text-[13px] text-fg-muted">None yet. Viewers also list the date, duration, speakers and subjects on their own.</p>}
+      {pairs.length === 0 && (
+        <p className="text-[13px] text-fg-muted">
+          None yet. Viewers also list the date, duration, speakers and subjects on their own.
+        </p>
+      )}
       {pairs.map((p, i) => (
         <div key={i} className="grid grid-cols-[22px_minmax(0,160px)_minmax(0,1fr)_28px] items-center gap-2">
           <span className="flex flex-col">
             <Tooltip content="Move up">
-              <button type="button" aria-label="Move up" disabled={readOnly || i === 0} onClick={() => move(i, -1)} className="text-[10px] leading-none text-fg-muted hover:text-fg disabled:opacity-30">
+              <button
+                type="button"
+                aria-label="Move up"
+                disabled={readOnly || i === 0}
+                onClick={() => move(i, -1)}
+                className="text-[10px] leading-none text-fg-muted hover:text-fg disabled:opacity-30"
+              >
                 ▲
               </button>
             </Tooltip>
             <Tooltip content="Move down">
-              <button type="button" aria-label="Move down" disabled={readOnly || i === pairs.length - 1} onClick={() => move(i, 1)} className="text-[10px] leading-none text-fg-muted hover:text-fg disabled:opacity-30">
+              <button
+                type="button"
+                aria-label="Move down"
+                disabled={readOnly || i === pairs.length - 1}
+                onClick={() => move(i, 1)}
+                className="text-[10px] leading-none text-fg-muted hover:text-fg disabled:opacity-30"
+              >
                 ▼
               </button>
             </Tooltip>
           </span>
-          <Input aria-label="Label" value={inLang(p.label, langOf(p.label))} readOnly={readOnly} onChange={(e) => edit(i, "label", e.target.value)} className="h-[34px] text-[13px] font-semibold" />
-          <Input aria-label="Value" value={inLang(p.value, langOf(p.value))} readOnly={readOnly} onChange={(e) => edit(i, "value", e.target.value)} className="h-[34px] text-[13px]" />
-          <RemoveButton label="Remove pair" disabled={readOnly} onClick={() => set("metadata", pairs.filter((_, j) => j !== i))} />
+          <Input
+            aria-label="Label"
+            value={inLang(p.label, langOf(p.label))}
+            readOnly={readOnly}
+            onChange={(e) => edit(i, "label", e.target.value)}
+            className="h-[34px] text-[13px] font-semibold"
+          />
+          <Input
+            aria-label="Value"
+            value={inLang(p.value, langOf(p.value))}
+            readOnly={readOnly}
+            onChange={(e) => edit(i, "value", e.target.value)}
+            className="h-[34px] text-[13px]"
+          />
+          <RemoveButton
+            label="Remove pair"
+            disabled={readOnly}
+            onClick={() =>
+              set(
+                "metadata",
+                pairs.filter((_, j) => j !== i),
+              )
+            }
+          />
         </div>
       ))}
-      {!readOnly && <AddButton onClick={() => set("metadata", [...pairs, { label: {}, value: {} }])}>Add pair</AddButton>}
+      {!readOnly && (
+        <AddButton onClick={() => set("metadata", [...pairs, { label: {}, value: {} }])}>Add pair</AddButton>
+      )}
       {errors.metadata && <p className="text-[12px] text-red-dark">{errors.metadata}</p>}
     </div>
   );
 }
-

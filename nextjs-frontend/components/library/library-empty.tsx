@@ -16,7 +16,9 @@ export function LibraryEmpty({ namespace }: { namespace: string | null }) {
     <div className="grid flex-1 place-items-center border-t border-border px-4 py-10 md:px-10">
       <div className="flex max-w-[760px] flex-col items-center gap-6 text-center">
         <div className="flex flex-col items-center gap-2">
-          <h2 className="text-[22px] font-bold leading-tight tracking-[-.01em] text-fg">{namespace ? `Nothing in ${namespace} yet` : "No recordings yet"}</h2>
+          <h2 className="text-[22px] font-bold leading-tight tracking-[-.01em] text-fg">
+            {namespace ? `Nothing in ${namespace} yet` : "No recordings yet"}
+          </h2>
           <p className="max-w-[520px] text-[15px] leading-[1.55] text-fg-secondary">
             Watch a folder so new recordings arrive on their own, or bring in audio and transcripts you already have.
           </p>
@@ -30,14 +32,21 @@ export function LibraryEmpty({ namespace }: { namespace: string | null }) {
               <span className="text-[15px] font-bold text-fg">Connect a source</span>
             </div>
             <p className="text-[13.5px] leading-normal text-fg-secondary">
-              S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disk. Pick folders, choose a pipeline, and optionally backfill what’s there.
+              S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disk. Pick folders, choose a pipeline, and
+              optionally backfill what’s there.
             </p>
             {admin ? (
               <Button asChild variant="primary" size="sm" className="self-start">
                 <Link href="/sources">Connect a source</Link>
               </Button>
             ) : (
-              <Button variant="primary" size="sm" className="self-start" disabled disabledReason="Only admins can connect sources. Ask an admin to watch a folder for this namespace.">
+              <Button
+                variant="primary"
+                size="sm"
+                className="self-start"
+                disabled
+                disabledReason="Only admins can connect sources. Ask an admin to watch a folder for this namespace."
+              >
                 Connect a source
               </Button>
             )}
@@ -52,7 +61,14 @@ export function LibraryEmpty({ namespace }: { namespace: string | null }) {
             <p className="text-[13.5px] leading-normal text-fg-secondary">
               Transcripts as txt, md, docx, pdf, srt, vtt or json. You’ll see a preview before anything is saved.
             </p>
-            <Button variant="secondary" size="sm" className="self-start" onClick={send.pick} disabled={!canImport} disabledReason={needRole("editor", namespace)}>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="self-start"
+              onClick={send.pick}
+              disabled={!canImport}
+              disabledReason={needRole("editor", namespace)}
+            >
               Choose files
             </Button>
           </div>

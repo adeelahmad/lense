@@ -23,20 +23,14 @@ describe("LoginForm", () => {
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.getByText(/forgot your password\? ask an admin/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /reset link by email/i }),
-    ).toHaveAttribute("href", "/password-recovery");
-    expect(
-      screen.queryByRole("link", { name: /set up/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /reset link by email/i })).toHaveAttribute("href", "/password-recovery");
+    expect(screen.queryByRole("link", { name: /set up/i })).not.toBeInTheDocument();
   });
 
   it("links to setup when the archive has no admin yet", () => {
     render(<LoginForm setupRequired />);
 
-    expect(
-      screen.getByRole("link", { name: /set up this archive/i }),
-    ).toHaveAttribute("href", "/setup");
+    expect(screen.getByRole("link", { name: /set up this archive/i })).toHaveAttribute("href", "/setup");
   });
 
   it("submits the credentials with the callback URL", async () => {
@@ -62,9 +56,7 @@ describe("LoginForm", () => {
 
     fillAndSubmit();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Wrong email or password.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Wrong email or password.");
   });
 
   it("marks invalid fields", async () => {
@@ -75,23 +67,14 @@ describe("LoginForm", () => {
 
     fillAndSubmit();
 
-    await waitFor(() =>
-      expect(screen.getByLabelText("Email")).toHaveAttribute(
-        "aria-invalid",
-        "true",
-      ),
-    );
-    expect(screen.getByLabelText("Email")).toHaveAccessibleDescription(
-      "Enter a valid email address.",
-    );
+    await waitFor(() => expect(screen.getByLabelText("Email")).toHaveAttribute("aria-invalid", "true"));
+    expect(screen.getByLabelText("Email")).toHaveAccessibleDescription("Enter a valid email address.");
   });
 
   it("shows a notice", () => {
     render(<LoginForm notice="Your password was changed." />);
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Your password was changed.",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("Your password was changed.");
   });
 
   it("keeps the email after a wrong password", async () => {
@@ -102,9 +85,7 @@ describe("LoginForm", () => {
 
     fillAndSubmit();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Wrong email or password.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Wrong email or password.");
     expect(screen.getByLabelText("Email")).toHaveValue("me@example.com");
   });
 
@@ -117,11 +98,7 @@ describe("LoginForm", () => {
 
     fillAndSubmit();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Too many attempts",
-    );
-    expect(
-      screen.getByRole("button", { name: /try again in a few minutes/i }),
-    ).toBeDisabled();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Too many attempts");
+    expect(screen.getByRole("button", { name: /try again in a few minutes/i })).toBeDisabled();
   });
 });

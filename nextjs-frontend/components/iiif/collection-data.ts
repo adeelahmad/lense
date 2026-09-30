@@ -17,7 +17,12 @@ export type CollectionItem = {
   problems: number;
 };
 
-type RecordingRow = { id: number; title?: string | null; recorded_at?: string | null; duration_ms?: number | null };
+type RecordingRow = {
+  id: number;
+  title?: string | null;
+  recorded_at?: string | null;
+  duration_ms?: number | null;
+};
 
 /** How many Manifests' metadata is checked at once on the collection page. */
 export const PAGE = 50;
@@ -30,14 +35,16 @@ export function useCollectionItems(ns: string, offset: number, profile: Namespac
   const client = useApiClient();
   const list = useQuery({
     queryKey: ["iiif-collection-recordings", ns],
-    queryFn: async () => (await data(Recordings.listRecordings({ client, query: { ns, limit: 1000 } }))) as unknown as RecordingRow[],
+    queryFn: async () =>
+      (await data(Recordings.listRecordings({ client, query: { ns, limit: 1000 } }))) as unknown as RecordingRow[],
   });
   const rows = (list.data ?? []).slice().sort((a, b) => (b.recorded_at ?? "").localeCompare(a.recorded_at ?? ""));
   const page = rows.slice(offset, offset + PAGE);
   const metas = useQueries({
     queries: page.map((r) => ({
       queryKey: keys.meta(r.id),
-      queryFn: async () => (await data(Metadata.getRecordingMetadata({ client, path: { rid: r.id } }))) as unknown as RecordingMeta,
+      queryFn: async () =>
+        (await data(Metadata.getRecordingMetadata({ client, path: { rid: r.id } }))) as unknown as RecordingMeta,
       staleTime: 30_000,
     })),
   });
@@ -54,5 +61,10 @@ export function useCollectionItems(ns: string, offset: number, profile: Namespac
       problems,
     };
   });
-  return { list, total: rows.length, items, loadingMeta: metas.some((q) => q.isPending) };
+  return {
+    list,
+    total: rows.length,
+    items,
+    loadingMeta: metas.some((q) => q.isPending),
+  };
 }

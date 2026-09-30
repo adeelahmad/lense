@@ -18,10 +18,7 @@ export type SessionUser = {
   admin: boolean;
 };
 
-export function tokensFromPair(
-  pair: TokenPair,
-  now = Date.now(),
-): SessionTokens {
+export function tokensFromPair(pair: TokenPair, now = Date.now()): SessionTokens {
   return {
     accessToken: pair.access_token,
     refreshToken: pair.refresh_token,
@@ -52,10 +49,7 @@ export function needsRefresh(expiresAt: number, now = Date.now()): boolean {
  * land on other server processes.
  */
 const REUSE_MS = 30_000;
-const recent = new Map<
-  string,
-  { promise: Promise<TokenPair | null>; at: number }
->();
+const recent = new Map<string, { promise: Promise<TokenPair | null>; at: number }>();
 
 /**
  * Swaps a refresh token for a new pair. Resolves to `null` when the backend says

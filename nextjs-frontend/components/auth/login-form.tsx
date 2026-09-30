@@ -13,7 +13,15 @@ import { useFormAction } from "@/components/auth/use-form-action";
 const COOL_DOWN_MS = 60_000;
 
 /** Sign in · wrong email or password · too many attempts (Access AC2). */
-export function LoginForm({ callbackUrl = "/", setupRequired = false, notice }: { callbackUrl?: string; setupRequired?: boolean; notice?: string }) {
+export function LoginForm({
+  callbackUrl = "/",
+  setupRequired = false,
+  notice,
+}: {
+  callbackUrl?: string;
+  setupRequired?: boolean;
+  notice?: string;
+}) {
   const { state, pending, onSubmit, action } = useFormAction(login);
   const [coolingDown, setCoolingDown] = useState(false);
 
@@ -51,7 +59,14 @@ export function LoginForm({ callbackUrl = "/", setupRequired = false, notice }: 
       <form action={action} onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         <input type="hidden" name="callbackUrl" value={callbackUrl} />
         <AuthField name="email" label="Email" type="email" autoComplete="email" required state={state} />
-        <AuthField name="password" label="Password" type="password" autoComplete="current-password" required state={state} />
+        <AuthField
+          name="password"
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+          required
+          state={state}
+        />
         <AuthSubmit pending={pending} pendingText="Signing in…" disabled={coolingDown}>
           {coolingDown ? "Try again in a few minutes" : "Sign in"}
         </AuthSubmit>

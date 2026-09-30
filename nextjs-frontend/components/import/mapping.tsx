@@ -53,7 +53,8 @@ export function MappingField({
   if (!labels.length) {
     return (
       <p className="text-[12.5px] text-fg-muted">
-        No speaker labels found, so there’s nothing to map. Lines without a “Name:” label are imported without a speaker.
+        No speaker labels found, so there’s nothing to map. Lines without a “Name:” label are imported without a
+        speaker.
       </p>
     );
   }
@@ -90,7 +91,8 @@ export function MappingField({
           ))}
           {namespace && existing.length > 0 && (
             <span>
-              {existing.length === real.length && real.length > 1 ? "all" : existing.join(", ")} {existing.length === 1 ? "exists" : "exist"} in {namespace} ✓
+              {existing.length === real.length && real.length > 1 ? "all" : existing.join(", ")}{" "}
+              {existing.length === 1 ? "exists" : "exist"} in {namespace} ✓
             </span>
           )}
           <span className="text-fg-muted">· names that don’t exist become new speakers</span>
@@ -101,7 +103,11 @@ export function MappingField({
               ◆ “{n}” isn’t a speaker in {namespace} yet — it will be created.
             </span>
           ))}
-        {generic.length > 0 && <span className="text-fg-muted">{generic.join(", ")} will stay unnamed — you can name {generic.length > 1 ? "them" : "it"} after importing.</span>}
+        {generic.length > 0 && (
+          <span className="text-fg-muted">
+            {generic.join(", ")} will stay unnamed — you can name {generic.length > 1 ? "them" : "it"} after importing.
+          </span>
+        )}
         {m.errors.map((e) => (
           <span key={e} className="text-red-dark" role="alert">
             {e}
@@ -118,7 +124,17 @@ export function MappingField({
 }
 
 /** The parser's first lines: time, speaker, text (serif, like the transcript). Untimed formats show "~" estimates. */
-export function PreviewLines({ preview, mapping, variant = "table", max = 6 }: { preview: ImportPreview; mapping?: string; variant?: "table" | "plain"; max?: number }) {
+export function PreviewLines({
+  preview,
+  mapping,
+  variant = "table",
+  max = 6,
+}: {
+  preview: ImportPreview;
+  mapping?: string;
+  variant?: "table" | "plain";
+  max?: number;
+}) {
   const colors = labelColors(preview);
   const names = mapping != null ? mappedNames(preview.speakers, parseMapping(mapping, preview.speakers)) : null;
   const est = isUntimed(preview.format);
@@ -127,12 +143,20 @@ export function PreviewLines({ preview, mapping, variant = "table", max = 6 }: {
     return (
       <ol className="flex flex-col gap-2.5" aria-label="First lines as imported">
         {lines.map((l, i) => (
-          <li key={i} className="grid grid-cols-[44px_minmax(0,1fr)] items-baseline gap-x-2.5 gap-y-0.5 sm:grid-cols-[52px_84px_minmax(0,1fr)]">
+          <li
+            key={i}
+            className="grid grid-cols-[44px_minmax(0,1fr)] items-baseline gap-x-2.5 gap-y-0.5 sm:grid-cols-[52px_84px_minmax(0,1fr)]"
+          >
             <span className={cn("tabular text-[12px] text-fg-muted", est && "italic")}>
               {est ? "~" : ""}
               {l.time}
             </span>
-            <span className="truncate text-[12px] font-semibold" style={{ color: l.speaker ? colors.get(l.speaker) : "var(--text-secondary)" }}>
+            <span
+              className="truncate text-[12px] font-semibold"
+              style={{
+                color: l.speaker ? colors.get(l.speaker) : "var(--text-secondary)",
+              }}
+            >
               {l.speaker ? (names?.get(l.speaker) ?? l.speaker) : "—"}
             </span>
             <span className="col-span-2 font-serif text-[14.5px] leading-[1.45] text-fg sm:col-span-1">{l.text}</span>
@@ -143,15 +167,25 @@ export function PreviewLines({ preview, mapping, variant = "table", max = 6 }: {
   }
   return (
     <div className="overflow-hidden rounded-md border border-border">
-      <div className="border-b border-border bg-surface px-3 py-2 text-[12px] font-semibold text-fg-secondary">First segments</div>
+      <div className="border-b border-border bg-surface px-3 py-2 text-[12px] font-semibold text-fg-secondary">
+        First segments
+      </div>
       <ol aria-label="First segments">
         {lines.map((l, i) => (
-          <li key={i} className="grid grid-cols-[48px_minmax(0,1fr)] items-baseline gap-x-2.5 gap-y-0.5 border-b border-border px-3 py-2 last:border-b-0 sm:grid-cols-[64px_96px_minmax(0,1fr)]">
+          <li
+            key={i}
+            className="grid grid-cols-[48px_minmax(0,1fr)] items-baseline gap-x-2.5 gap-y-0.5 border-b border-border px-3 py-2 last:border-b-0 sm:grid-cols-[64px_96px_minmax(0,1fr)]"
+          >
             <span className={cn("tabular text-[12px] font-medium text-fg-muted", est && "italic")}>
               {est ? "~" : ""}
               {l.time}
             </span>
-            <span className="truncate font-mono text-[12px] font-semibold" style={{ color: l.speaker ? colors.get(l.speaker) : "var(--text-muted)" }}>
+            <span
+              className="truncate font-mono text-[12px] font-semibold"
+              style={{
+                color: l.speaker ? colors.get(l.speaker) : "var(--text-muted)",
+              }}
+            >
               {l.speaker ?? "—"}
             </span>
             <span className="col-span-2 font-serif text-[14.5px] leading-[1.45] text-fg sm:col-span-1">{l.text}</span>

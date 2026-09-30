@@ -22,7 +22,9 @@ import { cn } from "@/lib/utils";
 
 function scopeLine(c: ChatSummary): string {
   const s = fromApiScope(c.scope);
-  const where = s.namespaces?.length ? s.namespaces.join(", ") : scopeWords(s).replace("all your namespaces", "all namespaces");
+  const where = s.namespaces?.length
+    ? s.namespaces.join(", ")
+    : scopeWords(s).replace("all your namespaces", "all namespaces");
   return `${where} · ${relative(c.updated_at ?? c.created_at)}`;
 }
 
@@ -50,7 +52,14 @@ export function ConversationList({
   const [title, setTitle] = useState("");
   const [deleting, setDeleting] = useState<ChatSummary | null>(null);
   const rename = useMutation({
-    mutationFn: () => data(Chats.updateChat({ client, path: { cid: renaming!.id }, body: { title: title.trim() } })),
+    mutationFn: () =>
+      data(
+        Chats.updateChat({
+          client,
+          path: { cid: renaming!.id },
+          body: { title: title.trim() },
+        }),
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["chats"] });
       qc.invalidateQueries({ queryKey: ["chat", renaming?.id] });
@@ -84,14 +93,21 @@ export function ConversationList({
         </div>
       )}
       {error && <Banner tone="error">{error}</Banner>}
-      {chats?.length === 0 && <p className="m-0 px-2.5 py-2 text-[13px] leading-snug text-fg-secondary">No conversations yet. Ask something to start one.</p>}
+      {chats?.length === 0 && (
+        <p className="m-0 px-2.5 py-2 text-[13px] leading-snug text-fg-secondary">
+          No conversations yet. Ask something to start one.
+        </p>
+      )}
       <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
         {chats?.map((c) => (
           <li key={c.id} className="group relative">
             <Link
               href={`/chat/${c.id}`}
               aria-current={c.id === activeId ? "page" : undefined}
-              className={cn("flex flex-col gap-[3px] rounded-sm py-[9px] pl-2.5 pr-8", c.id === activeId ? "bg-blue-surface" : "hover:bg-surface-neutral")}
+              className={cn(
+                "flex flex-col gap-[3px] rounded-sm py-[9px] pl-2.5 pr-8",
+                c.id === activeId ? "bg-blue-surface" : "hover:bg-surface-neutral",
+              )}
             >
               <span className="truncate text-[13px] font-semibold leading-snug text-fg">{c.title}</span>
               <span className="truncate text-[11.5px] text-fg-muted">{scopeLine(c)}</span>
@@ -140,14 +156,27 @@ export function ConversationList({
         }
       >
         <Field label="Title" error={rename.isError ? rename.error.message : undefined}>
-          {({ id, invalid }) => <Input id={id} value={title} invalid={invalid} onChange={(e) => setTitle(e.target.value)} autoFocus maxLength={120} />}
+          {({ id, invalid }) => (
+            <Input
+              id={id}
+              value={title}
+              invalid={invalid}
+              onChange={(e) => setTitle(e.target.value)}
+              autoFocus
+              maxLength={120}
+            />
+          )}
         </Field>
       </Dialog>
       <Dialog
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
         title="Delete this conversation?"
-        description={deleting ? `“${deleting.title}” and its answers are deleted. Recordings and batch runs it started stay.` : undefined}
+        description={
+          deleting
+            ? `“${deleting.title}” and its answers are deleted. Recordings and batch runs it started stay.`
+            : undefined
+        }
         actions={
           <>
             <Button variant="ghost" onClick={() => setDeleting(null)}>

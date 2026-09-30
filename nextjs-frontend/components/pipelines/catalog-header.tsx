@@ -12,12 +12,20 @@ import { useArchive } from "@/lib/hooks/session";
 
 export function usePipelineCatalog() {
   const client = useApiClient();
-  return useQuery({ queryKey: ["pipelines"], queryFn: () => data(Pipelines.listPipelines({ client })), staleTime: 30_000 });
+  return useQuery({
+    queryKey: ["pipelines"],
+    queryFn: () => data(Pipelines.listPipelines({ client })),
+    staleTime: 30_000,
+  });
 }
 
 export function useTemplateList() {
   const client = useApiClient();
-  return useQuery({ queryKey: ["templates"], queryFn: () => data(Templates.listTemplates({ client })), staleTime: 30_000 });
+  return useQuery({
+    queryKey: ["templates"],
+    queryFn: () => data(Templates.listTemplates({ client })),
+    staleTime: 30_000,
+  });
 }
 
 /** PL1 header: "Pipelines" with the Pipelines / Templates tabs and the one "New" action. */
@@ -47,8 +55,18 @@ export function CatalogHeader({ tab }: { tab: "pipelines" | "templates" }) {
         aria-label="Pipelines and templates"
         value={tab}
         items={[
-          { value: "pipelines", label: "Pipelines", count: pipelines.data ? pipelines.data.pipelines.length + 1 : undefined, href: "/pipelines" },
-          { value: "templates", label: "Templates", count: templates.data?.length, href: "/templates" },
+          {
+            value: "pipelines",
+            label: "Pipelines",
+            count: pipelines.data ? pipelines.data.pipelines.length + 1 : undefined,
+            href: "/pipelines",
+          },
+          {
+            value: "templates",
+            label: "Templates",
+            count: templates.data?.length,
+            href: "/templates",
+          },
         ]}
       />
     </div>

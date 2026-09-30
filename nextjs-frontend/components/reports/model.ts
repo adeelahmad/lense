@@ -7,7 +7,12 @@ import { speakerList } from "@/components/library/model";
 
 export type ReportRange = "6m" | "12m" | "ytd" | "all";
 
-export const RANGE_LABEL: Record<ReportRange, string> = { "6m": "Last 6 months", "12m": "Last 12 months", ytd: "This year", all: "All time" };
+export const RANGE_LABEL: Record<ReportRange, string> = {
+  "6m": "Last 6 months",
+  "12m": "Last 12 months",
+  ytd: "This year",
+  all: "All time",
+};
 
 export type Bounds = { from: Date | null; to: Date };
 
@@ -16,11 +21,17 @@ export function rangeBounds(range: ReportRange, now: Date, oldest?: string | nul
   const to = now;
   if (range === "all") {
     const t = oldest ? new Date(oldest) : null;
-    return { from: t && !Number.isNaN(t.getTime()) ? new Date(t.getFullYear(), t.getMonth(), 1) : null, to };
+    return {
+      from: t && !Number.isNaN(t.getTime()) ? new Date(t.getFullYear(), t.getMonth(), 1) : null,
+      to,
+    };
   }
   if (range === "ytd") return { from: new Date(now.getFullYear(), 0, 1), to };
   const months = range === "6m" ? 6 : 12;
-  return { from: new Date(now.getFullYear(), now.getMonth() - (months - 1), 1), to };
+  return {
+    from: new Date(now.getFullYear(), now.getMonth() - (months - 1), 1),
+    to,
+  };
 }
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -30,7 +41,8 @@ export function rangeLabel(b: Bounds): string {
   const to = b.to;
   if (!b.from) return `Until ${MON[to.getMonth()]} ${to.getFullYear()}`;
   const f = b.from;
-  if (f.getFullYear() === to.getFullYear() && f.getMonth() === to.getMonth()) return `${MON[to.getMonth()]} ${to.getFullYear()}`;
+  if (f.getFullYear() === to.getFullYear() && f.getMonth() === to.getMonth())
+    return `${MON[to.getMonth()]} ${to.getFullYear()}`;
   return f.getFullYear() === to.getFullYear()
     ? `${MON[f.getMonth()]} – ${MON[to.getMonth()]} ${to.getFullYear()}`
     : `${MON[f.getMonth()]} ${f.getFullYear()} – ${MON[to.getMonth()]} ${to.getFullYear()}`;
@@ -43,19 +55,33 @@ export function inBounds(iso: string | null | undefined, b: Bounds): boolean {
   return (!b.from || t >= b.from.getTime()) && t <= b.to.getTime() + 60_000;
 }
 
-export type MonthBucket = { key: string; label: string; year: number; recordings: number; ms: number };
+export type MonthBucket = {
+  key: string;
+  label: string;
+  year: number;
+  recordings: number;
+  ms: number;
+};
 
 /** One bucket per calendar month from `from` to `to` (inclusive), empty months included. */
 export function monthlyBuckets(recs: RecordingSummary[], b: Bounds, maxMonths = 24): MonthBucket[] {
-  const start = b.from ?? (() => {
-    const ts = recs.map((r) => Date.parse(r.recorded_at ?? "")).filter((t) => !Number.isNaN(t));
-    const t = ts.length ? new Date(Math.min(...ts)) : b.to;
-    return new Date(t.getFullYear(), t.getMonth(), 1);
-  })();
+  const start =
+    b.from ??
+    (() => {
+      const ts = recs.map((r) => Date.parse(r.recorded_at ?? "")).filter((t) => !Number.isNaN(t));
+      const t = ts.length ? new Date(Math.min(...ts)) : b.to;
+      return new Date(t.getFullYear(), t.getMonth(), 1);
+    })();
   const out: MonthBucket[] = [];
   const cur = new Date(start.getFullYear(), start.getMonth(), 1);
   while (cur <= b.to) {
-    out.push({ key: `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`, label: MON[cur.getMonth()], year: cur.getFullYear(), recordings: 0, ms: 0 });
+    out.push({
+      key: `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`,
+      label: MON[cur.getMonth()],
+      year: cur.getFullYear(),
+      recordings: 0,
+      ms: 0,
+    });
     cur.setMonth(cur.getMonth() + 1);
   }
   const trimmed = out.slice(-maxMonths);
@@ -98,7 +124,9 @@ export function talkTime(ms: number): string {
 }
 
 /** Entity sizes for the "top entities" cloud: 13–22px by mentions, the top third bold. */
-export function cloudSizes(items: { name: string; mentions: number }[]): { name: string; mentions: number; size: number; strong: boolean }[] {
+export function cloudSizes(
+  items: { name: string; mentions: number }[],
+): { name: string; mentions: number; size: number; strong: boolean }[] {
   if (!items.length) return [];
   const max = Math.max(...items.map((i) => i.mentions));
   const min = Math.min(...items.map((i) => i.mentions));

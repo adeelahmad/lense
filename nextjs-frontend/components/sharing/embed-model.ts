@@ -32,7 +32,11 @@ export function formatStart(seconds: number): string {
 }
 
 /** The public player address for a share token (works without signing in). */
-export function embedUrl(origin: string, recordingId: number, opts: { token?: string | null; start?: number | null } = {}): string {
+export function embedUrl(
+  origin: string,
+  recordingId: number,
+  opts: { token?: string | null; start?: number | null } = {},
+): string {
   const q = new URLSearchParams();
   if (opts.token) q.set("s", opts.token);
   if (opts.start) q.set("t", String(Math.floor(opts.start)));
@@ -66,7 +70,8 @@ export function normalizeOrigin(input: string): string | null {
   if (!t) return null;
   try {
     const u = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(t) ? t : `https://${t}`);
-    if (!["http:", "https:"].includes(u.protocol) || !u.hostname.includes(".") && u.hostname !== "localhost") return null;
+    if (!["http:", "https:"].includes(u.protocol) || (!u.hostname.includes(".") && u.hostname !== "localhost"))
+      return null;
     return u.origin;
   } catch {
     return null;
@@ -99,12 +104,23 @@ export function originAllowed(origin: string, ancestors: string[], selfOrigin: s
     const m = /^(?:([a-z][a-z0-9+.-]*):\/\/)?(\*\.)?([^/:]+)(?::(\d+|\*))?/i.exec(src);
     if (!m) continue;
     const [, scheme, wild, host, p] = m;
-    if (scheme && `${scheme.toLowerCase()}:` !== o.protocol && !(scheme.toLowerCase() === "http" && o.protocol === "https:")) continue;
+    if (
+      scheme &&
+      `${scheme.toLowerCase()}:` !== o.protocol &&
+      !(scheme.toLowerCase() === "http" && o.protocol === "https:")
+    )
+      continue;
     const h = o.hostname.toLowerCase();
     const want = host.toLowerCase();
-    if (wild ? !(h.endsWith(`.${want}`)) : h !== want) continue;
+    if (wild ? !h.endsWith(`.${want}`) : h !== want) continue;
     if (p && p !== "*" && p !== port) continue;
-    if (!p && scheme && port !== DEFAULT_PORT[`${scheme.toLowerCase()}:`] && !(scheme.toLowerCase() === "http" && port === "443")) continue;
+    if (
+      !p &&
+      scheme &&
+      port !== DEFAULT_PORT[`${scheme.toLowerCase()}:`] &&
+      !(scheme.toLowerCase() === "http" && port === "443")
+    )
+      continue;
     return true;
   }
   return false;

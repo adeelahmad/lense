@@ -7,7 +7,10 @@ import { RecordingPage } from "@/components/recording/recording-page";
 // The recording's own title replaces this once it loads (client-side, so the page never waits on the API to render).
 export const metadata: Metadata = { title: "Recording" };
 
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ t?: string | string[] }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ t?: string | string[] }>;
+};
 
 /** A recording (R1–R9, VR1–VR3). `?t=<seconds>` opens it at that moment. */
 export default async function RecordingRoute({ params, searchParams }: Props) {

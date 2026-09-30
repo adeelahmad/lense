@@ -429,10 +429,10 @@ import type {
 } from "./types.gen";
 import { client } from "./client.gen";
 
-export type Options<
-  TData extends TDataShape = TDataShape,
-  ThrowOnError extends boolean = boolean,
-> = ClientOptions<TData, ThrowOnError> & {
+export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = ClientOptions<
+  TData,
+  ThrowOnError
+> & {
   /**
    * You can provide a client instance returned by `createClient()` instead of
    * individual options. This might be also useful if you want to implement a
@@ -451,14 +451,8 @@ export class Auth {
    * Status
    * Whether the archive still needs its first admin (the sign-in page shows the setup form instead).
    */
-  public static status<ThrowOnError extends boolean = false>(
-    options?: Options<StatusData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      StatusResponses,
-      unknown,
-      ThrowOnError
-    >({
+  public static status<ThrowOnError extends boolean = false>(options?: Options<StatusData, ThrowOnError>) {
+    return (options?.client ?? client).get<StatusResponses, unknown, ThrowOnError>({
       url: "/api/v1/auth/status",
       ...options,
     });
@@ -468,14 +462,8 @@ export class Auth {
    * Setup
    * Create the first admin with the one-time code printed in the server log.
    */
-  public static setup<ThrowOnError extends boolean = false>(
-    options: Options<SetupData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      SetupResponses,
-      SetupErrors,
-      ThrowOnError
-    >({
+  public static setup<ThrowOnError extends boolean = false>(options: Options<SetupData, ThrowOnError>) {
+    return (options.client ?? client).post<SetupResponses, SetupErrors, ThrowOnError>({
       url: "/api/v1/auth/setup",
       ...options,
       headers: {
@@ -488,14 +476,8 @@ export class Auth {
   /**
    * Login
    */
-  public static login<ThrowOnError extends boolean = false>(
-    options: Options<LoginData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      LoginResponses,
-      LoginErrors,
-      ThrowOnError
-    >({
+  public static login<ThrowOnError extends boolean = false>(options: Options<LoginData, ThrowOnError>) {
+    return (options.client ?? client).post<LoginResponses, LoginErrors, ThrowOnError>({
       url: "/api/v1/auth/login",
       ...options,
       headers: {
@@ -509,14 +491,8 @@ export class Auth {
    * Refresh
    * Swap a refresh token for a new pair. Each refresh token works once.
    */
-  public static refresh<ThrowOnError extends boolean = false>(
-    options: Options<RefreshData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      RefreshResponses,
-      RefreshErrors,
-      ThrowOnError
-    >({
+  public static refresh<ThrowOnError extends boolean = false>(options: Options<RefreshData, ThrowOnError>) {
+    return (options.client ?? client).post<RefreshResponses, RefreshErrors, ThrowOnError>({
       url: "/api/v1/auth/refresh",
       ...options,
       headers: {
@@ -529,14 +505,8 @@ export class Auth {
   /**
    * Logout
    */
-  public static logout<ThrowOnError extends boolean = false>(
-    options: Options<LogoutData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      LogoutResponses,
-      LogoutErrors,
-      ThrowOnError
-    >({
+  public static logout<ThrowOnError extends boolean = false>(options: Options<LogoutData, ThrowOnError>) {
+    return (options.client ?? client).post<LogoutResponses, LogoutErrors, ThrowOnError>({
       url: "/api/v1/auth/logout",
       ...options,
       headers: {
@@ -549,9 +519,7 @@ export class Auth {
   /**
    * Me
    */
-  public static me<ThrowOnError extends boolean = false>(
-    options?: Options<MeData, ThrowOnError>,
-  ) {
+  public static me<ThrowOnError extends boolean = false>(options?: Options<MeData, ThrowOnError>) {
     return (options?.client ?? client).get<MeResponses, unknown, ThrowOnError>({
       url: "/api/v1/auth/me",
       ...options,
@@ -565,11 +533,7 @@ export class Auth {
   public static forgotPassword<ThrowOnError extends boolean = false>(
     options: Options<ForgotPasswordData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      ForgotPasswordResponses,
-      ForgotPasswordErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<ForgotPasswordResponses, ForgotPasswordErrors, ThrowOnError>({
       url: "/api/v1/auth/password/forgot",
       ...options,
       headers: {
@@ -582,14 +546,8 @@ export class Auth {
   /**
    * Reset Password
    */
-  public static resetPassword<ThrowOnError extends boolean = false>(
-    options: Options<ResetPasswordData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      ResetPasswordResponses,
-      ResetPasswordErrors,
-      ThrowOnError
-    >({
+  public static resetPassword<ThrowOnError extends boolean = false>(options: Options<ResetPasswordData, ThrowOnError>) {
+    return (options.client ?? client).post<ResetPasswordResponses, ResetPasswordErrors, ThrowOnError>({
       url: "/api/v1/auth/password/reset",
       ...options,
       headers: {
@@ -604,14 +562,8 @@ export class Tokens {
   /**
    * List Tokens
    */
-  public static listTokens<ThrowOnError extends boolean = false>(
-    options?: Options<ListTokensData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      ListTokensResponses,
-      unknown,
-      ThrowOnError
-    >({
+  public static listTokens<ThrowOnError extends boolean = false>(options?: Options<ListTokensData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListTokensResponses, unknown, ThrowOnError>({
       url: "/api/v1/tokens",
       ...options,
     });
@@ -620,14 +572,8 @@ export class Tokens {
   /**
    * Create Token
    */
-  public static createToken<ThrowOnError extends boolean = false>(
-    options: Options<CreateTokenData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      CreateTokenResponses,
-      CreateTokenErrors,
-      ThrowOnError
-    >({
+  public static createToken<ThrowOnError extends boolean = false>(options: Options<CreateTokenData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateTokenResponses, CreateTokenErrors, ThrowOnError>({
       url: "/api/v1/tokens",
       ...options,
       headers: {
@@ -640,14 +586,8 @@ export class Tokens {
   /**
    * Revoke Token
    */
-  public static revokeToken<ThrowOnError extends boolean = false>(
-    options: Options<RevokeTokenData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).delete<
-      RevokeTokenResponses,
-      RevokeTokenErrors,
-      ThrowOnError
-    >({
+  public static revokeToken<ThrowOnError extends boolean = false>(options: Options<RevokeTokenData, ThrowOnError>) {
+    return (options.client ?? client).delete<RevokeTokenResponses, RevokeTokenErrors, ThrowOnError>({
       url: "/api/v1/tokens/{token_id}",
       ...options,
     });
@@ -659,14 +599,8 @@ export class Users {
    * List Users
    * Every account, with its role in each namespace.
    */
-  public static listUsers<ThrowOnError extends boolean = false>(
-    options?: Options<ListUsersData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      ListUsersResponses,
-      unknown,
-      ThrowOnError
-    >({
+  public static listUsers<ThrowOnError extends boolean = false>(options?: Options<ListUsersData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListUsersResponses, unknown, ThrowOnError>({
       url: "/api/v1/users",
       ...options,
     });
@@ -675,14 +609,8 @@ export class Users {
   /**
    * Create User
    */
-  public static createUser<ThrowOnError extends boolean = false>(
-    options: Options<CreateUserData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      CreateUserResponses,
-      CreateUserErrors,
-      ThrowOnError
-    >({
+  public static createUser<ThrowOnError extends boolean = false>(options: Options<CreateUserData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateUserResponses, CreateUserErrors, ThrowOnError>({
       url: "/api/v1/users",
       ...options,
       headers: {
@@ -696,14 +624,8 @@ export class Users {
    * Update User
    * Rename, promote or demote, disable, or set a new password (which signs the person out everywhere).
    */
-  public static updateUser<ThrowOnError extends boolean = false>(
-    options: Options<UpdateUserData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).patch<
-      UpdateUserResponses,
-      UpdateUserErrors,
-      ThrowOnError
-    >({
+  public static updateUser<ThrowOnError extends boolean = false>(options: Options<UpdateUserData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateUserResponses, UpdateUserErrors, ThrowOnError>({
       url: "/api/v1/users/{uid}",
       ...options,
       headers: {
@@ -717,14 +639,8 @@ export class Users {
    * List Members
    * Who has a role in this namespace (owners only).
    */
-  public static listMembers<ThrowOnError extends boolean = false>(
-    options: Options<ListMembersData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      ListMembersResponses,
-      ListMembersErrors,
-      ThrowOnError
-    >({
+  public static listMembers<ThrowOnError extends boolean = false>(options: Options<ListMembersData, ThrowOnError>) {
+    return (options.client ?? client).get<ListMembersResponses, ListMembersErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/members",
       ...options,
     });
@@ -734,14 +650,8 @@ export class Users {
    * Set Member
    * Give someone a role in this namespace, change it, or (role null) remove them. Owners only.
    */
-  public static setMember<ThrowOnError extends boolean = false>(
-    options: Options<SetMemberData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).put<
-      SetMemberResponses,
-      SetMemberErrors,
-      ThrowOnError
-    >({
+  public static setMember<ThrowOnError extends boolean = false>(options: Options<SetMemberData, ThrowOnError>) {
+    return (options.client ?? client).put<SetMemberResponses, SetMemberErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/members",
       ...options,
       headers: {
@@ -757,14 +667,8 @@ export class Admin {
    * Get Settings
    * Every section people can change in the app, with who changed it last. Secrets show only whether they are set.
    */
-  public static getSettings<ThrowOnError extends boolean = false>(
-    options?: Options<GetSettingsData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      GetSettingsResponses,
-      unknown,
-      ThrowOnError
-    >({
+  public static getSettings<ThrowOnError extends boolean = false>(options?: Options<GetSettingsData, ThrowOnError>) {
+    return (options?.client ?? client).get<GetSettingsResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings",
       ...options,
     });
@@ -777,11 +681,7 @@ export class Admin {
   public static updateSettings<ThrowOnError extends boolean = false>(
     options: Options<UpdateSettingsData, ThrowOnError>,
   ) {
-    return (options.client ?? client).put<
-      UpdateSettingsResponses,
-      UpdateSettingsErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).put<UpdateSettingsResponses, UpdateSettingsErrors, ThrowOnError>({
       url: "/api/v1/settings/{section}",
       ...options,
       headers: {
@@ -795,14 +695,8 @@ export class Admin {
    * Test Llm
    * Ask the configured model for one word, to check the address, key and model name.
    */
-  public static testLlm<ThrowOnError extends boolean = false>(
-    options?: Options<TestLlmData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).post<
-      TestLlmResponses,
-      unknown,
-      ThrowOnError
-    >({
+  public static testLlm<ThrowOnError extends boolean = false>(options?: Options<TestLlmData, ThrowOnError>) {
+    return (options?.client ?? client).post<TestLlmResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/llm/test",
       ...options,
     });
@@ -812,14 +706,8 @@ export class Admin {
    * List Audit
    * Who changed what, newest first.
    */
-  public static listAudit<ThrowOnError extends boolean = false>(
-    options?: Options<ListAuditData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      ListAuditResponses,
-      ListAuditErrors,
-      ThrowOnError
-    >({
+  public static listAudit<ThrowOnError extends boolean = false>(options?: Options<ListAuditData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListAuditResponses, ListAuditErrors, ThrowOnError>({
       url: "/api/v1/audit",
       ...options,
     });
@@ -829,14 +717,8 @@ export class Admin {
    * Get Health
    * The database, the job queue, workers, storage sources and disk space at a glance.
    */
-  public static getHealth<ThrowOnError extends boolean = false>(
-    options?: Options<GetHealthData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      GetHealthResponses,
-      unknown,
-      ThrowOnError
-    >({
+  public static getHealth<ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) {
+    return (options?.client ?? client).get<GetHealthResponses, unknown, ThrowOnError>({
       url: "/api/v1/admin/health",
       ...options,
     });
@@ -849,11 +731,7 @@ export class Admin {
   public static reindexSearch<ThrowOnError extends boolean = false>(
     options?: Options<ReindexSearchData, ThrowOnError>,
   ) {
-    return (options?.client ?? client).post<
-      ReindexSearchResponses,
-      unknown,
-      ThrowOnError
-    >({
+    return (options?.client ?? client).post<ReindexSearchResponses, unknown, ThrowOnError>({
       url: "/api/v1/admin/reindex",
       ...options,
     });
@@ -867,11 +745,7 @@ export class Namespaces {
   public static listNamespaces<ThrowOnError extends boolean = false>(
     options?: Options<ListNamespacesData, ThrowOnError>,
   ) {
-    return (options?.client ?? client).get<
-      ListNamespacesResponses,
-      unknown,
-      ThrowOnError
-    >({
+    return (options?.client ?? client).get<ListNamespacesResponses, unknown, ThrowOnError>({
       url: "/api/v1/namespaces",
       ...options,
     });
@@ -883,11 +757,7 @@ export class Namespaces {
   public static createNamespace<ThrowOnError extends boolean = false>(
     options: Options<CreateNamespaceData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      CreateNamespaceResponses,
-      CreateNamespaceErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<CreateNamespaceResponses, CreateNamespaceErrors, ThrowOnError>({
       url: "/api/v1/namespaces",
       ...options,
       headers: {
@@ -904,11 +774,7 @@ export class Namespaces {
   public static updateNamespace<ThrowOnError extends boolean = false>(
     options: Options<UpdateNamespaceData, ThrowOnError>,
   ) {
-    return (options.client ?? client).patch<
-      UpdateNamespaceResponses,
-      UpdateNamespaceErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).patch<UpdateNamespaceResponses, UpdateNamespaceErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}",
       ...options,
       headers: {
@@ -925,11 +791,7 @@ export class Namespaces {
   public static getNamespaceWordcloud<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceWordcloudData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      GetNamespaceWordcloudResponses,
-      GetNamespaceWordcloudErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<GetNamespaceWordcloudResponses, GetNamespaceWordcloudErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/wordcloud.svg",
       ...options,
     });
@@ -943,11 +805,7 @@ export class Recordings {
   public static listRecordings<ThrowOnError extends boolean = false>(
     options?: Options<ListRecordingsData, ThrowOnError>,
   ) {
-    return (options?.client ?? client).get<
-      ListRecordingsResponses,
-      ListRecordingsErrors,
-      ThrowOnError
-    >({
+    return (options?.client ?? client).get<ListRecordingsResponses, ListRecordingsErrors, ThrowOnError>({
       url: "/api/v1/recordings",
       ...options,
     });
@@ -956,14 +814,8 @@ export class Recordings {
   /**
    * Get Recording
    */
-  public static getRecording<ThrowOnError extends boolean = false>(
-    options: Options<GetRecordingData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetRecordingResponses,
-      GetRecordingErrors,
-      ThrowOnError
-    >({
+  public static getRecording<ThrowOnError extends boolean = false>(options: Options<GetRecordingData, ThrowOnError>) {
+    return (options.client ?? client).get<GetRecordingResponses, GetRecordingErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}",
       ...options,
     });
@@ -973,14 +825,8 @@ export class Recordings {
    * Get Player
    * Player data. Works with a share link (``?s=``) as well as signed in; media links in it are signed.
    */
-  public static getPlayer<ThrowOnError extends boolean = false>(
-    options: Options<GetPlayerData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetPlayerResponses,
-      GetPlayerErrors,
-      ThrowOnError
-    >({
+  public static getPlayer<ThrowOnError extends boolean = false>(options: Options<GetPlayerData, ThrowOnError>) {
+    return (options.client ?? client).get<GetPlayerResponses, GetPlayerErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/player",
       ...options,
     });
@@ -990,14 +836,8 @@ export class Recordings {
    * Get Embed Link
    * A signed link to the embeddable player, for people who can see the recording (it expires; share links don't).
    */
-  public static getEmbedLink<ThrowOnError extends boolean = false>(
-    options: Options<GetEmbedLinkData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetEmbedLinkResponses,
-      GetEmbedLinkErrors,
-      ThrowOnError
-    >({
+  public static getEmbedLink<ThrowOnError extends boolean = false>(options: Options<GetEmbedLinkData, ThrowOnError>) {
+    return (options.client ?? client).get<GetEmbedLinkResponses, GetEmbedLinkErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/embed-link",
       ...options,
     });
@@ -1007,14 +847,8 @@ export class Recordings {
    * Get Audio
    * The audio, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link.
    */
-  public static getAudio<ThrowOnError extends boolean = false>(
-    options: Options<GetAudioData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetAudioResponses,
-      GetAudioErrors,
-      ThrowOnError
-    >({
+  public static getAudio<ThrowOnError extends boolean = false>(options: Options<GetAudioData, ThrowOnError>) {
+    return (options.client ?? client).get<GetAudioResponses, GetAudioErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/audio",
       ...options,
     });
@@ -1026,11 +860,7 @@ export class Recordings {
   public static getRecordingWordcloud<ThrowOnError extends boolean = false>(
     options: Options<GetRecordingWordcloudData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      GetRecordingWordcloudResponses,
-      GetRecordingWordcloudErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<GetRecordingWordcloudResponses, GetRecordingWordcloudErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/wordcloud.svg",
       ...options,
     });
@@ -1042,11 +872,7 @@ export class Recordings {
   public static reprocessRecording<ThrowOnError extends boolean = false>(
     options: Options<ReprocessRecordingData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      ReprocessRecordingResponses,
-      ReprocessRecordingErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<ReprocessRecordingResponses, ReprocessRecordingErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/reprocess",
       ...options,
       headers: {
@@ -1059,14 +885,8 @@ export class Recordings {
   /**
    * Revoke Shares
    */
-  public static revokeShares<ThrowOnError extends boolean = false>(
-    options: Options<RevokeSharesData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).delete<
-      RevokeSharesResponses,
-      RevokeSharesErrors,
-      ThrowOnError
-    >({
+  public static revokeShares<ThrowOnError extends boolean = false>(options: Options<RevokeSharesData, ThrowOnError>) {
+    return (options.client ?? client).delete<RevokeSharesResponses, RevokeSharesErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/share",
       ...options,
     });
@@ -1076,14 +896,8 @@ export class Recordings {
    * Create Share
    * A read-only link to this one recording, for people without an account. Revoke with DELETE.
    */
-  public static createShare<ThrowOnError extends boolean = false>(
-    options: Options<CreateShareData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      CreateShareResponses,
-      CreateShareErrors,
-      ThrowOnError
-    >({
+  public static createShare<ThrowOnError extends boolean = false>(options: Options<CreateShareData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateShareResponses, CreateShareErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/share",
       ...options,
       headers: {
@@ -1096,14 +910,8 @@ export class Recordings {
   /**
    * List Shares
    */
-  public static listShares<ThrowOnError extends boolean = false>(
-    options: Options<ListSharesData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      ListSharesResponses,
-      ListSharesErrors,
-      ThrowOnError
-    >({
+  public static listShares<ThrowOnError extends boolean = false>(options: Options<ListSharesData, ThrowOnError>) {
+    return (options.client ?? client).get<ListSharesResponses, ListSharesErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/shares",
       ...options,
     });
@@ -1116,11 +924,7 @@ export class Recordings {
   public static exportRecording<ThrowOnError extends boolean = false>(
     options: Options<ExportRecordingData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      ExportRecordingResponses,
-      ExportRecordingErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<ExportRecordingResponses, ExportRecordingErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/export.{fmt}",
       ...options,
     });
@@ -1130,14 +934,8 @@ export class Recordings {
    * Edit Segment
    * Correct a transcript line (text and/or speaker); the recording is re-analysed afterwards.
    */
-  public static editSegment<ThrowOnError extends boolean = false>(
-    options: Options<EditSegmentData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).patch<
-      EditSegmentResponses,
-      EditSegmentErrors,
-      ThrowOnError
-    >({
+  public static editSegment<ThrowOnError extends boolean = false>(options: Options<EditSegmentData, ThrowOnError>) {
+    return (options.client ?? client).patch<EditSegmentResponses, EditSegmentErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/segments/{idx}",
       ...options,
       headers: {
@@ -1153,11 +951,7 @@ export class Recordings {
   public static listSegmentEdits<ThrowOnError extends boolean = false>(
     options: Options<ListSegmentEditsData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      ListSegmentEditsResponses,
-      ListSegmentEditsErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<ListSegmentEditsResponses, ListSegmentEditsErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/edits",
       ...options,
     });
@@ -1167,14 +961,8 @@ export class Recordings {
    * List Outputs
    * Results of LLM pipeline steps for this recording.
    */
-  public static listOutputs<ThrowOnError extends boolean = false>(
-    options: Options<ListOutputsData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      ListOutputsResponses,
-      ListOutputsErrors,
-      ThrowOnError
-    >({
+  public static listOutputs<ThrowOnError extends boolean = false>(options: Options<ListOutputsData, ThrowOnError>) {
+    return (options.client ?? client).get<ListOutputsResponses, ListOutputsErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/outputs",
       ...options,
     });
@@ -1189,11 +977,7 @@ export class Imports {
   public static importTranscript<ThrowOnError extends boolean = false>(
     options: Options<ImportTranscriptData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      ImportTranscriptResponses,
-      ImportTranscriptErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<ImportTranscriptResponses, ImportTranscriptErrors, ThrowOnError>({
       url: "/api/v1/import",
       ...options,
       headers: {
@@ -1207,14 +991,8 @@ export class Imports {
    * Preview Import
    * Parse without saving: what the importer would make of this text or file.
    */
-  public static previewImport<ThrowOnError extends boolean = false>(
-    options: Options<PreviewImportData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      PreviewImportResponses,
-      PreviewImportErrors,
-      ThrowOnError
-    >({
+  public static previewImport<ThrowOnError extends boolean = false>(options: Options<PreviewImportData, ThrowOnError>) {
+    return (options.client ?? client).post<PreviewImportResponses, PreviewImportErrors, ThrowOnError>({
       url: "/api/v1/import/preview",
       ...options,
       headers: {
@@ -1232,11 +1010,7 @@ export class Search {
   public static searchTranscripts<ThrowOnError extends boolean = false>(
     options: Options<SearchTranscriptsData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      SearchTranscriptsResponses,
-      SearchTranscriptsErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<SearchTranscriptsResponses, SearchTranscriptsErrors, ThrowOnError>({
       url: "/api/v1/search",
       ...options,
     });
@@ -1246,14 +1020,8 @@ export class Search {
    * Get Graph
    * Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).
    */
-  public static getGraph<ThrowOnError extends boolean = false>(
-    options?: Options<GetGraphData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      GetGraphResponses,
-      GetGraphErrors,
-      ThrowOnError
-    >({
+  public static getGraph<ThrowOnError extends boolean = false>(options?: Options<GetGraphData, ThrowOnError>) {
+    return (options?.client ?? client).get<GetGraphResponses, GetGraphErrors, ThrowOnError>({
       url: "/api/v1/graph",
       ...options,
     });
@@ -1262,14 +1030,8 @@ export class Search {
   /**
    * List Mentions
    */
-  public static listMentions<ThrowOnError extends boolean = false>(
-    options: Options<ListMentionsData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      ListMentionsResponses,
-      ListMentionsErrors,
-      ThrowOnError
-    >({
+  public static listMentions<ThrowOnError extends boolean = false>(options: Options<ListMentionsData, ThrowOnError>) {
+    return (options.client ?? client).get<ListMentionsResponses, ListMentionsErrors, ThrowOnError>({
       url: "/api/v1/mentions",
       ...options,
     });
@@ -1281,14 +1043,8 @@ export class Speakers {
    * List Speakers
    * A namespace's speakers, its recent merges (undoable) and links to speakers in other namespaces.
    */
-  public static listSpeakers<ThrowOnError extends boolean = false>(
-    options: Options<ListSpeakersData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      ListSpeakersResponses,
-      ListSpeakersErrors,
-      ThrowOnError
-    >({
+  public static listSpeakers<ThrowOnError extends boolean = false>(options: Options<ListSpeakersData, ThrowOnError>) {
+    return (options.client ?? client).get<ListSpeakersResponses, ListSpeakersErrors, ThrowOnError>({
       url: "/api/v1/speakers",
       ...options,
     });
@@ -1300,11 +1056,7 @@ export class Speakers {
   public static listSpeakerRecordings<ThrowOnError extends boolean = false>(
     options: Options<ListSpeakerRecordingsData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      ListSpeakerRecordingsResponses,
-      ListSpeakerRecordingsErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<ListSpeakerRecordingsResponses, ListSpeakerRecordingsErrors, ThrowOnError>({
       url: "/api/v1/speakers/{sid}/recordings",
       ...options,
     });
@@ -1313,14 +1065,8 @@ export class Speakers {
   /**
    * Rename Speaker
    */
-  public static renameSpeaker<ThrowOnError extends boolean = false>(
-    options: Options<RenameSpeakerData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      RenameSpeakerResponses,
-      RenameSpeakerErrors,
-      ThrowOnError
-    >({
+  public static renameSpeaker<ThrowOnError extends boolean = false>(options: Options<RenameSpeakerData, ThrowOnError>) {
+    return (options.client ?? client).post<RenameSpeakerResponses, RenameSpeakerErrors, ThrowOnError>({
       url: "/api/v1/speakers/{sid}",
       ...options,
       headers: {
@@ -1334,14 +1080,8 @@ export class Speakers {
    * Merge Speaker
    * Fold this speaker into ``into`` (same namespace). Undo with POST /merges/{merge_id}/undo.
    */
-  public static mergeSpeaker<ThrowOnError extends boolean = false>(
-    options: Options<MergeSpeakerData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      MergeSpeakerResponses,
-      MergeSpeakerErrors,
-      ThrowOnError
-    >({
+  public static mergeSpeaker<ThrowOnError extends boolean = false>(options: Options<MergeSpeakerData, ThrowOnError>) {
+    return (options.client ?? client).post<MergeSpeakerResponses, MergeSpeakerErrors, ThrowOnError>({
       url: "/api/v1/speakers/{sid}/merge",
       ...options,
       headers: {
@@ -1357,11 +1097,7 @@ export class Speakers {
   public static undoSpeakerMerge<ThrowOnError extends boolean = false>(
     options: Options<UndoSpeakerMergeData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      UndoSpeakerMergeResponses,
-      UndoSpeakerMergeErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<UndoSpeakerMergeResponses, UndoSpeakerMergeErrors, ThrowOnError>({
       url: "/api/v1/merges/{mid}/undo",
       ...options,
     });
@@ -1371,14 +1107,8 @@ export class Speakers {
    * Link Speaker
    * Mark this speaker and one in another namespace as the same person (you need editor access to both).
    */
-  public static linkSpeaker<ThrowOnError extends boolean = false>(
-    options: Options<LinkSpeakerData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      LinkSpeakerResponses,
-      LinkSpeakerErrors,
-      ThrowOnError
-    >({
+  public static linkSpeaker<ThrowOnError extends boolean = false>(options: Options<LinkSpeakerData, ThrowOnError>) {
+    return (options.client ?? client).post<LinkSpeakerResponses, LinkSpeakerErrors, ThrowOnError>({
       url: "/api/v1/speakers/{sid}/link",
       ...options,
       headers: {
@@ -1394,14 +1124,8 @@ export class Entities {
    * List Entities
    * Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
    */
-  public static listEntities<ThrowOnError extends boolean = false>(
-    options?: Options<ListEntitiesData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      ListEntitiesResponses,
-      ListEntitiesErrors,
-      ThrowOnError
-    >({
+  public static listEntities<ThrowOnError extends boolean = false>(options?: Options<ListEntitiesData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListEntitiesResponses, ListEntitiesErrors, ThrowOnError>({
       url: "/api/v1/entities",
       ...options,
     });
@@ -1413,11 +1137,7 @@ export class Entities {
   public static listEntityTypes<ThrowOnError extends boolean = false>(
     options?: Options<ListEntityTypesData, ThrowOnError>,
   ) {
-    return (options?.client ?? client).get<
-      ListEntityTypesResponses,
-      unknown,
-      ThrowOnError
-    >({
+    return (options?.client ?? client).get<ListEntityTypesResponses, unknown, ThrowOnError>({
       url: "/api/v1/entities/types",
       ...options,
     });
@@ -1430,11 +1150,7 @@ export class Entities {
   public static listEntitySuggestions<ThrowOnError extends boolean = false>(
     options?: Options<ListEntitySuggestionsData, ThrowOnError>,
   ) {
-    return (options?.client ?? client).get<
-      ListEntitySuggestionsResponses,
-      ListEntitySuggestionsErrors,
-      ThrowOnError
-    >({
+    return (options?.client ?? client).get<ListEntitySuggestionsResponses, ListEntitySuggestionsErrors, ThrowOnError>({
       url: "/api/v1/entities/suggestions",
       ...options,
     });
@@ -1446,11 +1162,7 @@ export class Entities {
   public static listEntityMerges<ThrowOnError extends boolean = false>(
     options?: Options<ListEntityMergesData, ThrowOnError>,
   ) {
-    return (options?.client ?? client).get<
-      ListEntityMergesResponses,
-      unknown,
-      ThrowOnError
-    >({
+    return (options?.client ?? client).get<ListEntityMergesResponses, unknown, ThrowOnError>({
       url: "/api/v1/entities/merges",
       ...options,
     });
@@ -1463,11 +1175,7 @@ export class Entities {
   public static getEntityTimeline<ThrowOnError extends boolean = false>(
     options: Options<GetEntityTimelineData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      GetEntityTimelineResponses,
-      GetEntityTimelineErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<GetEntityTimelineResponses, GetEntityTimelineErrors, ThrowOnError>({
       url: "/api/v1/entities/timeline",
       ...options,
     });
@@ -1479,11 +1187,7 @@ export class Entities {
   public static retypeEntities<ThrowOnError extends boolean = false>(
     options: Options<RetypeEntitiesData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      RetypeEntitiesResponses,
-      RetypeEntitiesErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<RetypeEntitiesResponses, RetypeEntitiesErrors, ThrowOnError>({
       url: "/api/v1/entities/retype",
       ...options,
       headers: {
@@ -1496,14 +1200,8 @@ export class Entities {
   /**
    * Merge Entities
    */
-  public static mergeEntities<ThrowOnError extends boolean = false>(
-    options: Options<MergeEntitiesData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      MergeEntitiesResponses,
-      MergeEntitiesErrors,
-      ThrowOnError
-    >({
+  public static mergeEntities<ThrowOnError extends boolean = false>(options: Options<MergeEntitiesData, ThrowOnError>) {
+    return (options.client ?? client).post<MergeEntitiesResponses, MergeEntitiesErrors, ThrowOnError>({
       url: "/api/v1/entities/merge",
       ...options,
       headers: {
@@ -1519,11 +1217,7 @@ export class Entities {
   public static undoEntityMerge<ThrowOnError extends boolean = false>(
     options: Options<UndoEntityMergeData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      UndoEntityMergeResponses,
-      UndoEntityMergeErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<UndoEntityMergeResponses, UndoEntityMergeErrors, ThrowOnError>({
       url: "/api/v1/entities/merges/{mid}/undo",
       ...options,
     });
@@ -1536,11 +1230,7 @@ export class Entities {
   public static markEntitiesNotSame<ThrowOnError extends boolean = false>(
     options: Options<MarkEntitiesNotSameData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      MarkEntitiesNotSameResponses,
-      MarkEntitiesNotSameErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<MarkEntitiesNotSameResponses, MarkEntitiesNotSameErrors, ThrowOnError>({
       url: "/api/v1/entities/not-same",
       ...options,
       headers: {
@@ -1553,14 +1243,8 @@ export class Entities {
   /**
    * Get Entity
    */
-  public static getEntity<ThrowOnError extends boolean = false>(
-    options: Options<GetEntityData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetEntityResponses,
-      GetEntityErrors,
-      ThrowOnError
-    >({
+  public static getEntity<ThrowOnError extends boolean = false>(options: Options<GetEntityData, ThrowOnError>) {
+    return (options.client ?? client).get<GetEntityResponses, GetEntityErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}",
       ...options,
     });
@@ -1573,11 +1257,7 @@ export class Entities {
   public static listEntityMentions<ThrowOnError extends boolean = false>(
     options: Options<ListEntityMentionsData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      ListEntityMentionsResponses,
-      ListEntityMentionsErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<ListEntityMentionsResponses, ListEntityMentionsErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}/mentions",
       ...options,
     });
@@ -1590,11 +1270,7 @@ export class Entities {
   public static getEntityConnections<ThrowOnError extends boolean = false>(
     options: Options<GetEntityConnectionsData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      GetEntityConnectionsResponses,
-      GetEntityConnectionsErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<GetEntityConnectionsResponses, GetEntityConnectionsErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}/connections",
       ...options,
     });
@@ -1604,14 +1280,8 @@ export class Entities {
    * Rename Entity
    * Rename; with `correct`, also fix the transcript lines (re-analysing the recordings). `dry_run` previews the lines.
    */
-  public static renameEntity<ThrowOnError extends boolean = false>(
-    options: Options<RenameEntityData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      RenameEntityResponses,
-      RenameEntityErrors,
-      ThrowOnError
-    >({
+  public static renameEntity<ThrowOnError extends boolean = false>(options: Options<RenameEntityData, ThrowOnError>) {
+    return (options.client ?? client).post<RenameEntityResponses, RenameEntityErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}/rename",
       ...options,
       headers: {
@@ -1624,14 +1294,8 @@ export class Entities {
   /**
    * Hide Entity
    */
-  public static hideEntity<ThrowOnError extends boolean = false>(
-    options: Options<HideEntityData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      HideEntityResponses,
-      HideEntityErrors,
-      ThrowOnError
-    >({
+  public static hideEntity<ThrowOnError extends boolean = false>(options: Options<HideEntityData, ThrowOnError>) {
+    return (options.client ?? client).post<HideEntityResponses, HideEntityErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}/hide",
       ...options,
       headers: {
@@ -1645,14 +1309,8 @@ export class Entities {
    * Link Entity
    * Say an entity in another namespace is the same thing (they stay separate; the graph joins them).
    */
-  public static linkEntity<ThrowOnError extends boolean = false>(
-    options: Options<LinkEntityData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      LinkEntityResponses,
-      LinkEntityErrors,
-      ThrowOnError
-    >({
+  public static linkEntity<ThrowOnError extends boolean = false>(options: Options<LinkEntityData, ThrowOnError>) {
+    return (options.client ?? client).post<LinkEntityResponses, LinkEntityErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}/link",
       ...options,
       headers: {
@@ -1665,14 +1323,8 @@ export class Entities {
   /**
    * Unlink Entity
    */
-  public static unlinkEntity<ThrowOnError extends boolean = false>(
-    options: Options<UnlinkEntityData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).delete<
-      UnlinkEntityResponses,
-      UnlinkEntityErrors,
-      ThrowOnError
-    >({
+  public static unlinkEntity<ThrowOnError extends boolean = false>(options: Options<UnlinkEntityData, ThrowOnError>) {
+    return (options.client ?? client).delete<UnlinkEntityResponses, UnlinkEntityErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}/link/{other}",
       ...options,
     });
@@ -1682,14 +1334,8 @@ export class Entities {
    * Move Mention
    * Point one mention at another entity (or a new one), or say it isn't an entity. Survives re-analysis.
    */
-  public static moveMention<ThrowOnError extends boolean = false>(
-    options: Options<MoveMentionData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      MoveMentionResponses,
-      MoveMentionErrors,
-      ThrowOnError
-    >({
+  public static moveMention<ThrowOnError extends boolean = false>(options: Options<MoveMentionData, ThrowOnError>) {
+    return (options.client ?? client).post<MoveMentionResponses, MoveMentionErrors, ThrowOnError>({
       url: "/api/v1/mentions/{mention}/move",
       ...options,
       headers: {
@@ -1703,14 +1349,8 @@ export class Entities {
    * Explore Graph
    * The neighbourhood of a node (`e<id>` for an entity, a speaker node id...). scope: `all` (shared graphs) or `ns:<name>`.
    */
-  public static exploreGraph<ThrowOnError extends boolean = false>(
-    options: Options<ExploreGraphData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      ExploreGraphResponses,
-      ExploreGraphErrors,
-      ThrowOnError
-    >({
+  public static exploreGraph<ThrowOnError extends boolean = false>(options: Options<ExploreGraphData, ThrowOnError>) {
+    return (options.client ?? client).get<ExploreGraphResponses, ExploreGraphErrors, ThrowOnError>({
       url: "/api/v1/graph/explore",
       ...options,
     });
@@ -1720,14 +1360,8 @@ export class Entities {
    * Find Graph Path
    * The shortest chain of links between two nodes, with the lines that show each link.
    */
-  public static findGraphPath<ThrowOnError extends boolean = false>(
-    options: Options<FindGraphPathData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      FindGraphPathResponses,
-      FindGraphPathErrors,
-      ThrowOnError
-    >({
+  public static findGraphPath<ThrowOnError extends boolean = false>(options: Options<FindGraphPathData, ThrowOnError>) {
+    return (options.client ?? client).get<FindGraphPathResponses, FindGraphPathErrors, ThrowOnError>({
       url: "/api/v1/graph/path",
       ...options,
     });
@@ -1741,11 +1375,7 @@ export class Metadata {
   public static getRecordingMetadata<ThrowOnError extends boolean = false>(
     options: Options<GetRecordingMetadataData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      GetRecordingMetadataResponses,
-      GetRecordingMetadataErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<GetRecordingMetadataResponses, GetRecordingMetadataErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/metadata",
       ...options,
     });
@@ -1774,9 +1404,9 @@ export class Metadata {
   /**
    * List Recording Metadata History
    */
-  public static listRecordingMetadataHistory<
-    ThrowOnError extends boolean = false,
-  >(options: Options<ListRecordingMetadataHistoryData, ThrowOnError>) {
+  public static listRecordingMetadataHistory<ThrowOnError extends boolean = false>(
+    options: Options<ListRecordingMetadataHistoryData, ThrowOnError>,
+  ) {
     return (options.client ?? client).get<
       ListRecordingMetadataHistoryResponses,
       ListRecordingMetadataHistoryErrors,
@@ -1794,11 +1424,7 @@ export class Metadata {
   public static revertMetadataEdit<ThrowOnError extends boolean = false>(
     options: Options<RevertMetadataEditData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      RevertMetadataEditResponses,
-      RevertMetadataEditErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<RevertMetadataEditResponses, RevertMetadataEditErrors, ThrowOnError>({
       url: "/api/v1/metadata/edits/{eid}/revert",
       ...options,
     });
@@ -1810,11 +1436,7 @@ export class Metadata {
   public static getNamespaceMetadata<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceMetadataData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      GetNamespaceMetadataResponses,
-      GetNamespaceMetadataErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<GetNamespaceMetadataResponses, GetNamespaceMetadataErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/metadata",
       ...options,
     });
@@ -1848,11 +1470,7 @@ export class Metadata {
   public static bulkUpdateMetadata<ThrowOnError extends boolean = false>(
     options: Options<BulkUpdateMetadataData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      BulkUpdateMetadataResponses,
-      BulkUpdateMetadataErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<BulkUpdateMetadataResponses, BulkUpdateMetadataErrors, ThrowOnError>({
       url: "/api/v1/metadata/bulk",
       ...options,
       headers: {
@@ -1868,14 +1486,8 @@ export class Video {
    * Get Media
    * The video (or audio) file, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link.
    */
-  public static getMedia<ThrowOnError extends boolean = false>(
-    options: Options<GetMediaData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetMediaResponses,
-      GetMediaErrors,
-      ThrowOnError
-    >({
+  public static getMedia<ThrowOnError extends boolean = false>(options: Options<GetMediaData, ThrowOnError>) {
+    return (options.client ?? client).get<GetMediaResponses, GetMediaErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/media",
       ...options,
     });
@@ -1885,14 +1497,8 @@ export class Video {
    * Get Frame
    * A still (shot frame, text-on-screen frame or face crop).
    */
-  public static getFrame<ThrowOnError extends boolean = false>(
-    options: Options<GetFrameData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetFrameResponses,
-      GetFrameErrors,
-      ThrowOnError
-    >({
+  public static getFrame<ThrowOnError extends boolean = false>(options: Options<GetFrameData, ThrowOnError>) {
+    return (options.client ?? client).get<GetFrameResponses, GetFrameErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/frames/{name}",
       ...options,
     });
@@ -1902,14 +1508,8 @@ export class Video {
    * Fix Screen Text
    * Correct text read off the screen (the machine's reading is kept as `machine_text`).
    */
-  public static fixScreenText<ThrowOnError extends boolean = false>(
-    options: Options<FixScreenTextData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).patch<
-      FixScreenTextResponses,
-      FixScreenTextErrors,
-      ThrowOnError
-    >({
+  public static fixScreenText<ThrowOnError extends boolean = false>(options: Options<FixScreenTextData, ThrowOnError>) {
+    return (options.client ?? client).patch<FixScreenTextResponses, FixScreenTextErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/ocr/{span}",
       ...options,
       headers: {
@@ -1926,11 +1526,7 @@ export class Video {
   public static deleteFaceTrack<ThrowOnError extends boolean = false>(
     options: Options<DeleteFaceTrackData, ThrowOnError>,
   ) {
-    return (options.client ?? client).delete<
-      DeleteFaceTrackResponses,
-      DeleteFaceTrackErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).delete<DeleteFaceTrackResponses, DeleteFaceTrackErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/faces/{track}",
       ...options,
     });
@@ -1943,11 +1539,7 @@ export class Video {
   public static deleteNamespaceFaces<ThrowOnError extends boolean = false>(
     options: Options<DeleteNamespaceFacesData, ThrowOnError>,
   ) {
-    return (options.client ?? client).delete<
-      DeleteNamespaceFacesResponses,
-      DeleteNamespaceFacesErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).delete<DeleteNamespaceFacesResponses, DeleteNamespaceFacesErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/faces",
       ...options,
     });
@@ -1962,11 +1554,7 @@ export class Video {
   public static getNamespaceFaces<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceFacesData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      GetNamespaceFacesResponses,
-      GetNamespaceFacesErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<GetNamespaceFacesResponses, GetNamespaceFacesErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/faces",
       ...options,
     });
@@ -1979,11 +1567,7 @@ export class Video {
   public static setNamespaceFacesMode<ThrowOnError extends boolean = false>(
     options: Options<SetNamespaceFacesModeData, ThrowOnError>,
   ) {
-    return (options.client ?? client).put<
-      SetNamespaceFacesModeResponses,
-      SetNamespaceFacesModeErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).put<SetNamespaceFacesModeResponses, SetNamespaceFacesModeErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/faces/mode",
       ...options,
       headers: {
@@ -1996,14 +1580,8 @@ export class Video {
   /**
    * Undo Face Merge
    */
-  public static undoFaceMerge<ThrowOnError extends boolean = false>(
-    options: Options<UndoFaceMergeData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      UndoFaceMergeResponses,
-      UndoFaceMergeErrors,
-      ThrowOnError
-    >({
+  public static undoFaceMerge<ThrowOnError extends boolean = false>(options: Options<UndoFaceMergeData, ThrowOnError>) {
+    return (options.client ?? client).post<UndoFaceMergeResponses, UndoFaceMergeErrors, ThrowOnError>({
       url: "/api/v1/faces/merges/{mid}/undo",
       ...options,
     });
@@ -2013,14 +1591,8 @@ export class Video {
    * Delete Face
    * Delete a face with its tracks and crops. Owners only.
    */
-  public static deleteFace<ThrowOnError extends boolean = false>(
-    options: Options<DeleteFaceData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).delete<
-      DeleteFaceResponses,
-      DeleteFaceErrors,
-      ThrowOnError
-    >({
+  public static deleteFace<ThrowOnError extends boolean = false>(options: Options<DeleteFaceData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteFaceResponses, DeleteFaceErrors, ThrowOnError>({
       url: "/api/v1/faces/{fid}",
       ...options,
     });
@@ -2029,14 +1601,8 @@ export class Video {
   /**
    * Rename Face
    */
-  public static renameFace<ThrowOnError extends boolean = false>(
-    options: Options<RenameFaceData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      RenameFaceResponses,
-      RenameFaceErrors,
-      ThrowOnError
-    >({
+  public static renameFace<ThrowOnError extends boolean = false>(options: Options<RenameFaceData, ThrowOnError>) {
+    return (options.client ?? client).post<RenameFaceResponses, RenameFaceErrors, ThrowOnError>({
       url: "/api/v1/faces/{fid}",
       ...options,
       headers: {
@@ -2050,14 +1616,8 @@ export class Video {
    * Merge Face
    * Merge this face into another (the same person).
    */
-  public static mergeFace<ThrowOnError extends boolean = false>(
-    options: Options<MergeFaceData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      MergeFaceResponses,
-      MergeFaceErrors,
-      ThrowOnError
-    >({
+  public static mergeFace<ThrowOnError extends boolean = false>(options: Options<MergeFaceData, ThrowOnError>) {
+    return (options.client ?? client).post<MergeFaceResponses, MergeFaceErrors, ThrowOnError>({
       url: "/api/v1/faces/{fid}/merge",
       ...options,
       headers: {
@@ -2074,11 +1634,7 @@ export class Video {
   public static linkFaceSpeaker<ThrowOnError extends boolean = false>(
     options: Options<LinkFaceSpeakerData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      LinkFaceSpeakerResponses,
-      LinkFaceSpeakerErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<LinkFaceSpeakerResponses, LinkFaceSpeakerErrors, ThrowOnError>({
       url: "/api/v1/faces/{fid}/speaker",
       ...options,
       headers: {
@@ -2095,11 +1651,7 @@ export class Video {
   public static dismissFaceSuggestion<ThrowOnError extends boolean = false>(
     options: Options<DismissFaceSuggestionData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      DismissFaceSuggestionResponses,
-      DismissFaceSuggestionErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<DismissFaceSuggestionResponses, DismissFaceSuggestionErrors, ThrowOnError>({
       url: "/api/v1/faces/{fid}/dismiss",
       ...options,
       headers: {
@@ -2118,11 +1670,7 @@ export class Iiif {
   public static getRecordingIiif<ThrowOnError extends boolean = false>(
     options: Options<GetRecordingIiifData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      GetRecordingIiifResponses,
-      GetRecordingIiifErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<GetRecordingIiifResponses, GetRecordingIiifErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/iiif",
       ...options,
     });
@@ -2135,11 +1683,7 @@ export class Iiif {
   public static getContentState<ThrowOnError extends boolean = false>(
     options: Options<GetContentStateData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      GetContentStateResponses,
-      GetContentStateErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<GetContentStateResponses, GetContentStateErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/content-state",
       ...options,
     });
@@ -2152,11 +1696,7 @@ export class Iiif {
   public static previewIiifImport<ThrowOnError extends boolean = false>(
     options: Options<PreviewIiifImportData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      PreviewIiifImportResponses,
-      PreviewIiifImportErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<PreviewIiifImportResponses, PreviewIiifImportErrors, ThrowOnError>({
       url: "/api/v1/import/iiif/preview",
       ...options,
       headers: {
@@ -2172,14 +1712,8 @@ export class Iiif {
    *
    * With `wait`, answers with the new recording ids; otherwise imports in the background (202).
    */
-  public static importIiif<ThrowOnError extends boolean = false>(
-    options: Options<ImportIiifData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      ImportIiifResponses,
-      ImportIiifErrors,
-      ThrowOnError
-    >({
+  public static importIiif<ThrowOnError extends boolean = false>(options: Options<ImportIiifData, ThrowOnError>) {
+    return (options.client ?? client).post<ImportIiifResponses, ImportIiifErrors, ThrowOnError>({
       url: "/api/v1/import/iiif",
       ...options,
       headers: {
@@ -2195,14 +1729,8 @@ export class Jobs {
    * List Jobs
    * Recent jobs with counts by status, plus the latest job's step and log (for the progress bar).
    */
-  public static listJobs<ThrowOnError extends boolean = false>(
-    options?: Options<ListJobsData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      ListJobsResponses,
-      ListJobsErrors,
-      ThrowOnError
-    >({
+  public static listJobs<ThrowOnError extends boolean = false>(options?: Options<ListJobsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListJobsResponses, ListJobsErrors, ThrowOnError>({
       url: "/api/v1/jobs",
       ...options,
     });
@@ -2212,14 +1740,8 @@ export class Jobs {
    * Create Jobs
    * Queue recordings (these steps, a pipeline, or their namespace's pipeline) and/or everything pending in a namespace.
    */
-  public static createJobs<ThrowOnError extends boolean = false>(
-    options: Options<CreateJobsData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      CreateJobsResponses,
-      CreateJobsErrors,
-      ThrowOnError
-    >({
+  public static createJobs<ThrowOnError extends boolean = false>(options: Options<CreateJobsData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateJobsResponses, CreateJobsErrors, ThrowOnError>({
       url: "/api/v1/jobs",
       ...options,
       headers: {
@@ -2232,14 +1754,8 @@ export class Jobs {
   /**
    * Get Job
    */
-  public static getJob<ThrowOnError extends boolean = false>(
-    options: Options<GetJobData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetJobResponses,
-      GetJobErrors,
-      ThrowOnError
-    >({
+  public static getJob<ThrowOnError extends boolean = false>(options: Options<GetJobData, ThrowOnError>) {
+    return (options.client ?? client).get<GetJobResponses, GetJobErrors, ThrowOnError>({
       url: "/api/v1/jobs/{jid}",
       ...options,
     });
@@ -2250,14 +1766,8 @@ export class Jobs {
    * The web app's batch buttons: queue one step for everything that needs it (``transcribe``, ``diarize``,
    * ``analyze``, ``summarize``, ``report``), or (admins) ``run``/``scan`` the configured folders.
    */
-  public static queueStep<ThrowOnError extends boolean = false>(
-    options: Options<QueueStepData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      QueueStepResponses,
-      QueueStepErrors,
-      ThrowOnError
-    >({
+  public static queueStep<ThrowOnError extends boolean = false>(options: Options<QueueStepData, ThrowOnError>) {
+    return (options.client ?? client).post<QueueStepResponses, QueueStepErrors, ThrowOnError>({
       url: "/api/v1/jobs/steps/{step}",
       ...options,
     });
@@ -2266,14 +1776,8 @@ export class Jobs {
   /**
    * Cancel Job
    */
-  public static cancelJob<ThrowOnError extends boolean = false>(
-    options: Options<CancelJobData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      CancelJobResponses,
-      CancelJobErrors,
-      ThrowOnError
-    >({
+  public static cancelJob<ThrowOnError extends boolean = false>(options: Options<CancelJobData, ThrowOnError>) {
+    return (options.client ?? client).post<CancelJobResponses, CancelJobErrors, ThrowOnError>({
       url: "/api/v1/jobs/{jid}/cancel",
       ...options,
     });
@@ -2282,14 +1786,8 @@ export class Jobs {
   /**
    * Retry Job
    */
-  public static retryJob<ThrowOnError extends boolean = false>(
-    options: Options<RetryJobData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      RetryJobResponses,
-      RetryJobErrors,
-      ThrowOnError
-    >({
+  public static retryJob<ThrowOnError extends boolean = false>(options: Options<RetryJobData, ThrowOnError>) {
+    return (options.client ?? client).post<RetryJobResponses, RetryJobErrors, ThrowOnError>({
       url: "/api/v1/jobs/{jid}/retry",
       ...options,
     });
@@ -2298,14 +1796,8 @@ export class Jobs {
   /**
    * List Workers
    */
-  public static listWorkers<ThrowOnError extends boolean = false>(
-    options?: Options<ListWorkersData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      ListWorkersResponses,
-      unknown,
-      ThrowOnError
-    >({
+  public static listWorkers<ThrowOnError extends boolean = false>(options?: Options<ListWorkersData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListWorkersResponses, unknown, ThrowOnError>({
       url: "/api/v1/workers",
       ...options,
     });
@@ -2316,14 +1808,8 @@ export class Jobs {
    * Server-sent events: one ``job`` event per job change in namespaces you can read, from ``since`` (default: now).
    * ``once=true`` sends what has changed and closes. Read it with fetch (it needs the Authorization header).
    */
-  public static streamEvents<ThrowOnError extends boolean = false>(
-    options?: Options<StreamEventsData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).sse.get<
-      StreamEventsResponses,
-      StreamEventsErrors,
-      ThrowOnError
-    >({
+  public static streamEvents<ThrowOnError extends boolean = false>(options?: Options<StreamEventsData, ThrowOnError>) {
+    return (options?.client ?? client).sse.get<StreamEventsResponses, StreamEventsErrors, ThrowOnError>({
       url: "/api/v1/events",
       ...options,
     });
@@ -2335,14 +1821,8 @@ export class Sources {
    * List Backends
    * The kinds of storage a source can be, with their settings and secrets.
    */
-  public static listBackends<ThrowOnError extends boolean = false>(
-    options?: Options<ListBackendsData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      ListBackendsResponses,
-      unknown,
-      ThrowOnError
-    >({
+  public static listBackends<ThrowOnError extends boolean = false>(options?: Options<ListBackendsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListBackendsResponses, unknown, ThrowOnError>({
       url: "/api/v1/sources/backends",
       ...options,
     });
@@ -2351,14 +1831,8 @@ export class Sources {
   /**
    * List Sources
    */
-  public static listSources<ThrowOnError extends boolean = false>(
-    options?: Options<ListSourcesData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      ListSourcesResponses,
-      unknown,
-      ThrowOnError
-    >({
+  public static listSources<ThrowOnError extends boolean = false>(options?: Options<ListSourcesData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListSourcesResponses, unknown, ThrowOnError>({
       url: "/api/v1/sources",
       ...options,
     });
@@ -2368,14 +1842,8 @@ export class Sources {
    * Create Source
    * Add a source and test it; secrets are stored encrypted and never shown again.
    */
-  public static createSource<ThrowOnError extends boolean = false>(
-    options: Options<CreateSourceData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      CreateSourceResponses,
-      CreateSourceErrors,
-      ThrowOnError
-    >({
+  public static createSource<ThrowOnError extends boolean = false>(options: Options<CreateSourceData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateSourceResponses, CreateSourceErrors, ThrowOnError>({
       url: "/api/v1/sources",
       ...options,
       headers: {
@@ -2389,14 +1857,8 @@ export class Sources {
    * Delete Source
    * Remove a source and its watched folders.
    */
-  public static deleteSource<ThrowOnError extends boolean = false>(
-    options: Options<DeleteSourceData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).delete<
-      DeleteSourceResponses,
-      DeleteSourceErrors,
-      ThrowOnError
-    >({
+  public static deleteSource<ThrowOnError extends boolean = false>(options: Options<DeleteSourceData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteSourceResponses, DeleteSourceErrors, ThrowOnError>({
       url: "/api/v1/sources/{sid}",
       ...options,
     });
@@ -2405,14 +1867,8 @@ export class Sources {
   /**
    * Update Source
    */
-  public static updateSource<ThrowOnError extends boolean = false>(
-    options: Options<UpdateSourceData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).patch<
-      UpdateSourceResponses,
-      UpdateSourceErrors,
-      ThrowOnError
-    >({
+  public static updateSource<ThrowOnError extends boolean = false>(options: Options<UpdateSourceData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError>({
       url: "/api/v1/sources/{sid}",
       ...options,
       headers: {
@@ -2425,14 +1881,8 @@ export class Sources {
   /**
    * Test Source
    */
-  public static testSource<ThrowOnError extends boolean = false>(
-    options: Options<TestSourceData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      TestSourceResponses,
-      TestSourceErrors,
-      ThrowOnError
-    >({
+  public static testSource<ThrowOnError extends boolean = false>(options: Options<TestSourceData, ThrowOnError>) {
+    return (options.client ?? client).post<TestSourceResponses, TestSourceErrors, ThrowOnError>({
       url: "/api/v1/sources/{sid}/test",
       ...options,
     });
@@ -2442,14 +1892,8 @@ export class Sources {
    * Browse Source
    * The folders and files at one path of a source (for local sources, no path lists the allowed roots).
    */
-  public static browseSource<ThrowOnError extends boolean = false>(
-    options: Options<BrowseSourceData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      BrowseSourceResponses,
-      BrowseSourceErrors,
-      ThrowOnError
-    >({
+  public static browseSource<ThrowOnError extends boolean = false>(options: Options<BrowseSourceData, ThrowOnError>) {
+    return (options.client ?? client).get<BrowseSourceResponses, BrowseSourceErrors, ThrowOnError>({
       url: "/api/v1/sources/{sid}/browse",
       ...options,
     });
@@ -2459,14 +1903,8 @@ export class Sources {
    * List Watches
    * Watched folders: all of them for admins, else those feeding namespaces you own.
    */
-  public static listWatches<ThrowOnError extends boolean = false>(
-    options?: Options<ListWatchesData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      ListWatchesResponses,
-      unknown,
-      ThrowOnError
-    >({
+  public static listWatches<ThrowOnError extends boolean = false>(options?: Options<ListWatchesData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListWatchesResponses, unknown, ThrowOnError>({
       url: "/api/v1/watches",
       ...options,
     });
@@ -2476,14 +1914,8 @@ export class Sources {
    * Create Watch
    * Watch a folder of a source; new files there are imported into the namespace (which is created if needed).
    */
-  public static createWatch<ThrowOnError extends boolean = false>(
-    options: Options<CreateWatchData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      CreateWatchResponses,
-      CreateWatchErrors,
-      ThrowOnError
-    >({
+  public static createWatch<ThrowOnError extends boolean = false>(options: Options<CreateWatchData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateWatchResponses, CreateWatchErrors, ThrowOnError>({
       url: "/api/v1/watches",
       ...options,
       headers: {
@@ -2497,14 +1929,8 @@ export class Sources {
    * Preview Watch
    * How many files a watched folder would pick up (the backfill count), before creating it.
    */
-  public static previewWatch<ThrowOnError extends boolean = false>(
-    options: Options<PreviewWatchData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      PreviewWatchResponses,
-      PreviewWatchErrors,
-      ThrowOnError
-    >({
+  public static previewWatch<ThrowOnError extends boolean = false>(options: Options<PreviewWatchData, ThrowOnError>) {
+    return (options.client ?? client).post<PreviewWatchResponses, PreviewWatchErrors, ThrowOnError>({
       url: "/api/v1/watches/preview",
       ...options,
       headers: {
@@ -2517,14 +1943,8 @@ export class Sources {
   /**
    * Delete Watch
    */
-  public static deleteWatch<ThrowOnError extends boolean = false>(
-    options: Options<DeleteWatchData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).delete<
-      DeleteWatchResponses,
-      DeleteWatchErrors,
-      ThrowOnError
-    >({
+  public static deleteWatch<ThrowOnError extends boolean = false>(options: Options<DeleteWatchData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteWatchResponses, DeleteWatchErrors, ThrowOnError>({
       url: "/api/v1/watches/{wid}",
       ...options,
     });
@@ -2533,14 +1953,8 @@ export class Sources {
   /**
    * Update Watch
    */
-  public static updateWatch<ThrowOnError extends boolean = false>(
-    options: Options<UpdateWatchData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).patch<
-      UpdateWatchResponses,
-      UpdateWatchErrors,
-      ThrowOnError
-    >({
+  public static updateWatch<ThrowOnError extends boolean = false>(options: Options<UpdateWatchData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateWatchResponses, UpdateWatchErrors, ThrowOnError>({
       url: "/api/v1/watches/{wid}",
       ...options,
       headers: {
@@ -2554,14 +1968,8 @@ export class Sources {
    * Scan Watch
    * Look for new files now instead of waiting for the next poll.
    */
-  public static scanWatch<ThrowOnError extends boolean = false>(
-    options: Options<ScanWatchData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      ScanWatchResponses,
-      ScanWatchErrors,
-      ThrowOnError
-    >({
+  public static scanWatch<ThrowOnError extends boolean = false>(options: Options<ScanWatchData, ThrowOnError>) {
+    return (options.client ?? client).post<ScanWatchResponses, ScanWatchErrors, ThrowOnError>({
       url: "/api/v1/watches/{wid}/scan",
       ...options,
     });
@@ -2575,11 +1983,7 @@ export class Templates {
   public static listTemplates<ThrowOnError extends boolean = false>(
     options?: Options<ListTemplatesData, ThrowOnError>,
   ) {
-    return (options?.client ?? client).get<
-      ListTemplatesResponses,
-      unknown,
-      ThrowOnError
-    >({
+    return (options?.client ?? client).get<ListTemplatesResponses, unknown, ThrowOnError>({
       url: "/api/v1/templates",
       ...options,
     });
@@ -2591,11 +1995,7 @@ export class Templates {
   public static createTemplate<ThrowOnError extends boolean = false>(
     options: Options<CreateTemplateData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      CreateTemplateResponses,
-      CreateTemplateErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<CreateTemplateResponses, CreateTemplateErrors, ThrowOnError>({
       url: "/api/v1/templates",
       ...options,
       headers: {
@@ -2614,11 +2014,7 @@ export class Templates {
   public static previewTemplate<ThrowOnError extends boolean = false>(
     options: Options<PreviewTemplateData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      PreviewTemplateResponses,
-      PreviewTemplateErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError>({
       url: "/api/v1/templates/preview",
       ...options,
       headers: {
@@ -2632,14 +2028,8 @@ export class Templates {
    * Get Template
    * One version (default: the current one) and the list of versions.
    */
-  public static getTemplate<ThrowOnError extends boolean = false>(
-    options: Options<GetTemplateData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetTemplateResponses,
-      GetTemplateErrors,
-      ThrowOnError
-    >({
+  public static getTemplate<ThrowOnError extends boolean = false>(options: Options<GetTemplateData, ThrowOnError>) {
+    return (options.client ?? client).get<GetTemplateResponses, GetTemplateErrors, ThrowOnError>({
       url: "/api/v1/templates/{tid}",
       ...options,
     });
@@ -2651,11 +2041,7 @@ export class Templates {
   public static createTemplateVersion<ThrowOnError extends boolean = false>(
     options: Options<CreateTemplateVersionData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      CreateTemplateVersionResponses,
-      CreateTemplateVersionErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<CreateTemplateVersionResponses, CreateTemplateVersionErrors, ThrowOnError>({
       url: "/api/v1/templates/{tid}/versions",
       ...options,
       headers: {
@@ -2672,11 +2058,7 @@ export class Templates {
   public static diffTemplateVersions<ThrowOnError extends boolean = false>(
     options: Options<DiffTemplateVersionsData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      DiffTemplateVersionsResponses,
-      DiffTemplateVersionsErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<DiffTemplateVersionsResponses, DiffTemplateVersionsErrors, ThrowOnError>({
       url: "/api/v1/templates/{tid}/diff",
       ...options,
     });
@@ -2691,11 +2073,7 @@ export class Pipelines {
   public static listPipelines<ThrowOnError extends boolean = false>(
     options?: Options<ListPipelinesData, ThrowOnError>,
   ) {
-    return (options?.client ?? client).get<
-      ListPipelinesResponses,
-      unknown,
-      ThrowOnError
-    >({
+    return (options?.client ?? client).get<ListPipelinesResponses, unknown, ThrowOnError>({
       url: "/api/v1/pipelines",
       ...options,
     });
@@ -2707,11 +2085,7 @@ export class Pipelines {
   public static createPipeline<ThrowOnError extends boolean = false>(
     options: Options<CreatePipelineData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      CreatePipelineResponses,
-      CreatePipelineErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<CreatePipelineResponses, CreatePipelineErrors, ThrowOnError>({
       url: "/api/v1/pipelines",
       ...options,
       headers: {
@@ -2725,14 +2099,8 @@ export class Pipelines {
    * Get Pipeline
    * One version (default: the current one) and the list of versions.
    */
-  public static getPipeline<ThrowOnError extends boolean = false>(
-    options: Options<GetPipelineData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetPipelineResponses,
-      GetPipelineErrors,
-      ThrowOnError
-    >({
+  public static getPipeline<ThrowOnError extends boolean = false>(options: Options<GetPipelineData, ThrowOnError>) {
+    return (options.client ?? client).get<GetPipelineResponses, GetPipelineErrors, ThrowOnError>({
       url: "/api/v1/pipelines/{pid}",
       ...options,
     });
@@ -2744,11 +2112,7 @@ export class Pipelines {
   public static createPipelineVersion<ThrowOnError extends boolean = false>(
     options: Options<CreatePipelineVersionData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      CreatePipelineVersionResponses,
-      CreatePipelineVersionErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<CreatePipelineVersionResponses, CreatePipelineVersionErrors, ThrowOnError>({
       url: "/api/v1/pipelines/{pid}/versions",
       ...options,
       headers: {
@@ -2762,14 +2126,8 @@ export class Pipelines {
    * Run Pipeline
    * Run this pipeline on one recording now (its outputs are kept).
    */
-  public static runPipeline<ThrowOnError extends boolean = false>(
-    options: Options<RunPipelineData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      RunPipelineResponses,
-      RunPipelineErrors,
-      ThrowOnError
-    >({
+  public static runPipeline<ThrowOnError extends boolean = false>(options: Options<RunPipelineData, ThrowOnError>) {
+    return (options.client ?? client).post<RunPipelineResponses, RunPipelineErrors, ThrowOnError>({
       url: "/api/v1/pipelines/{pid}/run",
       ...options,
       headers: {
@@ -2785,14 +2143,8 @@ export class Chats {
    * List Chats
    * Your conversations, most recent first.
    */
-  public static listChats<ThrowOnError extends boolean = false>(
-    options?: Options<ListChatsData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      ListChatsResponses,
-      unknown,
-      ThrowOnError
-    >({
+  public static listChats<ThrowOnError extends boolean = false>(options?: Options<ListChatsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListChatsResponses, unknown, ThrowOnError>({
       url: "/api/v1/chats",
       ...options,
     });
@@ -2801,14 +2153,8 @@ export class Chats {
   /**
    * Create Chat
    */
-  public static createChat<ThrowOnError extends boolean = false>(
-    options?: Options<CreateChatData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).post<
-      CreateChatResponses,
-      CreateChatErrors,
-      ThrowOnError
-    >({
+  public static createChat<ThrowOnError extends boolean = false>(options?: Options<CreateChatData, ThrowOnError>) {
+    return (options?.client ?? client).post<CreateChatResponses, CreateChatErrors, ThrowOnError>({
       url: "/api/v1/chats",
       ...options,
       headers: {
@@ -2821,14 +2167,8 @@ export class Chats {
   /**
    * Delete Chat
    */
-  public static deleteChat<ThrowOnError extends boolean = false>(
-    options: Options<DeleteChatData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).delete<
-      DeleteChatResponses,
-      DeleteChatErrors,
-      ThrowOnError
-    >({
+  public static deleteChat<ThrowOnError extends boolean = false>(options: Options<DeleteChatData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteChatResponses, DeleteChatErrors, ThrowOnError>({
       url: "/api/v1/chats/{cid}",
       ...options,
     });
@@ -2838,14 +2178,8 @@ export class Chats {
    * Get Chat
    * A conversation with its messages. Citations follow your current access: ones you can no longer read are left out.
    */
-  public static getChat<ThrowOnError extends boolean = false>(
-    options: Options<GetChatData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetChatResponses,
-      GetChatErrors,
-      ThrowOnError
-    >({
+  public static getChat<ThrowOnError extends boolean = false>(options: Options<GetChatData, ThrowOnError>) {
+    return (options.client ?? client).get<GetChatResponses, GetChatErrors, ThrowOnError>({
       url: "/api/v1/chats/{cid}",
       ...options,
     });
@@ -2855,14 +2189,8 @@ export class Chats {
    * Update Chat
    * Rename a conversation or change what it draws on.
    */
-  public static updateChat<ThrowOnError extends boolean = false>(
-    options: Options<UpdateChatData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).patch<
-      UpdateChatResponses,
-      UpdateChatErrors,
-      ThrowOnError
-    >({
+  public static updateChat<ThrowOnError extends boolean = false>(options: Options<UpdateChatData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateChatResponses, UpdateChatErrors, ThrowOnError>({
       url: "/api/v1/chats/{cid}",
       ...options,
       headers: {
@@ -2876,14 +2204,8 @@ export class Chats {
    * Send Message
    * Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, done (the saved message id).
    */
-  public static sendMessage<ThrowOnError extends boolean = false>(
-    options: Options<SendMessageData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).sse.post<
-      SendMessageResponses,
-      SendMessageErrors,
-      ThrowOnError
-    >({
+  public static sendMessage<ThrowOnError extends boolean = false>(options: Options<SendMessageData, ThrowOnError>) {
+    return (options.client ?? client).sse.post<SendMessageResponses, SendMessageErrors, ThrowOnError>({
       url: "/api/v1/chats/{cid}/messages",
       ...options,
       headers: {
@@ -2897,14 +2219,8 @@ export class Chats {
    * Check Message
    * Re-check each cited claim of an answer against the excerpts it cites; the verdict is saved on the message.
    */
-  public static checkMessage<ThrowOnError extends boolean = false>(
-    options: Options<CheckMessageData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      CheckMessageResponses,
-      CheckMessageErrors,
-      ThrowOnError
-    >({
+  public static checkMessage<ThrowOnError extends boolean = false>(options: Options<CheckMessageData, ThrowOnError>) {
+    return (options.client ?? client).post<CheckMessageResponses, CheckMessageErrors, ThrowOnError>({
       url: "/api/v1/chats/{cid}/messages/{mid}/check",
       ...options,
     });
@@ -2917,11 +2233,7 @@ export class Chats {
   public static listApprovals<ThrowOnError extends boolean = false>(
     options?: Options<ListApprovalsData, ThrowOnError>,
   ) {
-    return (options?.client ?? client).get<
-      ListApprovalsResponses,
-      ListApprovalsErrors,
-      ThrowOnError
-    >({
+    return (options?.client ?? client).get<ListApprovalsResponses, ListApprovalsErrors, ThrowOnError>({
       url: "/api/v1/approvals",
       ...options,
     });
@@ -2934,11 +2246,7 @@ export class Chats {
   public static decideApproval<ThrowOnError extends boolean = false>(
     options: Options<DecideApprovalData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      DecideApprovalResponses,
-      DecideApprovalErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError>({
       url: "/api/v1/approvals/{aid}",
       ...options,
       headers: {
@@ -2956,11 +2264,7 @@ export class Collections {
   public static listCollections<ThrowOnError extends boolean = false>(
     options?: Options<ListCollectionsData, ThrowOnError>,
   ) {
-    return (options?.client ?? client).get<
-      ListCollectionsResponses,
-      unknown,
-      ThrowOnError
-    >({
+    return (options?.client ?? client).get<ListCollectionsResponses, unknown, ThrowOnError>({
       url: "/api/v1/collections",
       ...options,
     });
@@ -2972,11 +2276,7 @@ export class Collections {
   public static createCollection<ThrowOnError extends boolean = false>(
     options: Options<CreateCollectionData, ThrowOnError>,
   ) {
-    return (options.client ?? client).post<
-      CreateCollectionResponses,
-      CreateCollectionErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).post<CreateCollectionResponses, CreateCollectionErrors, ThrowOnError>({
       url: "/api/v1/collections",
       ...options,
       headers: {
@@ -2992,11 +2292,7 @@ export class Collections {
   public static deleteCollection<ThrowOnError extends boolean = false>(
     options: Options<DeleteCollectionData, ThrowOnError>,
   ) {
-    return (options.client ?? client).delete<
-      DeleteCollectionResponses,
-      DeleteCollectionErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).delete<DeleteCollectionResponses, DeleteCollectionErrors, ThrowOnError>({
       url: "/api/v1/collections/{cid}",
       ...options,
     });
@@ -3006,14 +2302,8 @@ export class Collections {
    * Get Collection
    * The collection with how many recordings you can read in it, and the newest 200 of them.
    */
-  public static getCollection<ThrowOnError extends boolean = false>(
-    options: Options<GetCollectionData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetCollectionResponses,
-      GetCollectionErrors,
-      ThrowOnError
-    >({
+  public static getCollection<ThrowOnError extends boolean = false>(options: Options<GetCollectionData, ThrowOnError>) {
+    return (options.client ?? client).get<GetCollectionResponses, GetCollectionErrors, ThrowOnError>({
       url: "/api/v1/collections/{cid}",
       ...options,
     });
@@ -3026,11 +2316,7 @@ export class Collections {
   public static updateCollection<ThrowOnError extends boolean = false>(
     options: Options<UpdateCollectionData, ThrowOnError>,
   ) {
-    return (options.client ?? client).patch<
-      UpdateCollectionResponses,
-      UpdateCollectionErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).patch<UpdateCollectionResponses, UpdateCollectionErrors, ThrowOnError>({
       url: "/api/v1/collections/{cid}",
       ...options,
       headers: {
@@ -3046,14 +2332,8 @@ export class Batches {
    * Estimate Batch
    * What a run would cost, before starting it. Only recordings you can change count; the rest are `skipped`.
    */
-  public static estimateBatch<ThrowOnError extends boolean = false>(
-    options: Options<EstimateBatchData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      EstimateBatchResponses,
-      EstimateBatchErrors,
-      ThrowOnError
-    >({
+  public static estimateBatch<ThrowOnError extends boolean = false>(options: Options<EstimateBatchData, ThrowOnError>) {
+    return (options.client ?? client).post<EstimateBatchResponses, EstimateBatchErrors, ThrowOnError>({
       url: "/api/v1/batches/estimate",
       ...options,
       headers: {
@@ -3067,14 +2347,8 @@ export class Batches {
    * List Batches
    * Your batch runs (everyone's, for admins), newest first.
    */
-  public static listBatches<ThrowOnError extends boolean = false>(
-    options?: Options<ListBatchesData, ThrowOnError>,
-  ) {
-    return (options?.client ?? client).get<
-      ListBatchesResponses,
-      unknown,
-      ThrowOnError
-    >({
+  public static listBatches<ThrowOnError extends boolean = false>(options?: Options<ListBatchesData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListBatchesResponses, unknown, ThrowOnError>({
       url: "/api/v1/batches",
       ...options,
     });
@@ -3083,14 +2357,8 @@ export class Batches {
   /**
    * Create Batch
    */
-  public static createBatch<ThrowOnError extends boolean = false>(
-    options: Options<CreateBatchData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      CreateBatchResponses,
-      CreateBatchErrors,
-      ThrowOnError
-    >({
+  public static createBatch<ThrowOnError extends boolean = false>(options: Options<CreateBatchData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateBatchResponses, CreateBatchErrors, ThrowOnError>({
       url: "/api/v1/batches",
       ...options,
       headers: {
@@ -3103,14 +2371,8 @@ export class Batches {
   /**
    * Get Batch
    */
-  public static getBatch<ThrowOnError extends boolean = false>(
-    options: Options<GetBatchData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).get<
-      GetBatchResponses,
-      GetBatchErrors,
-      ThrowOnError
-    >({
+  public static getBatch<ThrowOnError extends boolean = false>(options: Options<GetBatchData, ThrowOnError>) {
+    return (options.client ?? client).get<GetBatchResponses, GetBatchErrors, ThrowOnError>({
       url: "/api/v1/batches/{bid}",
       ...options,
     });
@@ -3120,14 +2382,8 @@ export class Batches {
    * Combine Batch
    * One overview written by the model from every recording's result, citing each as [n]; saved on the batch.
    */
-  public static combineBatch<ThrowOnError extends boolean = false>(
-    options: Options<CombineBatchData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      CombineBatchResponses,
-      CombineBatchErrors,
-      ThrowOnError
-    >({
+  public static combineBatch<ThrowOnError extends boolean = false>(options: Options<CombineBatchData, ThrowOnError>) {
+    return (options.client ?? client).post<CombineBatchResponses, CombineBatchErrors, ThrowOnError>({
       url: "/api/v1/batches/{bid}/combine",
       ...options,
       headers: {
@@ -3141,14 +2397,8 @@ export class Batches {
    * Control Batch
    * continue (after a sample), pause, resume, cancel, or retry the failed recordings.
    */
-  public static controlBatch<ThrowOnError extends boolean = false>(
-    options: Options<ControlBatchData, ThrowOnError>,
-  ) {
-    return (options.client ?? client).post<
-      ControlBatchResponses,
-      ControlBatchErrors,
-      ThrowOnError
-    >({
+  public static controlBatch<ThrowOnError extends boolean = false>(options: Options<ControlBatchData, ThrowOnError>) {
+    return (options.client ?? client).post<ControlBatchResponses, ControlBatchErrors, ThrowOnError>({
       url: "/api/v1/batches/{bid}/{action}",
       ...options,
     });
@@ -3161,11 +2411,7 @@ export class Batches {
   public static getBatchResults<ThrowOnError extends boolean = false>(
     options: Options<GetBatchResultsData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      GetBatchResultsResponses,
-      GetBatchResultsErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<GetBatchResultsResponses, GetBatchResultsErrors, ThrowOnError>({
       url: "/api/v1/batches/{bid}/results",
       ...options,
     });
@@ -3177,11 +2423,7 @@ export class Batches {
   public static exportBatchResults<ThrowOnError extends boolean = false>(
     options: Options<ExportBatchResultsData, ThrowOnError>,
   ) {
-    return (options.client ?? client).get<
-      ExportBatchResultsResponses,
-      ExportBatchResultsErrors,
-      ThrowOnError
-    >({
+    return (options.client ?? client).get<ExportBatchResultsResponses, ExportBatchResultsErrors, ThrowOnError>({
       url: "/api/v1/batches/{bid}/results.{fmt}",
       ...options,
     });

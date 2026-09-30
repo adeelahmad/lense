@@ -36,11 +36,21 @@ import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 /** Env variables that override a setting (the backend reports the key as locked). */
-const ENV: Record<string, string> = { "server.allowed_hosts": "ARCHIVE_ALLOWED_HOSTS" };
+const ENV: Record<string, string> = {
+  "server.allowed_hosts": "ARCHIVE_ALLOWED_HOSTS",
+};
 const CONFIRM_BASE = "CHANGE ALL IDENTIFIERS";
 
 /** One settings section (ST1–ST3, MD5): fields, inline checks, who saved it last, review & save. */
-export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: SettingsView; onErrors: (id: SectionId, has: boolean) => void }) {
+export function SettingsSection({
+  id,
+  view,
+  onErrors,
+}: {
+  id: SectionId;
+  view: SettingsView;
+  onErrors: (id: SectionId, has: boolean) => void;
+}) {
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
@@ -48,7 +58,10 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
   const { namespaces } = useArchive();
   const spec = SECTIONS.find((s) => s.id === id)!;
   const specs = useMemo(() => fieldsOf(id), [id]);
-  const initial = useMemo(() => Object.fromEntries(specs.map((f) => [fieldId(f), toUi(f, getPath(view[f.section]?.values, f.key))])), [specs, view]);
+  const initial = useMemo(
+    () => Object.fromEntries(specs.map((f) => [fieldId(f), toUi(f, getPath(view[f.section]?.values, f.key))])),
+    [specs, view],
+  );
   const [form, setForm] = useState<Record<string, unknown>>(initial);
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [banner, setBanner] = useState<string | null>(null);
@@ -58,9 +71,18 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
   const [nsInitial, setNsInitial] = useState<NsAccess>({});
   const lastView = useRef(view);
 
-  const parsed = useMemo(() => Object.fromEntries(specs.map((f) => [fieldId(f), parse(f, form[fieldId(f)])])), [specs, form]);
-  const values = useMemo(() => Object.fromEntries(Object.entries(parsed).map(([k, p]) => [k, "value" in p ? p.value : undefined])), [parsed]);
-  const original = useMemo(() => Object.fromEntries(specs.map((f) => [fieldId(f), getPath(view[f.section]?.values, f.key)])), [specs, view]);
+  const parsed = useMemo(
+    () => Object.fromEntries(specs.map((f) => [fieldId(f), parse(f, form[fieldId(f)])])),
+    [specs, form],
+  );
+  const values = useMemo(
+    () => Object.fromEntries(Object.entries(parsed).map(([k, p]) => [k, "value" in p ? p.value : undefined])),
+    [parsed],
+  );
+  const original = useMemo(
+    () => Object.fromEntries(specs.map((f) => [fieldId(f), getPath(view[f.section]?.values, f.key)])),
+    [specs, view],
+  );
 
   const changes: Change[] = specs
     .filter((f) => {
@@ -68,11 +90,19 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
       if (f.kind === "secret") return form[k] !== undefined;
       return "value" in parsed[k] && !same(values[k], original[k]);
     })
-    .map((f) => ({ id: fieldId(f), field: f, before: original[fieldId(f)], after: values[fieldId(f)] }));
+    .map((f) => ({
+      id: fieldId(f),
+      field: f,
+      before: original[fieldId(f)],
+      after: values[fieldId(f)],
+    }));
   const nsChanges = Object.keys(nsAccess).filter((n) => nsAccess[n] !== nsInitial[n]);
   const dirty = changes.length + nsChanges.length > 0;
 
-  const errors: Record<string, string> = { ...crossErrors(values), ...serverErrors };
+  const errors: Record<string, string> = {
+    ...crossErrors(values),
+    ...serverErrors,
+  };
   for (const [k, p] of Object.entries(parsed)) if ("error" in p) errors[k] = p.error;
   const errorCount = Object.keys(errors).length;
 
@@ -86,7 +116,8 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
 
   const [held, setHeld] = useUnsavedGuard(dirty);
 
-  const locked = (f: (typeof specs)[number]) => ((view[f.section]?.locked ?? []).includes(f.key.split(".")[0]) ? (ENV[fieldId(f)] ?? "the environment") : null);
+  const locked = (f: (typeof specs)[number]) =>
+    (view[f.section]?.locked ?? []).includes(f.key.split(".")[0]) ? (ENV[fieldId(f)] ?? "the environment") : null;
   const ctx: BodyCtx = {
     section: id,
     view,
@@ -126,12 +157,24 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
         try {
           await data(Admin.updateSettings({ client, path: { section }, body }));
         } catch (e) {
-          throw Object.assign(e instanceof Error ? e : new Error(String(e)), { section });
+          throw Object.assign(e instanceof Error ? e : new Error(String(e)), {
+            section,
+          });
         }
       }
       for (const n of nsChanges) {
-        const current = (await data(Metadata.getNamespaceMetadata({ client, path: { name: n } }))) as unknown as { profile: Record<string, unknown> };
-        await data(Metadata.updateNamespaceMetadata({ client, path: { name: n }, body: { profile: { ...current.profile, default_access: nsAccess[n] } } }));
+        const current = (await data(Metadata.getNamespaceMetadata({ client, path: { name: n } }))) as unknown as {
+          profile: Record<string, unknown>;
+        };
+        await data(
+          Metadata.updateNamespaceMetadata({
+            client,
+            path: { name: n },
+            body: {
+              profile: { ...current.profile, default_access: nsAccess[n] },
+            },
+          }),
+        );
       }
     },
     onSuccess: async () => {
@@ -143,12 +186,20 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
       setNsInitial(nsAccess);
       await qc.invalidateQueries({ queryKey: ["settings"] });
       if (nsChanges.length) void qc.invalidateQueries({ queryKey: ["namespace-metadata"] });
-      toast({ title: `Saved ${spec.label}`, body: `${n} change${n === 1 ? "" : "s"}, recorded in the audit log as settings.save.`, tone: "green" });
+      toast({
+        title: `Saved ${spec.label}`,
+        body: `${n} change${n === 1 ? "" : "s"}, recorded in the audit log as settings.save.`,
+        tone: "green",
+      });
     },
     onError: (e: Error & { section?: string }) => {
       setReviewing(false);
       const mapped = serverError(e.section ?? "", e instanceof ApiError ? e.message : e.message);
-      if (mapped.field) setServerErrors((s) => ({ ...s, [mapped.field as string]: mapped.message }));
+      if (mapped.field)
+        setServerErrors((s) => ({
+          ...s,
+          [mapped.field as string]: mapped.message,
+        }));
       else setBanner(mapped.message);
     },
   });
@@ -160,11 +211,17 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
     setBanner(null);
   };
 
-  const updatedAt = spec.backend.map((b) => view[b]?.updated_at).filter(Boolean).sort().pop();
+  const updatedAt = spec.backend
+    .map((b) => view[b]?.updated_at)
+    .filter(Boolean)
+    .sort()
+    .pop();
   const updatedBy = spec.backend.map((b) => view[b]).find((v) => v?.updated_at === updatedAt)?.updated_by;
   const baseChange = changes.find((c) => c.id === "iiif.base_url");
   const firstError = Object.keys(errors)[0];
-  const errorLabel = firstError ? (specs.find((f) => fieldId(f) === firstError)?.label ?? "the marked field").toLowerCase() : "";
+  const errorLabel = firstError
+    ? (specs.find((f) => fieldId(f) === firstError)?.label ?? "the marked field").toLowerCase()
+    : "";
   const manifests = namespaces.reduce((a, n) => a + (n.recordings ?? 0), 0);
 
   return (
@@ -175,7 +232,9 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
           <p className="text-[14px] leading-normal text-fg-secondary">{spec.description}</p>
           {id !== "startup" && (
             <span className="text-[12.5px] text-fg-muted">
-              {updatedAt ? `Last saved by ${updatedBy ?? "someone"} on ${absolute(updatedAt)}` : "Not changed in the app yet: these are the server’s defaults and config file values."}
+              {updatedAt
+                ? `Last saved by ${updatedBy ?? "someone"} on ${absolute(updatedAt)}`
+                : "Not changed in the app yet: these are the server’s defaults and config file values."}
             </span>
           )}
         </div>
@@ -191,13 +250,22 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
         <div className="sticky bottom-0 z-10 mt-auto flex flex-wrap items-center gap-2.5 border-t border-border bg-background px-4 py-3 sm:px-8">
           <span aria-hidden className={cn("size-2 rounded-full", errorCount ? "bg-red" : "bg-blue")} />
           <span className="min-w-0 flex-1 text-[13.5px] font-medium" aria-live="polite">
-            {changes.length + nsChanges.length} change{changes.length + nsChanges.length === 1 ? "" : "s"}
-            {errorCount ? ` · fix ${errorCount === 1 ? `the ${errorLabel}` : `${errorCount} fields`} before saving` : ""}
+            {changes.length + nsChanges.length} change
+            {changes.length + nsChanges.length === 1 ? "" : "s"}
+            {errorCount
+              ? ` · fix ${errorCount === 1 ? `the ${errorLabel}` : `${errorCount} fields`} before saving`
+              : ""}
           </span>
           <Button variant="ghost" size="sm" onClick={discard} disabled={save.isPending}>
             Discard
           </Button>
-          <Button variant="primary" size="sm" disabled={!dirty || errorCount > 0 || save.isPending} disabledReason={errorCount ? "Fix the fields marked in red first" : undefined} onClick={() => setReviewing(true)}>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={!dirty || errorCount > 0 || save.isPending}
+            disabledReason={errorCount ? "Fix the fields marked in red first" : undefined}
+            onClick={() => setReviewing(true)}
+          >
             {save.isPending ? "Saving…" : "Review & save"}
           </Button>
         </div>
@@ -206,10 +274,15 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
       <Dialog
         open={reviewing}
         onOpenChange={(o) => !o && (setReviewing(false), setTyped(""))}
-        title={baseChange && changes.length === 1 && !nsChanges.length ? "Change the public base URL?" : `Save ${spec.label}?`}
+        title={
+          baseChange && changes.length === 1 && !nsChanges.length
+            ? "Change the public base URL?"
+            : `Save ${spec.label}?`
+        }
         description={
           <>
-            These apply to everyone as soon as you save, and are recorded in the audit log as <code className="font-mono">settings.save</code>.
+            These apply to everyone as soon as you save, and are recorded in the audit log as{" "}
+            <code className="font-mono">settings.save</code>.
           </>
         }
         actions={
@@ -220,10 +293,16 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
             <Button
               variant={baseChange ? "danger" : "primary"}
               disabled={save.isPending || (Boolean(baseChange) && typed.trim() !== CONFIRM_BASE)}
-              disabledReason={baseChange && typed.trim() !== CONFIRM_BASE ? `Type ${CONFIRM_BASE} to confirm` : undefined}
+              disabledReason={
+                baseChange && typed.trim() !== CONFIRM_BASE ? `Type ${CONFIRM_BASE} to confirm` : undefined
+              }
               onClick={() => save.mutate()}
             >
-              {save.isPending ? "Saving…" : baseChange ? "Change base URL" : `Save ${changes.length + nsChanges.length} change${changes.length + nsChanges.length === 1 ? "" : "s"}`}
+              {save.isPending
+                ? "Saving…"
+                : baseChange
+                  ? "Change base URL"
+                  : `Save ${changes.length + nsChanges.length} change${changes.length + nsChanges.length === 1 ? "" : "s"}`}
             </Button>
           </>
         }
@@ -239,13 +318,15 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
                 <b>
                   {count(manifests)} Manifest{manifests === 1 ? "" : "s"} and {count(namespaces.length + 1)} Collections
                 </b>
-                . Links saved in other viewers, harvesters and citations stop resolving unless the old address keeps redirecting — set that up on your web server; Lens Archive can’t redirect it
-                itself.
+                . Links saved in other viewers, harvesters and citations stop resolving unless the old address keeps
+                redirecting — set that up on your web server; Lens Archive can’t redirect it itself.
               </span>
             </div>
             <div className="grid grid-cols-[48px_minmax(0,1fr)] gap-1.5 font-mono text-[12.5px] leading-normal">
               <span className="text-fg-muted">from</span>
-              <span className="break-all text-red-dark line-through">{(baseChange.before as string) || "the address each request comes to"}</span>
+              <span className="break-all text-red-dark line-through">
+                {(baseChange.before as string) || "the address each request comes to"}
+              </span>
               <span className="text-fg-muted">to</span>
               <b className="break-all">{(baseChange.after as string) || "the address each request comes to"}</b>
             </div>
@@ -258,10 +339,22 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
         {changes
           .filter((c) => c !== baseChange)
           .map((c) => (
-            <ChangeRow key={c.id} label={c.field.label} before={show(c.field, c.before)} after={show(c.field, c.after)} note={why(c)} />
+            <ChangeRow
+              key={c.id}
+              label={c.field.label}
+              before={show(c.field, c.before)}
+              after={show(c.field, c.after)}
+              note={why(c)}
+            />
           ))}
         {nsChanges.map((n) => (
-          <ChangeRow key={n} label={`Access · ${n}`} before={nsInitial[n]} after={nsAccess[n]} note="The default for recordings without their own access." />
+          <ChangeRow
+            key={n}
+            label={`Access · ${n}`}
+            before={nsInitial[n]}
+            after={nsAccess[n]}
+            note="The default for recordings without their own access."
+          />
         ))}
       </Dialog>
 
@@ -293,7 +386,17 @@ export function SettingsSection({ id, view, onErrors }: { id: SectionId; view: S
   );
 }
 
-function ChangeRow({ label, before, after, note }: { label: string; before: string; after: string; note?: string | null }) {
+function ChangeRow({
+  label,
+  before,
+  after,
+  note,
+}: {
+  label: string;
+  before: string;
+  after: string;
+  note?: string | null;
+}) {
   return (
     <div className="grid gap-2.5 rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[13px] leading-[1.45] sm:grid-cols-[150px_minmax(0,1fr)]">
       <b>{label}</b>

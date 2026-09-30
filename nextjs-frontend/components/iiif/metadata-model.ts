@@ -7,11 +7,24 @@
 import { RIGHTS_RX, rightsShort } from "@/components/iiif/rights";
 
 export type LangMap = Record<string, string[]>;
-export type Person = { name: string; role?: string | null; uri?: string | null; speaker?: number | null };
-export type Subject = { label: string; uri?: string | null; entity?: number | null };
+export type Person = {
+  name: string;
+  role?: string | null;
+  uri?: string | null;
+  speaker?: number | null;
+};
+export type Subject = {
+  label: string;
+  uri?: string | null;
+  entity?: number | null;
+};
 export type Identifier = { type?: string | null; value: string };
 export type Pair = { label: LangMap; value: LangMap };
-export type Provider = { name: string; homepage?: string | null; logo?: string | null };
+export type Provider = {
+  name: string;
+  homepage?: string | null;
+  logo?: string | null;
+};
 export type Related = { id: string; label?: string | null };
 export type Access = "public" | "transcript" | "signed-in" | "private";
 
@@ -34,7 +47,23 @@ export type Meta = {
 };
 
 export type Field = keyof Meta;
-export const FIELDS: Field[] = ["label", "summary", "metadata", "rights", "attribution", "provider", "navDate", "language", "creators", "contributors", "subjects", "identifiers", "homepage", "related", "access"];
+export const FIELDS: Field[] = [
+  "label",
+  "summary",
+  "metadata",
+  "rights",
+  "attribution",
+  "provider",
+  "navDate",
+  "language",
+  "creators",
+  "contributors",
+  "subjects",
+  "identifiers",
+  "homepage",
+  "related",
+  "access",
+];
 
 export const FIELD_LABEL: Record<Field, string> = {
   label: "Title",
@@ -71,11 +100,36 @@ export const FIELD_MAPS: Partial<Record<Field, string>> = {
   language: "dc:language",
 };
 
-export const ACCESS: { value: Access; label: string; hint: string; anon: string }[] = [
-  { value: "public", label: "Public", hint: "anyone", anon: "Anyone gets everything: metadata, transcript, captions and audio." },
-  { value: "transcript", label: "Transcript open", hint: "audio after sign-in", anon: "Anonymous people get metadata, transcript and captions. Audio asks them to sign in (IIIF Authorization Flow)." },
-  { value: "signed-in", label: "Signed-in", hint: "members sign in", anon: "Anonymous people get the metadata only. Transcript and audio ask them to sign in." },
-  { value: "private", label: "Private", hint: "not published", anon: "Not published: the Manifest is only visible to people with a role in this namespace." },
+export const ACCESS: {
+  value: Access;
+  label: string;
+  hint: string;
+  anon: string;
+}[] = [
+  {
+    value: "public",
+    label: "Public",
+    hint: "anyone",
+    anon: "Anyone gets everything: metadata, transcript, captions and audio.",
+  },
+  {
+    value: "transcript",
+    label: "Transcript open",
+    hint: "audio after sign-in",
+    anon: "Anonymous people get metadata, transcript and captions. Audio asks them to sign in (IIIF Authorization Flow).",
+  },
+  {
+    value: "signed-in",
+    label: "Signed-in",
+    hint: "members sign in",
+    anon: "Anonymous people get the metadata only. Transcript and audio ask them to sign in.",
+  },
+  {
+    value: "private",
+    label: "Private",
+    hint: "not published",
+    anon: "Not published: the Manifest is only visible to people with a role in this namespace.",
+  },
 ];
 
 export const LANG_RX = /^(none|[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})*)$/;
@@ -152,15 +206,18 @@ export function validate(meta: Meta): Partial<Record<Field, string>> {
     const bad = Object.keys(meta[f] ?? {}).find((l) => !LANG_RX.test(l));
     if (bad) e[f] = `“${bad}” isn’t a language code (use none when it’s unknown)`;
   }
-  if (meta.metadata?.some((p) => !first(p.label).trim() || !first(p.value).trim())) e.metadata = "Every pair needs a label and a value";
-  if (meta.rights && !RIGHTS_RX.test(meta.rights.trim())) e.rights = "Pick a Creative Commons licence or a RightsStatements.org statement";
+  if (meta.metadata?.some((p) => !first(p.label).trim() || !first(p.value).trim()))
+    e.metadata = "Every pair needs a label and a value";
+  if (meta.rights && !RIGHTS_RX.test(meta.rights.trim()))
+    e.rights = "Pick a Creative Commons licence or a RightsStatements.org statement";
   if (meta.provider) {
     const p = meta.provider;
     if (!p.name?.trim()) e.provider = "The provider needs a name";
     else e.provider = uriError(p.homepage, "homepage") ?? uriError(p.logo, "logo address") ?? undefined;
   }
   if (meta.navDate && Number.isNaN(Date.parse(meta.navDate))) e.navDate = "Use a date like 2026-09-30";
-  if (meta.language?.some((l) => l === "none" || !LANG_RX.test(l))) e.language = "Use language codes such as en, de or pt-BR";
+  if (meta.language?.some((l) => l === "none" || !LANG_RX.test(l)))
+    e.language = "Use language codes such as en, de or pt-BR";
   for (const f of ["creators", "contributors"] as const) {
     const people = meta[f] ?? [];
     if (people.some((p) => !p.name?.trim())) e[f] = "Every person needs a name";
@@ -173,7 +230,9 @@ export function validate(meta: Meta): Partial<Record<Field, string>> {
   if (meta.identifiers?.some((i) => !i.value?.trim())) e.identifiers = "Identifiers need a value";
   const home = uriError(meta.homepage);
   if (home) e.homepage = home;
-  const rel = (meta.related ?? []).map((r) => uriError(r.id, "link") ?? (r.id?.trim() ? null : "Every link needs an address")).find(Boolean);
+  const rel = (meta.related ?? [])
+    .map((r) => uriError(r.id, "link") ?? (r.id?.trim() ? null : "Every link needs an address"))
+    .find(Boolean);
   if (rel) e.related = rel;
   for (const k of Object.keys(e) as Field[]) if (!e[k]) delete e[k];
   return e;
@@ -217,12 +276,21 @@ export function publishState(access: string | null | undefined, problems: number
   return problems ? "attention" : "published";
 }
 
-export const PUBLISH_BADGE: Record<PublishState, { label: string; tone: "neutral" | "green" | "gate"; hint: string }> = {
-  draft: { label: "Draft", tone: "neutral", hint: "not published yet" },
-  private: { label: "Private", tone: "neutral", hint: "not published" },
-  published: { label: "Published", tone: "green", hint: "live at its Manifest URL" },
-  attention: { label: "Needs attention", tone: "gate", hint: "published, validation errors" },
-};
+export const PUBLISH_BADGE: Record<PublishState, { label: string; tone: "neutral" | "green" | "gate"; hint: string }> =
+  {
+    draft: { label: "Draft", tone: "neutral", hint: "not published yet" },
+    private: { label: "Private", tone: "neutral", hint: "not published" },
+    published: {
+      label: "Published",
+      tone: "green",
+      hint: "live at its Manifest URL",
+    },
+    attention: {
+      label: "Needs attention",
+      tone: "gate",
+      hint: "published, validation errors",
+    },
+  };
 
 function names(list: { name?: string; label?: string; value?: string }[] | null | undefined): string[] {
   return (list ?? []).map((x) => x.name ?? x.label ?? x.value ?? "").filter(Boolean);
@@ -235,7 +303,8 @@ function listChange(noun: string, a: unknown, b: unknown): string {
   const removed = before.filter((x) => !after.includes(x));
   const parts: string[] = [];
   if (added.length) parts.push(added.length === 1 ? `Added ${noun} “${added[0]}”` : `Added ${added.length} ${noun}s`);
-  if (removed.length) parts.push(removed.length === 1 ? `Removed ${noun} “${removed[0]}”` : `Removed ${removed.length} ${noun}s`);
+  if (removed.length)
+    parts.push(removed.length === 1 ? `Removed ${noun} “${removed[0]}”` : `Removed ${removed.length} ${noun}s`);
   return parts.join(", ") || `${noun[0].toUpperCase()}${noun.slice(1)}s edited`;
 }
 
@@ -277,22 +346,40 @@ export function describeChange(field: string, a: unknown, b: unknown): string {
 }
 
 /** A history entry in plain words; its changed fields are described one by one. */
-export function describeEdit(edit: { changed: string[]; before: Record<string, unknown>; after: Record<string, unknown> }): string {
+export function describeEdit(edit: {
+  changed: string[];
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+}): string {
   const parts = edit.changed.map((k) => describeChange(k, edit.before[k], edit.after[k]));
   return parts.join("; ") || "No visible change";
 }
 
 export type Problem = { field?: string; message: string };
-export type Profile = { required?: string[]; vocabularies?: { subjects?: string[]; language?: string[] } };
+export type Profile = {
+  required?: string[];
+  vocabularies?: { subjects?: string[]; language?: string[] };
+};
 
 /** The namespace profile's checks, as the backend runs them: required fields, then controlled vocabularies. */
 export function profileProblems(meta: Meta, profile: Profile | null | undefined, ns?: string | null): Problem[] {
   const out: Problem[] = (profile?.required ?? [])
     .filter((f) => isEmpty(meta[f as Field]))
-    .map((f) => ({ field: f, message: `${FIELD_LABEL[f as Field] ?? f} is required by the ${ns ?? "namespace"} profile` }));
+    .map((f) => ({
+      field: f,
+      message: `${FIELD_LABEL[f as Field] ?? f} is required by the ${ns ?? "namespace"} profile`,
+    }));
   for (const [f, vocab] of Object.entries(profile?.vocabularies ?? {})) {
-    const values = f === "subjects" ? (meta.subjects ?? []).map((s) => s.label) : ((meta[f as Field] as string[] | null | undefined) ?? []);
-    for (const x of values) if (!(vocab ?? []).includes(x)) out.push({ field: f, message: `“${x}” isn’t in this namespace’s list` });
+    const values =
+      f === "subjects"
+        ? (meta.subjects ?? []).map((s) => s.label)
+        : ((meta[f as Field] as string[] | null | undefined) ?? []);
+    for (const x of values)
+      if (!(vocab ?? []).includes(x))
+        out.push({
+          field: f,
+          message: `“${x}” isn’t in this namespace’s list`,
+        });
   }
   return out;
 }

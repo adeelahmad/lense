@@ -76,7 +76,10 @@ export function LibraryScreen() {
   const [layout, setLayout] = useState<"table" | "list">("table");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [view, setView] = useState<LibraryView>("all");
-  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "date", dir: "desc" });
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({
+    key: "date",
+    dir: "desc",
+  });
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [reprocessOpen, setReprocessOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -120,7 +123,10 @@ export function LibraryScreen() {
     }
     const known = seen.current.ids;
     // Only rows newer than anything seen are "new"; older ones arrive by loading more and just join the list.
-    const newest = Math.max(0, ...lib.rows.filter((r) => known.has(r.id)).map((r) => Date.parse(r.recorded_at ?? "") || 0));
+    const newest = Math.max(
+      0,
+      ...lib.rows.filter((r) => known.has(r.id)).map((r) => Date.parse(r.recorded_at ?? "") || 0),
+    );
     const unseen = lib.rows.filter((r) => !known.has(r.id));
     const fresh = unseen.filter((r) => (Date.parse(r.recorded_at ?? "") || 0) >= newest).map((r) => r.id);
     unseen.filter((r) => !fresh.includes(r.id)).forEach((r) => known.add(r.id));
@@ -155,14 +161,23 @@ export function LibraryScreen() {
   const base = useMemo(() => lib.rows.filter((r) => !heldSet.has(r.id)), [lib.rows, heldSet]);
   const shown = useMemo(() => {
     const now = Date.now();
-    const rows = base.filter((r) => matchesView(r, view, jobs.get(r.id), reviews.get(r.id)) && matchesFilters(r, filters, jobs.get(r.id), now));
+    const rows = base.filter(
+      (r) => matchesView(r, view, jobs.get(r.id), reviews.get(r.id)) && matchesFilters(r, filters, jobs.get(r.id), now),
+    );
     return sort.key === "date" && sort.dir === "desc" ? rows : sortRows(rows, sort.key, sort.dir);
   }, [base, view, filters, jobs, sort, reviews]);
-  const attention = useMemo(() => base.filter((r) => needsAttention(r, jobs.get(r.id), reviews.get(r.id))).length, [base, jobs, reviews]);
+  const attention = useMemo(
+    () => base.filter((r) => needsAttention(r, jobs.get(r.id), reviews.get(r.id))).length,
+    [base, jobs, reviews],
+  );
   const processing = useMemo(() => base.filter((r) => isActiveJob(jobs.get(r.id))).length, [base, jobs]);
 
   const onSort = (key: SortKey) =>
-    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "title" || key === "speakers" ? "asc" : "desc" }));
+    setSort((s) =>
+      s.key === key
+        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: key === "title" || key === "speakers" ? "asc" : "desc" },
+    );
 
   const toggle = useCallback(
     (id: number, index: number, shiftKey: boolean) => {
@@ -186,7 +201,10 @@ export function LibraryScreen() {
   );
   const toggleAll = (on: boolean) => setSelected(on ? new Set(shown.map((r) => r.id)) : new Set());
 
-  const editReason = useCallback((ns: string | null | undefined) => (can("editor", ns) ? null : needRole("editor", ns)), [can]);
+  const editReason = useCallback(
+    (ns: string | null | undefined) => (can("editor", ns) ? null : needRole("editor", ns)),
+    [can],
+  );
   const onRetry = useCallback(
     (rec: RecordingSummary, v: StatusView) => {
       if (v.retry?.kind === "job") void actions.retryJob(v.retry.job);
@@ -194,11 +212,24 @@ export function LibraryScreen() {
     },
     [actions],
   );
-  const onOpen = useCallback((r: RecordingSummary) => rememberView({ kind: "recording", href: `/recordings/${r.id}`, title: r.title || "Untitled" }), []);
+  const onOpen = useCallback(
+    (r: RecordingSummary) =>
+      rememberView({
+        kind: "recording",
+        href: `/recordings/${r.id}`,
+        title: r.title || "Untitled",
+      }),
+    [],
+  );
 
   const selectedRows = lib.rows.filter((r) => selected.has(r.id));
-  const blockedNs = [...new Set(selectedRows.filter((r) => !can("editor", r.namespace)).map((r) => r.namespace ?? "?"))];
-  const blocked = { count: selectedRows.filter((r) => !can("editor", r.namespace)).length, namespaces: blockedNs };
+  const blockedNs = [
+    ...new Set(selectedRows.filter((r) => !can("editor", r.namespace)).map((r) => r.namespace ?? "?")),
+  ];
+  const blocked = {
+    count: selectedRows.filter((r) => !can("editor", r.namespace)).length,
+    namespaces: blockedNs,
+  };
 
   // Keyboard: J/K move between rows, X selects, Enter opens (the title link), / focuses the filter, Esc clears.
   useEffect(() => {
@@ -216,11 +247,18 @@ export function LibraryScreen() {
         const next = e.key === "j" ? Math.min(links.length - 1, idx + 1) : Math.max(0, idx < 0 ? 0 : idx - 1);
         links[next].focus();
         links[next].scrollIntoView({ block: "nearest" });
-      } else if ((e.key === "x" || (e.key === " " && (e.target as HTMLElement).matches("a[data-row-link]"))) && current) {
+      } else if (
+        (e.key === "x" || (e.key === " " && (e.target as HTMLElement).matches("a[data-row-link]"))) &&
+        current
+      ) {
         // X anywhere in a row, or Space on its title, selects it (Space on the checkbox works natively).
         e.preventDefault();
         const id = Number(current.dataset.rowId);
-        toggle(id, shown.findIndex((r) => r.id === id), e.shiftKey);
+        toggle(
+          id,
+          shown.findIndex((r) => r.id === id),
+          e.shiftKey,
+        );
       } else if (e.key === "Escape" && selected.size) {
         setSelected(new Set());
       }
@@ -236,7 +274,11 @@ export function LibraryScreen() {
     setDragging(false);
     const files = Array.from(e.dataTransfer.files);
     if (!canImport) {
-      toast({ title: "Can’t import here", body: needRole("editor", namespace), tone: "red" });
+      toast({
+        title: "Can’t import here",
+        body: needRole("editor", namespace),
+        tone: "red",
+      });
       return;
     }
     send.open(files);
@@ -257,7 +299,17 @@ export function LibraryScreen() {
     .join(" · ");
 
   const announced = useThrottled(processingNow ? `${count(processingNow)} processing` : "", 10_000);
-  const rowProps = { rows: shown, jobs, reviews, selected, onToggle: toggle, onToggleAll: toggleAll, onRetry, editReason, onOpen };
+  const rowProps = {
+    rows: shown,
+    jobs,
+    reviews,
+    selected,
+    onToggle: toggle,
+    onToggleAll: toggleAll,
+    onRetry,
+    editReason,
+    onOpen,
+  };
 
   return (
     <div
@@ -276,7 +328,9 @@ export function LibraryScreen() {
       <div className="flex flex-col gap-3 px-4 pt-4 md:px-6 md:pt-[18px]">
         <div className="flex items-center gap-3.5">
           <h1 className="text-[24px] font-bold leading-tight tracking-[-.015em] text-fg">Library</h1>
-          <span className="tabular hidden text-[13px] text-fg-muted sm:inline">{lib.recordings.isLoading ? <Skeleton className="w-56" /> : countLine}</span>
+          <span className="tabular hidden text-[13px] text-fg-muted sm:inline">
+            {lib.recordings.isLoading ? <Skeleton className="w-56" /> : countLine}
+          </span>
           <span className="sr-only" aria-live="polite">
             {announced}
           </span>
@@ -294,27 +348,54 @@ export function LibraryScreen() {
         </div>
 
         {(role === "viewer" || viewerEverywhere) && (
-          <div role="note" className="flex items-center gap-2.5 rounded-[10px] border border-border bg-surface-neutral px-3 py-[9px] text-[13px] leading-snug text-fg-strong">
+          <div
+            role="note"
+            className="flex items-center gap-2.5 rounded-[10px] border border-border bg-surface-neutral px-3 py-[9px] text-[13px] leading-snug text-fg-strong"
+          >
             <Eye className="size-[15px] shrink-0" aria-hidden />
             <span className="flex-1">
-              You’re a <b className="font-bold">viewer</b> in {namespace ?? namespaces.map((n) => n.name).join(", ")}: you can read, listen, search and chat. Import, reprocess and
-              edits are turned off — ask an owner for editor access.
+              You’re a <b className="font-bold">viewer</b> in {namespace ?? namespaces.map((n) => n.name).join(", ")}:
+              you can read, listen, search and chat. Import, reprocess and edits are turned off — ask an owner for
+              editor access.
             </span>
           </div>
         )}
 
         {!empty && (
           <>
-            {!narrow && <SourcesStrip watches={src.watches} sources={src.sources} running={lib.jobsCounts.running} queued={lib.jobsCounts.queued} />}
+            {!narrow && (
+              <SourcesStrip
+                watches={src.watches}
+                sources={src.sources}
+                running={lib.jobsCounts.running}
+                queued={lib.jobsCounts.queued}
+              />
+            )}
             {!narrow && (
               <LibraryTabs
                 value={view}
                 onChange={setView}
                 items={[
-                  { value: "all", label: "All recordings", count: count(lib.total) },
-                  { value: "attention", label: "Needs attention", count: attention || undefined },
-                  { value: "processing", label: "Processing", count: processing || undefined },
-                  { value: "mine", label: "Edited by me", disabledReason: "Not available yet: the archive doesn’t list recordings by who edited them." },
+                  {
+                    value: "all",
+                    label: "All recordings",
+                    count: count(lib.total),
+                  },
+                  {
+                    value: "attention",
+                    label: "Needs attention",
+                    count: attention || undefined,
+                  },
+                  {
+                    value: "processing",
+                    label: "Processing",
+                    count: processing || undefined,
+                  },
+                  {
+                    value: "mine",
+                    label: "Edited by me",
+                    disabledReason: "Not available yet: the archive doesn’t list recordings by who edited them.",
+                  },
                 ]}
               />
             )}
@@ -325,7 +406,11 @@ export function LibraryScreen() {
 
       {held.length > 0 && (
         <div className="sticky top-[72px] z-20 flex justify-center">
-          <button type="button" onClick={() => showHeld()} className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-pill bg-blue px-3.5 text-[13px] font-bold text-white shadow-2 hover:bg-blue-dark">
+          <button
+            type="button"
+            onClick={() => showHeld()}
+            className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-pill bg-blue px-3.5 text-[13px] font-bold text-white shadow-2 hover:bg-blue-dark"
+          >
             <ArrowUp className="size-4" aria-hidden />
             {count(held.length)} new
           </button>
@@ -350,7 +435,8 @@ export function LibraryScreen() {
           </EmptyState>
         ) : me && !me.user.admin && Object.keys(me.roles ?? {}).length === 0 ? (
           <EmptyState className="border-t border-border" title="No namespaces yet">
-            You don’t have a role in any namespace. Ask an admin to add you, and the recordings you can see will show up here.
+            You don’t have a role in any namespace. Ask an admin to add you, and the recordings you can see will show up
+            here.
           </EmptyState>
         ) : empty ? (
           <LibraryEmpty namespace={namespace} />
@@ -370,7 +456,9 @@ export function LibraryScreen() {
               </Button>
             }
           >
-            {lib.recordings.hasNextPage ? `Filters look at the ${count(lib.rows.length)} most recent recordings loaded so far. Load more to look further back.` : "Try fewer filters."}
+            {lib.recordings.hasNextPage
+              ? `Filters look at the ${count(lib.rows.length)} most recent recordings loaded so far. Load more to look further back.`
+              : "Try fewer filters."}
           </EmptyState>
         ) : narrow ? (
           <RecordingCards {...rowProps} />
@@ -390,14 +478,25 @@ export function LibraryScreen() {
               {filtering && lib.recordings.hasNextPage ? " — filters and sorting apply to the loaded recordings" : ""}
             </span>
             {lib.recordings.hasNextPage && (
-              <Button variant="secondary" size="sm" disabled={lib.recordings.isFetchingNextPage} onClick={() => lib.recordings.fetchNextPage()}>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={lib.recordings.isFetchingNextPage}
+                onClick={() => lib.recordings.fetchNextPage()}
+              >
                 {lib.recordings.isFetchingNextPage ? "Loading…" : `Load ${count(PAGE)} more`}
               </Button>
             )}
           </div>
         )}
         <div className="flex-1" />
-        <BulkBar selected={selected.size} blocked={blocked} onReprocess={() => setReprocessOpen(true)} onExport={(fmt) => actions.exportMany([...selected], fmt)} onClear={() => setSelected(new Set())} />
+        <BulkBar
+          selected={selected.size}
+          blocked={blocked}
+          onReprocess={() => setReprocessOpen(true)}
+          onExport={(fmt) => actions.exportMany([...selected], fmt)}
+          onClear={() => setSelected(new Set())}
+        />
       </div>
 
       <ReprocessDialog
@@ -412,8 +511,14 @@ export function LibraryScreen() {
         <div className="pointer-events-none absolute inset-2 z-40 grid place-items-center rounded-lg border-2 border-dashed border-blue bg-[color-mix(in_srgb,var(--intent-surface)_92%,transparent)]">
           <div className="flex flex-col items-center gap-2 text-center">
             <Upload className="size-8 text-blue" aria-hidden />
-            <p className="text-[16px] font-bold text-fg">{canImport ? `Drop to import${namespace ? ` into ${namespace}` : ""}` : "You can’t import here"}</p>
-            <p className="text-[13px] text-fg-secondary">{canImport ? "You’ll see how each file was read before anything is saved." : needRole("editor", namespace)}</p>
+            <p className="text-[16px] font-bold text-fg">
+              {canImport ? `Drop to import${namespace ? ` into ${namespace}` : ""}` : "You can’t import here"}
+            </p>
+            <p className="text-[13px] text-fg-secondary">
+              {canImport
+                ? "You’ll see how each file was read before anything is saved."
+                : needRole("editor", namespace)}
+            </p>
           </div>
         </div>
       )}

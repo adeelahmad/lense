@@ -27,7 +27,15 @@ import { fitTabs } from "@/components/recording/tab-fit";
 import { applyChatEvent, citeParts, isRecordingChat, newAnswer } from "@/components/recording/chat-model";
 import { silenceGaps, skipTarget } from "@/components/player/media";
 
-const seg = (idx: number, t0: number, t1: number, speaker: string | null, text = "x"): Segment => ({ idx, t0, t1, speaker, text, emotion: null, event: null });
+const seg = (idx: number, t0: number, t1: number, speaker: string | null, text = "x"): Segment => ({
+  idx,
+  t0,
+  t1,
+  speaker,
+  text,
+  emotion: null,
+  event: null,
+});
 
 // The seeded backend's player payload for "Episode 12" (trimmed).
 const PLAYER = {
@@ -42,13 +50,46 @@ const PLAYER = {
     { key: "s1", id: 1, name: "Bob", color: "#C2571A" },
   ],
   segments: [
-    { t0: 0, t1: 6545, s: "s2", text: "Welcome back. Today we talk about Dyno Therapeutics.", e: "Neutral", v: null },
-    { t0: 6795, t1: 11415, s: "s1", text: "Wow, really?", e: "Surprise", v: null },
-    { t0: 11665, t1: 17440, s: "s2", text: "Yes.", e: "Unknown", v: "Laughter" },
+    {
+      t0: 0,
+      t1: 6545,
+      s: "s2",
+      text: "Welcome back. Today we talk about Dyno Therapeutics.",
+      e: "Neutral",
+      v: null,
+    },
+    {
+      t0: 6795,
+      t1: 11415,
+      s: "s1",
+      text: "Wow, really?",
+      e: "Surprise",
+      v: null,
+    },
+    {
+      t0: 11665,
+      t1: 17440,
+      s: "s2",
+      text: "Yes.",
+      e: "Unknown",
+      v: "Laughter",
+    },
   ],
-  sections: [{ idx: 0, seg0: 0, seg1: 3, t0: 0, t1: 30510, title: "Dyno Therapeutics, capsid, design" }],
+  sections: [
+    {
+      idx: 0,
+      seg0: 0,
+      seg1: 3,
+      t0: 0,
+      t1: 30510,
+      title: "Dyno Therapeutics, capsid, design",
+    },
+  ],
   entities: [{ name: "Dyno Therapeutics", type: "ORG", segs: [0, 1] }],
-  keywords: [["dyno therapeutics", 3.8], ["capsid", 3.3]],
+  keywords: [
+    ["dyno therapeutics", 3.8],
+    ["capsid", 3.3],
+  ],
   envelope: null,
   summary: null,
   media: { kind: "audio", width: null, height: null, fps: null },
@@ -64,7 +105,15 @@ describe("normalizePlayer", () => {
       ["s2", "Alice", 0, "var(--spk-1)"],
       ["s1", "Bob", 1, "var(--spk-2)"],
     ]);
-    expect(m.segments[1]).toEqual({ idx: 1, t0: 6795, t1: 11415, speaker: "s1", text: "Wow, really?", emotion: "Surprise", event: null });
+    expect(m.segments[1]).toEqual({
+      idx: 1,
+      t0: 6795,
+      t1: 11415,
+      speaker: "s1",
+      text: "Wow, really?",
+      emotion: "Surprise",
+      event: null,
+    });
     expect(m.chapters[0].title).toBe("Dyno Therapeutics, capsid, design");
     expect(m.keywords).toEqual([
       { text: "dyno therapeutics", weight: 3.8 },
@@ -80,13 +129,53 @@ describe("normalizePlayer", () => {
       ...PLAYER,
       media: { kind: "video", width: 1920, height: 1080, fps: 30 },
       shots: [{ idx: 0, t0: 0, t1: 5000, frame: "/f/0.jpg" }],
-      screen_text: [{ id: "ocr:1", t0: 100, t1: 900, text: "Q3", box: [0.1, 0.1, 0.2, 0.05], frame: "/f/1.jpg", edited: true }],
+      screen_text: [
+        {
+          id: "ocr:1",
+          t0: 100,
+          t1: 900,
+          text: "Q3",
+          box: [0.1, 0.1, 0.2, 0.05],
+          frame: "/f/1.jpg",
+          edited: true,
+        },
+      ],
       faces_mode: "recognize",
-      faces: [{ id: "ft1", local: "P1", face: 3, name: "Mara", spans: [[0, 4000]], screen_ms: 4000, first_ms: 0, boxes: [[0, 0.5, 0.1, 0.1, 0.2]], score: 0.9, match: "face", cover: "/c.jpg" }],
+      faces: [
+        {
+          id: "ft1",
+          local: "P1",
+          face: 3,
+          name: "Mara",
+          spans: [[0, 4000]],
+          screen_ms: 4000,
+          first_ms: 0,
+          boxes: [[0, 0.5, 0.1, 0.1, 0.2]],
+          score: 0.9,
+          match: "face",
+          cover: "/c.jpg",
+        },
+      ],
     } as unknown as Player);
-    expect(m.media).toEqual({ kind: "video", width: 1920, height: 1080, fps: 30 });
-    expect(m.screenText[0]).toMatchObject({ id: "ocr:1", box: [0.1, 0.1, 0.2, 0.05], edited: true });
-    expect(m.faces[0]).toMatchObject({ id: "ft1", face: 3, name: "Mara", spans: [[0, 4000]], boxes: [[0, 0.5, 0.1, 0.1, 0.2]], cover: "/c.jpg" });
+    expect(m.media).toEqual({
+      kind: "video",
+      width: 1920,
+      height: 1080,
+      fps: 30,
+    });
+    expect(m.screenText[0]).toMatchObject({
+      id: "ocr:1",
+      box: [0.1, 0.1, 0.2, 0.05],
+      edited: true,
+    });
+    expect(m.faces[0]).toMatchObject({
+      id: "ft1",
+      face: 3,
+      name: "Mara",
+      spans: [[0, 4000]],
+      boxes: [[0, 0.5, 0.1, 0.1, 0.2]],
+      cover: "/c.jpg",
+    });
     expect(m.facesMode).toBe("recognize");
   });
 
@@ -117,7 +206,14 @@ describe("normalizeEnvelope", () => {
 });
 
 describe("turns", () => {
-  const segs = [seg(0, 0, 1000, "a"), seg(1, 1000, 2000, "a"), seg(2, 2000, 3000, "b"), seg(3, 3000, 4000, null), seg(4, 4000, 5000, null), seg(5, 5000, 6000, "b")];
+  const segs = [
+    seg(0, 0, 1000, "a"),
+    seg(1, 1000, 2000, "a"),
+    seg(2, 2000, 3000, "b"),
+    seg(3, 3000, 4000, null),
+    seg(4, 4000, 5000, null),
+    seg(5, 5000, 6000, "b"),
+  ];
   it("groups consecutive lines by speaker; unassigned lines stay one per turn", () => {
     expect(groupTurns(segs).map((t) => t.segs)).toEqual([[0, 1], [2], [3], [4], [5]]);
   });
@@ -143,7 +239,10 @@ describe("turns", () => {
     expect(adjacentTurnStart(turns, 5500, 1)).toBeNull();
   });
   it("finds the chapter at a time", () => {
-    const ch = [{ idx: 0, seg0: 0, seg1: 2, t0: 0, t1: 2000, title: "A" }, { idx: 1, seg0: 2, seg1: 6, t0: 2000, t1: 6000, title: "B" }];
+    const ch = [
+      { idx: 0, seg0: 0, seg1: 2, t0: 0, t1: 2000, title: "A" },
+      { idx: 1, seg0: 2, seg1: 6, t0: 2000, t1: 6000, title: "B" },
+    ];
     expect(chapterAt(ch, 1999)).toBe(0);
     expect(chapterAt(ch, 2000)).toBe(1);
   });
@@ -194,7 +293,19 @@ describe("labels", () => {
     expect(showEmotion(null)).toBe(false);
   });
   it("computes talk-time shares from the recording's stats", () => {
-    const s = speakerStats({ speakers: [{ speaker_id: 2, talk_ms: 3000, turns: 3, words: 40, wpm: 150, name: "Alice" }, { talk_ms: 1000, name: "Unattributed" }] });
+    const s = speakerStats({
+      speakers: [
+        {
+          speaker_id: 2,
+          talk_ms: 3000,
+          turns: 3,
+          words: 40,
+          wpm: 150,
+          name: "Alice",
+        },
+        { talk_ms: 1000, name: "Unattributed" },
+      ],
+    });
     expect(s.map((x) => [x.id, x.share])).toEqual([
       [2, 0.75],
       [null, 0.25],
@@ -223,7 +334,12 @@ describe("find and highlights", () => {
       { text: "def", kind: null },
     ]);
     // Overlaps keep the first range.
-    expect(splitRuns("abcdef", [{ start: 0, end: 3, kind: "x" }, { start: 2, end: 4, kind: "y" }]).map((r) => r.kind)).toEqual(["x", null]);
+    expect(
+      splitRuns("abcdef", [
+        { start: 0, end: 3, kind: "x" },
+        { start: 2, end: 4, kind: "y" },
+      ]).map((r) => r.kind),
+    ).toEqual(["x", null]);
   });
   it("marks entity names on word boundaries only", () => {
     expect(entityRanges("Meridian and Meridians met Meridian.", ["Meridian"])).toEqual([
@@ -236,26 +352,61 @@ describe("find and highlights", () => {
 describe("transcript corrections", () => {
   it("describes edits in plain words", () => {
     const name = (id: number | null) => (id === 7 ? "Host B" : "nobody");
-    expect(describeEdit({ before: { text: "The card says Meridan brought" }, after: { text: "The card says Meridian brought" } }, name)).toBe("Fixed “Meridan” → “Meridian”");
+    expect(
+      describeEdit(
+        {
+          before: { text: "The card says Meridan brought" },
+          after: { text: "The card says Meridian brought" },
+        },
+        name,
+      ),
+    ).toBe("Fixed “Meridan” → “Meridian”");
     expect(describeEdit({ before: { speaker: 3 }, after: { speaker: 7 } }, name)).toBe("Reassigned line to Host B");
     expect(describeEdit({ before: { speaker: 3 }, after: { speaker: null } }, name)).toBe("Unassigned the speaker");
     expect(describeEdit({ before: { text: "a b" }, after: { text: "a b c" } }, name)).toBe("Added “c”");
   });
   it("finds the changed words", () => {
-    expect(wordDiff("one two three", "one 2 three")).toEqual({ removed: "two", added: "2" });
+    expect(wordDiff("one two three", "one 2 three")).toEqual({
+      removed: "two",
+      added: "2",
+    });
   });
   it("reverts only what the edit changed", () => {
-    expect(revertPatch({ before: { text: "old", speaker: 3 }, after: { text: "new" } })).toEqual({ text: "old" });
-    expect(revertPatch({ before: { text: "x", speaker: null }, after: { speaker: 4 } })).toEqual({ speaker: null });
+    expect(
+      revertPatch({
+        before: { text: "old", speaker: 3 },
+        after: { text: "new" },
+      }),
+    ).toEqual({ text: "old" });
+    expect(
+      revertPatch({
+        before: { text: "x", speaker: null },
+        after: { speaker: 4 },
+      }),
+    ).toEqual({ speaker: null });
     expect(revertPatch({ before: {}, after: {} })).toBeNull();
   });
 });
 
 describe("summaries", () => {
   it("reads the Summarize step's shape", () => {
-    const d = summaryDoc({ summary: "They read the card.", topics: ["evals", "cyber"], action_items: ["Ask Meridian"], people: ["Meridian"], sentiment: "Neutral", importance: 3 });
+    const d = summaryDoc({
+      summary: "They read the card.",
+      topics: ["evals", "cyber"],
+      action_items: ["Ask Meridian"],
+      people: ["Meridian"],
+      sentiment: "Neutral",
+      importance: 3,
+    });
     expect(d.tldr).toBe("They read the card.");
-    expect(d.sections).toEqual([{ key: "action_items", title: "Action items", glyph: "☐", items: [{ text: "Ask Meridian" }] }]);
+    expect(d.sections).toEqual([
+      {
+        key: "action_items",
+        title: "Action items",
+        glyph: "☐",
+        items: [{ text: "Ask Meridian" }],
+      },
+    ]);
     expect(d.chips.map((c) => c.title)).toEqual(["Topics", "People mentioned"]);
     expect(d.facts).toEqual([
       { label: "Tone", value: "Neutral" },
@@ -263,17 +414,31 @@ describe("summaries", () => {
     ]);
   });
   it("reads Meeting notes, in the design's section order", () => {
-    const d = summaryDoc({ open_questions: ["Would scores change?"], action_items: [{ owner: "Host B", task: "Ask Meridian", due: "Friday" }], decisions: ["Own episode"], tldr: "Short." });
+    const d = summaryDoc({
+      open_questions: ["Would scores change?"],
+      action_items: [{ owner: "Host B", task: "Ask Meridian", due: "Friday" }],
+      decisions: ["Own episode"],
+      tldr: "Short.",
+    });
     expect(d.tldr).toBe("Short.");
     expect(d.sections.map((s) => [s.title, s.glyph])).toEqual([
       ["Decisions", "◆"],
       ["Action items", "☐"],
       ["Open questions", "?"],
     ]);
-    expect(d.sections[1].items[0]).toEqual({ text: "Ask Meridian", who: "Host B", due: "Friday", t: null });
+    expect(d.sections[1].items[0]).toEqual({
+      text: "Ask Meridian",
+      who: "Host B",
+      due: "Friday",
+      t: null,
+    });
   });
   it("keeps timestamps on items and unknown keys as sections", () => {
-    const d = summaryDoc({ key_points: ["[14:18] Nine days on cyber", { point: "Suite not described", t: 877 }], risks: ["Scope creep"], mood: { host: "calm" } });
+    const d = summaryDoc({
+      key_points: ["[14:18] Nine days on cyber", { point: "Suite not described", t: 877 }],
+      risks: ["Scope creep"],
+      mood: { host: "calm" },
+    });
     expect(d.sections[0].items).toEqual([
       { text: "Nine days on cyber", t: 858_000 },
       { text: "Suite not described", who: null, due: null, t: 877_000 },
@@ -298,16 +463,34 @@ describe("summaries", () => {
 describe("recording chat", () => {
   it("builds an answer from the stream", () => {
     let a = newAnswer("What did they decide?");
-    a = applyChatEvent(a, { event: "passages", data: JSON.stringify([{ n: 1, recording_id: 1, t0: 6795, speaker: "Bob", text: "Wow" }]) });
-    a = applyChatEvent(a, { event: "token", data: JSON.stringify({ text: "They were surprised " }) });
-    a = applyChatEvent(a, { event: "token", data: JSON.stringify({ text: "[1]." }) });
-    a = applyChatEvent(a, { event: "done", data: JSON.stringify({ message: 9 }) });
+    a = applyChatEvent(a, {
+      event: "passages",
+      data: JSON.stringify([{ n: 1, recording_id: 1, t0: 6795, speaker: "Bob", text: "Wow" }]),
+    });
+    a = applyChatEvent(a, {
+      event: "token",
+      data: JSON.stringify({ text: "They were surprised " }),
+    });
+    a = applyChatEvent(a, {
+      event: "token",
+      data: JSON.stringify({ text: "[1]." }),
+    });
+    a = applyChatEvent(a, {
+      event: "done",
+      data: JSON.stringify({ message: 9 }),
+    });
     expect(a.status).toBe("done");
     expect(a.text).toBe("They were surprised [1].");
     expect(a.passages[0].t0).toBe(6795);
   });
   it("keeps errors", () => {
-    const a = applyChatEvent(applyChatEvent(newAnswer("q"), { event: "error", data: JSON.stringify({ message: "No provider" }) }), { event: "done", data: "{}" });
+    const a = applyChatEvent(
+      applyChatEvent(newAnswer("q"), {
+        event: "error",
+        data: JSON.stringify({ message: "No provider" }),
+      }),
+      { event: "done", data: "{}" },
+    );
     expect(a).toMatchObject({ status: "error", error: "No provider" });
   });
   it("splits citations", () => {
@@ -349,13 +532,26 @@ describe("skip silence", () => {
 });
 
 describe("fitTabs (priority+ panel tabs)", () => {
-  const w: Record<string, number> = { summary: 80, speakers: 80, entities: 80, chat: 60, notes: 60, history: 70, metadata: 90, iiif: 50, details: 70 };
+  const w: Record<string, number> = {
+    summary: 80,
+    speakers: 80,
+    entities: 80,
+    chat: 60,
+    notes: 60,
+    history: 70,
+    metadata: 90,
+    iiif: 50,
+    details: 70,
+  };
   const tabs = ["summary", "speakers", "entities", "chat", "notes", "history"];
   const extra = ["metadata", "iiif", "details"];
   const width = (v: string) => w[v];
 
   test("everything fits: only the extra tabs are in the menu", () => {
-    expect(fitTabs(tabs, extra, width, 480, 34, "summary")).toEqual({ shown: tabs, overflow: extra });
+    expect(fitTabs(tabs, extra, width, 480, 34, "summary")).toEqual({
+      shown: tabs,
+      overflow: extra,
+    });
   });
 
   test("narrow: trailing tabs move into the menu, ahead of the extra tabs", () => {
@@ -377,7 +573,13 @@ describe("fitTabs (priority+ panel tabs)", () => {
   });
 
   test("no extra tabs and everything fits: no menu", () => {
-    expect(fitTabs(["a", "b"], [], () => 50, 100, 34, "a")).toEqual({ shown: ["a", "b"], overflow: [] });
-    expect(fitTabs(["a", "b", "c"], [], () => 50, 100, 34, "c")).toEqual({ shown: ["c"], overflow: ["a", "b"] });
+    expect(fitTabs(["a", "b"], [], () => 50, 100, 34, "a")).toEqual({
+      shown: ["a", "b"],
+      overflow: [],
+    });
+    expect(fitTabs(["a", "b", "c"], [], () => 50, 100, 34, "c")).toEqual({
+      shown: ["c"],
+      overflow: ["a", "b"],
+    });
   });
 });

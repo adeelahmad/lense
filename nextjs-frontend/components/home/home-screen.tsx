@@ -22,7 +22,12 @@ import { useJobs } from "@/lib/hooks/jobs";
 import { needRole, useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-const VIEW_ICON: Record<ViewedKind, typeof FileAudio> = { recording: FileAudio, speaker: AudioLines, chat: MessagesSquare, report: ChartNoAxesColumn };
+const VIEW_ICON: Record<ViewedKind, typeof FileAudio> = {
+  recording: FileAudio,
+  speaker: AudioLines,
+  chat: MessagesSquare,
+  report: ChartNoAxesColumn,
+};
 
 function SectionLabel({ children, id }: { children: React.ReactNode; id?: string }) {
   return (
@@ -43,7 +48,11 @@ function AttentionRow({ item, onAct, reason }: { item: AttentionItem; onAct: () 
       )}
     >
       {fail ? (
-        <span aria-label="Failed" role="img" className="grid size-[22px] place-items-center rounded-full bg-red text-[11px] font-extrabold text-white">
+        <span
+          aria-label="Failed"
+          role="img"
+          className="grid size-[22px] place-items-center rounded-full bg-red text-[11px] font-extrabold text-white"
+        >
           ✕
         </span>
       ) : (
@@ -60,7 +69,13 @@ function AttentionRow({ item, onAct, reason }: { item: AttentionItem; onAct: () 
           <Link href={link.href}>{item.action.label}</Link>
         </Button>
       ) : (
-        <Button variant="secondary" size="sm" onClick={onAct} disabled={Boolean(reason)} disabledReason={reason ?? undefined}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onAct}
+          disabled={Boolean(reason)}
+          disabledReason={reason ?? undefined}
+        >
           {item.action.label}
         </Button>
       )}
@@ -82,12 +97,32 @@ export function HomeScreen() {
   const jobs = useJobs({ limit: 200 });
   const recent = useQuery({
     queryKey: ["recordings", "home", namespace ?? "*"],
-    queryFn: () => data(Recordings.listRecordings({ client, query: { ns: namespace ?? undefined, limit: 50 } })),
+    queryFn: () =>
+      data(
+        Recordings.listRecordings({
+          client,
+          query: { ns: namespace ?? undefined, limit: 50 },
+        }),
+      ),
     refetchInterval: jobs.data?.running ? 10_000 : 60_000,
   });
-  const sources = useQuery({ queryKey: ["sources"], queryFn: () => data(Sources.listSources({ client })), enabled: admin, staleTime: 30_000 });
-  const watches = useQuery({ queryKey: ["watches"], queryFn: () => data(Sources.listWatches({ client })), enabled: admin, staleTime: 30_000 });
-  const tokens = useQuery({ queryKey: ["tokens"], queryFn: () => data(Tokens.listTokens({ client })), staleTime: 60_000 });
+  const sources = useQuery({
+    queryKey: ["sources"],
+    queryFn: () => data(Sources.listSources({ client })),
+    enabled: admin,
+    staleTime: 30_000,
+  });
+  const watches = useQuery({
+    queryKey: ["watches"],
+    queryFn: () => data(Sources.listWatches({ client })),
+    enabled: admin,
+    staleTime: 30_000,
+  });
+  const tokens = useQuery({
+    queryKey: ["tokens"],
+    queryFn: () => data(Tokens.listTokens({ client })),
+    staleTime: 60_000,
+  });
   const reviewable = namespaces.map((n) => n.name).filter((n) => (!namespace || n === namespace) && can("editor", n));
   const speakerQs = useQueries({
     queries: reviewable.map((ns) => ({
@@ -113,7 +148,10 @@ export function HomeScreen() {
       sources: admin ? sources.data : undefined,
       // Only admins can fix a watched folder.
       watches: admin ? (watches.data ?? []).filter((w) => inScope(w.namespace)) : [],
-      reviews: reviewable.map((ns, i) => ({ namespace: ns, speakers: speakerQs[i]?.data?.speakers ?? [] })),
+      reviews: reviewable.map((ns, i) => ({
+        namespace: ns,
+        speakers: speakerQs[i]?.data?.speakers ?? [],
+      })),
       tokens: tokens.data,
     });
     // Only what this person can act on: failures in namespaces where they can't edit stay out of their way.
@@ -127,9 +165,25 @@ export function HomeScreen() {
     else if (a.type === "test-source") {
       try {
         const h = await data(Sources.testSource({ client, path: { sid: a.source } }));
-        toast(h.ok ? { title: "Connected", body: "The source can be reached again.", tone: "green" } : { title: "Still can’t reach it", body: h.error ?? undefined, tone: "red" });
+        toast(
+          h.ok
+            ? {
+                title: "Connected",
+                body: "The source can be reached again.",
+                tone: "green",
+              }
+            : {
+                title: "Still can’t reach it",
+                body: h.error ?? undefined,
+                tone: "red",
+              },
+        );
       } catch (e) {
-        toast({ title: "Couldn’t test the source", body: (e as Error).message, tone: "red" });
+        toast({
+          title: "Couldn’t test the source",
+          body: (e as Error).message,
+          tone: "red",
+        });
       }
       void qc.invalidateQueries({ queryKey: ["sources"] });
     } else if (a.type === "link" && a.namespace) setNamespace(a.namespace);
@@ -137,7 +191,9 @@ export function HomeScreen() {
 
   const loadingAttention = jobs.isLoading || recent.isLoading;
   const attentionError = jobs.isError || recent.isError;
-  const running = (jobs.data?.jobs ?? []).filter((j) => isActiveJob(j) && (j.space == null || inScope(nsById.get(j.space))));
+  const running = (jobs.data?.jobs ?? []).filter(
+    (j) => isActiveJob(j) && (j.space == null || inScope(nsById.get(j.space))),
+  );
   const totals = {
     recordings: scope.reduce((a, n) => a + ((n.recordings as number) ?? 0), 0),
     ms: scope.reduce((a, n) => a + ((n.ms as number) ?? 0), 0),
@@ -149,14 +205,23 @@ export function HomeScreen() {
     <div className="grid content-start gap-6 px-4 py-5 md:px-8 md:py-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
       <div className="flex min-w-0 flex-col gap-5">
         <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-          <h1 className="text-[24px] font-bold leading-[1.2] tracking-[-.015em] text-fg">{now ? `${greeting(now)}${first ? `, ${first}` : ""}` : "Welcome back"}</h1>
+          <h1 className="text-[24px] font-bold leading-[1.2] tracking-[-.015em] text-fg">
+            {now ? `${greeting(now)}${first ? `, ${first}` : ""}` : "Welcome back"}
+          </h1>
           <span className="text-[13px] text-fg-muted" suppressHydrationWarning>
-            {now?.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+            {now?.toLocaleDateString("en-GB", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
           </span>
         </div>
 
         <section aria-labelledby="attention" className="flex scroll-mt-20 flex-col gap-2">
-          <SectionLabel id="attention">Needs attention{loadingAttention || !items.length ? "" : ` · ${items.length}`}</SectionLabel>
+          <SectionLabel id="attention">
+            Needs attention
+            {loadingAttention || !items.length ? "" : ` · ${items.length}`}
+          </SectionLabel>
           {loadingAttention ? (
             <div className="flex flex-col gap-2" aria-busy="true" aria-label="Loading">
               {[0, 1].map((i) => (
@@ -183,8 +248,14 @@ export function HomeScreen() {
               {((jobs.error ?? recent.error) as Error | null)?.message}
             </Banner>
           ) : items.length === 0 ? (
-            <div className="flex items-center gap-3 rounded-md border border-green-border bg-green-surface px-3.5 py-3" role="status">
-              <span aria-hidden className="grid size-[22px] place-items-center rounded-full bg-green text-[12px] font-extrabold text-white">
+            <div
+              className="flex items-center gap-3 rounded-md border border-green-border bg-green-surface px-3.5 py-3"
+              role="status"
+            >
+              <span
+                aria-hidden
+                className="grid size-[22px] place-items-center rounded-full bg-green text-[12px] font-extrabold text-white"
+              >
                 ✓
               </span>
               <span className="flex flex-col gap-[3px]">
@@ -205,7 +276,14 @@ export function HomeScreen() {
           ) : (
             <ul className="flex flex-col gap-2">
               {items.map((it) => (
-                <AttentionRow key={it.key} item={it} onAct={() => void act(it)} reason={it.namespace !== undefined && !can("editor", it.namespace) ? needRole("editor", it.namespace) : null} />
+                <AttentionRow
+                  key={it.key}
+                  item={it}
+                  onAct={() => void act(it)}
+                  reason={
+                    it.namespace !== undefined && !can("editor", it.namespace) ? needRole("editor", it.namespace) : null
+                  }
+                />
               ))}
             </ul>
           )}
@@ -239,17 +317,32 @@ export function HomeScreen() {
               {recent.data.slice(0, 5).map((r) => {
                 const v = statusView(r, latest.get(r.id));
                 return (
-                  <li key={r.id} className="grid h-11 grid-cols-[minmax(0,1fr)_110px] items-center gap-3 border-b border-border sm:grid-cols-[minmax(0,1fr)_110px_90px]">
+                  <li
+                    key={r.id}
+                    className="grid h-11 grid-cols-[minmax(0,1fr)_110px] items-center gap-3 border-b border-border sm:grid-cols-[minmax(0,1fr)_110px_90px]"
+                  >
                     <span className="flex min-w-0 flex-col gap-[3px]">
                       <Link
                         href={`/recordings/${r.id}`}
-                        onClick={() => rememberView({ kind: "recording", href: `/recordings/${r.id}`, title: r.title || "Untitled" })}
+                        onClick={() =>
+                          rememberView({
+                            kind: "recording",
+                            href: `/recordings/${r.id}`,
+                            title: r.title || "Untitled",
+                          })
+                        }
                         className="truncate text-[13.5px] font-semibold leading-tight text-fg hover:underline"
                       >
                         {r.title || "Untitled"}
                       </Link>
                       <span className="truncate text-[12px] leading-none text-fg-muted">
-                        {[r.namespace, r.media_kind === "transcript" ? "transcript" : r.media_kind, r.duration_ms ? tc(r.duration_ms) : null].filter(Boolean).join(" · ")}
+                        {[
+                          r.namespace,
+                          r.media_kind === "transcript" ? "transcript" : r.media_kind,
+                          r.duration_ms ? tc(r.duration_ms) : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
                     </span>
                     <span>
@@ -257,7 +350,10 @@ export function HomeScreen() {
                         {v.label}
                       </Badge>
                     </span>
-                    <span className="hidden text-right text-[12.5px] text-fg-secondary sm:block" title={shortDate(r.recorded_at, true)}>
+                    <span
+                      className="hidden text-right text-[12.5px] text-fg-secondary sm:block"
+                      title={shortDate(r.recorded_at, true)}
+                    >
                       {relative(r.recorded_at)}
                     </span>
                   </li>
@@ -290,15 +386,30 @@ export function HomeScreen() {
                 return (
                   <li key={j.id} className="flex flex-col gap-[5px]">
                     <span className="flex justify-between gap-3 text-[13px] font-semibold leading-tight">
-                      <Link href={j.recording ? `/recordings/${j.recording}` : "/activity"} className="truncate text-fg hover:underline">
+                      <Link
+                        href={j.recording ? `/recordings/${j.recording}` : "/activity"}
+                        className="truncate text-fg hover:underline"
+                      >
                         {(j.title || "Recording").replace(/\s+—.*$/, "")} · {stepLabel(j.next_step)}
                       </Link>
                       <span className="tabular shrink-0 font-medium text-fg-secondary">
-                        {j.status === "queued" ? "waiting" : [`${pct}%`, elapsed((j as { started_at?: string }).started_at)].filter(Boolean).join(" · ")}
+                        {j.status === "queued"
+                          ? "waiting"
+                          : [`${pct}%`, elapsed((j as { started_at?: string }).started_at)].filter(Boolean).join(" · ")}
                       </span>
                     </span>
-                    <span className="block h-1 overflow-hidden rounded-pill bg-surface-neutral" role="progressbar" aria-label={`${j.title}: ${stepLabel(j.next_step)}`} aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-                      <span className="block h-full bg-blue transition-[width] duration-slow" style={{ width: `${Math.max(3, pct)}%` }} />
+                    <span
+                      className="block h-1 overflow-hidden rounded-pill bg-surface-neutral"
+                      role="progressbar"
+                      aria-label={`${j.title}: ${stepLabel(j.next_step)}`}
+                      aria-valuenow={pct}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <span
+                        className="block h-full bg-blue transition-[width] duration-slow"
+                        style={{ width: `${Math.max(3, pct)}%` }}
+                      />
                     </span>
                   </li>
                 );
@@ -320,7 +431,10 @@ export function HomeScreen() {
                 const Icon = VIEW_ICON[v.kind] ?? FileAudio;
                 return (
                   <li key={v.href}>
-                    <Link href={v.href} className="flex w-full items-center gap-2 text-[13.5px] font-medium leading-[1.3] text-fg hover:underline">
+                    <Link
+                      href={v.href}
+                      className="flex w-full items-center gap-2 text-[13.5px] font-medium leading-[1.3] text-fg hover:underline"
+                    >
                       <Icon className="size-[15px] shrink-0 text-fg-muted" aria-hidden />
                       <span className="truncate">{v.title}</span>
                     </Link>

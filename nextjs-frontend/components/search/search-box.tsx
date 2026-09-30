@@ -12,9 +12,19 @@ export type Chip = { key: string; label: string; onRemove: () => void };
 /** A filter chip: the same filter as its facet. */
 export function FilterChip({ chip, className }: { chip: Chip; className?: string }) {
   return (
-    <span className={cn("inline-flex h-[26px] shrink-0 items-center gap-1 rounded-pill border border-blue-border bg-blue-surface pl-2 pr-1 text-[12px] font-semibold text-fg-accent", className)}>
+    <span
+      className={cn(
+        "inline-flex h-[26px] shrink-0 items-center gap-1 rounded-pill border border-blue-border bg-blue-surface pl-2 pr-1 text-[12px] font-semibold text-fg-accent",
+        className,
+      )}
+    >
       {chip.label}
-      <button type="button" onClick={chip.onRemove} aria-label={`Remove filter ${chip.label}`} className="grid size-5 place-items-center rounded-full hover:bg-blue-border/40">
+      <button
+        type="button"
+        onClick={chip.onRemove}
+        aria-label={`Remove filter ${chip.label}`}
+        className="grid size-5 place-items-center rounded-full hover:bg-blue-border/40"
+      >
         <X className="size-3" aria-hidden />
       </button>
     </span>
@@ -40,7 +50,22 @@ export const SearchBox = forwardRef<
     compact?: boolean;
     className?: string;
   }
->(function SearchBox({ value, onChange, onSubmit, onClear, onArrowDown, chips, helpOpen, onHelpOpenChange, onPickExample, compact, className }, ref) {
+>(function SearchBox(
+  {
+    value,
+    onChange,
+    onSubmit,
+    onClear,
+    onArrowDown,
+    chips,
+    helpOpen,
+    onHelpOpenChange,
+    onPickExample,
+    compact,
+    className,
+  },
+  ref,
+) {
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -77,7 +102,12 @@ export const SearchBox = forwardRef<
       />
       {!compact && chips.map((c) => <FilterChip key={c.key} chip={c} />)}
       {compact && value && onClear && (
-        <button type="button" onClick={onClear} aria-label="Clear search" className="grid size-8 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral">
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label="Clear search"
+          className="grid size-8 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral"
+        >
           <X className="size-[17px]" />
         </button>
       )}
@@ -87,7 +117,10 @@ export const SearchBox = forwardRef<
             <button
               type="button"
               aria-label="Search syntax help"
-              className={cn("grid size-[30px] shrink-0 place-items-center rounded-full text-[13px] font-bold text-fg", helpOpen ? "bg-blue-surface text-fg-accent" : "bg-surface-neutral hover:bg-border/60")}
+              className={cn(
+                "grid size-[30px] shrink-0 place-items-center rounded-full text-[13px] font-bold text-fg",
+                helpOpen ? "bg-blue-surface text-fg-accent" : "bg-surface-neutral hover:bg-border/60",
+              )}
             >
               ?
             </button>

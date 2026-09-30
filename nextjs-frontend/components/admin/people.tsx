@@ -6,7 +6,16 @@ import { useRef, useState, type KeyboardEvent } from "react";
 
 import { Users } from "@/app/openapi-client";
 import { AdminFrame, usePeople } from "@/components/admin/admin-frame";
-import { cellKey, describePending, roleLabel, tempPassword, withPending, type Pending, type Person, type Role } from "@/components/admin/people-model";
+import {
+  cellKey,
+  describePending,
+  roleLabel,
+  tempPassword,
+  withPending,
+  type Pending,
+  type Person,
+  type Role,
+} from "@/components/admin/people-model";
 import { isUnreachable } from "@/components/errors/error-states";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -23,7 +32,11 @@ import { cn } from "@/lib/utils";
 
 const ROLES: (Role | "")[] = ["", "viewer", "editor", "owner"];
 
-type Dialogs = { kind: "create" } | { kind: "reset"; person: Person } | { kind: "disable"; person: Person } | { kind: "rename"; person: Person };
+type Dialogs =
+  | { kind: "create" }
+  | { kind: "reset"; person: Person }
+  | { kind: "disable"; person: Person }
+  | { kind: "rename"; person: Person };
 
 /** People: accounts with their role in every namespace (Admin AD1); create, reset, disable (AD2). */
 export function PeoplePage() {
@@ -42,8 +55,22 @@ export function PeoplePage() {
   const save = useMutation({
     mutationFn: async () => {
       for (const p of pending.values()) {
-        if ("admin" in p) await data(Users.updateUser({ client, path: { uid: p.uid }, body: { admin: p.admin } }));
-        else await data(Users.setMember({ client, path: { name: p.ns }, body: { account: p.uid, role: p.role } }));
+        if ("admin" in p)
+          await data(
+            Users.updateUser({
+              client,
+              path: { uid: p.uid },
+              body: { admin: p.admin },
+            }),
+          );
+        else
+          await data(
+            Users.setMember({
+              client,
+              path: { name: p.ns },
+              body: { account: p.uid, role: p.role },
+            }),
+          );
       }
     },
     onSuccess: () => {
@@ -51,15 +78,30 @@ export function PeoplePage() {
       setPending(new Map());
       void qc.invalidateQueries({ queryKey: ["users"] });
       void qc.invalidateQueries({ queryKey: ["members"] });
-      toast({ title: `Saved ${n} change${n === 1 ? "" : "s"}`, body: "Each is recorded in the audit log.", tone: "green" });
+      toast({
+        title: `Saved ${n} change${n === 1 ? "" : "s"}`,
+        body: "Each is recorded in the audit log.",
+        tone: "green",
+      });
     },
     onError: () => void qc.invalidateQueries({ queryKey: ["users"] }),
   });
   const enable = useMutation({
-    mutationFn: (p: Person) => data(Users.updateUser({ client, path: { uid: p.id }, body: { disabled: false } })),
+    mutationFn: (p: Person) =>
+      data(
+        Users.updateUser({
+          client,
+          path: { uid: p.id },
+          body: { disabled: false },
+        }),
+      ),
     onSuccess: (_r, p) => {
       void qc.invalidateQueries({ queryKey: ["users"] });
-      toast({ title: `${p.name || p.email} can sign in again`, body: "Their roles and edits were kept.", tone: "green" });
+      toast({
+        title: `${p.name || p.email} can sign in again`,
+        body: "Their roles and edits were kept.",
+        tone: "green",
+      });
     },
   });
 
@@ -68,7 +110,11 @@ export function PeoplePage() {
     <AdminFrame
       tab="people"
       title="People"
-      meta={people.data ? `${count(list.length)} account${list.length === 1 ? "" : "s"}${disabled ? ` · ${disabled} disabled` : ""}` : undefined}
+      meta={
+        people.data
+          ? `${count(list.length)} account${list.length === 1 ? "" : "s"}${disabled ? ` · ${disabled} disabled` : ""}`
+          : undefined
+      }
       actions={
         <Button variant="primary" size="sm" icon={<UserPlus />} onClick={() => setDialog({ kind: "create" })}>
           Create account
@@ -80,7 +126,12 @@ export function PeoplePage() {
           <SkeletonRows rows={5} />
         </div>
       ) : people.isError ? (
-        <EmptyState tone="error" icon={<UsersIcon />} title={isUnreachable(people.error) ? "Can’t reach the server" : "Couldn’t load the accounts"} actions={<Button onClick={() => people.refetch()}>Try again</Button>}>
+        <EmptyState
+          tone="error"
+          icon={<UsersIcon />}
+          title={isUnreachable(people.error) ? "Can’t reach the server" : "Couldn’t load the accounts"}
+          actions={<Button onClick={() => people.refetch()}>Try again</Button>}
+        >
           {people.error.message}
         </EmptyState>
       ) : (
@@ -94,23 +145,36 @@ export function PeoplePage() {
         />
       )}
       {(changes.length > 0 || save.isError) && (
-        <div className="flex flex-wrap items-center gap-2.5 rounded-md border border-blue-border bg-blue-surface px-3.5 py-2.5 text-[13px] font-medium leading-[1.3]" aria-live="polite">
+        <div
+          className="flex flex-wrap items-center gap-2.5 rounded-md border border-blue-border bg-blue-surface px-3.5 py-2.5 text-[13px] font-medium leading-[1.3]"
+          aria-live="polite"
+        >
           <span aria-hidden className="size-2 rounded-full bg-blue" />
           <span className="min-w-0 flex-1">
-            {changes.length} change{changes.length === 1 ? "" : "s"}: {changes.slice(0, 2).map((c) => describePending(c, list)).join("; ")}
+            {changes.length} change{changes.length === 1 ? "" : "s"}:{" "}
+            {changes
+              .slice(0, 2)
+              .map((c) => describePending(c, list))
+              .join("; ")}
             {changes.length > 2 ? ` and ${changes.length - 2} more` : ""}
           </span>
           {save.isError && <span className="w-full text-red-dark sm:order-last">{save.error.message}</span>}
           <Button variant="ghost" size="sm" onClick={() => setPending(new Map())} disabled={save.isPending}>
             Discard
           </Button>
-          <Button variant="primary" size="sm" onClick={() => save.mutate()} disabled={save.isPending || !changes.length}>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => save.mutate()}
+            disabled={save.isPending || !changes.length}
+          >
             {save.isPending ? "Saving…" : "Save roles"}
           </Button>
         </div>
       )}
       <p className="text-[12.5px] leading-[1.45] text-fg-muted">
-        Each cell is a role: — (none), Viewer, Editor or Owner. Arrow keys move between cells; Enter opens the role. Platform admins own every namespace.
+        Each cell is a role: — (none), Viewer, Editor or Owner. Arrow keys move between cells; Enter opens the role.
+        Platform admins own every namespace.
       </p>
       {dialog?.kind === "create" && <CreateDialog onClose={() => setDialog(null)} />}
       {dialog?.kind === "reset" && <ResetDialog person={dialog.person} onClose={() => setDialog(null)} />}
@@ -159,7 +223,12 @@ function RoleGrid({
       }
       return;
     }
-    const moves: Record<string, [number, number]> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+    const moves: Record<string, [number, number]> = {
+      ArrowUp: [-1, 0],
+      ArrowDown: [1, 0],
+      ArrowLeft: [0, -1],
+      ArrowRight: [0, 1],
+    };
     if (moves[e.key]) {
       e.preventDefault();
       focusCell(r + moves[e.key][0], c + moves[e.key][1]);
@@ -171,7 +240,8 @@ function RoleGrid({
       focusCell(e.ctrlKey ? people.length - 1 : r, colCount - 1);
     } else if (e.key === "Enter" || e.key === " " || e.key === "F2") {
       const control = e.currentTarget.querySelector<HTMLElement>("select,button,[role=switch]");
-      if (!control || control.getAttribute("aria-disabled") === "true" || (control as HTMLButtonElement).disabled) return;
+      if (!control || control.getAttribute("aria-disabled") === "true" || (control as HTMLButtonElement).disabled)
+        return;
       e.preventDefault();
       if (control.tagName === "SELECT") {
         control.focus();
@@ -206,8 +276,18 @@ function RoleGrid({
 
   return (
     <div className="relative overflow-x-auto rounded-md border border-border">
-      <div role="grid" aria-label="Roles: people by namespaces" aria-rowcount={people.length + 1} aria-colcount={colCount + 2} className="min-w-fit text-[13px] leading-[1.3]">
-        <div role="row" className="grid items-center gap-3 bg-surface px-4 py-2.5 text-[12px] font-semibold leading-[1.2] text-fg-secondary" style={{ gridTemplateColumns: cols }}>
+      <div
+        role="grid"
+        aria-label="Roles: people by namespaces"
+        aria-rowcount={people.length + 1}
+        aria-colcount={colCount + 2}
+        className="min-w-fit text-[13px] leading-[1.3]"
+      >
+        <div
+          role="row"
+          className="grid items-center gap-3 bg-surface px-4 py-2.5 text-[12px] font-semibold leading-[1.2] text-fg-secondary"
+          style={{ gridTemplateColumns: cols }}
+        >
           <span role="columnheader">Person</span>
           <span role="columnheader">Platform admin</span>
           {namespaces.map((n) => (
@@ -225,9 +305,19 @@ function RoleGrid({
           const adminPending = pending.get(cellKey(p.id, "admin"));
           const isAdmin = adminPending && "admin" in adminPending ? adminPending.admin : Boolean(p.admin);
           return (
-            <div role="row" key={p.id} className={cn("grid h-[60px] items-center gap-3 border-t border-border px-4", p.disabled && "opacity-55")} style={{ gridTemplateColumns: cols }}>
+            <div
+              role="row"
+              key={p.id}
+              className={cn("grid h-[60px] items-center gap-3 border-t border-border px-4", p.disabled && "opacity-55")}
+              style={{ gridTemplateColumns: cols }}
+            >
               <div role="rowheader" className="flex min-w-0 items-center gap-2.5">
-                <Avatar name={p.name || p.email} size={32} className="border border-border" disabled={Boolean(p.disabled)} />
+                <Avatar
+                  name={p.name || p.email}
+                  size={32}
+                  className="border border-border"
+                  disabled={Boolean(p.disabled)}
+                />
                 <span className="flex min-w-0 flex-col gap-[3px]">
                   <b className="truncate text-[13.5px] font-semibold leading-[1.2]">
                     {p.name || p.email}
@@ -238,7 +328,15 @@ function RoleGrid({
                 </span>
               </div>
               <div {...cellProps(r, 0)}>
-                <Tooltip content={me ? "You can’t remove your own admin rights" : isAdmin && onlyAdmin && p.admin ? "The only admin can’t lose admin rights" : undefined}>
+                <Tooltip
+                  content={
+                    me
+                      ? "You can’t remove your own admin rights"
+                      : isAdmin && onlyAdmin && p.admin
+                        ? "The only admin can’t lose admin rights"
+                        : undefined
+                  }
+                >
                   <span>
                     <GridSwitch
                       label={`${p.name || p.email} is a platform admin`}
@@ -258,7 +356,9 @@ function RoleGrid({
                   <div key={ns} {...cellProps(r, i + 1)}>
                     {isAdmin ? (
                       <Tooltip content="Platform admins own every namespace">
-                        <span className="flex h-8 w-full items-center rounded-sm border border-border bg-surface px-2.5 text-[13px] font-medium text-fg-muted">Owner</span>
+                        <span className="flex h-8 w-full items-center rounded-sm border border-border bg-surface px-2.5 text-[13px] font-medium text-fg-muted">
+                          Owner
+                        </span>
                       </Tooltip>
                     ) : (
                       <span className="relative w-full">
@@ -266,7 +366,13 @@ function RoleGrid({
                           tabIndex={-1}
                           aria-label={`${p.name || p.email} in ${ns}`}
                           value={role ?? ""}
-                          onChange={(e) => onEdit({ uid: p.id, ns, role: (e.target.value || null) as Role | null })}
+                          onChange={(e) =>
+                            onEdit({
+                              uid: p.id,
+                              ns,
+                              role: (e.target.value || null) as Role | null,
+                            })
+                          }
                           className={cn(
                             "h-8 w-full appearance-none rounded-sm border pl-2.5 pr-7 text-[13px] outline-none focus:border-blue",
                             role ? "font-medium text-fg" : "font-normal text-fg-muted",
@@ -279,17 +385,30 @@ function RoleGrid({
                             </option>
                           ))}
                         </select>
-                        <ChevronDown aria-hidden className="pointer-events-none absolute right-2 top-1/2 size-[13px] -translate-y-1/2 text-fg-secondary" />
+                        <ChevronDown
+                          aria-hidden
+                          className="pointer-events-none absolute right-2 top-1/2 size-[13px] -translate-y-1/2 text-fg-secondary"
+                        />
                       </span>
                     )}
                   </div>
                 );
               })}
-              <span className="tabular text-[12.5px] leading-[1.3] text-fg-secondary">{p.last_login_at ? shortDate(p.last_login_at, true) : "never"}</span>
-              <div {...cellProps(r, colCount - 1)} className="flex justify-end rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-blue">
+              <span className="tabular text-[12.5px] leading-[1.3] text-fg-secondary">
+                {p.last_login_at ? shortDate(p.last_login_at, true) : "never"}
+              </span>
+              <div
+                {...cellProps(r, colCount - 1)}
+                className="flex justify-end rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-blue"
+              >
                 <Menu>
                   <MenuTrigger asChild>
-                    <button type="button" tabIndex={-1} aria-label={`Actions for ${p.name || p.email}`} className="grid size-8 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral">
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      aria-label={`Actions for ${p.name || p.email}`}
+                      className="grid size-8 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral"
+                    >
                       <Ellipsis className="size-[18px]" />
                     </button>
                   </MenuTrigger>
@@ -316,7 +435,19 @@ function RoleGrid({
 }
 
 /** A switch that stays out of the tab order, so the grid keeps a single tab stop (arrows move between cells). */
-function GridSwitch({ label, checked, changed, disabled, onChange }: { label: string; checked: boolean; changed?: boolean; disabled?: boolean; onChange: (v: boolean) => void }) {
+function GridSwitch({
+  label,
+  checked,
+  changed,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  changed?: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <button
       type="button"
@@ -333,7 +464,12 @@ function GridSwitch({ label, checked, changed, disabled, onChange }: { label: st
         disabled && "cursor-not-allowed opacity-50",
       )}
     >
-      <span className={cn("absolute top-0.5 block size-4 rounded-full bg-white shadow-1 transition-transform duration-base ease-standard", checked ? "translate-x-[18px]" : "translate-x-0.5")} />
+      <span
+        className={cn(
+          "absolute top-0.5 block size-4 rounded-full bg-white shadow-1 transition-transform duration-base ease-standard",
+          checked ? "translate-x-[18px]" : "translate-x-0.5",
+        )}
+      />
     </button>
   );
 }
@@ -343,8 +479,22 @@ function PasswordField({ value, onChange }: { value: string; onChange: (v: strin
     <Field label="Temporary password" hint="At least 10 characters. Share it privately.">
       {(f) => (
         <div className="flex gap-2">
-          <Input id={f.id} aria-describedby={f.describedBy} mono value={value} onChange={(e) => onChange(e.target.value)} autoComplete="off" spellCheck={false} />
-          <Button size="md" variant="ghost" icon={<RefreshCw />} onClick={() => onChange(tempPassword())} aria-label="Suggest another password" />
+          <Input
+            id={f.id}
+            aria-describedby={f.describedBy}
+            mono
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <Button
+            size="md"
+            variant="ghost"
+            icon={<RefreshCw />}
+            onClick={() => onChange(tempPassword())}
+            aria-label="Suggest another password"
+          />
         </div>
       )}
     </Field>
@@ -355,7 +505,9 @@ function Done({ title, password }: { title: string; password: string }) {
   return (
     <div className="flex flex-col gap-2">
       <Banner tone="success">{title}</Banner>
-      <span className="text-[13px] text-fg-secondary">Share the temporary password privately. It isn’t shown again.</span>
+      <span className="text-[13px] text-fg-secondary">
+        Share the temporary password privately. It isn’t shown again.
+      </span>
       <CodeBlock text={password} label="password" />
     </div>
   );
@@ -369,7 +521,18 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState(() => tempPassword());
   const [admin, setAdmin] = useState(false);
   const create = useMutation({
-    mutationFn: () => data(Users.createUser({ client, body: { name: name.trim() || null, email: email.trim(), password, admin } })),
+    mutationFn: () =>
+      data(
+        Users.createUser({
+          client,
+          body: {
+            name: name.trim() || null,
+            email: email.trim(),
+            password,
+            admin,
+          },
+        }),
+      ),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["users"] }),
   });
   const err = create.error instanceof ApiError ? create.error.message : create.error?.message;
@@ -390,7 +553,12 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button variant="primary" disabled={!ready || create.isPending} disabledReason={!ready ? "Enter an email and a password of at least 10 characters" : undefined} onClick={() => create.mutate()}>
+            <Button
+              variant="primary"
+              disabled={!ready || create.isPending}
+              disabledReason={!ready ? "Enter an email and a password of at least 10 characters" : undefined}
+              onClick={() => create.mutate()}
+            >
               {create.isPending ? "Creating…" : "Create account"}
             </Button>
           </>
@@ -401,13 +569,26 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
         <Done title={`Created ${name.trim() || email.trim()}.`} password={password} />
       ) : (
         <>
-          <Field label="Name">{(f) => <Input id={f.id} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}</Field>
+          <Field label="Name">
+            {(f) => <Input id={f.id} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}
+          </Field>
           <Field label="Email" error={emailErr}>
-            {(f) => <Input id={f.id} aria-describedby={f.describedBy} invalid={f.invalid} type="email" value={email} onChange={(e) => (setEmail(e.target.value), create.reset())} />}
+            {(f) => (
+              <Input
+                id={f.id}
+                aria-describedby={f.describedBy}
+                invalid={f.invalid}
+                type="email"
+                value={email}
+                onChange={(e) => (setEmail(e.target.value), create.reset())}
+              />
+            )}
           </Field>
           <PasswordField value={password} onChange={setPassword} />
           <Switch checked={admin} onCheckedChange={setAdmin} label="Platform admin" />
-          <p className="text-[12.5px] leading-[1.45] text-fg-muted">New accounts have no namespace roles. Add them in the role matrix or from a namespace’s members.</p>
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            New accounts have no namespace roles. Add them in the role matrix or from a namespace’s members.
+          </p>
           {err && !emailErr && <Banner tone="error">{err}</Banner>}
         </>
       )}
@@ -418,14 +599,27 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
 function ResetDialog({ person, onClose }: { person: Person; onClose: () => void }) {
   const client = useApiClient();
   const [password, setPassword] = useState(() => tempPassword());
-  const reset = useMutation({ mutationFn: () => data(Users.updateUser({ client, path: { uid: person.id }, body: { password } })) });
+  const reset = useMutation({
+    mutationFn: () =>
+      data(
+        Users.updateUser({
+          client,
+          path: { uid: person.id },
+          body: { password },
+        }),
+      ),
+  });
   const who = person.name || person.email;
   return (
     <Dialog
       open
       onOpenChange={(o) => !o && onClose()}
       title={`Reset ${who}’s password?`}
-      description={reset.isSuccess ? undefined : "Their current sessions end, and they sign in with the temporary password below. Their API tokens keep working."}
+      description={
+        reset.isSuccess
+          ? undefined
+          : "Their current sessions end, and they sign in with the temporary password below. Their API tokens keep working."
+      }
       actions={
         reset.isSuccess ? (
           <Button variant="primary" onClick={onClose}>
@@ -436,14 +630,23 @@ function ResetDialog({ person, onClose }: { person: Person; onClose: () => void 
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button variant="primary" disabled={password.length < 10 || reset.isPending} disabledReason={password.length < 10 ? "Use at least 10 characters" : undefined} onClick={() => reset.mutate()}>
+            <Button
+              variant="primary"
+              disabled={password.length < 10 || reset.isPending}
+              disabledReason={password.length < 10 ? "Use at least 10 characters" : undefined}
+              onClick={() => reset.mutate()}
+            >
               {reset.isPending ? "Resetting…" : "Reset password"}
             </Button>
           </>
         )
       }
     >
-      {reset.isSuccess ? <Done title={`${who} was signed out everywhere.`} password={password} /> : <PasswordField value={password} onChange={setPassword} />}
+      {reset.isSuccess ? (
+        <Done title={`${who} was signed out everywhere.`} password={password} />
+      ) : (
+        <PasswordField value={password} onChange={setPassword} />
+      )}
       {reset.isError && <Banner tone="error">{reset.error.message}</Banner>}
     </Dialog>
   );
@@ -456,10 +659,21 @@ function DisableDialog({ person, onClose }: { person: Person; onClose: () => voi
   const who = person.name || person.email;
   const first = (person.name || person.email).split(/[\s@]/)[0];
   const disable = useMutation({
-    mutationFn: () => data(Users.updateUser({ client, path: { uid: person.id }, body: { disabled: true } })),
+    mutationFn: () =>
+      data(
+        Users.updateUser({
+          client,
+          path: { uid: person.id },
+          body: { disabled: true },
+        }),
+      ),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["users"] });
-      toast({ title: `Disabled ${who}`, body: "Re-enable from the same menu to restore everything.", tone: "green" });
+      toast({
+        title: `Disabled ${who}`,
+        body: "Re-enable from the same menu to restore everything.",
+        tone: "green",
+      });
       onClose();
     },
   });
@@ -490,7 +704,14 @@ function RenameDialog({ person, onClose }: { person: Person; onClose: () => void
   const qc = useQueryClient();
   const [name, setName] = useState(person.name ?? "");
   const rename = useMutation({
-    mutationFn: () => data(Users.updateUser({ client, path: { uid: person.id }, body: { name: name.trim() } })),
+    mutationFn: () =>
+      data(
+        Users.updateUser({
+          client,
+          path: { uid: person.id },
+          body: { name: name.trim() },
+        }),
+      ),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["users"] });
       void qc.invalidateQueries({ queryKey: ["me"] });
@@ -513,7 +734,9 @@ function RenameDialog({ person, onClose }: { person: Person; onClose: () => void
         </>
       }
     >
-      <Field label="Name">{(f) => <Input id={f.id} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} autoFocus />}</Field>
+      <Field label="Name">
+        {(f) => <Input id={f.id} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} autoFocus />}
+      </Field>
       {rename.isError && <Banner tone="error">{rename.error.message}</Banner>}
     </Dialog>
   );

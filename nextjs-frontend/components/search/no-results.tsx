@@ -38,7 +38,8 @@ export function NoResults({
       key: `p-${w}`,
       node: (
         <>
-          <code className="font-mono">{w}*</code> — prefix search isn’t supported, so this looks for the whole word “{w}”. Type the full word you mean.
+          <code className="font-mono">{w}*</code> — prefix search isn’t supported, so this looks for the whole word “{w}
+          ”. Type the full word you mean.
         </>
       ),
     });
@@ -63,7 +64,8 @@ export function NoResults({
       key: "ns",
       node: (
         <>
-          The filter <b>namespace: {filters.namespace}</b> limits this{nsRecordings != null ? ` to ${plural(nsRecordings, "recording")}` : ""}.{" "}
+          The filter <b>namespace: {filters.namespace}</b> limits this
+          {nsRecordings != null ? ` to ${plural(nsRecordings, "recording")}` : ""}.{" "}
           <button type="button" className={LINK} onClick={() => onClearFilter("namespace")}>
             Search all namespaces
           </button>
@@ -131,7 +133,9 @@ export function NoResults({
   return (
     <div role="status" className="flex max-w-[560px] flex-col gap-3 py-16">
       <h2 className="text-[20px] font-bold leading-tight text-fg">No moments match</h2>
-      <p className="m-0 text-[14px] leading-normal text-fg-secondary">Every word has to appear, and here’s what may be getting in the way:</p>
+      <p className="m-0 text-[14px] leading-normal text-fg-secondary">
+        Every word has to appear, and here’s what may be getting in the way:
+      </p>
       <ul className="m-0 flex list-none flex-col gap-2 p-0 text-[14px] leading-normal text-fg">
         {hints.map((h) => (
           <li key={h.key} className="flex gap-2">

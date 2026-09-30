@@ -22,7 +22,19 @@ import { count, plural, shortDate, tc } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-function PlayMoment({ player, k, recordingId, t0, title }: { player: InlinePlayer; k: string; recordingId: number; t0: number; title?: string | null }) {
+function PlayMoment({
+  player,
+  k,
+  recordingId,
+  t0,
+  title,
+}: {
+  player: InlinePlayer;
+  k: string;
+  recordingId: number;
+  t0: number;
+  title?: string | null;
+}) {
   const index = useRecordingIndex();
   const none = hasMedia(index.byId.get(recordingId)) === false || player.noAudio.has(recordingId);
   const playing = player.isPlaying(k);
@@ -32,9 +44,19 @@ function PlayMoment({ player, k, recordingId, t0, title }: { player: InlinePlaye
       aria-label={none ? "No audio — transcript only" : `${playing ? "Pause" : "Play"} from ${tc(t0)}`}
       aria-disabled={none || undefined}
       onClick={() => !none && player.play({ key: k, recordingId, t0, title })}
-      className={cn("grid size-[26px] shrink-0 place-items-center rounded-full bg-surface-neutral text-fg [&_svg]:size-[11px]", none ? "cursor-not-allowed opacity-40" : "hover:bg-blue-surface hover:text-blue", playing && "bg-blue text-white")}
+      className={cn(
+        "grid size-[26px] shrink-0 place-items-center rounded-full bg-surface-neutral text-fg [&_svg]:size-[11px]",
+        none ? "cursor-not-allowed opacity-40" : "hover:bg-blue-surface hover:text-blue",
+        playing && "bg-blue text-white",
+      )}
     >
-      {player.loading === k ? <Loader2 className="animate-spin" /> : playing ? <Pause /> : <Play className="translate-x-px" />}
+      {player.loading === k ? (
+        <Loader2 className="animate-spin" />
+      ) : playing ? (
+        <Pause />
+      ) : (
+        <Play className="translate-x-px" />
+      )}
     </button>
   );
 }
@@ -43,7 +65,13 @@ function EntityMentions({ n, player }: { n: GraphNode; player: InlinePlayer }) {
   const client = useApiClient();
   const q = useQuery({
     queryKey: ["mentions", n.refs.join(",")],
-    queryFn: () => data(Search.listMentions({ client, query: { entities: n.refs.slice(0, 50).join(",") } })),
+    queryFn: () =>
+      data(
+        Search.listMentions({
+          client,
+          query: { entities: n.refs.slice(0, 50).join(",") },
+        }),
+      ),
     staleTime: 60_000,
   });
   if (q.isLoading) return <Skeleton className="h-24 w-full" />;
@@ -54,9 +82,18 @@ function EntityMentions({ n, player }: { n: GraphNode; player: InlinePlayer }) {
     <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
       {items.slice(0, 12).map((m, i) => (
         <li key={i} className="grid grid-cols-[26px_minmax(0,1fr)] items-start gap-2">
-          <PlayMoment player={player} k={`m${i}-${m.recording_id}-${m.t0}`} recordingId={m.recording_id} t0={m.t0 ?? 0} title={m.title} />
+          <PlayMoment
+            player={player}
+            k={`m${i}-${m.recording_id}-${m.t0}`}
+            recordingId={m.recording_id}
+            t0={m.t0 ?? 0}
+            title={m.title}
+          />
           <span className="flex min-w-0 flex-col gap-[3px]">
-            <Link href={recordingHref(m.recording_id, m.t0)} className="text-[12px] font-semibold leading-tight text-fg-secondary hover:text-fg-accent hover:underline">
+            <Link
+              href={recordingHref(m.recording_id, m.t0)}
+              className="text-[12px] font-semibold leading-tight text-fg-secondary hover:text-fg-accent hover:underline"
+            >
               {shortTitle(m.title)} · {tc(m.t0)}
               {m.speaker && (
                 <>
@@ -71,7 +108,10 @@ function EntityMentions({ n, player }: { n: GraphNode; player: InlinePlayer }) {
       ))}
       {items.length > 12 && (
         <li className="text-[12.5px] text-fg-muted">
-          <Link href={`/search?q=${encodeURIComponent(`"${n.label}"`)}`} className="font-semibold text-fg-accent hover:underline">
+          <Link
+            href={`/search?q=${encodeURIComponent(`"${n.label}"`)}`}
+            className="font-semibold text-fg-accent hover:underline"
+          >
             {count(items.length - 12)}+ more mentions in Search →
           </Link>
         </li>
@@ -90,7 +130,10 @@ function SpeakerRecordings({ n, player }: { n: GraphNode; player: InlinePlayer }
         <li key={r.id} className="grid grid-cols-[26px_minmax(0,1fr)] items-start gap-2">
           <PlayMoment player={player} k={`r${r.id}`} recordingId={r.id} t0={r.first_t0 ?? 0} title={r.title} />
           <span className="flex min-w-0 flex-col gap-[3px]">
-            <Link href={recordingHref(r.id, r.first_t0)} className="truncate text-[13px] font-semibold text-fg hover:text-fg-accent hover:underline">
+            <Link
+              href={recordingHref(r.id, r.first_t0)}
+              className="truncate text-[13px] font-semibold text-fg hover:text-fg-accent hover:underline"
+            >
               {r.title ?? `Recording ${r.id}`}
             </Link>
             <span className="text-[12px] text-fg-muted">
@@ -104,7 +147,19 @@ function SpeakerRecordings({ n, player }: { n: GraphNode; player: InlinePlayer }
 }
 
 /** The node panel: what it is, where it's mentioned (playable), what it's connected to, and what you can do with it. */
-export function NodePanel({ node, nodes, edges, onSelect, onClose }: { node: GraphNode; nodes: GraphNode[]; edges: GraphEdge[]; onSelect: (id: string) => void; onClose: () => void }) {
+export function NodePanel({
+  node,
+  nodes,
+  edges,
+  onSelect,
+  onClose,
+}: {
+  node: GraphNode;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
   const client = useApiClient();
   const { can } = useArchive();
   const player = useInlinePlayer();
@@ -154,7 +209,14 @@ export function NodePanel({ node, nodes, edges, onSelect, onClose }: { node: Gra
             </Link>
           </Button>
         )}
-        <Button asChild={canRun} size="xs" variant="ghost" disabled={!canRun} disabledReason={needRole("editor", node.ns[0])} icon={canRun ? undefined : <Play />}>
+        <Button
+          asChild={canRun}
+          size="xs"
+          variant="ghost"
+          disabled={!canRun}
+          disabledReason={needRole("editor", node.ns[0])}
+          icon={canRun ? undefined : <Play />}
+        >
           {canRun ? (
             <Link href={runHref}>
               <Play /> Run on {runCount || "…"}
@@ -178,7 +240,8 @@ export function NodePanel({ node, nodes, edges, onSelect, onClose }: { node: Gra
                   onClick={() => onSelect(l.id)}
                   className="inline-flex h-[26px] items-center rounded-pill border border-border px-2.5 text-[12.5px] font-medium text-fg hover:border-blue-border hover:bg-blue-surface"
                 >
-                  {byId.get(l.id)?.label ?? l.id} · {l.kind === "maybe the same voice" ? "maybe same voice" : count(l.w)}
+                  {byId.get(l.id)?.label ?? l.id} ·{" "}
+                  {l.kind === "maybe the same voice" ? "maybe same voice" : count(l.w)}
                 </button>
               </li>
             ))}

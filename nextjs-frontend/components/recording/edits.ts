@@ -1,6 +1,12 @@
 /** Transcript corrections: describing an edit in plain words, and the patch that reverts it. Pure functions. */
 
-export type EditRecord = { idx: number; before?: Record<string, unknown> | null; after?: Record<string, unknown> | null; by?: string | null; at?: string | null };
+export type EditRecord = {
+  idx: number;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+  by?: string | null;
+  at?: string | null;
+};
 
 const clip = (s: string, n = 28) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
@@ -12,11 +18,17 @@ export function wordDiff(a: string, b: string): { removed: string; added: string
   while (i < x.length && i < y.length && x[i] === y[i]) i++;
   let j = 0;
   while (j < x.length - i && j < y.length - i && x[x.length - 1 - j] === y[y.length - 1 - j]) j++;
-  return { removed: x.slice(i, x.length - j).join(" "), added: y.slice(i, y.length - j).join(" ") };
+  return {
+    removed: x.slice(i, x.length - j).join(" "),
+    added: y.slice(i, y.length - j).join(" "),
+  };
 }
 
 /** "Fixed “Meridan” → “Meridian”", "Reassigned line to Host B", … */
-export function describeEdit(e: Pick<EditRecord, "before" | "after">, speakerName: (id: number | null) => string): string {
+export function describeEdit(
+  e: Pick<EditRecord, "before" | "after">,
+  speakerName: (id: number | null) => string,
+): string {
   const after = e.after ?? {};
   const before = e.before ?? {};
   const text = "text" in after;
@@ -37,7 +49,9 @@ export function describeEdit(e: Pick<EditRecord, "before" | "after">, speakerNam
 }
 
 /** The PATCH body that puts a line back the way it was before this edit (only the fields the edit changed). */
-export function revertPatch(e: Pick<EditRecord, "before" | "after">): { text?: string; speaker?: number | null } | null {
+export function revertPatch(
+  e: Pick<EditRecord, "before" | "after">,
+): { text?: string; speaker?: number | null } | null {
   const after = e.after ?? {};
   const before = e.before ?? {};
   const out: { text?: string; speaker?: number | null } = {};

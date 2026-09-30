@@ -30,8 +30,15 @@ export function CollectionDetail({ id }: { id: number }) {
   const { me, can } = useArchive();
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const col = useQuery({ queryKey: ["collection", id], queryFn: () => data(Collections.getCollection({ client, path: { cid: id } })) });
-  const list = useQuery({ queryKey: ["collections"], queryFn: () => data(Collections.listCollections({ client })), staleTime: 30_000 });
+  const col = useQuery({
+    queryKey: ["collection", id],
+    queryFn: () => data(Collections.getCollection({ client, path: { cid: id } })),
+  });
+  const list = useQuery({
+    queryKey: ["collections"],
+    queryFn: () => data(Collections.listCollections({ client })),
+    staleTime: 30_000,
+  });
   const remove = useMutation({
     mutationFn: () => data(Collections.deleteCollection({ client, path: { cid: id } })),
     onSuccess: () => {
@@ -53,7 +60,9 @@ export function CollectionDetail({ id }: { id: number }) {
             </Button>
           }
         >
-          {col.error?.message === "not found" ? "It may have been deleted, or it isn’t shared with you." : col.error?.message}
+          {col.error?.message === "not found"
+            ? "It may have been deleted, or it isn’t shared with you."
+            : col.error?.message}
         </EmptyState>
       </div>
     );
@@ -63,7 +72,10 @@ export function CollectionDetail({ id }: { id: number }) {
   const canRun = can("editor");
   return (
     <div className="flex flex-col gap-4 px-4 py-6 md:px-6">
-      <Link href="/collections" className="inline-flex w-fit items-center gap-1 text-[13px] font-semibold text-fg-secondary hover:text-fg">
+      <Link
+        href="/collections"
+        className="inline-flex w-fit items-center gap-1 text-[13px] font-semibold text-fg-secondary hover:text-fg"
+      >
         <ChevronLeft className="size-4" aria-hidden /> Collections
       </Link>
       <PageHeader
@@ -77,7 +89,13 @@ export function CollectionDetail({ id }: { id: number }) {
                 <MessagesSquare /> Chat with it
               </Link>
             </Button>
-            <Button asChild={canRun && c.count > 0} variant="secondary" disabled={!canRun || c.count === 0} disabledReason={!canRun ? "Runs need editor access to a namespace" : "It has no recordings"} icon={canRun && c.count > 0 ? undefined : <Play />}>
+            <Button
+              asChild={canRun && c.count > 0}
+              variant="secondary"
+              disabled={!canRun || c.count === 0}
+              disabledReason={!canRun ? "Runs need editor access to a namespace" : "It has no recordings"}
+              icon={canRun && c.count > 0 ? undefined : <Play />}
+            >
               {canRun && c.count > 0 ? (
                 <Link href={`/batches/new?collection=${id}`}>
                   <Play /> Run on {count(c.count)}
@@ -86,7 +104,13 @@ export function CollectionDetail({ id }: { id: number }) {
                 `Run on ${count(c.count)}`
               )}
             </Button>
-            <Button asChild={canRun && c.count > 0} variant="secondary" disabled={!canRun || c.count === 0} disabledReason={!canRun ? "Reports need editor access to a namespace" : "It has no recordings"} icon={canRun && c.count > 0 ? undefined : <FileText />}>
+            <Button
+              asChild={canRun && c.count > 0}
+              variant="secondary"
+              disabled={!canRun || c.count === 0}
+              disabledReason={!canRun ? "Reports need editor access to a namespace" : "It has no recordings"}
+              icon={canRun && c.count > 0 ? undefined : <FileText />}
+            >
               {canRun && c.count > 0 ? (
                 <Link href={`/collections/report?collection=${id}`}>
                   <FileText /> Report
@@ -95,10 +119,22 @@ export function CollectionDetail({ id }: { id: number }) {
                 "Report"
               )}
             </Button>
-            <Button variant="ghost" icon={<Pencil />} disabled={!mine || !full} disabledReason={mine ? undefined : "Only whoever saved it can change it"} onClick={() => setEditing(true)}>
+            <Button
+              variant="ghost"
+              icon={<Pencil />}
+              disabled={!mine || !full}
+              disabledReason={mine ? undefined : "Only whoever saved it can change it"}
+              onClick={() => setEditing(true)}
+            >
               Edit
             </Button>
-            <Button variant="danger-ghost" icon={<Trash2 />} disabled={!mine} disabledReason="Only whoever saved it can delete it" onClick={() => setDeleting(true)}>
+            <Button
+              variant="danger-ghost"
+              icon={<Trash2 />}
+              disabled={!mine}
+              disabledReason="Only whoever saved it can delete it"
+              onClick={() => setDeleting(true)}
+            >
               Delete
             </Button>
           </>
@@ -110,7 +146,11 @@ export function CollectionDetail({ id }: { id: number }) {
         </p>
       </PageHeader>
       {c.recordings.length === 0 ? (
-        <EmptyState title="No recordings you can read">{c.kind === "filter" ? "Nothing matches the filter yet. It keeps up to date as recordings arrive." : "The recordings in this list are in namespaces you can’t read."}</EmptyState>
+        <EmptyState title="No recordings you can read">
+          {c.kind === "filter"
+            ? "Nothing matches the filter yet. It keeps up to date as recordings arrive."
+            : "The recordings in this list are in namespaces you can’t read."}
+        </EmptyState>
       ) : (
         <div className="overflow-hidden rounded-md border border-border">
           <Table aria-label="Recordings in this collection">
@@ -125,7 +165,10 @@ export function CollectionDetail({ id }: { id: number }) {
               {c.recordings.map((r) => (
                 <Tr key={r.id}>
                   <Td>
-                    <Link href={recordingHref(r.id)} className="font-semibold text-fg hover:text-fg-accent hover:underline">
+                    <Link
+                      href={recordingHref(r.id)}
+                      className="font-semibold text-fg hover:text-fg-accent hover:underline"
+                    >
                       {r.title ?? `Recording ${r.id}`}
                     </Link>
                   </Td>
@@ -135,10 +178,21 @@ export function CollectionDetail({ id }: { id: number }) {
               ))}
             </tbody>
           </Table>
-          {c.count > c.recordings.length && <p className="m-0 border-t border-border px-4 py-2.5 text-[12.5px] text-fg-muted">Showing the newest {count(c.recordings.length)} of {count(c.count)}.</p>}
+          {c.count > c.recordings.length && (
+            <p className="m-0 border-t border-border px-4 py-2.5 text-[12.5px] text-fg-muted">
+              Showing the newest {count(c.recordings.length)} of {count(c.count)}.
+            </p>
+          )}
         </div>
       )}
-      {full && <CollectionDialog key={`${full.id}-${full.updated_at}`} open={editing} onOpenChange={setEditing} editing={full} />}
+      {full && (
+        <CollectionDialog
+          key={`${full.id}-${full.updated_at}`}
+          open={editing}
+          onOpenChange={setEditing}
+          editing={full}
+        />
+      )}
       <Dialog
         open={deleting}
         onOpenChange={setDeleting}

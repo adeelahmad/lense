@@ -25,7 +25,14 @@ export function THead({ children, className }: { children: ReactNode; className?
 
 export function Th({ className, children, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <th scope="col" className={cn("whitespace-nowrap px-3 py-2.5 text-[12px] font-bold text-fg-secondary first:pl-4 last:pr-4", className)} {...props}>
+    <th
+      scope="col"
+      className={cn(
+        "whitespace-nowrap px-3 py-2.5 text-[12px] font-bold text-fg-secondary first:pl-4 last:pr-4",
+        className,
+      )}
+      {...props}
+    >
       {children}
     </th>
   );
@@ -49,15 +56,33 @@ export function SortTh({
     <Th aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"} className={className}>
       <button type="button" onClick={onSort} className="inline-flex items-center gap-1 hover:text-fg">
         {children}
-        {active && (dir === "asc" ? <ArrowUp className="size-3.5" aria-hidden /> : <ArrowDown className="size-3.5" aria-hidden />)}
+        {active &&
+          (dir === "asc" ? (
+            <ArrowUp className="size-3.5" aria-hidden />
+          ) : (
+            <ArrowDown className="size-3.5" aria-hidden />
+          ))}
       </button>
     </Th>
   );
 }
 
-export function Tr({ className, selected, children, ...props }: HTMLAttributes<HTMLTableRowElement> & { selected?: boolean }) {
+export function Tr({
+  className,
+  selected,
+  children,
+  ...props
+}: HTMLAttributes<HTMLTableRowElement> & { selected?: boolean }) {
   return (
-    <tr aria-selected={selected || undefined} className={cn("border-b border-border transition-colors duration-fast hover:bg-surface", selected && "bg-hl hover:bg-hl", className)} {...props}>
+    <tr
+      aria-selected={selected || undefined}
+      className={cn(
+        "border-b border-border transition-colors duration-fast hover:bg-surface",
+        selected && "bg-hl hover:bg-hl",
+        className,
+      )}
+      {...props}
+    >
       {children}
     </tr>
   );
@@ -90,7 +115,10 @@ export function Pagination({
   const end = total != null ? Math.min(offset + limit, total) : offset + limit;
   const hasNext = total != null ? end < total : true;
   return (
-    <nav aria-label="Pagination" className={cn("flex items-center gap-3 px-4 py-3 text-[13px] text-fg-secondary", className)}>
+    <nav
+      aria-label="Pagination"
+      className={cn("flex items-center gap-3 px-4 py-3 text-[13px] text-fg-secondary", className)}
+    >
       <span className="tabular">
         {total === 0 ? "0" : `${count(offset + 1)}–${count(end)}`}
         {total != null && ` of ${count(total)}`}

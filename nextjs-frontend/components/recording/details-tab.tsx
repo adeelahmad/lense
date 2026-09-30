@@ -1,6 +1,15 @@
 "use client";
 
-import { Download, FileAudio, FileText, FileVideo, Film, GitCommitHorizontal, Workflow, type LucideIcon } from "lucide-react";
+import {
+  Download,
+  FileAudio,
+  FileText,
+  FileVideo,
+  Film,
+  GitCommitHorizontal,
+  Workflow,
+  type LucideIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useRec } from "@/components/recording/context";
@@ -17,7 +26,12 @@ export function DetailsTab() {
   const src = sourceLabel(rec);
   // Pasted transcripts have no file name ("paste:<hash>" is an internal key); uploads drop their "upload:" prefix.
   const pasted = !rec.remote?.path && (rec.path ?? "").startsWith("paste:");
-  const name = pasted ? null : (rec.remote?.path ?? rec.path ?? "").split(/[\\/]/).pop()?.replace(/^upload:/, "") || null;
+  const name = pasted
+    ? null
+    : (rec.remote?.path ?? rec.path ?? "")
+        .split(/[\\/]/)
+        .pop()
+        ?.replace(/^upload:/, "") || null;
   const file: Row[] = [
     ["Name", name, true],
     ["Kind", video ? "Video" : model.audio ? "Audio" : "Transcript only (no audio)"],
@@ -29,28 +43,64 @@ export function DetailsTab() {
   const media: Row[] = [
     ["Frame size", model.media.width && model.media.height ? `${model.media.width}×${model.media.height}` : null],
     ["Frame rate", model.media.fps ? `${Math.round(model.media.fps * 100) / 100} fps` : null],
-    ["Channels", rec.channels ? `${rec.channels}${rec.channels === 1 ? " (mono)" : rec.channels === 2 ? " (stereo)" : ""}` : null],
+    [
+      "Channels",
+      rec.channels ? `${rec.channels}${rec.channels === 1 ? " (mono)" : rec.channels === 2 ? " (stereo)" : ""}` : null,
+    ],
     ["Shots", video ? count(model.shots.length) : null],
     ["Text on screen", video ? plural(model.screenText.length, "line") : null],
     ["People on screen", video ? (model.facesMode === "off" ? "face detection off" : count(model.faces.length)) : null],
   ];
   const provenance: Row[] = [
-    ["Source", src ? <span title={src.title}>{src.remote || !src.file ? src.text : (rec.path ?? src.text)}</span> : null, src?.file],
+    [
+      "Source",
+      src ? <span title={src.title}>{src.remote || !src.file ? src.text : (rec.path ?? src.text)}</span> : null,
+      src?.file,
+    ],
     ["Imported", rec.created_at ? absolute(rec.created_at) : null],
     ["Recorded", rec.recorded_at ? absolute(rec.recorded_at) : null],
     ["Fingerprint", rec.fingerprint ?? null, true],
   ];
   const processing: Row[] = [
-    ["Transcribe", rec.transcribed_at ? `${transcriptOrigin(rec.engine) ?? "done"} · ${absolute(rec.transcribed_at)}` : "not run"],
-    ["Diarize", rec.diarized_at ? `${rec.diarizer === "labels" ? "speakers from the transcript" : (rec.diarizer ?? "done")} · ${absolute(rec.diarized_at)}` : "not run"],
-    ["Analyze", rec.analyzed_at ? `${plural(model.chapters.length, "chapter")} · ${plural(model.entities.length, "entity", "entities")} · ${absolute(rec.analyzed_at)}` : "not run"],
+    [
+      "Transcribe",
+      rec.transcribed_at ? `${transcriptOrigin(rec.engine) ?? "done"} · ${absolute(rec.transcribed_at)}` : "not run",
+    ],
+    [
+      "Diarize",
+      rec.diarized_at
+        ? `${rec.diarizer === "labels" ? "speakers from the transcript" : (rec.diarizer ?? "done")} · ${absolute(rec.diarized_at)}`
+        : "not run",
+    ],
+    [
+      "Analyze",
+      rec.analyzed_at
+        ? `${plural(model.chapters.length, "chapter")} · ${plural(model.entities.length, "entity", "entities")} · ${absolute(rec.analyzed_at)}`
+        : "not run",
+    ],
     ["Summarize", rec.summarized_at ? absolute(rec.summarized_at) : "not run"],
-    ["Report", rec.report_url ? <a href={rec.report_url} target="_blank" rel="noreferrer" className="font-semibold text-fg-accent hover:underline">Open the report</a> : "not built"],
+    [
+      "Report",
+      rec.report_url ? (
+        <a
+          href={rec.report_url}
+          target="_blank"
+          rel="noreferrer"
+          className="font-semibold text-fg-accent hover:underline"
+        >
+          Open the report
+        </a>
+      ) : (
+        "not built"
+      ),
+    ],
   ];
   return (
     <>
       <div className="flex items-center gap-2">
-        <p className="flex-1 text-[12.5px] leading-snug text-fg-muted">From the recording&apos;s own record. Codec and loudness details aren&apos;t measured yet.</p>
+        <p className="flex-1 text-[12.5px] leading-snug text-fg-muted">
+          From the recording&apos;s own record. Codec and loudness details aren&apos;t measured yet.
+        </p>
         {model.audio && (
           <Button asChild variant="secondary" size="sm" icon={<Download />}>
             <a href={model.audio} download={name ?? undefined}>
@@ -78,9 +128,14 @@ function Group({ icon: Icon, title, rows }: { icon: LucideIcon; title: string; r
       </h3>
       <dl className="m-0">
         {shown.map(([k, v, mono]) => (
-          <div key={k} className="grid grid-cols-[120px_minmax(0,1fr)] gap-2.5 border-t border-border py-1.5 text-[13px] leading-[1.4]">
+          <div
+            key={k}
+            className="grid grid-cols-[120px_minmax(0,1fr)] gap-2.5 border-t border-border py-1.5 text-[13px] leading-[1.4]"
+          >
             <dt className="text-fg-muted">{k}</dt>
-            <dd className={mono ? "m-0 break-words font-mono text-[12px] text-fg" : "tabular m-0 break-words text-fg"}>{v}</dd>
+            <dd className={mono ? "m-0 break-words font-mono text-[12px] text-fg" : "tabular m-0 break-words text-fg"}>
+              {v}
+            </dd>
           </div>
         ))}
       </dl>

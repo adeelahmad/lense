@@ -54,9 +54,20 @@ export function CollectionDialog({
   };
   const save = useMutation({
     mutationFn: async () => {
-      const body = { name: name.trim(), description: description.trim() || null, shared, ...(kind === "filter" ? { filter } : { recordings: picked }) };
+      const body = {
+        name: name.trim(),
+        description: description.trim() || null,
+        shared,
+        ...(kind === "filter" ? { filter } : { recordings: picked }),
+      };
       if (editing) {
-        await data(Collections.updateCollection({ client, path: { cid: editing.id }, body }));
+        await data(
+          Collections.updateCollection({
+            client,
+            path: { cid: editing.id },
+            body,
+          }),
+        );
         return editing.id;
       }
       return (await data(Collections.createCollection({ client, body }))).id;
@@ -69,7 +80,11 @@ export function CollectionDialog({
     },
   });
   const t = find.trim().toLowerCase();
-  const reason = !name.trim() ? "Give it a name" : kind === "fixed" && !picked.length ? "Pick at least one recording" : undefined;
+  const reason = !name.trim()
+    ? "Give it a name"
+    : kind === "fixed" && !picked.length
+      ? "Pick at least one recording"
+      : undefined;
   return (
     <Dialog
       open={open}
@@ -82,13 +97,20 @@ export function CollectionDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button variant="primary" disabled={Boolean(reason) || save.isPending} disabledReason={reason} onClick={() => save.mutate()}>
+          <Button
+            variant="primary"
+            disabled={Boolean(reason) || save.isPending}
+            disabledReason={reason}
+            onClick={() => save.mutate()}
+          >
             {save.isPending ? "Saving…" : editing ? "Save" : "Create collection"}
           </Button>
         </>
       }
     >
-      <Field label="Name">{({ id }) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} maxLength={120} autoFocus />}</Field>
+      <Field label="Name">
+        {({ id }) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} maxLength={120} autoFocus />}
+      </Field>
       <Field label="Description" optional>
         {({ id }) => <Textarea id={id} rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />}
       </Field>
@@ -109,13 +131,20 @@ export function CollectionDialog({
             <legend className="mb-1.5 text-[13px] font-bold text-fg-strong">Namespaces</legend>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               {namespaces.map((n) => (
-                <Checkbox key={n.name} checked={nss.includes(n.name)} onCheckedChange={(on) => setNss((x) => (on ? [...x, n.name] : x.filter((y) => y !== n.name)))} label={n.name} />
+                <Checkbox
+                  key={n.name}
+                  checked={nss.includes(n.name)}
+                  onCheckedChange={(on) => setNss((x) => (on ? [...x, n.name] : x.filter((y) => y !== n.name)))}
+                  label={n.name}
+                />
               ))}
             </div>
             <span className="text-[12px] text-fg-muted">None ticked: every namespace the viewer can read.</span>
           </fieldset>
           <Field label="Words said" optional hint="The same rules as Search: every word, “phrases”, OR.">
-            {({ id, describedBy }) => <Input id={id} aria-describedby={describedBy} value={q} onChange={(e) => setQ(e.target.value)} mono />}
+            {({ id, describedBy }) => (
+              <Input id={id} aria-describedby={describedBy} value={q} onChange={(e) => setQ(e.target.value)} mono />
+            )}
           </Field>
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Recorded from" optional>
@@ -140,11 +169,18 @@ export function CollectionDialog({
               )}
             </Field>
           </div>
-          {Boolean(f0.speakers?.length || f0.entities?.length) && <p className="m-0 text-[12.5px] text-fg-muted">This filter also keeps its speaker and entity conditions.</p>}
+          {Boolean(f0.speakers?.length || f0.entities?.length) && (
+            <p className="m-0 text-[12.5px] text-fg-muted">This filter also keeps its speaker and entity conditions.</p>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <SearchInput value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find recordings" aria-label="Find recordings" />
+          <SearchInput
+            value={find}
+            onChange={(e) => setFind(e.target.value)}
+            placeholder="Find recordings"
+            aria-label="Find recordings"
+          />
           <ul className="m-0 max-h-[260px] list-none overflow-y-auto rounded-md border border-border p-2">
             {index.isLoading && <li className="p-2 text-[13px] text-fg-muted">Loading recordings…</li>}
             {(index.data ?? [])
@@ -152,7 +188,11 @@ export function CollectionDialog({
               .slice(0, 100)
               .map((r) => (
                 <li key={r.id} className="flex items-center gap-2 px-1 py-1">
-                  <Checkbox checked={picked.includes(r.id)} onCheckedChange={(on) => setPicked((x) => (on ? [...x, r.id] : x.filter((y) => y !== r.id)))} label={r.title ?? `Recording ${r.id}`} />
+                  <Checkbox
+                    checked={picked.includes(r.id)}
+                    onCheckedChange={(on) => setPicked((x) => (on ? [...x, r.id] : x.filter((y) => y !== r.id)))}
+                    label={r.title ?? `Recording ${r.id}`}
+                  />
                   <span className="ml-auto shrink-0 text-[12px] text-fg-muted">{r.namespace}</span>
                 </li>
               ))}
@@ -160,7 +200,11 @@ export function CollectionDialog({
           <span className="text-[12.5px] text-fg-secondary">{picked.length} picked</span>
         </div>
       )}
-      <Switch checked={shared} onCheckedChange={setShared} label="Share it (others see only the recordings they can read)" />
+      <Switch
+        checked={shared}
+        onCheckedChange={setShared}
+        label="Share it (others see only the recordings they can read)"
+      />
       {save.isError && <Banner tone="error">{save.error.message}</Banner>}
     </Dialog>
   );

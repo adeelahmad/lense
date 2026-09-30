@@ -30,7 +30,11 @@ export function Nav({
   return (
     <nav
       aria-label="Primary"
-      className={cn("flex h-full flex-col gap-0.5 border-r border-border bg-background px-2.5 py-3.5", collapsed ? "w-[60px]" : "w-[224px]", className)}
+      className={cn(
+        "flex h-full flex-col gap-0.5 border-r border-border bg-background px-2.5 py-3.5",
+        collapsed ? "w-[60px]" : "w-[224px]",
+        className,
+      )}
     >
       <div className={cn("flex h-7 items-center px-2 pb-4 pt-1", collapsed && "justify-center px-0")}>
         <Brand collapsed={collapsed} />
@@ -79,7 +83,10 @@ export function Nav({
           type="button"
           onClick={onToggle}
           aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-          className={cn("flex h-[34px] items-center gap-[11px] rounded-sm px-2.5 text-[13px] font-medium text-fg-muted hover:bg-surface-neutral", collapsed && "justify-center px-0")}
+          className={cn(
+            "flex h-[34px] items-center gap-[11px] rounded-sm px-2.5 text-[13px] font-medium text-fg-muted hover:bg-surface-neutral",
+            collapsed && "justify-center px-0",
+          )}
         >
           {collapsed ? <PanelLeftOpen className="size-[17px]" /> : <PanelLeftClose className="size-[17px]" />}
           {!collapsed && (

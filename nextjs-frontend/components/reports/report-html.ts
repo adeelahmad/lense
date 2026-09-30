@@ -17,8 +17,12 @@ export class ReportError extends Error {
  * get a script-src 'none' policy wherever the app puts them.
  */
 export async function fetchReportHtml(path: string, token: string | undefined): Promise<string> {
-  const res = await fetch(path, { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: "no-store" });
-  if (res.status === 404) throw new ReportError(404, "There’s no report page yet. The Report step builds it after analysis.");
+  const res = await fetch(path, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    cache: "no-store",
+  });
+  if (res.status === 404)
+    throw new ReportError(404, "There’s no report page yet. The Report step builds it after analysis.");
   if (!res.ok) throw new ReportError(res.status, `Couldn’t load the report (${res.status})`);
   return res.text();
 }
@@ -35,7 +39,9 @@ export function isTemplateReport(path: string): boolean {
 export function prepareReportHtml(html: string, opts: { scripts: boolean; newTab?: boolean; origin: string }): string {
   const head = [
     `<base href="${opts.origin}/"${opts.newTab ? ' target="_blank"' : ""}>`,
-    opts.scripts ? "" : `<meta http-equiv="Content-Security-Policy" content="script-src 'none'; object-src 'none'; base-uri 'self'">`,
+    opts.scripts
+      ? ""
+      : `<meta http-equiv="Content-Security-Policy" content="script-src 'none'; object-src 'none'; base-uri 'self'">`,
   ].join("");
   // Right after <head>, before anything that could run; or first thing when there's no head.
   return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => `${m}${head}`) : `${head}${html}`;

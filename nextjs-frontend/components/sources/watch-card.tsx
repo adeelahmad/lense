@@ -43,7 +43,10 @@ export function WatchCard({
   const scan = useMutation({
     mutationFn: () => data(Sources.scanWatch({ client, path: { wid: watch.id } })),
     onSuccess: () => {
-      toast({ title: "Scanning now", body: "Counts update when the scan finishes." });
+      toast({
+        title: "Scanning now",
+        body: "Counts update when the scan finishes.",
+      });
       for (const ms of [2500, 8000, 20_000]) setTimeout(() => void qc.invalidateQueries({ queryKey: ["watches"] }), ms);
     },
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t start a scan", body: e.message }),
@@ -51,7 +54,10 @@ export function WatchCard({
   const stats = (watch.last_stats ?? {}) as Record<string, number>;
   const scanned = Boolean(watch.last_scan_at);
   return (
-    <article aria-label={`Watched folder ${watch.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2.5 rounded-md border border-border bg-background px-4 py-3.5">
+    <article
+      aria-label={`Watched folder ${watch.id}`}
+      className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2.5 rounded-md border border-border bg-background px-4 py-3.5"
+    >
       <div className="flex min-w-0 flex-col gap-[5px]">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <code className="truncate font-mono text-[13px] font-semibold text-fg">
@@ -71,7 +77,13 @@ export function WatchCard({
       </div>
       {manage ? (
         <div className="flex items-start gap-1.5">
-          <Button size="sm" variant="secondary" icon={<RefreshCw />} onClick={() => scan.mutate()} disabled={scan.isPending}>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<RefreshCw />}
+            onClick={() => scan.mutate()}
+            disabled={scan.isPending}
+          >
             Scan now
           </Button>
           <Button size="sm" variant="ghost" onClick={onEdit}>
@@ -90,7 +102,9 @@ export function WatchCard({
             <Tooltip key={s.key} content={s.help}>
               <span tabIndex={0}>
                 {s.label}{" "}
-                <b className={cn(s.key === "errors" && (stats[s.key] ?? 0) > 0 ? "text-red-dark" : "text-fg")}>{stats[s.key] ?? 0}</b>
+                <b className={cn(s.key === "errors" && (stats[s.key] ?? 0) > 0 ? "text-red-dark" : "text-fg")}>
+                  {stats[s.key] ?? 0}
+                </b>
               </span>
             </Tooltip>
           ))}

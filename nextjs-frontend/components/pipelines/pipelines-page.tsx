@@ -45,12 +45,28 @@ export function PipelinesPage() {
   const onStandard = namespaces.filter((n) => !usedBy.has(n.name)).map((n) => n.name);
 
   const setDefault = useMutation({
-    mutationFn: ({ ns, pipeline }: { ns: string; pipeline: number | null }) => data(Namespaces.updateNamespace({ client, path: { name: ns }, body: { pipeline } })),
+    mutationFn: ({ ns, pipeline }: { ns: string; pipeline: number | null }) =>
+      data(
+        Namespaces.updateNamespace({
+          client,
+          path: { name: ns },
+          body: { pipeline },
+        }),
+      ),
     onSuccess: (_d, v) => {
       void qc.invalidateQueries({ queryKey: ["pipelines"] });
-      toast({ tone: "green", title: `${v.ns} now runs ${v.pipeline == null ? "the standard pipeline" : (list.find((p) => p.id === v.pipeline)?.name ?? "that pipeline")}`, body: "New runs use it; runs in progress keep theirs." });
+      toast({
+        tone: "green",
+        title: `${v.ns} now runs ${v.pipeline == null ? "the standard pipeline" : (list.find((p) => p.id === v.pipeline)?.name ?? "that pipeline")}`,
+        body: "New runs use it; runs in progress keep theirs.",
+      });
     },
-    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t change the default", body: e.message }),
+    onError: (e: Error) =>
+      toast({
+        tone: "red",
+        title: "Couldn’t change the default",
+        body: e.message,
+      }),
   });
 
   return (
@@ -59,7 +75,12 @@ export function PipelinesPage() {
       {catalog.isLoading ? (
         <SkeletonRows rows={4} />
       ) : catalog.error ? (
-        <EmptyState tone="error" icon={<Workflow />} title="Couldn’t load pipelines" actions={<Button onClick={() => catalog.refetch()}>Try again</Button>}>
+        <EmptyState
+          tone="error"
+          icon={<Workflow />}
+          title="Couldn’t load pipelines"
+          actions={<Button onClick={() => catalog.refetch()}>Try again</Button>}
+        >
           {(catalog.error as Error).message}
         </EmptyState>
       ) : (
@@ -80,7 +101,9 @@ export function PipelinesPage() {
                   <Td>
                     <div className="flex flex-col gap-0.5">
                       <span className="font-semibold text-fg">Standard</span>
-                      <span className="text-[12px] text-fg-muted">Built in; every namespace without a default runs it</span>
+                      <span className="text-[12px] text-fg-muted">
+                        Built in; every namespace without a default runs it
+                      </span>
                     </div>
                   </Td>
                   <Td>
@@ -100,18 +123,31 @@ export function PipelinesPage() {
                     <Tr key={p.id} className="h-[54px]">
                       <Td>
                         <div className="flex min-w-0 flex-col gap-0.5">
-                          <Link href={`/pipelines/${p.id}`} className="font-semibold text-fg hover:text-fg-accent hover:underline">
+                          <Link
+                            href={`/pipelines/${p.id}`}
+                            className="font-semibold text-fg hover:text-fg-accent hover:underline"
+                          >
                             {p.name}
                           </Link>
-                          {p.description && <span className="line-clamp-1 text-[12px] text-fg-muted">{p.description}</span>}
+                          {p.description && (
+                            <span className="line-clamp-1 text-[12px] text-fg-muted">{p.description}</span>
+                          )}
                         </div>
                       </Td>
-                      <Td>{d ? <StepChips steps={d.steps.map((s) => toSpec(s))} /> : <span className="skeleton block h-5 w-40" />}</Td>
+                      <Td>
+                        {d ? (
+                          <StepChips steps={d.steps.map((s) => toSpec(s))} />
+                        ) : (
+                          <span className="skeleton block h-5 w-40" />
+                        )}
+                      </Td>
                       <Td>
                         <span className="flex items-center gap-1.5">
                           <code className="font-mono text-[12px] font-medium text-fg">v{p.current}</code>
                           {latest > p.current && (
-                            <span className="h-[18px] rounded-xs bg-blue-surface px-1.5 text-[10.5px] font-semibold leading-[18px] text-fg-accent">draft v{latest}</span>
+                            <span className="h-[18px] rounded-xs bg-blue-surface px-1.5 text-[10.5px] font-semibold leading-[18px] text-fg-accent">
+                              draft v{latest}
+                            </span>
                           )}
                         </span>
                       </Td>
@@ -125,7 +161,8 @@ export function PipelinesPage() {
           </div>
           {!list.length && (
             <p className="text-[13px] text-fg-secondary">
-              No saved pipelines yet. Every namespace runs the standard steps; a pipeline of your own can skip steps, add a prompt template or export files.
+              No saved pipelines yet. Every namespace runs the standard steps; a pipeline of your own can skip steps,
+              add a prompt template or export files.
             </p>
           )}
 
@@ -134,7 +171,8 @@ export function PipelinesPage() {
               <span id="ns-defaults">Namespace defaults</span>
             </SectionTitle>
             <p className="-mt-2 mb-2 text-[13px] text-fg-secondary">
-              What imports, watched folders and Reprocess run in each namespace unless they pick something else. Runs pin the version they started with.
+              What imports, watched folders and Reprocess run in each namespace unless they pick something else. Runs
+              pin the version they started with.
             </p>
             <div className="overflow-hidden rounded-md border border-border">
               <Table aria-label="Namespace defaults">
@@ -154,8 +192,19 @@ export function PipelinesPage() {
                         className="h-8 w-[280px] text-[13px]"
                         value={cur == null ? "" : String(cur)}
                         disabled={!allowed || setDefault.isPending}
-                        onChange={(e) => setDefault.mutate({ ns: n.name, pipeline: e.target.value ? Number(e.target.value) : null })}
-                        options={[{ value: "", label: "Standard (built in)" }, ...list.map((p) => ({ value: String(p.id), label: `${p.name} · v${p.current}` }))]}
+                        onChange={(e) =>
+                          setDefault.mutate({
+                            ns: n.name,
+                            pipeline: e.target.value ? Number(e.target.value) : null,
+                          })
+                        }
+                        options={[
+                          { value: "", label: "Standard (built in)" },
+                          ...list.map((p) => ({
+                            value: String(p.id),
+                            label: `${p.name} · v${p.current}`,
+                          })),
+                        ]}
                       />
                     );
                     return (

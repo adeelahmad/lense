@@ -3,7 +3,19 @@
 import { Maximize, Minus, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type WheelEvent } from "react";
 
-import { connections, edgeStyle, maxWeights, nearestInDirection, neighbours, nodeRadius, nodeShape, typeLabel, type Dir, type GraphEdge, type GraphNode } from "@/components/graph/model";
+import {
+  connections,
+  edgeStyle,
+  maxWeights,
+  nearestInDirection,
+  neighbours,
+  nodeRadius,
+  nodeShape,
+  typeLabel,
+  type Dir,
+  type GraphEdge,
+  type GraphNode,
+} from "@/components/graph/model";
 import { nodeFill, ShapePath } from "@/components/graph/shape";
 import { cn } from "@/lib/utils";
 
@@ -42,12 +54,23 @@ export function GraphCanvas({
   const [view, setView] = useState<View>(FIT);
   const [cursor, setCursor] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
-  const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean } | null>(null);
+  const drag = useRef<{
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    moved: boolean;
+  } | null>(null);
 
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setSize({ w: Math.max(200, e.contentRect.width), h: Math.max(200, e.contentRect.height) }));
+    const ro = new ResizeObserver(([e]) =>
+      setSize({
+        w: Math.max(200, e.contentRect.width),
+        h: Math.max(200, e.contentRect.height),
+      }),
+    );
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -56,7 +79,12 @@ export function GraphCanvas({
   const R = Math.max(60, Math.min(size.w, size.h) / 2 - 56);
   const pos = useMemo(() => {
     const m = new Map<string, { x: number; y: number; r: number }>();
-    for (const n of nodes) m.set(n.id, { x: size.w / 2 + view.x + n.x * R * view.k, y: size.h / 2 + view.y + n.y * R * view.k, r: nodeRadius(n, maxW) });
+    for (const n of nodes)
+      m.set(n.id, {
+        x: size.w / 2 + view.x + n.x * R * view.k,
+        y: size.h / 2 + view.y + n.y * R * view.k,
+        r: nodeRadius(n, maxW),
+      });
     return m;
   }, [nodes, size, view, R, maxW]);
   const near = useMemo(() => (selected ? neighbours(edges, selected) : null), [edges, selected]);
@@ -67,19 +95,37 @@ export function GraphCanvas({
       const k = Math.min(6, Math.max(0.4, v.k * f));
       const s = k / v.k;
       // Keep the point under (cx, cy) where it is.
-      return { k, x: (v.x + size.w / 2 - cx) * s - size.w / 2 + cx, y: (v.y + size.h / 2 - cy) * s - size.h / 2 + cy };
+      return {
+        k,
+        x: (v.x + size.w / 2 - cx) * s - size.w / 2 + cx,
+        y: (v.y + size.h / 2 - cy) * s - size.h / 2 + cy,
+      };
     });
 
   // Keep the selected node in view (e.g. picked from the table or the finder).
   useEffect(() => {
     if (!selected) return;
     const p = pos.get(selected);
-    if (p && (p.x < 24 || p.y < 24 || p.x > size.w - 24 || p.y > size.h - 24)) setView((v) => ({ ...v, x: v.x + size.w / 2 - p.x, y: v.y + size.h / 2 - p.y }));
+    if (p && (p.x < 24 || p.y < 24 || p.x > size.w - 24 || p.y > size.h - 24))
+      setView((v) => ({
+        ...v,
+        x: v.x + size.w / 2 - p.x,
+        y: v.y + size.h / 2 - p.y,
+      }));
   }, [selected]);
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    const dirs: Record<string, Dir> = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" };
-    const pts = nodes.map((n) => ({ id: n.id, x: pos.get(n.id)!.x, y: pos.get(n.id)!.y }));
+    const dirs: Record<string, Dir> = {
+      ArrowLeft: "left",
+      ArrowRight: "right",
+      ArrowUp: "up",
+      ArrowDown: "down",
+    };
+    const pts = nodes.map((n) => ({
+      id: n.id,
+      x: pos.get(n.id)!.x,
+      y: pos.get(n.id)!.y,
+    }));
     if (dirs[e.key]) {
       e.preventDefault();
       const next = nearestInDirection(pts, cursor ?? selected, dirs[e.key]);
@@ -99,7 +145,13 @@ export function GraphCanvas({
 
   const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
     if ((e.target as Element).closest("[data-node]")) return;
-    drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false };
+    drag.current = {
+      x: e.clientX,
+      y: e.clientY,
+      vx: view.x,
+      vy: view.y,
+      moved: false,
+    };
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
   };
   const onPointerMove = (e: PointerEvent<SVGSVGElement>) => {
@@ -121,7 +173,9 @@ export function GraphCanvas({
   };
 
   const cur = cursor ? nodes.find((n) => n.id === cursor) : null;
-  const curText = cur ? `${cur.label}, ${typeLabel(cur)}, ${connections(edges, cur.id).length} links${cur.id === selected ? ", selected" : ""}. Enter selects.` : "";
+  const curText = cur
+    ? `${cur.label}, ${typeLabel(cur)}, ${connections(edges, cur.id).length} links${cur.id === selected ? ", selected" : ""}. Enter selects.`
+    : "";
 
   return (
     <div ref={wrap} className={cn("relative min-h-0 overflow-hidden bg-background", className)}>
@@ -137,12 +191,26 @@ export function GraphCanvas({
         onKeyDown={onKey}
         onFocus={() => {
           setFocused(true);
-          if (!cursor) setCursor(selected ?? [...nodes].sort((a, b) => connections(edges, b.id).length - connections(edges, a.id).length)[0]?.id ?? null);
+          if (!cursor)
+            setCursor(
+              selected ??
+                [...nodes].sort((a, b) => connections(edges, b.id).length - connections(edges, a.id).length)[0]?.id ??
+                null,
+            );
         }}
         onBlur={() => setFocused(false)}
         className="absolute inset-0 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue"
       >
-        <svg width={size.w} height={size.h} className="block cursor-grab touch-none select-none active:cursor-grabbing" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onWheel={onWheel} aria-hidden>
+        <svg
+          width={size.w}
+          height={size.h}
+          className="block cursor-grab touch-none select-none active:cursor-grabbing"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onWheel={onWheel}
+          aria-hidden
+        >
           <g>
             {edges.map((e) => {
               const a = pos.get(e.a);
@@ -200,7 +268,15 @@ export function GraphCanvas({
                     onSelect(sel ? null : n.id);
                   }}
                 >
-                  {(sel || isCursor) && <circle r={p.r + (shape === "pill" ? 9 : 6)} fill="none" stroke="var(--aladdin-blue)" strokeWidth={sel ? 3 : 2} strokeDasharray={sel ? undefined : "3 3"} />}
+                  {(sel || isCursor) && (
+                    <circle
+                      r={p.r + (shape === "pill" ? 9 : 6)}
+                      fill="none"
+                      stroke="var(--aladdin-blue)"
+                      strokeWidth={sel ? 3 : 2}
+                      strokeDasharray={sel ? undefined : "3 3"}
+                    />
+                  )}
                   <ShapePath shape={shape} r={p.r} fill={nodeFill(n)} stroke="var(--background)" strokeWidth={2} />
                   <text
                     y={p.r + 14}
@@ -225,13 +301,28 @@ export function GraphCanvas({
         {focused ? curText : ""}
       </div>
       <div className="absolute bottom-3 right-3 flex flex-col overflow-hidden rounded-[10px] border border-border bg-background">
-        <button type="button" aria-label="Zoom in" onClick={() => zoom(1.25)} className="grid size-[34px] place-items-center border-b border-border text-fg hover:bg-surface-neutral">
+        <button
+          type="button"
+          aria-label="Zoom in"
+          onClick={() => zoom(1.25)}
+          className="grid size-[34px] place-items-center border-b border-border text-fg hover:bg-surface-neutral"
+        >
           <Plus className="size-[15px]" />
         </button>
-        <button type="button" aria-label="Zoom out" onClick={() => zoom(0.8)} className="grid size-[34px] place-items-center border-b border-border text-fg hover:bg-surface-neutral">
+        <button
+          type="button"
+          aria-label="Zoom out"
+          onClick={() => zoom(0.8)}
+          className="grid size-[34px] place-items-center border-b border-border text-fg hover:bg-surface-neutral"
+        >
           <Minus className="size-[15px]" />
         </button>
-        <button type="button" aria-label="Fit to view" onClick={() => setView(FIT)} className="grid size-[34px] place-items-center text-fg hover:bg-surface-neutral">
+        <button
+          type="button"
+          aria-label="Fit to view"
+          onClick={() => setView(FIT)}
+          className="grid size-[34px] place-items-center text-fg hover:bg-surface-neutral"
+        >
           <Maximize className="size-[15px]" />
         </button>
       </div>

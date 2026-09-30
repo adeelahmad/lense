@@ -1,4 +1,13 @@
-import { embedUrl, fmtDay, formatStart, iframeSnippet, normalizeOrigin, originAllowed, parseStart, withStart } from "@/components/sharing/embed-model";
+import {
+  embedUrl,
+  fmtDay,
+  formatStart,
+  iframeSnippet,
+  normalizeOrigin,
+  originAllowed,
+  parseStart,
+  withStart,
+} from "@/components/sharing/embed-model";
 
 describe("start times", () => {
   it("reads m:ss, h:mm:ss and seconds", () => {
@@ -15,7 +24,9 @@ describe("start times", () => {
 
 describe("player address and snippet", () => {
   it("carries the share token and start", () => {
-    expect(embedUrl("https://archive.example", 12, { token: "Kp2v", start: 842 })).toBe("https://archive.example/embed/12?s=Kp2v&t=842");
+    expect(embedUrl("https://archive.example", 12, { token: "Kp2v", start: 842 })).toBe(
+      "https://archive.example/embed/12?s=Kp2v&t=842",
+    );
     expect(embedUrl("https://archive.example/", 12)).toBe("https://archive.example/embed/12");
   });
   it("changes the start on a signed link without touching the signature", () => {
@@ -23,7 +34,11 @@ describe("player address and snippet", () => {
     expect(withStart("/embed/1?exp=9&sig=abc", 0)).toBe("/embed/1?exp=9&sig=abc");
   });
   it("builds an iframe with the size and an accessible title", () => {
-    const s = iframeSnippet({ src: "https://a.example/embed/1?s=x&t=2", size: 360, title: 'Episode "12"' });
+    const s = iframeSnippet({
+      src: "https://a.example/embed/1?s=x&t=2",
+      size: 360,
+      title: 'Episode "12"',
+    });
     expect(s).toContain('src="https://a.example/embed/1?s=x&t=2"');
     expect(s).toContain('width="360" height="520"');
     expect(s).toContain('title="Lens Archive player: Episode &quot;12&quot;"');

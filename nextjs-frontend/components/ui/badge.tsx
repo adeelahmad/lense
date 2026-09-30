@@ -5,11 +5,31 @@ import { cn } from "@/lib/utils";
 export type Tone = "neutral" | "intent" | "green" | "red" | "gate";
 
 const TONE: Record<Tone, { soft: string; solid: string; dot: string }> = {
-  neutral: { soft: "bg-surface-neutral text-fg-secondary border-border", solid: "bg-fg-muted text-white border-transparent", dot: "bg-fg-muted" },
-  intent: { soft: "bg-blue-surface text-blue-dark border-blue-border", solid: "bg-blue text-white border-transparent", dot: "bg-blue" },
-  green: { soft: "bg-green-surface text-green-dark border-green-border", solid: "bg-green text-white border-transparent", dot: "bg-green" },
-  red: { soft: "bg-red-surface text-red-dark border-red-border", solid: "bg-red text-white border-transparent", dot: "bg-red" },
-  gate: { soft: "bg-gold-surface text-gold-dark border-gold-border", solid: "bg-gold text-fg border-transparent", dot: "bg-gold" },
+  neutral: {
+    soft: "bg-surface-neutral text-fg-secondary border-border",
+    solid: "bg-fg-muted text-white border-transparent",
+    dot: "bg-fg-muted",
+  },
+  intent: {
+    soft: "bg-blue-surface text-blue-dark border-blue-border",
+    solid: "bg-blue text-white border-transparent",
+    dot: "bg-blue",
+  },
+  green: {
+    soft: "bg-green-surface text-green-dark border-green-border",
+    solid: "bg-green text-white border-transparent",
+    dot: "bg-green",
+  },
+  red: {
+    soft: "bg-red-surface text-red-dark border-red-border",
+    solid: "bg-red text-white border-transparent",
+    dot: "bg-red",
+  },
+  gate: {
+    soft: "bg-gold-surface text-gold-dark border-gold-border",
+    solid: "bg-gold text-fg border-transparent",
+    dot: "bg-gold",
+  },
 };
 
 /** Aladdin badge: uppercase micro-label pill, soft (tinted) or solid. */
@@ -63,7 +83,15 @@ export function statusTone(status: string | null | undefined): Tone {
   return STATUS_TONE[(status || "").toLowerCase()] ?? "neutral";
 }
 
-export function StatusChip({ status, label, className }: { status: string | null | undefined; label?: string; className?: string }) {
+export function StatusChip({
+  status,
+  label,
+  className,
+}: {
+  status: string | null | undefined;
+  label?: string;
+  className?: string;
+}) {
   return (
     <Badge tone={statusTone(status)} dot className={className}>
       {label ?? status ?? "unknown"}
@@ -80,7 +108,11 @@ export function RoleChip({ role, changed, className }: { role?: Role | null; cha
     <span
       className={cn(
         "inline-flex h-[22px] items-center rounded-pill border px-2 text-[11px] font-bold uppercase tracking-[.04em]",
-        changed ? "border-blue-border bg-blue-surface text-blue-dark" : role === "owner" ? "border-border bg-surface-neutral text-fg-strong" : "border-border bg-background text-fg-secondary",
+        changed
+          ? "border-blue-border bg-blue-surface text-blue-dark"
+          : role === "owner"
+            ? "border-border bg-surface-neutral text-fg-strong"
+            : "border-border bg-background text-fg-secondary",
         className,
       )}
     >
@@ -118,7 +150,13 @@ export function SpeakerChip({
     .slice(0, 2)
     .toUpperCase();
   return (
-    <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap", size === "sm" ? "text-[12.5px]" : "text-[13px]", className)}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 whitespace-nowrap",
+        size === "sm" ? "text-[12.5px]" : "text-[13px]",
+        className,
+      )}
+    >
       <span
         aria-hidden
         className={cn(
@@ -143,7 +181,11 @@ export function SpeakerStack({ colors, max = 4 }: { colors: string[]; max?: numb
   return (
     <span className="inline-flex" aria-hidden>
       {colors.slice(0, max).map((c, i) => (
-        <span key={i} className="size-[18px] rounded-full border-2 border-background" style={{ background: c, marginLeft: i ? -6 : 0 }} />
+        <span
+          key={i}
+          className="size-[18px] rounded-full border-2 border-background"
+          style={{ background: c, marginLeft: i ? -6 : 0 }}
+        />
       ))}
     </span>
   );
@@ -169,7 +211,12 @@ export const EMOJI: Record<string, string> = {
 /** Emotion chip in text: always small and muted. */
 export function EmotionChip({ emotion, className }: { emotion: string; className?: string }) {
   return (
-    <span className={cn("inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-pill border border-border bg-surface px-1.5 align-middle font-sans text-[11.5px] text-fg-secondary", className)}>
+    <span
+      className={cn(
+        "inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-pill border border-border bg-surface px-1.5 align-middle font-sans text-[11.5px] text-fg-secondary",
+        className,
+      )}
+    >
       <span aria-hidden className="text-[11px] opacity-70">
         {EMOJI[emotion] ?? "·"}
       </span>
@@ -181,7 +228,12 @@ export function EmotionChip({ emotion, className }: { emotion: string; className
 /** Sound events (laughter, applause, music...) share the chip shape with a dashed border. */
 export function EventChip({ event, className }: { event: string; className?: string }) {
   return (
-    <span className={cn("inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-pill border border-dashed border-border px-1.5 align-middle font-sans text-[11.5px] text-fg-secondary", className)}>
+    <span
+      className={cn(
+        "inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-pill border border-dashed border-border px-1.5 align-middle font-sans text-[11.5px] text-fg-secondary",
+        className,
+      )}
+    >
       {event === "BGM" ? "Music" : event}
     </span>
   );
@@ -202,16 +254,38 @@ export const EMOTION_VAR: Record<string, string> = {
 };
 
 /** A stacked bar of emotion shares, e.g. {Neutral: 30, Happy: 4}. */
-export function EmotionBar({ counts, className }: { counts: Record<string, number> | null | undefined; className?: string }) {
+export function EmotionBar({
+  counts,
+  className,
+}: {
+  counts: Record<string, number> | null | undefined;
+  className?: string;
+}) {
   const entries = Object.entries(counts ?? {}).filter(([, n]) => n > 0);
   const total = entries.reduce((a, [, n]) => a + n, 0);
-  if (!total) return <span className={cn("block h-1.5 w-14 rounded-pill bg-surface-neutral", className)} aria-label="No emotion data" />;
+  if (!total)
+    return (
+      <span
+        className={cn("block h-1.5 w-14 rounded-pill bg-surface-neutral", className)}
+        aria-label="No emotion data"
+      />
+    );
   return (
-    <span className={cn("flex h-1.5 w-14 overflow-hidden rounded-pill", className)} role="img" aria-label={entries.map(([k, n]) => `${k} ${Math.round((n / total) * 100)}%`).join(", ")}>
+    <span
+      className={cn("flex h-1.5 w-14 overflow-hidden rounded-pill", className)}
+      role="img"
+      aria-label={entries.map(([k, n]) => `${k} ${Math.round((n / total) * 100)}%`).join(", ")}
+    >
       {entries
         .sort((a, b) => b[1] - a[1])
         .map(([k, n]) => (
-          <span key={k} style={{ flex: n, background: EMOTION_VAR[k] ?? "var(--emo-neutral)" }} />
+          <span
+            key={k}
+            style={{
+              flex: n,
+              background: EMOTION_VAR[k] ?? "var(--emo-neutral)",
+            }}
+          />
         ))}
     </span>
   );
@@ -220,7 +294,17 @@ export function EmotionBar({ counts, className }: { counts: Record<string, numbe
 export type StepState = "waiting" | "running" | "done" | "failed" | "skipped";
 
 /** Job step chip: waiting · running % · done ✓ · failed ✕ · skipped. */
-export function JobStepChip({ step, state, progress, className }: { step: string; state: StepState; progress?: number; className?: string }) {
+export function JobStepChip({
+  step,
+  state,
+  progress,
+  className,
+}: {
+  step: string;
+  state: StepState;
+  progress?: number;
+  className?: string;
+}) {
   const styles: Record<StepState, string> = {
     waiting: "border-border bg-background text-fg-muted",
     running: "border-blue-border bg-blue-surface text-blue-dark",
@@ -228,12 +312,26 @@ export function JobStepChip({ step, state, progress, className }: { step: string
     failed: "border-red-border bg-red-surface text-red-dark",
     skipped: "border-dashed border-border bg-background text-fg-muted",
   };
-  const glyph = { waiting: "", running: "", done: "✓", failed: "✕", skipped: "–" }[state];
+  const glyph = {
+    waiting: "",
+    running: "",
+    done: "✓",
+    failed: "✕",
+    skipped: "–",
+  }[state];
   return (
-    <span className={cn("inline-flex h-[22px] items-center gap-1 whitespace-nowrap rounded-pill border px-2 text-[12px] font-semibold capitalize", styles[state], className)}>
+    <span
+      className={cn(
+        "inline-flex h-[22px] items-center gap-1 whitespace-nowrap rounded-pill border px-2 text-[12px] font-semibold capitalize",
+        styles[state],
+        className,
+      )}
+    >
       {glyph && <span aria-hidden>{glyph}</span>}
       {step}
-      {state === "running" && progress != null && <span className="tabular font-medium">{Math.round(progress * 100)}%</span>}
+      {state === "running" && progress != null && (
+        <span className="tabular font-medium">{Math.round(progress * 100)}%</span>
+      )}
     </span>
   );
 }

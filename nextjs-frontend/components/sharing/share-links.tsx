@@ -31,12 +31,26 @@ export function useCreateShare(recordingId: number, onCreated: (l: CreatedLink) 
   const qc = useQueryClient();
   const toast = useToast();
   return useMutation({
-    mutationFn: async (days: number) => ({ days, r: await data(Recordings.createShare({ client, path: { rid: recordingId }, body: { days } })) }),
+    mutationFn: async (days: number) => ({
+      days,
+      r: await data(
+        Recordings.createShare({
+          client,
+          path: { rid: recordingId },
+          body: { days },
+        }),
+      ),
+    }),
     onSuccess: ({ days, r }) => {
       void qc.invalidateQueries({ queryKey: ["shares", recordingId] });
       onCreated({ token: r.token, embed: r.embed, expires: expiryDate(days) });
     },
-    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t create a share link", body: e.message }),
+    onError: (e: Error) =>
+      toast({
+        tone: "red",
+        title: "Couldn’t create a share link",
+        body: e.message,
+      }),
   });
 }
 
@@ -47,10 +61,22 @@ function LinkList({ shares }: { shares: Share[] }) {
         const expired = !s.active && s.expires_at != null && new Date(s.expires_at) < new Date();
         return (
           <li key={s.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 border-t border-border py-2.5">
-            <code className={cn("truncate font-mono text-[12.5px] font-medium", s.active ? "text-fg" : "text-fg-muted")}>link {s.id}…</code>
-            <span className={cn("text-[12px] font-semibold", s.active ? "text-green-dark" : "text-fg-muted")}>{s.active ? "Active" : expired ? "Expired" : "Revoked"}</span>
+            <code
+              className={cn("truncate font-mono text-[12.5px] font-medium", s.active ? "text-fg" : "text-fg-muted")}
+            >
+              link {s.id}…
+            </code>
+            <span className={cn("text-[12px] font-semibold", s.active ? "text-green-dark" : "text-fg-muted")}>
+              {s.active ? "Active" : expired ? "Expired" : "Revoked"}
+            </span>
             <span className="col-span-2 text-[12px] text-fg-muted">
-              {[s.created_by, s.created_at ? `created ${fmtDay(s.created_at)}` : null, s.expires_at ? `${expired ? "expired" : "expires"} ${fmtDay(s.expires_at)}` : null].filter(Boolean).join(" · ")}
+              {[
+                s.created_by,
+                s.created_at ? `created ${fmtDay(s.created_at)}` : null,
+                s.expires_at ? `${expired ? "expired" : "expires"} ${fmtDay(s.expires_at)}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </span>
           </li>
         );
@@ -96,9 +122,17 @@ export function ShareLinks({
       void qc.invalidateQueries({ queryKey: ["shares", recordingId] });
       setConfirm(false);
       onCreated(null);
-      toast({ title: "All share links revoked", body: "Anyone opening them now sees “This link is no longer available”." });
+      toast({
+        title: "All share links revoked",
+        body: "Anyone opening them now sees “This link is no longer available”.",
+      });
     },
-    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t revoke the links", body: e.message }),
+    onError: (e: Error) =>
+      toast({
+        tone: "red",
+        title: "Couldn’t revoke the links",
+        body: e.message,
+      }),
   });
   const n = Number(days);
   const validDays = Number.isInteger(n) && n >= 1 && n <= MAX_DAYS;
@@ -112,7 +146,9 @@ export function ShareLinks({
       </summary>
       <div className="mt-2">
         <LinkList shares={shares.data ?? []} />
-        <p className="border-t border-border pt-2 text-[12px] text-fg-muted">A link’s address is shown only when it’s created. Links can be revoked all at once.</p>
+        <p className="border-t border-border pt-2 text-[12px] text-fg-muted">
+          A link’s address is shown only when it’s created. Links can be revoked all at once.
+        </p>
       </div>
     </details>
   );
@@ -122,7 +158,8 @@ export function ShareLinks({
       {confirm ? (
         <>
           <span className="flex-1 text-[13px] text-fg-strong" role="alert">
-            Revoke {active === 1 ? "the active link" : `all ${active} active links`}? Pages that embed them stop playing.
+            Revoke {active === 1 ? "the active link" : `all ${active} active links`}? Pages that embed them stop
+            playing.
           </span>
           <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>
             Keep them
@@ -133,8 +170,16 @@ export function ShareLinks({
         </>
       ) : (
         <>
-          <span className="flex-1 text-[12.5px] text-fg-secondary">{shares.isSuccess ? `This recording has ${plural(active, "active link")}.` : ""}</span>
-          <Button size="sm" variant="danger-ghost" onClick={() => setConfirm(true)} disabled={!active} disabledReason="No active links">
+          <span className="flex-1 text-[12.5px] text-fg-secondary">
+            {shares.isSuccess ? `This recording has ${plural(active, "active link")}.` : ""}
+          </span>
+          <Button
+            size="sm"
+            variant="danger-ghost"
+            onClick={() => setConfirm(true)}
+            disabled={!active}
+            disabledReason="No active links"
+          >
             Revoke all links…
           </Button>
         </>
@@ -144,18 +189,35 @@ export function ShareLinks({
 
   if (created) {
     const url = `${origin}${created.embed}`;
-    const snippet = iframeSnippet({ src: embedUrl(origin, recordingId, { token: created.token, start: startSec }), size: 720, title });
+    const snippet = iframeSnippet({
+      src: embedUrl(origin, recordingId, {
+        token: created.token,
+        start: startSec,
+      }),
+      size: 720,
+      title,
+    });
     return (
       <div className="flex flex-col gap-3.5">
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] font-bold text-fg-strong">Link · expires {fmtDay(created.expires)}</span>
           <CodeBlock inline text={url} label="the share link" className="w-full justify-between [&_code]:text-[13px]" />
-          <span className="text-[12px] text-fg-muted">Shown once: copy it now. Anyone with it can play and read this recording until it expires.</span>
+          <span className="text-[12px] text-fg-muted">
+            Shown once: copy it now. Anyone with it can play and read this recording until it expires.
+          </span>
         </div>
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] font-bold text-fg-strong">Embed snippet</span>
-          <CodeBlock text={snippet} label="the embed snippet" className="[&_pre]:whitespace-pre-wrap [&_pre]:break-all" />
-          <button type="button" onClick={onCustomise} className="self-start text-[12.5px] font-semibold text-fg-accent hover:underline">
+          <CodeBlock
+            text={snippet}
+            label="the embed snippet"
+            className="[&_pre]:whitespace-pre-wrap [&_pre]:break-all"
+          />
+          <button
+            type="button"
+            onClick={onCustomise}
+            className="self-start text-[12.5px] font-semibold text-fg-accent hover:underline"
+          >
             Customise in the embed builder →
           </button>
         </div>
@@ -176,8 +238,9 @@ export function ShareLinks({
   return (
     <div className="flex flex-col gap-3.5">
       <p className="text-[14px] leading-normal text-fg-secondary">
-        People in {namespace ?? "its namespace"} can already open it at <code className="font-mono text-[12.5px] text-fg">/recordings/{recordingId}</code>. A share
-        link lets anyone with it play and read this one recording — nothing else.
+        People in {namespace ?? "its namespace"} can already open it at{" "}
+        <code className="font-mono text-[12.5px] text-fg">/recordings/{recordingId}</code>. A share link lets anyone
+        with it play and read this one recording — nothing else.
       </p>
       <Field
         label="Expires after (days)"
@@ -203,7 +266,12 @@ export function ShareLinks({
         <Button variant="ghost" onClick={onClose}>
           Cancel
         </Button>
-        <Button variant="primary" disabled={!canShare || !validDays || create.isPending} disabledReason={canShare ? undefined : whyNot} onClick={() => create.mutate(n)}>
+        <Button
+          variant="primary"
+          disabled={!canShare || !validDays || create.isPending}
+          disabledReason={canShare ? undefined : whyNot}
+          onClick={() => create.mutate(n)}
+        >
           {create.isPending ? "Creating…" : "Create share link"}
         </Button>
       </div>

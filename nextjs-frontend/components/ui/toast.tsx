@@ -3,7 +3,13 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 type Tone = "intent" | "green" | "red" | "gate";
-export type ToastInput = { title: ReactNode; body?: ReactNode; tone?: Tone; action?: { label: string; onClick: () => void }; duration?: number };
+export type ToastInput = {
+  title: ReactNode;
+  body?: ReactNode;
+  tone?: Tone;
+  action?: { label: string; onClick: () => void };
+  duration?: number;
+};
 type ToastItem = ToastInput & { id: number };
 
 const GLYPH: Record<Tone, [string, string]> = {

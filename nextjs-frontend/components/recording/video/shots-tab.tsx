@@ -29,7 +29,10 @@ export function ShotsTab() {
             type="button"
             aria-current={i === cur ? "true" : undefined}
             onClick={() => api.seek(s.t0, { manual: true })}
-            className={cn("flex w-full flex-col gap-1.5 rounded-md border p-1.5 text-left hover:bg-surface-neutral", i === cur ? "border-blue bg-blue-surface" : "border-border")}
+            className={cn(
+              "flex w-full flex-col gap-1.5 rounded-md border p-1.5 text-left hover:bg-surface-neutral",
+              i === cur ? "border-blue bg-blue-surface" : "border-border",
+            )}
           >
             <span className="block aspect-video overflow-hidden rounded-[6px] bg-black">
               {s.frame && (

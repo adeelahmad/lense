@@ -39,15 +39,23 @@ export function SpeakersTab() {
   const { mergeSpeaker } = useRecordingActions(id);
   const stats = speakerStats(rec.stats);
   const colorOf = (sid: number | null) => model.speakers.find((s) => s.id === sid)?.color ?? "var(--text-muted)";
-  const people = [...(rec.speakers ?? [])].sort((a, b) => (model.speakers.find((s) => s.id === a.id)?.index ?? 99) - (model.speakers.find((s) => s.id === b.id)?.index ?? 99));
+  const people = [...(rec.speakers ?? [])].sort(
+    (a, b) =>
+      (model.speakers.find((s) => s.id === a.id)?.index ?? 99) -
+      (model.speakers.find((s) => s.id === b.id)?.index ?? 99),
+  );
   const reviews = people
-    .map((p) => ({ p, s: [...(dir.data?.speakers.find((d) => d.id === p.id)?.suggestions ?? [])].sort((a, b) => b.score - a.score)[0] }))
+    .map((p) => ({
+      p,
+      s: [...(dir.data?.speakers.find((d) => d.id === p.id)?.suggestions ?? [])].sort((a, b) => b.score - a.score)[0],
+    }))
     .filter((x) => x.s);
 
   if (!people.length)
     return (
       <EmptyState title="No speakers yet" className="py-10">
-        Speakers come from the transcript&apos;s labels or from the Diarize step, which separates voices and matches them to this namespace&apos;s registry.
+        Speakers come from the transcript&apos;s labels or from the Diarize step, which separates voices and matches
+        them to this namespace&apos;s registry.
       </EmptyState>
     );
 
@@ -56,27 +64,54 @@ export function SpeakersTab() {
   return (
     <>
       {stats.length > 0 && (
-        <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-pill" role="img" aria-label={`Talk time: ${stats.map((s) => `${s.name} ${Math.round(s.share * 100)}%`).join(", ")}`}>
+        <div
+          className="flex h-2.5 gap-0.5 overflow-hidden rounded-pill"
+          role="img"
+          aria-label={`Talk time: ${stats.map((s) => `${s.name} ${Math.round(s.share * 100)}%`).join(", ")}`}
+        >
           {stats.map((s, i) => (
-            <span key={i} style={{ flex: Math.max(s.share, 0.005), background: colorOf(s.id) }} />
+            <span
+              key={i}
+              style={{
+                flex: Math.max(s.share, 0.005),
+                background: colorOf(s.id),
+              }}
+            />
           ))}
         </div>
       )}
       {people.map((p) => {
         const st = stats.find((s) => s.id === p.id);
-        return <SpeakerCard key={p.id} id={p.id} name={p.name} color={colorOf(p.id)} sub={methodLine(p.method, p.score)} stat={st} canEdit={canEdit} ns={ns} recId={id} />;
+        return (
+          <SpeakerCard
+            key={p.id}
+            id={p.id}
+            name={p.name}
+            color={colorOf(p.id)}
+            sub={methodLine(p.method, p.score)}
+            stat={st}
+            canEdit={canEdit}
+            ns={ns}
+            recId={id}
+          />
+        );
       })}
       {reviews.map(({ p, s }) => {
         const line = firstLine(p.id);
         return (
-          <section key={p.id} className="flex flex-col gap-2.5 rounded-md border border-gold-border bg-gold-surface p-3.5" aria-label={`${p.name} needs review`}>
+          <section
+            key={p.id}
+            className="flex flex-col gap-2.5 rounded-md border border-gold-border bg-gold-surface p-3.5"
+            aria-label={`${p.name} needs review`}
+          >
             <div className="flex items-center gap-2">
               <span aria-hidden className="size-[9px] rotate-45 rounded-[1px] bg-gold" />
               <h3 className="text-[13.5px] font-bold leading-tight text-fg">{p.name} needs review</h3>
             </div>
             <p className="text-[13px] leading-normal text-fg-strong">
               {line ? `${tc(line.t0)} and the rest of ` : ""}
-              <b>{p.name}</b>&apos;s lines may be <b>{s!.name}</b> — the voice match is <b>unsure ({s!.score.toFixed(2)})</b>. Confirming merges {p.name} into {s!.name} across {ns} (with undo).
+              <b>{p.name}</b>&apos;s lines may be <b>{s!.name}</b> — the voice match is{" "}
+              <b>unsure ({s!.score.toFixed(2)})</b>. Confirming merges {p.name} into {s!.name} across {ns} (with undo).
             </p>
             <div className="flex flex-wrap gap-2">
               {line && (
@@ -141,12 +176,23 @@ function SpeakerCard({
   return (
     <section className="flex flex-col gap-3 rounded-md border border-border p-3.5" aria-label={name}>
       <div className="flex items-center gap-2.5">
-        <span aria-hidden className="grid size-[30px] shrink-0 place-items-center rounded-full text-[12px] font-bold text-white" style={{ background: color }}>
+        <span
+          aria-hidden
+          className="grid size-[30px] shrink-0 place-items-center rounded-full text-[12px] font-bold text-white"
+          style={{ background: color }}
+        >
           {initials(name)}
         </span>
         {renaming ? (
           <form onSubmit={submit} className="flex min-w-0 flex-1 items-center gap-2">
-            <Input value={value} onChange={(e) => setValue(e.target.value)} aria-label={`New name for ${name}`} className="h-8 text-[13.5px]" autoFocus maxLength={80} />
+            <Input
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              aria-label={`New name for ${name}`}
+              className="h-8 text-[13.5px]"
+              autoFocus
+              maxLength={80}
+            />
             <Button type="submit" size="xs" variant="primary" disabled={renameSpeaker.isPending}>
               Save
             </Button>
@@ -157,12 +203,21 @@ function SpeakerCard({
         ) : (
           <>
             <div className="min-w-0 flex-1">
-              <Link href={`/speakers/${id}`} className="block truncate text-[14px] font-bold leading-tight text-fg hover:underline">
+              <Link
+                href={`/speakers/${id}`}
+                className="block truncate text-[14px] font-bold leading-tight text-fg hover:underline"
+              >
                 {name}
               </Link>
               <div className="text-[12px] leading-snug text-fg-muted">{sub}</div>
             </div>
-            <Button variant="ghost" size="sm" disabled={!canEdit} disabledReason={needRole("editor", ns)} onClick={() => setRenaming(true)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!canEdit}
+              disabledReason={needRole("editor", ns)}
+              onClick={() => setRenaming(true)}
+            >
               Rename
             </Button>
           </>

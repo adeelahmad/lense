@@ -48,7 +48,11 @@ function pairs(msgs: ChatMessage[]): Pair[] {
 }
 
 function UserBubble({ text }: { text: string }) {
-  return <div className="max-w-[520px] self-end whitespace-pre-wrap rounded-[16px_16px_4px_16px] bg-surface-neutral px-4 py-3 text-[15px] leading-normal text-fg">{text}</div>;
+  return (
+    <div className="max-w-[520px] self-end whitespace-pre-wrap rounded-[16px_16px_4px_16px] bg-surface-neutral px-4 py-3 text-[15px] leading-normal text-fg">
+      {text}
+    </div>
+  );
 }
 
 function streamError(e: unknown): string {
@@ -86,7 +90,9 @@ export function ChatApp() {
   const linkScope = useMemo(() => scopeFromParams(new URLSearchParams(search.toString())), [search]);
   const [draftScope, setDraftScope] = useState<Scope>(() => linkScope);
   const [draft, setDraft] = useState(() => search.get("q") ?? "");
-  const [composing, setComposing] = useState(() => Boolean(search.get("q") || search.get("ns") || search.get("recording") || search.get("speaker")));
+  const [composing, setComposing] = useState(() =>
+    Boolean(search.get("q") || search.get("ns") || search.get("recording") || search.get("speaker")),
+  );
   const [live, setLive] = useState<Live | null>(null);
   const [extras, setExtras] = useState<Record<number, Extra>>({});
   const [partials, setPartials] = useState<Record<string, TurnState>>({});
@@ -114,8 +120,19 @@ export function ChatApp() {
     if (!collectionId) return;
     setComposing(true);
     data(Collections.getCollection({ client, path: { cid: collectionId } }))
-      .then((c) => setDraftScope((s) => ({ ...s, recordings: c.recordings.map((r) => r.id) })))
-      .catch((e) => toast({ title: "Couldn’t open the collection", body: e instanceof Error ? e.message : undefined, tone: "red" }));
+      .then((c) =>
+        setDraftScope((s) => ({
+          ...s,
+          recordings: c.recordings.map((r) => r.id),
+        })),
+      )
+      .catch((e) =>
+        toast({
+          title: "Couldn’t open the collection",
+          body: e instanceof Error ? e.message : undefined,
+          tone: "red",
+        }),
+      );
   }, [collectionId, client, toast]);
 
   const scope = activeId != null ? fromApiScope(chat.data?.scope) : draftScope;
@@ -125,11 +142,21 @@ export function ChatApp() {
     async (s: Scope) => {
       if (activeId == null) return setDraftScope(s);
       try {
-        await data(Chats.updateChat({ client, path: { cid: activeId }, body: { scope: toApiScope(s) } }));
+        await data(
+          Chats.updateChat({
+            client,
+            path: { cid: activeId },
+            body: { scope: toApiScope(s) },
+          }),
+        );
         qc.invalidateQueries({ queryKey: ["chat", activeId] });
         qc.invalidateQueries({ queryKey: ["chats"] });
       } catch (e) {
-        toast({ title: "Couldn’t change the scope", body: e instanceof Error ? e.message : undefined, tone: "red" });
+        toast({
+          title: "Couldn’t change the scope",
+          body: e instanceof Error ? e.message : undefined,
+          tone: "red",
+        });
       }
     },
     [activeId, client, qc, toast],
@@ -143,19 +170,36 @@ export function ChatApp() {
       setLive({ chatId: cid, turn });
       setFocusKey("live");
       try {
-        for await (const msg of streamSSE(`/api/v1/chats/${cid}/messages`, { method: "POST", body: { content: question }, accessToken: session?.accessToken, signal: ac.signal })) {
+        for await (const msg of streamSSE(`/api/v1/chats/${cid}/messages`, {
+          method: "POST",
+          body: { content: question },
+          accessToken: session?.accessToken,
+          signal: ac.signal,
+        })) {
           turn = applyEvent(turn, msg);
           setLive({ chatId: cid, turn });
         }
-        if (turn.status === "streaming") turn = { ...turn, status: turn.messageId != null ? "done" : "error", error: turn.messageId != null ? null : "The answer stopped before it finished" };
+        if (turn.status === "streaming")
+          turn = {
+            ...turn,
+            status: turn.messageId != null ? "done" : "error",
+            error: turn.messageId != null ? null : "The answer stopped before it finished",
+          };
       } catch (e) {
         turn = ac.signal.aborted ? { ...turn, status: "stopped" } : { ...turn, status: "error", error: streamError(e) };
       }
       setLive({ chatId: cid, turn });
       const mid = turn.messageId;
-      if (mid != null) setExtras((x) => ({ ...x, [mid]: { steps: turn.steps, notice: turn.notice, error: turn.error } }));
+      if (mid != null)
+        setExtras((x) => ({
+          ...x,
+          [mid]: { steps: turn.steps, notice: turn.notice, error: turn.error },
+        }));
       if (turn.status === "done") setAnnounce(`Answer: ${turn.text.replace(/\[\d+(?:,\s*\d+)*\]/g, "")}`);
-      await Promise.all([qc.invalidateQueries({ queryKey: ["chat", cid] }), qc.invalidateQueries({ queryKey: ["approvals", cid] })]);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["chat", cid] }),
+        qc.invalidateQueries({ queryKey: ["approvals", cid] }),
+      ]);
       qc.invalidateQueries({ queryKey: ["chats"] });
       if (mid == null) setPartials((p) => ({ ...p, [`${cid}:${question}`]: turn }));
       setLive(null);
@@ -172,14 +216,23 @@ export function ChatApp() {
       let cid = activeId;
       if (cid == null) {
         try {
-          const created = await data(Chats.createChat({ client, body: { scope: toApiScope(draftScope) } }));
+          const created = await data(
+            Chats.createChat({
+              client,
+              body: { scope: toApiScope(draftScope) },
+            }),
+          );
           cid = created.id;
           qc.invalidateQueries({ queryKey: ["chats"] });
           setComposing(false);
           router.replace(`/chat/${cid}`);
         } catch (e) {
           setDraft(question);
-          toast({ title: "Couldn’t start a conversation", body: e instanceof Error ? e.message : undefined, tone: "red" });
+          toast({
+            title: "Couldn’t start a conversation",
+            body: e instanceof Error ? e.message : undefined,
+            tone: "red",
+          });
           return;
         }
       }
@@ -219,7 +272,10 @@ export function ChatApp() {
     return out;
   }, [msgs, live, activeId]);
   // A new conversation's first answer shows at once, before the address has moved to /chat/{id}.
-  const liveHere = live && (live.chatId === activeId || activeId == null) && !msgs.some((m) => m.id === live.turn.messageId) ? live.turn : null;
+  const liveHere =
+    live && (live.chatId === activeId || activeId == null) && !msgs.some((m) => m.id === live.turn.messageId)
+      ? live.turn
+      : null;
 
   // Approvals saved on the server sit before the first answer written after them.
   const liveApprovalIds = new Set(liveHere?.approvals.map((a) => a.id) ?? []);
@@ -236,14 +292,24 @@ export function ChatApp() {
   }, [approvals.data, msgs]);
 
   const lastAnswer = [...msgs].reverse().find((m) => m.role === "assistant");
-  const focus = focusKey === "live" && liveHere ? "live" : (focusKey ?? (liveHere ? "live" : lastAnswer ? `a${lastAnswer.id}` : null));
+  const focus =
+    focusKey === "live" && liveHere
+      ? "live"
+      : (focusKey ?? (liveHere ? "live" : lastAnswer ? `a${lastAnswer.id}` : null));
   const focusPassages: Passage[] | null =
-    focus === "live" ? (liveHere?.passages ?? null) : focus ? (msgs.find((m) => `a${m.id}` === focus)?.passages ?? null) : null;
+    focus === "live"
+      ? (liveHere?.passages ?? null)
+      : focus
+        ? (msgs.find((m) => `a${m.id}` === focus)?.passages ?? null)
+        : null;
 
   const suggestions = useMemo(() => {
     const out = ["What topics came up most this month?"];
-    const inScope = (ns: string | null | undefined) => !scope.namespaces?.length || (ns != null && scope.namespaces.includes(ns));
-    const top = [...dir.speakers].filter((s) => inScope(s.namespace)).sort((a, b) => (b.talk_ms ?? 0) - (a.talk_ms ?? 0))[0];
+    const inScope = (ns: string | null | undefined) =>
+      !scope.namespaces?.length || (ns != null && scope.namespaces.includes(ns));
+    const top = [...dir.speakers]
+      .filter((s) => inScope(s.namespace))
+      .sort((a, b) => (b.talk_ms ?? 0) - (a.talk_ms ?? 0))[0];
     if (top) out.push(`Where did ${top.display} disagree with someone?`);
     const latest = (index.data ?? []).filter((r) => inScope(r.namespace))[0];
     if (latest) out.push(`Summarise ${shortTitle(latest.title, 40)} in five bullets`);
@@ -254,7 +320,11 @@ export function ChatApp() {
   const noProvider = llm.known && !llm.configured;
   const showThread = activeId != null || liveHere != null;
   const title = chat.data?.title ?? (activeId == null ? "New conversation" : "Conversation");
-  const addScope = (ns: string) => setScope({ ...scope, namespaces: [...new Set([...(scope.namespaces ?? []), ns])] });
+  const addScope = (ns: string) =>
+    setScope({
+      ...scope,
+      namespaces: [...new Set([...(scope.namespaces ?? []), ns])],
+    });
   const answerHandlers = (key: string) => ({
     hover: focus === key ? hover : null,
     onHover: (n: number | null) => {
@@ -284,9 +354,19 @@ export function ChatApp() {
       <div aria-live="polite" className="sr-only">
         {announce}
       </div>
-      <aside className={cn("min-h-0 overflow-y-auto border-r border-border bg-surface px-2.5 py-3.5", showThread || composing ? "hidden md:block" : "block")}>{listPane}</aside>
+      <aside
+        className={cn(
+          "min-h-0 overflow-y-auto border-r border-border bg-surface px-2.5 py-3.5",
+          showThread || composing ? "hidden md:block" : "block",
+        )}
+      >
+        {listPane}
+      </aside>
 
-      <section aria-label={title} className={cn("min-h-0 min-w-0 flex-col", showThread || composing ? "flex" : "hidden md:flex")}>
+      <section
+        aria-label={title}
+        className={cn("min-h-0 min-w-0 flex-col", showThread || composing ? "flex" : "hidden md:flex")}
+      >
         <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-2 md:hidden">
           <IconButton label="All conversations" onClick={() => (setComposing(false), router.push("/chat"))}>
             <ChevronLeft />
@@ -309,18 +389,31 @@ export function ChatApp() {
             {activeId != null && chat.isError && (
               <EmptyState
                 tone="error"
-                title={chat.error.message === "not found" ? "This conversation isn’t here" : "Couldn’t open this conversation"}
+                title={
+                  chat.error.message === "not found"
+                    ? "This conversation isn’t here"
+                    : "Couldn’t open this conversation"
+                }
                 actions={
                   <Button variant="secondary" icon={<Plus />} onClick={newConversation}>
                     New conversation
                   </Button>
                 }
               >
-                {chat.error.message === "not found" ? "It may have been deleted. Conversations are private to whoever started them." : chat.error.message}
+                {chat.error.message === "not found"
+                  ? "It may have been deleted. Conversations are private to whoever started them."
+                  : chat.error.message}
               </EmptyState>
             )}
             {!showThread && (
-              <EmptyChat scope={scope} suggestions={suggestions} onAsk={(q) => send(q)} onChangeScope={() => setScopeOpenTick((t) => t + 1)} noProvider={noProvider} admin={admin} />
+              <EmptyChat
+                scope={scope}
+                suggestions={suggestions}
+                onAsk={(q) => send(q)}
+                onChangeScope={() => setScopeOpenTick((t) => t + 1)}
+                noProvider={noProvider}
+                admin={admin}
+              />
             )}
             {items.map((it) => {
               const aKey = it.a ? `a${it.a.id}` : it.key;
@@ -340,7 +433,12 @@ export function ChatApp() {
                       error={ex?.error}
                       notice={ex?.notice}
                       steps={ex?.steps}
-                      approvals={(approvalsFor.get(it.a.id) ?? []).filter((a) => !liveApprovalIds.has(a.id)).map((a) => ({ ...a, estimate: a.estimate as Estimate | null }))}
+                      approvals={(approvalsFor.get(it.a.id) ?? [])
+                        .filter((a) => !liveApprovalIds.has(a.id))
+                        .map((a) => ({
+                          ...a,
+                          estimate: a.estimate as Estimate | null,
+                        }))}
                       scope={scope}
                       model={model}
                       onRetry={it.q ? () => send(it.q!.content) : undefined}
@@ -365,7 +463,12 @@ export function ChatApp() {
                       {...answerHandlers(aKey)}
                     />
                   ) : (
-                    it.q && !liveHere && <p className="m-0 text-[13px] text-fg-muted">No answer was saved for this question. Ask it again to get one.</p>
+                    it.q &&
+                    !liveHere && (
+                      <p className="m-0 text-[13px] text-fg-muted">
+                        No answer was saved for this question. Ask it again to get one.
+                      </p>
+                    )
                   )}
                 </div>
               );
@@ -408,7 +511,13 @@ export function ChatApp() {
                 )}
               </Banner>
             )}
-            <ScopeBarWithOpen scope={scope} onChange={setScope} model={model} tools={llm.known ? llm.tools : null} openTick={scopeOpenTick} />
+            <ScopeBarWithOpen
+              scope={scope}
+              onChange={setScope}
+              model={model}
+              tools={llm.known ? llm.tools : null}
+              openTick={scopeOpenTick}
+            />
             <Composer
               value={draft}
               onChange={setDraft}
@@ -421,8 +530,16 @@ export function ChatApp() {
         </div>
       </section>
 
-      <aside aria-label="Sources" className="hidden min-h-0 overflow-y-auto border-l border-border px-[18px] py-4 xl:block">
-        <SourcesPanel passages={focusPassages} hover={hover} onHover={setHover} loading={Boolean(liveHere && !liveHere.passages)} />
+      <aside
+        aria-label="Sources"
+        className="hidden min-h-0 overflow-y-auto border-l border-border px-[18px] py-4 xl:block"
+      >
+        <SourcesPanel
+          passages={focusPassages}
+          hover={hover}
+          onHover={setHover}
+          loading={Boolean(liveHere && !liveHere.passages)}
+        />
       </aside>
 
       <CitationSheet passage={preview} onClose={() => setPreview(null)} />

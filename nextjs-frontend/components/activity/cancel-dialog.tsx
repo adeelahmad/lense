@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 
 /** What cancelling keeps: queued runs stop at once; running ones finish the current step first. */
-export function cancelSummary(job: JobRecord): { now: string; kept: string[]; dropped: string[] } {
+export function cancelSummary(job: JobRecord): {
+  now: string;
+  kept: string[];
+  dropped: string[];
+} {
   const specs = stepSpecs(job.steps);
   const i = Math.min(job.step_index ?? 0, specs.length);
   if (job.status === "running") {
@@ -15,7 +19,11 @@ export function cancelSummary(job: JobRecord): { now: string; kept: string[]; dr
       dropped: specs.slice(i + 1).map((s) => s.label),
     };
   }
-  return { now: "It hasn’t started this step yet, so it stops right away.", kept: specs.slice(0, i).map((s) => s.label), dropped: specs.slice(i).map((s) => s.label) };
+  return {
+    now: "It hasn’t started this step yet, so it stops right away.",
+    kept: specs.slice(0, i).map((s) => s.label),
+    dropped: specs.slice(i).map((s) => s.label),
+  };
 }
 
 export function CancelJobDialog({

@@ -1,5 +1,6 @@
 """Any OpenAI-compatible chat server (LM Studio, Ollama, vLLM, llama.cpp, OpenAI): plain replies, streaming, and
 structured output checked against a JSON Schema."""
+
 from __future__ import annotations
 
 import json
@@ -25,7 +26,9 @@ def _post(cfg, payload):
     key = l.get("api_key") or (os.environ.get(l["api_key_env"]) if l.get("api_key_env") else None)
     if key:
         headers["Authorization"] = f"Bearer {key}"
-    req = urllib.request.Request(l["base_url"].rstrip("/") + "/chat/completions", data=json.dumps(payload).encode(), headers=headers, method="POST")
+    req = urllib.request.Request(
+        l["base_url"].rstrip("/") + "/chat/completions", data=json.dumps(payload).encode(), headers=headers, method="POST"
+    )
     try:
         return urllib.request.urlopen(req, timeout=l.get("timeout") or 300)
     except urllib.error.HTTPError as e:
@@ -80,7 +83,7 @@ def parse_json(text):
         a, b = t.find("{"), t.rfind("}")
         if a >= 0 and b > a:
             try:
-                return json.loads(t[a:b + 1])
+                return json.loads(t[a : b + 1])
             except ValueError:
                 pass
     raise LLMError("the reply wasn't JSON")
@@ -120,8 +123,12 @@ def validate(v, schema, path="$"):
 
 def json_out(cfg, system, user, schema, model=None):
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
-    payload = {"model": model or cfg["llm"]["model"], "messages": messages, "temperature": 0,
-               "response_format": {"type": "json_schema", "json_schema": {"name": "output", "schema": schema, "strict": False}}}
+    payload = {
+        "model": model or cfg["llm"]["model"],
+        "messages": messages,
+        "temperature": 0,
+        "response_format": {"type": "json_schema", "json_schema": {"name": "output", "schema": schema, "strict": False}},
+    }
     try:
         with _post(cfg, payload) as r:
             text = _content(json.load(r))

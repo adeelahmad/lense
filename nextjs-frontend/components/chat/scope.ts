@@ -2,7 +2,13 @@ import type { ChatScope, Namespace, RecordingSummary } from "@/app/openapi-clien
 import { count, shortDate } from "@/lib/format";
 
 /** What a conversation may draw on. Every field narrows it; an empty scope is everything you can read. */
-export type Scope = { namespaces?: string[]; recordings?: number[]; speakers?: number[]; from?: string; to?: string };
+export type Scope = {
+  namespaces?: string[];
+  recordings?: number[];
+  speakers?: number[];
+  from?: string;
+  to?: string;
+};
 
 /** The scope as the API stores it (dropping empty parts). */
 export function toApiScope(s: Scope): ChatScope {
@@ -20,7 +26,11 @@ export function fromApiScope(raw: Record<string, unknown> | null | undefined): S
   const r = raw ?? {};
   const strs = (v: unknown) => (Array.isArray(v) ? v.map(String) : undefined);
   const ints = (v: unknown) => (Array.isArray(v) ? v.map(Number).filter(Number.isFinite) : undefined);
-  const s: Scope = { namespaces: strs(r.namespaces), recordings: ints(r.recordings), speakers: ints(r.speakers) };
+  const s: Scope = {
+    namespaces: strs(r.namespaces),
+    recordings: ints(r.recordings),
+    speakers: ints(r.speakers),
+  };
   if (typeof r.from === "string") s.from = r.from;
   if (typeof r.to === "string") s.to = r.to;
   return toScope(toApiScope(s));
@@ -48,7 +58,10 @@ export function scopeFromParams(p: URLSearchParams): Scope {
       .flatMap((v) => v.split(","))
       .map((v) => v.trim())
       .filter(Boolean);
-  const ints = (k: string) => list(k).map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  const ints = (k: string) =>
+    list(k)
+      .map(Number)
+      .filter((n) => Number.isInteger(n) && n > 0);
   return toScope(
     toApiScope({
       namespaces: list("ns"),
@@ -76,10 +89,16 @@ export function hoursShort(ms: number): string {
 }
 
 /** "Episode 12" or "3 recordings · 1.2 h". */
-export function recordingsLabel(ids: number[], byId: Map<number, Pick<RecordingSummary, "title" | "duration_ms">>): { label: string; size?: string } {
+export function recordingsLabel(
+  ids: number[],
+  byId: Map<number, Pick<RecordingSummary, "title" | "duration_ms">>,
+): { label: string; size?: string } {
   if (ids.length === 1) return { label: byId.get(ids[0])?.title ?? `Recording #${ids[0]}` };
   const ms = ids.reduce((a, id) => a + (byId.get(id)?.duration_ms ?? 0), 0);
-  return { label: `${count(ids.length)} recordings`, size: ms ? hoursShort(ms) : undefined };
+  return {
+    label: `${count(ids.length)} recordings`,
+    size: ms ? hoursShort(ms) : undefined,
+  };
 }
 
 export function datesLabel(from?: string, to?: string): string {
@@ -91,8 +110,18 @@ export function datesLabel(from?: string, to?: string): string {
 /** Words for the scope in sentences: "podcasts", "podcasts and customer-calls", "all your namespaces". */
 export function scopeWords(s: Scope): string {
   const ns = s.namespaces ?? [];
-  const base = ns.length === 0 ? "all your namespaces" : ns.length === 1 ? ns[0] : `${ns.slice(0, -1).join(", ")} and ${ns[ns.length - 1]}`;
-  const extra = [s.recordings?.length ? `${s.recordings.length === 1 ? "one recording" : `${s.recordings.length} recordings`}` : null, s.speakers?.length ? "chosen speakers" : null]
+  const base =
+    ns.length === 0
+      ? "all your namespaces"
+      : ns.length === 1
+        ? ns[0]
+        : `${ns.slice(0, -1).join(", ")} and ${ns[ns.length - 1]}`;
+  const extra = [
+    s.recordings?.length
+      ? `${s.recordings.length === 1 ? "one recording" : `${s.recordings.length} recordings`}`
+      : null,
+    s.speakers?.length ? "chosen speakers" : null,
+  ]
     .filter(Boolean)
     .join(", ");
   return extra ? `${base} (${extra})` : base;

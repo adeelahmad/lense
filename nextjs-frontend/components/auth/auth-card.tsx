@@ -8,7 +8,9 @@ export function AuthBrand({ className, suffix }: { className?: string; suffix?: 
   return (
     <div className={cn("flex items-center gap-[9px]", className)}>
       <Signature grid size={8} gap={3} />
-      <span className="whitespace-nowrap text-[18px] font-extrabold leading-none tracking-[-0.03em] text-blue">Lens Archive</span>
+      <span className="whitespace-nowrap text-[18px] font-extrabold leading-none tracking-[-0.03em] text-blue">
+        Lens Archive
+      </span>
       {suffix && <span className="text-[12px] text-fg-muted">{suffix}</span>}
     </div>
   );
@@ -30,7 +32,12 @@ export function AuthCard({
   wide?: boolean;
 }) {
   return (
-    <section className={cn("mx-auto flex w-full flex-col gap-4 rounded-xl border border-border bg-background p-6 sm:p-7", wide ? "max-w-[440px]" : "max-w-[400px]")}>
+    <section
+      className={cn(
+        "mx-auto flex w-full flex-col gap-4 rounded-xl border border-border bg-background p-6 sm:p-7",
+        wide ? "max-w-[440px]" : "max-w-[400px]",
+      )}
+    >
       <AuthBrand />
       <div className="flex flex-col gap-1.5">
         <h1 className="text-[22px] font-bold leading-[1.25] text-fg">{title}</h1>
@@ -43,19 +50,47 @@ export function AuthCard({
 }
 
 const ALERT = {
-  error: { cls: "border-red-border bg-red-surface", glyph: "✕", color: "text-red" },
-  gate: { cls: "border-gold-border bg-gold-surface", glyph: "◆", color: "text-gold-dark" },
-  success: { cls: "border-green-border bg-green-surface", glyph: "✓", color: "text-green-dark" },
-  info: { cls: "border-blue-border bg-blue-surface", glyph: "●", color: "text-blue" },
+  error: {
+    cls: "border-red-border bg-red-surface",
+    glyph: "✕",
+    color: "text-red",
+  },
+  gate: {
+    cls: "border-gold-border bg-gold-surface",
+    glyph: "◆",
+    color: "text-gold-dark",
+  },
+  success: {
+    cls: "border-green-border bg-green-surface",
+    glyph: "✓",
+    color: "text-green-dark",
+  },
+  info: {
+    cls: "border-blue-border bg-blue-surface",
+    glyph: "●",
+    color: "text-blue",
+  },
 };
 
 /** The message at the top of an auth card: wrong password (red ✕), too many attempts (gold ◆), notices. */
-export function AuthAlert({ tone, children, className }: { tone: keyof typeof ALERT; children: ReactNode; className?: string }) {
+export function AuthAlert({
+  tone,
+  children,
+  className,
+}: {
+  tone: keyof typeof ALERT;
+  children: ReactNode;
+  className?: string;
+}) {
   const a = ALERT[tone];
   return (
     <div
       role={tone === "error" || tone === "gate" ? "alert" : "status"}
-      className={cn("flex gap-2.5 rounded-[10px] border px-3 py-2.5 text-[13.5px] font-medium leading-[1.4] text-fg", a.cls, className)}
+      className={cn(
+        "flex gap-2.5 rounded-[10px] border px-3 py-2.5 text-[13.5px] font-medium leading-[1.4] text-fg",
+        a.cls,
+        className,
+      )}
     >
       <span aria-hidden className={cn("font-extrabold", a.color)}>
         {a.glyph}

@@ -6,7 +6,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useJobCacheSync } from "@/components/activity/job-events";
-import { elapsed, isActive, jobPhase, plainError, span, stepSpecs, triggerOf, type JobRecord } from "@/components/activity/job-model";
+import {
+  elapsed,
+  isActive,
+  jobPhase,
+  plainError,
+  span,
+  stepSpecs,
+  triggerOf,
+  type JobRecord,
+} from "@/components/activity/job-model";
 import { JobListItem } from "@/components/activity/job-row";
 import { useJobActions, usePeopleNames, useSpaceNames } from "@/components/activity/use-activity";
 import { Drawer } from "@/components/ui/dialog";
@@ -15,17 +24,30 @@ import { useJobs } from "@/lib/hooks/jobs";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-const ORDER: Record<string, number> = { running: 0, queued: 1, paused: 1, failed: 2, cancelled: 3, succeeded: 4 };
+const ORDER: Record<string, number> = {
+  running: 0,
+  queued: 1,
+  paused: 1,
+  failed: 2,
+  cancelled: 3,
+  succeeded: 4,
+};
 
 /** Active runs first, then failures, then the most recent finished ones. */
 function drawerRows(jobs: JobRecord[]): JobRecord[] {
   const active = jobs.filter((j) => isActive(j.status));
   const rest = jobs.filter((j) => !isActive(j.status)).slice(0, Math.max(4, 12 - active.length));
-  return [...active, ...rest].sort((a, b) => (ORDER[a.status] ?? 5) - (ORDER[b.status] ?? 5) || ((a.created_at ?? "") < (b.created_at ?? "") ? 1 : -1));
+  return [...active, ...rest].sort(
+    (a, b) => (ORDER[a.status] ?? 5) - (ORDER[b.status] ?? 5) || ((a.created_at ?? "") < (b.created_at ?? "") ? 1 : -1),
+  );
 }
 
 function countsText(c: Record<string, number>) {
-  const parts = [c.running ? `${c.running} running` : "", c.queued ? `${c.queued} queued` : "", c.failed ? `${c.failed} failed` : ""].filter(Boolean);
+  const parts = [
+    c.running ? `${c.running} running` : "",
+    c.queued ? `${c.queued} queued` : "",
+    c.failed ? `${c.failed} failed` : "",
+  ].filter(Boolean);
   return parts.length ? parts.join(" · ") : "Nothing running";
 }
 
@@ -50,14 +72,20 @@ export function ActivityPill() {
         tone: "green",
         title: `${job.title ?? "A recording"} is ready`,
         body: `${specs.length} ${specs.length === 1 ? "step" : "steps"}${took != null ? ` · ${span(took)}` : ""}`,
-        action: { label: "Open", onClick: () => router.push(`/recordings/${job.recording}`) },
+        action: {
+          label: "Open",
+          onClick: () => router.push(`/recordings/${job.recording}`),
+        },
       });
     else if (job.status === "failed")
       toast({
         tone: "red",
         title: jobPhase(job).split(":")[0],
         body: job.title ?? undefined,
-        action: { label: "Open", onClick: () => router.push(`/activity/${job.id}`) },
+        action: {
+          label: "Open",
+          onClick: () => router.push(`/activity/${job.id}`),
+        },
       });
   });
   useEffect(() => {
@@ -78,7 +106,10 @@ export function ActivityPill() {
       >
         <span
           aria-hidden
-          className={cn("size-[18px] rounded-full border-[2.5px]", running ? "animate-spin border-blue-surface border-t-blue" : "border-green-border bg-green-surface")}
+          className={cn(
+            "size-[18px] rounded-full border-[2.5px]",
+            running ? "animate-spin border-blue-surface border-t-blue" : "border-green-border bg-green-surface",
+          )}
         />
         <span className="hidden sm:inline">{running ? `${running} running` : "Idle"}</span>
         {failed > 0 && (
@@ -99,13 +130,25 @@ export function ActivityPill() {
           </span>
         }
       >
-        <ActivityList jobs={(jobs.data?.jobs ?? []) as JobRecord[]} loading={jobs.isLoading} error={jobs.error as Error | null} />
+        <ActivityList
+          jobs={(jobs.data?.jobs ?? []) as JobRecord[]}
+          loading={jobs.isLoading}
+          error={jobs.error as Error | null}
+        />
         <div className="flex items-center justify-between p-4 text-[13px] font-semibold">
-          <Link href="/activity" onClick={() => setOpen(false)} className="inline-flex items-center gap-1 text-fg-accent hover:underline">
+          <Link
+            href="/activity"
+            onClick={() => setOpen(false)}
+            className="inline-flex items-center gap-1 text-fg-accent hover:underline"
+          >
             Open Activity <ArrowRight className="size-4" />
           </Link>
           {admin && (
-            <Link href="/activity?tab=workers" onClick={() => setOpen(false)} className="text-fg-secondary hover:text-fg hover:underline">
+            <Link
+              href="/activity?tab=workers"
+              onClick={() => setOpen(false)}
+              className="text-fg-secondary hover:text-fg hover:underline"
+            >
               Workers
             </Link>
           )}
@@ -123,7 +166,8 @@ function ActivityList({ jobs, loading, error }: { jobs: JobRecord[]; loading: bo
   if (loading) return <p className="p-4 text-[13px] text-fg-muted">Loading…</p>;
   if (error) return <p className="p-4 text-[13.5px] text-red-dark">Couldn’t load runs: {error.message}</p>;
   const shown = drawerRows(jobs);
-  if (!shown.length) return <p className="p-4 text-[13.5px] text-fg-secondary">Nothing running. Finished runs are in Activity.</p>;
+  if (!shown.length)
+    return <p className="p-4 text-[13.5px] text-fg-secondary">Nothing running. Finished runs are in Activity.</p>;
   return (
     <ul aria-label="Recent runs">
       {shown.map((j) => {
@@ -143,7 +187,12 @@ function ActivityList({ jobs, loading, error }: { jobs: JobRecord[]; loading: bo
           sub = i > 0 ? `after ${specs[i - 1]?.label}` : "waiting for a worker";
         } else if (j.status === "failed") {
           meta = can("editor", ns) ? (
-            <button type="button" className="font-bold hover:underline" onClick={() => retry.mutate(j)} disabled={retry.isPending}>
+            <button
+              type="button"
+              className="font-bold hover:underline"
+              onClick={() => retry.mutate(j)}
+              disabled={retry.isPending}
+            >
               Failed · Retry
             </button>
           ) : (

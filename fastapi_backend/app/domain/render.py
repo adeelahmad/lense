@@ -1,4 +1,5 @@
 """Word clouds, the player's data, the embeddable player page and static HTML reports."""
+
 from __future__ import annotations
 
 import base64
@@ -19,16 +20,27 @@ HERE = pathlib.Path(__file__).parent
 WEB_DIR = HERE / "web"
 ENV = Environment(loader=FileSystemLoader(str(HERE / "templates")), autoescape=select_autoescape(["html"]))
 ENV.filters["tc"] = store.tc
-AUDIO_TYPES = {".m4a": "audio/mp4", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".flac": "audio/flac", ".ogg": "audio/ogg",
-               ".opus": "audio/ogg", ".aac": "audio/aac", ".webm": "audio/webm", ".mp4": "video/mp4", ".amr": "audio/amr"}
+AUDIO_TYPES = {
+    ".m4a": "audio/mp4",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".flac": "audio/flac",
+    ".ogg": "audio/ogg",
+    ".opus": "audio/ogg",
+    ".aac": "audio/aac",
+    ".webm": "audio/webm",
+    ".mp4": "video/mp4",
+    ".amr": "audio/amr",
+}
 CLOUD_COLORS = ["#2F6690", "#C2571A", "#5B7F2B", "#7A4E9A", "#A23B5B"]
 
 
 def json_script(obj):
     """JSON safe inside <script type="application/json">: no <, > or & survive, so transcript text
     such as '<!--<script>' cannot change how the page parses."""
-    return (json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
-            .replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026"))
+    return (
+        json.dumps(obj, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+    )
 
 
 def slug(s):
@@ -37,15 +49,17 @@ def slug(s):
 
 def wordcloud_svg(words, width=720, height=340, label="Word cloud"):
     """Archimedean-spiral layout, no overlaps, deterministic. words: [(text, weight)] strongest first."""
-    head = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="{html.escape(label)}" '
-            f'font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" class="wordcloud">')
+    head = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="{html.escape(label)}" '
+        f'font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" class="wordcloud">'
+    )
     if not words:
         return head + f'<text x="{width / 2}" y="{height / 2}" text-anchor="middle" fill="#8A96A3" font-size="14">No words yet</text></svg>'
     hi, lo = words[0][1], words[-1][1]
     placed, parts = [], []
     for rank, (text, w) in enumerate(words):
         frac = (w - lo) / (hi - lo) if hi > lo else 1.0
-        size = 12 + 34 * frac ** 0.9
+        size = 12 + 34 * frac**0.9
         tw, th = len(text) * size * 0.57 + 6, size * 1.08
         for step in range(900):
             a = step * 0.42
@@ -56,8 +70,10 @@ def wordcloud_svg(words, width=720, height=340, label="Word cloud"):
             if all(x + tw < px or px + pw < x or y + th < py or py + ph < y for px, py, pw, ph in placed):
                 placed.append((x, y, tw, th))
                 color = "currentColor" if rank < 3 else CLOUD_COLORS[rank % len(CLOUD_COLORS)]
-                parts.append(f'<text x="{x + 3:.1f}" y="{y + size * 0.84:.1f}" font-size="{size:.1f}" fill="{color}" '
-                             f'font-weight="{600 if frac > 0.55 else 400}"><title>{html.escape(text)}</title>{html.escape(text)}</text>')
+                parts.append(
+                    f'<text x="{x + 3:.1f}" y="{y + size * 0.84:.1f}" font-size="{size:.1f}" fill="{color}" '
+                    f'font-weight="{600 if frac > 0.55 else 400}"><title>{html.escape(text)}</title>{html.escape(text)}</text>'
+                )
                 break
     return head + "".join(parts) + "</svg>"
 
@@ -66,8 +82,10 @@ def speaker_names(db, ids):
     ids = [i for i in set(ids) if i]
     if not ids:
         return {}
-    return {r["id"]: r.get("name") or r["label"] for r in db.rows("SELECT record::id(id) AS id, name, label FROM speaker WHERE id IN $ids",
-                                                                 ids=[store.R("speaker", i) for i in ids])}
+    return {
+        r["id"]: r.get("name") or r["label"]
+        for r in db.rows("SELECT record::id(id) AS id, name, label FROM speaker WHERE id IN $ids", ids=[store.R("speaker", i) for i in ids])
+    }
 
 
 def color_of(sid):
@@ -87,12 +105,23 @@ def player_data(db, rid, audio=None):
     rec = db.one("SELECT * FROM $r", r=store.R("recording", rid))
     if not rec:
         raise KeyError(rid)
-    segs = db.rows("SELECT record::id(id) AS id, idx, t0, t1, speaker, text, emotion, event FROM segment WHERE recording = $r ORDER BY idx", r=rid)
+    segs = db.rows(
+        "SELECT record::id(id) AS id, idx, t0, t1, speaker, text, emotion, event FROM segment WHERE recording = $r ORDER BY idx", r=rid
+    )
     order = list(dict.fromkeys(s["speaker"] for s in segs if s.get("speaker")))
     names = speaker_names(db, order)
     ments = db.rows("SELECT entity, text, record::id(in) AS seg FROM mentions WHERE recording = $r", r=rid)
-    types = {x["id"]: x["type"] for x in db.rows("SELECT record::id(id) AS id, type FROM entity WHERE id IN $ids AND hidden != true",
-                                                 ids=[store.R("entity", i) for i in {m["entity"] for m in ments}])} if ments else {}
+    types = (
+        {
+            x["id"]: x["type"]
+            for x in db.rows(
+                "SELECT record::id(id) AS id, type FROM entity WHERE id IN $ids AND hidden != true",
+                ids=[store.R("entity", i) for i in {m["entity"] for m in ments}],
+            )
+        }
+        if ments
+        else {}
+    )
     ents = {}
     for m in ments:
         if types.get(m["entity"]) in (None, "NUMBER", "DATE"):
@@ -100,37 +129,85 @@ def player_data(db, rid, audio=None):
         d = ents.setdefault(m["entity"], {"type": types[m["entity"]], "names": Counter(), "segs": set()})
         d["names"][m["text"]] += 1
         d["segs"].add(m["seg"] % store.SEG)
-    entities = sorted(({"name": max(d["names"].items(), key=lambda kv: (kv[1], len(kv[0])))[0], "type": d["type"], "segs": sorted(d["segs"])}
-                       for d in ents.values()), key=lambda x: (-len(x["segs"]), x["name"]))[:80]
+    entities = sorted(
+        (
+            {"name": max(d["names"].items(), key=lambda kv: (kv[1], len(kv[0])))[0], "type": d["type"], "segs": sorted(d["segs"])}
+            for d in ents.values()
+        ),
+        key=lambda x: (-len(x["segs"]), x["name"]),
+    )[:80]
     space = db.one("SELECT name FROM $r", r=store.R("space", rec["space"])) or {}
     env = rec.get("envelope")
-    return {"id": rid, "title": rec.get("title"), "namespace": space.get("name"), "recorded_at": rec.get("recorded_at"),
-            "duration_ms": rec.get("duration_ms") or (segs[-1]["t1"] if segs else 0), "audio": audio,
-            "speakers": [{"key": f"s{i}", "id": i, "name": names.get(i, f"Speaker {i}"), "color": color_of(i)} for i in order],
-            "segments": [{"t0": s["t0"], "t1": s["t1"], "s": f"s{s['speaker']}" if s.get("speaker") else None, "text": s["text"],
-                          "e": s.get("emotion"), "v": s.get("event")} for s in segs],
-            "sections": db.rows("SELECT idx, seg0, seg1, t0, t1, title FROM section WHERE recording = $r ORDER BY idx", r=rid),
-            "entities": entities, "keywords": analyze.keywords(db, rid, 40) if rec.get("analyzed_at") else [],
-            "envelope": list(env) if isinstance(env, (bytes, bytearray)) else env, "summary": rec.get("summary"), "labels": store.labels(),
-            **visual(db, rid, rec)}
+    return {
+        "id": rid,
+        "title": rec.get("title"),
+        "namespace": space.get("name"),
+        "recorded_at": rec.get("recorded_at"),
+        "duration_ms": rec.get("duration_ms") or (segs[-1]["t1"] if segs else 0),
+        "audio": audio,
+        "speakers": [{"key": f"s{i}", "id": i, "name": names.get(i, f"Speaker {i}"), "color": color_of(i)} for i in order],
+        "segments": [
+            {
+                "t0": s["t0"],
+                "t1": s["t1"],
+                "s": f"s{s['speaker']}" if s.get("speaker") else None,
+                "text": s["text"],
+                "e": s.get("emotion"),
+                "v": s.get("event"),
+            }
+            for s in segs
+        ],
+        "sections": db.rows("SELECT idx, seg0, seg1, t0, t1, title FROM section WHERE recording = $r ORDER BY idx", r=rid),
+        "entities": entities,
+        "keywords": analyze.keywords(db, rid, 40) if rec.get("analyzed_at") else [],
+        "envelope": list(env) if isinstance(env, (bytes, bytearray)) else env,
+        "summary": rec.get("summary"),
+        "labels": store.labels(),
+        **visual(db, rid, rec),
+    }
 
 
 def visual(db, rid, rec):
     """Shots, text on screen and people on screen for a video recording."""
     media = rec.get("media") or {}
-    out = {"media": {"kind": media.get("kind") or "audio", "width": media.get("width"), "height": media.get("height"), "fps": media.get("fps")}}
+    out = {
+        "media": {"kind": media.get("kind") or "audio", "width": media.get("width"), "height": media.get("height"), "fps": media.get("fps")}
+    }
     if media.get("kind") != "video":
         return out
     from . import faces
+
     frame = lambda name: f"{store.API}/recordings/{rid}/frames/{name}" if name else None  # noqa: E731
-    out["shots"] = [{"idx": x["idx"], "t0": x["t0"], "t1": x["t1"], "frame": frame(x.get("frame"))}
-                    for x in db.rows("SELECT idx, t0, t1, frame FROM shot WHERE recording = $r ORDER BY idx", r=rid)]
-    out["screen_text"] = [{"id": x["id"], "t0": x["t0"], "t1": x["t1"], "text": x["text"], "box": x.get("box"), "frame": frame(x.get("frame")),
-                           "edited": bool(x.get("edited"))} for x in db.rows("SELECT record::id(id) AS id, t0, t1, text, box, frame, edited FROM ocr_span "
-                                                                             "WHERE recording = $r ORDER BY t0", r=rid)]
+    out["shots"] = [
+        {"idx": x["idx"], "t0": x["t0"], "t1": x["t1"], "frame": frame(x.get("frame"))}
+        for x in db.rows("SELECT idx, t0, t1, frame FROM shot WHERE recording = $r ORDER BY idx", r=rid)
+    ]
+    out["screen_text"] = [
+        {
+            "id": x["id"],
+            "t0": x["t0"],
+            "t1": x["t1"],
+            "text": x["text"],
+            "box": x.get("box"),
+            "frame": frame(x.get("frame")),
+            "edited": bool(x.get("edited")),
+        }
+        for x in db.rows(
+            "SELECT record::id(id) AS id, t0, t1, text, box, frame, edited FROM ocr_span WHERE recording = $r ORDER BY t0", r=rid
+        )
+    ]
     out["faces_mode"] = faces.mode(db, rec["space"])
-    out["faces"] = [{**{k: t.get(k) for k in ("id", "local", "face", "name", "spans", "screen_ms", "first_ms", "boxes", "score", "match")},
-                     "cover": frame(t.get("cover"))} for t in faces.tracks_for(db, rid)] if out["faces_mode"] != "off" else []
+    out["faces"] = (
+        [
+            {
+                **{k: t.get(k) for k in ("id", "local", "face", "name", "spans", "screen_ms", "first_ms", "boxes", "score", "match")},
+                "cover": frame(t.get("cover")),
+            }
+            for t in faces.tracks_for(db, rid)
+        ]
+        if out["faces_mode"] != "off"
+        else []
+    )
     out["poster"] = out["shots"][0]["frame"] if out["shots"] else None
     return out
 
@@ -149,8 +226,10 @@ def embed_page(db, cfg, rid, start=0.0, audio_url=None):
 
 
 def _assets():
-    return {"player_css": (HERE / "web" / "player.css").read_text(encoding="utf-8"),
-            "player_js": (HERE / "web" / "player.js").read_text(encoding="utf-8")}
+    return {
+        "player_css": (HERE / "web" / "player.css").read_text(encoding="utf-8"),
+        "player_js": (HERE / "web" / "player.js").read_text(encoding="utf-8"),
+    }
 
 
 def graph_svg(g, width=900, height=520, labels=28):
@@ -159,25 +238,35 @@ def graph_svg(g, width=900, height=520, labels=28):
     pos = {n["id"]: ((n["x"] + 1) / 2 * (width - 120) + 60, (n["y"] + 1) / 2 * (height - 60) + 30) for n in g["nodes"]}
     wmax = max((n["weight"] for n in g["nodes"]), default=1) or 1
     emax = max((e["w"] for e in g["edges"]), default=1) or 1
-    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="Knowledge graph" '
-             f'font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" class="graph">']
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="Knowledge graph" '
+        f'font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" class="graph">'
+    ]
     for e in g["edges"]:
         (x1, y1), (x2, y2) = pos[e["a"]], pos[e["b"]]
         dash = ' stroke-dasharray="4 3"' if e["kind"] in ("same person", "maybe the same voice") else ""
-        parts.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#8A96A3" '
-                     f'stroke-opacity="{0.18 + 0.5 * e["w"] / emax:.2f}" stroke-width="{0.6 + 2 * e["w"] / emax:.2f}"{dash}/>')
+        parts.append(
+            f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#8A96A3" '
+            f'stroke-opacity="{0.18 + 0.5 * e["w"] / emax:.2f}" stroke-width="{0.6 + 2 * e["w"] / emax:.2f}"{dash}/>'
+        )
     top = {n["id"] for n in sorted(g["nodes"], key=lambda n: (n["kind"] != "speaker", -n["weight"]))[:labels]}
     for n in g["nodes"]:
         x, y = pos[n["id"]]
         r = 4 + 10 * math.sqrt(n["weight"] / wmax)
         if n["kind"] == "speaker":
-            parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r + 2:.1f}" fill="#15202B" stroke="#FF5A1F" stroke-width="2"><title>{html.escape(n["label"])}</title></circle>')
+            parts.append(
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r + 2:.1f}" fill="#15202B" stroke="#FF5A1F" stroke-width="2"><title>{html.escape(n["label"])}</title></circle>'
+            )
         else:
-            parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="{graphmod.TYPE_COLORS.get(n.get("type"), "#6B7A89")}" '
-                         f'fill-opacity="0.85"><title>{html.escape(n["label"])} ({n.get("type", "").lower()})</title></circle>')
+            parts.append(
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="{graphmod.TYPE_COLORS.get(n.get("type"), "#6B7A89")}" '
+                f'fill-opacity="0.85"><title>{html.escape(n["label"])} ({n.get("type", "").lower()})</title></circle>'
+            )
         if n["id"] in top:
-            parts.append(f'<text x="{x + r + 4:.1f}" y="{y + 4:.1f}" font-size="{12 if n["kind"] == "speaker" else 11}" '
-                         f'font-weight="{600 if n["kind"] == "speaker" else 400}" fill="currentColor">{html.escape(n["label"][:28])}</text>')
+            parts.append(
+                f'<text x="{x + r + 4:.1f}" y="{y + 4:.1f}" font-size="{12 if n["kind"] == "speaker" else 11}" '
+                f'font-weight="{600 if n["kind"] == "speaker" else 400}" fill="currentColor">{html.escape(n["label"][:28])}</text>'
+            )
     return "".join(parts) + "</svg>"
 
 
@@ -194,16 +283,20 @@ def report_recording(db, cfg, rid, out_dir, audio_mode="link"):
             mime = AUDIO_TYPES.get(pathlib.Path(path).suffix.lower(), "audio/mpeg")
             d["audio_local"] = f"data:{mime};base64," + base64.b64encode(pathlib.Path(path).read_bytes()).decode()
     cloud = wordcloud_svg(analyze.keywords(db, rid, 60), label=f"Word cloud for {d['title']}")
-    page = ENV.get_template("report_recording.html").render(d=d, data=json_script(d), stats=recording_stats(db, rid), cloud=cloud,
-                                                            generated=store.now(), **_assets())
+    page = ENV.get_template("report_recording.html").render(
+        d=d, data=json_script(d), stats=recording_stats(db, rid), cloud=cloud, generated=store.now(), **_assets()
+    )
     out.write_text(page, encoding="utf-8")
     return out
 
 
 def report_namespace(db, cfg, nid, out_dir, links):
     ns = db.one("SELECT name, graph FROM $r", r=store.R("space", nid))
-    recs = db.rows("SELECT record::id(id) AS id, title, recorded_at, duration_ms, status, summary FROM recording WHERE space = $s "
-                   "ORDER BY recorded_at DESC", s=nid)
+    recs = db.rows(
+        "SELECT record::id(id) AS id, title, recorded_at, duration_ms, status, summary FROM recording WHERE space = $s "
+        "ORDER BY recorded_at DESC",
+        s=nid,
+    )
     apps = defaultdict(list)
     for a in db.rows("SELECT recording, speaker FROM appearance WHERE space = $s", s=nid):
         apps[a["recording"]].append(a["speaker"])
@@ -214,20 +307,31 @@ def report_namespace(db, cfg, nid, out_dir, links):
     months = Counter((r.get("recorded_at") or "")[:7] for r in recs if r.get("recorded_at"))
     mx = max(months.values(), default=1)
     counts = {r["entity"]: r["n"] for r in db.rows("SELECT entity, count() AS n FROM mentions WHERE space = $s GROUP BY entity", s=nid)}
-    recs_per = Counter(r["entity"] for r in db.rows("SELECT entity, recording FROM mentions WHERE space = $s GROUP BY entity, recording", s=nid))
+    recs_per = Counter(
+        r["entity"] for r in db.rows("SELECT entity, recording FROM mentions WHERE space = $s GROUP BY entity, recording", s=nid)
+    )
     shown = {}
     for r in db.rows("SELECT entity, text, count() AS n FROM mentions WHERE space = $s GROUP BY entity, text", s=nid):
         if r["entity"] not in shown or (r["n"], len(r["text"])) > shown[r["entity"]][1]:
             shown[r["entity"]] = (r["text"], (r["n"], len(r["text"])))
-    ents = [{"name": shown.get(e["id"], (e["key"],))[0], "type": e["type"], "n": counts.get(e["id"], 0), "recs": recs_per.get(e["id"], 0)}
-            for e in db.rows("SELECT record::id(id) AS id, key, type FROM entity WHERE space = $s AND type NOT IN ['NUMBER', 'DATE']", s=nid)]
+    ents = [
+        {"name": shown.get(e["id"], (e["key"],))[0], "type": e["type"], "n": counts.get(e["id"], 0), "recs": recs_per.get(e["id"], 0)}
+        for e in db.rows("SELECT record::id(id) AS id, key, type FROM entity WHERE space = $s AND type NOT IN ['NUMBER', 'DATE']", s=nid)
+    ]
     ents = sorted((e for e in ents if e["n"]), key=lambda e: (-e["recs"], -e["n"]))[:40]
     g = graphmod.build(db, cfg, "ns:" + ns["name"])
     page = ENV.get_template("report_namespace.html").render(
-        ns=ns, recs=recs, speakers=spk.list_speakers(db, nid)[:30], entities=ents,
+        ns=ns,
+        recs=recs,
+        speakers=spk.list_speakers(db, nid)[:30],
+        entities=ents,
         months=[{"m": m, "n": n, "pct": 100 * n / mx} for m, n in sorted(months.items())],
-        total_ms=sum(r.get("duration_ms") or 0 for r in recs), cloud=wordcloud_svg(analyze.ns_keywords(db, nid, 80), label=f"Word cloud for {ns['name']}"),
-        graph=graph_svg(g), graph_n=len(g["nodes"]), generated=store.now())
+        total_ms=sum(r.get("duration_ms") or 0 for r in recs),
+        cloud=wordcloud_svg(analyze.ns_keywords(db, nid, 80), label=f"Word cloud for {ns['name']}"),
+        graph=graph_svg(g),
+        graph_n=len(g["nodes"]),
+        generated=store.now(),
+    )
     out = pathlib.Path(out_dir) / "index.html"
     out.write_text(page, encoding="utf-8")
     return out
@@ -265,7 +369,10 @@ def _ts(ms, sep):
 def export_text(d, fmt):
     """A recording's transcript as txt, md, srt, vtt or json (lens/1 JSON imports straight back in)."""
     names = {sp["key"]: sp["name"] for sp in d["speakers"]}
-    segs = [{"t0": x["t0"], "t1": x["t1"], "speaker": names.get(x["s"]), "text": x["text"], "emotion": x.get("e"), "event": x.get("v")} for x in d["segments"]]
+    segs = [
+        {"t0": x["t0"], "t1": x["t1"], "speaker": names.get(x["s"]), "text": x["text"], "emotion": x.get("e"), "event": x.get("v")}
+        for x in d["segments"]
+    ]
     if fmt == "json":
         return json.dumps({"lens": "lens/1", "doc": {"title": d["title"], "speakers": {}}, "segments": segs}, ensure_ascii=False, indent=1)
     if fmt == "txt":
@@ -273,5 +380,10 @@ def export_text(d, fmt):
     if fmt == "md":
         return f"# {d['title']}\n\n" + "".join(f"**{x['speaker'] or 'Unknown'}** ({store.tc(x['t0'])}): {x['text']}\n\n" for x in segs)
     if fmt == "srt":
-        return "\n".join(f"{i}\n{_ts(x['t0'], ',')} --> {_ts(x['t1'], ',')}\n{(x['speaker'] + ': ') if x['speaker'] else ''}{x['text']}\n" for i, x in enumerate(segs, 1))
-    return "WEBVTT\n\n" + "\n".join(f"{_ts(x['t0'], '.')} --> {_ts(x['t1'], '.')}\n{('<v ' + x['speaker'] + '>') if x['speaker'] else ''}{x['text']}\n" for x in segs)
+        return "\n".join(
+            f"{i}\n{_ts(x['t0'], ',')} --> {_ts(x['t1'], ',')}\n{(x['speaker'] + ': ') if x['speaker'] else ''}{x['text']}\n"
+            for i, x in enumerate(segs, 1)
+        )
+    return "WEBVTT\n\n" + "\n".join(
+        f"{_ts(x['t0'], '.')} --> {_ts(x['t1'], '.')}\n{('<v ' + x['speaker'] + '>') if x['speaker'] else ''}{x['text']}\n" for x in segs
+    )

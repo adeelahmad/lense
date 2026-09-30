@@ -7,11 +7,7 @@ import { SessionGuard } from "@/components/app-shell/session-guard";
 import { AppProviders } from "@/components/providers";
 
 /** Every page in this group requires a session (proxy.ts also enforces it). */
-export default async function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session || session.error) redirect("/login");
 

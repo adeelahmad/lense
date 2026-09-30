@@ -41,7 +41,14 @@ export type RecordingDetail = Recording & {
   channels?: number | null;
   size?: number | null;
   error?: string | null;
-  media?: { kind?: string; width?: number; height?: number; fps?: number; codec?: string; [k: string]: unknown } | null;
+  media?: {
+    kind?: string;
+    width?: number;
+    height?: number;
+    fps?: number;
+    codec?: string;
+    [k: string]: unknown;
+  } | null;
 };
 
 export function useRecording(id: number) {
@@ -72,7 +79,8 @@ export function useRecordingJobs(id: number) {
   const toast = useToast();
   const q = useQuery({
     queryKey: rk.jobs(id),
-    queryFn: async () => (await data(Jobs.listJobs({ client, query: { recording: id, limit: 20 } }))).jobs.map(normalizeJob),
+    queryFn: async () =>
+      (await data(Jobs.listJobs({ client, query: { recording: id, limit: 20 } }))).jobs.map(normalizeJob),
     refetchInterval: (query) => ((query.state.data ?? []).some(isActive) ? 3000 : 30_000),
   });
   const seen = useRef<Map<number, string>>(new Map());
@@ -88,8 +96,18 @@ export function useRecordingJobs(id: number) {
     }
     if (finished) {
       void qc.invalidateQueries({ queryKey: rk.all(id) });
-      if (finished.status === "succeeded") toast({ title: "Processing finished", body: "Chapters, stats and the summary are up to date.", tone: "green" });
-      else if (finished.status === "failed") toast({ title: "A step failed", body: finished.error ?? "See the job in Activity.", tone: "red" });
+      if (finished.status === "succeeded")
+        toast({
+          title: "Processing finished",
+          body: "Chapters, stats and the summary are up to date.",
+          tone: "green",
+        });
+      else if (finished.status === "failed")
+        toast({
+          title: "A step failed",
+          body: finished.error ?? "See the job in Activity.",
+          tone: "red",
+        });
     }
   }, [q.data, qc, id, toast]);
   return q;
@@ -108,12 +126,18 @@ export function useJob(jid: number | null | undefined, live = false) {
 
 export function useEdits(id: number) {
   const client = useApiClient();
-  return useQuery({ queryKey: rk.edits(id), queryFn: () => data(Recordings.listSegmentEdits({ client, path: { rid: id } })) });
+  return useQuery({
+    queryKey: rk.edits(id),
+    queryFn: () => data(Recordings.listSegmentEdits({ client, path: { rid: id } })),
+  });
 }
 
 export function useOutputs(id: number) {
   const client = useApiClient();
-  return useQuery({ queryKey: rk.outputs(id), queryFn: () => data(Recordings.listOutputs({ client, path: { rid: id } })) });
+  return useQuery({
+    queryKey: rk.outputs(id),
+    queryFn: () => data(Recordings.listOutputs({ client, path: { rid: id } })),
+  });
 }
 
 export function useRecordingEntities(id: number, enabled = true) {
@@ -138,12 +162,21 @@ export function useSpeakerDirectory(ns: string | null | undefined) {
 
 export function usePipelines() {
   const client = useApiClient();
-  return useQuery({ queryKey: ["pipelines"], queryFn: () => data(Pipelines.listPipelines({ client })), staleTime: 60_000 });
+  return useQuery({
+    queryKey: ["pipelines"],
+    queryFn: () => data(Pipelines.listPipelines({ client })),
+    staleTime: 60_000,
+  });
 }
 
 export function useTemplates(enabled = true) {
   const client = useApiClient();
-  return useQuery({ queryKey: ["templates"], queryFn: () => data(Templates.listTemplates({ client })), enabled, staleTime: 5 * 60_000 });
+  return useQuery({
+    queryKey: ["templates"],
+    queryFn: () => data(Templates.listTemplates({ client })),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
 }
 
 export function useNamespaceFaces(ns: string | null | undefined, enabled = true) {
@@ -161,7 +194,12 @@ export function useRecordingActions(id: number) {
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
-  const fail = (title: string) => (e: unknown) => toast({ title, body: e instanceof ApiError ? e.message : "Please try again.", tone: "red" });
+  const fail = (title: string) => (e: unknown) =>
+    toast({
+      title,
+      body: e instanceof ApiError ? e.message : "Please try again.",
+      tone: "red",
+    });
   const refresh = () => qc.invalidateQueries({ queryKey: rk.all(id) });
 
   const reprocess = useMutation({
@@ -173,7 +211,11 @@ export function useRecordingActions(id: number) {
   const retry = useMutation({
     mutationFn: (jid: number) => data(Jobs.retryJob({ client, path: { jid } })),
     onSuccess: () => {
-      toast({ title: "Retrying", body: "The job resumes from the step that failed.", tone: "intent" });
+      toast({
+        title: "Retrying",
+        body: "The job resumes from the step that failed.",
+        tone: "intent",
+      });
       void qc.invalidateQueries({ queryKey: rk.jobs(id) });
     },
     onError: fail("Couldn't retry the job"),
@@ -193,7 +235,14 @@ export function useRecordingActions(id: number) {
     onError: fail("Couldn't save the change"),
   });
   const renameSpeaker = useMutation({
-    mutationFn: (v: { sid: number; name: string }) => data(Speakers.renameSpeaker({ client, path: { sid: v.sid }, body: { name: v.name } })),
+    mutationFn: (v: { sid: number; name: string }) =>
+      data(
+        Speakers.renameSpeaker({
+          client,
+          path: { sid: v.sid },
+          body: { name: v.name },
+        }),
+      ),
     onSuccess: () => {
       void refresh();
       void qc.invalidateQueries({ queryKey: ["speakers"] });
@@ -201,7 +250,14 @@ export function useRecordingActions(id: number) {
     onError: fail("Couldn't rename the speaker"),
   });
   const mergeSpeaker = useMutation({
-    mutationFn: (v: { sid: number; into: number }) => data(Speakers.mergeSpeaker({ client, path: { sid: v.sid }, body: { into: v.into } })),
+    mutationFn: (v: { sid: number; into: number }) =>
+      data(
+        Speakers.mergeSpeaker({
+          client,
+          path: { sid: v.sid },
+          body: { into: v.into },
+        }),
+      ),
     onSuccess: (r) => {
       void refresh();
       void qc.invalidateQueries({ queryKey: ["speakers"] });
@@ -222,7 +278,14 @@ export function useRecordingActions(id: number) {
     },
     onError: fail("Couldn't merge the speakers"),
   });
-  return { reprocess, retry, editSegment, renameSpeaker, mergeSpeaker, refresh };
+  return {
+    reprocess,
+    retry,
+    editSegment,
+    renameSpeaker,
+    mergeSpeaker,
+    refresh,
+  };
 }
 
 /** Download an export (txt, md, srt, vtt, json): it needs the session token, so fetch it and save the blob. */
@@ -231,7 +294,13 @@ export function useExport(id: number) {
   const toast = useToast();
   return useMutation({
     mutationFn: async ({ fmt, title }: { fmt: string; title: string }) => {
-      const blob = (await data(Recordings.exportRecording({ client, path: { rid: id, fmt }, parseAs: "blob" }))) as unknown as Blob;
+      const blob = (await data(
+        Recordings.exportRecording({
+          client,
+          path: { rid: id, fmt },
+          parseAs: "blob",
+        }),
+      )) as unknown as Blob;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -241,7 +310,12 @@ export function useExport(id: number) {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     },
-    onError: (e) => toast({ title: "Export failed", body: e instanceof ApiError ? e.message : "Please try again.", tone: "red" }),
+    onError: (e) =>
+      toast({
+        title: "Export failed",
+        body: e instanceof ApiError ? e.message : "Please try again.",
+        tone: "red",
+      }),
   });
 }
 

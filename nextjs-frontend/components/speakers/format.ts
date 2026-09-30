@@ -40,7 +40,11 @@ export function similarityWord(score: number, match = 0.75): "likely" | "unsure"
 }
 
 /** Talk time per month from a speaker's recordings: [{month: "2026-09", ms}], oldest first, last `n` months. */
-export function talkByMonth(rows: { recorded_at?: string | null; talk_ms?: number | null }[], n = 6, today = new Date()): { month: string; ms: number }[] {
+export function talkByMonth(
+  rows: { recorded_at?: string | null; talk_ms?: number | null }[],
+  n = 6,
+  today = new Date(),
+): { month: string; ms: number }[] {
   const months: string[] = [];
   const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
   for (let i = 0; i < n; i++) {

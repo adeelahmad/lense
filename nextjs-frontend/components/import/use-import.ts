@@ -84,7 +84,8 @@ export function useMaxUploadMb(): number {
     enabled: admin,
     staleTime: 5 * 60_000,
   });
-  const mb = (settings.data as Record<string, { values?: Record<string, unknown> }> | undefined)?.server?.values?.max_upload_mb;
+  const mb = (settings.data as Record<string, { values?: Record<string, unknown> }> | undefined)?.server?.values
+    ?.max_upload_mb;
   return typeof mb === "number" && mb > 0 ? mb : DEFAULT_MAX_MB;
 }
 
@@ -108,16 +109,33 @@ export function useImportFiles() {
       void (async () => {
         try {
           const b64 = await fileToBase64(it.file);
-          const pv = await data(Imports.previewImport({ client, body: { filename: it.file.name, data: b64, format: "auto" } }));
+          const pv = await data(
+            Imports.previewImport({
+              client,
+              body: { filename: it.file.name, data: b64, format: "auto" },
+            }),
+          );
           if (!pv.segments) {
-            patch(it.id, { status: "attention", problem: readProblem("no transcript text found", it.file.name), preview: pv });
+            patch(it.id, {
+              status: "attention",
+              problem: readProblem("no transcript text found", it.file.name),
+              preview: pv,
+            });
           } else {
-            patch(it.id, { status: "ready", preview: pv, title: pv.title?.trim() || titleFromName(it.file.name), mapping: initialMapping(pv.speakers) });
+            patch(it.id, {
+              status: "ready",
+              preview: pv,
+              title: pv.title?.trim() || titleFromName(it.file.name),
+              mapping: initialMapping(pv.speakers),
+            });
           }
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           const tooBig = e instanceof ApiError && e.status === 413;
-          patch(it.id, { status: tooBig ? "blocked" : "attention", problem: readProblem(msg, it.file.name) });
+          patch(it.id, {
+            status: tooBig ? "blocked" : "attention",
+            problem: readProblem(msg, it.file.name),
+          });
         } finally {
           inflight.current.delete(it.id);
           // Nudge the effect so the next waiting file starts.
@@ -140,7 +158,13 @@ export function useTextPreview(text: string) {
   }, [text]);
   return useQuery({
     queryKey: ["import-preview-text", debounced],
-    queryFn: () => data(Imports.previewImport({ client, body: { text: debounced, format: "auto" } })),
+    queryFn: () =>
+      data(
+        Imports.previewImport({
+          client,
+          body: { text: debounced, format: "auto" },
+        }),
+      ),
     enabled: debounced.trim().length > 0,
     retry: false,
     staleTime: Infinity,
@@ -163,9 +187,17 @@ export function useNamespaceSpeakers(ns: string | null) {
 /** The pipeline a namespace runs after an import (its default, or the standard one). */
 export function useNamespacePipeline(ns: string | null) {
   const client = useApiClient();
-  const q = useQuery({ queryKey: ["pipelines"], queryFn: () => data(Pipelines.listPipelines({ client })), staleTime: 5 * 60_000 });
+  const q = useQuery({
+    queryKey: ["pipelines"],
+    queryFn: () => data(Pipelines.listPipelines({ client })),
+    staleTime: 5 * 60_000,
+  });
   const own = q.data?.pipelines?.find((p) => (p.namespaces ?? []).includes(ns ?? ""));
-  return { name: own ? own.name : "Standard pipeline", steps: q.data?.standard ?? [], loading: q.isLoading };
+  return {
+    name: own ? own.name : "Standard pipeline",
+    steps: q.data?.standard ?? [],
+    loading: q.isLoading,
+  };
 }
 
 export type QueueItem = {
@@ -197,11 +229,31 @@ export function useImportQueue() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [uploading]);
 
-  const update = (key: string, p: Partial<QueueItem>) => setQueue((q) => q.map((x) => (x.key === key ? { ...x, ...p } : x)));
+  const update = (key: string, p: Partial<QueueItem>) =>
+    setQueue((q) => q.map((x) => (x.key === key ? { ...x, ...p } : x)));
 
   const send = useCallback(
-    async (jobs: { key: string; name: string; title: string; namespace: string; kind: "file" | "paste"; body: () => Promise<Parameters<typeof Imports.importTranscript>[0]["body"]> }[]) => {
-      setQueue((q) => [...jobs.map((j) => ({ key: j.key, name: j.name, title: j.title, namespace: j.namespace, kind: j.kind, state: "uploading" as const })), ...q]);
+    async (
+      jobs: {
+        key: string;
+        name: string;
+        title: string;
+        namespace: string;
+        kind: "file" | "paste";
+        body: () => Promise<Parameters<typeof Imports.importTranscript>[0]["body"]>;
+      }[],
+    ) => {
+      setQueue((q) => [
+        ...jobs.map((j) => ({
+          key: j.key,
+          name: j.name,
+          title: j.title,
+          namespace: j.namespace,
+          kind: j.kind,
+          state: "uploading" as const,
+        })),
+        ...q,
+      ]);
       for (const j of jobs) {
         try {
           const res = await data(Imports.importTranscript({ client, body: await j.body() }));
@@ -211,7 +263,10 @@ export function useImportQueue() {
           void qc.invalidateQueries({ queryKey: ["namespaces"] });
           void qc.invalidateQueries({ queryKey: ["jobs"] });
         } catch (e) {
-          update(j.key, { state: "failed", error: e instanceof Error ? e.message : String(e) });
+          update(j.key, {
+            state: "failed",
+            error: e instanceof Error ? e.message : String(e),
+          });
         }
       }
     },

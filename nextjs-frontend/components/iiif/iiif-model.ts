@@ -46,7 +46,13 @@ const text = (lm: unknown): string => {
   return "";
 };
 
-export type Included = { key: string; label: string; detail: string; on: boolean; locked?: boolean };
+export type Included = {
+  key: string;
+  label: string;
+  detail: string;
+  on: boolean;
+  locked?: boolean;
+};
 
 /** What a Manifest publishes, row by row: media, captions, annotation layers, chapters, downloads, search, records. */
 export function includedFrom(manifest: Json | null | undefined): Included[] {
@@ -59,8 +65,20 @@ export function includedFrom(manifest: Json | null | undefined): Included[] {
   if (body.id) {
     const kind = body.type === "Video" ? "Video" : "Audio";
     const dur = typeof body.duration === "number" ? tc(body.duration * 1000) : "";
-    out.push({ key: "media", label: kind, detail: [formatExt(body.format as string), dur].filter(Boolean).join(" · "), on: true, locked: Boolean(body.service) });
-  } else out.push({ key: "media", label: "Audio", detail: "no audio: transcript only", on: false });
+    out.push({
+      key: "media",
+      label: kind,
+      detail: [formatExt(body.format as string), dur].filter(Boolean).join(" · "),
+      on: true,
+      locked: Boolean(body.service),
+    });
+  } else
+    out.push({
+      key: "media",
+      label: "Audio",
+      detail: "no audio: transcript only",
+      on: false,
+    });
   if (captions.id)
     out.push({
       key: "captions",
@@ -69,16 +87,48 @@ export function includedFrom(manifest: Json | null | undefined): Included[] {
       on: true,
       locked: Boolean(captions.service),
     });
-  for (const p of pages.slice(1)) out.push({ key: String(p.id), label: text(p.label) || "Annotations", detail: "annotation layer", on: true });
+  for (const p of pages.slice(1))
+    out.push({
+      key: String(p.id),
+      label: text(p.label) || "Annotations",
+      detail: "annotation layer",
+      on: true,
+    });
   const contents = arr(m.structures).find((r) => String(r.id ?? "").endsWith("/range/contents"));
   const shots = arr(m.structures).find((r) => String(r.id ?? "").endsWith("/range/shots"));
-  out.push({ key: "chapters", label: "Chapters", detail: contents ? `${arr(contents.items).length} as structures (table of contents)` : "none yet", on: Boolean(contents) });
-  if (shots) out.push({ key: "shots", label: "Shots", detail: `${arr(shots.items).length} as structures`, on: true });
+  out.push({
+    key: "chapters",
+    label: "Chapters",
+    detail: contents ? `${arr(contents.items).length} as structures (table of contents)` : "none yet",
+    on: Boolean(contents),
+  });
+  if (shots)
+    out.push({
+      key: "shots",
+      label: "Shots",
+      detail: `${arr(shots.items).length} as structures`,
+      on: true,
+    });
   const downloads = arr(m.rendering).map((r) => formatExt(r.format as string));
-  out.push({ key: "downloads", label: "Downloads", detail: downloads.length ? downloads.join(" · ") : "transcript not open", on: downloads.length > 0 });
-  out.push({ key: "search", label: "Search inside", detail: m.service ? "Content Search 2.0" : "transcript not open", on: Boolean(m.service) });
+  out.push({
+    key: "downloads",
+    label: "Downloads",
+    detail: downloads.length ? downloads.join(" · ") : "transcript not open",
+    on: downloads.length > 0,
+  });
+  out.push({
+    key: "search",
+    label: "Search inside",
+    detail: m.service ? "Content Search 2.0" : "transcript not open",
+    on: Boolean(m.service),
+  });
   const records = arr(m.seeAlso).map((r) => (String(r.format).includes("xml") ? "Dublin Core" : "schema.org"));
-  out.push({ key: "records", label: "Descriptive records", detail: records.join(" · ") || "none", on: records.length > 0 });
+  out.push({
+    key: "records",
+    label: "Descriptive records",
+    detail: records.join(" · ") || "none",
+    on: records.length > 0,
+  });
   return out;
 }
 
@@ -116,7 +166,11 @@ export function contentStateTarget(state: Json | null): { recording: number; t0?
   const m = id.match(/\/iiif\/(\d+)\/(?:canvas|manifest)/);
   if (!m) return null;
   const t = id.match(/#t=([\d.]+)(?:,([\d.]+))?/);
-  return { recording: Number(m[1]), t0: t ? Number(t[1]) : undefined, t1: t?.[2] ? Number(t[2]) : undefined };
+  return {
+    recording: Number(m[1]),
+    t0: t ? Number(t[1]) : undefined,
+    t1: t?.[2] ? Number(t[2]) : undefined,
+  };
 }
 
 /** A schema error like "items/0/items: [] is too short" → where and what, for plain display. */

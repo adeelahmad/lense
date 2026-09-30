@@ -32,7 +32,10 @@ export function TokensPage() {
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
-  const tokens = useQuery({ queryKey: ["tokens"], queryFn: () => data(Tokens.listTokens({ client })) });
+  const tokens = useQuery({
+    queryKey: ["tokens"],
+    queryFn: () => data(Tokens.listTokens({ client })),
+  });
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<Created | null>(null);
   const [revoking, setRevoking] = useState<ApiToken | null>(null);
@@ -45,7 +48,9 @@ export function TokensPage() {
         <div className="flex flex-wrap items-start gap-2.5">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <h1 className="text-[22px] font-bold leading-[1.2] text-fg">API tokens</h1>
-            <p className="text-[13.5px] leading-[1.4] text-fg-secondary">Tokens act as you, with your namespace roles. Read only tokens can’t import, edit or reprocess.</p>
+            <p className="text-[13.5px] leading-[1.4] text-fg-secondary">
+              Tokens act as you, with your namespace roles. Read only tokens can’t import, edit or reprocess.
+            </p>
           </div>
           <Button variant="primary" size="sm" icon={<Plus />} onClick={() => setCreating(true)}>
             New token
@@ -98,16 +103,32 @@ export function TokensPage() {
                     <Tr key={t.id} className={cn("h-12 last:border-b-0", expired && "text-fg-muted")}>
                       <Td className="font-semibold">{t.name}</Td>
                       <Td>
-                        <span className="inline-flex h-[22px] items-center whitespace-nowrap rounded-pill border border-border px-2 text-[11.5px] font-semibold">{SCOPE_LABEL[t.scope] ?? t.scope}</span>
+                        <span className="inline-flex h-[22px] items-center whitespace-nowrap rounded-pill border border-border px-2 text-[11.5px] font-semibold">
+                          {SCOPE_LABEL[t.scope] ?? t.scope}
+                        </span>
                       </Td>
                       <Td>
                         <code className="font-mono text-[12px] font-medium">{t.prefix}…</code>
                       </Td>
                       <Td className="tabular whitespace-nowrap">{shortDate(t.created_at)}</Td>
-                      <Td className={cn("tabular whitespace-nowrap", exp.state === "soon" ? "text-gold-dark" : !expired && "text-fg-secondary")}>{exp.label}</Td>
-                      <Td className="tabular whitespace-nowrap text-fg-secondary">{t.last_used_at ? relative(t.last_used_at) : "never"}</Td>
+                      <Td
+                        className={cn(
+                          "tabular whitespace-nowrap",
+                          exp.state === "soon" ? "text-gold-dark" : !expired && "text-fg-secondary",
+                        )}
+                      >
+                        {exp.label}
+                      </Td>
+                      <Td className="tabular whitespace-nowrap text-fg-secondary">
+                        {t.last_used_at ? relative(t.last_used_at) : "never"}
+                      </Td>
                       <Td className="text-right">
-                        <Button variant={expired ? "ghost" : "danger-ghost"} size="xs" onClick={() => setRevoking(t)} aria-label={`${expired ? "Delete" : "Revoke"} ${t.name}`}>
+                        <Button
+                          variant={expired ? "ghost" : "danger-ghost"}
+                          size="xs"
+                          onClick={() => setRevoking(t)}
+                          aria-label={`${expired ? "Delete" : "Revoke"} ${t.name}`}
+                        >
                           {expired ? "Delete" : "Revoke"}
                         </Button>
                       </Td>
@@ -135,22 +156,49 @@ export function TokensPage() {
         onDone={(t, expired) => {
           setRevoking(null);
           void qc.invalidateQueries({ queryKey: ["tokens"] });
-          toast({ title: expired ? `Deleted “${t.name}”` : `Revoked “${t.name}”`, body: expired ? undefined : `Anything using ${t.prefix}… stops working now.`, tone: "green" });
+          toast({
+            title: expired ? `Deleted “${t.name}”` : `Revoked “${t.name}”`,
+            body: expired ? undefined : `Anything using ${t.prefix}… stops working now.`,
+            tone: "green",
+          });
         }}
       />
     </div>
   );
 }
 
-function NewTokenDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (c: Created) => void }) {
+function NewTokenDialog({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (c: Created) => void;
+}) {
   const client = useApiClient();
   const [name, setName] = useState("");
   const [scope, setScope] = useState("read");
   const [days, setDays] = useState("90");
   const create = useMutation({
-    mutationFn: () => data(Tokens.createToken({ client, body: { name: name.trim(), scope: scope as "read" | "write", days: Number(days) } })),
+    mutationFn: () =>
+      data(
+        Tokens.createToken({
+          client,
+          body: {
+            name: name.trim(),
+            scope: scope as "read" | "write",
+            days: Number(days),
+          },
+        }),
+      ),
     onSuccess: (r) => {
-      onCreated({ token: r.token, name: name.trim(), scope, days: Number(days) });
+      onCreated({
+        token: r.token,
+        name: name.trim(),
+        scope,
+        days: Number(days),
+      });
       setName("");
       setScope("read");
       setDays("90");
@@ -195,20 +243,43 @@ function NewTokenDialog({ open, onClose, onCreated }: { open: boolean; onClose: 
         }}
       >
         <Field label="Name" hint="So you can recognise it later" error={nameError}>
-          {(f) => <Input id={f.id} aria-describedby={f.describedBy} invalid={f.invalid} value={name} onChange={(e) => setName(e.target.value)} autoFocus maxLength={120} />}
+          {(f) => (
+            <Input
+              id={f.id}
+              aria-describedby={f.describedBy}
+              invalid={f.invalid}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+              maxLength={120}
+            />
+          )}
         </Field>
         <div className="flex flex-col gap-2">
-          <span className="text-[13px] font-bold leading-tight text-fg-strong">
-            Scope
-          </span>
+          <span className="text-[13px] font-bold leading-tight text-fg-strong">Scope</span>
           <ChoiceCards label="Scope" options={SCOPES} value={scope} onChange={setScope} />
         </div>
-        <Field label="Expires after (days)" hint={dError ? undefined : expiresOn(Number(days))} error={days.trim() ? dError : null}>
-          {(f) => <Input id={f.id} aria-describedby={f.describedBy} invalid={f.invalid} inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value)} />}
+        <Field
+          label="Expires after (days)"
+          hint={dError ? undefined : expiresOn(Number(days))}
+          error={days.trim() ? dError : null}
+        >
+          {(f) => (
+            <Input
+              id={f.id}
+              aria-describedby={f.describedBy}
+              invalid={f.invalid}
+              inputMode="numeric"
+              value={days}
+              onChange={(e) => setDays(e.target.value)}
+            />
+          )}
         </Field>
         {create.isError && (
           <Banner tone="error">
-            {create.error instanceof ApiError && create.error.status === 403 ? "Tokens can only be created while signed in with your password." : create.error.message}
+            {create.error instanceof ApiError && create.error.status === 403
+              ? "Tokens can only be created while signed in with your password."
+              : create.error.message}
           </Banner>
         )}
         <button type="submit" hidden />
@@ -254,7 +325,9 @@ function ShownOnceDialog({ created, onClose }: { created: Created | null; onClos
       {created && (
         <>
           <div className="flex items-center gap-2 rounded-[10px] bg-term-bg py-2.5 pl-3.5 pr-2 text-term-fg">
-            <code className="min-w-0 flex-1 select-all break-all font-mono text-[13px] font-medium leading-[1.4]">{created.token}</code>
+            <code className="min-w-0 flex-1 select-all break-all font-mono text-[13px] font-medium leading-[1.4]">
+              {created.token}
+            </code>
             <button
               type="button"
               onClick={copy}
@@ -268,7 +341,8 @@ function ShownOnceDialog({ created, onClose }: { created: Created | null; onClos
             </button>
           </div>
           <p className="text-[12.5px] leading-[1.4] text-fg-muted">
-            {created.name} · {SCOPE_LABEL[created.scope]} · {expiresOn(created.days).replace(/^./, (c) => c.toLowerCase())}
+            {created.name} · {SCOPE_LABEL[created.scope]} ·{" "}
+            {expiresOn(created.days).replace(/^./, (c) => c.toLowerCase())}
           </p>
         </>
       )}
@@ -276,7 +350,15 @@ function ShownOnceDialog({ created, onClose }: { created: Created | null; onClos
   );
 }
 
-function RevokeDialog({ token, onClose, onDone }: { token: ApiToken | null; onClose: () => void; onDone: (t: ApiToken, expired: boolean) => void }) {
+function RevokeDialog({
+  token,
+  onClose,
+  onDone,
+}: {
+  token: ApiToken | null;
+  onClose: () => void;
+  onDone: (t: ApiToken, expired: boolean) => void;
+}) {
   const client = useApiClient();
   const expired = token ? tokenExpiry(token.expires_at).state === "expired" : false;
   const revoke = useMutation({
@@ -310,7 +392,8 @@ function RevokeDialog({ token, onClose, onDone }: { token: ApiToken | null; onCl
             <>It has already expired; deleting it removes it from this list.</>
           ) : (
             <>
-              Anything using <code className="font-mono text-[12.5px] font-medium text-fg">{token.prefix}…</code> stops working immediately.{" "}
+              Anything using <code className="font-mono text-[12.5px] font-medium text-fg">{token.prefix}…</code> stops
+              working immediately.{" "}
               {token.last_used_at ? `It was last used ${relative(token.last_used_at)}.` : "It hasn’t been used yet."}
             </>
           )}

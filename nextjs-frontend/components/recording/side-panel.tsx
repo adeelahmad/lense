@@ -16,7 +16,12 @@ import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/compo
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-export type TabDef = { value: PanelTab; label: string; count?: number | string; disabled?: string };
+export type TabDef = {
+  value: PanelTab;
+  label: string;
+  count?: number | string;
+  disabled?: string;
+};
 
 export const AUDIO_TABS: TabDef[] = [
   { value: "summary", label: "Summary" },
@@ -36,11 +41,29 @@ export const MORE_TABS: TabDef[] = [
  * Underlined tabs with an overflow menu (…). Tabs that don't fit the panel's width move into the menu with the `more`
  * tabs (priority+), and the active tab always stays on the row. Arrow keys move between the tabs on the row.
  */
-export function PanelTabs({ tabs, more = [], value, onChange, idBase, className }: { tabs: TabDef[]; more?: TabDef[]; value: PanelTab; onChange: (t: PanelTab) => void; idBase: string; className?: string }) {
+export function PanelTabs({
+  tabs,
+  more = [],
+  value,
+  onChange,
+  idBase,
+  className,
+}: {
+  tabs: TabDef[];
+  more?: TabDef[];
+  value: PanelTab;
+  onChange: (t: PanelTab) => void;
+  idBase: string;
+  className?: string;
+}) {
   const box = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const measure = useRef<HTMLDivElement>(null);
-  const [dims, setDims] = useState<{ avail: number; moreW: number; widths: Record<string, number> } | null>(null);
+  const [dims, setDims] = useState<{
+    avail: number;
+    moreW: number;
+    widths: Record<string, number>;
+  } | null>(null);
   const all = [...tabs, ...more];
   const sig = all.map((t) => `${t.value}:${t.label}:${t.count ?? ""}`).join("|");
 
@@ -56,7 +79,11 @@ export function PanelTabs({ tabs, more = [], value, onChange, idBase, className 
       const moreW = m.querySelector<HTMLElement>("[data-more]")?.offsetWidth ?? 34;
       const cs = getComputedStyle(el);
       const avail = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-      setDims((d) => (d && d.avail === avail && d.moreW === moreW && Object.keys(widths).every((k) => d.widths[k] === widths[k]) ? d : { avail, moreW, widths }));
+      setDims((d) =>
+        d && d.avail === avail && d.moreW === moreW && Object.keys(widths).every((k) => d.widths[k] === widths[k])
+          ? d
+          : { avail, moreW, widths },
+      );
     };
     calc();
     const ro = new ResizeObserver(calc);
@@ -67,8 +94,18 @@ export function PanelTabs({ tabs, more = [], value, onChange, idBase, className 
 
   const byValue = new Map(all.map((t) => [t.value as string, t]));
   const fit = dims
-    ? fitTabs(tabs.map((t) => t.value), more.map((t) => t.value), (v) => dims.widths[v] ?? 0, dims.avail, dims.moreW, value)
-    : { shown: [...tabs.map((t) => t.value as string), ...(more.some((t) => t.value === value) ? [value] : [])], overflow: more.filter((t) => t.value !== value).map((t) => t.value as string) };
+    ? fitTabs(
+        tabs.map((t) => t.value),
+        more.map((t) => t.value),
+        (v) => dims.widths[v] ?? 0,
+        dims.avail,
+        dims.moreW,
+        value,
+      )
+    : {
+        shown: [...tabs.map((t) => t.value as string), ...(more.some((t) => t.value === value) ? [value] : [])],
+        overflow: more.filter((t) => t.value !== value).map((t) => t.value as string),
+      };
   const shown = fit.shown.map((v) => byValue.get(v)).filter((t): t is TabDef => Boolean(t));
   const overflow = fit.overflow.map((v) => byValue.get(v)).filter((t): t is TabDef => Boolean(t));
   const overflowTabs = overflow.filter((t) => tabs.includes(t));
@@ -76,9 +113,16 @@ export function PanelTabs({ tabs, more = [], value, onChange, idBase, className 
 
   const onKey = (e: KeyboardEvent) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
-    const els = Array.from(list.current?.querySelectorAll<HTMLButtonElement>("[role=tab]:not([aria-disabled=true])") ?? []);
+    const els = Array.from(
+      list.current?.querySelectorAll<HTMLButtonElement>("[role=tab]:not([aria-disabled=true])") ?? [],
+    );
     const i = els.indexOf(document.activeElement as HTMLButtonElement);
-    const next = e.key === "Home" ? 0 : e.key === "End" ? els.length - 1 : (i + (e.key === "ArrowRight" ? 1 : -1) + els.length) % els.length;
+    const next =
+      e.key === "Home"
+        ? 0
+        : e.key === "End"
+          ? els.length - 1
+          : (i + (e.key === "ArrowRight" ? 1 : -1) + els.length) % els.length;
     els[next]?.focus();
     els[next]?.click();
     e.preventDefault();
@@ -89,9 +133,15 @@ export function PanelTabs({ tabs, more = [], value, onChange, idBase, className 
       on ? "border-blue font-bold text-blue" : "border-transparent font-medium text-fg-secondary hover:text-fg",
       disabled && "cursor-not-allowed opacity-50 hover:text-fg-secondary",
     );
-  const count = (t: TabDef) => t.count != null && <span className="font-mono text-[11px] font-medium text-fg-muted">{t.count}</span>;
+  const count = (t: TabDef) =>
+    t.count != null && <span className="font-mono text-[11px] font-medium text-fg-muted">{t.count}</span>;
   const item = (t: TabDef) => (
-    <MenuItem key={t.value} onSelect={() => onChange(t.value)} disabled={Boolean(t.disabled)} shortcut={t.disabled ? "Not available yet" : t.count != null ? String(t.count) : undefined}>
+    <MenuItem
+      key={t.value}
+      onSelect={() => onChange(t.value)}
+      disabled={Boolean(t.disabled)}
+      shortcut={t.disabled ? "Not available yet" : t.count != null ? String(t.count) : undefined}
+    >
       {t.label}
     </MenuItem>
   );
@@ -109,7 +159,13 @@ export function PanelTabs({ tabs, more = [], value, onChange, idBase, className 
           <Ellipsis className="size-[18px]" />
         </span>
       </div>
-      <div ref={list} role="tablist" aria-label="Recording panels" onKeyDown={onKey} className="flex min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]">
+      <div
+        ref={list}
+        role="tablist"
+        aria-label="Recording panels"
+        onKeyDown={onKey}
+        className="flex min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]"
+      >
         {shown.map((t) => {
           const on = t.value === value;
           const btn = (
@@ -141,7 +197,12 @@ export function PanelTabs({ tabs, more = [], value, onChange, idBase, className 
       {overflow.length > 0 && (
         <Menu>
           <MenuTrigger asChild>
-            <button type="button" aria-label={`More panels: ${overflow.map((t) => t.label).join(", ")}`} title={`More: ${overflow.map((t) => t.label).join(", ")}`} className={cn(tabCls(false), "px-2")}>
+            <button
+              type="button"
+              aria-label={`More panels: ${overflow.map((t) => t.label).join(", ")}`}
+              title={`More: ${overflow.map((t) => t.label).join(", ")}`}
+              className={cn(tabCls(false), "px-2")}
+            >
               <Ellipsis className="size-[18px]" />
             </button>
           </MenuTrigger>
@@ -180,14 +241,28 @@ export function PanelBody({ tab }: { tab: PanelTab }) {
   }
 }
 
-export function PanelScroll({ id, tab, children, className }: { id: string; tab: PanelTab; children: ReactNode; className?: string }) {
+export function PanelScroll({
+  id,
+  tab,
+  children,
+  className,
+}: {
+  id: string;
+  tab: PanelTab;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div
       id={`${id}-panel`}
       role="tabpanel"
       aria-labelledby={`${id}-tab-${tab}`}
       data-player-keys={tab === "chat" ? "off" : undefined}
-      className={cn("flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4", tab === "chat" && "overflow-hidden p-0", className)}
+      className={cn(
+        "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4",
+        tab === "chat" && "overflow-hidden p-0",
+        className,
+      )}
     >
       {children}
     </div>

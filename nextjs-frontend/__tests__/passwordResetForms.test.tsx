@@ -3,10 +3,7 @@ import "@testing-library/jest-dom";
 import { notFound } from "next/navigation";
 
 import ConfirmPage from "@/app/(auth)/password-recovery/confirm/page";
-import {
-  passwordReset,
-  passwordResetConfirm,
-} from "@/components/actions/password-reset-action";
+import { passwordReset, passwordResetConfirm } from "@/components/actions/password-reset-action";
 import { PasswordResetConfirmForm } from "@/components/auth/password-reset-confirm-form";
 import { PasswordResetForm } from "@/components/auth/password-reset-form";
 
@@ -32,9 +29,7 @@ describe("PasswordResetForm", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /send reset link/i }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "A reset link is on its way.",
-    );
+    expect(await screen.findByRole("status")).toHaveTextContent("A reset link is on its way.");
     const expected = new FormData();
     expected.set("email", "a@a.com");
     expect(passwordReset).toHaveBeenCalledWith(undefined, expected);
@@ -71,24 +66,18 @@ describe("PasswordResetConfirmForm", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /change password/i }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "invalid or has expired",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("invalid or has expired");
   });
 });
 
 describe("password reset confirm page", () => {
   it("is not found without a token", async () => {
-    await expect(
-      ConfirmPage({ searchParams: Promise.resolve({}) }),
-    ).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(ConfirmPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("NEXT_NOT_FOUND");
     expect(notFound).toHaveBeenCalled();
   });
 
   it("renders the form with the token", async () => {
-    render(
-      await ConfirmPage({ searchParams: Promise.resolve({ token: "tok" }) }),
-    );
+    render(await ConfirmPage({ searchParams: Promise.resolve({ token: "tok" }) }));
 
     expect(screen.getByLabelText("New password")).toBeInTheDocument();
   });

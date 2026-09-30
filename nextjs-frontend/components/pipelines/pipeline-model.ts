@@ -7,7 +7,12 @@ import { stepLabel } from "@/components/activity/job-model";
 export type StepSpec = {
   type: string;
   name?: string;
-  when?: { min_minutes?: number; max_minutes?: number; source?: string; languages?: string[] };
+  when?: {
+    min_minutes?: number;
+    max_minutes?: number;
+    source?: string;
+    languages?: string[];
+  };
   template?: number;
   version?: number;
   key?: string;
@@ -36,7 +41,11 @@ export function cleanSpec(s: StepSpec): StepSpec | string {
   if (s.template != null && s.version != null) out.version = s.version;
   if (s.key?.trim()) out.key = s.key.trim();
   if (s.filename?.trim()) out.filename = s.filename.trim();
-  if (s.destination?.source != null) out.destination = { source: s.destination.source, path: s.destination.path ?? "" };
+  if (s.destination?.source != null)
+    out.destination = {
+      source: s.destination.source,
+      path: s.destination.path ?? "",
+    };
   if (s.model?.trim()) out.model = s.model.trim();
   if (s.force) out.force = true;
   return Object.keys(out).length === 1 ? s.type : (out as StepSpec);
@@ -85,7 +94,11 @@ export const DESCRIBE: Record<string, string> = {
  * Move a step, unless that would put it above a step whose output it needs (or put a step below one that needs
  * it). Returns the new order, or the reason it snapped back.
  */
-export function moveStep<T extends { type: string }>(steps: T[], from: number, to: number): { steps: T[]; error?: string } {
+export function moveStep<T extends { type: string }>(
+  steps: T[],
+  from: number,
+  to: number,
+): { steps: T[]; error?: string } {
   if (from === to || from < 0 || to < 0 || from >= steps.length || to >= steps.length) return { steps };
   const next = steps.slice();
   const [s] = next.splice(from, 1);
@@ -100,7 +113,8 @@ export function orderProblem(steps: { type: string; name?: string }[]): string |
   for (let i = 0; i < steps.length; i++) {
     for (const need of NEEDS[steps[i].type] ?? []) {
       const j = steps.findIndex((x) => x.type === need);
-      if (j > i) return `${stepLabel(steps[i].type, steps[i].name)} needs ${stepLabel(need)}’s output, so it has to come after it.`;
+      if (j > i)
+        return `${stepLabel(steps[i].type, steps[i].name)} needs ${stepLabel(need)}’s output, so it has to come after it.`;
     }
   }
   return null;
@@ -122,7 +136,8 @@ export function whenText(when: StepSpec["when"]): string | null {
 /** "Meeting notes v2 · outputs.meeting_notes · only if > 5 min" */
 export function stepSummary(s: StepSpec, templateName?: (id: number) => string | undefined): string {
   const parts: string[] = [];
-  if (s.template != null) parts.push(`${templateName?.(s.template) ?? `template #${s.template}`}${s.version ? ` v${s.version}` : ""}`);
+  if (s.template != null)
+    parts.push(`${templateName?.(s.template) ?? `template #${s.template}`}${s.version ? ` v${s.version}` : ""}`);
   else if (s.type === "report") parts.push("built-in report");
   if (s.type === "llm" && s.key) parts.push(`outputs.${s.key}`);
   if (s.type === "export" && s.filename) parts.push(s.filename);
@@ -134,16 +149,22 @@ export function stepSummary(s: StepSpec, templateName?: (id: number) => string |
 }
 
 /** Problems the backend would reject, per step index (so Publish can say what to fix first). */
-export function specProblems(steps: StepSpec[], templateKind: (id: number) => string | undefined): Record<number, string> {
+export function specProblems(
+  steps: StepSpec[],
+  templateKind: (id: number) => string | undefined,
+): Record<number, string> {
   const out: Record<number, string> = {};
   steps.forEach((s, i) => {
     const need = { llm: "prompt", export: "export", report: "report" }[s.type];
     if (s.type === "llm" && s.template == null) out[i] = "Choose a prompt template.";
     else if (s.type === "export" && s.template == null) out[i] = "Choose an export template.";
-    else if (need && s.template != null && templateKind(s.template) && templateKind(s.template) !== need) out[i] = `Needs a ${need} template.`;
-    else if (s.type === "llm" && !/^[a-z][a-z0-9_]{0,40}$/.test(s.key ?? "")) out[i] = "Name the output: lowercase letters, digits and _, e.g. meeting_notes.";
+    else if (need && s.template != null && templateKind(s.template) && templateKind(s.template) !== need)
+      out[i] = `Needs a ${need} template.`;
+    else if (s.type === "llm" && !/^[a-z][a-z0-9_]{0,40}$/.test(s.key ?? ""))
+      out[i] = "Name the output: lowercase letters, digits and _, e.g. meeting_notes.";
     else if (s.type === "export" && !s.filename?.trim()) out[i] = "Give a file name, e.g. {{ recording.title }}.md.";
-    else if (s.when?.min_minutes != null && s.when?.max_minutes != null && s.when.min_minutes > s.when.max_minutes) out[i] = "The minimum length is above the maximum.";
+    else if (s.when?.min_minutes != null && s.when?.max_minutes != null && s.when.min_minutes > s.when.max_minutes)
+      out[i] = "The minimum length is above the maximum.";
   });
   if (!steps.length) out[-1] = "A pipeline needs at least one step.";
   return out;

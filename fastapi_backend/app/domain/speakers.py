@@ -4,6 +4,7 @@ Speaker ids belong to one namespace and are never merged across namespaces. Acro
 namespaces the archive only records links: ones you declare, and (optionally) voice
 matches it suggests as graph edges.
 """
+
 from __future__ import annotations
 
 import bisect
@@ -51,7 +52,7 @@ def looks_dual_channel(x):
 def channel_labels(stereo, segs, ratio=1.4):
     out, last = [], None
     for s in segs:
-        x = stereo[s["t0"] * ingest.SR // 1000:s["t1"] * ingest.SR // 1000]
+        x = stereo[s["t0"] * ingest.SR // 1000 : s["t1"] * ingest.SR // 1000]
         if len(x):
             e = np.sqrt(np.mean(np.square(x), axis=0)) + 1e-12
             if e.max() / e.min() >= ratio or last is None:
@@ -67,6 +68,7 @@ def cluster(embs, threshold=0.55, min_k=None, max_k=None):
         return np.zeros(1, dtype=int)
     from scipy.cluster.hierarchy import fcluster, linkage
     from scipy.spatial.distance import pdist
+
     X = X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-9)
     Z = linkage(pdist(X, "cosine"), "average")
     lab = fcluster(Z, t=threshold, criterion="distance")
@@ -86,6 +88,7 @@ class Embedder:
         sc = cfg["speakers"]
         try:
             import torch
+
             try:
                 from speechbrain.inference.speaker import EncoderClassifier
             except ImportError:
@@ -94,8 +97,9 @@ class Embedder:
             raise RuntimeError("voice IDs need SpeechBrain: uv sync --extra voices") from e
         self.torch = torch
         save = pathlib.Path(cfg["data_dir"]) / "models" / sc["model"].replace("/", "_")
-        self.enc = EncoderClassifier.from_hparams(source=sc["model"], savedir=str(save),
-                                                  run_opts={"device": ingest.pick_device(cfg["transcribe"]["device"])})
+        self.enc = EncoderClassifier.from_hparams(
+            source=sc["model"], savedir=str(save), run_opts={"device": ingest.pick_device(cfg["transcribe"]["device"])}
+        )
 
     def __call__(self, clips):
         out = []
@@ -145,7 +149,7 @@ def cluster_labels(mono, segs, embed, cfg):
     long_ix = [i for i, s in enumerate(segs) if s["t1"] - s["t0"] >= 1000]
     if not long_ix:
         return ["S0"] * len(segs)
-    clips = [mono[segs[i]["t0"] * ingest.SR // 1000:min(segs[i]["t1"], segs[i]["t0"] + 10000) * ingest.SR // 1000] for i in long_ix]
+    clips = [mono[segs[i]["t0"] * ingest.SR // 1000 : min(segs[i]["t1"], segs[i]["t0"] + 10000) * ingest.SR // 1000] for i in long_ix]
     lab = cluster(embed(clips), d["cluster_threshold"], d.get("min_speakers"), d.get("max_speakers"))
     out = [None] * len(segs)
     for i, l in zip(long_ix, lab):
@@ -167,7 +171,7 @@ def voice_print(signal, segs, embed, seconds=60):
         if d < 500 or (d < 1000 and clips):
             break
         b = min(b, a + 8000)
-        clips.append(signal[a * ingest.SR // 1000:b * ingest.SR // 1000])
+        clips.append(signal[a * ingest.SR // 1000 : b * ingest.SR // 1000])
         total += (b - a) / 1000
         if total >= seconds:
             break
@@ -191,8 +195,21 @@ def new_speaker(db, nid, name=None, emb=None, weight=0.0):
     while db.values("SELECT VALUE id FROM speaker WHERE space = $s AND label = $l", s=nid, l=f"Speaker {n}"):
         n += 1
     sid = db.next_id("speaker")
-    db.q("CREATE $r CONTENT $d", r=R("speaker", sid), d=store.clean({"space": nid, "label": f"Speaker {n}", "label_key": f"{nid}:Speaker {n}", "name": name,
-                                                                      "embedding": _vec(emb), "n_obs": float(weight), "created_at": store.now()}))
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("speaker", sid),
+        d=store.clean(
+            {
+                "space": nid,
+                "label": f"Speaker {n}",
+                "label_key": f"{nid}:Speaker {n}",
+                "name": name,
+                "embedding": _vec(emb),
+                "n_obs": float(weight),
+                "created_at": store.now(),
+            }
+        ),
+    )
     return sid
 
 
@@ -210,8 +227,10 @@ def match(db, cfg, nid, prints):
     same speaker. Close-but-unsure matches become new speakers with a suggested merge.
     """
     hi, lo = cfg["speakers"]["match_threshold"], cfg["speakers"]["review_threshold"]
-    reg = [(r["id"], np.asarray(r["embedding"], dtype=np.float64)) for r in
-           db.rows("SELECT record::id(id) AS id, embedding FROM speaker WHERE space = $s AND embedding != NONE", s=nid)]
+    reg = [
+        (r["id"], np.asarray(r["embedding"], dtype=np.float64))
+        for r in db.rows("SELECT record::id(id) AS id, embedding FROM speaker WHERE space = $s AND embedding != NONE", s=nid)
+    ]
     pairs = sorted(((float(np.dot(e, v)), l, sid) for l, (e, _) in prints.items() for sid, v in reg if v.shape == e.shape), reverse=True)
     out, used = {}, set()
     for sim, l, sid in pairs:
@@ -244,9 +263,17 @@ def assign_labels(db, nid, rid, mapping):
             row = db.one("SELECT record::id(id) AS id FROM speaker WHERE space = $s AND (name = $n OR label = $n) LIMIT 1", s=nid, n=disp)
             sid = row["id"] if row else new_speaker(db, nid, name=disp)
         ids[local] = sid
-        db.run(["DELETE appearance WHERE recording = $rid AND local_label = $l", "CREATE appearance CONTENT $a",
-                "UPDATE segment SET speaker = $sid WHERE recording = $rid AND local_speaker = $l"],
-               rid=rid, l=local, sid=sid, a={"recording": rid, "speaker": sid, "local_label": local, "method": "label", "space": nid})
+        db.run(
+            [
+                "DELETE appearance WHERE recording = $rid AND local_label = $l",
+                "CREATE appearance CONTENT $a",
+                "UPDATE segment SET speaker = $sid WHERE recording = $rid AND local_speaker = $l",
+            ],
+            rid=rid,
+            l=local,
+            sid=sid,
+            a={"recording": rid, "speaker": sid, "local_label": local, "method": "label", "space": nid},
+        )
     db.q("UPDATE $r SET status = 'diarized', diarizer = 'labels', diarized_at = $t", r=R("recording", rid), t=store.now())
     return ids
 
@@ -291,9 +318,26 @@ def diarize_one(db, cfg, rid, log=print):
         if l not in ids:
             ids[l] = (new_speaker(db, r["space"]), None, "new")
     stmts = ["DELETE appearance WHERE recording = $rid", "UPDATE segment SET speaker = NONE, local_speaker = NONE WHERE recording = $rid"]
-    params = {"rid": r["id"], "rec": R("recording", r["id"]), "t": store.now(), "how": how,
-              "apps": [store.clean({"recording": r["id"], "speaker": sid, "local_label": l, "score": sc, "method": m, "space": r["space"],
-                                    "embedding": _vec(prints[l][0]) if l in prints else None}) for l, (sid, sc, m) in ids.items()]}
+    params = {
+        "rid": r["id"],
+        "rec": R("recording", r["id"]),
+        "t": store.now(),
+        "how": how,
+        "apps": [
+            store.clean(
+                {
+                    "recording": r["id"],
+                    "speaker": sid,
+                    "local_label": l,
+                    "score": sc,
+                    "method": m,
+                    "space": r["space"],
+                    "embedding": _vec(prints[l][0]) if l in prints else None,
+                }
+            )
+            for l, (sid, sc, m) in ids.items()
+        ],
+    }
     if params["apps"]:
         stmts.append("INSERT INTO appearance $apps")
     for k, (l, g) in enumerate(groups.items()):
@@ -309,8 +353,10 @@ def diarize_pending(db, cfg, ns=None, limit=0, force=False, log=print):
     where = "status IN ['transcribed', 'diarized', 'analyzed']" if force else "status = 'transcribed'"
     if ns:
         where += " AND space = $s"
-    rows = db.rows(f"SELECT record::id(id) AS id, title, recorded_at FROM recording WHERE {where} ORDER BY recorded_at, id",
-                   s=store.ns_id(db, ns, create=False) if ns else None)[:limit or None]
+    rows = db.rows(
+        f"SELECT record::id(id) AS id, title, recorded_at FROM recording WHERE {where} ORDER BY recorded_at, id",
+        s=store.ns_id(db, ns, create=False) if ns else None,
+    )[: limit or None]
     done = 0
     for r in rows:
         try:
@@ -320,6 +366,7 @@ def diarize_pending(db, cfg, ns=None, limit=0, force=False, log=print):
             db.q("UPDATE $r SET error = $e", r=R("recording", r["id"]), e=f"diarize: {type(e).__name__}: {e}"[:500])
             log(f"  {r['title']}: diarisation failed ({type(e).__name__}: {e})")
     return done
+
 
 # ---------- editing identities (every merge can be undone) ----------
 def rename(db, sid, name):
@@ -333,12 +380,14 @@ def merge(db, src, dst):
     if a["space"] != b["space"]:
         raise ValueError("speakers from different namespaces are linked, not merged")
     links = db.rows("SELECT record::id(in) AS a, record::id(out) AS b FROM same_as WHERE in = $r OR out = $r", r=R("speaker", src))
-    snap = {"speaker": {k: a.get(k) for k in ("space", "label", "name", "embedding", "n_obs", "created_at")},
-            "dst": {k: b.get(k) for k in ("embedding", "n_obs", "name")},
-            "segments": db.values("SELECT VALUE record::id(id) FROM segment WHERE speaker = $s", s=src),
-            "appearances": db.values("SELECT VALUE record::id(id) FROM appearance WHERE speaker = $s", s=src),
-            "suggestions": db.rows("SELECT speaker, candidate, score, space FROM suggestion WHERE speaker = $s OR candidate = $s", s=src),
-            "links": links}
+    snap = {
+        "speaker": {k: a.get(k) for k in ("space", "label", "name", "embedding", "n_obs", "created_at")},
+        "dst": {k: b.get(k) for k in ("embedding", "n_obs", "name")},
+        "segments": db.values("SELECT VALUE record::id(id) FROM segment WHERE speaker = $s", s=src),
+        "appearances": db.values("SELECT VALUE record::id(id) FROM appearance WHERE speaker = $s", s=src),
+        "suggestions": db.rows("SELECT speaker, candidate, score, space FROM suggestion WHERE speaker = $s OR candidate = $s", s=src),
+        "links": links,
+    }
     ea, eb, patch = a.get("embedding"), b.get("embedding"), {}
     if ea is not None and eb is not None:
         v = np.asarray(ea) * (a.get("n_obs") or 1) + np.asarray(eb) * (b.get("n_obs") or 1)
@@ -350,11 +399,24 @@ def merge(db, src, dst):
     moved = sorted({tuple(sorted((dst if x["a"] == src else x["a"], dst if x["b"] == src else x["b"]))) for x in links} - {(dst, dst)})
     snap["moved_links"] = [list(x) for x in moved]
     mid = db.next_id("merge")
-    stmts = ["UPDATE segment SET speaker = $dst WHERE speaker = $src", "UPDATE appearance SET speaker = $dst WHERE speaker = $src",
-             "UPDATE mentions SET speaker = $dst WHERE speaker = $src", "DELETE suggestion WHERE speaker = $src OR candidate = $src",
-             "DELETE same_as WHERE in = $srcr OR out = $srcr", "DELETE $srcr", "CREATE $mr CONTENT $m"]
-    params = {"src": src, "dst": dst, "srcr": R("speaker", src), "dstr": R("speaker", dst), "mr": R("merge", mid), "patch": patch,
-              "m": {"from_id": src, "into_id": dst, "space": a["space"], "snapshot": snap, "at": store.now(), "undone": False}}
+    stmts = [
+        "UPDATE segment SET speaker = $dst WHERE speaker = $src",
+        "UPDATE appearance SET speaker = $dst WHERE speaker = $src",
+        "UPDATE mentions SET speaker = $dst WHERE speaker = $src",
+        "DELETE suggestion WHERE speaker = $src OR candidate = $src",
+        "DELETE same_as WHERE in = $srcr OR out = $srcr",
+        "DELETE $srcr",
+        "CREATE $mr CONTENT $m",
+    ]
+    params = {
+        "src": src,
+        "dst": dst,
+        "srcr": R("speaker", src),
+        "dstr": R("speaker", dst),
+        "mr": R("merge", mid),
+        "patch": patch,
+        "m": {"from_id": src, "into_id": dst, "space": a["space"], "snapshot": snap, "at": store.now(), "undone": False},
+    }
     if patch:
         stmts.append("UPDATE $dstr MERGE $patch")
     for k, (x, y) in enumerate(moved):
@@ -370,11 +432,24 @@ def undo(db, merge_id):
         raise ValueError("nothing to undo")
     sn, src, dst = m["snapshot"], m["from_id"], m["into_id"]
     d = sn["dst"]
-    stmts = ["CREATE $srcr CONTENT $sp", "UPDATE $segs SET speaker = $src", "UPDATE $apps SET speaker = $src",
-             "UPDATE mentions SET speaker = $src WHERE in IN $segs", "UPDATE $dstr MERGE $dpatch", "UPDATE $mr SET undone = true"]
-    params = {"src": src, "srcr": R("speaker", src), "dstr": R("speaker", dst), "mr": R("merge", merge_id), "sp": {**store.clean(sn["speaker"]), "label_key": f"{sn['speaker']['space']}:{sn['speaker']['label']}"},
-              "segs": [R("segment", i) for i in sn["segments"]], "apps": [R("appearance", i) for i in sn["appearances"]],
-              "dpatch": {"embedding": d.get("embedding"), "n_obs": d.get("n_obs"), "name": d.get("name")}}
+    stmts = [
+        "CREATE $srcr CONTENT $sp",
+        "UPDATE $segs SET speaker = $src",
+        "UPDATE $apps SET speaker = $src",
+        "UPDATE mentions SET speaker = $src WHERE in IN $segs",
+        "UPDATE $dstr MERGE $dpatch",
+        "UPDATE $mr SET undone = true",
+    ]
+    params = {
+        "src": src,
+        "srcr": R("speaker", src),
+        "dstr": R("speaker", dst),
+        "mr": R("merge", merge_id),
+        "sp": {**store.clean(sn["speaker"]), "label_key": f"{sn['speaker']['space']}:{sn['speaker']['label']}"},
+        "segs": [R("segment", i) for i in sn["segments"]],
+        "apps": [R("appearance", i) for i in sn["appearances"]],
+        "dpatch": {"embedding": d.get("embedding"), "n_obs": d.get("n_obs"), "name": d.get("name")},
+    }
     for k, (x, y) in enumerate(sn.get("moved_links", [])):
         stmts.append(f"DELETE same_as WHERE in = $ma{k} AND out = $mb{k}")
         params.update({f"ma{k}": R("speaker", x), f"mb{k}": R("speaker", y)})
@@ -400,28 +475,50 @@ def link(db, a, b):
 
 def list_speakers(db, nid):
     sp = db.rows("SELECT record::id(id) AS id, label, name, embedding != NONE AS has_voice FROM speaker WHERE space = $s", s=nid)
-    talk = {r["speaker"]: r for r in db.rows("SELECT speaker, math::sum(dur) AS talk_ms, count() AS segments FROM segment "
-                                             "WHERE space = $s AND speaker > 0 GROUP BY speaker", s=nid)}
-    recs = Counter(r["speaker"] for r in db.rows("SELECT speaker, recording FROM segment WHERE space = $s AND speaker > 0 "
-                                                 "GROUP BY speaker, recording", s=nid))
+    talk = {
+        r["speaker"]: r
+        for r in db.rows(
+            "SELECT speaker, math::sum(dur) AS talk_ms, count() AS segments FROM segment WHERE space = $s AND speaker > 0 GROUP BY speaker",
+            s=nid,
+        )
+    }
+    recs = Counter(
+        r["speaker"]
+        for r in db.rows("SELECT speaker, recording FROM segment WHERE space = $s AND speaker > 0 GROUP BY speaker, recording", s=nid)
+    )
     names = {r["id"]: r.get("name") or r["label"] for r in sp}
     sug = {}
     for g in db.rows("SELECT speaker, candidate, score FROM suggestion WHERE space = $s", s=nid):
         if g["candidate"] in names:
             sug.setdefault(g["speaker"], []).append({"id": g["candidate"], "name": names[g["candidate"]], "score": round(g["score"], 3)})
-    out = [{"id": r["id"], "label": r["label"], "name": r.get("name"), "has_voice": bool(r.get("has_voice")),
-            "talk_ms": (talk.get(r["id"]) or {}).get("talk_ms", 0), "segments": (talk.get(r["id"]) or {}).get("segments", 0),
-            "recordings": recs.get(r["id"], 0), "display": names[r["id"]], "suggestions": sug.get(r["id"], [])} for r in sp]
+    out = [
+        {
+            "id": r["id"],
+            "label": r["label"],
+            "name": r.get("name"),
+            "has_voice": bool(r.get("has_voice")),
+            "talk_ms": (talk.get(r["id"]) or {}).get("talk_ms", 0),
+            "segments": (talk.get(r["id"]) or {}).get("segments", 0),
+            "recordings": recs.get(r["id"], 0),
+            "display": names[r["id"]],
+            "suggestions": sug.get(r["id"], []),
+        }
+        for r in sp
+    ]
     return sorted(out, key=lambda x: (-x["talk_ms"], x["id"]))
 
 
 def cross_namespace_matches(db, cfg, nids):
     """Likely same voice in two different namespaces: shown as edges, never merged."""
-    rows = db.rows("SELECT record::id(id) AS id, space, embedding FROM speaker WHERE space IN $s AND embedding != NONE", s=list(nids)) if nids else []
+    rows = (
+        db.rows("SELECT record::id(id) AS id, space, embedding FROM speaker WHERE space IN $s AND embedding != NONE", s=list(nids))
+        if nids
+        else []
+    )
     rows = [(r["id"], r["space"], np.asarray(r["embedding"], dtype=np.float64)) for r in rows]
     hi, out = cfg["speakers"]["match_threshold"], []
     for i, (a, na, ea) in enumerate(rows):
-        for b, nb, eb in rows[i + 1:]:
+        for b, nb, eb in rows[i + 1 :]:
             if na != nb and ea.shape == eb.shape:
                 sc = float(np.dot(ea, eb))
                 if sc >= hi:

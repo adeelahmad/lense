@@ -56,7 +56,14 @@ export function TokenPaste({
           spellCheck={false}
           autoComplete="off"
         />
-        <span id={`${id}-msg`} role={check.ok === false ? "alert" : undefined} className={cn("text-[12px] leading-snug", check.ok === false ? "text-red-dark" : check.ok ? "text-green-dark" : "text-fg-muted")}>
+        <span
+          id={`${id}-msg`}
+          role={check.ok === false ? "alert" : undefined}
+          className={cn(
+            "text-[12px] leading-snug",
+            check.ok === false ? "text-red-dark" : check.ok ? "text-green-dark" : "text-fg-muted",
+          )}
+        >
           {check.ok === false
             ? check.error
             : check.ok

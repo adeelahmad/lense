@@ -1,7 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import { citedNumbers, citeLabel, isNoModelAnswer, passageLines, quoteOf, sentences, shortTitle, splitCitations } from "@/components/chat/cite";
+import {
+  citedNumbers,
+  citeLabel,
+  isNoModelAnswer,
+  passageLines,
+  quoteOf,
+  sentences,
+  shortTitle,
+  splitCitations,
+} from "@/components/chat/cite";
 import { parseBlocks, RichText } from "@/components/chat/rich-text";
 import { applyEvent, newTurn, stepCall } from "@/components/chat/stream";
 
@@ -24,18 +33,38 @@ describe("citations", () => {
     expect(shortTitle("Renewal call — Northwind Labs, Feb")).toBe("Renewal call");
     expect(shortTitle("A very long recording title without any separator at all")).toBe("A very long recording t…");
     expect(shortTitle(null)).toBe("Recording");
-    expect(citeLabel({ title: "Episode 12 — X", t0: 869000, time: "14:29", speaker: "Host B" })).toBe("Ep. 12 · 14:29 · Host B");
-    expect(citeLabel({ title: "Episode 12 — X", t0: 65000, time: null, speaker: null })).toBe("Ep. 12 · 1:05");
+    expect(
+      citeLabel({
+        title: "Episode 12 — X",
+        t0: 869000,
+        time: "14:29",
+        speaker: "Host B",
+      }),
+    ).toBe("Ep. 12 · 14:29 · Host B");
+    expect(
+      citeLabel({
+        title: "Episode 12 — X",
+        t0: 65000,
+        time: null,
+        speaker: null,
+      }),
+    ).toBe("Ep. 12 · 1:05");
   });
 
   it("reads passage lines and picks the cited one", () => {
-    const p = { text: "Alice: Welcome back.\nBob: Wow, really?", speaker: "Bob" };
+    const p = {
+      text: "Alice: Welcome back.\nBob: Wow, really?",
+      speaker: "Bob",
+    };
     expect(passageLines(p)).toEqual([
       { speaker: "Alice", text: "Welcome back." },
       { speaker: "Bob", text: "Wow, really?" },
     ]);
     expect(quoteOf(p).text).toBe("Wow, really?");
-    expect(quoteOf({ text: "Just one line", speaker: "Host A" })).toEqual({ speaker: "Host A", text: "Just one line" });
+    expect(quoteOf({ text: "Just one line", speaker: "Host A" })).toEqual({
+      speaker: "Host A",
+      text: "Just one line",
+    });
   });
 
   it("recognises the no-model fallback and splits sentences", () => {
@@ -47,13 +76,26 @@ describe("citations", () => {
 describe("the answer stream", () => {
   it("builds a turn from server-sent events", () => {
     let s = newTurn("What did they promise?");
-    s = applyEvent(s, { event: "step", data: '{"tool":"search_transcripts","args":{"query":"promise"},"summary":"Searched for \\"promise\\": 3 match(es)"}' });
-    s = applyEvent(s, { event: "approval", data: '{"id":7,"tool":"run_template","summary":"Run Notes on 3 recording(s)","estimate":{"recordings":3}}' });
-    s = applyEvent(s, { event: "passages", data: '[{"n":1,"recording_id":1,"text":"x"}]' });
+    s = applyEvent(s, {
+      event: "step",
+      data: '{"tool":"search_transcripts","args":{"query":"promise"},"summary":"Searched for \\"promise\\": 3 match(es)"}',
+    });
+    s = applyEvent(s, {
+      event: "approval",
+      data: '{"id":7,"tool":"run_template","summary":"Run Notes on 3 recording(s)","estimate":{"recordings":3}}',
+    });
+    s = applyEvent(s, {
+      event: "passages",
+      data: '[{"n":1,"recording_id":1,"text":"x"}]',
+    });
     s = applyEvent(s, { event: "token", data: '{"text":"They "}' });
     s = applyEvent(s, { event: "token", data: '{"text":"promised SSO [1]."}' });
     s = applyEvent(s, { event: "done", data: '{"message":42}' });
-    expect(s).toMatchObject({ status: "done", text: "They promised SSO [1].", messageId: 42 });
+    expect(s).toMatchObject({
+      status: "done",
+      text: "They promised SSO [1].",
+      messageId: 42,
+    });
     expect(s.steps).toHaveLength(1);
     expect(s.approvals[0]).toMatchObject({ id: 7, tool: "run_template" });
     expect(s.passages).toHaveLength(1);
@@ -62,11 +104,22 @@ describe("the answer stream", () => {
 
   it("keeps an error through done, and ignores junk", () => {
     let s = newTurn("q");
-    s = applyEvent(s, { event: "notice", data: '{"message":"This model can\'t use tools"}' });
-    s = applyEvent(s, { event: "error", data: '{"message":"429 from the LLM server"}' });
+    s = applyEvent(s, {
+      event: "notice",
+      data: '{"message":"This model can\'t use tools"}',
+    });
+    s = applyEvent(s, {
+      event: "error",
+      data: '{"message":"429 from the LLM server"}',
+    });
     s = applyEvent(s, { event: "done", data: '{"message":5}' });
     s = applyEvent(s, { event: "ping", data: "not json" });
-    expect(s).toMatchObject({ status: "error", error: "429 from the LLM server", messageId: 5, notice: "This model can't use tools" });
+    expect(s).toMatchObject({
+      status: "error",
+      error: "429 from the LLM server",
+      messageId: 5,
+      notice: "This model can't use tools",
+    });
   });
 });
 

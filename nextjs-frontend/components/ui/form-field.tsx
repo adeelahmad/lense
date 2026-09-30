@@ -13,14 +13,7 @@ type FormFieldProps = InputHTMLAttributes<HTMLInputElement> & {
 };
 
 /** A labelled input wired to its server-side validation errors. */
-export function FormField({
-  name,
-  label,
-  state,
-  hint,
-  id = name,
-  ...props
-}: FormFieldProps) {
+export function FormField({ name, label, state, hint, id = name, ...props }: FormFieldProps) {
   const errorId = `${id}-error`;
   const invalid = Boolean(state?.errors?.[name]?.length);
   return (

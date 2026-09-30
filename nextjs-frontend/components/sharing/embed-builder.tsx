@@ -5,7 +5,18 @@ import { useEffect, useRef, useState } from "react";
 
 import { Admin, Recordings } from "@/app/openapi-client";
 import { useCreateShare, type CreatedLink } from "@/components/sharing/share-links";
-import { SIZES, embedUrl, fmtDay, formatStart, iframeSnippet, normalizeOrigin, originAllowed, parseStart, withStart, type Size } from "@/components/sharing/embed-model";
+import {
+  SIZES,
+  embedUrl,
+  fmtDay,
+  formatStart,
+  iframeSnippet,
+  normalizeOrigin,
+  originAllowed,
+  parseStart,
+  withStart,
+  type Size,
+} from "@/components/sharing/embed-model";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { CodeBlock } from "@/components/ui/states";
@@ -46,7 +57,9 @@ function Preview({ src, size, title }: { src: string | null; size: Size; title: 
           style={{ transform: scale < 1 ? `scale(${scale})` : undefined }}
         />
       ) : (
-        <div className="grid h-full place-items-center rounded-md border border-dashed border-border text-[13px] text-fg-muted">Loading the player…</div>
+        <div className="grid h-full place-items-center rounded-md border border-dashed border-border text-[13px] text-fg-muted">
+          Loading the player…
+        </div>
       )}
     </div>
   );
@@ -78,7 +91,11 @@ export function EmbedBuilder({
   const [site, setSite] = useState("");
   const create = useCreateShare(recordingId, (l) => {
     onCreated(l);
-    toast({ tone: "green", title: "New share link for this site", body: `Expires ${fmtDay(l.expires)}; revoke it with the others.` });
+    toast({
+      tone: "green",
+      title: "New share link for this site",
+      body: `Expires ${fmtDay(l.expires)}; revoke it with the others.`,
+    });
   });
   const startS = parseStart(start);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
@@ -90,8 +107,14 @@ export function EmbedBuilder({
     enabled: !created,
     staleTime: 10 * 60_000,
   });
-  const settings = useQuery({ queryKey: ["settings"], queryFn: () => data(Admin.getSettings({ client })), enabled: admin, staleTime: 5 * 60_000 });
-  const ancestors = ((settings.data as Record<string, { values?: Record<string, unknown> }> | undefined)?.server?.values?.embed_frame_ancestors ?? null) as string[] | null;
+  const settings = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => data(Admin.getSettings({ client })),
+    enabled: admin,
+    staleTime: 5 * 60_000,
+  });
+  const ancestors = ((settings.data as Record<string, { values?: Record<string, unknown> }> | undefined)?.server?.values
+    ?.embed_frame_ancestors ?? null) as string[] | null;
 
   const siteOrigin = normalizeOrigin(site);
   const siteError = site.trim() && !siteOrigin ? "Enter a site address, e.g. https://blog.example.com" : null;
@@ -99,15 +122,31 @@ export function EmbedBuilder({
   const src = created ? embedUrl(origin, recordingId, { token: created.token, start: startS }) : null;
   const previewSrc = src ?? (signed.data?.url ? withStart(signed.data.url, startS) : null);
   const snippet = src ? iframeSnippet({ src, size, title }) : null;
-  const copyReason = !created ? "Create a share link for this site first" : startS == null ? "Fix the start time" : !siteOrigin ? "Enter where it will be embedded" : blocked ? "This site isn’t an allowed embed origin" : undefined;
+  const copyReason = !created
+    ? "Create a share link for this site first"
+    : startS == null
+      ? "Fix the start time"
+      : !siteOrigin
+        ? "Enter where it will be embedded"
+        : blocked
+          ? "This site isn’t an allowed embed origin"
+          : undefined;
 
   const copy = async () => {
     if (!snippet) return;
     try {
       await navigator.clipboard.writeText(snippet);
-      toast({ tone: "green", title: "Snippet copied", body: siteOrigin ? `Paste it into a page on ${siteOrigin}.` : undefined });
+      toast({
+        tone: "green",
+        title: "Snippet copied",
+        body: siteOrigin ? `Paste it into a page on ${siteOrigin}.` : undefined,
+      });
     } catch {
-      toast({ tone: "red", title: "Couldn’t copy", body: "Select the snippet below and copy it." });
+      toast({
+        tone: "red",
+        title: "Couldn’t copy",
+        body: "Select the snippet below and copy it.",
+      });
     }
   };
 
@@ -116,7 +155,9 @@ export function EmbedBuilder({
       <div className="flex flex-col gap-3.5">
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] font-bold text-fg-strong">Recording</span>
-          <span className="truncate rounded-sm border border-border bg-surface px-3.5 py-2 text-[14px] text-fg">{title}</span>
+          <span className="truncate rounded-sm border border-border bg-surface px-3.5 py-2 text-[14px] text-fg">
+            {title}
+          </span>
         </div>
         <div className="flex flex-col gap-1.5">
           <span id="embed-layout" className="text-[13px] font-bold text-fg-strong">
@@ -133,7 +174,9 @@ export function EmbedBuilder({
                   tabIndex={on ? 0 : -1}
                   className={cn(
                     "flex flex-col gap-[3px] rounded-[10px] p-2.5",
-                    on ? "border-2 border-blue bg-blue-surface" : "cursor-not-allowed border border-border bg-background opacity-60",
+                    on
+                      ? "border-2 border-blue bg-blue-surface"
+                      : "cursor-not-allowed border border-border bg-background opacity-60",
                   )}
                 >
                   <b className="text-[13px] font-bold leading-tight text-fg">{l.name}</b>
@@ -143,7 +186,10 @@ export function EmbedBuilder({
               return on ? (
                 <span key={l.value}>{card}</span>
               ) : (
-                <Tooltip key={l.value} content="Not available yet: the player has one layout (recordings without audio show the transcript only)">
+                <Tooltip
+                  key={l.value}
+                  content="Not available yet: the player has one layout (recordings without audio show the transcript only)"
+                >
                   {card}
                 </Tooltip>
               );
@@ -151,14 +197,33 @@ export function EmbedBuilder({
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2.5">
-          <Field label="Start at" hint="m:ss, or empty for the start" error={startS == null ? "Use m:ss, e.g. 14:02" : undefined}>
-            {({ id, describedBy, invalid }) => <Input id={id} aria-describedby={describedBy} invalid={invalid} value={start} placeholder="0:00" onChange={(e) => setStart(e.target.value)} />}
+          <Field
+            label="Start at"
+            hint="m:ss, or empty for the start"
+            error={startS == null ? "Use m:ss, e.g. 14:02" : undefined}
+          >
+            {({ id, describedBy, invalid }) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                invalid={invalid}
+                value={start}
+                placeholder="0:00"
+                onChange={(e) => setStart(e.target.value)}
+              />
+            )}
           </Field>
           <Field label="Theme" hint="Follows the visitor’s system">
             {({ id, describedBy }) => (
               <Tooltip content="Not available yet: the player follows the visitor’s light or dark setting">
                 <span tabIndex={0}>
-                  <Select id={id} aria-describedby={describedBy} disabled value="auto" options={[{ value: "auto", label: "Match site (auto)" }]} />
+                  <Select
+                    id={id}
+                    aria-describedby={describedBy}
+                    disabled
+                    value="auto"
+                    options={[{ value: "auto", label: "Match site (auto)" }]}
+                  />
                 </span>
               </Tooltip>
             )}
@@ -166,7 +231,10 @@ export function EmbedBuilder({
         </div>
         <Field
           label="Where will it be embedded?"
-          error={siteError ?? (blocked ? "Not an allowed embed origin. An admin can add it in Settings → Access & embedding." : undefined)}
+          error={
+            siteError ??
+            (blocked ? "Not an allowed embed origin. An admin can add it in Settings → Access & embedding." : undefined)
+          }
           hint={
             siteOrigin && ancestors && !blocked
               ? `✓ ${siteOrigin} may embed the player`
@@ -176,13 +244,22 @@ export function EmbedBuilder({
           }
         >
           {({ id, describedBy, invalid }) => (
-            <Input id={id} aria-describedby={describedBy} invalid={invalid} mono placeholder="https://blog.example.com" value={site} onChange={(e) => setSite(e.target.value)} />
+            <Input
+              id={id}
+              aria-describedby={describedBy}
+              invalid={invalid}
+              mono
+              placeholder="https://blog.example.com"
+              value={site}
+              onChange={(e) => setSite(e.target.value)}
+            />
           )}
         </Field>
         <div className="flex gap-2.5 rounded-[10px] border border-gold-border bg-gold-surface px-3 py-2.5 text-[12.5px] leading-[1.45] text-fg-strong">
           <span aria-hidden className="mt-[5px] size-2 shrink-0 rotate-45 bg-gold" />
           <span>
-            <b className="text-fg">Outside sites need a share link.</b> Visitors there aren’t signed in, so the snippet carries a link token
+            <b className="text-fg">Outside sites need a share link.</b> Visitors there aren’t signed in, so the snippet
+            carries a link token
             {created ? ` (expires ${fmtDay(created.expires)})` : ""}. Inside the archive, people use their own session.
           </span>
         </div>
@@ -190,11 +267,23 @@ export function EmbedBuilder({
           <Button size="sm" variant="primary" disabled={Boolean(copyReason)} disabledReason={copyReason} onClick={copy}>
             Copy snippet
           </Button>
-          <Button size="sm" variant="ghost" disabled={!canShare || create.isPending} disabledReason={whyNot} onClick={() => create.mutate(30)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={!canShare || create.isPending}
+            disabledReason={whyNot}
+            onClick={() => create.mutate(30)}
+          >
             {created ? "Use a new link" : "Create a share link"}
           </Button>
         </div>
-        {snippet && <CodeBlock text={snippet} label="the embed snippet" className="[&_pre]:whitespace-pre-wrap [&_pre]:break-all" />}
+        {snippet && (
+          <CodeBlock
+            text={snippet}
+            label="the embed snippet"
+            className="[&_pre]:whitespace-pre-wrap [&_pre]:break-all"
+          />
+        )}
       </div>
 
       <div className="flex min-w-0 flex-col gap-3 rounded-md bg-surface p-4">
@@ -208,7 +297,12 @@ export function EmbedBuilder({
                 role="radio"
                 aria-checked={size === w}
                 onClick={() => setSize(w)}
-                className={cn("rounded-pill border px-2.5 py-1 text-[12.5px] font-semibold", size === w ? "border-blue-border bg-blue-surface text-fg-accent" : "border-border bg-background text-fg-secondary hover:text-fg")}
+                className={cn(
+                  "rounded-pill border px-2.5 py-1 text-[12.5px] font-semibold",
+                  size === w
+                    ? "border-blue-border bg-blue-surface text-fg-accent"
+                    : "border-border bg-background text-fg-secondary hover:text-fg",
+                )}
               >
                 {w}
               </button>
@@ -217,7 +311,9 @@ export function EmbedBuilder({
         </div>
         <Preview src={previewSrc} size={size} title={title} />
         <div className="flex justify-between text-[11.5px] font-medium text-fg-muted">
-          <span>{created ? "The real player, with this link’s token" : "The real player (preview link; it expires)"}</span>
+          <span>
+            {created ? "The real player, with this link’s token" : "The real player (preview link; it expires)"}
+          </span>
           <span>{created ? `Link expires ${fmtDay(created.expires)}` : ""}</span>
         </div>
       </div>

@@ -14,7 +14,10 @@ export function stashFiles(files: File[], namespace: string | null = null) {
   pending = files.length ? { files, namespace } : null;
 }
 
-export function takeFiles(): { files: File[]; namespace: string | null } | null {
+export function takeFiles(): {
+  files: File[];
+  namespace: string | null;
+} | null {
   const p = pending;
   pending = null;
   return p;

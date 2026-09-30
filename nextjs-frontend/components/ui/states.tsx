@@ -44,8 +44,20 @@ export function EmptyState({
   tone?: "neutral" | "error";
 }) {
   return (
-    <div role={tone === "error" ? "alert" : undefined} className={cn("mx-auto flex max-w-md flex-col items-center gap-3 px-6 py-14 text-center", className)}>
-      {icon && <div className={cn("grid size-12 place-items-center rounded-full [&_svg]:size-6", tone === "error" ? "bg-red-surface text-red-dark" : "bg-surface-neutral text-fg-secondary")}>{icon}</div>}
+    <div
+      role={tone === "error" ? "alert" : undefined}
+      className={cn("mx-auto flex max-w-md flex-col items-center gap-3 px-6 py-14 text-center", className)}
+    >
+      {icon && (
+        <div
+          className={cn(
+            "grid size-12 place-items-center rounded-full [&_svg]:size-6",
+            tone === "error" ? "bg-red-surface text-red-dark" : "bg-surface-neutral text-fg-secondary",
+          )}
+        >
+          {icon}
+        </div>
+      )}
       <h2 className="text-[17px] font-bold text-fg">{title}</h2>
       {children && <div className="text-[14px] leading-normal text-fg-secondary">{children}</div>}
       {actions && <div className="mt-2 flex flex-wrap justify-center gap-2">{actions}</div>}
@@ -54,7 +66,17 @@ export function EmptyState({
 }
 
 /** Code with a copy button ("Copied" for 2 s). Dark by default, or inline. */
-export function CodeBlock({ text, className, inline, label }: { text: string; className?: string; inline?: boolean; label?: string }) {
+export function CodeBlock({
+  text,
+  className,
+  inline,
+  label,
+}: {
+  text: string;
+  className?: string;
+  inline?: boolean;
+  label?: string;
+}) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -81,7 +103,12 @@ export function CodeBlock({ text, className, inline, label }: { text: string; cl
   );
   if (inline)
     return (
-      <span className={cn("inline-flex max-w-full items-center gap-2 rounded-sm border border-border bg-surface py-1 pl-3 pr-1", className)}>
+      <span
+        className={cn(
+          "inline-flex max-w-full items-center gap-2 rounded-sm border border-border bg-surface py-1 pl-3 pr-1",
+          className,
+        )}
+      >
         <code className="truncate font-mono text-[12.5px] text-fg-strong">{text}</code>
         {btn}
       </span>
@@ -97,7 +124,15 @@ export function CodeBlock({ text, className, inline, label }: { text: string; cl
 }
 
 /** Relative time ("3 min ago") with the absolute time in a tooltip; `mode="absolute"` flips them. */
-export function DateTime({ iso, mode = "relative", className }: { iso: string | null | undefined; mode?: "relative" | "absolute"; className?: string }) {
+export function DateTime({
+  iso,
+  mode = "relative",
+  className,
+}: {
+  iso: string | null | undefined;
+  mode?: "relative" | "absolute";
+  className?: string;
+}) {
   if (!iso) return <span className={cn("text-fg-muted", className)}>—</span>;
   const main = mode === "relative" ? relative(iso) : absolute(iso);
   return (
@@ -110,12 +145,26 @@ export function DateTime({ iso, mode = "relative", className }: { iso: string | 
 }
 
 /** Initials avatar: 24 · 32 · 40 px. */
-export function Avatar({ name, size = 32, disabled, className }: { name: string | null | undefined; size?: 24 | 32 | 40; disabled?: boolean; className?: string }) {
+export function Avatar({
+  name,
+  size = 32,
+  disabled,
+  className,
+}: {
+  name: string | null | undefined;
+  size?: 24 | 32 | 40;
+  disabled?: boolean;
+  className?: string;
+}) {
   return (
     <span
       aria-hidden
       style={{ width: size, height: size, fontSize: size * 0.36 }}
-      className={cn("grid shrink-0 place-items-center rounded-full bg-surface-neutral font-bold text-fg-strong", disabled && "opacity-40", className)}
+      className={cn(
+        "grid shrink-0 place-items-center rounded-full bg-surface-neutral font-bold text-fg-strong",
+        disabled && "opacity-40",
+        className,
+      )}
     >
       {initials(name)}
     </span>
@@ -123,8 +172,23 @@ export function Avatar({ name, size = 32, disabled, className }: { name: string 
 }
 
 /** A thin progress bar; omit `value` for indeterminate. */
-export function Progress({ value, tone = "intent", className, label }: { value?: number | null; tone?: "intent" | "green" | "red" | "gate"; className?: string; label?: string }) {
-  const c = { intent: "bg-blue", green: "bg-green", red: "bg-red", gate: "bg-gold" }[tone];
+export function Progress({
+  value,
+  tone = "intent",
+  className,
+  label,
+}: {
+  value?: number | null;
+  tone?: "intent" | "green" | "red" | "gate";
+  className?: string;
+  label?: string;
+}) {
+  const c = {
+    intent: "bg-blue",
+    green: "bg-green",
+    red: "bg-red",
+    gate: "bg-gold",
+  }[tone];
   const pct = value == null ? null : Math.max(0, Math.min(1, value)) * 100;
   return (
     <span
@@ -138,14 +202,29 @@ export function Progress({ value, tone = "intent", className, label }: { value?:
       {pct == null ? (
         <span className={cn("absolute inset-y-0 left-[20%] w-[30%] animate-pulse rounded-pill opacity-60", c)} />
       ) : (
-        <span className={cn("absolute inset-y-0 left-0 rounded-pill transition-[width] duration-slow ease-standard", c)} style={{ width: `${pct}%` }} />
+        <span
+          className={cn("absolute inset-y-0 left-0 rounded-pill transition-[width] duration-slow ease-standard", c)}
+          style={{ width: `${pct}%` }}
+        />
       )}
     </span>
   );
 }
 
 /** Page header: title 700/24, a meta line, and actions on the right. */
-export function PageHeader({ title, meta, actions, children, className }: { title: ReactNode; meta?: ReactNode; actions?: ReactNode; children?: ReactNode; className?: string }) {
+export function PageHeader({
+  title,
+  meta,
+  actions,
+  children,
+  className,
+}: {
+  title: ReactNode;
+  meta?: ReactNode;
+  actions?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={cn("mb-5 flex flex-wrap items-end gap-x-4 gap-y-2", className)}>
       <div className="min-w-0 flex-1">

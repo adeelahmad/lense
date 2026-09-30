@@ -42,7 +42,14 @@ export function NamespacesPage() {
       meta={`${count(shown.length)} namespace${shown.length === 1 ? "" : "s"}`}
       ownersToo
       actions={
-        <Button variant="primary" size="sm" icon={<FolderPlus />} disabled={!admin} disabledReason="Admins create namespaces" onClick={() => setCreating(true)}>
+        <Button
+          variant="primary"
+          size="sm"
+          icon={<FolderPlus />}
+          disabled={!admin}
+          disabledReason="Admins create namespaces"
+          onClick={() => setCreating(true)}
+        >
           New namespace
         </Button>
       }
@@ -101,15 +108,28 @@ function CreateNamespace({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState("");
   const [graph, setGraph] = useState("shared");
   const create = useMutation({
-    mutationFn: () => data(Namespaces.createNamespace({ client, body: { name: name.trim(), graph: graph as "shared" | "isolated" } })),
+    mutationFn: () =>
+      data(
+        Namespaces.createNamespace({
+          client,
+          body: { name: name.trim(), graph: graph as "shared" | "isolated" },
+        }),
+      ),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["namespaces"] });
       void qc.invalidateQueries({ queryKey: ["me"] });
-      toast({ title: `Created ${name.trim()}`, body: "Add members, then import recordings into it.", tone: "green" });
+      toast({
+        title: `Created ${name.trim()}`,
+        body: "Add members, then import recordings into it.",
+        tone: "green",
+      });
       onClose();
     },
   });
-  const err = name.trim() && !NS_RX.test(name.trim()) ? "Lowercase letters, digits, - and _ (start with a letter or digit)" : null;
+  const err =
+    name.trim() && !NS_RX.test(name.trim())
+      ? "Lowercase letters, digits, - and _ (start with a letter or digit)"
+      : null;
   return (
     <Dialog
       open
@@ -121,14 +141,28 @@ function CreateNamespace({ onClose }: { onClose: () => void }) {
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" disabled={!name.trim() || Boolean(err) || create.isPending} onClick={() => create.mutate()}>
+          <Button
+            variant="primary"
+            disabled={!name.trim() || Boolean(err) || create.isPending}
+            onClick={() => create.mutate()}
+          >
             {create.isPending ? "Creating…" : "Create namespace"}
           </Button>
         </>
       }
     >
       <Field label="Name" error={err} hint="Shown in links, e.g. /iiif/collection/customer-calls">
-        {(f) => <Input id={f.id} aria-describedby={f.describedBy} invalid={f.invalid} mono value={name} onChange={(e) => setName(e.target.value)} autoFocus />}
+        {(f) => (
+          <Input
+            id={f.id}
+            aria-describedby={f.describedBy}
+            invalid={f.invalid}
+            mono
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+          />
+        )}
       </Field>
       <div className="flex flex-col gap-2">
         <span className="text-[13px] font-bold text-fg-strong">Graph</span>
@@ -137,8 +171,16 @@ function CreateNamespace({ onClose }: { onClose: () => void }) {
           value={graph}
           onChange={setGraph}
           options={[
-            { value: "shared", label: "Shared", hint: "entities link with other shared namespaces" },
-            { value: "isolated", label: "Isolated", hint: "its own graph only" },
+            {
+              value: "shared",
+              label: "Shared",
+              hint: "entities link with other shared namespaces",
+            },
+            {
+              value: "isolated",
+              label: "Isolated",
+              hint: "its own graph only",
+            },
           ]}
         />
       </div>
@@ -155,15 +197,27 @@ export function NamespaceDetail({ ns }: { ns: string }) {
   const { namespaces, admin, can, me } = useArchive();
   const known = namespaces.find((n) => n.name === ns);
   const isOwner = can("owner", ns);
-  const members = useQuery({ queryKey: ["members", ns], queryFn: () => data(Users.listMembers({ client, path: { name: ns } })), enabled: Boolean(known) && isOwner });
+  const members = useQuery({
+    queryKey: ["members", ns],
+    queryFn: () => data(Users.listMembers({ client, path: { name: ns } })),
+    enabled: Boolean(known) && isOwner,
+  });
   const people = usePeople();
-  const pipelines = useQuery({ queryKey: ["pipelines"], queryFn: async () => (await data(Pipelines.listPipelines({ client }))) as unknown as { pipelines: Pipeline[] }, enabled: Boolean(known) });
+  const pipelines = useQuery({
+    queryKey: ["pipelines"],
+    queryFn: async () =>
+      (await data(Pipelines.listPipelines({ client }))) as unknown as {
+        pipelines: Pipeline[];
+      },
+    enabled: Boolean(known),
+  });
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("editor");
   const [addError, setAddError] = useState<string | null>(null);
 
   const setMember = useMutation({
-    mutationFn: (b: { email?: string; account?: number; role: Role | null }) => data(Users.setMember({ client, path: { name: ns }, body: b })),
+    mutationFn: (b: { email?: string; account?: number; role: Role | null }) =>
+      data(Users.setMember({ client, path: { name: ns }, body: b })),
     onSuccess: (_r, b) => {
       void qc.invalidateQueries({ queryKey: ["members", ns] });
       void qc.invalidateQueries({ queryKey: ["users"] });
@@ -171,15 +225,33 @@ export function NamespaceDetail({ ns }: { ns: string }) {
         setEmail("");
         setAddError(null);
       }
-      toast({ title: b.role ? (b.email ? `Added ${b.email} as ${b.role}` : `Role changed to ${b.role}`) : "Removed from the namespace", tone: "green" });
+      toast({
+        title: b.role
+          ? b.email
+            ? `Added ${b.email} as ${b.role}`
+            : `Role changed to ${b.role}`
+          : "Removed from the namespace",
+        tone: "green",
+      });
     },
     onError: (e, b) => {
-      if (b.email) setAddError(e instanceof ApiError && e.status === 404 ? "No account with that email. Ask an admin to create it." : e.message);
-      else toast({ title: "Couldn’t change the role", body: e.message, tone: "red" });
+      if (b.email)
+        setAddError(
+          e instanceof ApiError && e.status === 404
+            ? "No account with that email. Ask an admin to create it."
+            : e.message,
+        );
+      else
+        toast({
+          title: "Couldn’t change the role",
+          body: e.message,
+          tone: "red",
+        });
     },
   });
   const update = useMutation({
-    mutationFn: (b: { graph?: "shared" | "isolated"; pipeline?: number | null }) => data(Namespaces.updateNamespace({ client, path: { name: ns }, body: b })),
+    mutationFn: (b: { graph?: "shared" | "isolated"; pipeline?: number | null }) =>
+      data(Namespaces.updateNamespace({ client, path: { name: ns }, body: b })),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["namespaces"] });
       void qc.invalidateQueries({ queryKey: ["pipelines"] });
@@ -191,25 +263,45 @@ export function NamespaceDetail({ ns }: { ns: string }) {
   if (namespaces.length && !known)
     return (
       <AdminFrame tab="namespaces" title="Namespace" ownersToo>
-        <EmptyState icon={<UsersIcon />} title="This namespace doesn’t exist" actions={<Button asChild><Link href="/admin/namespaces">All namespaces</Link></Button>}>
+        <EmptyState
+          icon={<UsersIcon />}
+          title="This namespace doesn’t exist"
+          actions={
+            <Button asChild>
+              <Link href="/admin/namespaces">All namespaces</Link>
+            </Button>
+          }
+        >
           Or you don’t have a role in it. Namespaces you don’t belong to are never shown here.
         </EmptyState>
       </AdminFrame>
     );
 
   const admins = admin ? (people.data ?? []).filter((p) => p.admin && !p.disabled) : [];
-  const rows = (members.data ?? []).slice().sort((a, b) => (a.name || a.email || "").localeCompare(b.name || b.email || ""));
+  const rows = (members.data ?? [])
+    .slice()
+    .sort((a, b) => (a.name || a.email || "").localeCompare(b.name || b.email || ""));
   const currentPipeline = (pipelines.data?.pipelines ?? []).find((p) => p.namespaces?.includes(ns));
   const validEmail = /^\S+@\S+\.\S+$/.test(email.trim());
 
   return (
-    <AdminFrame tab="namespaces" title={ns} meta={known ? `${count(known.recordings)} recordings · ${known.graph === "isolated" ? "isolated" : "shared"} graph` : undefined} ownersToo>
+    <AdminFrame
+      tab="namespaces"
+      title={ns}
+      meta={
+        known
+          ? `${count(known.recordings)} recordings · ${known.graph === "isolated" ? "isolated" : "shared"} graph`
+          : undefined
+      }
+      ownersToo
+    >
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,820px)_minmax(0,1fr)]">
         <section className="flex flex-col gap-3.5 rounded-md border border-border bg-background px-4 py-5 sm:px-6">
           <div className="flex flex-col gap-1">
             <h2 className="text-[20px] font-bold leading-tight text-fg">Members of {ns}</h2>
             <p className="text-[13px] leading-[1.4] text-fg-secondary">
-              {admin ? "As a platform admin you own every namespace." : "You’re an owner here."} Only people who already have an account can be added; admins create accounts.
+              {admin ? "As a platform admin you own every namespace." : "You’re an owner here."} Only people who already
+              have an account can be added; admins create accounts.
             </p>
           </div>
           {!isOwner ? (
@@ -223,9 +315,30 @@ export function NamespaceDetail({ ns }: { ns: string }) {
               }}
             >
               <Field label="Add by email" error={addError}>
-                {(f) => <Input id={f.id} aria-describedby={f.describedBy} invalid={f.invalid} type="email" value={email} onChange={(e) => (setEmail(e.target.value), setAddError(null))} />}
+                {(f) => (
+                  <Input
+                    id={f.id}
+                    aria-describedby={f.describedBy}
+                    invalid={f.invalid}
+                    type="email"
+                    value={email}
+                    onChange={(e) => (setEmail(e.target.value), setAddError(null))}
+                  />
+                )}
               </Field>
-              <Field label="Role">{(f) => <Select id={f.id} value={role} onChange={(e) => setRole(e.target.value as Role)} options={["viewer", "editor", "owner"].map((r) => ({ value: r, label: roleLabel(r as Role) }))} />}</Field>
+              <Field label="Role">
+                {(f) => (
+                  <Select
+                    id={f.id}
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as Role)}
+                    options={["viewer", "editor", "owner"].map((r) => ({
+                      value: r,
+                      label: roleLabel(r as Role),
+                    }))}
+                  />
+                )}
+              </Field>
               <Button type="submit" className="sm:mt-[22px]" disabled={!validEmail || setMember.isPending}>
                 Add
               </Button>
@@ -234,13 +347,21 @@ export function NamespaceDetail({ ns }: { ns: string }) {
           {members.isPending && isOwner ? (
             <SkeletonRows rows={3} />
           ) : members.isError ? (
-            <EmptyState tone="error" icon={<UsersIcon />} title={isUnreachable(members.error) ? "Can’t reach the server" : "Couldn’t load the members"} actions={<Button onClick={() => members.refetch()}>Try again</Button>}>
+            <EmptyState
+              tone="error"
+              icon={<UsersIcon />}
+              title={isUnreachable(members.error) ? "Can’t reach the server" : "Couldn’t load the members"}
+              actions={<Button onClick={() => members.refetch()}>Try again</Button>}
+            >
               {members.error.message}
             </EmptyState>
           ) : (
             <ul className="flex flex-col">
               {admins.map((p) => (
-                <li key={`a${p.id}`} className="grid grid-cols-[32px_minmax(0,1fr)_150px_80px] items-center gap-3 border-t border-border py-2">
+                <li
+                  key={`a${p.id}`}
+                  className="grid grid-cols-[32px_minmax(0,1fr)_150px_80px] items-center gap-3 border-t border-border py-2"
+                >
                   <Avatar name={p.name || p.email} size={32} className="border border-border" />
                   <span className="flex min-w-0 flex-col gap-[3px]">
                     <b className="truncate text-[13.5px] font-semibold leading-tight">
@@ -250,7 +371,9 @@ export function NamespaceDetail({ ns }: { ns: string }) {
                     <span className="truncate text-[12px] leading-none text-fg-muted">Platform admin</span>
                   </span>
                   <Tooltip content="Platform admins own every namespace">
-                    <span className="flex h-8 items-center rounded-sm border border-border bg-surface px-2.5 text-[13px] font-medium text-fg-muted">Owner</span>
+                    <span className="flex h-8 items-center rounded-sm border border-border bg-surface px-2.5 text-[13px] font-medium text-fg-muted">
+                      Owner
+                    </span>
                   </Tooltip>
                   <span />
                 </li>
@@ -258,7 +381,10 @@ export function NamespaceDetail({ ns }: { ns: string }) {
               {rows.map((m) => {
                 const self = m.account === me?.user.id;
                 return (
-                  <li key={m.account} className="grid grid-cols-[32px_minmax(0,1fr)_150px_80px] items-center gap-3 border-t border-border py-2">
+                  <li
+                    key={m.account}
+                    className="grid grid-cols-[32px_minmax(0,1fr)_150px_80px] items-center gap-3 border-t border-border py-2"
+                  >
                     <Avatar name={m.name || m.email} size={32} className="border border-border" />
                     <span className="flex min-w-0 flex-col gap-[3px]">
                       <b className="truncate text-[13.5px] font-semibold leading-tight">
@@ -273,8 +399,16 @@ export function NamespaceDetail({ ns }: { ns: string }) {
                           aria-label={`${m.name || m.email}’s role`}
                           value={m.role}
                           disabled={self || !isOwner || setMember.isPending}
-                          onChange={(e) => setMember.mutate({ account: m.account, role: e.target.value as Role })}
-                          className={cn("h-8 w-full appearance-none rounded-sm border border-border pl-2.5 pr-7 text-[13px] font-medium outline-none focus:border-blue", self ? "bg-surface text-fg-muted" : "bg-background text-fg")}
+                          onChange={(e) =>
+                            setMember.mutate({
+                              account: m.account,
+                              role: e.target.value as Role,
+                            })
+                          }
+                          className={cn(
+                            "h-8 w-full appearance-none rounded-sm border border-border pl-2.5 pr-7 text-[13px] font-medium outline-none focus:border-blue",
+                            self ? "bg-surface text-fg-muted" : "bg-background text-fg",
+                          )}
                         >
                           {["viewer", "editor", "owner"].map((r) => (
                             <option key={r} value={r}>
@@ -282,12 +416,20 @@ export function NamespaceDetail({ ns }: { ns: string }) {
                             </option>
                           ))}
                         </select>
-                        <ChevronDown aria-hidden className="pointer-events-none absolute right-2 top-1/2 size-[13px] -translate-y-1/2 text-fg-secondary" />
+                        <ChevronDown
+                          aria-hidden
+                          className="pointer-events-none absolute right-2 top-1/2 size-[13px] -translate-y-1/2 text-fg-secondary"
+                        />
                       </span>
                     </Tooltip>
                     <span className="text-right">
                       {!self && isOwner && (
-                        <Button variant="danger-ghost" size="xs" onClick={() => setMember.mutate({ account: m.account, role: null })} aria-label={`Remove ${m.name || m.email}`}>
+                        <Button
+                          variant="danger-ghost"
+                          size="xs"
+                          onClick={() => setMember.mutate({ account: m.account, role: null })}
+                          aria-label={`Remove ${m.name || m.email}`}
+                        >
                           Remove
                         </Button>
                       )}
@@ -295,7 +437,11 @@ export function NamespaceDetail({ ns }: { ns: string }) {
                   </li>
                 );
               })}
-              {!rows.length && !admins.length && <li className="border-t border-border py-3 text-[13px] text-fg-muted">No members yet. Add people by their email.</li>}
+              {!rows.length && !admins.length && (
+                <li className="border-t border-border py-3 text-[13px] text-fg-muted">
+                  No members yet. Add people by their email.
+                </li>
+              )}
             </ul>
           )}
         </section>
@@ -312,8 +458,16 @@ export function NamespaceDetail({ ns }: { ns: string }) {
               disabled={!isOwner || update.isPending}
               disabledReason={!isOwner ? needRole("owner", ns) : undefined}
               options={[
-                { value: "shared", label: "Shared", hint: "links entities with other shared namespaces" },
-                { value: "isolated", label: "Isolated", hint: "its own graph only" },
+                {
+                  value: "shared",
+                  label: "Shared",
+                  hint: "links entities with other shared namespaces",
+                },
+                {
+                  value: "isolated",
+                  label: "Isolated",
+                  hint: "its own graph only",
+                },
               ]}
             />
           </div>
@@ -324,8 +478,18 @@ export function NamespaceDetail({ ns }: { ns: string }) {
                 aria-describedby={f.describedBy}
                 value={currentPipeline ? String(currentPipeline.id) : ""}
                 disabled={!isOwner || update.isPending || pipelines.isPending}
-                onChange={(e) => update.mutate({ pipeline: e.target.value ? Number(e.target.value) : null })}
-                options={[{ value: "", label: "Built-in standard pipeline" }, ...(pipelines.data?.pipelines ?? []).map((p) => ({ value: String(p.id), label: p.name }))]}
+                onChange={(e) =>
+                  update.mutate({
+                    pipeline: e.target.value ? Number(e.target.value) : null,
+                  })
+                }
+                options={[
+                  { value: "", label: "Built-in standard pipeline" },
+                  ...(pipelines.data?.pipelines ?? []).map((p) => ({
+                    value: String(p.id),
+                    label: p.name,
+                  })),
+                ]}
               />
             )}
           </Field>

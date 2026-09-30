@@ -37,7 +37,9 @@ export function Shortcuts() {
         {KEYS.map(([k, v]) => (
           <div key={k} className="contents">
             <dt>
-              <kbd className="rounded-xs border border-border bg-surface px-1.5 py-0.5 font-sans text-[12.5px] font-semibold">{k}</kbd>
+              <kbd className="rounded-xs border border-border bg-surface px-1.5 py-0.5 font-sans text-[12.5px] font-semibold">
+                {k}
+              </kbd>
             </dt>
             <dd className="text-fg-secondary">{v}</dd>
           </div>

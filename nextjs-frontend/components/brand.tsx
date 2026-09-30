@@ -7,7 +7,17 @@ import { cn } from "@/lib/utils";
  * The Lens Archive wordmark: DM Sans 800, -0.03em, blue, over a four-segment loop bar
  * (blue → red → green → gold). Collapsed, it becomes the four-dot signature.
  */
-export function Brand({ className, href = "/", collapsed, size = 18 }: { className?: string; href?: string; collapsed?: boolean; size?: number }) {
+export function Brand({
+  className,
+  href = "/",
+  collapsed,
+  size = 18,
+}: {
+  className?: string;
+  href?: string;
+  collapsed?: boolean;
+  size?: number;
+}) {
   return (
     <Link href={href} aria-label="Lens Archive home" className={cn("inline-flex items-center", className)}>
       {collapsed ? (
@@ -16,7 +26,10 @@ export function Brand({ className, href = "/", collapsed, size = 18 }: { classNa
         </span>
       ) : (
         <span className="inline-flex flex-col gap-1">
-          <span className="whitespace-nowrap font-extrabold leading-none tracking-[-0.03em] text-blue" style={{ fontSize: size }}>
+          <span
+            className="whitespace-nowrap font-extrabold leading-none tracking-[-0.03em] text-blue"
+            style={{ fontSize: size }}
+          >
             Lens Archive
           </span>
           <span aria-hidden className="flex h-[3px] overflow-hidden rounded-pill">

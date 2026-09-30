@@ -18,11 +18,19 @@ import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { bytes, plural, relative } from "@/lib/format";
 
-const KIND_NOTE: Record<string, string> = { transcript: "Transcript", audio: "Audio", video: "Video", unsupported: "" };
+const KIND_NOTE: Record<string, string> = {
+  transcript: "Transcript",
+  audio: "Audio",
+  video: "Video",
+  unsupported: "",
+};
 
 function crumbs(path: string): { label: string; path: string }[] {
   const parts = path.split("/").filter(Boolean);
-  return parts.map((p, i) => ({ label: p, path: (path.startsWith("/") ? "/" : "") + parts.slice(0, i + 1).join("/") }));
+  return parts.map((p, i) => ({
+    label: p,
+    path: (path.startsWith("/") ? "/" : "") + parts.slice(0, i + 1).join("/"),
+  }));
 }
 
 /**
@@ -33,7 +41,11 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
-  const sources = useQuery({ queryKey: ["sources"], queryFn: () => data(Sources.listSources({ client })), staleTime: 30_000 });
+  const sources = useQuery({
+    queryKey: ["sources"],
+    queryFn: () => data(Sources.listSources({ client })),
+    staleTime: 30_000,
+  });
   const [sid, setSid] = useState<number | null>(null);
   const [path, setPath] = useState("");
   const [watchOpen, setWatchOpen] = useState(false);
@@ -44,7 +56,14 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
 
   const listing = useQuery({
     queryKey: ["browse", sid, path],
-    queryFn: () => data(Sources.browseSource({ client, path: { sid: sid as number }, query: { path } })),
+    queryFn: () =>
+      data(
+        Sources.browseSource({
+          client,
+          path: { sid: sid as number },
+          query: { path },
+        }),
+      ),
     enabled: sid != null,
     retry: false,
   });
@@ -59,7 +78,11 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
   if (sources.isLoading) return <SkeletonRows rows={6} className="p-6" />;
   if (sources.isError)
     return (
-      <EmptyState tone="error" title="Couldn’t load sources" actions={<Button onClick={() => sources.refetch()}>Try again</Button>}>
+      <EmptyState
+        tone="error"
+        title="Couldn’t load sources"
+        actions={<Button onClick={() => sources.refetch()}>Try again</Button>}
+      >
         {(sources.error as Error).message}
       </EmptyState>
     );
@@ -79,7 +102,9 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
     );
 
   const src = sources.data.find((s) => s.id === sid);
-  const entries: BrowseEntry[] = [...(listing.data ?? [])].sort((a, b) => Number(b.dir) - Number(a.dir) || a.name.localeCompare(b.name));
+  const entries: BrowseEntry[] = [...(listing.data ?? [])].sort(
+    (a, b) => Number(b.dir) - Number(a.dir) || a.name.localeCompare(b.name),
+  );
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-3 md:px-5">
@@ -91,9 +116,15 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
             setSid(Number(e.target.value));
             setPath("");
           }}
-          options={sources.data.map((s) => ({ value: String(s.id), label: `${sourceTypeLabel(s.type, s.label)} · ${s.name}` }))}
+          options={sources.data.map((s) => ({
+            value: String(s.id),
+            label: `${sourceTypeLabel(s.type, s.label)} · ${s.name}`,
+          }))}
         />
-        <nav aria-label="Folder" className="flex min-w-0 flex-wrap items-center gap-1 text-[13px] font-medium text-fg-secondary">
+        <nav
+          aria-label="Folder"
+          className="flex min-w-0 flex-wrap items-center gap-1 text-[13px] font-medium text-fg-secondary"
+        >
           <button type="button" className="hover:text-fg hover:underline" onClick={() => setPath("")}>
             {src?.name ?? "Top"}
           </button>
@@ -106,13 +137,21 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
             </span>
           ))}
         </nav>
-        {src?.health && !src.health.ok && <span className="text-[12.5px] text-red-dark">✕ {src.health.error || "The last connection test failed."}</span>}
+        {src?.health && !src.health.ok && (
+          <span className="text-[12.5px] text-red-dark">
+            ✕ {src.health.error || "The last connection test failed."}
+          </span>
+        )}
       </div>
       <div className="min-h-[240px] flex-1 overflow-y-auto">
         {listing.isLoading ? (
           <SkeletonRows rows={6} />
         ) : listing.isError ? (
-          <EmptyState tone="error" title="Couldn’t open this folder" actions={<Button onClick={() => listing.refetch()}>Try again</Button>}>
+          <EmptyState
+            tone="error"
+            title="Couldn’t open this folder"
+            actions={<Button onClick={() => listing.refetch()}>Try again</Button>}
+          >
             {(listing.error as Error).message}
           </EmptyState>
         ) : !entries.length ? (
@@ -121,20 +160,36 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
           <ul aria-label={`Contents of ${path || src?.name || "the source"}`}>
             {entries.map((e) => {
               const kind = e.dir ? null : kindOf(e.name);
-              const Icon = e.dir ? Folder : fileIcon({ file: new File([], e.name), status: "ready", problem: undefined });
+              const Icon = e.dir
+                ? Folder
+                : fileIcon({
+                    file: new File([], e.name),
+                    status: "ready",
+                    problem: undefined,
+                  });
               const row = (
                 <>
                   <Icon className="size-4 shrink-0 text-fg-secondary" aria-hidden />
                   <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-fg">{e.name}</span>
-                  <span className="tabular w-20 shrink-0 text-right text-[12px] text-fg-muted">{e.dir ? "" : bytes(e.size)}</span>
-                  <span className="hidden w-28 shrink-0 text-[12px] text-fg-muted sm:block">{e.modified ? relative(e.modified) : ""}</span>
-                  <span className="w-24 shrink-0 text-[12px] font-medium text-fg-muted">{kind ? KIND_NOTE[kind] : "Folder"}</span>
+                  <span className="tabular w-20 shrink-0 text-right text-[12px] text-fg-muted">
+                    {e.dir ? "" : bytes(e.size)}
+                  </span>
+                  <span className="hidden w-28 shrink-0 text-[12px] text-fg-muted sm:block">
+                    {e.modified ? relative(e.modified) : ""}
+                  </span>
+                  <span className="w-24 shrink-0 text-[12px] font-medium text-fg-muted">
+                    {kind ? KIND_NOTE[kind] : "Folder"}
+                  </span>
                 </>
               );
               return (
                 <li key={e.path} className="border-b border-border">
                   {e.dir ? (
-                    <button type="button" onClick={() => setPath(e.path)} className="flex h-[42px] w-full items-center gap-2.5 px-4 text-left hover:bg-surface md:px-5">
+                    <button
+                      type="button"
+                      onClick={() => setPath(e.path)}
+                      className="flex h-[42px] w-full items-center gap-2.5 px-4 text-left hover:bg-surface md:px-5"
+                    >
                       {row}
                     </button>
                   ) : (
@@ -155,9 +210,17 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
               : counts.isError
                 ? (counts.error as Error).message
                 : "Counting files…"}{" "}
-          <span className="text-fg-muted">Picking single files isn’t available yet — watching a folder imports what’s there.</span>
+          <span className="text-fg-muted">
+            Picking single files isn’t available yet — watching a folder imports what’s there.
+          </span>
         </span>
-        <Button variant="primary" size="sm" disabled={path === ""} disabledReason="Open a folder first" onClick={() => setWatchOpen(true)}>
+        <Button
+          variant="primary"
+          size="sm"
+          disabled={path === ""}
+          disabledReason="Open a folder first"
+          onClick={() => setWatchOpen(true)}
+        >
           Watch this folder…
         </Button>
       </div>
@@ -172,7 +235,11 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
           namespaces={namespaces}
           onDone={() => {
             void qc.invalidateQueries({ queryKey: ["watches"] });
-            toast({ title: "Watching this folder", body: "New files will be imported on their own.", tone: "green" });
+            toast({
+              title: "Watching this folder",
+              body: "New files will be imported on their own.",
+              tone: "green",
+            });
           }}
         />
       )}
@@ -218,7 +285,8 @@ function WatchDialog({
       title="Watch this folder?"
       description={
         <>
-          New files in <b className="font-mono text-[13px] text-fg">{path}</b> are imported on their own and run the namespace’s pipeline.
+          New files in <b className="font-mono text-[13px] text-fg">{path}</b> are imported on their own and run the
+          namespace’s pipeline.
         </>
       }
       actions={
@@ -233,7 +301,18 @@ function WatchDialog({
               setBusy(true);
               setError(null);
               try {
-                await data(Sources.createWatch({ client, body: { source, path, namespace: ns, backfill, poll_minutes: Number(poll) } }));
+                await data(
+                  Sources.createWatch({
+                    client,
+                    body: {
+                      source,
+                      path,
+                      namespace: ns,
+                      backfill,
+                      poll_minutes: Number(poll),
+                    },
+                  }),
+                );
                 onOpenChange(false);
                 onDone();
               } catch (e) {
@@ -266,7 +345,15 @@ function WatchDialog({
             ]}
           />
         </label>
-        <Checkbox checked={backfill} onCheckedChange={setBackfill} label={files != null ? `Also import the ${plural(files, "file")} already there` : "Also import what’s already there"} />
+        <Checkbox
+          checked={backfill}
+          onCheckedChange={setBackfill}
+          label={
+            files != null
+              ? `Also import the ${plural(files, "file")} already there`
+              : "Also import what’s already there"
+          }
+        />
         {error && (
           <p className="text-[13px] text-red-dark" role="alert">
             {error}

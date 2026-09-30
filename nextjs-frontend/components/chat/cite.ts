@@ -58,14 +58,19 @@ export function passageLines(p: Pick<Passage, "text" | "speaker">): QuoteLine[] 
   return lines.map((l) => {
     const m = /^([^:\n]{1,48}):\s+(.*)$/.exec(l);
     if (m && !/^on screen$/i.test(m[1])) return { speaker: m[1].trim(), text: m[2] };
-    return { speaker: lines.length === 1 ? (p.speaker ?? null) : null, text: l.replace(/^On screen:\s*/i, "") };
+    return {
+      speaker: lines.length === 1 ? (p.speaker ?? null) : null,
+      text: l.replace(/^On screen:\s*/i, ""),
+    };
   });
 }
 
 /** The line a citation points at: the one said by the passage's speaker, else the first. */
 export function quoteOf(p: Pick<Passage, "text" | "speaker">): QuoteLine {
   const lines = passageLines(p);
-  return lines.find((l) => p.speaker && l.speaker === p.speaker) ?? lines[0] ?? { speaker: p.speaker ?? null, text: "" };
+  return (
+    lines.find((l) => p.speaker && l.speaker === p.speaker) ?? lines[0] ?? { speaker: p.speaker ?? null, text: "" }
+  );
 }
 
 /** Link to the cited moment. */

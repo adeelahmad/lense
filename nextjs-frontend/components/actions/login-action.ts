@@ -3,18 +3,11 @@
 import { AuthError, CredentialsSignin } from "next-auth";
 
 import { signIn } from "@/auth";
-import {
-  type FormState,
-  loginSchema,
-  safeCallbackUrl,
-} from "@/lib/definitions";
+import { type FormState, loginSchema, safeCallbackUrl } from "@/lib/definitions";
 
 const UNEXPECTED = "An unexpected error occurred. Please try again later.";
 
-export async function login(
-  _prev: FormState,
-  formData: FormData,
-): Promise<FormState> {
+export async function login(_prev: FormState, formData: FormData): Promise<FormState> {
   const validated = loginSchema.safeParse({
     email: formData.get("email") ?? "",
     password: formData.get("password") ?? "",
@@ -34,8 +27,7 @@ export async function login(
       // The backend's own messages (429 and 401 from /auth/login).
       return err.code === "throttled"
         ? {
-            server_validation_error:
-              "Too many attempts; try again in a few minutes.",
+            server_validation_error: "Too many attempts; try again in a few minutes.",
             throttled: true,
           }
         : { server_validation_error: "Wrong email or password." };

@@ -25,7 +25,10 @@ import { useArchive } from "@/lib/hooks/session";
 export function ProfilePage() {
   const { me, admin } = useArchive();
   const client = useApiClient();
-  const tokens = useQuery({ queryKey: ["tokens"], queryFn: () => data(Tokens.listTokens({ client })) });
+  const tokens = useQuery({
+    queryKey: ["tokens"],
+    queryFn: () => data(Tokens.listTokens({ client })),
+  });
 
   if (!me)
     return (
@@ -69,12 +72,16 @@ export function ProfilePage() {
                 ))}
               </ul>
             ) : (
-              <p className="text-[13px] text-fg-secondary">You have no namespaces yet. An owner or admin can add you.</p>
+              <p className="text-[13px] text-fg-secondary">
+                You have no namespaces yet. An owner or admin can add you.
+              </p>
             )}
           </div>
         </div>
       </Panel>
-      <Panel title="Password">{admin ? <ChangePassword id={me.user.id} email={me.user.email} /> : <ResetByEmail email={me.user.email} />}</Panel>
+      <Panel title="Password">
+        {admin ? <ChangePassword id={me.user.id} email={me.user.email} /> : <ResetByEmail email={me.user.email} />}
+      </Panel>
       <Panel
         title="API tokens"
         subtitle="For scripts and other apps that use the archive as you."
@@ -101,7 +108,14 @@ function NameForm({ id, name, canEdit }: { id: number; name: string; canEdit: bo
   const toast = useToast();
   const [value, setValue] = useState(name);
   const save = useMutation({
-    mutationFn: () => data(Users.updateUser({ client, path: { uid: id }, body: { name: value.trim() } })),
+    mutationFn: () =>
+      data(
+        Users.updateUser({
+          client,
+          path: { uid: id },
+          body: { name: value.trim() },
+        }),
+      ),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["me"] });
       toast({ title: "Name saved", tone: "green" });
@@ -120,8 +134,20 @@ function NameForm({ id, name, canEdit }: { id: number; name: string; canEdit: bo
       <Field label="Name" hint={canEdit ? undefined : "Only admins can change names. Ask an admin if yours is wrong."}>
         {(f) => (
           <div className="flex gap-2">
-            <Input id={f.id} aria-describedby={f.describedBy} value={value} onChange={(e) => setValue(e.target.value)} disabled={!canEdit} maxLength={80} className="max-w-[360px]" />
-            <Button type="submit" disabled={!canEdit || !changed || save.isPending} disabledReason={!canEdit ? "Only admins can change names" : undefined}>
+            <Input
+              id={f.id}
+              aria-describedby={f.describedBy}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              disabled={!canEdit}
+              maxLength={80}
+              className="max-w-[360px]"
+            />
+            <Button
+              type="submit"
+              disabled={!canEdit || !changed || save.isPending}
+              disabledReason={!canEdit ? "Only admins can change names" : undefined}
+            >
               {save.isPending ? "Saving…" : "Save"}
             </Button>
           </div>
@@ -145,14 +171,23 @@ function ChangePassword({ id, email }: { id: number; email: string }) {
     mutationFn: async () => {
       await data(Users.updateUser({ client, path: { uid: id }, body: { password } }));
       // A new password ends every session, this one included: sign straight back in with it.
-      const res = await signIn("credentials", { email, password, redirect: false });
-      if (!res || res.error) throw new Error("Password changed, but signing back in failed. Sign in again with the new password.");
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+      if (!res || res.error)
+        throw new Error("Password changed, but signing back in failed. Sign in again with the new password.");
     },
     onSuccess: () => {
       setPassword("");
       setConfirm("");
       setError(null);
-      toast({ title: "Password changed", body: "Your other devices were signed out.", tone: "green" });
+      toast({
+        title: "Password changed",
+        body: "Your other devices were signed out.",
+        tone: "green",
+      });
     },
     onError: (e) => setError(e.message),
   });
@@ -165,18 +200,45 @@ function ChangePassword({ id, email }: { id: number; email: string }) {
         if (ready) change.mutate();
       }}
     >
-      <p className="text-[13px] leading-normal text-fg-secondary">Changing it signs you out on your other devices. Your API tokens keep working.</p>
+      <p className="text-[13px] leading-normal text-fg-secondary">
+        Changing it signs you out on your other devices. Your API tokens keep working.
+      </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="New password" hint={`At least ${PASSWORD_MIN_LENGTH} characters`} error={short}>
-          {(f) => <Input id={f.id} aria-describedby={f.describedBy} invalid={f.invalid} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />}
+          {(f) => (
+            <Input
+              id={f.id}
+              aria-describedby={f.describedBy}
+              invalid={f.invalid}
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          )}
         </Field>
         <Field label="Confirm new password" error={mismatch}>
-          {(f) => <Input id={f.id} aria-describedby={f.describedBy} invalid={f.invalid} type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />}
+          {(f) => (
+            <Input
+              id={f.id}
+              aria-describedby={f.describedBy}
+              invalid={f.invalid}
+              type="password"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+            />
+          )}
         </Field>
       </div>
       {error && <Banner tone="error">{error}</Banner>}
       <div>
-        <Button type="submit" variant="primary" disabled={!ready || change.isPending} disabledReason={!ready ? "Type the new password twice" : undefined}>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={!ready || change.isPending}
+          disabledReason={!ready ? "Type the new password twice" : undefined}
+        >
           {change.isPending ? "Changing…" : "Change password"}
         </Button>
       </div>
@@ -186,14 +248,19 @@ function ChangePassword({ id, email }: { id: number; email: string }) {
 
 function ResetByEmail({ email }: { email: string }) {
   const client = useApiClient();
-  const send = useMutation({ mutationFn: () => data(Auth.forgotPassword({ client, body: { email } })) });
+  const send = useMutation({
+    mutationFn: () => data(Auth.forgotPassword({ client, body: { email } })),
+  });
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[13px] leading-normal text-fg-secondary">
-        To change your password, get a reset link sent to <b className="text-fg">{email}</b>. If this server can’t send email, ask an admin to reset it for you.
+        To change your password, get a reset link sent to <b className="text-fg">{email}</b>. If this server can’t send
+        email, ask an admin to reset it for you.
       </p>
       {send.isSuccess ? (
-        <Banner tone="success">If email is set up on this server, a reset link is on its way. It works for an hour.</Banner>
+        <Banner tone="success">
+          If email is set up on this server, a reset link is on its way. It works for an hour.
+        </Banner>
       ) : send.isError ? (
         <Banner tone="error">{send.error.message}</Banner>
       ) : null}

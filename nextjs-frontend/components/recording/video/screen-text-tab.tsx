@@ -36,13 +36,17 @@ export function ScreenTextTab({ noEngine }: { noEngine?: boolean }) {
 
   if (!model.screenText.length)
     return noEngine ? (
-      <div className="rounded-md border border-gold-border bg-gold-surface p-3.5 text-[13px] leading-normal text-fg-strong" role="status">
-        <b className="text-fg">Text on screen isn&apos;t set up.</b> No OCR engine is configured, so slides and captions aren&apos;t read. Admins choose Tesseract, Apple Vision (on a Mac
-        worker) or RapidOCR in Settings.
+      <div
+        className="rounded-md border border-gold-border bg-gold-surface p-3.5 text-[13px] leading-normal text-fg-strong"
+        role="status"
+      >
+        <b className="text-fg">Text on screen isn&apos;t set up.</b> No OCR engine is configured, so slides and captions
+        aren&apos;t read. Admins choose Tesseract, Apple Vision (on a Mac worker) or RapidOCR in Settings.
       </div>
     ) : (
       <EmptyState icon={<ScanText />} title="No text on screen" className="py-10">
-        The Text on screen step reads slides and captions from sampled frames. None was found in this video, or the step hasn&apos;t run.
+        The Text on screen step reads slides and captions from sampled frames. None was found in this video, or the step
+        hasn&apos;t run.
       </EmptyState>
     );
 
@@ -51,7 +55,10 @@ export function ScreenTextTab({ noEngine }: { noEngine?: boolean }) {
     if (!g) return;
     try {
       await navigator.clipboard.writeText(g.lines.map((l) => l.text).join("\n"));
-      toast({ title: `Copied ${g.lines.length} ${g.lines.length === 1 ? "line" : "lines"} from shot ${g.index + 1}`, tone: "green" });
+      toast({
+        title: `Copied ${g.lines.length} ${g.lines.length === 1 ? "line" : "lines"} from shot ${g.index + 1}`,
+        tone: "green",
+      });
     } catch {
       toast({ title: "Couldn't copy", tone: "red" });
     }
@@ -60,7 +67,13 @@ export function ScreenTextTab({ noEngine }: { noEngine?: boolean }) {
   return (
     <>
       <div className="flex items-center gap-2">
-        <SearchInput className="flex-1" value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${model.screenText.length} lines on screen`} aria-label="Search the text on screen" />
+        <SearchInput
+          className="flex-1"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={`Search ${model.screenText.length} lines on screen`}
+          aria-label="Search the text on screen"
+        />
         <Button variant="ghost" size="sm" icon={<Copy />} onClick={() => void copyShot()}>
           Copy shot
         </Button>
@@ -72,19 +85,42 @@ export function ScreenTextTab({ noEngine }: { noEngine?: boolean }) {
           <section
             key={g.index}
             aria-label={g.shot ? `Shot ${g.index + 1}` : "Before the first shot"}
-            className={cn("grid grid-cols-[minmax(100px,150px)_minmax(0,1fr)] gap-3.5 rounded-md border p-2.5", on ? "border-blue bg-blue-surface" : "border-border bg-background")}
+            className={cn(
+              "grid grid-cols-[minmax(100px,150px)_minmax(0,1fr)] gap-3.5 rounded-md border p-2.5",
+              on ? "border-blue bg-blue-surface" : "border-border bg-background",
+            )}
           >
             <div className="flex flex-col gap-[5px]">
-              <button type="button" onClick={() => api.seek(g.shot?.t0 ?? g.lines[0].t0, { manual: true })} className="relative aspect-video overflow-hidden rounded-[6px] bg-black" aria-label={`Play shot ${g.index + 1}`}>
+              <button
+                type="button"
+                onClick={() => api.seek(g.shot?.t0 ?? g.lines[0].t0, { manual: true })}
+                className="relative aspect-video overflow-hidden rounded-[6px] bg-black"
+                aria-label={`Play shot ${g.index + 1}`}
+              >
                 {(g.lines[0].frame ?? g.shot?.frame) && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={(g.lines[0].frame ?? g.shot?.frame) as string} alt="" className="size-full object-cover" loading="lazy" />
+                  <img
+                    src={(g.lines[0].frame ?? g.shot?.frame) as string}
+                    alt=""
+                    className="size-full object-cover"
+                    loading="lazy"
+                  />
                 )}
                 {g.lines
                   .filter((l) => l.box)
                   .slice(0, 6)
                   .map((l) => (
-                    <span key={l.id} aria-hidden className="absolute rounded-[2px] border-2 border-[var(--aladdin-gold)]" style={{ left: `${l.box![0] * 100}%`, top: `${l.box![1] * 100}%`, width: `${l.box![2] * 100}%`, height: `${l.box![3] * 100}%` }} />
+                    <span
+                      key={l.id}
+                      aria-hidden
+                      className="absolute rounded-[2px] border-2 border-[var(--aladdin-gold)]"
+                      style={{
+                        left: `${l.box![0] * 100}%`,
+                        top: `${l.box![1] * 100}%`,
+                        width: `${l.box![2] * 100}%`,
+                        height: `${l.box![3] * 100}%`,
+                      }}
+                    />
                   ))}
               </button>
               <span className="tabular text-[11.5px] font-semibold leading-tight text-fg-secondary">
@@ -98,7 +134,13 @@ export function ScreenTextTab({ noEngine }: { noEngine?: boolean }) {
                     <LineEditor recId={id} line={l} onDone={() => setEditing(null)} />
                   </li>
                 ) : (
-                  <li key={l.id} className={cn("group flex items-center gap-2 rounded-[6px] border border-transparent px-2 py-1", time >= l.t0 && time < l.t1 && "bg-hl")}>
+                  <li
+                    key={l.id}
+                    className={cn(
+                      "group flex items-center gap-2 rounded-[6px] border border-transparent px-2 py-1",
+                      time >= l.t0 && time < l.t1 && "bg-hl",
+                    )}
+                  >
                     <button
                       type="button"
                       onClick={() => api.seek(l.t0, { manual: true })}
@@ -109,7 +151,10 @@ export function ScreenTextTab({ noEngine }: { noEngine?: boolean }) {
                         }
                       }}
                       aria-keyshortcuts={canEdit ? "E" : undefined}
-                      className={cn("min-w-0 flex-1 text-left text-[13.5px] leading-[1.35] text-fg", time >= l.t0 && time < l.t1 && "font-semibold")}
+                      className={cn(
+                        "min-w-0 flex-1 text-left text-[13.5px] leading-[1.35] text-fg",
+                        time >= l.t0 && time < l.t1 && "font-semibold",
+                      )}
                       title={`${tc(l.t0)}–${tc(l.t1)}${canEdit ? " · press E to correct" : ""}`}
                     >
                       {l.text}
@@ -117,13 +162,21 @@ export function ScreenTextTab({ noEngine }: { noEngine?: boolean }) {
                     {l.edited && <span className="text-[11px] font-medium text-gold-dark">fixed</span>}
                     {canEdit ? (
                       <Tooltip content="Correct this line (E)">
-                        <button type="button" aria-label={`Correct “${l.text}”`} onClick={() => setEditing(l.id)} className="grid size-6 shrink-0 place-items-center rounded-full text-fg-muted opacity-0 hover:bg-surface-neutral hover:text-fg focus-visible:opacity-100 group-hover:opacity-100">
+                        <button
+                          type="button"
+                          aria-label={`Correct “${l.text}”`}
+                          onClick={() => setEditing(l.id)}
+                          className="grid size-6 shrink-0 place-items-center rounded-full text-fg-muted opacity-0 hover:bg-surface-neutral hover:text-fg focus-visible:opacity-100 group-hover:opacity-100"
+                        >
                           <Pencil className="size-3" />
                         </button>
                       </Tooltip>
                     ) : (
                       <Tooltip content={`Only editors can correct text. ${needRole("editor", ns)}.`}>
-                        <span aria-hidden className="grid size-6 shrink-0 place-items-center text-fg-muted opacity-0 group-hover:opacity-40">
+                        <span
+                          aria-hidden
+                          className="grid size-6 shrink-0 place-items-center text-fg-muted opacity-0 group-hover:opacity-40"
+                        >
                           <Pencil className="size-3" />
                         </span>
                       </Tooltip>
@@ -145,13 +198,29 @@ function LineEditor({ recId, line, onDone }: { recId: number; line: ScreenText; 
   const toast = useToast();
   const [text, setText] = useState(line.text);
   const save = useMutation({
-    mutationFn: () => data(Video.fixScreenText({ client, path: { rid: recId, span: line.id }, body: { text: text.trim() } })),
+    mutationFn: () =>
+      data(
+        Video.fixScreenText({
+          client,
+          path: { rid: recId, span: line.id },
+          body: { text: text.trim() },
+        }),
+      ),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: rk.player(recId) });
-      toast({ title: "Line corrected", body: "Search uses the correction; the machine reading is kept.", tone: "green" });
+      toast({
+        title: "Line corrected",
+        body: "Search uses the correction; the machine reading is kept.",
+        tone: "green",
+      });
       onDone();
     },
-    onError: (e) => toast({ title: "Couldn't save the correction", body: e instanceof ApiError ? e.message : undefined, tone: "red" }),
+    onError: (e) =>
+      toast({
+        title: "Couldn't save the correction",
+        body: e instanceof ApiError ? e.message : undefined,
+        tone: "red",
+      }),
   });
   return (
     <form

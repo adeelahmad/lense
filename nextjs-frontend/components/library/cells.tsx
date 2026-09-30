@@ -7,7 +7,11 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { emotionMix, importanceInfo, speakerList, toneWord, type StatusView } from "@/components/library/model";
 import { cn } from "@/lib/utils";
 
-const SUB_TONE = { muted: "text-fg-muted", red: "text-red-dark", gold: "text-gold-dark" };
+const SUB_TONE = {
+  muted: "text-fg-muted",
+  red: "text-red-dark",
+  gold: "text-gold-dark",
+};
 
 /** Audio, video or transcript-only: the small icon before the namespace. */
 export function MediaIcon({ kind, className }: { kind: string | null | undefined; className?: string }) {
@@ -20,7 +24,10 @@ export function MediaIcon({ kind, className }: { kind: string | null | undefined
 export function TextBadge() {
   return (
     <Tooltip content="Transcript only — no audio">
-      <span tabIndex={0} className="inline-flex h-[18px] shrink-0 items-center gap-[3px] rounded-xs bg-surface-neutral px-1.5 text-[10.5px] font-semibold text-fg-secondary">
+      <span
+        tabIndex={0}
+        className="inline-flex h-[18px] shrink-0 items-center gap-[3px] rounded-xs bg-surface-neutral px-1.5 text-[10.5px] font-semibold text-fg-secondary"
+      >
         <FileText className="size-[11px]" aria-hidden />
         Text
       </span>
@@ -48,13 +55,21 @@ export function StatusCell({
       {!compact && view.progress != null && (
         <span className="flex w-full items-center gap-1.5">
           <span className="h-[3px] min-w-[24px] flex-1 overflow-hidden rounded-pill bg-surface-neutral">
-            <span className="block h-full bg-blue transition-[width] duration-slow" style={{ width: `${Math.round(view.progress * 100)}%` }} />
+            <span
+              className="block h-full bg-blue transition-[width] duration-slow"
+              style={{ width: `${Math.round(view.progress * 100)}%` }}
+            />
           </span>
           <span className="whitespace-nowrap text-[11px] font-medium text-fg-muted">{view.sub?.text}</span>
         </span>
       )}
       {!compact && view.progress == null && view.sub && (
-        <span className={cn("flex max-w-full items-center gap-1 whitespace-nowrap text-[11px] font-medium", SUB_TONE[view.sub.tone])}>
+        <span
+          className={cn(
+            "flex max-w-full items-center gap-1 whitespace-nowrap text-[11px] font-medium",
+            SUB_TONE[view.sub.tone],
+          )}
+        >
           {view.sub.title ? (
             <Tooltip content={view.sub.title}>
               <span tabIndex={0} className="truncate">
@@ -97,11 +112,21 @@ export function SpeakersCell({ speakers }: { speakers: string | null | undefined
           <span
             key={s.name}
             className="-mr-[5px] box-border size-[18px] rounded-full shadow-[0_0_0_2px_var(--background)]"
-            style={s.unnamed ? { border: "1.5px dashed var(--text-muted)", background: "var(--background)" } : { background: speakerColor(s.index) }}
+            style={
+              s.unnamed
+                ? {
+                    border: "1.5px dashed var(--text-muted)",
+                    background: "var(--background)",
+                  }
+                : { background: speakerColor(s.index) }
+            }
           />
         ))}
       </span>
-      <span className="truncate pl-1 text-[12px] font-semibold text-fg-strong" title={list.map((s) => s.name).join(", ")}>
+      <span
+        className="truncate pl-1 text-[12px] font-semibold text-fg-strong"
+        title={list.map((s) => s.name).join(", ")}
+      >
         {list.map((s) => s.name).join(", ")}
       </span>
     </span>
@@ -138,7 +163,11 @@ export function ImportanceCell({ importance, sentiment }: { importance: unknown;
         <>
           <span className="flex h-3 items-end gap-0.5" aria-hidden>
             {[1, 2, 3].map((i) => (
-              <span key={i} className={cn("w-[3px] rounded-[1px]", i <= imp.bars ? "bg-fg-strong" : "bg-border")} style={{ height: i * 4 }} />
+              <span
+                key={i}
+                className={cn("w-[3px] rounded-[1px]", i <= imp.bars ? "bg-fg-strong" : "bg-border")}
+                style={{ height: i * 4 }}
+              />
             ))}
           </span>
           <span className="text-fg-strong">

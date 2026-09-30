@@ -35,15 +35,62 @@ const MORE: Variable[] = [
   { key: "summary.tldr", type: "string" },
 ];
 
-export const ROOTS = ["recording", "speakers", "segments", "full_transcript", "transcript", "sections", "entities", "keywords", "summary", "stats", "outputs"];
-const BUILTINS = new Set(["loop", "range", "dict", "lipsum", "cycler", "joiner", "namespace", "caller", "varargs", "kwargs", "self", "super"]);
-const WORDS = new Set(["and", "or", "not", "in", "is", "if", "else", "true", "false", "none", "True", "False", "None", "recursive"]);
+export const ROOTS = [
+  "recording",
+  "speakers",
+  "segments",
+  "full_transcript",
+  "transcript",
+  "sections",
+  "entities",
+  "keywords",
+  "summary",
+  "stats",
+  "outputs",
+];
+const BUILTINS = new Set([
+  "loop",
+  "range",
+  "dict",
+  "lipsum",
+  "cycler",
+  "joiner",
+  "namespace",
+  "caller",
+  "varargs",
+  "kwargs",
+  "self",
+  "super",
+]);
+const WORDS = new Set([
+  "and",
+  "or",
+  "not",
+  "in",
+  "is",
+  "if",
+  "else",
+  "true",
+  "false",
+  "none",
+  "True",
+  "False",
+  "None",
+  "recursive",
+]);
 
 export function completions(prefix: string, declared: string[] = []): Variable[] {
   const p = prefix.toLowerCase();
   const all = [...VARIABLES, ...MORE, ...declared.map((d) => ({ key: d, type: "set in this template" }))];
   const seen = new Set<string>();
-  return all.filter((v) => (p ? v.key.toLowerCase().startsWith(p) || v.key.toLowerCase().includes(`.${p}`) : true) && !seen.has(v.key) && Boolean(seen.add(v.key))).slice(0, 8);
+  return all
+    .filter(
+      (v) =>
+        (p ? v.key.toLowerCase().startsWith(p) || v.key.toLowerCase().includes(`.${p}`) : true) &&
+        !seen.has(v.key) &&
+        Boolean(seen.add(v.key)),
+    )
+    .slice(0, 8);
 }
 
 export function levenshtein(a: string, b: string): number {
@@ -73,7 +120,15 @@ function suggest(name: string, known: string[]): string | undefined {
   return score <= Math.max(2, Math.floor(name.length / 3)) ? best : undefined;
 }
 
-export type Problem = { line: number; index: number; length: number; name: string; expr: string; message: string; suggestion?: string };
+export type Problem = {
+  line: number;
+  index: number;
+  length: number;
+  name: string;
+  expr: string;
+  message: string;
+  suggestion?: string;
+};
 
 const TAG = /\{\{([\s\S]*?)\}\}|\{%-?([\s\S]*?)-?%\}|\{#[\s\S]*?#\}/g;
 
@@ -189,20 +244,42 @@ export function completionContext(text: string, caret: number): { from: number; 
 export type SchemaParse = { ok: true; value: Record<string, unknown> } | { ok: false; error: string; line?: number };
 
 export function parseSchema(text: string): SchemaParse {
-  if (!text.trim()) return { ok: false, error: "Enter a JSON Schema, at least {\"type\": \"object\"}." };
+  if (!text.trim())
+    return {
+      ok: false,
+      error: 'Enter a JSON Schema, at least {"type": "object"}.',
+    };
   try {
     const v = JSON.parse(text) as Record<string, unknown>;
-    if (!v || typeof v !== "object" || Array.isArray(v) || v.type !== "object") return { ok: false, error: "The output schema must be a JSON Schema with \"type\": \"object\"." };
+    if (!v || typeof v !== "object" || Array.isArray(v) || v.type !== "object")
+      return {
+        ok: false,
+        error: 'The output schema must be a JSON Schema with "type": "object".',
+      };
     return { ok: true, value: v };
   } catch (e) {
     const msg = (e as Error).message;
     const pos = /position (\d+)/.exec(msg);
-    const line = pos ? text.slice(0, Number(pos[1])).split("\n").length : (Number(/line (\d+)/.exec(msg)?.[1]) || undefined);
-    return { ok: false, error: `${line ? `Line ${line}: ` : ""}${msg.replace(/^JSON\.parse: /, "").replace(/ in JSON at position \d+.*$/, "")}`, line };
+    const line = pos
+      ? text.slice(0, Number(pos[1])).split("\n").length
+      : Number(/line (\d+)/.exec(msg)?.[1]) || undefined;
+    return {
+      ok: false,
+      error: `${line ? `Line ${line}: ` : ""}${msg.replace(/^JSON\.parse: /, "").replace(/ in JSON at position \d+.*$/, "")}`,
+      line,
+    };
   }
 }
 
-type Schema = { type?: string | string[]; properties?: Record<string, Schema>; required?: string[]; items?: Schema; minItems?: number; maxItems?: number; enum?: unknown[] };
+type Schema = {
+  type?: string | string[];
+  properties?: Record<string, Schema>;
+  required?: string[];
+  items?: Schema;
+  minItems?: number;
+  maxItems?: number;
+  enum?: unknown[];
+};
 
 function typeOf(v: unknown): string {
   if (v === null) return "null";
@@ -217,17 +294,22 @@ export function checkAgainstSchema(value: unknown, schema: Schema, path = ""): s
   const where = path || "the result";
   const types = schema.type == null ? null : Array.isArray(schema.type) ? schema.type : [schema.type];
   const t = typeOf(value);
-  if (types && !types.some((x) => x === t || (x === "number" && t === "integer"))) return [`${where} should be ${types.join(" or ")}, not ${t}`];
-  if (schema.enum && !schema.enum.some((e) => JSON.stringify(e) === JSON.stringify(value))) out.push(`${where} isn’t one of the allowed values`);
+  if (types && !types.some((x) => x === t || (x === "number" && t === "integer")))
+    return [`${where} should be ${types.join(" or ")}, not ${t}`];
+  if (schema.enum && !schema.enum.some((e) => JSON.stringify(e) === JSON.stringify(value)))
+    out.push(`${where} isn’t one of the allowed values`);
   if (t === "object" && value) {
     const o = value as Record<string, unknown>;
     for (const k of schema.required ?? []) if (!(k in o)) out.push(`${path ? `${path}.` : ""}${k} is missing`);
-    for (const [k, s] of Object.entries(schema.properties ?? {})) if (k in o) out.push(...checkAgainstSchema(o[k], s, path ? `${path}.${k}` : k));
+    for (const [k, s] of Object.entries(schema.properties ?? {}))
+      if (k in o) out.push(...checkAgainstSchema(o[k], s, path ? `${path}.${k}` : k));
   }
   if (t === "array") {
     const a = value as unknown[];
-    if (schema.minItems != null && a.length < schema.minItems) out.push(`${where} has ${a.length} items; at least ${schema.minItems}`);
-    if (schema.maxItems != null && a.length > schema.maxItems) out.push(`${where} has ${a.length} items; at most ${schema.maxItems}`);
+    if (schema.minItems != null && a.length < schema.minItems)
+      out.push(`${where} has ${a.length} items; at least ${schema.minItems}`);
+    if (schema.maxItems != null && a.length > schema.maxItems)
+      out.push(`${where} has ${a.length} items; at most ${schema.maxItems}`);
     if (schema.items) a.forEach((x, i) => out.push(...checkAgainstSchema(x, schema.items!, `${path}[${i}]`)));
   }
   return out;
@@ -250,7 +332,15 @@ export function schemaSummary(schema: Schema): string {
 
 // ---------- versions ----------
 
-export type DiffRow = { kind: "hunk"; text: string } | { kind: "line"; sign: " " | "+" | "-"; a?: number; b?: number; text: string };
+export type DiffRow =
+  | { kind: "hunk"; text: string }
+  | {
+      kind: "line";
+      sign: " " | "+" | "-";
+      a?: number;
+      b?: number;
+      text: string;
+    };
 
 /** Rows of a unified diff with old and new line numbers. */
 export function parseUnifiedDiff(text: string): DiffRow[] {
@@ -270,7 +360,14 @@ export function parseUnifiedDiff(text: string): DiffRow[] {
     const sign = line[0];
     if (sign === "+") rows.push({ kind: "line", sign: "+", b: b++, text: line.slice(1) });
     else if (sign === "-") rows.push({ kind: "line", sign: "-", a: a++, text: line.slice(1) });
-    else if (sign === " ") rows.push({ kind: "line", sign: " ", a: a++, b: b++, text: line.slice(1) });
+    else if (sign === " ")
+      rows.push({
+        kind: "line",
+        sign: " ",
+        a: a++,
+        b: b++,
+        text: line.slice(1),
+      });
   }
   return rows;
 }
@@ -282,7 +379,9 @@ export function lineDiff(before: string, after: string): DiffRow[] {
   const n = a.length;
   const m = b.length;
   const lcs = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
-  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
   const rows: DiffRow[] = [];
   let i = 0;
   let j = 0;

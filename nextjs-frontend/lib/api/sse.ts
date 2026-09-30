@@ -106,10 +106,7 @@ export async function* streamSSE(
     cache: "no-store",
   });
   if (!response.ok || !response.body) {
-    throw new SSEError(
-      response.status,
-      `Stream ${path} failed with status ${response.status}`,
-    );
+    throw new SSEError(response.status, `Stream ${path} failed with status ${response.status}`);
   }
   onOpen?.();
 

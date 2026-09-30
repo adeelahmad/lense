@@ -1,4 +1,5 @@
 """Knowledge graph of speakers and named things, per namespace or across shared namespaces."""
+
 from __future__ import annotations
 
 import math
@@ -9,8 +10,15 @@ import numpy as np
 from . import speakers as spk
 
 GRAPH_TYPES = ("PERSON", "ORG", "PRODUCT", "PLACE", "TERM", "EVENT", "WORK")
-TYPE_COLORS = {"PERSON": "#A23B5B", "ORG": "#2F6690", "PRODUCT": "#C2571A", "PLACE": "#5B7F2B", "TERM": "#6B7A89",
-               "EVENT": "#7A4E9A", "WORK": "#8C6D1F"}
+TYPE_COLORS = {
+    "PERSON": "#A23B5B",
+    "ORG": "#2F6690",
+    "PRODUCT": "#C2571A",
+    "PLACE": "#5B7F2B",
+    "TERM": "#6B7A89",
+    "EVENT": "#7A4E9A",
+    "WORK": "#8C6D1F",
+}
 
 
 def scope_namespaces(db, scope, allowed=None):
@@ -37,15 +45,24 @@ def build(db, cfg, scope="global", allowed=None):
     merged = not (scope or "").startswith("ns:")
     if not nids:
         return {"scope": scope, "namespaces": [], "nodes": [], "edges": []}
-    talk = {r["speaker"]: r["talk"] for r in db.rows("SELECT speaker, math::sum(dur) AS talk FROM segment WHERE space IN $s AND speaker > 0 "
-                                                     "GROUP BY speaker", s=nids)}
+    talk = {
+        r["speaker"]: r["talk"]
+        for r in db.rows("SELECT speaker, math::sum(dur) AS talk FROM segment WHERE space IN $s AND speaker > 0 GROUP BY speaker", s=nids)
+    }
     pairs = db.rows("SELECT speaker, recording FROM segment WHERE space IN $s AND speaker > 0 GROUP BY speaker, recording", s=nids)
     recs_per = Counter(p["speaker"] for p in pairs)
     nodes = {}
     for r in db.rows("SELECT record::id(id) AS id, space, name, label FROM speaker WHERE space IN $s", s=nids):
         if r["id"] in talk:
-            nodes[f"s{r['id']}"] = {"id": f"s{r['id']}", "kind": "speaker", "label": r.get("name") or r["label"], "ns": [names[r["space"]]],
-                                    "weight": round(talk[r["id"]] / 60000, 2), "recordings": recs_per[r["id"]], "refs": [r["id"]]}
+            nodes[f"s{r['id']}"] = {
+                "id": f"s{r['id']}",
+                "kind": "speaker",
+                "label": r.get("name") or r["label"],
+                "ns": [names[r["space"]]],
+                "weight": round(talk[r["id"]] / 60000, 2),
+                "recordings": recs_per[r["id"]],
+                "refs": [r["id"]],
+            }
     counts = {r["entity"]: r["n"] for r in db.rows("SELECT entity, count() AS n FROM mentions WHERE space IN $s GROUP BY entity", s=nids)}
     shown = {}
     for r in db.rows("SELECT entity, text, count() AS n FROM mentions WHERE space IN $s GROUP BY entity, text", s=nids):
@@ -53,16 +70,31 @@ def build(db, cfg, scope="global", allowed=None):
         if not cur or (r["n"], len(r["text"])) > cur[1]:
             shown[r["entity"]] = (r["text"], (r["n"], len(r["text"])))
     agg, node_of = {}, {}
-    for r in db.rows("SELECT record::id(id) AS id, space, key, type FROM entity WHERE space IN $s AND type IN $t AND hidden != true", s=nids, t=list(GRAPH_TYPES)):
+    for r in db.rows(
+        "SELECT record::id(id) AS id, space, key, type FROM entity WHERE space IN $s AND type IN $t AND hidden != true",
+        s=nids,
+        t=list(GRAPH_TYPES),
+    ):
         if not counts.get(r["id"]):
             continue
         key = f"e:{r['key']}" if merged else f"e{r['id']}"
         node_of[r["id"]] = key
-        a = agg.setdefault(key, {"id": key, "kind": "entity", "label": shown.get(r["id"], (r["key"],))[0], "type": r["type"], "ns": set(), "weight": 0, "refs": []})
+        a = agg.setdefault(
+            key,
+            {
+                "id": key,
+                "kind": "entity",
+                "label": shown.get(r["id"], (r["key"],))[0],
+                "type": r["type"],
+                "ns": set(),
+                "weight": 0,
+                "refs": [],
+            },
+        )
         a["weight"] += counts[r["id"]]
         a["ns"].add(names[r["space"]])
         a["refs"].append(r["id"])
-    for a in sorted(agg.values(), key=lambda x: (-x["weight"], x["label"]))[:max(10, cfg["graph"]["max_nodes"] - len(nodes))]:
+    for a in sorted(agg.values(), key=lambda x: (-x["weight"], x["label"]))[: max(10, cfg["graph"]["max_nodes"] - len(nodes))]:
         a["ns"] = sorted(a["ns"])
         nodes[a["id"]] = a
     w, kind = Counter(), {}
@@ -92,7 +124,7 @@ def build(db, cfg, scope="global", allowed=None):
         for i, e in enumerate(es):
             if who in nodes:
                 edge(who, e, "mentions")
-            for f in es[i + 1:]:
+            for f in es[i + 1 :]:
                 edge(e, f, "mentioned together")
     for ln in db.rows("SELECT record::id(in) AS a, record::id(out) AS b FROM same_as"):
         a, b = f"s{ln['a']}", f"s{ln['b']}"
@@ -105,8 +137,11 @@ def build(db, cfg, scope="global", allowed=None):
             if key not in kind and key[0] in nodes and key[1] in nodes:
                 edge(key[0], key[1], "maybe the same voice")
     always = {"together", "same person", "maybe the same voice"}
-    edges = [{"a": a, "b": b, "w": n, "kind": kind[(a, b)]} for (a, b), n in w.items()
-             if a in nodes and b in nodes and (n >= cfg["graph"]["min_edge_weight"] or kind[(a, b)] in always)]
+    edges = [
+        {"a": a, "b": b, "w": n, "kind": kind[(a, b)]}
+        for (a, b), n in w.items()
+        if a in nodes and b in nodes and (n >= cfg["graph"]["min_edge_weight"] or kind[(a, b)] in always)
+    ]
     linked = {e["a"] for e in edges} | {e["b"] for e in edges}
     out = [v for k, v in nodes.items() if v["kind"] == "speaker" or k in linked]
     layout(out, edges)

@@ -3,14 +3,9 @@ import { z } from "zod";
 /** Mirrors the backend rule (app/domain/auth.py: at least 10 characters). */
 export const PASSWORD_MIN_LENGTH = 10;
 
-const email = z
-  .string()
-  .trim()
-  .email({ message: "Enter a valid email address." });
+const email = z.string().trim().email({ message: "Enter a valid email address." });
 
-const newPassword = z
-  .string()
-  .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters.`);
+const newPassword = z.string().min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters.`);
 
 export const loginSchema = z.object({
   email,
@@ -19,10 +14,7 @@ export const loginSchema = z.object({
 
 /** First-run setup (Access AC1): the one-time code from the server log and the first admin's account. */
 export const setupSchema = z.object({
-  code: z
-    .string()
-    .trim()
-    .min(1, { message: "Enter the setup code from the server log." }),
+  code: z.string().trim().min(1, { message: "Enter the setup code from the server log." }),
   name: z.string().trim().max(80).optional(),
   email,
   password: newPassword,
@@ -43,9 +35,7 @@ export const passwordResetSchema = z.object({ email });
 
 export const passwordResetConfirmSchema = z
   .object({
-    token: z
-      .string()
-      .min(1, { message: "The reset link is missing its token." }),
+    token: z.string().min(1, { message: "The reset link is missing its token." }),
     password: newPassword,
     passwordConfirm: z.string(),
   })

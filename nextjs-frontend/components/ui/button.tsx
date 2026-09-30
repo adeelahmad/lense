@@ -50,7 +50,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <Comp
       ref={ref}
       type={asChild ? undefined : (type ?? "button")}
-      className={cn(buttonVariants({ variant, size }), explained && "cursor-not-allowed opacity-50 active:scale-100", className)}
+      className={cn(
+        buttonVariants({ variant, size }),
+        explained && "cursor-not-allowed opacity-50 active:scale-100",
+        className,
+      )}
       disabled={disabled && !explained ? true : undefined}
       aria-disabled={disabled || undefined}
       onClick={disabled ? (e: React.MouseEvent<HTMLButtonElement>) => e.preventDefault() : onClick}

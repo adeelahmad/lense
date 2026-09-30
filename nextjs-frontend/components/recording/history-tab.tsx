@@ -13,8 +13,20 @@ import { Progress } from "@/components/ui/states";
 import { absolute, shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const DOT: Record<string, string> = { done: "bg-green", current: "bg-blue", failed: "bg-red", skipped: "bg-surface-neutral text-fg-muted", todo: "bg-border" };
-const GLYPH: Record<string, string> = { done: "✓", failed: "✕", skipped: "–", current: "", todo: "" };
+const DOT: Record<string, string> = {
+  done: "bg-green",
+  current: "bg-blue",
+  failed: "bg-red",
+  skipped: "bg-surface-neutral text-fg-muted",
+  todo: "bg-border",
+};
+const GLYPH: Record<string, string> = {
+  done: "✓",
+  failed: "✕",
+  skipped: "–",
+  current: "",
+  todo: "",
+};
 
 /** History tab (R4, R5): each pipeline run with every step's output and time, then the transcript's corrections. */
 export function HistoryTab() {
@@ -25,7 +37,9 @@ export function HistoryTab() {
       {shown.map((j) => (
         <RunCard key={j.id} job={j} />
       ))}
-      {jobs.length > shown.length && <p className="text-[12.5px] text-fg-muted">{jobs.length - shown.length} older runs are in Activity.</p>}
+      {jobs.length > shown.length && (
+        <p className="text-[12.5px] text-fg-muted">{jobs.length - shown.length} older runs are in Activity.</p>
+      )}
       {!jobs.length && <ProcessingRecord rec={rec} />}
       <section className="flex flex-col gap-1.5" aria-label="Transcript corrections">
         <Label as="h3">Transcript corrections</Label>
@@ -47,7 +61,10 @@ function RunCard({ job }: { job: JobInfo }) {
         <div className="flex items-center gap-2">
           <span className="flex-1 text-[13px] font-bold leading-none text-fg">
             Run #{j.id}
-            <span className="font-normal text-fg-secondary"> · {j.steps.length === 1 ? stepLabel(j.steps[0]) : `${j.steps.length} steps`}</span>
+            <span className="font-normal text-fg-secondary">
+              {" "}
+              · {j.steps.length === 1 ? stepLabel(j.steps[0]) : `${j.steps.length} steps`}
+            </span>
           </span>
           <StatusChip status={j.status} />
         </div>
@@ -62,7 +79,13 @@ function RunCard({ job }: { job: JobInfo }) {
           return (
             <li key={i} className="border-t border-border first:border-t-0">
               <div className="grid grid-cols-[18px_1fr_auto] items-center gap-2 px-3.5 py-[9px] text-[13px] font-medium leading-tight">
-                <span aria-hidden className={cn("grid size-4 place-items-center rounded-full text-[9px] font-extrabold text-white", DOT[s.state])}>
+                <span
+                  aria-hidden
+                  className={cn(
+                    "grid size-4 place-items-center rounded-full text-[9px] font-extrabold text-white",
+                    DOT[s.state],
+                  )}
+                >
                   {GLYPH[s.state]}
                 </span>
                 <span className="min-w-0">
@@ -70,17 +93,32 @@ function RunCard({ job }: { job: JobInfo }) {
                   {note && <span className="ml-1 text-[12px] font-normal text-fg-muted">{note}</span>}
                 </span>
                 <span className="tabular text-[12px] font-medium text-fg-secondary">
-                  {s.state === "current" ? (j.status === "queued" ? "waiting" : "running") : n?.seconds != null ? duration(n.seconds) : s.state === "failed" ? "failed" : "—"}
+                  {s.state === "current"
+                    ? j.status === "queued"
+                      ? "waiting"
+                      : "running"
+                    : n?.seconds != null
+                      ? duration(n.seconds)
+                      : s.state === "failed"
+                        ? "failed"
+                        : "—"}
                 </span>
               </div>
-              {s.state === "current" && j.status === "running" && <Progress className="mb-2.5 ml-10 mr-3.5" label={`${s.label} running`} />}
-              {s.state === "failed" && j.error && <p className="-mt-1 mb-2.5 ml-10 mr-3.5 font-mono text-[12px] leading-snug text-red-dark">{j.error}</p>}
+              {s.state === "current" && j.status === "running" && (
+                <Progress className="mb-2.5 ml-10 mr-3.5" label={`${s.label} running`} />
+              )}
+              {s.state === "failed" && j.error && (
+                <p className="-mt-1 mb-2.5 ml-10 mr-3.5 font-mono text-[12px] leading-snug text-red-dark">{j.error}</p>
+              )}
             </li>
           );
         })}
       </ol>
       <div className="flex justify-end border-t border-border px-3.5 py-2">
-        <Link href={`/activity/${j.id}`} className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-fg-accent hover:underline">
+        <Link
+          href={`/activity/${j.id}`}
+          className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-fg-accent hover:underline"
+        >
           Open in Activity <ExternalLink className="size-3" />
         </Link>
       </div>
@@ -100,12 +138,20 @@ function ProcessingRecord({ rec }: { rec: ReturnType<typeof useRec>["rec"] }) {
   const done = rows.filter(([, at]) => at);
   return (
     <section className="overflow-hidden rounded-md border border-border" aria-label="Processing record">
-      <div className="border-b border-border bg-surface px-3.5 py-2.5 text-[13px] font-bold leading-none">Processing record</div>
+      <div className="border-b border-border bg-surface px-3.5 py-2.5 text-[13px] font-bold leading-none">
+        Processing record
+      </div>
       {done.length ? (
         <ol className="m-0 list-none p-0">
           {done.map(([k, at, note]) => (
-            <li key={k} className="grid grid-cols-[18px_1fr_auto] items-center gap-2 border-t border-border px-3.5 py-[9px] text-[13px] font-medium first:border-t-0">
-              <span aria-hidden className="grid size-4 place-items-center rounded-full bg-green text-[9px] font-extrabold text-white">
+            <li
+              key={k}
+              className="grid grid-cols-[18px_1fr_auto] items-center gap-2 border-t border-border px-3.5 py-[9px] text-[13px] font-medium first:border-t-0"
+            >
+              <span
+                aria-hidden
+                className="grid size-4 place-items-center rounded-full bg-green text-[9px] font-extrabold text-white"
+              >
                 ✓
               </span>
               <span>
@@ -121,7 +167,8 @@ function ProcessingRecord({ rec }: { rec: ReturnType<typeof useRec>["rec"] }) {
         <p className="px-3.5 py-3 text-[13px] text-fg-muted">Nothing has run on this recording yet.</p>
       )}
       <p className="border-t border-border px-3.5 py-2.5 text-[12px] leading-snug text-fg-muted">
-        No pipeline runs are on record for this recording. Runs started in the app (imports, Reprocess, corrections) appear here with each step&apos;s output and time.
+        No pipeline runs are on record for this recording. Runs started in the app (imports, Reprocess, corrections)
+        appear here with each step&apos;s output and time.
       </p>
     </section>
   );

@@ -27,7 +27,17 @@ import { Jobs, Pipelines, Recordings } from "@/app/openapi-client";
 import type { Pipeline, TemplateSummary } from "@/app/openapi-client/types.gen";
 import { isActive, parseJobLog, span, stepLabel, stepStates, type JobRecord } from "@/components/activity/job-model";
 import { useTemplateList } from "@/components/pipelines/catalog-header";
-import { DESCRIBE, PROVIDES, cleanSpec, moveStep, sameSteps, specProblems, stepSummary, toSpec, type StepSpec } from "@/components/pipelines/pipeline-model";
+import {
+  DESCRIBE,
+  PROVIDES,
+  cleanSpec,
+  moveStep,
+  sameSteps,
+  specProblems,
+  stepSummary,
+  toSpec,
+  type StepSpec,
+} from "@/components/pipelines/pipeline-model";
 import { StepSettings } from "@/components/pipelines/step-settings";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -56,15 +66,36 @@ const ICON: Record<string, LucideIcon> = {
   export: FileOutput,
 };
 const LIB_ORDER = ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "llm", "report", "export"];
-const TONE_BG: Record<string, string> = { intent: "bg-blue", red: "bg-red", green: "bg-green", gate: "bg-gold", neutral: "bg-fg-muted" };
+const TONE_BG: Record<string, string> = {
+  intent: "bg-blue",
+  red: "bg-red",
+  green: "bg-green",
+  gate: "bg-gold",
+  neutral: "bg-fg-muted",
+};
 
 type TestRun = { job: number; recording: string };
 
 /** "Run on a recording": a real run of the published version (the backend has no dry run yet). */
-function RunDialog({ open, onOpenChange, onRun, pending }: { open: boolean; onOpenChange: (o: boolean) => void; onRun: (rid: number, title: string) => void; pending: boolean }) {
+function RunDialog({
+  open,
+  onOpenChange,
+  onRun,
+  pending,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onRun: (rid: number, title: string) => void;
+  pending: boolean;
+}) {
   const client = useApiClient();
   const { can } = useArchive();
-  const recs = useQuery({ queryKey: ["recordings", "picker"], queryFn: () => data(Recordings.listRecordings({ client, query: { limit: 500 } })), enabled: open, staleTime: 60_000 });
+  const recs = useQuery({
+    queryKey: ["recordings", "picker"],
+    queryFn: () => data(Recordings.listRecordings({ client, query: { limit: 500 } })),
+    enabled: open,
+    staleTime: 60_000,
+  });
   const editable = (recs.data ?? []).filter((r) => can("editor", r.namespace));
   const [rid, setRid] = useState("");
   useEffect(() => {
@@ -94,14 +125,28 @@ function RunDialog({ open, onOpenChange, onRun, pending }: { open: boolean; onOp
         </>
       }
     >
-      <Field label="Recording" hint={recs.isSuccess && !editable.length ? "You need editor access to a recording’s namespace to run on it." : undefined}>
+      <Field
+        label="Recording"
+        hint={
+          recs.isSuccess && !editable.length
+            ? "You need editor access to a recording’s namespace to run on it."
+            : undefined
+        }
+      >
         {({ id, describedBy }) => (
           <Select
             id={id}
             aria-describedby={describedBy}
             value={rid}
             onChange={(e) => setRid(e.target.value)}
-            options={recs.isLoading ? [{ value: "", label: "Loading…" }] : editable.map((r) => ({ value: String(r.id), label: `${r.title ?? `Recording ${r.id}`} · ${r.namespace}` }))}
+            options={
+              recs.isLoading
+                ? [{ value: "", label: "Loading…" }]
+                : editable.map((r) => ({
+                    value: String(r.id),
+                    label: `${r.title ?? `Recording ${r.id}`} · ${r.namespace}`,
+                  }))
+            }
           />
         )}
       </Field>
@@ -118,14 +163,28 @@ export function PipelineEditor({ id }: { id?: number }) {
   const { admin, namespaces, can } = useArchive();
   const creating = id == null;
   const [version, setVersion] = useState<number | null>(null);
-  const catalog = useQuery({ queryKey: ["pipelines"], queryFn: () => data(Pipelines.listPipelines({ client })), staleTime: 30_000 });
+  const catalog = useQuery({
+    queryKey: ["pipelines"],
+    queryFn: () => data(Pipelines.listPipelines({ client })),
+    staleTime: 30_000,
+  });
   const q = useQuery({
     queryKey: ["pipeline", id, version ?? "current"],
-    queryFn: () => data(Pipelines.getPipeline({ client, path: { pid: id! }, query: version ? { version } : undefined })),
+    queryFn: () =>
+      data(
+        Pipelines.getPipeline({
+          client,
+          path: { pid: id! },
+          query: version ? { version } : undefined,
+        }),
+      ),
     enabled: !creating,
   });
   const templates = useTemplateList();
-  const tpl = useMemo(() => new Map(((templates.data ?? []) as TemplateSummary[]).map((t) => [t.id, t])), [templates.data]);
+  const tpl = useMemo(
+    () => new Map(((templates.data ?? []) as TemplateSummary[]).map((t) => [t.id, t])),
+    [templates.data],
+  );
 
   const base: Pipeline | undefined = q.data;
   const [steps, setSteps] = useState<StepSpec[]>([]);
@@ -141,7 +200,8 @@ export function PipelineEditor({ id }: { id?: number }) {
 
   // Load the version being viewed (or the standard steps for a new pipeline).
   useEffect(() => {
-    if (creating && catalog.data && !steps.length) setSteps(["transcribe", "diarize", "analyze", "summarize", "report"].map((t) => ({ type: t })));
+    if (creating && catalog.data && !steps.length)
+      setSteps(["transcribe", "diarize", "analyze", "summarize", "report"].map((t) => ({ type: t })));
   }, [creating, catalog.data]);
   useEffect(() => {
     if (base) {
@@ -156,7 +216,9 @@ export function PipelineEditor({ id }: { id?: number }) {
   const dirty = creating ? true : base ? !sameSteps(base.steps, steps) : false;
   const problems = specProblems(steps, (tid) => tpl.get(tid)?.kind);
   const firstProblem = Object.entries(problems)[0];
-  const used = (catalog.data?.pipelines.find((p) => p.id === id)?.namespaces ?? []).filter((n) => namespaces.some((x) => x.name === n));
+  const used = (catalog.data?.pipelines.find((p) => p.id === id)?.namespaces ?? []).filter((n) =>
+    namespaces.some((x) => x.name === n),
+  );
 
   const job = useQuery({
     queryKey: ["job", test?.job],
@@ -170,8 +232,29 @@ export function PipelineEditor({ id }: { id?: number }) {
   const save = useMutation({
     mutationFn: async (publish: boolean) => {
       const body = steps.map(cleanSpec);
-      if (creating) return { id: (await data(Pipelines.createPipeline({ client, body: { name: name.trim(), description: description.trim() || null, steps: body } }))).id, version: 1 };
-      const r = await data(Pipelines.createPipelineVersion({ client, path: { pid: id! }, body: { steps: body, notes: notes.trim() || null, publish } }));
+      if (creating)
+        return {
+          id: (
+            await data(
+              Pipelines.createPipeline({
+                client,
+                body: {
+                  name: name.trim(),
+                  description: description.trim() || null,
+                  steps: body,
+                },
+              }),
+            )
+          ).id,
+          version: 1,
+        };
+      const r = await data(
+        Pipelines.createPipelineVersion({
+          client,
+          path: { pid: id! },
+          body: { steps: body, notes: notes.trim() || null, publish },
+        }),
+      );
       return { id: id!, version: r.version };
     },
     onSuccess: (r, publish) => {
@@ -184,13 +267,24 @@ export function PipelineEditor({ id }: { id?: number }) {
         return;
       }
       setVersion(publish ? null : r.version);
-      toast({ tone: "green", title: publish ? `Published v${r.version}` : `Saved draft v${r.version}`, body: publish ? "New runs use it; runs in progress keep their version." : "Publish it when it’s ready." });
+      toast({
+        tone: "green",
+        title: publish ? `Published v${r.version}` : `Saved draft v${r.version}`,
+        body: publish ? "New runs use it; runs in progress keep their version." : "Publish it when it’s ready.",
+      });
     },
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t save", body: e.message }),
   });
 
   const run = useMutation({
-    mutationFn: ({ rid }: { rid: number; title: string }) => data(Pipelines.runPipeline({ client, path: { pid: id! }, body: { recording: rid } })),
+    mutationFn: ({ rid }: { rid: number; title: string }) =>
+      data(
+        Pipelines.runPipeline({
+          client,
+          path: { pid: id! },
+          body: { recording: rid },
+        }),
+      ),
     onSuccess: (r, v) => {
       setRunOpen(false);
       setTest({ job: r.job, recording: v.title });
@@ -263,7 +357,13 @@ export function PipelineEditor({ id }: { id?: number }) {
 
   const cur = steps[sel];
   const why = readOnly ? "Only admins can change pipelines" : undefined;
-  const publishReason = why ?? (firstProblem ? `Fix this first: ${firstProblem[1]}` : !creating && !dirty && version == null ? "Nothing changed since the published version" : undefined);
+  const publishReason =
+    why ??
+    (firstProblem
+      ? `Fix this first: ${firstProblem[1]}`
+      : !creating && !dirty && version == null
+        ? "Nothing changed since the published version"
+        : undefined);
   const nextV = latest + 1;
 
   return (
@@ -276,7 +376,14 @@ export function PipelineEditor({ id }: { id?: number }) {
           › {creating ? "New pipeline" : base?.name}
         </nav>
         {creating ? (
-          <Input aria-label="Pipeline name" placeholder="Name, e.g. Podcast standard" value={name} onChange={(e) => setName(e.target.value)} className="h-9 w-[280px] text-[16px] font-bold" autoFocus />
+          <Input
+            aria-label="Pipeline name"
+            placeholder="Name, e.g. Podcast standard"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="h-9 w-[280px] text-[16px] font-bold"
+            autoFocus
+          />
         ) : (
           <h1 className="text-[18px] font-bold text-fg">{base?.name}</h1>
         )}
@@ -284,10 +391,16 @@ export function PipelineEditor({ id }: { id?: number }) {
           <span
             className={cn(
               "h-[22px] rounded-pill border px-2 text-[11px] font-bold uppercase leading-5",
-              dirty || (version != null && version !== base?.current) ? "border-blue-border bg-blue-surface text-fg-accent" : "border-green-border bg-green-surface text-green-dark",
+              dirty || (version != null && version !== base?.current)
+                ? "border-blue-border bg-blue-surface text-fg-accent"
+                : "border-green-border bg-green-surface text-green-dark",
             )}
           >
-            {dirty ? `Draft v${nextV}` : version != null && version !== base?.current ? `v${version} · not published` : `v${base?.current} · published`}
+            {dirty
+              ? `Draft v${nextV}`
+              : version != null && version !== base?.current
+                ? `v${version} · not published`
+                : `v${base?.current} · published`}
           </span>
         )}
         {!creating && (
@@ -307,7 +420,11 @@ export function PipelineEditor({ id }: { id?: number }) {
             <MenuContent align="end" className="w-[300px]">
               <MenuLabel>Open a version</MenuLabel>
               {(base?.history ?? []).map((h) => (
-                <MenuItem key={h.version} onSelect={() => setVersion(h.version === base?.current && version == null ? null : h.version)} shortcut={relative(h.created_at)}>
+                <MenuItem
+                  key={h.version}
+                  onSelect={() => setVersion(h.version === base?.current && version == null ? null : h.version)}
+                  shortcut={relative(h.created_at)}
+                >
                   v{h.version}
                   {h.version === base?.current ? " · published" : ""}
                   {h.notes ? ` · ${h.notes}` : ""}
@@ -322,14 +439,24 @@ export function PipelineEditor({ id }: { id?: number }) {
             variant="secondary"
             icon={<FlaskConical />}
             disabled={!can("editor") || dirty || (version != null && version !== base?.current)}
-            disabledReason={!can("editor") ? "Needs editor access to a recording’s namespace" : "Runs use the published version: publish this one first"}
+            disabledReason={
+              !can("editor")
+                ? "Needs editor access to a recording’s namespace"
+                : "Runs use the published version: publish this one first"
+            }
             onClick={() => setRunOpen(true)}
           >
             Run on a recording
           </Button>
         )}
         {!creating && (
-          <Button size="sm" variant="secondary" disabled={Boolean(why) || !dirty || Boolean(firstProblem) || save.isPending} disabledReason={why ?? (firstProblem ? firstProblem[1] : "Nothing to save")} onClick={() => save.mutate(false)}>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={Boolean(why) || !dirty || Boolean(firstProblem) || save.isPending}
+            disabledReason={why ?? (firstProblem ? firstProblem[1] : "Nothing to save")}
+            onClick={() => save.mutate(false)}
+          >
             Save draft
           </Button>
         )}
@@ -345,12 +472,19 @@ export function PipelineEditor({ id }: { id?: number }) {
       </header>
 
       <div className="grid flex-1 lg:grid-cols-[220px_minmax(0,1fr)_380px]">
-        <aside aria-label="Step library" className="flex flex-col gap-1.5 border-b border-border bg-surface p-3.5 lg:border-b-0 lg:border-r">
+        <aside
+          aria-label="Step library"
+          className="flex flex-col gap-1.5 border-b border-border bg-surface p-3.5 lg:border-b-0 lg:border-r"
+        >
           <span className="label-caps pb-1.5">Step library</span>
           {LIB_ORDER.filter((t) => (catalog.data?.step_types ?? LIB_ORDER).includes(t)).map((t) => {
             const Icon = ICON[t] ?? Workflow;
             return (
-              <Tooltip key={t} content={readOnly ? why : `${DESCRIBE[t]}. Adds it after the selected step.`} side="right">
+              <Tooltip
+                key={t}
+                content={readOnly ? why : `${DESCRIBE[t]}. Adds it after the selected step.`}
+                side="right"
+              >
                 <button
                   type="button"
                   onClick={() => !readOnly && add(t)}
@@ -367,7 +501,11 @@ export function PipelineEditor({ id }: { id?: number }) {
             );
           })}
           <Tooltip content="Not available yet: the backend has no webhook or notify step" side="right">
-            <button type="button" aria-disabled className="flex h-[34px] cursor-not-allowed items-center gap-2 rounded-sm border border-border bg-background px-2.5 text-[13px] font-medium text-fg opacity-50">
+            <button
+              type="button"
+              aria-disabled
+              className="flex h-[34px] cursor-not-allowed items-center gap-2 rounded-sm border border-border bg-background px-2.5 text-[13px] font-medium text-fg opacity-50"
+            >
               <Webhook aria-hidden className="size-[15px] text-fg-secondary" /> Webhook / Notify
             </button>
           </Tooltip>
@@ -384,7 +522,16 @@ export function PipelineEditor({ id }: { id?: number }) {
         <div className="flex min-w-0 flex-col px-4 py-4 md:px-5">
           {creating && (
             <Field label="Description" optional className="mb-4">
-              {({ id: fid }) => <Textarea id={fid} rows={2} className="min-h-[56px]" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What it’s for" />}
+              {({ id: fid }) => (
+                <Textarea
+                  id={fid}
+                  rows={2}
+                  className="min-h-[56px]"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="What it’s for"
+                />
+              )}
             </Field>
           )}
           {moveMsg && (
@@ -393,14 +540,28 @@ export function PipelineEditor({ id }: { id?: number }) {
             </Banner>
           )}
           {test && (
-            <div role="status" className="mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-blue-border bg-blue-surface px-3 py-2 text-[12.5px] text-fg-strong">
+            <div
+              role="status"
+              className="mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-blue-border bg-blue-surface px-3 py-2 text-[12.5px] text-fg-strong"
+            >
               <span className="flex-1">
-                Run #{test.job} on <b>{test.recording}</b>: {job.data ? (job.data.status === "succeeded" ? "succeeded" : job.data.status === "failed" ? "failed" : `${job.data.status}…`) : "starting…"}
+                Run #{test.job} on <b>{test.recording}</b>:{" "}
+                {job.data
+                  ? job.data.status === "succeeded"
+                    ? "succeeded"
+                    : job.data.status === "failed"
+                      ? "failed"
+                      : `${job.data.status}…`
+                  : "starting…"}
               </span>
               <Link href={`/activity/${test.job}`} className="font-semibold text-fg-accent hover:underline">
                 Open in Activity
               </Link>
-              <button type="button" onClick={() => setTest(null)} className="font-semibold text-fg-secondary hover:underline">
+              <button
+                type="button"
+                onClick={() => setTest(null)}
+                className="font-semibold text-fg-secondary hover:underline"
+              >
                 Hide
               </button>
             </div>
@@ -443,17 +604,30 @@ export function PipelineEditor({ id }: { id?: number }) {
                     }}
                     className={cn(
                       "grid cursor-pointer grid-cols-[18px_28px_minmax(0,1fr)_auto] items-start gap-2.5 rounded-md p-3 outline-none transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-blue",
-                      on ? "border-2 border-blue bg-blue-surface" : "border border-border bg-background hover:bg-surface",
+                      on
+                        ? "border-2 border-blue bg-blue-surface"
+                        : "border border-border bg-background hover:bg-surface",
                       problem && !on && "border-red-border",
                       drag === i && "opacity-50",
                     )}
                   >
-                    <GripVertical aria-hidden className={cn("mt-1.5 size-4 text-fg-muted", !readOnly && "cursor-grab")} />
+                    <GripVertical
+                      aria-hidden
+                      className={cn("mt-1.5 size-4 text-fg-muted", !readOnly && "cursor-grab")}
+                    />
                     <span
                       aria-hidden
                       className={cn(
                         "grid size-7 place-items-center rounded-full text-[12px] font-extrabold text-white",
-                        st === "done" ? "bg-green" : st === "failed" ? "bg-red" : st === "running" ? "bg-blue animate-pulse" : st === "skipped" ? "bg-border text-fg-secondary" : TONE_BG[tone],
+                        st === "done"
+                          ? "bg-green"
+                          : st === "failed"
+                            ? "bg-red"
+                            : st === "running"
+                              ? "bg-blue animate-pulse"
+                              : st === "skipped"
+                                ? "bg-border text-fg-secondary"
+                                : TONE_BG[tone],
                         tone === "gate" && !st && "text-fg",
                       )}
                     >
@@ -462,16 +636,26 @@ export function PipelineEditor({ id }: { id?: number }) {
                     <div className="flex min-w-0 flex-col gap-[5px]">
                       <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
                         <b className="text-[14px] font-bold text-fg">{stepLabel(s.type, s.name)}</b>
-                        <span className="truncate text-[12px] text-fg-muted">{stepSummary(s, (tid) => tpl.get(tid)?.name) || DESCRIBE[s.type]}</span>
+                        <span className="truncate text-[12px] text-fg-muted">
+                          {stepSummary(s, (tid) => tpl.get(tid)?.name) || DESCRIBE[s.type]}
+                        </span>
                       </div>
                       {tl?.note && <span className="truncate text-[12.5px] text-fg-secondary">{tl.note}</span>}
                       {problem && <span className="text-[12.5px] text-red-dark">{problem}</span>}
-                      <span className="font-mono text-[11.5px] text-fg-accent">{s.type === "llm" ? `outputs.${s.key || "<key>"}` : PROVIDES[s.type]}</span>
+                      <span className="font-mono text-[11.5px] text-fg-accent">
+                        {s.type === "llm" ? `outputs.${s.key || "<key>"}` : PROVIDES[s.type]}
+                      </span>
                     </div>
                     <span className="flex items-center gap-2">
                       {st && (
                         <span className="tabular text-[12px] font-medium text-fg-secondary">
-                          {st === "done" && tl?.seconds != null ? `✓ ${span(tl.seconds * 1000)}` : st === "running" ? "running…" : st === "waiting" ? "—" : st}
+                          {st === "done" && tl?.seconds != null
+                            ? `✓ ${span(tl.seconds * 1000)}`
+                            : st === "running"
+                              ? "running…"
+                              : st === "waiting"
+                                ? "—"
+                                : st}
                         </span>
                       )}
                       {!readOnly && (
@@ -494,16 +678,28 @@ export function PipelineEditor({ id }: { id?: number }) {
               );
             })}
           </ol>
-          {!steps.length && <p className="rounded-md border border-dashed border-border px-4 py-6 text-center text-[13.5px] text-fg-secondary">Add steps from the library on the left.</p>}
+          {!steps.length && (
+            <p className="rounded-md border border-dashed border-border px-4 py-6 text-center text-[13.5px] text-fg-secondary">
+              Add steps from the library on the left.
+            </p>
+          )}
           {problems[-1] && steps.length === 0 && <p className="mt-2 text-[12.5px] text-red-dark">{problems[-1]}</p>}
           {!creating && !readOnly && dirty && (
             <Field label="Notes for this version" optional className="mt-4">
-              {({ id: fid }) => <Input id={fid} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What changed, e.g. summary only for calls over 5 min" />}
+              {({ id: fid }) => (
+                <Input
+                  id={fid}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="What changed, e.g. summary only for calls over 5 min"
+                />
+              )}
             </Field>
           )}
           <p className="mt-4 text-[12px] leading-normal text-fg-muted">
-            Drag steps by the grip, or focus one and press ⌥↑/⌥↓. A step can’t move above a step whose output it needs; it snaps back and says which one.
-            Publishing makes the new version the default for new runs; runs in progress keep theirs.
+            Drag steps by the grip, or focus one and press ⌥↑/⌥↓. A step can’t move above a step whose output it needs;
+            it snaps back and says which one. Publishing makes the new version the default for new runs; runs in
+            progress keep theirs.
           </p>
         </div>
 
@@ -522,7 +718,14 @@ export function PipelineEditor({ id }: { id?: number }) {
         </aside>
       </div>
 
-      {!creating && <RunDialog open={runOpen} onOpenChange={setRunOpen} pending={run.isPending} onRun={(rid, title) => run.mutate({ rid, title })} />}
+      {!creating && (
+        <RunDialog
+          open={runOpen}
+          onOpenChange={setRunOpen}
+          pending={run.isPending}
+          onRun={(rid, title) => run.mutate({ rid, title })}
+        />
+      )}
     </div>
   );
 }

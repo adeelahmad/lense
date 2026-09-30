@@ -24,7 +24,12 @@ export function useJobList(opts: { status?: string; limit?: number } = {}) {
     queryFn: () => data(Jobs.listJobs({ client, query: key })),
     refetchInterval: (query) => (feed === "live" ? 60_000 : query.state.data?.running ? 3000 : 20_000),
   });
-  return { ...q, feed, jobs: (q.data?.jobs ?? []) as JobRecord[], counts: q.data?.counts ?? {} };
+  return {
+    ...q,
+    feed,
+    jobs: (q.data?.jobs ?? []) as JobRecord[],
+    counts: q.data?.counts ?? {},
+  };
 }
 
 /** Workers (admins only): name, steps, host, heartbeat, current job. */
@@ -49,15 +54,23 @@ export function useWorkerSettings() {
     enabled: admin,
     staleTime: 5 * 60_000,
   });
-  const values = ((q.data as Record<string, { values?: Record<string, unknown> }> | undefined)?.workers?.values ?? {}) as {
+  const values = ((q.data as Record<string, { values?: Record<string, unknown> }> | undefined)?.workers?.values ??
+    {}) as {
     stale_minutes?: number;
     max_attempts?: number;
   };
-  return { staleMinutes: values.stale_minutes ?? 15, maxAttempts: values.max_attempts ?? 3, loaded: q.isSuccess };
+  return {
+    staleMinutes: values.stale_minutes ?? 15,
+    maxAttempts: values.max_attempts ?? 3,
+    loaded: q.isSuccess,
+  };
 }
 
 /** Each worker's state (busy / idle / silent), knowing which jobs are really running. */
-export function useWorkerStates(workers: { name: string; heartbeat_at?: string | null; current?: unknown }[] | undefined, jobs: JobRecord[]) {
+export function useWorkerStates(
+  workers: { name: string; heartbeat_at?: string | null; current?: unknown }[] | undefined,
+  jobs: JobRecord[],
+) {
   return useMemo(() => {
     const running = new Set(jobs.filter((j) => j.status === "running").map((j) => j.id));
     const now = Date.now();
@@ -97,7 +110,10 @@ export function useJobActions() {
   const cancel = useMutation({
     mutationFn: (job: JobRecord) => data(Jobs.cancelJob({ client, path: { jid: job.id } })),
     onSuccess: (_d, job) => {
-      toast({ title: job.status === "running" ? "Stopping after this step" : "Cancelled", body: job.title ?? undefined });
+      toast({
+        title: job.status === "running" ? "Stopping after this step" : "Cancelled",
+        body: job.title ?? undefined,
+      });
       refresh(job.id);
     },
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t cancel", body: e.message }),
@@ -106,7 +122,10 @@ export function useJobActions() {
     mutationFn: (job: JobRecord) => data(Jobs.retryJob({ client, path: { jid: job.id } })),
     onSuccess: (_d, job) => {
       const step = stepSpecs(job.steps)[Math.min(job.step_index ?? 0, Math.max(0, (job.steps?.length ?? 1) - 1))];
-      toast({ title: `Retrying${step ? ` from ${step.label}` : ""}`, body: job.title ?? undefined });
+      toast({
+        title: `Retrying${step ? ` from ${step.label}` : ""}`,
+        body: job.title ?? undefined,
+      });
       refresh(job.id);
     },
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t retry", body: e.message }),

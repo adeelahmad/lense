@@ -1,8 +1,5 @@
 import { Auth } from "@/app/openapi-client";
-import {
-  passwordReset,
-  passwordResetConfirm,
-} from "@/components/actions/password-reset-action";
+import { passwordReset, passwordResetConfirm } from "@/components/actions/password-reset-action";
 import { redirect } from "next/navigation";
 
 jest.mock("next/navigation", () => ({ redirect: jest.fn() }));
@@ -50,9 +47,7 @@ describe("passwordReset action", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
     (Auth.forgotPassword as jest.Mock).mockRejectedValue(new Error("offline"));
 
-    expect(await passwordReset(undefined, form({ email: "a@a.com" }))).toEqual(
-      UNEXPECTED,
-    );
+    expect(await passwordReset(undefined, form({ email: "a@a.com" }))).toEqual(UNEXPECTED);
   });
 });
 
@@ -91,9 +86,7 @@ describe("passwordResetConfirm action", () => {
   it("formats FastAPI validation errors", async () => {
     (Auth.resetPassword as jest.Mock).mockResolvedValue({
       error: {
-        detail: [
-          { loc: ["body", "password"], msg: "too weak", type: "value_error" },
-        ],
+        detail: [{ loc: ["body", "password"], msg: "too weak", type: "value_error" }],
       },
     });
 
@@ -121,8 +114,6 @@ describe("passwordResetConfirm action", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
     (Auth.resetPassword as jest.Mock).mockRejectedValue(new Error("offline"));
 
-    expect(await passwordResetConfirm(undefined, form(valid))).toEqual(
-      UNEXPECTED,
-    );
+    expect(await passwordResetConfirm(undefined, form(valid))).toEqual(UNEXPECTED);
   });
 });

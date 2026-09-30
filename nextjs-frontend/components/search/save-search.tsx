@@ -40,18 +40,29 @@ export function SaveSearchDialog({
           client,
           body: {
             name: name.trim() || q,
-            filter: { q, ...(filters.namespace ? { namespaces: [filters.namespace] } : {}), ...(filters.speaker != null ? { speakers: [filters.speaker] } : {}) },
+            filter: {
+              q,
+              ...(filters.namespace ? { namespaces: [filters.namespace] } : {}),
+              ...(filters.speaker != null ? { speakers: [filters.speaker] } : {}),
+            },
           },
         }),
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["collections"] });
-      toast({ title: "Search saved", body: "It’s in Saved searches and in your collections.", tone: "green" });
+      toast({
+        title: "Search saved",
+        body: "It’s in Saved searches and in your collections.",
+        tone: "green",
+      });
       onOpenChange(false);
       setName("");
     },
   });
-  const dropped = [filters.emotion ? `emotion: ${filters.emotion}` : null, filters.recording != null ? `recording: ${labels.recording ?? filters.recording}` : null].filter(Boolean);
+  const dropped = [
+    filters.emotion ? `emotion: ${filters.emotion}` : null,
+    filters.recording != null ? `recording: ${labels.recording ?? filters.recording}` : null,
+  ].filter(Boolean);
   return (
     <Dialog
       open={open}
@@ -69,7 +80,9 @@ export function SaveSearchDialog({
         </>
       }
     >
-      <Field label="Name">{({ id }) => <Input id={id} value={name} placeholder={q} onChange={(e) => setName(e.target.value)} autoFocus />}</Field>
+      <Field label="Name">
+        {({ id }) => <Input id={id} value={name} placeholder={q} onChange={(e) => setName(e.target.value)} autoFocus />}
+      </Field>
       <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-sm bg-surface px-3.5 py-3 text-[13px]">
         <dt className="text-fg-secondary">Words</dt>
         <dd className="m-0 font-mono text-fg">{q}</dd>
@@ -86,7 +99,9 @@ export function SaveSearchDialog({
           </>
         )}
       </dl>
-      {dropped.length > 0 && <Banner tone="warning">Collections can’t keep {dropped.join(" or ")}; those filters aren’t saved.</Banner>}
+      {dropped.length > 0 && (
+        <Banner tone="warning">Collections can’t keep {dropped.join(" or ")}; those filters aren’t saved.</Banner>
+      )}
       {save.isError && <Banner tone="error">{save.error.message}</Banner>}
     </Dialog>
   );

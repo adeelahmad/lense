@@ -1,10 +1,5 @@
 import { Auth } from "@/app/openapi-client";
-import {
-  needsRefresh,
-  refreshTokens,
-  sessionUser,
-  tokensFromPair,
-} from "@/lib/auth/tokens";
+import { needsRefresh, refreshTokens, sessionUser, tokensFromPair } from "@/lib/auth/tokens";
 
 jest.mock("@/app/openapi-client", () => ({
   Auth: { refresh: jest.fn(), logout: jest.fn() },
@@ -45,10 +40,7 @@ describe("session tokens", () => {
       response: { status: 200 },
     });
 
-    const [a, b] = await Promise.all([
-      refreshTokens("shared"),
-      refreshTokens("shared"),
-    ]);
+    const [a, b] = await Promise.all([refreshTokens("shared"), refreshTokens("shared")]);
     const later = await refreshTokens("shared");
 
     expect(a).toBe(pair);

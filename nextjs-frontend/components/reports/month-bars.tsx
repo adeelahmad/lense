@@ -8,11 +8,29 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { count } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-type Series = { key: "recordings" | "ms"; title: string; height: number; format: (v: number) => string; unit: (v: number) => string };
+type Series = {
+  key: "recordings" | "ms";
+  title: string;
+  height: number;
+  format: (v: number) => string;
+  unit: (v: number) => string;
+};
 
 const SERIES: Series[] = [
-  { key: "recordings", title: "Recordings", height: 84, format: (v) => count(v), unit: (v) => `${count(v)} ${v === 1 ? "recording" : "recordings"}` },
-  { key: "ms", title: "Hours of audio", height: 60, format: (v) => (v ? talkTime(v) : "0"), unit: (v) => (v ? talkTime(v) : "none") },
+  {
+    key: "recordings",
+    title: "Recordings",
+    height: 84,
+    format: (v) => count(v),
+    unit: (v) => `${count(v)} ${v === 1 ? "recording" : "recordings"}`,
+  },
+  {
+    key: "ms",
+    title: "Hours of audio",
+    height: 60,
+    format: (v) => (v ? talkTime(v) : "0"),
+    unit: (v) => (v ? talkTime(v) : "none"),
+  },
 ];
 
 /**
@@ -28,7 +46,12 @@ export function MonthBars({ months }: { months: MonthBucket[] }) {
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <h3 className="flex-1 text-[13px] font-bold leading-none text-fg">Recordings and hours per month</h3>
-        <button type="button" onClick={() => setTable((t) => !t)} aria-pressed={table} className="text-[12px] font-semibold text-fg-accent hover:underline print:hidden">
+        <button
+          type="button"
+          onClick={() => setTable((t) => !t)}
+          aria-pressed={table}
+          className="text-[12px] font-semibold text-fg-accent hover:underline print:hidden"
+        >
           {table ? "Show chart" : "Show table"}
         </button>
       </div>
@@ -74,7 +97,11 @@ export function MonthBars({ months }: { months: MonthBucket[] }) {
                     const h = max ? Math.max(v ? 2 : 0, Math.round((v / max) * (s.height - 16))) : 0;
                     return (
                       <div key={m.key} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end">
-                        {i === top && max > 0 && <span className="tabular mb-0.5 text-[11px] font-semibold leading-none text-fg-secondary">{s.format(v)}</span>}
+                        {i === top && max > 0 && (
+                          <span className="tabular mb-0.5 text-[11px] font-semibold leading-none text-fg-secondary">
+                            {s.format(v)}
+                          </span>
+                        )}
                         <Tooltip
                           content={
                             <span>
@@ -87,10 +114,16 @@ export function MonthBars({ months }: { months: MonthBucket[] }) {
                             role="img"
                             aria-label={`${name(m)}: ${s.unit(v)}`}
                             className="group/bar flex w-full max-w-[40px] cursor-default justify-center outline-offset-2"
-                            style={{ height: Math.max(h, 8), alignItems: "flex-end" }}
+                            style={{
+                              height: Math.max(h, 8),
+                              alignItems: "flex-end",
+                            }}
                           >
                             <span
-                              className={cn("block w-full max-w-[24px] rounded-t-[4px] bg-blue transition-opacity group-hover/bar:opacity-80", !v && "bg-transparent")}
+                              className={cn(
+                                "block w-full max-w-[24px] rounded-t-[4px] bg-blue transition-opacity group-hover/bar:opacity-80",
+                                !v && "bg-transparent",
+                              )}
                               style={{ height: h }}
                             />
                           </span>
@@ -122,10 +155,16 @@ export function SpeakerBars({ rows }: { rows: { name: string; ms: number }[] }) 
   return (
     <ul className="flex flex-col gap-2" aria-label="Top speakers by talk time">
       {rows.map((r) => (
-        <li key={r.name} className="grid grid-cols-[minmax(0,120px)_minmax(0,1fr)_56px] items-center gap-2.5 text-[13px] font-medium leading-none">
+        <li
+          key={r.name}
+          className="grid grid-cols-[minmax(0,120px)_minmax(0,1fr)_56px] items-center gap-2.5 text-[13px] font-medium leading-none"
+        >
           <span className="truncate text-fg">{r.name}</span>
           <span className="h-2 overflow-hidden rounded-pill bg-surface-neutral">
-            <span className="block h-full rounded-pill bg-blue" style={{ width: `${Math.max(2, (r.ms / max) * 100)}%` }} />
+            <span
+              className="block h-full rounded-pill bg-blue"
+              style={{ width: `${Math.max(2, (r.ms / max) * 100)}%` }}
+            />
           </span>
           <span className="tabular text-right text-fg-secondary">{talkTime(r.ms)}</span>
         </li>

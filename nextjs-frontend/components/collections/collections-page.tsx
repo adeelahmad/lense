@@ -18,7 +18,11 @@ import { useArchive } from "@/lib/hooks/session";
 
 export function useCollections() {
   const client = useApiClient();
-  return useQuery({ queryKey: ["collections"], queryFn: () => data(Collections.listCollections({ client })), staleTime: 30_000 });
+  return useQuery({
+    queryKey: ["collections"],
+    queryFn: () => data(Collections.listCollections({ client })),
+    staleTime: 30_000,
+  });
 }
 
 /** CR1: saved collections — yours and the ones shared with you — with New and a way into collection reports. */
@@ -35,7 +39,13 @@ export function CollectionsPage() {
         meta="Saved sets of recordings"
         actions={
           <>
-            <Button asChild={can("editor")} variant="secondary" icon={can("editor") ? undefined : <FileText />} disabled={!can("editor")} disabledReason="Collection reports need editor access to a namespace">
+            <Button
+              asChild={can("editor")}
+              variant="secondary"
+              icon={can("editor") ? undefined : <FileText />}
+              disabled={!can("editor")}
+              disabledReason="Collection reports need editor access to a namespace"
+            >
               {can("editor") ? (
                 <Link href="/collections/report">
                   <FileText /> New collection report
@@ -73,7 +83,8 @@ export function CollectionsPage() {
             </Button>
           }
         >
-          A collection is a saved filter (it keeps up to date) or a fixed list of recordings. Saving a search also makes one.
+          A collection is a saved filter (it keeps up to date) or a fixed list of recordings. Saving a search also makes
+          one.
         </EmptyState>
       )}
       {list.data && list.data.length > 0 && (
@@ -86,7 +97,10 @@ export function CollectionsPage() {
               const Icon = c.kind === "fixed" ? FolderHeart : FolderSearch;
               return (
                 <li key={c.id} className="border-t border-border first:border-t-0">
-                  <Link href={`/collections/${c.id}`} className="flex items-center gap-3 rounded-sm px-1 py-3 hover:bg-surface">
+                  <Link
+                    href={`/collections/${c.id}`}
+                    className="flex items-center gap-3 rounded-sm px-1 py-3 hover:bg-surface"
+                  >
                     <Icon aria-hidden className="size-[18px] shrink-0 text-fg-secondary" />
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="truncate text-[13.5px] font-semibold text-fg">{c.name}</span>
@@ -98,10 +112,16 @@ export function CollectionsPage() {
               );
             })}
           </ul>
-          <p className="m-0 border-t border-border pt-3 text-[12px] leading-snug text-fg-muted">Use a collection as a chat scope, for batch runs and for collection reports.</p>
+          <p className="m-0 border-t border-border pt-3 text-[12px] leading-snug text-fg-muted">
+            Use a collection as a chat scope, for batch runs and for collection reports.
+          </p>
         </section>
       )}
-      <CollectionDialog open={creating} onOpenChange={setCreating} onSaved={(id) => router.push(`/collections/${id}`)} />
+      <CollectionDialog
+        open={creating}
+        onOpenChange={setCreating}
+        onSaved={(id) => router.push(`/collections/${id}`)}
+      />
     </div>
   );
 }

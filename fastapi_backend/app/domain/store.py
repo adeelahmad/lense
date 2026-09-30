@@ -4,6 +4,7 @@ The archive runs against SurrealDB in one of two ways, chosen by database.url (o
   surrealkv://path or mem://   embedded in this process, no server needed (one process at a time)
   ws://host:8000               a SurrealDB server, shared by the web app, batch jobs and other machines
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -18,21 +19,74 @@ import re
 import threading
 import time
 
-EMOTIONS = ["Neutral", "Happy", "Joy", "Amusement", "Relief", "Surprise", "Anxiety",
-            "Guilt", "Sad", "Angry", "Fear", "Disgust", "Shame", "Love"]
-PALETTE = {"Neutral": "#6c757d", "Happy": "#ffc107", "Sad": "#007bff", "Angry": "#dc3545",
-           "Fear": "#6f42c1", "Disgust": "#e83e8c", "Surprise": "#17a2b8", "Amusement": "#fd7e14",
-           "Joy": "#28a745", "Love": "#d63384", "Relief": "#20c997", "Anxiety": "#842029",
-           "Guilt": "#495057", "Shame": "#343a40"}
-EMOJI = {"Neutral": "😐", "Happy": "😄", "Joy": "🤩", "Amusement": "😆", "Relief": "😌",
-         "Anxiety": "😰", "Guilt": "😔", "Surprise": "😲", "Sad": "😢", "Angry": "😠",
-         "Fear": "😨", "Disgust": "🤢", "Shame": "😳", "Love": "🥰"}
-SV_EMOTION = {"HAPPY": "Happy", "SAD": "Sad", "ANGRY": "Angry", "NEUTRAL": "Neutral",
-              "FEARFUL": "Fear", "DISGUSTED": "Disgust", "SURPRISED": "Surprise"}
+EMOTIONS = [
+    "Neutral",
+    "Happy",
+    "Joy",
+    "Amusement",
+    "Relief",
+    "Surprise",
+    "Anxiety",
+    "Guilt",
+    "Sad",
+    "Angry",
+    "Fear",
+    "Disgust",
+    "Shame",
+    "Love",
+]
+PALETTE = {
+    "Neutral": "#6c757d",
+    "Happy": "#ffc107",
+    "Sad": "#007bff",
+    "Angry": "#dc3545",
+    "Fear": "#6f42c1",
+    "Disgust": "#e83e8c",
+    "Surprise": "#17a2b8",
+    "Amusement": "#fd7e14",
+    "Joy": "#28a745",
+    "Love": "#d63384",
+    "Relief": "#20c997",
+    "Anxiety": "#842029",
+    "Guilt": "#495057",
+    "Shame": "#343a40",
+}
+EMOJI = {
+    "Neutral": "😐",
+    "Happy": "😄",
+    "Joy": "🤩",
+    "Amusement": "😆",
+    "Relief": "😌",
+    "Anxiety": "😰",
+    "Guilt": "😔",
+    "Surprise": "😲",
+    "Sad": "😢",
+    "Angry": "😠",
+    "Fear": "😨",
+    "Disgust": "🤢",
+    "Shame": "😳",
+    "Love": "🥰",
+}
+SV_EMOTION = {
+    "HAPPY": "Happy",
+    "SAD": "Sad",
+    "ANGRY": "Angry",
+    "NEUTRAL": "Neutral",
+    "FEARFUL": "Fear",
+    "DISGUSTED": "Disgust",
+    "SURPRISED": "Surprise",
+}
 SV_EVENTS = {"Speech", "BGM", "Applause", "Laughter", "Cry", "Sneeze", "Breath", "Cough"}
 EVENT_EMOJI = {"Laughter": "😂", "Applause": "👏", "BGM": "🎵", "Cry": "😭", "Cough": "🤧", "Sneeze": "🤧"}
-ALIASES = {"Fearful": "Fear", "Surprised": "Surprise", "Disgusted": "Disgust", "Sadness": "Sad",
-           "Anger": "Angry", "Happiness": "Happy", "N": "Neutral"}
+ALIASES = {
+    "Fearful": "Fear",
+    "Surprised": "Surprise",
+    "Disgusted": "Disgust",
+    "Sadness": "Sad",
+    "Anger": "Angry",
+    "Happiness": "Happy",
+    "N": "Neutral",
+}
 SPEAKER_COLORS = ["#2F6690", "#C2571A", "#5B7F2B", "#7A4E9A", "#A23B5B", "#2E8A82", "#8C6D1F", "#4F5D75"]
 API = "/api/v1"  # where the HTTP API lives; media links built here are signed by the API layer before they leave
 SEG = 1_000_000  # segment id = recording id * SEG + index, so ids are stable and need no lookups
@@ -60,38 +114,97 @@ DEFAULTS = {
     "data_dir": "./archive-data",
     "database": {"url": None, "namespace": "archive", "database": "main", "user": "root", "password": "root"},
     "namespaces": {},
-    "audio": {"extensions": [".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".mp4", ".webm", ".amr", ".mov", ".mkv", ".m4v", ".avi"],
-              "path_map": {}},
-    "transcribe": {"engine": "sensevoice", "device": "auto", "language": "auto",
-                   "sensevoice": {"model": "iic/SenseVoiceSmall", "hub": "ms", "vad_max_segment_ms": 30000, "batch_size": 16},
-                   "whisper": {"model": "large-v3-turbo", "compute_type": "default"},
-                   "mlx_whisper": {"model": "mlx-community/whisper-large-v3-turbo"}},
-    "diarize": {"engine": "auto", "cluster_threshold": 0.55, "min_speakers": None, "max_speakers": None,
-                "pyannote": {"model": "pyannote/speaker-diarization-3.1", "token_env": "HF_TOKEN"}},
-    "speakers": {"embedder": "speechbrain", "model": "speechbrain/spkrec-ecapa-voxceleb", "match_threshold": 0.5,
-                 "review_threshold": 0.35, "sample_seconds": 60, "cross_namespace": "suggest"},
+    "audio": {
+        "extensions": [".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".mp4", ".webm", ".amr", ".mov", ".mkv", ".m4v", ".avi"],
+        "path_map": {},
+    },
+    "transcribe": {
+        "engine": "sensevoice",
+        "device": "auto",
+        "language": "auto",
+        "sensevoice": {"model": "iic/SenseVoiceSmall", "hub": "ms", "vad_max_segment_ms": 30000, "batch_size": 16},
+        "whisper": {"model": "large-v3-turbo", "compute_type": "default"},
+        "mlx_whisper": {"model": "mlx-community/whisper-large-v3-turbo"},
+    },
+    "diarize": {
+        "engine": "auto",
+        "cluster_threshold": 0.55,
+        "min_speakers": None,
+        "max_speakers": None,
+        "pyannote": {"model": "pyannote/speaker-diarization-3.1", "token_env": "HF_TOKEN"},
+    },
+    "speakers": {
+        "embedder": "speechbrain",
+        "model": "speechbrain/spkrec-ecapa-voxceleb",
+        "match_threshold": 0.5,
+        "review_threshold": 0.35,
+        "sample_seconds": 60,
+        "cross_namespace": "suggest",
+    },
     "analysis": {"entities": "rules", "spacy_model": "en_core_web_sm", "gazetteer": []},
     "llm": {"base_url": None, "model": None, "api_key_env": None, "max_chars": 24000, "timeout": 300},
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {"stemming": "english"},
-    "server": {"host": "127.0.0.1", "port": 8770, "allowed_hosts": ["127.0.0.1", "localhost"],
-               "embed_frame_ancestors": ["'self'"], "max_upload_mb": 50, "session_hours": 168, "secure_cookies": False},
-    "workers": {"inline": 1, "poll_seconds": 2, "stale_minutes": 15, "max_attempts": 3,
-                "steps": ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "llm", "report", "export"]},
+    "server": {
+        "host": "127.0.0.1",
+        "port": 8770,
+        "allowed_hosts": ["127.0.0.1", "localhost"],
+        "embed_frame_ancestors": ["'self'"],
+        "max_upload_mb": 50,
+        "session_hours": 168,
+        "secure_cookies": False,
+    },
+    "workers": {
+        "inline": 1,
+        "poll_seconds": 2,
+        "stale_minutes": 15,
+        "max_attempts": 3,
+        "steps": ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "llm", "report", "export"],
+    },
     # video: sampling, shot detection, OCR and faces. Model paths are bootstrap-only (the app can't point at arbitrary files).
     # the chat assistant's tools, and the double check before batch runs
-    "ai": {"tools": True, "disabled_tools": [], "max_steps": 6, "max_transcript_reads": 20, "confirm_over_recordings": 100,
-           "confirm_over_cost": None, "price_in": None, "price_out": None},
-    "video": {"sample_seconds": 5, "scene_threshold": 0.3, "min_shot_seconds": 1.0, "frame_width": 960, "ocr_engine": "auto",
-              "ocr_languages": ["eng"], "ocr_min_confidence": 60, "face_engine": "opencv", "yunet_model": None, "sface_model": None,
-              "face_cluster_threshold": 0.6, "face_match_threshold": 0.45, "face_review_threshold": 0.3, "publish_faces": False},
+    "ai": {
+        "tools": True,
+        "disabled_tools": [],
+        "max_steps": 6,
+        "max_transcript_reads": 20,
+        "confirm_over_recordings": 100,
+        "confirm_over_cost": None,
+        "price_in": None,
+        "price_out": None,
+    },
+    "video": {
+        "sample_seconds": 5,
+        "scene_threshold": 0.3,
+        "min_shot_seconds": 1.0,
+        "frame_width": 960,
+        "ocr_engine": "auto",
+        "ocr_languages": ["eng"],
+        "ocr_min_confidence": 60,
+        "face_engine": "opencv",
+        "yunet_model": None,
+        "sface_model": None,
+        "face_cluster_threshold": 0.6,
+        "face_match_threshold": 0.45,
+        "face_review_threshold": 0.3,
+        "publish_faces": False,
+    },
     # rclone and local_roots are bootstrap-only on purpose: the web app must not be able to pick an executable
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
     "reports": {"audio": "link"},
     # IIIF: identifiers are built from base_url (set it to the stable public HTTPS address; null: the request's address)
-    "iiif": {"base_url": None, "default_language": "none", "layers": ["transcript", "speakers", "entities", "chapters", "screen"],
-             "rights": None, "attribution": None, "provider": None, "viewers": [], "allowed_origins": ["*"], "token_minutes": 60},
+    "iiif": {
+        "base_url": None,
+        "default_language": "none",
+        "layers": ["transcript", "speakers", "entities", "chapters", "screen"],
+        "rights": None,
+        "attribution": None,
+        "provider": None,
+        "viewers": [],
+        "allowed_origins": ["*"],
+        "token_minutes": 60,
+    },
 }
 NS_RX = re.compile(r"^[a-z0-9][a-z0-9_-]{0,40}$")
 
@@ -109,6 +222,7 @@ def load_config(path=None, overrides=None):
     raw = {}
     if p.exists():
         import yaml
+
         raw = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
     cfg = _merge(_merge(DEFAULTS, raw), overrides or {})
     base = p.resolve().parent if p.exists() else pathlib.Path.cwd()
@@ -133,18 +247,20 @@ def resolve_path(cfg, path):
     """Recordings scanned on one machine (say a Mac) can be served from another (say a container)."""
     for src, dst in (cfg["audio"].get("path_map") or {}).items():
         if path and path.startswith(src):
-            return dst + path[len(src):]
+            return dst + path[len(src) :]
     return path
 
 
 # ---------- SurrealDB ----------
 def R(table, key):
     from surrealdb import RecordID
+
     return RecordID(table, key)
 
 
 def _plain(v):
     from surrealdb import RecordID
+
     if isinstance(v, RecordID):
         return v.id
     if isinstance(v, dict):
@@ -164,7 +280,7 @@ def _retryable(err):
 
 
 def _backoff(attempt):
-    time.sleep(min(0.5, 0.005 * 2 ** attempt) * (0.5 + random.random()))
+    time.sleep(min(0.5, 0.005 * 2**attempt) * (0.5 + random.random()))
 
 
 class DB:
@@ -184,8 +300,10 @@ class DB:
         self.embedded = scheme in ("mem", "memory", "surrealkv", "file")
         if scheme in ("surrealkv", "file"):
             pathlib.Path(url.split("://", 1)[1]).parent.mkdir(parents=True, exist_ok=True)
-        self._creds = {"username": os.environ.get("SURREAL_USER") or d.get("user") or "root",
-                       "password": os.environ.get("SURREAL_PASS") or d.get("password") or "root"}
+        self._creds = {
+            "username": os.environ.get("SURREAL_USER") or d.get("user") or "root",
+            "password": os.environ.get("SURREAL_PASS") or d.get("password") or "root",
+        }
         self._target = (os.environ.get("SURREAL_NS") or d["namespace"], os.environ.get("SURREAL_DB") or d["database"])
         size = 1 if self.embedded else max(1, int(pool_size or os.environ.get("SURREAL_POOL_SIZE") or d.get("pool_size") or 8))
         self.fulltext = None  # FULLTEXT (3.x), SEARCH (2.x) or None; set by connect()
@@ -199,12 +317,16 @@ class DB:
                 self._pool.put(c)
         except Exception as e:  # noqa: BLE001
             self.close()
-            hint = (" If another process has this embedded database open, stop it or point both at a "
-                    "SurrealDB server (SURREAL_URL=ws://...)." if self.embedded else "")
+            hint = (
+                " If another process has this embedded database open, stop it or point both at a SurrealDB server (SURREAL_URL=ws://...)."
+                if self.embedded
+                else ""
+            )
             raise SystemExit(f"cannot open SurrealDB at {url}: {e}.{hint}") from None
 
     def _open(self):
         from surrealdb import Surreal
+
         c = Surreal(self.url)
         if not self.embedded:
             c.signin(self._creds)
@@ -255,7 +377,11 @@ class DB:
                     _backoff(attempt)
                     continue
                 raise RuntimeError(raw["error"])
-            errors = [(n, str(it.get("result"))) for n, it in enumerate(items or []) if isinstance(it, dict) and it.get("status") not in (None, "OK")]
+            errors = [
+                (n, str(it.get("result")))
+                for n, it in enumerate(items or [])
+                if isinstance(it, dict) and it.get("status") not in (None, "OK")
+            ]
             if errors and attempt < RETRIES and any(_retryable(m) for _, m in errors):
                 _backoff(attempt)  # the whole transaction was rolled back, so running it again is safe
                 continue
@@ -453,7 +579,11 @@ def connect(cfg):
 
 def reindex(db, cfg):
     """Rebuild the full-text index, e.g. after changing search.stemming."""
-    for s in ("REMOVE INDEX IF EXISTS segment_text ON segment", "REMOVE INDEX IF EXISTS ocr_text ON ocr_span", "REMOVE ANALYZER IF EXISTS archive_text"):
+    for s in (
+        "REMOVE INDEX IF EXISTS segment_text ON segment",
+        "REMOVE INDEX IF EXISTS ocr_text ON ocr_span",
+        "REMOVE ANALYZER IF EXISTS archive_text",
+    ):
         try:
             db.q(s)
         except Exception:  # noqa: BLE001
@@ -482,9 +612,13 @@ def space_names(db):
 
 # Segments past $keep are deleted; callers overwrite the ones they keep. Never delete and re-create the same record id in one
 # transaction: SurrealDB 3.2 silently drops records re-created that way (and INSERT fails with "already exists").
-DOWNSTREAM = ["DELETE mentions WHERE recording = $rid", "DELETE term WHERE recording = $rid",
-              "DELETE section WHERE recording = $rid", "DELETE appearance WHERE recording = $rid",
-              "DELETE segment WHERE recording = $rid AND idx >= $keep"]
+DOWNSTREAM = [
+    "DELETE mentions WHERE recording = $rid",
+    "DELETE term WHERE recording = $rid",
+    "DELETE section WHERE recording = $rid",
+    "DELETE appearance WHERE recording = $rid",
+    "DELETE segment WHERE recording = $rid AND idx >= $keep",
+]
 
 
 def reset_downstream(db, rid):
@@ -520,9 +654,11 @@ def lock(cfg, name):
         try:
             if os.name == "nt":
                 import msvcrt
+
                 msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
             else:
                 import fcntl
+
                 fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             raise Busy(name) from None

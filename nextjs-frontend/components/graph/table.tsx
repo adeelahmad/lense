@@ -23,12 +23,30 @@ function useSort<T>(rows: T[], get: (r: T, key: string) => string | number, init
       }),
     [rows, sort],
   );
-  const th = (key: string) => ({ active: sort.key === key, dir: sort.dir, onSort: () => setSort((s) => ({ key, dir: s.key === key && s.dir === "desc" ? "asc" : "desc" })) });
+  const th = (key: string) => ({
+    active: sort.key === key,
+    dir: sort.dir,
+    onSort: () =>
+      setSort((s) => ({
+        key,
+        dir: s.key === key && s.dir === "desc" ? "asc" : "desc",
+      })),
+  });
   return { sorted, th };
 }
 
 /** GR2: the accessible equivalent of the canvas — every node and every edge as real tables. */
-export function GraphTable({ nodes, edges, selected, onSelect }: { nodes: GraphNode[]; edges: GraphEdge[]; selected: string | null; onSelect: (id: string) => void }) {
+export function GraphTable({
+  nodes,
+  edges,
+  selected,
+  onSelect,
+}: {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  selected: string | null;
+  onSelect: (id: string) => void;
+}) {
   const [tab, setTab] = useState<"nodes" | "edges">("edges");
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const degree = useMemo(() => {
@@ -42,10 +60,34 @@ export function GraphTable({ nodes, edges, selected, onSelect }: { nodes: GraphN
   const label = (id: string) => {
     const n = byId.get(id);
     if (!n) return id;
-    return n.ns.length === 1 && edges.some((e) => e.kind === "maybe the same voice" && (e.a === id || e.b === id)) ? `${n.label} (${n.ns[0]})` : n.label;
+    return n.ns.length === 1 && edges.some((e) => e.kind === "maybe the same voice" && (e.a === id || e.b === id))
+      ? `${n.label} (${n.ns[0]})`
+      : n.label;
   };
-  const edgeSort = useSort(edges, (e, k) => (k === "from" ? label(e.a).toLowerCase() : k === "to" ? label(e.b).toLowerCase() : k === "type" ? edgeStyle(e.kind).label : e.w), { key: "weight", dir: "desc" });
-  const nodeSort = useSort(nodes, (n, k) => (k === "name" ? n.label.toLowerCase() : k === "type" ? typeLabel(n) : k === "links" ? (degree.get(n.id) ?? 0) : n.weight), { key: "links", dir: "desc" });
+  const edgeSort = useSort(
+    edges,
+    (e, k) =>
+      k === "from"
+        ? label(e.a).toLowerCase()
+        : k === "to"
+          ? label(e.b).toLowerCase()
+          : k === "type"
+            ? edgeStyle(e.kind).label
+            : e.w,
+    { key: "weight", dir: "desc" },
+  );
+  const nodeSort = useSort(
+    nodes,
+    (n, k) =>
+      k === "name"
+        ? n.label.toLowerCase()
+        : k === "type"
+          ? typeLabel(n)
+          : k === "links"
+            ? (degree.get(n.id) ?? 0)
+            : n.weight,
+    { key: "links", dir: "desc" },
+  );
   return (
     <div className="flex flex-col gap-2.5">
       <Tabs
@@ -73,13 +115,21 @@ export function GraphTable({ nodes, edges, selected, onSelect }: { nodes: GraphN
             {edgeSort.sorted.map((e) => (
               <Tr key={`${e.a}-${e.b}`} selected={selected === e.a || selected === e.b}>
                 <Td>
-                  <button type="button" onClick={() => onSelect(e.a)} className="text-left font-semibold text-fg hover:text-fg-accent hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(e.a)}
+                    className="text-left font-semibold text-fg hover:text-fg-accent hover:underline"
+                  >
                     {label(e.a)}
                   </button>
                 </Td>
                 <Td className="text-fg-secondary">{edgeStyle(e.kind).label}</Td>
                 <Td>
-                  <button type="button" onClick={() => onSelect(e.b)} className="text-left font-semibold text-fg hover:text-fg-accent hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(e.b)}
+                    className="text-left font-semibold text-fg hover:text-fg-accent hover:underline"
+                  >
                     {label(e.b)}
                   </button>
                 </Td>
@@ -107,14 +157,20 @@ export function GraphTable({ nodes, edges, selected, onSelect }: { nodes: GraphN
             {nodeSort.sorted.map((n) => (
               <Tr key={n.id} selected={selected === n.id}>
                 <Td>
-                  <button type="button" onClick={() => onSelect(n.id)} className="flex items-center gap-2 text-left font-semibold text-fg hover:text-fg-accent hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(n.id)}
+                    className="flex items-center gap-2 text-left font-semibold text-fg hover:text-fg-accent hover:underline"
+                  >
                     <NodeIcon n={n} size={10} />
                     {n.label}
                   </button>
                 </Td>
                 <Td className="text-fg-secondary">{typeLabel(n)}</Td>
                 <Td className="text-fg-secondary">{n.ns.join(", ")}</Td>
-                <Td className="tabular text-right">{n.kind === "speaker" ? talkTime(n.weight * 60000) : count(n.weight)}</Td>
+                <Td className="tabular text-right">
+                  {n.kind === "speaker" ? talkTime(n.weight * 60000) : count(n.weight)}
+                </Td>
                 <Td className="tabular text-right">{count(degree.get(n.id) ?? 0)}</Td>
               </Tr>
             ))}

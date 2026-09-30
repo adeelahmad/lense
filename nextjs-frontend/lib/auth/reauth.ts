@@ -18,7 +18,11 @@ export class SignedOutError extends Error {
   }
 }
 
-type Waiter = { promise: Promise<string>; resolve: (token: string) => void; reject: (e: Error) => void };
+type Waiter = {
+  promise: Promise<string>;
+  resolve: (token: string) => void;
+  reject: (e: Error) => void;
+};
 
 let state: ReauthState = { open: false, held: [] };
 let waiter: Waiter | null = null;

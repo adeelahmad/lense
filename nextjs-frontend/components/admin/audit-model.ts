@@ -4,7 +4,13 @@
  */
 import { FIELDS, SECTIONS } from "@/components/settings/model";
 
-export type AuditEntry = { at: string; email?: string | null; action: string; target?: string | null; detail?: unknown };
+export type AuditEntry = {
+  at: string;
+  email?: string | null;
+  action: string;
+  target?: string | null;
+  detail?: unknown;
+};
 export type Group = "access" | "settings" | "sources" | "sharing" | "content" | "other";
 export const GROUPS: { value: Group; label: string }[] = [
   { value: "access", label: "Access" },
@@ -20,16 +26,25 @@ const PREFIX: [RegExp, Group][] = [
   [/^(settings\.|search\.|pipeline\.|template\.|namespace\.|faces\.mode)/, "settings"],
   [/^(source\.|watch\.|import)/, "sources"],
   [/^(share\.|embed)/, "sharing"],
-  [/^(metadata\.|speaker\.|entity\.|mention\.|transcript\.|ocr\.|face\.|faces\.|batch\.|assistant\.|recording\.|collection\.)/, "content"],
+  [
+    /^(metadata\.|speaker\.|entity\.|mention\.|transcript\.|ocr\.|face\.|faces\.|batch\.|assistant\.|recording\.|collection\.)/,
+    "content",
+  ],
 ];
 
 export function actionGroup(action: string): Group {
   return PREFIX.find(([rx]) => rx.test(action))?.[1] ?? "other";
 }
 
-export type Lookup = { people: Record<string, string>; accounts: Record<number, string>; namespaces: Record<number, string> };
+export type Lookup = {
+  people: Record<string, string>;
+  accounts: Record<number, string>;
+  namespaces: Record<number, string>;
+};
 
-const SECTION_LABEL: Record<string, string> = Object.fromEntries(SECTIONS.flatMap((s) => s.backend.map((b) => [b, s.label])));
+const SECTION_LABEL: Record<string, string> = Object.fromEntries(
+  SECTIONS.flatMap((s) => s.backend.map((b) => [b, s.label])),
+);
 
 /** "Settings · Access & embedding", "Recording 12", a person's name, a namespace. */
 export function targetText(target: string | null | undefined, action: string, look: Lookup): string {
@@ -108,7 +123,11 @@ export function detailText(e: AuditEntry, look: Lookup): string {
     case "metadata.save":
       return listOf(d).join(", ");
     case "metadata.bulk": {
-      const x = d as { recordings?: number; changed?: number; fields?: string[] };
+      const x = d as {
+        recordings?: number;
+        changed?: number;
+        fields?: string[];
+      };
       return `${x.changed ?? 0} of ${x.recordings ?? 0} recordings · ${listOf(x.fields).join(", ")}`;
     }
   }
@@ -125,7 +144,11 @@ export function personText(email: string | null | undefined, look: Lookup): stri
   return look.people[email.toLowerCase()] ?? email;
 }
 
-export type Filters = { person: string | null; groups: Group[]; sinceDays: number | null };
+export type Filters = {
+  person: string | null;
+  groups: Group[];
+  sinceDays: number | null;
+};
 
 export function filterEntries(entries: AuditEntry[], f: Filters, now = Date.now()): AuditEntry[] {
   const since = f.sinceDays ? now - f.sinceDays * 86_400_000 : null;
@@ -143,6 +166,14 @@ function csvCell(v: string): string {
 
 export function toCsv(entries: AuditEntry[], look: Lookup): string {
   const rows = [["time", "person", "email", "action", "target", "details"]];
-  for (const e of entries) rows.push([e.at, personText(e.email, look), e.email ?? "", e.action, targetText(e.target, e.action, look), detailText(e, look)]);
+  for (const e of entries)
+    rows.push([
+      e.at,
+      personText(e.email, look),
+      e.email ?? "",
+      e.action,
+      targetText(e.target, e.action, look),
+      detailText(e, look),
+    ]);
   return rows.map((r) => r.map(csvCell).join(",")).join("\n") + "\n";
 }

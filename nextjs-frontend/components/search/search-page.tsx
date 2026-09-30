@@ -14,7 +14,15 @@ import { computeFacets, groupByRecording } from "@/components/search/facets";
 import { hasMedia } from "@/components/search/links";
 import { NoResults } from "@/components/search/no-results";
 import { InlinePlayerBar, useInlinePlayer } from "@/components/search/player";
-import { activeFilterCount, fromParams, hasTerms, normalizeEmotion, parseQuery, toParams, type SearchFilters } from "@/components/search/query";
+import {
+  activeFilterCount,
+  fromParams,
+  hasTerms,
+  normalizeEmotion,
+  parseQuery,
+  toParams,
+  type SearchFilters,
+} from "@/components/search/query";
 import { ResultGroups } from "@/components/search/results";
 import { SaveSearchDialog } from "@/components/search/save-search";
 import { FilterChip, SearchBox, type Chip } from "@/components/search/search-box";
@@ -89,7 +97,15 @@ export function SearchPage() {
       data(
         Search.searchTranscripts({
           client,
-          query: { q, ns: filters.namespace, speaker: filters.speaker, emotion: filters.emotion, recording: filters.recording, limit: PAGE, offset: pageParam },
+          query: {
+            q,
+            ns: filters.namespace,
+            speaker: filters.speaker,
+            emotion: filters.emotion,
+            recording: filters.recording,
+            limit: PAGE,
+            offset: pageParam,
+          },
         }),
       ),
     initialPageParam: 0,
@@ -122,22 +138,37 @@ export function SearchPage() {
       const hit = [...(baseData?.hits ?? []), ...hits].find((h) => h.speaker_id === filters.speaker);
       out.speaker = hit?.speaker ?? `Speaker #${filters.speaker}`;
     }
-    if (filters.recording != null) out.recording = index.byId.get(filters.recording)?.title ?? hits.find((h) => h.recording_id === filters.recording)?.title ?? `Recording #${filters.recording}`;
+    if (filters.recording != null)
+      out.recording =
+        index.byId.get(filters.recording)?.title ??
+        hits.find((h) => h.recording_id === filters.recording)?.title ??
+        `Recording #${filters.recording}`;
     return out;
   }, [filters, baseData, hits, index.byId]);
 
   const go = useCallback((nq: string, f: SearchFilters) => router.push(`/search?${toParams(nq, f)}`), [router]);
-  const setFilter = (key: keyof SearchFilters, value: string | number | undefined) => go(q, { ...filters, [key]: value });
-  const clearFilter = (key: keyof SearchFilters | "all") => go(q, key === "all" ? {} : { ...filters, [key]: undefined });
+  const setFilter = (key: keyof SearchFilters, value: string | number | undefined) =>
+    go(q, { ...filters, [key]: value });
+  const clearFilter = (key: keyof SearchFilters | "all") =>
+    go(q, key === "all" ? {} : { ...filters, [key]: undefined });
 
   const resolveSpeaker = async (name: string, ns?: string): Promise<number | undefined> => {
     const want = name.trim().toLowerCase();
-    const fromHits = [...(baseData?.hits ?? []), ...hits].filter((h) => (h.speaker ?? "").toLowerCase() === want && (!ns || h.namespace === ns));
+    const fromHits = [...(baseData?.hits ?? []), ...hits].filter(
+      (h) => (h.speaker ?? "").toLowerCase() === want && (!ns || h.namespace === ns),
+    );
     if (fromHits[0]?.speaker_id != null) return fromHits[0].speaker_id;
     const spaces = namespaces.filter((n) => !ns || n.name === ns);
     for (const n of spaces) {
-      const dir = await qc.fetchQuery({ queryKey: ["speakers", n.name], queryFn: () => data(Speakers.listSpeakers({ client, query: { ns: n.name } })), staleTime: 60_000 });
-      const s = dir.speakers.find((x) => x.display.toLowerCase() === want || (x.name ?? "").toLowerCase() === want || x.label.toLowerCase() === want);
+      const dir = await qc.fetchQuery({
+        queryKey: ["speakers", n.name],
+        queryFn: () => data(Speakers.listSpeakers({ client, query: { ns: n.name } })),
+        staleTime: 60_000,
+      });
+      const s = dir.speakers.find(
+        (x) =>
+          x.display.toLowerCase() === want || (x.name ?? "").toLowerCase() === want || x.label.toLowerCase() === want,
+      );
       if (s) return s.id;
     }
     return undefined;
@@ -180,16 +211,29 @@ export function SearchPage() {
 
   const chips: Chip[] = (["namespace", "speaker", "emotion", "recording"] as const)
     .filter((k) => filters[k] != null && filters[k] !== "")
-    .map((k) => ({ key: k, label: `${k}: ${labels[k]}`, onRemove: () => clearFilter(k) }));
+    .map((k) => ({
+      key: k,
+      label: `${k}: ${labels[k]}`,
+      onRemove: () => clearFilter(k),
+    }));
 
-  const saved = useQuery({ queryKey: ["collections"], queryFn: () => data(Collections.listCollections({ client })), staleTime: 60_000 });
-  const savedSearches = saved.data ? saved.data.filter((c) => c.kind === "filter" && typeof (c.filter as { q?: unknown } | null)?.q === "string") : null;
+  const saved = useQuery({
+    queryKey: ["collections"],
+    queryFn: () => data(Collections.listCollections({ client })),
+    staleTime: 60_000,
+  });
+  const savedSearches = saved.data
+    ? saved.data.filter((c) => c.kind === "filter" && typeof (c.filter as { q?: unknown } | null)?.q === "string")
+    : null;
 
   const chatHref = `/chat?${new URLSearchParams({ q, ...(filters.namespace ? { ns: filters.namespace } : {}), ...(filters.speaker != null ? { speaker: String(filters.speaker) } : {}), ...(filters.recording != null ? { recording: String(filters.recording) } : {}) })}`;
   const runHref = `/batches/new?${new URLSearchParams({ q, from: "search", ...(filters.namespace ? { ns: filters.namespace } : {}), ...(filters.speaker != null ? { speaker: String(filters.speaker) } : {}), ...(filters.recording != null ? { recordings: String(filters.recording) } : {}) })}`;
   const canRun = can("editor", filters.namespace);
 
-  const understood = first?.query && first.query.replace(/\s+/g, " ").toLowerCase() !== q.replace(/\s+/g, " ").toLowerCase() ? first.query : null;
+  const understood =
+    first?.query && first.query.replace(/\s+/g, " ").toLowerCase() !== q.replace(/\s+/g, " ").toLowerCase()
+      ? first.query
+      : null;
   const audioOf = (rid: number) => hasMedia(index.byId.get(rid));
 
   const facetPanel = (
@@ -209,7 +253,10 @@ export function SearchPage() {
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)]">
-      <aside aria-label="Filters" className="sticky top-16 hidden h-[calc(100vh-4rem)] w-[240px] shrink-0 overflow-y-auto border-r border-border bg-surface px-3.5 py-[18px] md:block">
+      <aside
+        aria-label="Filters"
+        className="sticky top-16 hidden h-[calc(100vh-4rem)] w-[240px] shrink-0 overflow-y-auto border-r border-border bg-surface px-3.5 py-[18px] md:block"
+      >
         {facetPanel}
       </aside>
 
@@ -255,12 +302,25 @@ export function SearchPage() {
                 </span>
               )}
             </Button>
-            <Button variant="ghost" icon={<BookmarkPlus />} className="hidden md:inline-flex" disabled={!enabled} disabledReason="Search for something first" onClick={() => setSaveOpen(true)}>
+            <Button
+              variant="ghost"
+              icon={<BookmarkPlus />}
+              className="hidden md:inline-flex"
+              disabled={!enabled}
+              disabledReason="Search for something first"
+              onClick={() => setSaveOpen(true)}
+            >
               Save
             </Button>
           </div>
           <div className="flex gap-1.5 md:hidden">
-            <Button size="sm" variant="ghost" className="border-border" icon={<SlidersHorizontal />} onClick={() => setFiltersOpen(true)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="border-border"
+              icon={<SlidersHorizontal />}
+              onClick={() => setFiltersOpen(true)}
+            >
               Filters{nFilters ? ` · ${nFilters}` : ""}
             </Button>
             {enabled && (
@@ -268,7 +328,13 @@ export function SearchPage() {
                 <Link href={chatHref}>Ask in chat</Link>
               </Button>
             )}
-            <Button size="sm" variant="ghost" className="w-8 border-border px-0" aria-label="Search syntax help" onClick={() => setMobileHelp(true)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-8 border-border px-0"
+              aria-label="Search syntax help"
+              onClick={() => setMobileHelp(true)}
+            >
               ?
             </Button>
           </div>
@@ -295,7 +361,9 @@ export function SearchPage() {
                     · searched for <code className="font-mono text-[12.5px] text-fg-strong">{understood}</code>
                   </>
                 )}
-                {nFilters > 0 && base.data && base.data.total !== total && <> · {plural(base.data.total, "moment")} without filters</>}
+                {nFilters > 0 && base.data && base.data.total !== total && (
+                  <> · {plural(base.data.total, "moment")} without filters</>
+                )}
               </p>
               <span className="flex-1" />
               <Button
@@ -355,7 +423,9 @@ export function SearchPage() {
               onClearFilter={clearFilter}
             />
           )}
-          {groups.length > 0 && <ResultGroups ref={listRef} groups={groups} player={player} audioOf={audioOf} className="pt-1.5" />}
+          {groups.length > 0 && (
+            <ResultGroups ref={listRef} groups={groups} player={player} audioOf={audioOf} className="pt-1.5" />
+          )}
           {results.hasNextPage && (
             <div className="flex justify-center py-5">
               <Button variant="secondary" onClick={() => results.fetchNextPage()} disabled={results.isFetchingNextPage}>
@@ -363,7 +433,11 @@ export function SearchPage() {
               </Button>
             </div>
           )}
-          {first?.capped && !results.hasNextPage && hits.length > 0 && <p className="py-4 text-center text-[12.5px] text-fg-muted">The search stopped at its limit; add words or filters to narrow it.</p>}
+          {first?.capped && !results.hasNextPage && hits.length > 0 && (
+            <p className="py-4 text-center text-[12.5px] text-fg-muted">
+              The search stopped at its limit; add words or filters to narrow it.
+            </p>
+          )}
         </div>
         <InlinePlayerBar player={player} className="sticky bottom-4 z-20 px-4 md:px-7" />
       </div>
@@ -390,8 +464,8 @@ function Intro({ onPick }: { onPick: (example: string) => void }) {
       <div className="flex flex-col gap-1.5">
         <h2 className="text-[20px] font-bold leading-tight text-fg">Search what was said</h2>
         <p className="m-0 text-[14px] leading-normal text-fg-secondary">
-          Every word must appear in the same segment, and word forms match (English stemming). Results only come from namespaces you can read, grouped by
-          recording. Pick an example to start from it.
+          Every word must appear in the same segment, and word forms match (English stemming). Results only come from
+          namespaces you can read, grouped by recording. Pick an example to start from it.
         </p>
       </div>
       <div className="rounded-lg border border-border p-4">

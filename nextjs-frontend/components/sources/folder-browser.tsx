@@ -21,7 +21,12 @@ const PAGE = 100;
 function crumbs(path: string, local: boolean): { label: string; path: string }[] {
   const parts = path.split("/").filter(Boolean);
   const out: { label: string; path: string }[] = [];
-  parts.forEach((p, i) => out.push({ label: p, path: (local ? "/" : "") + parts.slice(0, i + 1).join("/") }));
+  parts.forEach((p, i) =>
+    out.push({
+      label: p,
+      path: (local ? "/" : "") + parts.slice(0, i + 1).join("/"),
+    }),
+  );
   return out;
 }
 
@@ -50,7 +55,14 @@ export function FolderBrowser({
 
   const q = useQuery({
     queryKey: ["browse", source.id, path],
-    queryFn: () => data(Sources.browseSource({ client, path: { sid: source.id }, query: { path } })),
+    queryFn: () =>
+      data(
+        Sources.browseSource({
+          client,
+          path: { sid: source.id },
+          query: { path },
+        }),
+      ),
     enabled: open,
     staleTime: 30_000,
     retry: false,
@@ -64,8 +76,15 @@ export function FolderBrowser({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={`Browse ${source.name}`} className="max-w-[640px] gap-3">
-      <nav aria-label="Folder" className="-mx-6 flex flex-wrap items-center gap-1 border-y border-border px-4 py-2.5 text-[13px] font-medium text-fg-secondary">
-        <button type="button" onClick={() => setPath("")} className={cn("flex items-center gap-1.5 rounded-xs px-1 hover:text-fg", path === "" && "font-bold text-fg")}>
+      <nav
+        aria-label="Folder"
+        className="-mx-6 flex flex-wrap items-center gap-1 border-y border-border px-4 py-2.5 text-[13px] font-medium text-fg-secondary"
+      >
+        <button
+          type="button"
+          onClick={() => setPath("")}
+          className={cn("flex items-center gap-1.5 rounded-xs px-1 hover:text-fg", path === "" && "font-bold text-fg")}
+        >
           <Root aria-hidden className="size-[15px]" />
           {local ? "Allowed folders" : source.name}
         </button>
@@ -91,12 +110,19 @@ export function FolderBrowser({
             ))}
           </div>
         ) : q.error ? (
-          <EmptyState tone="error" icon={<FolderOpen />} title="Couldn’t open this folder" actions={<Button onClick={() => q.refetch()}>Try again</Button>}>
+          <EmptyState
+            tone="error"
+            icon={<FolderOpen />}
+            title="Couldn’t open this folder"
+            actions={<Button onClick={() => q.refetch()}>Try again</Button>}
+          >
             <code className="font-mono text-[12.5px]">{(q.error as Error).message}</code>
           </EmptyState>
         ) : !entries.length ? (
           <EmptyState icon={<FolderOpen />} title={atRoots ? "No folders are allowed yet" : "This folder is empty"}>
-            {atRoots ? "Admins list the folders this machine may read in sources.local_roots (set at startup)." : "Files that land here later are picked up once you watch it."}
+            {atRoots
+              ? "Admins list the folders this machine may read in sources.local_roots (set at startup)."
+              : "Files that land here later are picked up once you watch it."}
           </EmptyState>
         ) : (
           <table className="w-full table-fixed border-collapse text-[13px]">
@@ -119,13 +145,20 @@ export function FolderBrowser({
                 const kind = e.dir ? "dir" : fileKind(e.name);
                 const Icon = e.dir ? Folder : kind === "audio" ? FileAudio : kind === "transcript" ? Captions : File;
                 return (
-                  <tr key={e.path} className={cn("h-[38px] border-t border-border", kind === "other" && "text-fg-muted")}>
+                  <tr
+                    key={e.path}
+                    className={cn("h-[38px] border-t border-border", kind === "other" && "text-fg-muted")}
+                  >
                     <td className="pl-4">
                       <Icon aria-hidden className="size-[15px] text-fg-secondary" />
                     </td>
                     <td className="truncate pr-2">
                       {e.dir ? (
-                        <button type="button" onClick={() => setPath(e.path)} className="max-w-full truncate text-left font-medium text-fg hover:text-fg-accent hover:underline">
+                        <button
+                          type="button"
+                          onClick={() => setPath(e.path)}
+                          className="max-w-full truncate text-left font-medium text-fg hover:text-fg-accent hover:underline"
+                        >
                           {e.name}
                         </button>
                       ) : (
@@ -151,13 +184,23 @@ export function FolderBrowser({
       </div>
       <div className="-mx-6 -mb-6 flex flex-wrap items-center gap-2.5 border-t border-border px-4 py-3">
         <span className="flex-1 text-[12.5px] text-fg-secondary">
-          {q.isSuccess && !atRoots ? `${audio} audio · ${transcripts} transcripts in this folder` : atRoots ? "Pick an allowed folder" : ""}
+          {q.isSuccess && !atRoots
+            ? `${audio} audio · ${transcripts} transcripts in this folder`
+            : atRoots
+              ? "Pick an allowed folder"
+              : ""}
         </span>
         <Button
           size="sm"
           variant="primary"
           disabled={!canWatch || atRoots || !q.isSuccess}
-          disabledReason={!canWatch ? "Only admins can watch folders" : atRoots ? "Open one of the allowed folders first" : "Wait for the folder to load"}
+          disabledReason={
+            !canWatch
+              ? "Only admins can watch folders"
+              : atRoots
+                ? "Open one of the allowed folders first"
+                : "Wait for the folder to load"
+          }
           onClick={() => onWatch(path)}
         >
           Watch this folder

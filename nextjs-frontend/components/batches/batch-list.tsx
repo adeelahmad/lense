@@ -33,7 +33,8 @@ export function BatchList() {
       )}
       {list.data?.length === 0 && (
         <EmptyState icon={<Layers />} title="No batch runs yet">
-          Start one with “Run on…” from a Library selection, a namespace, a speaker, an entity in the graph, search results or a saved collection.
+          Start one with “Run on…” from a Library selection, a namespace, a speaker, an entity in the graph, search
+          results or a saved collection.
         </EmptyState>
       )}
       {list.data && list.data.length > 0 && (
@@ -54,7 +55,10 @@ export function BatchList() {
                 return (
                   <Tr key={b.id}>
                     <Td>
-                      <Link href={`/batches/${b.id}`} className="font-semibold text-fg hover:text-fg-accent hover:underline">
+                      <Link
+                        href={`/batches/${b.id}`}
+                        className="font-semibold text-fg hover:text-fg-accent hover:underline"
+                      >
                         {b.label}
                       </Link>
                       <span className="ml-1.5 text-[12px] text-fg-muted">#{b.id}</span>
@@ -66,7 +70,12 @@ export function BatchList() {
                     </Td>
                     <Td>
                       <span className="flex items-center gap-2">
-                        <Progress value={p.total ? (p.done + p.failed) / p.total : 0} tone={p.failed ? "red" : b.status === "finished" ? "green" : "intent"} className="w-24" label={`${b.label} progress`} />
+                        <Progress
+                          value={p.total ? (p.done + p.failed) / p.total : 0}
+                          tone={p.failed ? "red" : b.status === "finished" ? "green" : "intent"}
+                          className="w-24"
+                          label={`${b.label} progress`}
+                        />
                         <span className="tabular text-[12.5px] text-fg-secondary">{progressLabel(p)}</span>
                       </span>
                     </Td>

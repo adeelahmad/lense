@@ -41,7 +41,13 @@ function MonthBars({ months, color }: { months: { month: string; ms: number }[];
         {months.map((m) => (
           <span key={m.month} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
             <span className="tabular text-[11px] font-medium text-fg-secondary">{m.ms ? hoursShort(m.ms) : ""}</span>
-            <span className="w-full rounded-t-[4px]" style={{ height: `${m.ms ? Math.max(3, (m.ms / max) * 85) : 0}%`, background: color }} />
+            <span
+              className="w-full rounded-t-[4px]"
+              style={{
+                height: `${m.ms ? Math.max(3, (m.ms / max) * 85) : 0}%`,
+                background: color,
+              }}
+            />
           </span>
         ))}
       </div>
@@ -56,17 +62,37 @@ function MonthBars({ months, color }: { months: { month: string; ms: number }[];
   );
 }
 
-function RenameDialog({ id, current, open, onOpenChange }: { id: number; current: string; open: boolean; onOpenChange: (o: boolean) => void }) {
+function RenameDialog({
+  id,
+  current,
+  open,
+  onOpenChange,
+}: {
+  id: number;
+  current: string;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
   const [name, setName] = useState(current);
   const save = useMutation({
-    mutationFn: () => data(Speakers.renameSpeaker({ client, path: { sid: id }, body: { name: name.trim() } })),
+    mutationFn: () =>
+      data(
+        Speakers.renameSpeaker({
+          client,
+          path: { sid: id },
+          body: { name: name.trim() },
+        }),
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["speakers"] });
       qc.invalidateQueries({ queryKey: ["graph"] });
-      toast({ title: name.trim() ? `Renamed to ${name.trim()}` : "Back to the automatic label", tone: "green" });
+      toast({
+        title: name.trim() ? `Renamed to ${name.trim()}` : "Back to the automatic label",
+        tone: "green",
+      });
       onOpenChange(false);
     },
   });
@@ -88,7 +114,16 @@ function RenameDialog({ id, current, open, onOpenChange }: { id: number; current
       }
     >
       <Field label="Name" error={save.isError ? save.error.message : undefined}>
-        {({ id: fid, invalid }) => <Input id={fid} value={name} invalid={invalid} onChange={(e) => setName(e.target.value)} maxLength={80} autoFocus />}
+        {({ id: fid, invalid }) => (
+          <Input
+            id={fid}
+            value={name}
+            invalid={invalid}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={80}
+            autoFocus
+          />
+        )}
       </Field>
     </Dialog>
   );
@@ -105,10 +140,24 @@ export function SpeakerProfile({ id }: { id: number }) {
   const index = useRecordingIndex();
   const player = useInlinePlayer();
   const [renaming, setRenaming] = useState(false);
-  const { clips, isLoading: clipsLoading, recordings } = useSpeakerClips(me ? id : null, { recordings: 3, perRecording: 1, max: 3 });
+  const {
+    clips,
+    isLoading: clipsLoading,
+    recordings,
+  } = useSpeakerClips(me ? id : null, {
+    recordings: 3,
+    perRecording: 1,
+    max: 3,
+  });
   const topics = useQuery({
     queryKey: ["entities", { speaker: id, ns }],
-    queryFn: () => data(Entities.listEntities({ client, query: { speaker: id, namespaces: ns ?? undefined, limit: 12 } })),
+    queryFn: () =>
+      data(
+        Entities.listEntities({
+          client,
+          query: { speaker: id, namespaces: ns ?? undefined, limit: 12 },
+        }),
+      ),
     enabled: Boolean(ns),
     staleTime: 60_000,
   });
@@ -154,7 +203,10 @@ export function SpeakerProfile({ id }: { id: number }) {
     .join(", ");
   return (
     <div className="flex flex-col gap-4 px-4 py-6 md:px-6">
-      <Link href={`/speakers?ns=${encodeURIComponent(ns ?? "")}`} className="inline-flex w-fit items-center gap-1 text-[13px] font-semibold text-fg-secondary hover:text-fg">
+      <Link
+        href={`/speakers?ns=${encodeURIComponent(ns ?? "")}`}
+        className="inline-flex w-fit items-center gap-1 text-[13px] font-semibold text-fg-secondary hover:text-fg"
+      >
         <ChevronLeft className="size-4" aria-hidden /> Speakers in {ns}
       </Link>
       <div className="grid gap-6 rounded-lg border border-border px-4 py-5 md:px-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
@@ -164,7 +216,9 @@ export function SpeakerProfile({ id }: { id: number }) {
             <span className="flex min-w-0 flex-1 flex-col gap-1">
               <h1 className="text-[24px] font-bold leading-tight text-fg">
                 {me.display}
-                {isUnnamed(me) && <span className="ml-2 align-middle text-[12px] font-semibold text-gold-dark">unnamed</span>}
+                {isUnnamed(me) && (
+                  <span className="ml-2 align-middle text-[12px] font-semibold text-gold-dark">unnamed</span>
+                )}
               </h1>
               <span className="text-[13px] text-fg-muted">
                 {ns} · {me.has_voice ? "voiceprint ✓" : "no voiceprint"}
@@ -172,7 +226,13 @@ export function SpeakerProfile({ id }: { id: number }) {
               </span>
             </span>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="secondary" disabled={!canEdit} disabledReason={needRole("editor", ns)} onClick={() => setRenaming(true)}>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!canEdit}
+                disabledReason={needRole("editor", ns)}
+                onClick={() => setRenaming(true)}
+              >
                 Rename
               </Button>
               <Button asChild size="sm" variant="ghost">
@@ -180,7 +240,14 @@ export function SpeakerProfile({ id }: { id: number }) {
                   <Waypoints /> Graph
                 </Link>
               </Button>
-              <Button asChild={canEdit} size="sm" variant="ghost" disabled={!canEdit} disabledReason={needRole("editor", ns)} icon={canEdit ? undefined : <Play />}>
+              <Button
+                asChild={canEdit}
+                size="sm"
+                variant="ghost"
+                disabled={!canEdit}
+                disabledReason={needRole("editor", ns)}
+                icon={canEdit ? undefined : <Play />}
+              >
                 {canEdit ? (
                   <Link href={`/batches/new?speaker=${me.id}&ns=${encodeURIComponent(ns ?? "")}`}>
                     <Play /> Run on {count(me.recordings)}
@@ -197,7 +264,11 @@ export function SpeakerProfile({ id }: { id: number }) {
             <Stat v={count(me.segments)} k="turns" />
             <Stat v={share != null ? `${share}%` : "—"} k="share when present" />
           </div>
-          {recordings.isLoading ? <Skeleton className="h-[150px] w-full" /> : <MonthBars months={months} color={color} />}
+          {recordings.isLoading ? (
+            <Skeleton className="h-[150px] w-full" />
+          ) : (
+            <MonthBars months={months} color={color} />
+          )}
         </div>
         <div className="flex min-w-0 flex-col gap-4">
           <section aria-labelledby="topics" className="flex flex-col gap-2">
@@ -206,11 +277,18 @@ export function SpeakerProfile({ id }: { id: number }) {
             </h2>
             {topics.isLoading && <Skeleton className="h-8 w-full" />}
             {topics.isError && <Banner tone="error">{topics.error.message}</Banner>}
-            {topics.data && topics.data.items.length === 0 && <p className="m-0 text-[13px] text-fg-secondary">No entities found in what they said yet. The Analyze step finds them.</p>}
+            {topics.data && topics.data.items.length === 0 && (
+              <p className="m-0 text-[13px] text-fg-secondary">
+                No entities found in what they said yet. The Analyze step finds them.
+              </p>
+            )}
             <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
               {(topics.data?.items ?? []).map((e) => (
                 <li key={String(e.id)}>
-                  <Link href={`/graph?focus=e${e.id}`} className="inline-flex h-8 items-center rounded-pill border border-border px-3 text-[13px] font-medium text-fg hover:border-blue-border hover:bg-blue-surface">
+                  <Link
+                    href={`/graph?focus=e${e.id}`}
+                    className="inline-flex h-8 items-center rounded-pill border border-border px-3 text-[13px] font-medium text-fg hover:border-blue-border hover:bg-blue-surface"
+                  >
                     {String(e.name)}
                   </Link>
                 </li>
@@ -222,7 +300,9 @@ export function SpeakerProfile({ id }: { id: number }) {
               Representative clips
             </h2>
             {clipsLoading && [0, 1].map((i) => <Skeleton key={i} className="h-14 w-full rounded-[10px]" />)}
-            {!clipsLoading && clips.length === 0 && <p className="m-0 text-[13px] text-fg-secondary">No lines to show.</p>}
+            {!clipsLoading && clips.length === 0 && (
+              <p className="m-0 text-[13px] text-fg-secondary">No lines to show.</p>
+            )}
             {clips.map((c) => (
               <ClipRow key={c.key} clip={c} player={player} showEmotion />
             ))}

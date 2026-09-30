@@ -15,7 +15,10 @@ import { useToast } from "@/components/ui/toast";
 import { count } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 
-type IiifCollection = { id: string; items?: { id: string; label?: Record<string, string[]> }[] };
+type IiifCollection = {
+  id: string;
+  items?: { id: string; label?: Record<string, string[]> }[];
+};
 type Activity = { id: string; totalItems: number };
 
 /** A public IIIF resource, fetched as an anonymous viewer would see it. */
@@ -24,7 +27,9 @@ export function usePublicIiif<T>(path: string, enabled = true) {
     queryKey: ["iiif-public", path],
     enabled,
     queryFn: async () => {
-      const r = await fetch(path, { headers: { Accept: "application/ld+json" } });
+      const r = await fetch(path, {
+        headers: { Accept: "application/ld+json" },
+      });
       if (!r.ok) throw new Error(`The server answered ${r.status}`);
       return (await r.json()) as T;
     },
@@ -57,14 +62,20 @@ function OpenMoment({ token }: { token: string }) {
   const router = useRouter();
   const target = contentStateTarget(decodeContentState(token));
   useEffect(() => {
-    if (target) router.replace(`/recordings/${target.recording}${target.t0 != null ? `?t=${Math.floor(target.t0)}` : ""}`);
+    if (target)
+      router.replace(`/recordings/${target.recording}${target.t0 != null ? `?t=${Math.floor(target.t0)}` : ""}`);
   }, [target, router]);
   return target ? (
     <EmptyState icon={<LibraryBig />} title="Opening the moment…">
       Going to the recording at its time.
     </EmptyState>
   ) : (
-    <EmptyState tone="error" icon={<LibraryBig />} title="That link isn’t a moment in this archive" actions={<Button onClick={() => router.replace("/iiif")}>Go to Collections</Button>}>
+    <EmptyState
+      tone="error"
+      icon={<LibraryBig />}
+      title="That link isn’t a moment in this archive"
+      actions={<Button onClick={() => router.replace("/iiif")}>Go to Collections</Button>}
+    >
       The IIIF content state couldn’t be read, or it points to another archive.
     </EmptyState>
   );
@@ -87,7 +98,14 @@ export function CollectionsIndex() {
         title="Collections"
         meta="Each namespace is a IIIF Collection"
         actions={
-          <Button asChild={admin} variant="secondary" size="sm" icon={admin ? undefined : <Download />} disabled={!admin} disabledReason="Admins import from other IIIF archives">
+          <Button
+            asChild={admin}
+            variant="secondary"
+            size="sm"
+            icon={admin ? undefined : <Download />}
+            disabled={!admin}
+            disabledReason="Admins import from other IIIF archives"
+          >
             {admin ? (
               <Link href="/iiif/import">
                 <Download /> Import from IIIF
@@ -110,7 +128,9 @@ export function CollectionsIndex() {
               <code className="break-all font-mono text-[12px] leading-[1.4]">{root.data.id}</code>
               <span className="flex items-center gap-3 text-[12px] text-fg-muted">
                 <CopyButton text={root.data.id} label="Collection URL" />
-                {publicNs.size ? `${publicNs.size} public namespace${publicNs.size === 1 ? "" : "s"}` : "Nothing is public yet"}
+                {publicNs.size
+                  ? `${publicNs.size} public namespace${publicNs.size === 1 ? "" : "s"}`
+                  : "Nothing is public yet"}
               </span>
             </>
           )}
@@ -126,7 +146,8 @@ export function CollectionsIndex() {
               <code className="break-all font-mono text-[12px] leading-[1.4]">{feed.data.id}</code>
               <span className="flex items-center gap-3 text-[12px] text-fg-muted">
                 <CopyButton text={feed.data.id} label="Change feed URL" />
-                IIIF Change Discovery · {count(feed.data.totalItems)} event{feed.data.totalItems === 1 ? "" : "s"} across the archive
+                IIIF Change Discovery · {count(feed.data.totalItems)} event
+                {feed.data.totalItems === 1 ? "" : "s"} across the archive
               </span>
             </>
           )}
@@ -168,7 +189,15 @@ export function CollectionsIndex() {
                     <Td className="tabular text-fg-secondary">
                       {count(n.recordings)} · {runtime(n.ms)}
                     </Td>
-                    <Td>{root.isPending ? <Skeleton className="h-4 w-20" /> : <Badge tone={pub ? "green" : "neutral"} dot>{pub ? "Published" : "Private"}</Badge>}</Td>
+                    <Td>
+                      {root.isPending ? (
+                        <Skeleton className="h-4 w-20" />
+                      ) : (
+                        <Badge tone={pub ? "green" : "neutral"} dot>
+                          {pub ? "Published" : "Private"}
+                        </Badge>
+                      )}
+                    </Td>
                     <Td>
                       <RoleChip role={role} />
                     </Td>

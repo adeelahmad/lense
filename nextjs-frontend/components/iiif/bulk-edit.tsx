@@ -35,7 +35,9 @@ export function bulkValue(field: BulkField, raw: string): { value: unknown } | {
       return { value: { name: v } };
     case "language": {
       const codes = v.split(/[\s,]+/).filter(Boolean);
-      return codes.every((c) => LANG_RX.test(c) && c !== "none") ? { value: codes } : { error: "Use language codes such as en, pt-BR" };
+      return codes.every((c) => LANG_RX.test(c) && c !== "none")
+        ? { value: codes }
+        : { error: "Use language codes such as en, pt-BR" };
     }
     default:
       return { value: v };
@@ -46,7 +48,17 @@ export function bulkValue(field: BulkField, raw: string): { value: unknown } | {
  * Set or clear one field on every recording in a namespace (MD4's dry run, backed by /metadata/bulk): a dry run reports
  * how many would change, then applying asks you to type the count above 100 recordings.
  */
-export function BulkEditDialog({ ns, open, onClose, preset }: { ns: string; open: boolean; onClose: () => void; preset?: { field: BulkField; value: string; title: string } }) {
+export function BulkEditDialog({
+  ns,
+  open,
+  onClose,
+  preset,
+}: {
+  ns: string;
+  open: boolean;
+  onClose: () => void;
+  preset?: { field: BulkField; value: string; title: string };
+}) {
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
@@ -55,16 +67,38 @@ export function BulkEditDialog({ ns, open, onClose, preset }: { ns: string; open
   const [raw, setRaw] = useState(preset?.value ?? "");
   const [typed, setTyped] = useState("");
   const parsed = mode === "clear" ? { value: null } : bulkValue(field, raw);
-  const body = () => ({ namespace: ns, set: mode === "set" && "value" in parsed ? { [field]: parsed.value } : {}, clear: mode === "clear" ? [field] : [] });
+  const body = () => ({
+    namespace: ns,
+    set: mode === "set" && "value" in parsed ? { [field]: parsed.value } : {},
+    clear: mode === "clear" ? [field] : [],
+  });
 
-  const dry = useMutation({ mutationFn: () => data(Metadata.bulkUpdateMetadata({ client, body: { ...body(), dry_run: true } })) });
+  const dry = useMutation({
+    mutationFn: () =>
+      data(
+        Metadata.bulkUpdateMetadata({
+          client,
+          body: { ...body(), dry_run: true },
+        }),
+      ),
+  });
   const apply = useMutation({
-    mutationFn: () => data(Metadata.bulkUpdateMetadata({ client, body: { ...body(), dry_run: false } })),
+    mutationFn: () =>
+      data(
+        Metadata.bulkUpdateMetadata({
+          client,
+          body: { ...body(), dry_run: false },
+        }),
+      ),
     onSuccess: (r) => {
       void qc.invalidateQueries({ queryKey: ["metadata"] });
       void qc.invalidateQueries({ queryKey: ["iiif"] });
       void qc.invalidateQueries({ queryKey: ["iiif-public"] });
-      toast({ title: `${count(r.changed ?? 0)} recording${r.changed === 1 ? "" : "s"} changed`, body: `${FIELDS.find((f) => f.value === field)?.label} in ${ns}. Each change is in its recording’s history.`, tone: "green" });
+      toast({
+        title: `${count(r.changed ?? 0)} recording${r.changed === 1 ? "" : "s"} changed`,
+        body: `${FIELDS.find((f) => f.value === field)?.label} in ${ns}. Each change is in its recording’s history.`,
+        tone: "green",
+      });
       close();
     },
   });
@@ -90,14 +124,25 @@ export function BulkEditDialog({ ns, open, onClose, preset }: { ns: string; open
             Cancel
           </Button>
           {!dry.data ? (
-            <Button variant="primary" disabled={"error" in parsed || dry.isPending} disabledReason={"error" in parsed ? parsed.error : undefined} onClick={() => dry.mutate()}>
+            <Button
+              variant="primary"
+              disabled={"error" in parsed || dry.isPending}
+              disabledReason={"error" in parsed ? parsed.error : undefined}
+              onClick={() => dry.mutate()}
+            >
               {dry.isPending ? "Checking…" : "Dry run"}
             </Button>
           ) : (
             <Button
               variant="primary"
               disabled={!n || apply.isPending || (needTyped && typed.trim() !== confirmText)}
-              disabledReason={!n ? "Nothing would change" : needTyped && typed.trim() !== confirmText ? `Type ${confirmText} to confirm` : undefined}
+              disabledReason={
+                !n
+                  ? "Nothing would change"
+                  : needTyped && typed.trim() !== confirmText
+                    ? `Type ${confirmText} to confirm`
+                    : undefined
+              }
               onClick={() => apply.mutate()}
             >
               {apply.isPending ? "Applying…" : `Apply to ${count(n)}`}
@@ -142,14 +187,50 @@ export function BulkEditDialog({ ns, open, onClose, preset }: { ns: string; open
         </div>
       )}
       {mode === "set" && !preset && (
-        <Field label="Value" hint={field === "language" ? "Codes separated by commas" : field === "provider" ? "The organisation’s name" : undefined}>
+        <Field
+          label="Value"
+          hint={
+            field === "language"
+              ? "Codes separated by commas"
+              : field === "provider"
+                ? "The organisation’s name"
+                : undefined
+          }
+        >
           {(f) =>
             field === "access" ? (
-              <Select id={f.id} value={raw} onChange={(e) => (setRaw(e.target.value), dry.reset())} options={[{ value: "", label: "Choose…" }, ...ACCESS.map((a) => ({ value: a.value, label: `${a.label} — ${a.hint}` }))]} />
+              <Select
+                id={f.id}
+                value={raw}
+                onChange={(e) => (setRaw(e.target.value), dry.reset())}
+                options={[
+                  { value: "", label: "Choose…" },
+                  ...ACCESS.map((a) => ({
+                    value: a.value,
+                    label: `${a.label} — ${a.hint}`,
+                  })),
+                ]}
+              />
             ) : field === "rights" ? (
-              <Select id={f.id} value={raw} onChange={(e) => (setRaw(e.target.value), dry.reset())} options={[{ value: "", label: "Choose…" }, ...RIGHTS.map((r) => ({ value: r.uri, label: `${r.code} — ${r.name}` }))]} />
+              <Select
+                id={f.id}
+                value={raw}
+                onChange={(e) => (setRaw(e.target.value), dry.reset())}
+                options={[
+                  { value: "", label: "Choose…" },
+                  ...RIGHTS.map((r) => ({
+                    value: r.uri,
+                    label: `${r.code} — ${r.name}`,
+                  })),
+                ]}
+              />
             ) : (
-              <Input id={f.id} aria-describedby={f.describedBy} value={raw} onChange={(e) => (setRaw(e.target.value), dry.reset())} />
+              <Input
+                id={f.id}
+                aria-describedby={f.describedBy}
+                value={raw}
+                onChange={(e) => (setRaw(e.target.value), dry.reset())}
+              />
             )
           }
         </Field>
@@ -167,7 +248,9 @@ export function BulkEditDialog({ ns, open, onClose, preset }: { ns: string; open
           </div>
           {needTyped && (
             <Field label={`Type ${confirmText} to confirm`}>
-              {(f) => <Input id={f.id} value={typed} onChange={(e) => setTyped(e.target.value)} mono autoComplete="off" />}
+              {(f) => (
+                <Input id={f.id} value={typed} onChange={(e) => setTyped(e.target.value)} mono autoComplete="off" />
+              )}
             </Field>
           )}
         </div>

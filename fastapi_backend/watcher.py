@@ -20,9 +20,7 @@ class MyHandler(FileSystemEventHandler):
         self.last_modified = 0
 
     def on_modified(self, event):
-        if not event.is_directory and WATCHER_REGEX_PATTERN.search(
-            os.path.relpath(event.src_path, APP_PATH)
-        ):
+        if not event.is_directory and WATCHER_REGEX_PATTERN.search(os.path.relpath(event.src_path, APP_PATH)):
             current_time = time.time()
             if current_time - self.last_modified > 1:
                 self.last_modified = current_time
@@ -47,8 +45,7 @@ class MyHandler(FileSystemEventHandler):
         )
         print(result.stdout, result.stderr, sep="\n")
         print(
-            "Type errors detected! We recommend checking the mypy output for "
-            "more information on the issues."
+            "Type errors detected! We recommend checking the mypy output for more information on the issues."
             if result.returncode
             else "No type errors detected."
         )

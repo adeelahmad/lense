@@ -6,7 +6,14 @@ import { memo, type MouseEvent, type ReactNode } from "react";
 
 import type { EditTarget } from "@/components/recording/edit";
 import { SegmentEditor, ReassignMenu } from "@/components/recording/edit";
-import { entityRanges, showEmotion, splitRuns, type Segment, type SpeakerInfo, type Turn } from "@/components/recording/model";
+import {
+  entityRanges,
+  showEmotion,
+  splitRuns,
+  type Segment,
+  type SpeakerInfo,
+  type Turn,
+} from "@/components/recording/model";
 import { EmotionChip, EventChip } from "@/components/ui/badge";
 import { tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -72,19 +79,31 @@ export const TurnView = memo(function TurnView({
       <div className={cn("flex items-center gap-2", compact ? "mb-1 h-5" : "mb-0.5 h-[22px]")}>
         {compact && <span aria-hidden className="size-2 shrink-0 rounded-[2px]" style={{ background: color }} />}
         {speaker ? (
-          <Link href={`/speakers/${speaker.id}`} className="text-[13px] font-bold leading-none hover:underline" style={{ color }}>
+          <Link
+            href={`/speakers/${speaker.id}`}
+            className="text-[13px] font-bold leading-none hover:underline"
+            style={{ color }}
+          >
             {name}
           </Link>
         ) : (
           <span className="text-[13px] font-bold leading-none text-fg-muted">{name}</span>
         )}
         {compact && (
-          <button type="button" onClick={() => onSeek(turn.t0)} aria-label={`Play from ${tc(turn.t0)}`} className="tabular text-[12px] font-medium leading-none text-fg-muted hover:text-fg">
+          <button
+            type="button"
+            onClick={() => onSeek(turn.t0)}
+            aria-label={`Play from ${tc(turn.t0)}`}
+            className="tabular text-[12px] font-medium leading-none text-fg-muted hover:text-fg"
+          >
             {tc(turn.t0)}
           </button>
         )}
         {onScreen && (
-          <span title="This voice's face is linked and on screen" className="inline-flex h-[18px] items-center gap-[3px] rounded-pill bg-surface-neutral px-1.5 text-[10.5px] font-semibold leading-none text-fg-secondary">
+          <span
+            title="This voice's face is linked and on screen"
+            className="inline-flex h-[18px] items-center gap-[3px] rounded-pill bg-surface-neutral px-1.5 text-[10.5px] font-semibold leading-none text-fg-secondary"
+          >
             <ScanFace aria-hidden className="size-[11px]" /> on screen
           </span>
         )}
@@ -102,7 +121,11 @@ export const TurnView = memo(function TurnView({
       <p
         className={cn(
           "m-0 text-fg [text-wrap:pretty]",
-          compact ? "font-serif text-[17px] leading-[1.6]" : dense ? "font-serif text-[16.5px] leading-[1.55]" : "transcript-text",
+          compact
+            ? "font-serif text-[17px] leading-[1.6]"
+            : dense
+              ? "font-serif text-[16.5px] leading-[1.55]"
+              : "transcript-text",
           editingHere && "rounded-sm border border-blue bg-background px-3 py-2",
         )}
       >
@@ -129,12 +152,23 @@ export const TurnView = memo(function TurnView({
 
   if (compact) return <article className="py-3.5 pb-1">{body}</article>;
   return (
-    <article className={cn("grid", dense ? "grid-cols-[44px_3px_minmax(0,1fr)] gap-x-2.5 py-2.5" : "grid-cols-[56px_3px_minmax(0,1fr)] gap-x-[13px] py-3")} data-turn={turn.key}>
+    <article
+      className={cn(
+        "grid",
+        dense
+          ? "grid-cols-[44px_3px_minmax(0,1fr)] gap-x-2.5 py-2.5"
+          : "grid-cols-[56px_3px_minmax(0,1fr)] gap-x-[13px] py-3",
+      )}
+      data-turn={turn.key}
+    >
       <button
         type="button"
         onClick={() => onSeek(turn.t0)}
         aria-label={`Play from ${tc(turn.t0)}, ${name}`}
-        className={cn("tabular self-start rounded-xs text-right font-medium text-fg-muted hover:text-fg", dense ? "text-[11.5px] leading-5" : "text-[12px] leading-[22px]")}
+        className={cn(
+          "tabular self-start rounded-xs text-right font-medium text-fg-muted hover:text-fg",
+          dense ? "text-[11.5px] leading-5" : "text-[12px] leading-[22px]",
+        )}
       >
         {tc(turn.t0)}
       </button>
@@ -162,7 +196,10 @@ function SegmentText({
   editing: boolean;
 }) {
   const ranges = [
-    ...(hits ?? []).map((h) => ({ ...h, kind: h.start === currentStart ? "hit-current" : "hit" })),
+    ...(hits ?? []).map((h) => ({
+      ...h,
+      kind: h.start === currentStart ? "hit-current" : "hit",
+    })),
     ...(names?.length ? entityRanges(seg.text, names) : []),
   ];
   const runs = ranges.length ? splitRuns(seg.text, ranges) : [{ text: seg.text, kind: null }];
@@ -170,7 +207,12 @@ function SegmentText({
   if (showEmotion(seg.emotion) || seg.event) {
     chips = (
       <>
-        {showEmotion(seg.emotion) && <EmotionChip emotion={seg.emotion} className="mx-0.5 ml-1.5 border-transparent bg-surface-neutral align-[2px] leading-none" />}
+        {showEmotion(seg.emotion) && (
+          <EmotionChip
+            emotion={seg.emotion}
+            className="mx-0.5 ml-1.5 border-transparent bg-surface-neutral align-[2px] leading-none"
+          />
+        )}
         {seg.event && <EventChip event={seg.event} className="mx-0.5 ml-1.5 align-[2px] leading-none" />}
       </>
     );
@@ -192,7 +234,16 @@ function SegmentText({
               {r.text}
             </span>
           ) : r.kind === "hit" || r.kind === "hit-current" ? (
-            <mark key={i} data-hit={r.kind === "hit-current" ? "current" : undefined} className={cn("rounded-[3px] text-fg", r.kind === "hit-current" ? "bg-gold-surface shadow-[0_0_0_2px_var(--aladdin-gold)]" : "bg-hl-word shadow-[0_0_0_2px_var(--hl-word)]")}>
+            <mark
+              key={i}
+              data-hit={r.kind === "hit-current" ? "current" : undefined}
+              className={cn(
+                "rounded-[3px] text-fg",
+                r.kind === "hit-current"
+                  ? "bg-gold-surface shadow-[0_0_0_2px_var(--aladdin-gold)]"
+                  : "bg-hl-word shadow-[0_0_0_2px_var(--hl-word)]",
+              )}
+            >
               {r.text}
             </mark>
           ) : (

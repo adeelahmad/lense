@@ -39,10 +39,14 @@ export function CitationChip({
   onPreview?: (p: Passage) => void;
   compact?: boolean;
 }) {
-  const chip = "mx-0.5 inline-flex h-[22px] max-w-full items-center whitespace-nowrap rounded-pill border px-2 align-[2px] font-sans text-[11.5px] font-semibold leading-none";
+  const chip =
+    "mx-0.5 inline-flex h-[22px] max-w-full items-center whitespace-nowrap rounded-pill border px-2 align-[2px] font-sans text-[11.5px] font-semibold leading-none";
   if (!passage)
     return (
-      <span className={cn(chip, "border-border bg-surface-neutral text-fg-muted")} title="This source isn’t available to you any more">
+      <span
+        className={cn(chip, "border-border bg-surface-neutral text-fg-muted")}
+        title="This source isn’t available to you any more"
+      >
         [{n}]
       </span>
     );
@@ -64,7 +68,11 @@ export function CitationChip({
           onFocus={() => onHover?.(n)}
           onBlur={() => onHover?.(null)}
           aria-label={`Source ${n}: ${citeLabel(passage)}. Opens the recording there.`}
-          className={cn(chip, "bg-blue-surface text-fg-accent hover:border-blue", active ? "border-blue" : "border-blue-border")}
+          className={cn(
+            chip,
+            "bg-blue-surface text-fg-accent hover:border-blue",
+            active ? "border-blue" : "border-blue-border",
+          )}
         >
           {compact ? (
             <span className="truncate">{citeLabel(passage, false)}</span>
@@ -86,7 +94,9 @@ export function CitationChip({
         >
           <span className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color }}>
             <span aria-hidden className="size-2 rounded-[2px]" style={{ background: color }} />
-            {[quote.speaker ?? passage.speaker, passageTime(passage), shortTitle(passage.title, 40)].filter(Boolean).join(" · ")}
+            {[quote.speaker ?? passage.speaker, passageTime(passage), shortTitle(passage.title, 40)]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
           <span className="font-serif text-[15px] leading-normal text-fg">“{quote.text}”</span>
           <span className="text-[12px] font-medium text-fg-muted">Click to open the player here · Enter</span>

@@ -8,7 +8,16 @@ import { useEffect, useMemo, useState } from "react";
 import { Metadata } from "@/app/openapi-client";
 import { isUnreachable } from "@/components/errors/error-states";
 import { useCollectionItems } from "@/components/iiif/collection-data";
-import { ACCESS, FIELD_LABEL, FIELD_MAPS, isEmpty, LANG_RX, same, type Field, type Meta } from "@/components/iiif/metadata-model";
+import {
+  ACCESS,
+  FIELD_LABEL,
+  FIELD_MAPS,
+  isEmpty,
+  LANG_RX,
+  same,
+  type Field,
+  type Meta,
+} from "@/components/iiif/metadata-model";
 import { keys, useNamespaceMeta, type NamespaceProfile } from "@/components/iiif/queries";
 import { RIGHTS, rightsShort } from "@/components/iiif/rights";
 import { Banner } from "@/components/ui/banner";
@@ -21,7 +30,22 @@ import { needRole, useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 /** Fields a profile covers, in the editor's default order (access has its own default below). */
-const PROFILE_FIELDS: Field[] = ["label", "summary", "navDate", "creators", "contributors", "subjects", "language", "rights", "attribution", "provider", "identifiers", "homepage", "metadata", "related"];
+const PROFILE_FIELDS: Field[] = [
+  "label",
+  "summary",
+  "navDate",
+  "creators",
+  "contributors",
+  "subjects",
+  "language",
+  "rights",
+  "attribution",
+  "provider",
+  "identifiers",
+  "homepage",
+  "metadata",
+  "related",
+];
 
 /** Where a field's value comes from when the profile sets no default. */
 const DERIVED: Partial<Record<Field, string>> = {
@@ -36,7 +60,13 @@ const DERIVED: Partial<Record<Field, string>> = {
 /** Profile defaults this page can edit, as simple text. */
 const EDITABLE_DEFAULTS: Field[] = ["rights", "attribution", "provider", "language", "homepage"];
 
-type Draft = { required: Field[]; order: Field[]; defaults: Meta; vocabularies: { subjects: string[]; language: string[] }; default_access: string };
+type Draft = {
+  required: Field[];
+  order: Field[];
+  defaults: Meta;
+  vocabularies: { subjects: string[]; language: string[] };
+  default_access: string;
+};
 
 function fromProfile(p: NamespaceProfile | undefined): Draft {
   const order = ((p?.order?.length ? p.order : PROFILE_FIELDS) as Field[]).filter((f) => PROFILE_FIELDS.includes(f));
@@ -44,7 +74,10 @@ function fromProfile(p: NamespaceProfile | undefined): Draft {
     required: (p?.required ?? []) as Field[],
     order: [...order, ...PROFILE_FIELDS.filter((f) => !order.includes(f))],
     defaults: (p?.defaults ?? {}) as Meta,
-    vocabularies: { subjects: p?.vocabularies?.subjects ?? [], language: p?.vocabularies?.language ?? [] },
+    vocabularies: {
+      subjects: p?.vocabularies?.subjects ?? [],
+      language: p?.vocabularies?.language ?? [],
+    },
     default_access: p?.default_access ?? "private",
   };
 }
@@ -74,7 +107,8 @@ function setDefault(f: Field, text: string, d: Meta): Meta {
 function defaultError(f: Field, d: Meta): string | null {
   const v = d[f];
   if (isEmpty(v)) return null;
-  if (f === "language" && (v as string[]).some((c) => !LANG_RX.test(c) || c === "none")) return "Use codes such as en, pt-BR";
+  if (f === "language" && (v as string[]).some((c) => !LANG_RX.test(c) || c === "none"))
+    return "Use codes such as en, pt-BR";
   if (f === "homepage" && !/^https?:\/\/\S+$/.test(v as string)) return "Use an http(s) address";
   return null;
 }
@@ -114,26 +148,45 @@ export function ProfileEditor({ ns }: { ns: string }) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.namespace(ns) });
       void qc.invalidateQueries({ queryKey: ["metadata"] });
-      toast({ title: "Profile saved", body: "Recordings that now miss a required field show it as a problem; nothing was unpublished.", tone: "green" });
+      toast({
+        title: "Profile saved",
+        body: "Recordings that now miss a required field show it as a problem; nothing was unpublished.",
+        tone: "green",
+      });
     },
   });
 
   if (namespaces.length && !namespaces.some((n) => n.name === ns))
     return (
-      <EmptyState icon={<FileText />} title="This namespace doesn’t exist" actions={<Button asChild><Link href="/iiif">All collections</Link></Button>}>
+      <EmptyState
+        icon={<FileText />}
+        title="This namespace doesn’t exist"
+        actions={
+          <Button asChild>
+            <Link href="/iiif">All collections</Link>
+          </Button>
+        }
+      >
         Or you don’t have a role in it. Namespaces you don’t belong to are never shown here.
       </EmptyState>
     );
   if (nsMeta.isError)
     return (
-      <EmptyState tone="error" icon={<FileText />} title={isUnreachable(nsMeta.error) ? "Can’t reach the server" : "Couldn’t load the profile"} actions={<Button onClick={() => nsMeta.refetch()}>Try again</Button>}>
+      <EmptyState
+        tone="error"
+        icon={<FileText />}
+        title={isUnreachable(nsMeta.error) ? "Can’t reach the server" : "Couldn’t load the profile"}
+        actions={<Button onClick={() => nsMeta.refetch()}>Try again</Button>}
+      >
         {nsMeta.error.message}
       </EmptyState>
     );
 
   const d = draft;
   const changed = d ? !same(d, loaded) : false;
-  const errors = d ? Object.fromEntries(EDITABLE_DEFAULTS.map((f) => [f, defaultError(f, d.defaults)]).filter(([, e]) => e)) : {};
+  const errors = d
+    ? Object.fromEntries(EDITABLE_DEFAULTS.map((f) => [f, defaultError(f, d.defaults)]).filter(([, e]) => e))
+    : {};
   const newlyRequired = d ? d.required.filter((f) => !loaded.required.includes(f)) : [];
   const published = items.filter((i) => i.meta && i.meta.meta.access && i.meta.meta.access !== "private");
   const affected = (f: Field) => published.filter((i) => isEmpty(i.meta?.meta[f])).length;
@@ -158,12 +211,17 @@ export function ProfileEditor({ ns }: { ns: string }) {
             <h1 className="text-[20px] font-bold leading-tight text-fg">Metadata profile · {ns}</h1>
           </div>
           <code className="font-mono text-[12px] text-fg-muted">applies to {ns}</code>
-          <Button size="sm" disabled disabledReason="Fields are fixed by the server; add your own as label / value pair defaults">
+          <Button
+            size="sm"
+            disabled
+            disabledReason="Fields are fixed by the server; add your own as label / value pair defaults"
+          >
             Add field
           </Button>
         </div>
         <p className="text-[13px] leading-[1.45] text-fg-secondary">
-          Field order here is the order in the editor and in viewers’ metadata panels. Changing a required field flags existing recordings that miss it; it doesn’t unpublish them.
+          Field order here is the order in the editor and in viewers’ metadata panels. Changing a required field flags
+          existing recordings that miss it; it doesn’t unpublish them.
         </p>
         {!isOwner && <Banner tone="info">{needRole("owner", ns)}. You can read the profile.</Banner>}
         {!d ? (
@@ -192,10 +250,22 @@ export function ProfileEditor({ ns }: { ns: string }) {
                       <tr key={f} className="h-11 border-t border-border">
                         <td className="px-3">
                           <span className="flex gap-0.5">
-                            <button type="button" aria-label={`Move ${FIELD_LABEL[f]} up`} disabled={!isOwner || i === 0} onClick={() => move(i, -1)} className="grid size-6 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral disabled:opacity-30">
+                            <button
+                              type="button"
+                              aria-label={`Move ${FIELD_LABEL[f]} up`}
+                              disabled={!isOwner || i === 0}
+                              onClick={() => move(i, -1)}
+                              className="grid size-6 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral disabled:opacity-30"
+                            >
                               <ArrowUp className="size-3.5" />
                             </button>
-                            <button type="button" aria-label={`Move ${FIELD_LABEL[f]} down`} disabled={!isOwner || i === d.order.length - 1} onClick={() => move(i, 1)} className="grid size-6 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral disabled:opacity-30">
+                            <button
+                              type="button"
+                              aria-label={`Move ${FIELD_LABEL[f]} down`}
+                              disabled={!isOwner || i === d.order.length - 1}
+                              onClick={() => move(i, 1)}
+                              className="grid size-6 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral disabled:opacity-30"
+                            >
                               <ArrowDown className="size-3.5" />
                             </button>
                           </span>
@@ -209,7 +279,11 @@ export function ProfileEditor({ ns }: { ns: string }) {
                             aria-label={`${FIELD_LABEL[f]} is required`}
                             checked={req}
                             disabled={!isOwner}
-                            onCheckedChange={(on) => up({ required: on ? [...d.required, f] : d.required.filter((x) => x !== f) })}
+                            onCheckedChange={(on) =>
+                              up({
+                                required: on ? [...d.required, f] : d.required.filter((x) => x !== f),
+                              })
+                            }
                           />
                         </td>
                         <td className="px-3 py-1.5 text-fg-secondary">
@@ -219,8 +293,18 @@ export function ProfileEditor({ ns }: { ns: string }) {
                                 aria-label="Default rights"
                                 size="sm"
                                 value={(d.defaults.rights as string) ?? ""}
-                                onChange={(e) => up({ defaults: setDefault(f, e.target.value, d.defaults) })}
-                                options={[{ value: "", label: DERIVED[f] ?? "—" }, ...RIGHTS.map((r) => ({ value: r.uri, label: r.code }))]}
+                                onChange={(e) =>
+                                  up({
+                                    defaults: setDefault(f, e.target.value, d.defaults),
+                                  })
+                                }
+                                options={[
+                                  { value: "", label: DERIVED[f] ?? "—" },
+                                  ...RIGHTS.map((r) => ({
+                                    value: r.uri,
+                                    label: r.code,
+                                  })),
+                                ]}
                               />
                             ) : (
                               <Input
@@ -229,7 +313,11 @@ export function ProfileEditor({ ns }: { ns: string }) {
                                 placeholder={DERIVED[f] ?? "—"}
                                 invalid={Boolean(errors[f])}
                                 title={errors[f] ?? undefined}
-                                onChange={(e) => up({ defaults: setDefault(f, e.target.value, d.defaults) })}
+                                onChange={(e) =>
+                                  up({
+                                    defaults: setDefault(f, e.target.value, d.defaults),
+                                  })
+                                }
                                 className="h-8 text-[13px]"
                               />
                             )
@@ -246,7 +334,17 @@ export function ProfileEditor({ ns }: { ns: string }) {
                               value={d.vocabularies[f].join(", ")}
                               readOnly={!isOwner}
                               placeholder={f === "subjects" ? "entities, or a list of terms" : "any language"}
-                              onChange={(e) => up({ vocabularies: { ...d.vocabularies, [f]: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } })}
+                              onChange={(e) =>
+                                up({
+                                  vocabularies: {
+                                    ...d.vocabularies,
+                                    [f]: e.target.value
+                                      .split(",")
+                                      .map((x) => x.trim())
+                                      .filter(Boolean),
+                                  },
+                                })
+                              }
                               className="h-8 text-[13px]"
                             />
                           ) : f === "rights" ? (
@@ -270,18 +368,31 @@ export function ProfileEditor({ ns }: { ns: string }) {
                 value={d.default_access}
                 disabled={!isOwner}
                 onChange={(e) => up({ default_access: e.target.value })}
-                options={ACCESS.map((a) => ({ value: a.value, label: a.label }))}
+                options={ACCESS.map((a) => ({
+                  value: a.value,
+                  label: a.label,
+                }))}
               />
-              <span className="text-[12.5px] leading-[1.35] text-fg-secondary">{ACCESS.find((a) => a.value === d.default_access)?.anon} Applies to recordings without their own access.</span>
+              <span className="text-[12.5px] leading-[1.35] text-fg-secondary">
+                {ACCESS.find((a) => a.value === d.default_access)?.anon} Applies to recordings without their own access.
+              </span>
             </div>
             {newlyRequired.map((f) =>
               affected(f) ? (
-                <div key={f} className="flex gap-2 rounded-[10px] border border-gold-border bg-gold-surface px-3 py-2.5 text-[13px] leading-[1.4]">
+                <div
+                  key={f}
+                  className="flex gap-2 rounded-[10px] border border-gold-border bg-gold-surface px-3 py-2.5 text-[13px] leading-[1.4]"
+                >
                   <span aria-hidden className="font-extrabold text-gold-dark">
                     ◆
                   </span>
                   <span>
-                    Making “{FIELD_LABEL[f]}” required affects <b>{affected(f)} published recording{affected(f) === 1 ? "" : "s"}</b> that don’t have it. They’ll show “needs attention” until filled.
+                    Making “{FIELD_LABEL[f]}” required affects{" "}
+                    <b>
+                      {affected(f)} published recording
+                      {affected(f) === 1 ? "" : "s"}
+                    </b>{" "}
+                    that don’t have it. They’ll show “needs attention” until filled.
                   </span>
                 </div>
               ) : null,
@@ -292,7 +403,13 @@ export function ProfileEditor({ ns }: { ns: string }) {
               <Button variant="ghost" size="sm" onClick={() => setDraft(loaded)}>
                 Discard
               </Button>
-              <Button variant="primary" size="sm" disabled={!isOwner || save.isPending || Object.keys(errors).length > 0} disabledReason={!isOwner ? needRole("owner", ns) : undefined} onClick={() => save.mutate(d)}>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={!isOwner || save.isPending || Object.keys(errors).length > 0}
+                disabledReason={!isOwner ? needRole("owner", ns) : undefined}
+                onClick={() => save.mutate(d)}
+              >
                 {save.isPending ? "Saving…" : "Save profile"}
               </Button>
             </div>

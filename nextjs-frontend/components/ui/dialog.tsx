@@ -39,7 +39,10 @@ export function Dialog({
         >
           <div className="flex items-start gap-3">
             <D.Title className="flex-1 text-[22px] font-bold leading-tight tracking-[-.01em] text-fg">{title}</D.Title>
-            <D.Close className="-mr-2 -mt-1 grid size-8 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral" aria-label="Close">
+            <D.Close
+              className="-mr-2 -mt-1 grid size-8 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral"
+              aria-label="Close"
+            >
               <X className="size-4" />
             </D.Close>
           </div>
@@ -85,7 +88,10 @@ export function Drawer({
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
             <D.Title className="flex-1 text-[16px] font-bold text-fg">{title}</D.Title>
             {actions}
-            <D.Close className="grid size-8 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral" aria-label="Close">
+            <D.Close
+              className="grid size-8 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral"
+              aria-label="Close"
+            >
               <X className="size-4" />
             </D.Close>
           </div>

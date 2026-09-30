@@ -61,7 +61,11 @@ export class ApiError extends Error {
 function message(body: unknown, status: number): string {
   const detail = (body as { detail?: unknown } | null)?.detail;
   if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) return detail.map((d) => (d && typeof d === "object" && "msg" in d ? String((d as { msg: unknown }).msg) : "")).filter(Boolean).join(" ");
+  if (Array.isArray(detail))
+    return detail
+      .map((d) => (d && typeof d === "object" && "msg" in d ? String((d as { msg: unknown }).msg) : ""))
+      .filter(Boolean)
+      .join(" ");
   if (status === 0) return "Can't reach the server. Check your connection and try again.";
   return `Request failed (${status})`;
 }

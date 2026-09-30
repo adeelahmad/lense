@@ -2,6 +2,7 @@
 one, recordings get the standard pipeline. Steps: transcribe, diarize, analyze, summarize, llm (a prompt template whose
 structured result is saved as a named output), report (built in, or from a report template) and export (a template
 rendered to a file, optionally copied to a storage source). Any step can carry a condition."""
+
 from __future__ import annotations
 
 import pathlib
@@ -57,10 +58,25 @@ def create(db, name, steps, description=None, user=None):
         raise ValueError("give the pipeline a name")
     steps = validate_steps(db, steps)
     pid = db.next_id("pipeline")
-    db.q("CREATE $r CONTENT $d", r=R("pipeline", pid), d=store.clean({"name": name.strip()[:80], "description": description, "current": 1,
-                                                                      "created_at": store.now(), "updated_at": store.now(), "created_by": user}))
-    db.q("CREATE $r CONTENT $d", r=R("pipeline_version", f"{pid}-1"), d=store.clean({"pipeline": pid, "version": 1, "steps": steps,
-                                                                                     "created_at": store.now(), "created_by": user}))
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("pipeline", pid),
+        d=store.clean(
+            {
+                "name": name.strip()[:80],
+                "description": description,
+                "current": 1,
+                "created_at": store.now(),
+                "updated_at": store.now(),
+                "created_by": user,
+            }
+        ),
+    )
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("pipeline_version", f"{pid}-1"),
+        d=store.clean({"pipeline": pid, "version": 1, "steps": steps, "created_at": store.now(), "created_by": user}),
+    )
     return pid
 
 
@@ -69,8 +85,11 @@ def save_version(db, pid, steps, notes=None, user=None, publish=True):
         raise KeyError(pid)
     steps = validate_steps(db, steps)
     n = max(db.values("SELECT VALUE version FROM pipeline_version WHERE pipeline = $p", p=pid) or [0]) + 1
-    db.q("CREATE $r CONTENT $d", r=R("pipeline_version", f"{pid}-{n}"), d=store.clean({"pipeline": pid, "version": n, "steps": steps, "notes": notes,
-                                                                                       "created_at": store.now(), "created_by": user}))
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("pipeline_version", f"{pid}-{n}"),
+        d=store.clean({"pipeline": pid, "version": n, "steps": steps, "notes": notes, "created_at": store.now(), "created_by": user}),
+    )
     db.q("UPDATE $r SET updated_at = $t" + (", current = $n" if publish else ""), r=R("pipeline", pid), t=store.now(), n=n)
     return n
 
@@ -89,8 +108,10 @@ def list_pipelines(db):
     used = {}
     for s in db.rows("SELECT name, pipeline FROM space WHERE pipeline != NONE"):
         used.setdefault(s["pipeline"], []).append(s["name"])
-    return [{**p, "namespaces": used.get(p["id"], [])} for p in db.rows(
-        "SELECT record::id(id) AS id, name, description, current, updated_at FROM pipeline ORDER BY id")]
+    return [
+        {**p, "namespaces": used.get(p["id"], [])}
+        for p in db.rows("SELECT record::id(id) AS id, name, description, current, updated_at FROM pipeline ORDER BY id")
+    ]
 
 
 def resolve(db, space, pipeline_id=None):
@@ -104,20 +125,29 @@ def resolve(db, space, pipeline_id=None):
 def condition_ok(db, rid, when):
     rec = db.one("SELECT duration_ms, source, language FROM $r", r=R("recording", rid)) or {}
     mins = (rec.get("duration_ms") or 0) / 60000
-    return not (("min_minutes" in when and mins < when["min_minutes"]) or ("max_minutes" in when and mins > when["max_minutes"])
-                or ("source" in when and rec.get("source") != when["source"]) or (when.get("languages") and rec.get("language") not in when["languages"]))
+    return not (
+        ("min_minutes" in when and mins < when["min_minutes"])
+        or ("max_minutes" in when and mins > when["max_minutes"])
+        or ("source" in when and rec.get("source") != when["source"])
+        or (when.get("languages") and rec.get("language") not in when["languages"])
+    )
 
 
 def save_output(db, rid, key, value, origin=None):
-    db.q("UPSERT $o CONTENT $d", o=R("output", f"{rid}-{key}"), d=store.clean({"recording": rid, "key": key, "value": value, "origin": origin,
-                                                                                "created_at": store.now()}))
+    db.q(
+        "UPSERT $o CONTENT $d",
+        o=R("output", f"{rid}-{key}"),
+        d=store.clean({"recording": rid, "key": key, "value": value, "origin": origin, "created_at": store.now()}),
+    )
 
 
 def run_llm(db, cfg, rid, spec, say):
     t = templates.get(db, int(spec["template"]), spec.get("version"))
     prompt = templates.render_body(t["body"], templates.context(db, cfg, rid), "prompt")
     value = llm.json_out(cfg, t.get("system") or templates.DEFAULT_SYSTEM, prompt, t.get("schema") or {"type": "object"}, spec.get("model"))
-    save_output(db, rid, spec["key"], value, {"template": t["id"], "version": t["version"], "model": spec.get("model") or cfg["llm"]["model"]})
+    save_output(
+        db, rid, spec["key"], value, {"template": t["id"], "version": t["version"], "model": spec.get("model") or cfg["llm"]["model"]}
+    )
     say(f"saved output {spec['key']}")
 
 
@@ -133,7 +163,13 @@ def run_report(db, cfg, rid, spec, say):
     out = pathlib.Path(cfg["data_dir"]) / "reports" / ns / f"{render.slug(title)}-{rid}--{render.slug(t['name'])}.html"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
-    save_output(db, rid, f"report_{render.slug(t['name']).replace('-', '_')}", {"url": f"/reports/{ns}/{out.name}"}, {"template": t["id"], "version": t["version"]})
+    save_output(
+        db,
+        rid,
+        f"report_{render.slug(t['name']).replace('-', '_')}",
+        {"url": f"/reports/{ns}/{out.name}"},
+        {"template": t["id"], "version": t["version"]},
+    )
     say(f"wrote {out.name}")
 
 
@@ -153,6 +189,11 @@ def run_export(db, cfg, rid, spec, say):
         target = sources.check_path(cfg, src, str(pathlib.PurePosixPath(dest.get("path") or "") / name))
         sources.run(db, cfg, src, lambda n: ["copyto", str(out), f"{n}:{target}"], timeout=600)
         uploaded = f"{src['name']}:{target}"
-    save_output(db, rid, "export_" + re.sub(r"\W+", "_", name.lower()).strip("_")[:40], {"file": name, "uploaded_to": uploaded},
-                {"template": t["id"], "version": t["version"]})
+    save_output(
+        db,
+        rid,
+        "export_" + re.sub(r"\W+", "_", name.lower()).strip("_")[:40],
+        {"file": name, "uploaded_to": uploaded},
+        {"template": t["id"], "version": t["version"]},
+    )
     say(f"exported {name}" + (f" to {uploaded}" if uploaded else ""))

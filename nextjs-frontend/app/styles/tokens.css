@@ -8,101 +8,176 @@
 /* ALADDIN — Intent-driven, test-driven software engineering. Models explore. Gates decide.
    BLUE = intent/orchestration · RED = proof something is missing · GREEN = proof it now holds
    GOLD = deterministic decision/gate/boundary · GRAY = evidence/history/provenance */
-:root{
-/* Core brand */
---aladdin-blue:#1A73E8;--aladdin-green:#34A853;--aladdin-red:#EA4335;--aladdin-gold:#F9AB00;
-/* Semantic */
---intent:#1A73E8;--red-proof:#EA4335;--green-proof:#34A853;--gate:#F9AB00;
-/* Strong / hover variants */
---blue-dark:#1558B0;--red-dark:#C5221F;--green-dark:#1E7E43;--gold-dark:#B06000;
-/* Text */
---text-primary:#202124;--text-strong:#3C4043;--text-secondary:#5F6368;--text-muted:#80868B;--text-on-color:#FFFFFF;
-/* Surfaces */
---background:#FFFFFF;--surface:#F8F9FA;--surface-neutral:#F1F3F4;
---intent-surface:#E8F0FE;--red-surface:#FCE8E6;--green-surface:#E6F4EA;--gate-surface:#FEF7E0;
-/* Structure */
---border:#DADCE0;--graph-edge:#A8C7FA;
-/* Tinted borders for semantic panels */
---intent-border:#A8C7FA;--red-border:#F6AEA9;--green-border:#A8DAB5;--gate-border:#FDE293;
-/* Aliases */
---fg-1:var(--text-primary);--fg-2:var(--text-strong);--fg-3:var(--text-secondary);--fg-4:var(--text-muted);
---bg-page:var(--surface);--bg-canvas:var(--background);--surface-card:var(--background);--surface-evidence:var(--surface-neutral);
---text-body:var(--text-primary);--text-link:var(--aladdin-blue);--focus-ring:var(--graph-edge);
-/* Terminal */
---term-bg:#202124;--term-fg:#E8EAED;--term-muted:#9AA0A6;--term-blue:#8AB4F8;--term-green:#81C995;--term-red:#F28B82;--term-gold:#FDD663;
+:root {
+  /* Core brand */
+  --aladdin-blue: #1a73e8;
+  --aladdin-green: #34a853;
+  --aladdin-red: #ea4335;
+  --aladdin-gold: #f9ab00;
+  /* Semantic */
+  --intent: #1a73e8;
+  --red-proof: #ea4335;
+  --green-proof: #34a853;
+  --gate: #f9ab00;
+  /* Strong / hover variants */
+  --blue-dark: #1558b0;
+  --red-dark: #c5221f;
+  --green-dark: #1e7e43;
+  --gold-dark: #b06000;
+  /* Text */
+  --text-primary: #202124;
+  --text-strong: #3c4043;
+  --text-secondary: #5f6368;
+  --text-muted: #80868b;
+  --text-on-color: #ffffff;
+  /* Surfaces */
+  --background: #ffffff;
+  --surface: #f8f9fa;
+  --surface-neutral: #f1f3f4;
+  --intent-surface: #e8f0fe;
+  --red-surface: #fce8e6;
+  --green-surface: #e6f4ea;
+  --gate-surface: #fef7e0;
+  /* Structure */
+  --border: #dadce0;
+  --graph-edge: #a8c7fa;
+  /* Tinted borders for semantic panels */
+  --intent-border: #a8c7fa;
+  --red-border: #f6aea9;
+  --green-border: #a8dab5;
+  --gate-border: #fde293;
+  /* Aliases */
+  --fg-1: var(--text-primary);
+  --fg-2: var(--text-strong);
+  --fg-3: var(--text-secondary);
+  --fg-4: var(--text-muted);
+  --bg-page: var(--surface);
+  --bg-canvas: var(--background);
+  --surface-card: var(--background);
+  --surface-evidence: var(--surface-neutral);
+  --text-body: var(--text-primary);
+  --text-link: var(--aladdin-blue);
+  --focus-ring: var(--graph-edge);
+  /* Terminal */
+  --term-bg: #202124;
+  --term-fg: #e8eaed;
+  --term-muted: #9aa0a6;
+  --term-blue: #8ab4f8;
+  --term-green: #81c995;
+  --term-red: #f28b82;
+  --term-gold: #fdd663;
 }
 
 /* Aladdin design system: typography.css */
-:root{
---font-sans:'DM Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
---font-display:var(--font-sans);
---font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
---font-hand:'Caveat','Segoe Print',cursive;
---font-brand:'Aladin','DM Sans',cursive;
---fw-regular:400;--fw-medium:500;--fw-bold:700;--fw-black:800;
-/* Scale (px) */
---fs-display:64px;--fs-h1:44px;--fs-h2:32px;--fs-h3:22px;--fs-h4:18px;--fs-body:16px;--fs-small:14px;--fs-caption:12px;--fs-micro:11px;
---lh-tight:1.08;--lh-snug:1.25;--lh-body:1.55;--lh-code:1.6;
---ls-display:-0.03em;--ls-heading:-0.015em;--ls-body:0;--ls-label:0.06em;
-/* Semantic roles */
---type-display:var(--fw-black) var(--fs-display)/var(--lh-tight) var(--font-display);
---type-h1:var(--fw-bold) var(--fs-h1)/var(--lh-tight) var(--font-display);
---type-h2:var(--fw-bold) var(--fs-h2)/var(--lh-snug) var(--font-display);
---type-h3:var(--fw-bold) var(--fs-h3)/var(--lh-snug) var(--font-sans);
---type-body:var(--fw-regular) var(--fs-body)/var(--lh-body) var(--font-sans);
---type-small:var(--fw-regular) var(--fs-small)/var(--lh-body) var(--font-sans);
---type-label:var(--fw-bold) var(--fs-micro)/1.2 var(--font-sans);
---type-code:var(--fw-regular) var(--fs-small)/var(--lh-code) var(--font-mono);
---type-hand:var(--fw-medium) 24px/1.1 var(--font-hand);
+:root {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-hand: "Caveat", "Segoe Print", cursive;
+  --font-brand: "Aladin", "DM Sans", cursive;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-bold: 700;
+  --fw-black: 800;
+  /* Scale (px) */
+  --fs-display: 64px;
+  --fs-h1: 44px;
+  --fs-h2: 32px;
+  --fs-h3: 22px;
+  --fs-h4: 18px;
+  --fs-body: 16px;
+  --fs-small: 14px;
+  --fs-caption: 12px;
+  --fs-micro: 11px;
+  --lh-tight: 1.08;
+  --lh-snug: 1.25;
+  --lh-body: 1.55;
+  --lh-code: 1.6;
+  --ls-display: -0.03em;
+  --ls-heading: -0.015em;
+  --ls-body: 0;
+  --ls-label: 0.06em;
+  /* Semantic roles */
+  --type-display: var(--fw-black) var(--fs-display) / var(--lh-tight) var(--font-display);
+  --type-h1: var(--fw-bold) var(--fs-h1) / var(--lh-tight) var(--font-display);
+  --type-h2: var(--fw-bold) var(--fs-h2) / var(--lh-snug) var(--font-display);
+  --type-h3: var(--fw-bold) var(--fs-h3) / var(--lh-snug) var(--font-sans);
+  --type-body: var(--fw-regular) var(--fs-body) / var(--lh-body) var(--font-sans);
+  --type-small: var(--fw-regular) var(--fs-small) / var(--lh-body) var(--font-sans);
+  --type-label: var(--fw-bold) var(--fs-micro) / 1.2 var(--font-sans);
+  --type-code: var(--fw-regular) var(--fs-small) / var(--lh-code) var(--font-mono);
+  --type-hand: var(--fw-medium) 24px/1.1 var(--font-hand);
 }
 
 /* Aladdin design system: spacing.css */
-:root{
---space-0:0;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-10:40px;--space-12:48px;--space-16:64px;--space-20:80px;
---radius-xs:4px;--radius-sm:8px;--radius-md:12px;--radius-lg:16px;--radius-xl:24px;--radius-pill:999px;
---container-max:1200px;--gutter:24px;
---control-h-sm:32px;--control-h-md:40px;--control-h-lg:48px;
+:root {
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+  --container-max: 1200px;
+  --gutter: 24px;
+  --control-h-sm: 32px;
+  --control-h-md: 40px;
+  --control-h-lg: 48px;
 }
 
 /* Aladdin design system: effects.css */
-:root{
-/* Elevation — soft, neutral, low. Never colored glows. */
---shadow-0:none;
---shadow-1:0 1px 2px rgba(60,64,67,.12),0 1px 3px 1px rgba(60,64,67,.08);
---shadow-2:0 1px 3px rgba(60,64,67,.14),0 4px 8px 3px rgba(60,64,67,.08);
---shadow-3:0 4px 8px rgba(60,64,67,.12),0 12px 28px 6px rgba(60,64,67,.10);
---ring-focus:0 0 0 3px var(--graph-edge);
-/* Glass-light: only for overlays over busy content */
---glass-bg:rgba(255,255,255,.72);--glass-blur:saturate(160%) blur(12px);
-/* Motion — calm, deterministic */
---ease-standard:cubic-bezier(.2,0,0,1);--ease-exit:cubic-bezier(.3,0,1,1);
---dur-fast:120ms;--dur-base:200ms;--dur-slow:320ms;
---border-hair:1px solid var(--border);
+:root {
+  /* Elevation — soft, neutral, low. Never colored glows. */
+  --shadow-0: none;
+  --shadow-1: 0 1px 2px rgba(60, 64, 67, 0.12), 0 1px 3px 1px rgba(60, 64, 67, 0.08);
+  --shadow-2: 0 1px 3px rgba(60, 64, 67, 0.14), 0 4px 8px 3px rgba(60, 64, 67, 0.08);
+  --shadow-3: 0 4px 8px rgba(60, 64, 67, 0.12), 0 12px 28px 6px rgba(60, 64, 67, 0.1);
+  --ring-focus: 0 0 0 3px var(--graph-edge);
+  /* Glass-light: only for overlays over busy content */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-blur: saturate(160%) blur(12px);
+  /* Motion — calm, deterministic */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --border-hair: 1px solid var(--border);
 }
-
 
 /* Lens additions (light) */
 :root {
-  --accent-text: #1558B0;
-  --hl: #EEF3FD;
-  --hl-word: #D2E3FC;
-  --scrim: rgba(32,33,36,.32);
-  --spk-1: #1A73E8;
-  --spk-2: #C5221F;
-  --spk-3: #1E7E43;
-  --spk-4: #B06000;
-  --spk-5: #7A4E9A;
-  --spk-6: #287F77;
-  --spk-7: #4F5D75;
-  --spk-8: #A23B5B;
-  --emo-neutral: #9AA0A6;
-  --emo-happy: #D9A633;
-  --emo-amused: #E0B84A;
-  --emo-surprise: #3F9E97;
-  --emo-sad: #6B8CB8;
-  --emo-angry: #C8665A;
-  --emo-fear: #8F76B8;
-  --emo-disgust: #8A9A4A;
+  --accent-text: #1558b0;
+  --hl: #eef3fd;
+  --hl-word: #d2e3fc;
+  --scrim: rgba(32, 33, 36, 0.32);
+  --spk-1: #1a73e8;
+  --spk-2: #c5221f;
+  --spk-3: #1e7e43;
+  --spk-4: #b06000;
+  --spk-5: #7a4e9a;
+  --spk-6: #287f77;
+  --spk-7: #4f5d75;
+  --spk-8: #a23b5b;
+  --emo-neutral: #9aa0a6;
+  --emo-happy: #d9a633;
+  --emo-amused: #e0b84a;
+  --emo-surprise: #3f9e97;
+  --emo-sad: #6b8cb8;
+  --emo-angry: #c8665a;
+  --emo-fear: #8f76b8;
+  --emo-disgust: #8a9a4a;
   --font-serif: "Source Serif 4", Georgia, serif;
   --type-transcript: 400 17.5px/1.6 var(--font-serif);
   color-scheme: light;
@@ -110,114 +185,114 @@
 
 /* Dark theme: explicit choice, or the system preference unless light was chosen */
 [data-theme="dark"] {
-  --background: #16171A;
-  --surface: #1D1E22;
-  --surface-neutral: #2A2C30;
-  --text-primary: #E8EAED;
-  --text-strong: #D2D5D9;
-  --text-secondary: #AEB3B9;
-  --text-muted: #8D939A;
-  --border: #383A3F;
-  --graph-edge: #3E5C8C;
-  --aladdin-blue: #3B78DC;
-  --blue-dark: #2F66C0;
-  --accent-text: #9CC0F9;
-  --intent: #3B78DC;
-  --intent-surface: #1C2940;
-  --intent-border: #34507C;
-  --aladdin-red: #EE7A70;
-  --red-dark: #F5A39C;
-  --red-proof: #EE7A70;
-  --red-surface: #3A2220;
-  --red-border: #6B3531;
-  --aladdin-green: #6CC285;
-  --green-dark: #9BD6AB;
-  --green-proof: #6CC285;
-  --green-surface: #1A2E22;
-  --green-border: #2F5A3B;
-  --aladdin-gold: #F5C84C;
-  --gold-dark: #F8D878;
-  --gate: #F5C84C;
-  --gate-surface: #352E16;
-  --gate-border: #66561E;
-  --shadow-1: 0 1px 2px rgba(0,0,0,.5);
-  --shadow-2: 0 2px 6px rgba(0,0,0,.5),0 6px 14px rgba(0,0,0,.35);
-  --shadow-3: 0 6px 12px rgba(0,0,0,.5),0 16px 36px rgba(0,0,0,.45);
-  --hl: rgba(111,163,245,.16);
-  --hl-word: rgba(111,163,245,.38);
-  --scrim: rgba(0,0,0,.55);
-  --spk-1: #8AB4F8;
-  --spk-2: #F28B82;
-  --spk-3: #81C995;
-  --spk-4: #FDD663;
-  --spk-5: #BC9BDA;
-  --spk-6: #62C5BB;
-  --spk-7: #A3B0C8;
-  --spk-8: #E3829F;
-  --emo-neutral: #6F757B;
-  --emo-happy: #E4B952;
-  --emo-amused: #EBC867;
-  --emo-surprise: #5CBDB5;
-  --emo-sad: #8AA7CF;
-  --emo-angry: #DE8276;
-  --emo-fear: #AA93D0;
-  --emo-disgust: #A7B666;
+  --background: #16171a;
+  --surface: #1d1e22;
+  --surface-neutral: #2a2c30;
+  --text-primary: #e8eaed;
+  --text-strong: #d2d5d9;
+  --text-secondary: #aeb3b9;
+  --text-muted: #8d939a;
+  --border: #383a3f;
+  --graph-edge: #3e5c8c;
+  --aladdin-blue: #3b78dc;
+  --blue-dark: #2f66c0;
+  --accent-text: #9cc0f9;
+  --intent: #3b78dc;
+  --intent-surface: #1c2940;
+  --intent-border: #34507c;
+  --aladdin-red: #ee7a70;
+  --red-dark: #f5a39c;
+  --red-proof: #ee7a70;
+  --red-surface: #3a2220;
+  --red-border: #6b3531;
+  --aladdin-green: #6cc285;
+  --green-dark: #9bd6ab;
+  --green-proof: #6cc285;
+  --green-surface: #1a2e22;
+  --green-border: #2f5a3b;
+  --aladdin-gold: #f5c84c;
+  --gold-dark: #f8d878;
+  --gate: #f5c84c;
+  --gate-surface: #352e16;
+  --gate-border: #66561e;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.5), 0 6px 14px rgba(0, 0, 0, 0.35);
+  --shadow-3: 0 6px 12px rgba(0, 0, 0, 0.5), 0 16px 36px rgba(0, 0, 0, 0.45);
+  --hl: rgba(111, 163, 245, 0.16);
+  --hl-word: rgba(111, 163, 245, 0.38);
+  --scrim: rgba(0, 0, 0, 0.55);
+  --spk-1: #8ab4f8;
+  --spk-2: #f28b82;
+  --spk-3: #81c995;
+  --spk-4: #fdd663;
+  --spk-5: #bc9bda;
+  --spk-6: #62c5bb;
+  --spk-7: #a3b0c8;
+  --spk-8: #e3829f;
+  --emo-neutral: #6f757b;
+  --emo-happy: #e4b952;
+  --emo-amused: #ebc867;
+  --emo-surprise: #5cbdb5;
+  --emo-sad: #8aa7cf;
+  --emo-angry: #de8276;
+  --emo-fear: #aa93d0;
+  --emo-disgust: #a7b666;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #16171A;
-    --surface: #1D1E22;
-    --surface-neutral: #2A2C30;
-    --text-primary: #E8EAED;
-    --text-strong: #D2D5D9;
-    --text-secondary: #AEB3B9;
-    --text-muted: #8D939A;
-    --border: #383A3F;
-    --graph-edge: #3E5C8C;
-    --aladdin-blue: #3B78DC;
-    --blue-dark: #2F66C0;
-    --accent-text: #9CC0F9;
-    --intent: #3B78DC;
-    --intent-surface: #1C2940;
-    --intent-border: #34507C;
-    --aladdin-red: #EE7A70;
-    --red-dark: #F5A39C;
-    --red-proof: #EE7A70;
-    --red-surface: #3A2220;
-    --red-border: #6B3531;
-    --aladdin-green: #6CC285;
-    --green-dark: #9BD6AB;
-    --green-proof: #6CC285;
-    --green-surface: #1A2E22;
-    --green-border: #2F5A3B;
-    --aladdin-gold: #F5C84C;
-    --gold-dark: #F8D878;
-    --gate: #F5C84C;
-    --gate-surface: #352E16;
-    --gate-border: #66561E;
-    --shadow-1: 0 1px 2px rgba(0,0,0,.5);
-    --shadow-2: 0 2px 6px rgba(0,0,0,.5),0 6px 14px rgba(0,0,0,.35);
-    --shadow-3: 0 6px 12px rgba(0,0,0,.5),0 16px 36px rgba(0,0,0,.45);
-    --hl: rgba(111,163,245,.16);
-    --hl-word: rgba(111,163,245,.38);
-    --scrim: rgba(0,0,0,.55);
-    --spk-1: #8AB4F8;
-    --spk-2: #F28B82;
-    --spk-3: #81C995;
-    --spk-4: #FDD663;
-    --spk-5: #BC9BDA;
-    --spk-6: #62C5BB;
-    --spk-7: #A3B0C8;
-    --spk-8: #E3829F;
-    --emo-neutral: #6F757B;
-    --emo-happy: #E4B952;
-    --emo-amused: #EBC867;
-    --emo-surprise: #5CBDB5;
-    --emo-sad: #8AA7CF;
-    --emo-angry: #DE8276;
-    --emo-fear: #AA93D0;
-    --emo-disgust: #A7B666;
+    --background: #16171a;
+    --surface: #1d1e22;
+    --surface-neutral: #2a2c30;
+    --text-primary: #e8eaed;
+    --text-strong: #d2d5d9;
+    --text-secondary: #aeb3b9;
+    --text-muted: #8d939a;
+    --border: #383a3f;
+    --graph-edge: #3e5c8c;
+    --aladdin-blue: #3b78dc;
+    --blue-dark: #2f66c0;
+    --accent-text: #9cc0f9;
+    --intent: #3b78dc;
+    --intent-surface: #1c2940;
+    --intent-border: #34507c;
+    --aladdin-red: #ee7a70;
+    --red-dark: #f5a39c;
+    --red-proof: #ee7a70;
+    --red-surface: #3a2220;
+    --red-border: #6b3531;
+    --aladdin-green: #6cc285;
+    --green-dark: #9bd6ab;
+    --green-proof: #6cc285;
+    --green-surface: #1a2e22;
+    --green-border: #2f5a3b;
+    --aladdin-gold: #f5c84c;
+    --gold-dark: #f8d878;
+    --gate: #f5c84c;
+    --gate-surface: #352e16;
+    --gate-border: #66561e;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.5), 0 6px 14px rgba(0, 0, 0, 0.35);
+    --shadow-3: 0 6px 12px rgba(0, 0, 0, 0.5), 0 16px 36px rgba(0, 0, 0, 0.45);
+    --hl: rgba(111, 163, 245, 0.16);
+    --hl-word: rgba(111, 163, 245, 0.38);
+    --scrim: rgba(0, 0, 0, 0.55);
+    --spk-1: #8ab4f8;
+    --spk-2: #f28b82;
+    --spk-3: #81c995;
+    --spk-4: #fdd663;
+    --spk-5: #bc9bda;
+    --spk-6: #62c5bb;
+    --spk-7: #a3b0c8;
+    --spk-8: #e3829f;
+    --emo-neutral: #6f757b;
+    --emo-happy: #e4b952;
+    --emo-amused: #ebc867;
+    --emo-surprise: #5cbdb5;
+    --emo-sad: #8aa7cf;
+    --emo-angry: #de8276;
+    --emo-fear: #aa93d0;
+    --emo-disgust: #a7b666;
     color-scheme: dark;
   }
 }

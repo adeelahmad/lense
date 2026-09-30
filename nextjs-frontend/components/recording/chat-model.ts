@@ -3,7 +3,15 @@
  * passages, token, error and done events) and answer text split around its [n] citations. Pure functions.
  */
 
-export type Passage = { n: number; recording_id: number; t0?: number | null; time?: string | null; speaker?: string | null; title?: string | null; text: string };
+export type Passage = {
+  n: number;
+  recording_id: number;
+  t0?: number | null;
+  time?: string | null;
+  speaker?: string | null;
+  title?: string | null;
+  text: string;
+};
 
 export type Answer = {
   question: string;
@@ -15,7 +23,15 @@ export type Answer = {
   steps: string[];
 };
 
-export const newAnswer = (question: string): Answer => ({ question, status: "streaming", text: "", passages: [], notice: null, error: null, steps: [] });
+export const newAnswer = (question: string): Answer => ({
+  question,
+  status: "streaming",
+  text: "",
+  passages: [],
+  notice: null,
+  error: null,
+  steps: [],
+});
 
 function parse(data: string): unknown {
   try {
@@ -30,15 +46,28 @@ export function applyChatEvent(a: Answer, ev: { event: string; data: string }): 
   const o = (d && typeof d === "object" && !Array.isArray(d) ? d : {}) as Record<string, unknown>;
   switch (ev.event) {
     case "token":
-      return { ...a, text: a.text + (typeof o.text === "string" ? o.text : "") };
+      return {
+        ...a,
+        text: a.text + (typeof o.text === "string" ? o.text : ""),
+      };
     case "passages":
       return { ...a, passages: Array.isArray(d) ? (d as Passage[]) : [] };
     case "notice":
-      return { ...a, notice: typeof o.message === "string" ? o.message : a.notice };
+      return {
+        ...a,
+        notice: typeof o.message === "string" ? o.message : a.notice,
+      };
     case "step":
-      return { ...a, steps: [...a.steps, typeof o.summary === "string" && o.summary ? o.summary : String(o.tool ?? "tool")] };
+      return {
+        ...a,
+        steps: [...a.steps, typeof o.summary === "string" && o.summary ? o.summary : String(o.tool ?? "tool")],
+      };
     case "error":
-      return { ...a, status: "error", error: typeof o.message === "string" ? o.message : "The model didn't answer." };
+      return {
+        ...a,
+        status: "error",
+        error: typeof o.message === "string" ? o.message : "The model didn't answer.",
+      };
     case "done":
       return { ...a, status: a.status === "error" ? "error" : "done" };
     default:
@@ -65,6 +94,15 @@ export function citeParts(text: string): Part[] {
 
 /** Whether a conversation is this recording's own: its scope is exactly this one recording. */
 export function isRecordingChat(scope: unknown, id: number): boolean {
-  const s = (scope && typeof scope === "object" ? scope : {}) as { recordings?: unknown; namespaces?: unknown; speakers?: unknown };
-  return Array.isArray(s.recordings) && s.recordings.length === 1 && Number(s.recordings[0]) === id && !(Array.isArray(s.speakers) && s.speakers.length);
+  const s = (scope && typeof scope === "object" ? scope : {}) as {
+    recordings?: unknown;
+    namespaces?: unknown;
+    speakers?: unknown;
+  };
+  return (
+    Array.isArray(s.recordings) &&
+    s.recordings.length === 1 &&
+    Number(s.recordings[0]) === id &&
+    !(Array.isArray(s.speakers) && s.speakers.length)
+  );
 }

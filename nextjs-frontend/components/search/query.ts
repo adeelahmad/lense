@@ -7,16 +7,30 @@
 export type FilterKey = "namespace" | "speaker" | "emotion" | "recording";
 
 /** Filters as the URL holds them: speaker and recording are ids, namespace a name, emotion a label. */
-export type SearchFilters = { namespace?: string; speaker?: number; emotion?: string; recording?: number };
+export type SearchFilters = {
+  namespace?: string;
+  speaker?: number;
+  emotion?: string;
+  recording?: number;
+};
 
 /** Filters as typed in the box, by name, before they are matched to ids. */
 export type TypedFilters = Partial<Record<FilterKey, string>>;
 
-const KEYS: Record<string, FilterKey> = { namespace: "namespace", ns: "namespace", speaker: "speaker", emotion: "emotion", recording: "recording" };
+const KEYS: Record<string, FilterKey> = {
+  namespace: "namespace",
+  ns: "namespace",
+  speaker: "speaker",
+  emotion: "emotion",
+  recording: "recording",
+};
 const FILTER_RX = /(?:^|\s)(namespace|ns|speaker|emotion|recording):(?:"([^"]*)"?|(\S+))/gi;
 
 /** Split what was typed into the words to search for and the typed filters. */
-export function parseQuery(input: string): { text: string; typed: TypedFilters } {
+export function parseQuery(input: string): {
+  text: string;
+  typed: TypedFilters;
+} {
   const typed: TypedFilters = {};
   const text = input
     .replace(FILTER_RX, (_all, key: string, quoted: string | undefined, bare: string | undefined) => {
@@ -66,7 +80,10 @@ export function hasTerms(text: string): boolean {
 }
 
 /** Read the search state from URL parameters. */
-export function fromParams(p: URLSearchParams): { q: string; filters: SearchFilters } {
+export function fromParams(p: URLSearchParams): {
+  q: string;
+  filters: SearchFilters;
+} {
   const int = (v: string | null) => (v && /^\d+$/.test(v) ? Number(v) : undefined);
   return {
     q: p.get("q") ?? "",

@@ -32,7 +32,14 @@ export function PasswordResetConfirmForm({ token }: { token: string }) {
           error={passwordShortBy(password)}
           state={state}
         />
-        <AuthField name="passwordConfirm" label="Confirm password" type="password" autoComplete="new-password" required state={state} />
+        <AuthField
+          name="passwordConfirm"
+          label="Confirm password"
+          type="password"
+          autoComplete="new-password"
+          required
+          state={state}
+        />
         <AuthSubmit pending={pending} pendingText="Saving…">
           Change password
         </AuthSubmit>

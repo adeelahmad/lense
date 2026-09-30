@@ -76,7 +76,15 @@ export function RecordingPage({ id, start }: { id: number; start: number | null 
   if (!rec.data || !player.data) return <RecordingSkeleton />;
 
   return (
-    <PlayerShell key={id} id={id} start={start} rec={rec.data} model={player.data} state={state} jobs={jobs.data ?? []} />
+    <PlayerShell
+      key={id}
+      id={id}
+      start={start}
+      rec={rec.data}
+      model={player.data}
+      state={state}
+      jobs={jobs.data ?? []}
+    />
   );
 }
 
@@ -98,7 +106,12 @@ function PlayerShell(props: Omit<InnerProps, "turns" | "speakers">) {
   );
   const hasMedia = Boolean(props.model.audio);
   return (
-    <PlayerProvider hasMedia={hasMedia} durationMs={props.model.durationMs} speech={props.model.segments} onSeek={onSeek}>
+    <PlayerProvider
+      hasMedia={hasMedia}
+      durationMs={props.model.durationMs}
+      speech={props.model.segments}
+      onSeek={onSeek}
+    >
       <Inner {...props} turns={turns} speakers={speakers} />
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}
@@ -160,7 +173,15 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
       role,
       canEdit,
       transcriptOnly: !model.audio,
-      find: { open: findOpen, query, hits, index: Math.min(hitIndex, Math.max(0, hits.length - 1)), setOpen: setFindOpen, setQuery, setIndex: setHitIndex },
+      find: {
+        open: findOpen,
+        query,
+        hits,
+        index: Math.min(hitIndex, Math.max(0, hits.length - 1)),
+        setOpen: setFindOpen,
+        setQuery,
+        setIndex: setHitIndex,
+      },
       entity: { selected, select },
       tab,
       setTab,
@@ -175,7 +196,26 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
       openReprocess: () => setDialog({ kind: "reprocess" }),
       openShare: (startMs) => setDialog({ kind: "share", startMs }),
     }),
-    [id, rec, model, turns, speakers, state, jobs, ns, role, canEdit, findOpen, query, hits, hitIndex, selected, tab, chatDraft, editing],
+    [
+      id,
+      rec,
+      model,
+      turns,
+      speakers,
+      state,
+      jobs,
+      ns,
+      role,
+      canEdit,
+      findOpen,
+      query,
+      hits,
+      hitIndex,
+      selected,
+      tab,
+      chatDraft,
+      editing,
+    ],
   );
 
   // Player shortcuts (handoff): Space, J/L, ←/→, ↑/↓, /; video adds , . Shift+←/→ C F T.

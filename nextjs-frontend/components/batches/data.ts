@@ -27,14 +27,22 @@ export function useBatchResults(id: number, enabled = true) {
   });
 }
 
-export type BatchJob = Job & { batch?: number | null; started_at?: string | null; finished_at?: string | null; attempts?: number | null };
+export type BatchJob = Job & {
+  batch?: number | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  attempts?: number | null;
+};
 
 /** The batch's jobs, one per recording (the jobs list has no batch filter, so recent jobs are filtered here). */
 export function useBatchJobs(id: number, active: boolean) {
   const client = useApiClient();
   return useQuery({
     queryKey: ["batch-jobs", id],
-    queryFn: async () => (await data(Jobs.listJobs({ client, query: { limit: 500 } }))).jobs.filter((j) => (j as BatchJob).batch === id) as BatchJob[],
+    queryFn: async () =>
+      (await data(Jobs.listJobs({ client, query: { limit: 500 } }))).jobs.filter(
+        (j) => (j as BatchJob).batch === id,
+      ) as BatchJob[],
     refetchInterval: active ? 4000 : false,
   });
 }

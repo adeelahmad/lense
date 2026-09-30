@@ -6,6 +6,7 @@ The access cookie is SameSite=None; Secure over HTTPS, as third-party iframes ne
 Because browsers increasingly block third-party cookies for media elements too, a successful probe answers with a
 302 status and a signed link, so playback doesn't depend on the cookie.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -27,8 +28,11 @@ def _later(minutes):
 
 def grant_cookie(db, cfg, account):
     raw = secrets.token_urlsafe(32)
-    db.q("CREATE $r CONTENT $d", r=R("iiif_cookie", auth.sha(raw)), d={"account": account, "expires_at": _later(cfg["server"]["session_hours"] * 60),
-                                                                      "created_at": store.now()})
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("iiif_cookie", auth.sha(raw)),
+        d={"account": account, "expires_at": _later(cfg["server"]["session_hours"] * 60), "created_at": store.now()},
+    )
     return raw
 
 
@@ -81,29 +85,39 @@ def probe_result(status, location=None, heading=None, note=None):
 def token_page(message, origin, nonce):
     """The token service response: a page whose script posts the message to exactly the viewer's origin."""
     msg = json.dumps(message).replace("</", "<\\/")
-    return (f'<!doctype html><html><head><meta charset="utf-8"><title>token</title></head><body>'
-            f'<script nonce="{nonce}">window.parent.postMessage({msg}, {json.dumps(origin)});</script></body></html>')
+    return (
+        f'<!doctype html><html><head><meta charset="utf-8"><title>token</title></head><body>'
+        f'<script nonce="{nonce}">window.parent.postMessage({msg}, {json.dumps(origin)});</script></body></html>'
+    )
 
 
 def access_page(site, nonce, account=None, csrf="", origin="", error="", done=False):
-    style = ("body{font:15px/1.5 system-ui,sans-serif;max-width:24rem;margin:3rem auto;padding:0 1rem;color:#1d2733}"
-             "label{display:block;margin:.6rem 0}input{width:100%;padding:.45rem;border:1px solid #bbb;border-radius:6px}"
-             "button{margin-top:.8rem;padding:.5rem 1rem;border:0;border-radius:6px;background:#1d2733;color:#fff}.err{color:#a4262c}")
+    style = (
+        "body{font:15px/1.5 system-ui,sans-serif;max-width:24rem;margin:3rem auto;padding:0 1rem;color:#1d2733}"
+        "label{display:block;margin:.6rem 0}input{width:100%;padding:.45rem;border:1px solid #bbb;border-radius:6px}"
+        "button{margin-top:.8rem;padding:.5rem 1rem;border:0;border-radius:6px;background:#1d2733;color:#fff}.err{color:#a4262c}"
+    )
     esc = html.escape
     if done:
-        body = (f"<h1>You're signed in</h1><p>You can go back to the viewer; this tab should close by itself.</p>"
-                f'<script nonce="{nonce}">window.close();</script>')
+        body = (
+            f"<h1>You're signed in</h1><p>You can go back to the viewer; this tab should close by itself.</p>"
+            f'<script nonce="{nonce}">window.close();</script>'
+        )
     elif account:
-        body = (f"<h1>Sign in to {esc(site)}</h1><p>You're signed in as {esc(account.get('name') or account['email'])}. "
-                f"Continue to let the viewer at {esc(origin or 'another site')} play recordings you have access to.</p>"
-                f'<form method="post"><input type="hidden" name="continue" value="1"><input type="hidden" name="csrf" value="{esc(csrf)}">'
-                f'<input type="hidden" name="origin" value="{esc(origin)}"><button type="submit">Continue</button></form>')
+        body = (
+            f"<h1>Sign in to {esc(site)}</h1><p>You're signed in as {esc(account.get('name') or account['email'])}. "
+            f"Continue to let the viewer at {esc(origin or 'another site')} play recordings you have access to.</p>"
+            f'<form method="post"><input type="hidden" name="continue" value="1"><input type="hidden" name="csrf" value="{esc(csrf)}">'
+            f'<input type="hidden" name="origin" value="{esc(origin)}"><button type="submit">Continue</button></form>'
+        )
     else:
-        body = (f"<h1>Sign in to {esc(site)}</h1><p>The viewer at {esc(origin or 'another site')} wants to play recordings that need an account.</p>"
-                + (f'<p class="err">{esc(error)}</p>' if error else "")
-                + f'<form method="post"><input type="hidden" name="origin" value="{esc(origin)}">'
-                + (f'<input type="hidden" name="csrf" value="{esc(csrf)}">' if csrf else "")
-                + '<label>Email <input name="email" type="email" autocomplete="username" required></label>'
-                  '<label>Password <input name="password" type="password" autocomplete="current-password" required></label>'
-                  '<button type="submit">Sign in</button></form>')
+        body = (
+            f"<h1>Sign in to {esc(site)}</h1><p>The viewer at {esc(origin or 'another site')} wants to play recordings that need an account.</p>"
+            + (f'<p class="err">{esc(error)}</p>' if error else "")
+            + f'<form method="post"><input type="hidden" name="origin" value="{esc(origin)}">'
+            + (f'<input type="hidden" name="csrf" value="{esc(csrf)}">' if csrf else "")
+            + '<label>Email <input name="email" type="email" autocomplete="username" required></label>'
+            '<label>Password <input name="password" type="password" autocomplete="current-password" required></label>'
+            '<button type="submit">Sign in</button></form>'
+        )
     return f'<!doctype html><html><head><meta charset="utf-8"><title>Sign in to {esc(site)}</title><style>{style}</style></head><body>{body}</body></html>'

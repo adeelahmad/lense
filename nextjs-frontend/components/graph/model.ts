@@ -18,7 +18,12 @@ export type GraphNode = {
 
 export type GraphEdge = { a: string; b: string; w: number; kind: string };
 
-export type GraphData = { scope: string; namespaces: string[]; nodes: GraphNode[]; edges: GraphEdge[] };
+export type GraphData = {
+  scope: string;
+  namespaces: string[];
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+};
 
 /** Node groups in the filter list, in the design's order. Speakers first, then entity types. */
 export const NODE_GROUPS: { key: string; label: string; shape: Shape }[] = [
@@ -35,17 +40,41 @@ export const NODE_GROUPS: { key: string; label: string; shape: Shape }[] = [
 export type Shape = "circle" | "ring" | "square" | "diamond" | "triangle" | "pill" | "hexagon" | "rounded";
 
 /** Edge kinds: each has its own dash pattern, so they differ by more than colour. */
-export const EDGE_KINDS: { key: string; label: string; dash?: string; double?: boolean; gold?: boolean; width: number }[] = [
+export const EDGE_KINDS: {
+  key: string;
+  label: string;
+  dash?: string;
+  double?: boolean;
+  gold?: boolean;
+  width: number;
+}[] = [
   { key: "together", label: "Spoke together", width: 2.2 },
   { key: "mentions", label: "Mentions", width: 1.1 },
-  { key: "mentioned together", label: "Mentioned together", dash: "1.5 3", width: 1.3 },
+  {
+    key: "mentioned together",
+    label: "Mentioned together",
+    dash: "1.5 3",
+    width: 1.3,
+  },
   { key: "same person", label: "Same person", double: true, width: 1.2 },
   { key: "same thing", label: "Same thing", double: true, width: 1.2 },
-  { key: "maybe the same voice", label: "Maybe same voice", dash: "6 4", gold: true, width: 1.6 },
+  {
+    key: "maybe the same voice",
+    label: "Maybe same voice",
+    dash: "6 4",
+    gold: true,
+    width: 1.6,
+  },
 ];
 
 export function edgeStyle(kind: string) {
-  return EDGE_KINDS.find((k) => k.key === kind) ?? { key: kind, label: kind, width: 1 };
+  return (
+    EDGE_KINDS.find((k) => k.key === kind) ?? {
+      key: kind,
+      label: kind,
+      width: 1,
+    }
+  );
 }
 
 export function nodeGroup(n: Pick<GraphNode, "kind" | "type">): string {
@@ -66,12 +95,21 @@ export function typeLabel(n: Pick<GraphNode, "kind" | "type">): string {
 /** Identity links are shown whatever their weight. */
 const ALWAYS = new Set(["same person", "same thing", "maybe the same voice"]);
 
-export type GraphFilter = { groups: Set<string>; kinds: Set<string>; minWeight: number };
+export type GraphFilter = {
+  groups: Set<string>;
+  kinds: Set<string>;
+  minWeight: number;
+};
 
 /** The visible part of the graph. Entities left with no visible link are hidden; speakers always stay. */
-export function filterGraph(g: Pick<GraphData, "nodes" | "edges">, f: GraphFilter): { nodes: GraphNode[]; edges: GraphEdge[] } {
+export function filterGraph(
+  g: Pick<GraphData, "nodes" | "edges">,
+  f: GraphFilter,
+): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const inGroup = new Set(g.nodes.filter((n) => f.groups.has(nodeGroup(n))).map((n) => n.id));
-  const edges = g.edges.filter((e) => inGroup.has(e.a) && inGroup.has(e.b) && f.kinds.has(e.kind) && (ALWAYS.has(e.kind) || e.w >= f.minWeight));
+  const edges = g.edges.filter(
+    (e) => inGroup.has(e.a) && inGroup.has(e.b) && f.kinds.has(e.kind) && (ALWAYS.has(e.kind) || e.w >= f.minWeight),
+  );
   const linked = new Set(edges.flatMap((e) => [e.a, e.b]));
   const nodes = g.nodes.filter((n) => inGroup.has(n.id) && (n.kind === "speaker" || linked.has(n.id)));
   return { nodes, edges };
@@ -97,7 +135,11 @@ export function connections(edges: GraphEdge[], id: string): { id: string; w: nu
 export type Dir = "left" | "right" | "up" | "down";
 
 /** Arrow-key movement: the nearest node in that direction (distance plus a penalty for drifting sideways). */
-export function nearestInDirection(nodes: Pick<GraphNode, "id" | "x" | "y">[], fromId: string | null, dir: Dir): string | null {
+export function nearestInDirection(
+  nodes: Pick<GraphNode, "id" | "x" | "y">[],
+  fromId: string | null,
+  dir: Dir,
+): string | null {
   const from = nodes.find((n) => n.id === fromId);
   if (!from) return nodes[0]?.id ?? null;
   let best: string | null = null;
@@ -119,13 +161,19 @@ export function nearestInDirection(nodes: Pick<GraphNode, "id" | "x" | "y">[], f
 }
 
 /** Node size: speakers by talk time, entities by mentions (area grows with the weight). */
-export function nodeRadius(n: Pick<GraphNode, "kind" | "weight">, maxWeight: { speaker: number; entity: number }): number {
+export function nodeRadius(
+  n: Pick<GraphNode, "kind" | "weight">,
+  maxWeight: { speaker: number; entity: number },
+): number {
   const max = n.kind === "speaker" ? maxWeight.speaker : maxWeight.entity;
   const t = max > 0 ? Math.sqrt(Math.max(0, n.weight) / max) : 0;
   return n.kind === "speaker" ? 9 + 13 * t : 6 + 9 * t;
 }
 
-export function maxWeights(nodes: Pick<GraphNode, "kind" | "weight">[]): { speaker: number; entity: number } {
+export function maxWeights(nodes: Pick<GraphNode, "kind" | "weight">[]): {
+  speaker: number;
+  entity: number;
+} {
   const m = { speaker: 0, entity: 0 };
   for (const n of nodes) m[n.kind] = Math.max(m[n.kind], n.weight);
   return m;
@@ -165,5 +213,9 @@ export function findNodes(nodes: GraphNode[], text: string): GraphNode[] {
   if (!t) return [];
   return nodes
     .filter((n) => n.label.toLowerCase().includes(t))
-    .sort((a, b) => Number(b.label.toLowerCase().startsWith(t)) - Number(a.label.toLowerCase().startsWith(t)) || b.weight - a.weight);
+    .sort(
+      (a, b) =>
+        Number(b.label.toLowerCase().startsWith(t)) - Number(a.label.toLowerCase().startsWith(t)) ||
+        b.weight - a.weight,
+    );
 }

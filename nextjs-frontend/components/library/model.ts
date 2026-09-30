@@ -69,7 +69,13 @@ export type StatusView = {
   retry?: { kind: "job"; job: number } | { kind: "reprocess" };
 };
 
-const TONE: Record<string, Tone> = { new: "neutral", transcribed: "intent", diarized: "intent", analyzed: "green", error: "red" };
+const TONE: Record<string, Tone> = {
+  new: "neutral",
+  transcribed: "intent",
+  diarized: "intent",
+  analyzed: "green",
+  error: "red",
+};
 
 function extra(job: Job, key: string): string | undefined {
   const v = (job as Record<string, unknown>)[key];
@@ -82,7 +88,12 @@ function firstLine(s: string | null | undefined, max = 80): string {
 }
 
 /** The status chip and the job overlay under it (Library L1: "Transcribe · 4 min", "Waiting for a worker", "… · Retry"). */
-export function statusView(rec: Pick<RecordingSummary, "status" | "error">, job?: Job, now = Date.now(), reviews = 0): StatusView {
+export function statusView(
+  rec: Pick<RecordingSummary, "status" | "error">,
+  job?: Job,
+  now = Date.now(),
+  reviews = 0,
+): StatusView {
   const status = (rec.status || "new").toLowerCase();
   const view: StatusView = { label: status, tone: TONE[status] ?? "neutral" };
   if (job && job.status === "running") {
@@ -94,20 +105,35 @@ export function statusView(rec: Pick<RecordingSummary, "status" | "error">, job?
   }
   if (job && job.status === "queued") {
     const handedOff = (job.step_index ?? 0) > 0;
-    view.sub = { text: handedOff ? `${stepLabel(job.next_step)} · waiting for a worker` : "Waiting for a worker", tone: "muted" };
+    view.sub = {
+      text: handedOff ? `${stepLabel(job.next_step)} · waiting for a worker` : "Waiting for a worker",
+      tone: "muted",
+    };
     return view;
   }
   if (job && job.status === "failed") {
-    view.sub = { text: `${stepLabel(job.next_step)} failed`, tone: "red", title: firstLine(job.error, 300) || undefined };
+    view.sub = {
+      text: `${stepLabel(job.next_step)} failed`,
+      tone: "red",
+      title: firstLine(job.error, 300) || undefined,
+    };
     view.retry = { kind: "job", job: job.id };
     return view;
   }
   if (status === "error") {
-    view.sub = { text: firstLine(rec.error) || "Processing failed", tone: "red", title: firstLine(rec.error, 300) || undefined };
+    view.sub = {
+      text: firstLine(rec.error) || "Processing failed",
+      tone: "red",
+      title: firstLine(rec.error, 300) || undefined,
+    };
     view.retry = { kind: "reprocess" };
     return view;
   }
-  if (reviews > 0) view.sub = { text: `◆ ${reviews} voice ${reviews === 1 ? "match" : "matches"} to review`, tone: "gold" };
+  if (reviews > 0)
+    view.sub = {
+      text: `◆ ${reviews} voice ${reviews === 1 ? "match" : "matches"} to review`,
+      tone: "gold",
+    };
   else if (job && job.status === "cancelled") view.sub = { text: "Cancelled", tone: "muted" };
   return view;
 }
@@ -129,12 +155,20 @@ export function speakerList(speakers: string | null | undefined): SpeakerRef[] {
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s && s !== "?");
-  return [...new Set(names)].map((name, index) => ({ name, unnamed: isUnnamedSpeaker(name), index }));
+  return [...new Set(names)].map((name, index) => ({
+    name,
+    unnamed: isUnnamedSpeaker(name),
+    index,
+  }));
 }
 
 // ---------- importance and tone ----------
 
-export type Importance = { bars: 1 | 2 | 3; label: "Low" | "Medium" | "High"; value: number };
+export type Importance = {
+  bars: 1 | 2 | 3;
+  label: "Low" | "Medium" | "High";
+  value: number;
+};
 
 /** The summary's importance (1 routine … 5 critical) as the design's three bars: Low · Medium · High. */
 export function importanceInfo(v: unknown): Importance | null {
@@ -183,7 +217,14 @@ export type Filters = {
   media: MediaFilter;
 };
 
-export const NO_FILTERS: Filters = { q: "", statuses: [], speaker: null, date: "any", duration: "any", media: "any" };
+export const NO_FILTERS: Filters = {
+  q: "",
+  statuses: [],
+  speaker: null,
+  date: "any",
+  duration: "any",
+  media: "any",
+};
 
 export const DATE_LABEL: Record<DateRange, string> = {
   any: "Any time",
@@ -202,7 +243,12 @@ export const DURATION_LABEL: Record<DurationRange, string> = {
   xlong: "Over 1 hour",
 };
 
-export const MEDIA_LABEL: Record<MediaFilter, string> = { any: "Any", audio: "Audio", video: "Video", transcript: "Transcript only" };
+export const MEDIA_LABEL: Record<MediaFilter, string> = {
+  any: "Any",
+  audio: "Audio",
+  video: "Video",
+  transcript: "Transcript only",
+};
 
 export const STATUS_FILTER_LABEL: Record<StatusFilter, string> = {
   new: "New",
@@ -216,7 +262,12 @@ export const STATUS_FILTER_LABEL: Record<StatusFilter, string> = {
 
 export function activeFilterCount(f: Filters): number {
   return (
-    (f.q.trim() ? 1 : 0) + (f.statuses.length ? 1 : 0) + (f.speaker ? 1 : 0) + (f.date !== "any" ? 1 : 0) + (f.duration !== "any" ? 1 : 0) + (f.media !== "any" ? 1 : 0)
+    (f.q.trim() ? 1 : 0) +
+    (f.statuses.length ? 1 : 0) +
+    (f.speaker ? 1 : 0) +
+    (f.date !== "any" ? 1 : 0) +
+    (f.duration !== "any" ? 1 : 0) +
+    (f.media !== "any" ? 1 : 0)
   );
 }
 
@@ -254,7 +305,9 @@ export function matchesFilters(rec: RecordingSummary, f: Filters, job: Job | und
   }
   if (f.statuses.length) {
     const st = (rec.status || "new").toLowerCase();
-    const ok = f.statuses.some((s) => (s === "processing" ? isActiveJob(job) : s === "failed" ? job?.status === "failed" : s === st));
+    const ok = f.statuses.some((s) =>
+      s === "processing" ? isActiveJob(job) : s === "failed" ? job?.status === "failed" : s === st,
+    );
     if (!ok) return false;
   }
   if (f.speaker && !speakerList(rec.speakers).some((s) => s.name === f.speaker)) return false;
@@ -275,7 +328,13 @@ export function matchesView(rec: RecordingSummary, view: LibraryView, job: Job |
 export type SortKey = "title" | "date" | "duration" | "speakers" | "status" | "importance";
 export type SortDir = "asc" | "desc";
 
-const STATUS_ORDER: Record<string, number> = { error: 0, new: 1, transcribed: 2, diarized: 3, analyzed: 4 };
+const STATUS_ORDER: Record<string, number> = {
+  error: 0,
+  new: 1,
+  transcribed: 2,
+  diarized: 3,
+  analyzed: 4,
+};
 
 function sortValue(rec: RecordingSummary, key: SortKey): string | number | null {
   switch (key) {

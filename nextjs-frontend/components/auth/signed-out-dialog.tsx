@@ -20,7 +20,10 @@ export function SignedOutDialog({ email }: { email?: string | null }) {
   const state = useSyncExternalStore(subscribe, getReauthState, () => CLOSED);
   const [who, setWho] = useState(email ?? "");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<{ tone: "error" | "gate"; text: string } | null>(null);
+  const [error, setError] = useState<{
+    tone: "error" | "gate";
+    text: string;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const passwordRef = useRef<HTMLInputElement>(null);
 
@@ -43,18 +46,28 @@ export function SignedOutDialog({ email }: { email?: string | null }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await signIn("credentials", { email: who.trim(), password, redirect: false });
+      const res = await signIn("credentials", {
+        email: who.trim(),
+        password,
+        redirect: false,
+      });
       if (!res || res.error) {
         setError(
           res?.code === "throttled"
-            ? { tone: "gate", text: "Too many attempts; try again in a few minutes." }
+            ? {
+                tone: "gate",
+                text: "Too many attempts; try again in a few minutes.",
+              }
             : { tone: "error", text: "Wrong email or password." },
         );
         return;
       }
       const session = await getSession();
       if (!session?.accessToken || session.error) {
-        setError({ tone: "error", text: "Signed in, but the session couldn't be read. Try again." });
+        setError({
+          tone: "error",
+          text: "Signed in, but the session couldn't be read. Try again.",
+        });
         return;
       }
       if (email && who.trim().toLowerCase() !== email.toLowerCase()) {
@@ -65,7 +78,10 @@ export function SignedOutDialog({ email }: { email?: string | null }) {
       }
       signedInAgain(session.accessToken);
     } catch {
-      setError({ tone: "error", text: "Can't reach the server. Check your connection and try again." });
+      setError({
+        tone: "error",
+        text: "Can't reach the server. Check your connection and try again.",
+      });
     } finally {
       setBusy(false);
     }
@@ -92,14 +108,43 @@ export function SignedOutDialog({ email }: { email?: string | null }) {
         >
           <D.Title className="text-[22px] font-bold leading-[1.25] text-fg">You&apos;ve been signed out</D.Title>
           <D.Description className="text-[14px] leading-normal text-fg-secondary">
-            Your session ended. Sign in again to {task ? <>finish <b className="font-bold text-fg">{task}</b></> : "carry on"} — nothing on this page has been lost.
+            Your session ended. Sign in again to{" "}
+            {task ? (
+              <>
+                finish <b className="font-bold text-fg">{task}</b>
+              </>
+            ) : (
+              "carry on"
+            )}{" "}
+            — nothing on this page has been lost.
           </D.Description>
           {error && <AuthAlert tone={error.tone}>{error.text}</AuthAlert>}
           <form method="post" onSubmit={submit} className="flex flex-col gap-3.5" noValidate>
-            <AuthField id="so-email" name="email" label="Email" type="email" autoComplete="email" value={who} onChange={(e) => setWho(e.target.value)} />
-            <AuthField ref={passwordRef} id="so-password" name="password" label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <AuthField
+              id="so-email"
+              name="email"
+              label="Email"
+              type="email"
+              autoComplete="email"
+              value={who}
+              onChange={(e) => setWho(e.target.value)}
+            />
+            <AuthField
+              ref={passwordRef}
+              id="so-password"
+              name="password"
+              label="Password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <button type="button" onClick={someoneElse} className="text-[13px] font-semibold text-fg-secondary hover:text-fg hover:underline">
+              <button
+                type="button"
+                onClick={someoneElse}
+                className="text-[13px] font-semibold text-fg-secondary hover:text-fg hover:underline"
+              >
                 Sign in as someone else
               </button>
               <Button type="submit" variant="primary" disabled={busy}>

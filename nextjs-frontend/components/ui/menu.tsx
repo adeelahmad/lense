@@ -9,10 +9,25 @@ import { cn } from "@/lib/utils";
 export const Menu = M.Root;
 export const MenuTrigger = M.Trigger;
 
-export function MenuContent({ children, align = "end", className }: { children: ReactNode; align?: "start" | "end" | "center"; className?: string }) {
+export function MenuContent({
+  children,
+  align = "end",
+  className,
+}: {
+  children: ReactNode;
+  align?: "start" | "end" | "center";
+  className?: string;
+}) {
   return (
     <M.Portal>
-      <M.Content align={align} sideOffset={6} className={cn("z-[150] min-w-[220px] rounded-md border border-border bg-background p-1.5 shadow-2 animate-fade-in", className)}>
+      <M.Content
+        align={align}
+        sideOffset={6}
+        className={cn(
+          "z-[150] min-w-[220px] rounded-md border border-border bg-background p-1.5 shadow-2 animate-fade-in",
+          className,
+        )}
+      >
         {children}
       </M.Content>
     </M.Portal>
@@ -75,10 +90,25 @@ export function MenuLabel({ children }: { children: ReactNode }) {
 export const Popover = P.Root;
 export const PopoverTrigger = P.Trigger;
 export const PopoverClose = P.Close;
-export function PopoverContent({ children, align = "start", className }: { children: ReactNode; align?: "start" | "end" | "center"; className?: string }) {
+export function PopoverContent({
+  children,
+  align = "start",
+  className,
+}: {
+  children: ReactNode;
+  align?: "start" | "end" | "center";
+  className?: string;
+}) {
   return (
     <P.Portal>
-      <P.Content align={align} sideOffset={6} className={cn("z-[150] rounded-md border border-border bg-background shadow-2 animate-fade-in outline-none", className)}>
+      <P.Content
+        align={align}
+        sideOffset={6}
+        className={cn(
+          "z-[150] rounded-md border border-border bg-background shadow-2 animate-fade-in outline-none",
+          className,
+        )}
+      >
         {children}
       </P.Content>
     </P.Portal>

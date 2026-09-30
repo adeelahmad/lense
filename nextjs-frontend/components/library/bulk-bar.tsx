@@ -14,11 +14,28 @@ import { cn } from "@/lib/utils";
 const actionCls =
   "flex h-[34px] items-center gap-1.5 rounded-pill px-3 text-[13px] font-semibold outline-offset-0 [&_svg]:size-[15px] hover:bg-[color-mix(in_srgb,var(--background)_16%,transparent)]";
 
-function BarButton({ icon: Icon, label, onClick, disabledReason, danger }: { icon: LucideIcon; label: string; onClick?: () => void; disabledReason?: ReactNode; danger?: boolean }) {
+function BarButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabledReason,
+  danger,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick?: () => void;
+  disabledReason?: ReactNode;
+  danger?: boolean;
+}) {
   if (disabledReason) {
     return (
       <Tooltip content={disabledReason}>
-        <button type="button" aria-disabled className={cn(actionCls, "cursor-not-allowed opacity-50 hover:bg-transparent", danger && "text-red-border")} onClick={(e) => e.preventDefault()}>
+        <button
+          type="button"
+          aria-disabled
+          className={cn(actionCls, "cursor-not-allowed opacity-50 hover:bg-transparent", danger && "text-red-border")}
+          onClick={(e) => e.preventDefault()}
+        >
           <Icon aria-hidden />
           {label}
         </button>
@@ -66,7 +83,11 @@ export function BulkBar({
           {count(selected)} selected
         </span>
         <BarButton icon={RefreshCw} label="Reprocess" onClick={onReprocess} disabledReason={roleReason} />
-        <BarButton icon={FolderInput} label="Move" disabledReason="Not available yet: recordings can’t be moved between namespaces." />
+        <BarButton
+          icon={FolderInput}
+          label="Move"
+          disabledReason="Not available yet: recordings can’t be moved between namespaces."
+        />
         <BarButton icon={Tag} label="Tag" disabledReason="Not available yet: recordings can’t be tagged." />
         <Menu>
           <MenuTrigger className={actionCls}>
@@ -82,8 +103,18 @@ export function BulkBar({
             ))}
           </MenuContent>
         </Menu>
-        <BarButton icon={Trash2} label="Delete" danger disabledReason="Not available yet: recordings can’t be deleted from the app." />
-        <button type="button" onClick={onClear} aria-label="Clear selection" className="grid size-[34px] shrink-0 place-items-center rounded-full hover:bg-[color-mix(in_srgb,var(--background)_16%,transparent)]">
+        <BarButton
+          icon={Trash2}
+          label="Delete"
+          danger
+          disabledReason="Not available yet: recordings can’t be deleted from the app."
+        />
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label="Clear selection"
+          className="grid size-[34px] shrink-0 place-items-center rounded-full hover:bg-[color-mix(in_srgb,var(--background)_16%,transparent)]"
+        >
           <X className="size-4" />
         </button>
       </div>
@@ -92,11 +123,27 @@ export function BulkBar({
 }
 
 const STEP_CHOICES = [
-  { value: "", label: "Their namespace’s pipeline", hint: "Every step again, as set up for each namespace." },
+  {
+    value: "",
+    label: "Their namespace’s pipeline",
+    hint: "Every step again, as set up for each namespace.",
+  },
   { value: "transcribe", label: "Transcribe", hint: "Audio recordings only." },
-  { value: "diarize", label: "Diarize", hint: "Who spoke when. Audio recordings only." },
-  { value: "analyze", label: "Analyze", hint: "Emotions, entities and chapters." },
-  { value: "summarize", label: "Summarize", hint: "Needs a language model in Settings." },
+  {
+    value: "diarize",
+    label: "Diarize",
+    hint: "Who spoke when. Audio recordings only.",
+  },
+  {
+    value: "analyze",
+    label: "Analyze",
+    hint: "Emotions, entities and chapters.",
+  },
+  {
+    value: "summarize",
+    label: "Summarize",
+    hint: "Needs a language model in Settings.",
+  },
   { value: "report", label: "Report", hint: "Rebuild the report pages." },
 ];
 
@@ -154,7 +201,11 @@ export function ReprocessDialog({
           return (
             <label
               key={c.value}
-              className={cn("flex items-start gap-3 rounded-sm px-2 py-2", off ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-surface", step === c.value && "bg-hl")}
+              className={cn(
+                "flex items-start gap-3 rounded-sm px-2 py-2",
+                off ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-surface",
+                step === c.value && "bg-hl",
+              )}
             >
               <input
                 type="radio"
@@ -167,7 +218,11 @@ export function ReprocessDialog({
               />
               <span className="flex flex-col">
                 <span className="text-[14px] font-semibold text-fg">{c.label}</span>
-                <span className="text-[12.5px] text-fg-muted">{off ? `Needs audio: ${count(withoutAudio)} of ${count(n)} selected ${withoutAudio === 1 ? "is" : "are"} transcript-only.` : c.hint}</span>
+                <span className="text-[12.5px] text-fg-muted">
+                  {off
+                    ? `Needs audio: ${count(withoutAudio)} of ${count(n)} selected ${withoutAudio === 1 ? "is" : "are"} transcript-only.`
+                    : c.hint}
+                </span>
               </span>
             </label>
           );

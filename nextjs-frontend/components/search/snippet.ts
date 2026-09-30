@@ -5,7 +5,14 @@
 
 export type SnippetPart = { text: string; mark: boolean };
 
-const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+const ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+};
 
 /** Undo HTML escaping (named, decimal and hex entities); unknown entities stay as written. */
 export function decodeEntities(s: string): string {

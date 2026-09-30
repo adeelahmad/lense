@@ -17,7 +17,8 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
       reset();
     });
 
-  if (isUnreachable(error)) return <ServerUnreachable error={error} className="min-h-[calc(100vh-64px)]" onRetry={retry} />;
+  if (isUnreachable(error))
+    return <ServerUnreachable error={error} className="min-h-[calc(100vh-64px)]" onRetry={retry} />;
   return (
     <ErrorState
       alert
@@ -36,7 +37,8 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
         </>
       }
     >
-      {error.message ? `${error.message.replace(/[.!?]?$/, ".")} ` : ""}Nothing was changed. Try again; if it keeps happening, an admin can check System health.
+      {error.message ? `${error.message.replace(/[.!?]?$/, ".")} ` : ""}Nothing was changed. Try again; if it keeps
+      happening, an admin can check System health.
     </ErrorState>
   );
 }

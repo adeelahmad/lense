@@ -6,8 +6,17 @@ import type { Estimate, Passage } from "@/app/openapi-client/types.gen";
  * excerpts), `token` (answer text), `error` and `done` (the saved message id).
  */
 
-export type ToolStep = { tool: string; args: Record<string, unknown>; summary: string };
-export type PendingApproval = { id: number; tool: string; summary: string; estimate?: Estimate | null };
+export type ToolStep = {
+  tool: string;
+  args: Record<string, unknown>;
+  summary: string;
+};
+export type PendingApproval = {
+  id: number;
+  tool: string;
+  summary: string;
+  estimate?: Estimate | null;
+};
 export type TurnStatus = "streaming" | "done" | "error" | "stopped";
 
 export type TurnState = {
@@ -24,7 +33,17 @@ export type TurnState = {
 };
 
 export function newTurn(question: string): TurnState {
-  return { question, status: "streaming", steps: [], approvals: [], notice: null, passages: null, text: "", error: null, messageId: null };
+  return {
+    question,
+    status: "streaming",
+    steps: [],
+    approvals: [],
+    notice: null,
+    passages: null,
+    text: "",
+    error: null,
+    messageId: null,
+  };
 }
 
 function parse(data: string): unknown {
@@ -43,10 +62,31 @@ export function applyEvent(s: TurnState, ev: { event: string; data: string }): T
   const o = (d && !Array.isArray(d) ? d : {}) as Record<string, unknown>;
   switch (ev.event) {
     case "step":
-      return { ...s, steps: [...s.steps, { tool: str(o.tool, "tool"), args: (o.args as Record<string, unknown>) ?? {}, summary: str(o.summary) }] };
+      return {
+        ...s,
+        steps: [
+          ...s.steps,
+          {
+            tool: str(o.tool, "tool"),
+            args: (o.args as Record<string, unknown>) ?? {},
+            summary: str(o.summary),
+          },
+        ],
+      };
     case "approval":
       if (typeof o.id !== "number") return s;
-      return { ...s, approvals: [...s.approvals, { id: o.id, tool: str(o.tool), summary: str(o.summary), estimate: (o.estimate as Estimate | null) ?? null }] };
+      return {
+        ...s,
+        approvals: [
+          ...s.approvals,
+          {
+            id: o.id,
+            tool: str(o.tool),
+            summary: str(o.summary),
+            estimate: (o.estimate as Estimate | null) ?? null,
+          },
+        ],
+      };
     case "notice":
       return { ...s, notice: str(o.message) || null };
     case "passages":
@@ -54,9 +94,17 @@ export function applyEvent(s: TurnState, ev: { event: string; data: string }): T
     case "token":
       return { ...s, text: s.text + str(o.text) };
     case "error":
-      return { ...s, status: "error", error: str(o.message, "The model didn't answer.") };
+      return {
+        ...s,
+        status: "error",
+        error: str(o.message, "The model didn't answer."),
+      };
     case "done":
-      return { ...s, status: s.status === "error" ? "error" : "done", messageId: typeof o.message === "number" ? o.message : s.messageId };
+      return {
+        ...s,
+        status: s.status === "error" ? "error" : "done",
+        messageId: typeof o.message === "number" ? o.message : s.messageId,
+      };
     default:
       return s;
   }

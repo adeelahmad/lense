@@ -2,7 +2,14 @@
  * Video page logic, free of React: what's on screen at a time (face boxes, text boxes, the shot), the zoomable
  * timeline window, lane blocks, and text on screen grouped by shot. All times are ms.
  */
-import { indexAt, type Box, type FaceTrack, type ScreenText, type Segment, type Shot } from "@/components/recording/model";
+import {
+  indexAt,
+  type Box,
+  type FaceTrack,
+  type ScreenText,
+  type Segment,
+  type Shot,
+} from "@/components/recording/model";
 
 /** "12:41.20": minutes, seconds and hundredths (frame-accurate readout). */
 export function fineTime(ms: number): string {
@@ -12,7 +19,9 @@ export function fineTime(ms: number): string {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const x = s % 60;
-  const base = h ? `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}` : `${m}:${String(x).padStart(2, "0")}`;
+  const base = h
+    ? `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}`
+    : `${m}:${String(x).padStart(2, "0")}`;
   return `${base}.${String(cs).padStart(2, "0")}`;
 }
 
@@ -107,7 +116,11 @@ export function voiceSpans(segments: Segment[]): Map<string, [number, number][]>
   return m;
 }
 
-export type ShotGroup = { shot: Shot | null; index: number; lines: ScreenText[] };
+export type ShotGroup = {
+  shot: Shot | null;
+  index: number;
+  lines: ScreenText[];
+};
 
 /** Text on screen grouped by the shot it first appears in, optionally filtered (case-insensitive). */
 export function groupByShot(spans: ScreenText[], shots: Shot[], query = ""): ShotGroup[] {
@@ -116,7 +129,11 @@ export function groupByShot(spans: ScreenText[], shots: Shot[], query = ""): Sho
   for (const s of spans) {
     if (q && !s.text.toLowerCase().includes(q)) continue;
     const i = shotAt(shots, s.t0);
-    const g = groups.get(i) ?? { shot: i >= 0 ? shots[i] : null, index: i, lines: [] };
+    const g = groups.get(i) ?? {
+      shot: i >= 0 ? shots[i] : null,
+      index: i,
+      lines: [],
+    };
     g.lines.push(s);
     groups.set(i, g);
   }
@@ -126,7 +143,10 @@ export function groupByShot(spans: ScreenText[], shots: Shot[], query = ""): Sho
 /** Merge a video's face tracks into at most `max` lanes (the rest are counted, not drawn). */
 export function faceLanes(faces: FaceTrack[], max = 8): { lanes: FaceTrack[]; hidden: number } {
   const sorted = [...faces].sort((a, b) => b.screenMs - a.screenMs);
-  return { lanes: sorted.slice(0, max).sort((a, b) => a.firstMs - b.firstMs), hidden: Math.max(0, sorted.length - max) };
+  return {
+    lanes: sorted.slice(0, max).sort((a, b) => a.firstMs - b.firstMs),
+    hidden: Math.max(0, sorted.length - max),
+  };
 }
 
 /** "41 m", "3 m 20 s", "45 s" on screen. */

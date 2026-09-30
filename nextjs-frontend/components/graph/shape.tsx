@@ -16,7 +16,19 @@ export function nodeFill(n: Pick<GraphNode, "kind" | "type" | "refs">): string {
 }
 
 /** The node's shape centred on (0, 0), `r` being half its size. */
-export function ShapePath({ shape, r, fill, stroke, strokeWidth = 2 }: { shape: Shape; r: number; fill: string; stroke?: string; strokeWidth?: number }) {
+export function ShapePath({
+  shape,
+  r,
+  fill,
+  stroke,
+  strokeWidth = 2,
+}: {
+  shape: Shape;
+  r: number;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+}) {
   const common = { fill, stroke, strokeWidth };
   switch (shape) {
     case "circle":
@@ -28,9 +40,21 @@ export function ShapePath({ shape, r, fill, stroke, strokeWidth = 2 }: { shape: 
     case "rounded":
       return <rect x={-r} y={-r} width={2 * r} height={2 * r} rx={r * 0.5} {...common} />;
     case "diamond":
-      return <rect x={-r * 0.78} y={-r * 0.78} width={r * 1.56} height={r * 1.56} rx={2} transform="rotate(45)" {...common} />;
+      return (
+        <rect
+          x={-r * 0.78}
+          y={-r * 0.78}
+          width={r * 1.56}
+          height={r * 1.56}
+          rx={2}
+          transform="rotate(45)"
+          {...common}
+        />
+      );
     case "triangle":
-      return <path d={`M0 ${-r} L${r * 1.05} ${r * 0.8} L${-r * 1.05} ${r * 0.8} Z`} strokeLinejoin="round" {...common} />;
+      return (
+        <path d={`M0 ${-r} L${r * 1.05} ${r * 0.8} L${-r * 1.05} ${r * 0.8} Z`} strokeLinejoin="round" {...common} />
+      );
     case "pill":
       return <rect x={-r * 1.25} y={-r * 0.72} width={r * 2.5} height={r * 1.44} rx={r * 0.72} {...common} />;
     case "hexagon": {
@@ -44,9 +68,23 @@ export function ShapePath({ shape, r, fill, stroke, strokeWidth = 2 }: { shape: 
 }
 
 /** A small legend icon for a node type. */
-export function ShapeIcon({ shape, size = 12, fill = "var(--text-secondary)" }: { shape: Shape; size?: number; fill?: string }) {
+export function ShapeIcon({
+  shape,
+  size = 12,
+  fill = "var(--text-secondary)",
+}: {
+  shape: Shape;
+  size?: number;
+  fill?: string;
+}) {
   return (
-    <svg width={size + 4} height={size + 4} viewBox={`${-(size / 2 + 2)} ${-(size / 2 + 2)} ${size + 4} ${size + 4}`} aria-hidden className="shrink-0">
+    <svg
+      width={size + 4}
+      height={size + 4}
+      viewBox={`${-(size / 2 + 2)} ${-(size / 2 + 2)} ${size + 4} ${size + 4}`}
+      aria-hidden
+      className="shrink-0"
+    >
       <ShapePath shape={shape} r={size / 2} fill={fill} />
     </svg>
   );
@@ -68,7 +106,15 @@ export function EdgeIcon({ kind }: { kind: string }) {
           <line x1="0" y1="5.5" x2="22" y2="5.5" stroke={stroke} strokeWidth="1.3" />
         </>
       ) : (
-        <line x1="0" y1="4" x2="22" y2="4" stroke={stroke} strokeWidth="2" strokeDasharray={"dash" in s ? s.dash : undefined} />
+        <line
+          x1="0"
+          y1="4"
+          x2="22"
+          y2="4"
+          stroke={stroke}
+          strokeWidth="2"
+          strokeDasharray={"dash" in s ? s.dash : undefined}
+        />
       )}
     </svg>
   );

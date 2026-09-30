@@ -6,7 +6,15 @@ import type { ReactNode } from "react";
 export const TooltipProvider = T.Provider;
 
 /** A short explanation on hover and keyboard focus. Disabled actions use it to say why. */
-export function Tooltip({ content, children, side = "top" }: { content: ReactNode; children: ReactNode; side?: "top" | "bottom" | "left" | "right" }) {
+export function Tooltip({
+  content,
+  children,
+  side = "top",
+}: {
+  content: ReactNode;
+  children: ReactNode;
+  side?: "top" | "bottom" | "left" | "right";
+}) {
   if (!content) return <>{children}</>;
   return (
     <T.Root delayDuration={250}>

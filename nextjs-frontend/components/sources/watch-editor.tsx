@@ -92,11 +92,32 @@ export function WatchEditor({
     setConfirmStop(false);
   }, [open, watch?.id]);
 
-  const pipelines = useQuery({ queryKey: ["pipelines"], queryFn: () => data(Pipelines.listPipelines({ client })), enabled: open, staleTime: 60_000 });
-  const filter = useDebounced(useMemo(() => ({ kinds: f.kinds, include: splitPatterns(f.include), exclude: splitPatterns(f.exclude) }), [f.kinds, f.include, f.exclude]), 600);
+  const pipelines = useQuery({
+    queryKey: ["pipelines"],
+    queryFn: () => data(Pipelines.listPipelines({ client })),
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const filter = useDebounced(
+    useMemo(
+      () => ({
+        kinds: f.kinds,
+        include: splitPatterns(f.include),
+        exclude: splitPatterns(f.exclude),
+      }),
+      [f.kinds, f.include, f.exclude],
+    ),
+    600,
+  );
   const preview = useQuery({
     queryKey: ["watch-preview", source.id, path, filter],
-    queryFn: () => data(Sources.previewWatch({ client, body: { source: source.id, path, ...filter } })),
+    queryFn: () =>
+      data(
+        Sources.previewWatch({
+          client,
+          body: { source: source.id, path, ...filter },
+        }),
+      ),
     enabled: open && !editing,
     staleTime: 60_000,
     retry: false,
@@ -115,12 +136,27 @@ export function WatchEditor({
         enabled: f.enabled,
       };
       if (watch) return data(Sources.updateWatch({ client, path: { wid: watch.id }, body: opts }));
-      return data(Sources.createWatch({ client, body: { source: source.id, path, namespace: f.namespace, backfill: f.backfill, ...opts } }));
+      return data(
+        Sources.createWatch({
+          client,
+          body: {
+            source: source.id,
+            path,
+            namespace: f.namespace,
+            backfill: f.backfill,
+            ...opts,
+          },
+        }),
+      );
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["watches"] });
       void qc.invalidateQueries({ queryKey: ["sources"] });
-      toast({ tone: "green", title: editing ? "Watched folder saved" : "Watching the folder", body: `${source.name}:${path || "/"} → ${f.namespace}` });
+      toast({
+        tone: "green",
+        title: editing ? "Watched folder saved" : "Watching the folder",
+        body: `${source.name}:${path || "/"} → ${f.namespace}`,
+      });
       onOpenChange(false);
     },
     onError: (e: Error) => setErrors({ _: e.message }),
@@ -130,7 +166,10 @@ export function WatchEditor({
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["watches"] });
       void qc.invalidateQueries({ queryKey: ["sources"] });
-      toast({ title: "Stopped watching", body: `${source.name}:${path || "/"}` });
+      toast({
+        title: "Stopped watching",
+        body: `${source.name}:${path || "/"}`,
+      });
       onOpenChange(false);
     },
     onError: (e: Error) => setErrors({ _: e.message }),
@@ -176,7 +215,11 @@ export function WatchEditor({
       }
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Namespace" error={errors.namespace} hint={editing ? "Files keep going to the same namespace" : undefined}>
+        <Field
+          label="Namespace"
+          error={errors.namespace}
+          hint={editing ? "Files keep going to the same namespace" : undefined}
+        >
           {({ id, describedBy }) => (
             <Select
               id={id}
@@ -184,24 +227,69 @@ export function WatchEditor({
               value={f.namespace}
               disabled={editing}
               onChange={(e) => set("namespace", e.target.value)}
-              options={[...(f.namespace ? [] : [{ value: "", label: "Choose…" }]), ...namespaces.map((n) => ({ value: n.name, label: n.name }))]}
+              options={[
+                ...(f.namespace ? [] : [{ value: "", label: "Choose…" }]),
+                ...namespaces.map((n) => ({ value: n.name, label: n.name })),
+              ]}
             />
           )}
         </Field>
         <Field label="Pick up">
-          {({ id }) => <Select id={id} value={f.kinds} onChange={(e) => set("kinds", e.target.value as Form["kinds"])} options={PICK} />}
+          {({ id }) => (
+            <Select
+              id={id}
+              value={f.kinds}
+              onChange={(e) => set("kinds", e.target.value as Form["kinds"])}
+              options={PICK}
+            />
+          )}
         </Field>
         <Field label="Check every (minutes)" error={errors.poll}>
-          {({ id, describedBy, invalid }) => <Input id={id} aria-describedby={describedBy} invalid={invalid} inputMode="numeric" value={f.poll} onChange={(e) => set("poll", e.target.value)} />}
+          {({ id, describedBy, invalid }) => (
+            <Input
+              id={id}
+              aria-describedby={describedBy}
+              invalid={invalid}
+              inputMode="numeric"
+              value={f.poll}
+              onChange={(e) => set("poll", e.target.value)}
+            />
+          )}
         </Field>
         <Field label="Wait until unchanged (seconds)" error={errors.stable}>
-          {({ id, describedBy, invalid }) => <Input id={id} aria-describedby={describedBy} invalid={invalid} inputMode="numeric" value={f.stable} onChange={(e) => set("stable", e.target.value)} />}
+          {({ id, describedBy, invalid }) => (
+            <Input
+              id={id}
+              aria-describedby={describedBy}
+              invalid={invalid}
+              inputMode="numeric"
+              value={f.stable}
+              onChange={(e) => set("stable", e.target.value)}
+            />
+          )}
         </Field>
         <Field label="Include" hint="Patterns, comma-separated" optional>
-          {({ id, describedBy }) => <Input id={id} aria-describedby={describedBy} mono placeholder="*.m4a, *.srt" value={f.include} onChange={(e) => set("include", e.target.value)} />}
+          {({ id, describedBy }) => (
+            <Input
+              id={id}
+              aria-describedby={describedBy}
+              mono
+              placeholder="*.m4a, *.srt"
+              value={f.include}
+              onChange={(e) => set("include", e.target.value)}
+            />
+          )}
         </Field>
         <Field label="Exclude" optional>
-          {({ id }) => <Input id={id} mono placeholder="drafts/*" value={f.exclude} onChange={(e) => set("exclude", e.target.value)} />}
+          {({ id }) => (
+            <Input
+              id={id}
+              mono
+              placeholder="drafts/*"
+              value={f.exclude}
+              onChange={(e) => set("exclude", e.target.value)}
+            />
+          )}
         </Field>
       </div>
 
@@ -219,7 +307,11 @@ export function WatchEditor({
             { value: "steps", label: "These steps" },
           ]}
         />
-        {f.run === "default" && <p className="text-[12.5px] text-fg-muted">Whatever {f.namespace || "the namespace"} runs by default (Pipelines → namespace defaults).</p>}
+        {f.run === "default" && (
+          <p className="text-[12.5px] text-fg-muted">
+            Whatever {f.namespace || "the namespace"} runs by default (Pipelines → namespace defaults).
+          </p>
+        )}
         {f.run === "pipeline" && (
           <Field error={errors.pipeline}>
             {({ id }) => (
@@ -228,7 +320,16 @@ export function WatchEditor({
                 aria-label="Pipeline"
                 value={f.pipeline}
                 onChange={(e) => set("pipeline", e.target.value)}
-                options={[{ value: "", label: pipelines.isLoading ? "Loading…" : "Choose a pipeline" }, ...(pipelines.data?.pipelines ?? []).map((x) => ({ value: String(x.id), label: `${x.name} · v${x.current}` }))]}
+                options={[
+                  {
+                    value: "",
+                    label: pipelines.isLoading ? "Loading…" : "Choose a pipeline",
+                  },
+                  ...(pipelines.data?.pipelines ?? []).map((x) => ({
+                    value: String(x.id),
+                    label: `${x.name} · v${x.current}`,
+                  })),
+                ]}
               />
             )}
           </Field>
@@ -241,7 +342,12 @@ export function WatchEditor({
                   key={s}
                   label={s}
                   checked={f.steps.includes(s)}
-                  onCheckedChange={(on) => set("steps", on ? WATCH_STEPS.filter((x) => x === s || f.steps.includes(x)) : f.steps.filter((x) => x !== s))}
+                  onCheckedChange={(on) =>
+                    set(
+                      "steps",
+                      on ? WATCH_STEPS.filter((x) => x === s || f.steps.includes(x)) : f.steps.filter((x) => x !== s),
+                    )
+                  }
                 />
               ))}
             </div>
@@ -256,28 +362,49 @@ export function WatchEditor({
 
       {!editing && (
         <div className="flex flex-wrap items-center gap-2.5 rounded-md border border-blue-border bg-blue-surface p-3">
-          <Checkbox label="Import files already there (backfill)" checked={f.backfill} onCheckedChange={(v) => set("backfill", v)} />
+          <Checkbox
+            label="Import files already there (backfill)"
+            checked={f.backfill}
+            onCheckedChange={(v) => set("backfill", v)}
+          />
           <span className="flex-1" />
           <span className="tabular text-[12.5px] font-semibold text-fg-accent" aria-live="polite">
-            {preview.isFetching ? "Counting…" : p ? `${count(p.files)} ${p.files === 1 ? "file" : "files"} · ${count(p.audio)} audio · ${count(p.transcripts)} transcripts` : preview.error ? "Couldn’t count the files" : ""}
+            {preview.isFetching
+              ? "Counting…"
+              : p
+                ? `${count(p.files)} ${p.files === 1 ? "file" : "files"} · ${count(p.audio)} audio · ${count(p.transcripts)} transcripts`
+                : preview.error
+                  ? "Couldn’t count the files"
+                  : ""}
           </span>
         </div>
       )}
       {!editing && !f.backfill && p && p.files > 0 && (
-        <p className="-mt-2 text-[12.5px] text-fg-muted">Without backfill, the {count(p.files)} files there now are marked skipped; only new ones are imported.</p>
+        <p className="-mt-2 text-[12.5px] text-fg-muted">
+          Without backfill, the {count(p.files)} files there now are marked skipped; only new ones are imported.
+        </p>
       )}
 
       <Switch label="Enabled" checked={f.enabled} onCheckedChange={(v) => set("enabled", v)} />
 
       {errors._ && (
-        <p role="alert" className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-red-dark">
+        <p
+          role="alert"
+          className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-red-dark"
+        >
           {errors._}
         </p>
       )}
       {confirmStop && (
-        <div role="alert" className="flex flex-col gap-2.5 rounded-md border border-red-border bg-red-surface p-3.5 text-[13.5px]">
+        <div
+          role="alert"
+          className="flex flex-col gap-2.5 rounded-md border border-red-border bg-red-surface p-3.5 text-[13.5px]"
+        >
           <span>
-            <b>Stop watching {source.name}:{path || "/"}?</b> Recordings already imported stay in {watch?.namespace}. Files on the storage aren’t touched.
+            <b>
+              Stop watching {source.name}:{path || "/"}?
+            </b>{" "}
+            Recordings already imported stay in {watch?.namespace}. Files on the storage aren’t touched.
           </span>
           <span className="flex justify-end gap-2">
             <Button size="sm" variant="ghost" onClick={() => setConfirmStop(false)}>

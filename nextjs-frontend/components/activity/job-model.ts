@@ -23,7 +23,12 @@ export const ACTIVE = ["queued", "running", "paused"];
 export const isActive = (status: string | null | undefined) => ACTIVE.includes(status ?? "");
 export const canRetry = (status: string | null | undefined) => status === "failed" || status === "cancelled";
 
-export type StepSpec = { type: string; name?: string; label: string; spec: Record<string, unknown> };
+export type StepSpec = {
+  type: string;
+  name?: string;
+  label: string;
+  spec: Record<string, unknown>;
+};
 
 /** A step's display name: its own name, or the step type's label (Transcribe, Text on screen...). */
 export function stepLabel(type: string, name?: string | null): string {
@@ -34,7 +39,10 @@ export function stepLabel(type: string, name?: string | null): string {
 /** Steps may be plain names or {type, name, ...} specs. */
 export function stepSpecs(steps: unknown[] | null | undefined): StepSpec[] {
   return (steps ?? []).map((s) => {
-    const spec = (typeof s === "string" ? { type: s } : ((s as Record<string, unknown>) ?? {})) as Record<string, unknown>;
+    const spec = (typeof s === "string" ? { type: s } : ((s as Record<string, unknown>) ?? {})) as Record<
+      string,
+      unknown
+    >;
     const type = String(spec.type ?? "step");
     const name = typeof spec.name === "string" && spec.name ? spec.name : undefined;
     return { type, name, label: stepLabel(type, name), spec };
@@ -93,20 +101,37 @@ export function dayTime(iso: string | null | undefined, seconds = false): string
   return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${p(d.getHours())}:${p(d.getMinutes())}${seconds ? `:${p(d.getSeconds())}` : ""}`;
 }
 
-export function elapsed(from: string | null | undefined, to: string | null | undefined, now = Date.now()): number | null {
+export function elapsed(
+  from: string | null | undefined,
+  to: string | null | undefined,
+  now = Date.now(),
+): number | null {
   const a = from ? Date.parse(from) : NaN;
   if (Number.isNaN(a)) return null;
   const b = to ? Date.parse(to) : now;
   return Number.isNaN(b) ? null : Math.max(0, b - a);
 }
 
-export type Trigger = { kind: "watch" | "person" | "system"; label: string; watch?: number };
+export type Trigger = {
+  kind: "watch" | "person" | "system";
+  label: string;
+  watch?: number;
+};
 
 /** Who or what started a job: "watch:3" is watched folder 3; an email is a person. */
-export function triggerOf(createdBy: string | null | undefined, names?: Record<string, string>, me?: string | null): Trigger {
+export function triggerOf(
+  createdBy: string | null | undefined,
+  names?: Record<string, string>,
+  me?: string | null,
+): Trigger {
   const by = (createdBy ?? "").trim();
   const w = /^watch:(\d+)$/.exec(by);
-  if (w) return { kind: "watch", label: `watched folder ${w[1]}`, watch: Number(w[1]) };
+  if (w)
+    return {
+      kind: "watch",
+      label: `watched folder ${w[1]}`,
+      watch: Number(w[1]),
+    };
   if (!by) return { kind: "system", label: "System" };
   if (me && by.toLowerCase() === me.toLowerCase()) return { kind: "person", label: names?.[by] ?? "You" };
   return { kind: "person", label: names?.[by] ?? by };
@@ -167,7 +192,10 @@ export function lineTone(text: string): LogTone {
  * "<step> done in 1.2s", "<step> failed: ...", "<step> skipped: ..." or "handing <step> to a worker that can run it".
  * Retries append to the same log, so a later "done" for a step overrides an earlier failure.
  */
-export function parseJobLog(log: string[] | null | undefined, steps: unknown[] | null | undefined): { lines: LogLine[]; byStep: StepLog[] } {
+export function parseJobLog(
+  log: string[] | null | undefined,
+  steps: unknown[] | null | undefined,
+): { lines: LogLine[]; byStep: StepLog[] } {
   const specs = stepSpecs(steps);
   const byStep: StepLog[] = specs.map(() => ({ lines: [] }));
   const lines: LogLine[] = [];
@@ -231,7 +259,11 @@ export type WorkerState = "busy" | "idle" | "silent";
 /** Idle workers heartbeat about every 30 s; one quiet for 2 min is silent, unless it is busy with a running job. */
 export const SILENT_AFTER_MS = 2 * 60_000;
 
-export function workerState(w: Pick<WorkerInfo, "heartbeat_at" | "current">, now = Date.now(), currentRunning = false): WorkerState {
+export function workerState(
+  w: Pick<WorkerInfo, "heartbeat_at" | "current">,
+  now = Date.now(),
+  currentRunning = false,
+): WorkerState {
   const beat = w.heartbeat_at ? Date.parse(w.heartbeat_at) : NaN;
   const busy = w.current != null && w.current !== "";
   if (busy && currentRunning) return "busy";
@@ -243,7 +275,11 @@ export function workerState(w: Pick<WorkerInfo, "heartbeat_at" | "current">, now
  * Why a queued job is still waiting (A5): `stuck` when no live worker runs its next step, and a sentence about each
  * worker ("mac-mini is busy, gpu-box is silent, server-1 doesn’t run transcribe.").
  */
-export function waitingReason(step: string, workers: WorkerInfo[], states: Record<string, WorkerState>): { stuck: boolean; text: string } {
+export function waitingReason(
+  step: string,
+  workers: WorkerInfo[],
+  states: Record<string, WorkerState>,
+): { stuck: boolean; text: string } {
   const label = stepLabel(step).toLowerCase();
   const live = workers.filter((w) => (w.steps ?? []).includes(step) && states[w.name] !== "silent");
   const parts = workers.map((w) => {
@@ -252,7 +288,10 @@ export function waitingReason(step: string, workers: WorkerInfo[], states: Recor
     if (st === "silent") return `${w.name} is silent`;
     return st === "busy" ? `${w.name} is busy` : `${w.name} is free`;
   });
-  return { stuck: !live.length, text: parts.length ? `${parts.join(", ")}.` : "No workers have checked in." };
+  return {
+    stuck: !live.length,
+    text: parts.length ? `${parts.join(", ")}.` : "No workers have checked in.",
+  };
 }
 
 // ---------- batches ----------
@@ -263,32 +302,76 @@ export type BatchInfo = {
   status: string;
   created_by?: string | null;
   created_at?: string | null;
-  progress: { counts: Record<string, number>; done: number; total: number; remaining: number };
+  progress: {
+    counts: Record<string, number>;
+    done: number;
+    total: number;
+    remaining: number;
+  };
 };
 
 export type BatchAction = "pause" | "resume" | "continue" | "retry";
 
 /** A batch as one row: its icon state, the words, and the one action that makes sense now. */
-export function batchPhase(b: BatchInfo): { icon: string; text: string; action?: BatchAction; share: { done: number; failed: number; running: number } } {
+export function batchPhase(b: BatchInfo): {
+  icon: string;
+  text: string;
+  action?: BatchAction;
+  share: { done: number; failed: number; running: number };
+} {
   const c = b.progress?.counts ?? {};
   const failed = c.failed ?? 0;
   const done = b.progress?.done ?? 0;
   const all = (b.progress?.total ?? 0) + (b.progress?.remaining ?? 0);
   const failedText = failed ? ` · ${failed} failed` : "";
-  const share = { done: all ? (done - failed) / all : 0, failed: all ? failed / all : 0, running: all ? (c.running ?? 0) / all : 0 };
+  const share = {
+    done: all ? (done - failed) / all : 0,
+    failed: all ? failed / all : 0,
+    running: all ? (c.running ?? 0) / all : 0,
+  };
   switch (b.status) {
     case "sample":
-      return { icon: "running", text: `Sample · ${done} of ${b.progress?.total ?? 0}${failedText}`, action: "pause", share };
+      return {
+        icon: "running",
+        text: `Sample · ${done} of ${b.progress?.total ?? 0}${failedText}`,
+        action: "pause",
+        share,
+      };
     case "sample done":
-      return { icon: "gate", text: `Sample done · check it, then run the other ${b.progress?.remaining ?? 0}`, action: "continue", share };
+      return {
+        icon: "gate",
+        text: `Sample done · check it, then run the other ${b.progress?.remaining ?? 0}`,
+        action: "continue",
+        share,
+      };
     case "running":
-      return { icon: "running", text: `${done} of ${all}${failedText}`, action: "pause", share };
+      return {
+        icon: "running",
+        text: `${done} of ${all}${failedText}`,
+        action: "pause",
+        share,
+      };
     case "paused":
-      return { icon: "paused", text: `Paused at ${done} of ${all}${failedText}`, action: "resume", share };
+      return {
+        icon: "paused",
+        text: `Paused at ${done} of ${all}${failedText}`,
+        action: "resume",
+        share,
+      };
     case "cancelled":
-      return { icon: "cancelled", text: `Cancelled at ${done} of ${all}${failedText}`, action: failed ? "retry" : undefined, share };
+      return {
+        icon: "cancelled",
+        text: `Cancelled at ${done} of ${all}${failedText}`,
+        action: failed ? "retry" : undefined,
+        share,
+      };
     default:
-      return { icon: failed ? "failed" : "succeeded", text: `${done} of ${all} done${failedText}`, action: failed ? "retry" : undefined, share };
+      return {
+        icon: failed ? "failed" : "succeeded",
+        text: `${done} of ${all} done${failedText}`,
+        action: failed ? "retry" : undefined,
+        share,
+      };
   }
 }
 
@@ -298,12 +381,19 @@ export function batchPhase(b: BatchInfo): { icon: string; text: string; action?:
  * Rows update in place; new jobs join the top only while the list is scrolled to the top, otherwise they wait
  * behind a "2 new" pill. `order` is what is on screen; `rows` is the latest data, newest first.
  */
-export function reconcileOrder<K extends string | number>(order: K[], rows: { id: K }[], atTop: boolean): { order: K[]; pending: K[] } {
+export function reconcileOrder<K extends string | number>(
+  order: K[],
+  rows: { id: K }[],
+  atTop: boolean,
+): { order: K[]; pending: K[] } {
   const ids = rows.map((r) => r.id);
   if (atTop || order.length === 0) return { order: ids, pending: [] };
   const present = new Set(ids);
   const known = new Set(order);
-  return { order: order.filter((id) => present.has(id)), pending: ids.filter((id) => !known.has(id)) };
+  return {
+    order: order.filter((id) => present.has(id)),
+    pending: ids.filter((id) => !known.has(id)),
+  };
 }
 
 /** "3 min ago" within a day, else "14 Sep, 16:02". */
@@ -321,20 +411,32 @@ export function shortWhen(iso: string | null | undefined, now = Date.now()): str
 }
 
 /** Apply one live change to a list (newest first): replace in place, or add at the top when it matches the filter. */
-export function applyJobEvent<T extends { id: number; status: string }>(rows: T[], job: T, statuses?: string[] | null): T[] {
+export function applyJobEvent<T extends { id: number; status: string }>(
+  rows: T[],
+  job: T,
+  statuses?: string[] | null,
+): T[] {
   const i = rows.findIndex((r) => r.id === job.id);
   const fits = !statuses?.length || statuses.includes(job.status);
   if (i >= 0) {
     if (!fits) return rows.filter((r) => r.id !== job.id);
     const next = rows.slice();
-    next[i] = { ...rows[i], ...job, log: (job as { log?: unknown }).log ?? (rows[i] as { log?: unknown }).log };
+    next[i] = {
+      ...rows[i],
+      ...job,
+      log: (job as { log?: unknown }).log ?? (rows[i] as { log?: unknown }).log,
+    };
     return next;
   }
   return fits ? [job, ...rows] : rows;
 }
 
 /** Status counts after a live change, so the chips stay right between refetches. */
-export function applyCount(counts: Record<string, number>, before: string | undefined, after: string): Record<string, number> {
+export function applyCount(
+  counts: Record<string, number>,
+  before: string | undefined,
+  after: string,
+): Record<string, number> {
   if (before === after) return counts;
   const next = { ...counts };
   if (before) next[before] = Math.max(0, (next[before] ?? 0) - 1);

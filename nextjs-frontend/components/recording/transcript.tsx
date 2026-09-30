@@ -1,6 +1,17 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Link2, LocateFixed, MessagesSquare, Pencil, Search, Share2, StickyNote, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Link2,
+  LocateFixed,
+  MessagesSquare,
+  Pencil,
+  Search,
+  Share2,
+  StickyNote,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { prefersReducedMotion, usePlayerApi, usePlayerState } from "@/components/player/media";
@@ -27,7 +38,10 @@ export function scrollIntoBox(box: HTMLElement, el: HTMLElement, force = false) 
   const r = el.getBoundingClientRect();
   const top = r.top - b.top;
   if (!force && top > b.height * 0.15 && top + r.height < b.height * 0.7) return;
-  box.scrollTo({ top: box.scrollTop + top - b.height / 2 + Math.min(r.height, b.height / 2) / 2, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  box.scrollTo({
+    top: box.scrollTop + top - b.height / 2 + Math.min(r.height, b.height / 2) / 2,
+    behavior: prefersReducedMotion() ? "auto" : "smooth",
+  });
 }
 
 /**
@@ -57,7 +71,11 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
   const faces = useNamespaceFaces(ns, model.media.kind === "video" && model.facesMode === "recognize");
   const onScreen = useMemo(() => {
     const ids = new Set(model.faces.map((f) => f.face).filter(Boolean));
-    return new Set(((faces.data?.faces ?? []) as { id: number; speaker?: number | null }[]).filter((f) => ids.has(f.id) && f.speaker != null).map((f) => `s${f.speaker}`));
+    return new Set(
+      ((faces.data?.faces ?? []) as { id: number; speaker?: number | null }[])
+        .filter((f) => ids.has(f.id) && f.speaker != null)
+        .map((f) => `s${f.speaker}`),
+    );
   }, [faces.data, model.faces]);
 
   const hitsBySeg = useMemo(() => {
@@ -90,7 +108,9 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
   // Find: bring the current match into view.
   useEffect(() => {
     if (!currentHit || !box.current) return;
-    const el = box.current.querySelector<HTMLElement>(`[data-seg="${currentHit.seg}"] mark[data-hit="current"]`) ?? box.current.querySelector<HTMLElement>(`[data-seg="${currentHit.seg}"]`);
+    const el =
+      box.current.querySelector<HTMLElement>(`[data-seg="${currentHit.seg}"] mark[data-hit="current"]`) ??
+      box.current.querySelector<HTMLElement>(`[data-seg="${currentHit.seg}"]`);
     if (el) scrollIntoBox(box.current, el, true);
   }, [currentHit]);
 
@@ -102,14 +122,24 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
   const meta =
     state.phase === "processing"
       ? `Live · ${model.segments.length} segments`
-      : [`${model.segments.length} segments`, transcriptOrigin(r.rec.engine), r.rec.language && !["none", "nospeech"].includes(r.rec.language) ? r.rec.language.toUpperCase() : null]
+      : [
+          `${model.segments.length} segments`,
+          transcriptOrigin(r.rec.engine),
+          r.rec.language && !["none", "nospeech"].includes(r.rec.language) ? r.rec.language.toUpperCase() : null,
+        ]
           .filter(Boolean)
           .join(" · ");
 
   return (
     <div className={cn("relative flex min-h-0 flex-1 flex-col", className)}>
       {!compact && (
-        <div className={cn("flex h-12 shrink-0 items-center gap-2.5 border-b border-border", slim ? "px-[18px]" : "px-6", editing ? "bg-blue-surface" : "bg-background")}>
+        <div
+          className={cn(
+            "flex h-12 shrink-0 items-center gap-2.5 border-b border-border",
+            slim ? "px-[18px]" : "px-6",
+            editing ? "bg-blue-surface" : "bg-background",
+          )}
+        >
           {editing ? (
             <EditToolbar />
           ) : find.open ? (
@@ -117,20 +147,34 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
           ) : slim ? (
             <>
               <h2 className="text-[13px] font-bold leading-none text-fg">Transcript</h2>
-              <span className="min-w-0 flex-1 truncate text-[12px] leading-none text-fg-muted">from the soundtrack</span>
+              <span className="min-w-0 flex-1 truncate text-[12px] leading-none text-fg-muted">
+                from the soundtrack
+              </span>
               <Tooltip content="Find in the transcript (/)">
-                <button type="button" aria-label="Find in the transcript" onClick={() => find.setOpen(true)} className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral">
+                <button
+                  type="button"
+                  aria-label="Find in the transcript"
+                  onClick={() => find.setOpen(true)}
+                  className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral"
+                >
                   <Search className="size-3.5" />
                 </button>
               </Tooltip>
               <FollowButton follow={follow} setFollow={setFollow} box={box} active={active} slim />
-              <Tooltip content={r.canEdit ? "Edit the transcript" : `Viewers can't edit transcripts. ${needRole("editor", ns)}.`}>
+              <Tooltip
+                content={
+                  r.canEdit ? "Edit the transcript" : `Viewers can't edit transcripts. ${needRole("editor", ns)}.`
+                }
+              >
                 <button
                   type="button"
                   aria-label="Edit the transcript"
                   aria-disabled={!r.canEdit || undefined}
                   onClick={() => r.canEdit && model.segments.length && r.setEditing(true)}
-                  className={cn("grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral", !r.canEdit && "cursor-not-allowed opacity-50")}
+                  className={cn(
+                    "grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral",
+                    !r.canEdit && "cursor-not-allowed opacity-50",
+                  )}
                 >
                   <Pencil className="size-3.5" />
                 </button>
@@ -146,7 +190,10 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
                 onClick={() => find.setOpen(true)}
                 className="flex h-7 items-center gap-1.5 rounded-pill px-2.5 text-[12.5px] font-medium text-fg-secondary hover:bg-surface-neutral"
               >
-                <Search className="size-3.5" /> Find <kbd className="rounded-xs border border-border px-[5px] py-0.5 font-sans text-[10.5px] font-medium leading-none">/</kbd>
+                <Search className="size-3.5" /> Find{" "}
+                <kbd className="rounded-xs border border-border px-[5px] py-0.5 font-sans text-[10.5px] font-medium leading-none">
+                  /
+                </kbd>
               </button>
               <FollowButton follow={follow} setFollow={setFollow} box={box} active={active} />
               <Button
@@ -154,7 +201,11 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
                 size="sm"
                 icon={<Pencil />}
                 disabled={!r.canEdit || !model.segments.length}
-                disabledReason={!r.canEdit ? `Viewers can't edit transcripts. ${needRole("editor", ns)}.` : "There's no transcript to edit yet"}
+                disabledReason={
+                  !r.canEdit
+                    ? `Viewers can't edit transcripts. ${needRole("editor", ns)}.`
+                    : "There's no transcript to edit yet"
+                }
                 onClick={() => r.setEditing(true)}
               >
                 Edit
@@ -174,7 +225,10 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
         onWheel={stopFollow}
         onTouchMove={stopFollow}
         onKeyDown={(e) => ["PageUp", "PageDown", "Home", "End"].includes(e.key) && stopFollow()}
-        className={cn("min-h-0 flex-1 overflow-y-auto outline-none", compact ? "px-[18px] pb-4 pt-1" : slim ? "pb-10 pl-2 pr-[18px] pt-1" : "pb-10 pl-4 pr-6 pt-1")}
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto outline-none",
+          compact ? "px-[18px] pb-4 pt-1" : slim ? "pb-10 pl-2 pr-[18px] pt-1" : "pb-10 pl-4 pr-6 pt-1",
+        )}
         aria-label="Transcript"
         role="region"
       >
@@ -182,7 +236,8 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
           state.phase === "processing" ? (
             <div className="flex flex-col gap-3 px-2 py-6" aria-busy="true">
               <p className="flex items-center gap-2 text-[13px] text-fg-secondary">
-                <span aria-hidden className="size-2 rounded-full bg-blue" /> Transcribing — lines appear here as they arrive.
+                <span aria-hidden className="size-2 rounded-full bg-blue" /> Transcribing — lines appear here as they
+                arrive.
               </p>
               {[82, 64, 74, 58].map((w, i) => (
                 <Skeleton key={i} style={{ width: `${w}%` }} />
@@ -190,7 +245,9 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
             </div>
           ) : (
             <EmptyState title="No transcript yet">
-              {model.audio ? "Run Transcribe (Reprocess → Choose steps) to make one from the audio." : "This recording has no transcript lines."}
+              {model.audio
+                ? "Run Transcribe (Reprocess → Choose steps) to make one from the audio."
+                : "This recording has no transcript lines."}
             </EmptyState>
           )
         ) : (
@@ -202,7 +259,11 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
               speaker={t.speaker ? (speakers.get(t.speaker) ?? null) : null}
               active={active >= t.segs[0] && active <= t.segs[t.segs.length - 1] ? active : -1}
               hits={hitsBySeg}
-              currentHit={currentHit && currentHit.seg >= t.segs[0] && currentHit.seg <= t.segs[t.segs.length - 1] ? currentHit : null}
+              currentHit={
+                currentHit && currentHit.seg >= t.segs[0] && currentHit.seg <= t.segs[t.segs.length - 1]
+                  ? currentHit
+                  : null
+              }
               entityNames={entityNames}
               unsure={t.speaker ? (unsure.get(t.speaker) ?? null) : null}
               onScreen={Boolean(t.speaker && onScreen.has(t.speaker))}
@@ -236,9 +297,27 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
   );
 }
 
-function FollowButton({ follow, setFollow, box, active, slim }: { follow: boolean; setFollow: (f: boolean) => void; box: React.RefObject<HTMLDivElement | null>; active: number; slim?: boolean }) {
+function FollowButton({
+  follow,
+  setFollow,
+  box,
+  active,
+  slim,
+}: {
+  follow: boolean;
+  setFollow: (f: boolean) => void;
+  box: React.RefObject<HTMLDivElement | null>;
+  active: number;
+  slim?: boolean;
+}) {
   return (
-    <Tooltip content={follow ? "The transcript follows playback; scrolling pauses it" : "Scroll back to the playing line and follow it"}>
+    <Tooltip
+      content={
+        follow
+          ? "The transcript follows playback; scrolling pauses it"
+          : "Scroll back to the playing line and follow it"
+      }
+    >
       <button
         type="button"
         aria-pressed={follow}
@@ -251,7 +330,9 @@ function FollowButton({ follow, setFollow, box, active, slim }: { follow: boolea
         }}
         className={cn(
           "flex h-7 items-center gap-1.5 whitespace-nowrap rounded-pill px-2.5 text-[12.5px]",
-          follow ? "bg-blue-surface font-semibold text-fg-accent" : "font-medium text-fg-secondary hover:bg-surface-neutral",
+          follow
+            ? "bg-blue-surface font-semibold text-fg-accent"
+            : "font-medium text-fg-secondary hover:bg-surface-neutral",
         )}
       >
         {slim ? (
@@ -281,7 +362,10 @@ function FindBar() {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2" role="search">
       <span className="relative min-w-0 flex-1">
-        <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-muted" />
+        <Search
+          aria-hidden
+          className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-muted"
+        />
         <input
           ref={input}
           type="search"
@@ -308,10 +392,22 @@ function FindBar() {
       <span role="status" className="tabular min-w-[64px] whitespace-nowrap text-[12px] text-fg-muted">
         {find.query.trim().length < 2 ? "" : n ? `${find.index + 1} of ${n}` : "No matches"}
       </span>
-      <button type="button" aria-label="Previous match (Shift+Enter)" disabled={!n} onClick={() => go(-1)} className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral disabled:opacity-40">
+      <button
+        type="button"
+        aria-label="Previous match (Shift+Enter)"
+        disabled={!n}
+        onClick={() => go(-1)}
+        className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral disabled:opacity-40"
+      >
         <ChevronUp className="size-4" />
       </button>
-      <button type="button" aria-label="Next match (Enter)" disabled={!n} onClick={() => go(1)} className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral disabled:opacity-40">
+      <button
+        type="button"
+        aria-label="Next match (Enter)"
+        disabled={!n}
+        onClick={() => go(1)}
+        className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral disabled:opacity-40"
+      >
         <ChevronDown className="size-4" />
       </button>
       <button
@@ -339,7 +435,13 @@ export function timeAtOffset(seg: { t0: number; t1: number; text: string }, offs
 function SelectionToolbar({ box }: { box: React.RefObject<HTMLDivElement | null> }) {
   const { id, model, askInChat } = useRec();
   const toast = useToast();
-  const [sel, setSel] = useState<{ x: number; y: number; t: number; end: number; quote: string } | null>(null);
+  const [sel, setSel] = useState<{
+    x: number;
+    y: number;
+    t: number;
+    end: number;
+    quote: string;
+  } | null>(null);
   const [moment, setMoment] = useState<{ t0: number; t1: number } | null>(null);
   useEffect(() => {
     const onChange = () => {
@@ -350,7 +452,9 @@ function SelectionToolbar({ box }: { box: React.RefObject<HTMLDivElement | null>
       if (!container.contains(range.commonAncestorContainer)) return setSel(null);
       const quote = s.toString().trim();
       if (quote.length < 2) return setSel(null);
-      const startEl = (range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement) as HTMLElement | null;
+      const startEl = (
+        range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement
+      ) as HTMLElement | null;
       const segEl = startEl?.closest<HTMLElement>("[data-seg]");
       const seg = segEl ? model.segments[Number(segEl.dataset.seg)] : null;
       let offset = 0;
@@ -360,7 +464,9 @@ function SelectionToolbar({ box }: { box: React.RefObject<HTMLDivElement | null>
         pre.setEnd(range.startContainer, range.startOffset);
         offset = pre.toString().length;
       }
-      const endEl = (range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement) as HTMLElement | null;
+      const endEl = (
+        range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement
+      ) as HTMLElement | null;
       const endSegEl = endEl?.closest<HTMLElement>("[data-seg]");
       const endSeg = endSegEl ? model.segments[Number(endSegEl.dataset.seg)] : null;
       let endOffset = 0;
@@ -372,7 +478,13 @@ function SelectionToolbar({ box }: { box: React.RefObject<HTMLDivElement | null>
       }
       const rect = range.getBoundingClientRect();
       const t = seg ? timeAtOffset(seg, offset) : 0;
-      setSel({ x: rect.left + rect.width / 2, y: rect.top, t, end: endSeg ? Math.max(t, timeAtOffset(endSeg, endOffset)) : t, quote });
+      setSel({
+        x: rect.left + rect.width / 2,
+        y: rect.top,
+        t,
+        end: endSeg ? Math.max(t, timeAtOffset(endSeg, endOffset)) : t,
+        quote,
+      });
     };
     document.addEventListener("selectionchange", onChange);
     const hide = () => setSel(null);
@@ -384,7 +496,12 @@ function SelectionToolbar({ box }: { box: React.RefObject<HTMLDivElement | null>
     };
   }, [box, model.segments]);
   const momentDialog = (
-    <Dialog open={moment != null} onOpenChange={(o) => !o && setMoment(null)} title="Share a moment" description="A IIIF link that opens this time range in Lens Archive and in any viewer that supports content state.">
+    <Dialog
+      open={moment != null}
+      onOpenChange={(o) => !o && setMoment(null)}
+      title="Share a moment"
+      description="A IIIF link that opens this time range in Lens Archive and in any viewer that supports content state."
+    >
       {moment && <ShareMoment recordingId={id} initial={moment} />}
     </Dialog>
   );
@@ -401,45 +518,59 @@ function SelectionToolbar({ box }: { box: React.RefObject<HTMLDivElement | null>
   };
   return (
     <>
-    {momentDialog}
-    <div
-      role="toolbar"
-      aria-label="Selection actions"
-      onMouseDown={(e) => e.preventDefault()}
-      className="fixed z-[60] flex -translate-x-1/2 -translate-y-[calc(100%+10px)] gap-0.5 whitespace-nowrap rounded-[10px] bg-fg p-1 text-[12.5px] font-semibold text-background shadow-3"
-      style={{ left: Math.max(180, Math.min(sel.x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 180)), top: Math.max(70, sel.y) }}
-    >
-      <button type="button" onClick={() => void copy()} className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15">
-        <Link2 className="size-3.5" /> Copy link at {tc(sel.t)}
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          setMoment({ t0: Math.floor(sel.t / 1000), t1: Math.max(Math.floor(sel.t / 1000) + 1, Math.ceil(sel.end / 1000)) });
-          window.getSelection()?.removeAllRanges();
-          setSel(null);
+      {momentDialog}
+      <div
+        role="toolbar"
+        aria-label="Selection actions"
+        onMouseDown={(e) => e.preventDefault()}
+        className="fixed z-[60] flex -translate-x-1/2 -translate-y-[calc(100%+10px)] gap-0.5 whitespace-nowrap rounded-[10px] bg-fg p-1 text-[12.5px] font-semibold text-background shadow-3"
+        style={{
+          left: Math.max(180, Math.min(sel.x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 180)),
+          top: Math.max(70, sel.y),
         }}
-        className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
       >
-        <Share2 className="size-3.5" /> IIIF link
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          askInChat(`> “${sel.quote.length > 400 ? `${sel.quote.slice(0, 397)}…` : sel.quote}” (${tc(sel.t)})\n\n`);
-          window.getSelection()?.removeAllRanges();
-          setSel(null);
-        }}
-        className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
-      >
-        <MessagesSquare className="size-3.5" /> Ask in chat
-      </button>
-      <Tooltip content="Notes aren't available yet">
-        <button type="button" aria-disabled className="flex h-[30px] cursor-not-allowed items-center gap-1.5 rounded-[7px] px-2.5 opacity-50">
-          <StickyNote className="size-3.5" /> Add note
+        <button
+          type="button"
+          onClick={() => void copy()}
+          className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
+        >
+          <Link2 className="size-3.5" /> Copy link at {tc(sel.t)}
         </button>
-      </Tooltip>
-    </div>
+        <button
+          type="button"
+          onClick={() => {
+            setMoment({
+              t0: Math.floor(sel.t / 1000),
+              t1: Math.max(Math.floor(sel.t / 1000) + 1, Math.ceil(sel.end / 1000)),
+            });
+            window.getSelection()?.removeAllRanges();
+            setSel(null);
+          }}
+          className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
+        >
+          <Share2 className="size-3.5" /> IIIF link
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            askInChat(`> “${sel.quote.length > 400 ? `${sel.quote.slice(0, 397)}…` : sel.quote}” (${tc(sel.t)})\n\n`);
+            window.getSelection()?.removeAllRanges();
+            setSel(null);
+          }}
+          className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
+        >
+          <MessagesSquare className="size-3.5" /> Ask in chat
+        </button>
+        <Tooltip content="Notes aren't available yet">
+          <button
+            type="button"
+            aria-disabled
+            className="flex h-[30px] cursor-not-allowed items-center gap-1.5 rounded-[7px] px-2.5 opacity-50"
+          >
+            <StickyNote className="size-3.5" /> Add note
+          </button>
+        </Tooltip>
+      </div>
     </>
   );
 }

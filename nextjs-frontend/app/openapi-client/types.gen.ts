@@ -66,17 +66,7 @@ export type ApiToken = {
    * Last Used At
    */
   last_used_at?: string | null;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | "read"
-    | "write"
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | number | string | "read" | "write" | string | null | string | null | undefined;
 };
 
 /**
@@ -153,17 +143,7 @@ export type Approval = {
    * Result
    */
   result?: unknown;
-  [key: string]:
-    | unknown
-    | number
-    | number
-    | null
-    | string
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | number | number | null | string | string | null | string | null | undefined;
 };
 
 /**
@@ -533,15 +513,7 @@ export type BatchReport = {
    * Refs
    */
   refs?: Array<BatchReportRef>;
-  [key: string]:
-    | unknown
-    | string
-    | string
-    | null
-    | string
-    | null
-    | Array<BatchReportRef>
-    | undefined;
+  [key: string]: unknown | string | string | null | string | null | Array<BatchReportRef> | undefined;
 };
 
 /**
@@ -688,16 +660,7 @@ export type BatchSummary = {
    */
   created_at?: string | null;
   progress: BatchProgress;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | string
-    | null
-    | string
-    | null
-    | BatchProgress
-    | undefined;
+  [key: string]: unknown | number | string | string | null | string | null | BatchProgress | undefined;
 };
 
 /**
@@ -728,15 +691,7 @@ export type BrowseEntry = {
    * Modified
    */
   modified?: string | null;
-  [key: string]:
-    | unknown
-    | string
-    | boolean
-    | number
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | string | boolean | number | null | string | null | undefined;
 };
 
 /**
@@ -823,17 +778,7 @@ export type ChatMessage = {
    * Created At
    */
   created_at?: string | null;
-  [key: string]:
-    | unknown
-    | number
-    | "user"
-    | "assistant"
-    | string
-    | Array<Passage>
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | number | "user" | "assistant" | string | Array<Passage> | null | string | null | undefined;
 };
 
 /**
@@ -1106,16 +1051,7 @@ export type CollectionRecording = {
    * Duration Ms
    */
   duration_ms?: number | null;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | null
-    | string
-    | null
-    | number
-    | null
-    | undefined;
+  [key: string]: unknown | number | string | null | string | null | number | null | undefined;
 };
 
 /**
@@ -1852,14 +1788,7 @@ export type IiifImported = {
    * Status
    */
   status?: string | null;
-  [key: string]:
-    | unknown
-    | boolean
-    | Array<number>
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | boolean | Array<number> | null | string | null | undefined;
 };
 
 /**
@@ -1966,15 +1895,7 @@ export type ImportPreview = {
    * Preview
    */
   preview: Array<PreviewLine>;
-  [key: string]:
-    | unknown
-    | string
-    | string
-    | null
-    | number
-    | Array<string>
-    | Array<PreviewLine>
-    | undefined;
+  [key: string]: unknown | string | string | null | number | Array<string> | Array<PreviewLine> | undefined;
 };
 
 /**
@@ -1985,15 +1906,7 @@ export type ImportPreviewRequest = {
   /**
    * Format
    */
-  format?:
-    | "auto"
-    | "text"
-    | "markdown"
-    | "mdx"
-    | "json"
-    | "jsonl"
-    | "srt"
-    | "vtt";
+  format?: "auto" | "text" | "markdown" | "mdx" | "json" | "jsonl" | "srt" | "vtt";
   /**
    * Filename
    */
@@ -2016,15 +1929,7 @@ export type ImportRequest = {
   /**
    * Format
    */
-  format?:
-    | "auto"
-    | "text"
-    | "markdown"
-    | "mdx"
-    | "json"
-    | "jsonl"
-    | "srt"
-    | "vtt";
+  format?: "auto" | "text" | "markdown" | "mdx" | "json" | "jsonl" | "srt" | "vtt";
   /**
    * Filename
    */
@@ -2299,18 +2204,7 @@ export type LlmTestResult = {
    * Model
    */
   model?: string | null;
-  [key: string]:
-    | unknown
-    | boolean
-    | string
-    | null
-    | string
-    | null
-    | number
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | boolean | string | null | string | null | number | null | string | null | undefined;
 };
 
 /**
@@ -2379,17 +2273,7 @@ export type Member = {
    * Name
    */
   name?: string | null;
-  [key: string]:
-    | unknown
-    | number
-    | "viewer"
-    | "editor"
-    | "owner"
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | number | "viewer" | "editor" | "owner" | string | null | string | null | undefined;
 };
 
 /**
@@ -2443,19 +2327,7 @@ export type Mention = {
    * Recorded At
    */
   recorded_at?: string;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | null
-    | string
-    | null
-    | string
-    | null
-    | string
-    | null
-    | string
-    | undefined;
+  [key: string]: unknown | number | string | null | string | null | string | null | string | null | string | undefined;
 };
 
 /**
@@ -2581,15 +2453,7 @@ export type MetadataBulkResult = {
    * Changed
    */
   changed?: number | null;
-  [key: string]:
-    | unknown
-    | number
-    | Array<string>
-    | number
-    | null
-    | number
-    | null
-    | undefined;
+  [key: string]: unknown | number | Array<string> | number | null | number | null | undefined;
 };
 
 /**
@@ -2687,18 +2551,7 @@ export type Namespace = {
    * signed link to the namespace word cloud (SVG)
    */
   wordcloud?: string | null;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | string
-    | null
-    | "viewer"
-    | "editor"
-    | "owner"
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | number | string | string | null | "viewer" | "editor" | "owner" | string | null | undefined;
 };
 
 /**
@@ -3037,12 +2890,7 @@ export type PipelineCatalog = {
    * Pipelines
    */
   pipelines: Array<PipelineSummary>;
-  [key: string]:
-    | unknown
-    | Array<string>
-    | Array<string>
-    | Array<string>
-    | Array<PipelineSummary>;
+  [key: string]: unknown | Array<string> | Array<string> | Array<string> | Array<PipelineSummary>;
 };
 
 /**
@@ -3107,16 +2955,7 @@ export type PipelineSummary = {
    * namespaces that use it by default
    */
   namespaces?: Array<string>;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | string
-    | null
-    | string
-    | null
-    | Array<string>
-    | undefined;
+  [key: string]: unknown | number | string | string | null | string | null | Array<string> | undefined;
 };
 
 /**
@@ -3162,16 +3001,7 @@ export type PipelineVersionInfo = {
    * Created By
    */
   created_by?: string | null;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | null
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | number | string | null | string | null | string | null | undefined;
 };
 
 /**
@@ -3476,15 +3306,7 @@ export type RecordingSpeaker = {
    * Score
    */
   score?: number | null;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | string
-    | null
-    | number
-    | null
-    | undefined;
+  [key: string]: unknown | number | string | string | null | number | null | undefined;
 };
 
 /**
@@ -3877,17 +3699,7 @@ export type Share = {
    * Active
    */
   active: boolean;
-  [key: string]:
-    | unknown
-    | string
-    | string
-    | null
-    | string
-    | null
-    | string
-    | null
-    | boolean
-    | undefined;
+  [key: string]: unknown | string | string | null | string | null | string | null | boolean | undefined;
 };
 
 /**
@@ -3931,15 +3743,7 @@ export type Source = {
   /**
    * Type
    */
-  type:
-    | "s3"
-    | "dropbox"
-    | "drive"
-    | "onedrive"
-    | "sftp"
-    | "smb"
-    | "webdav"
-    | "local";
+  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local";
   /**
    * Label
    */
@@ -4007,15 +3811,7 @@ export type SourceCreate = {
   /**
    * Type
    */
-  type:
-    | "s3"
-    | "dropbox"
-    | "drive"
-    | "onedrive"
-    | "sftp"
-    | "smb"
-    | "webdav"
-    | "local";
+  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local";
   /**
    * Params
    */
@@ -4141,15 +3937,7 @@ export type Speaker = {
    * Suggestions
    */
   suggestions?: Array<SpeakerSuggestion>;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | string
-    | null
-    | boolean
-    | Array<SpeakerSuggestion>
-    | undefined;
+  [key: string]: unknown | number | string | string | null | boolean | Array<SpeakerSuggestion> | undefined;
 };
 
 /**
@@ -4168,11 +3956,7 @@ export type SpeakerDirectory = {
    * Links
    */
   links: Array<SpeakerLink>;
-  [key: string]:
-    | unknown
-    | Array<Speaker>
-    | Array<SpeakerMerge>
-    | Array<SpeakerLink>;
+  [key: string]: unknown | Array<Speaker> | Array<SpeakerMerge> | Array<SpeakerLink>;
 };
 
 /**
@@ -4203,18 +3987,7 @@ export type SpeakerLink = {
    * B Ns
    */
   b_ns?: string | null;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | null
-    | string
-    | null
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | number | string | null | string | null | string | null | string | null | undefined;
 };
 
 /**
@@ -4264,18 +4037,7 @@ export type SpeakerMerge = {
    * Into Name
    */
   into_name?: string | null;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | null
-    | string
-    | null
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | number | string | null | string | null | string | null | string | null | undefined;
 };
 
 /**
@@ -4539,18 +4301,7 @@ export type TemplatePreview = {
    * Error
    */
   error?: string | null;
-  [key: string]:
-    | unknown
-    | boolean
-    | "prompt"
-    | "report"
-    | "export"
-    | null
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | boolean | "prompt" | "report" | "export" | null | string | null | string | null | undefined;
 };
 
 /**
@@ -4631,18 +4382,7 @@ export type TemplateSummary = {
    * Versions
    */
   versions?: number;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | "prompt"
-    | "report"
-    | "export"
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | number | string | "prompt" | "report" | "export" | string | null | string | null | undefined;
 };
 
 /**
@@ -4694,16 +4434,7 @@ export type TemplateVersionInfo = {
    * Created By
    */
   created_by?: string | null;
-  [key: string]:
-    | unknown
-    | number
-    | string
-    | null
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | number | string | null | string | null | string | null | undefined;
 };
 
 /**
@@ -5214,15 +4945,7 @@ export type WorkerInfo = {
    * Current
    */
   current?: unknown;
-  [key: string]:
-    | unknown
-    | string
-    | Array<string>
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+  [key: string]: unknown | string | Array<string> | string | null | string | null | undefined;
 };
 
 export type StatusData = {
@@ -5371,8 +5094,7 @@ export type ForgotPasswordErrors = {
   422: HttpValidationError;
 };
 
-export type ForgotPasswordError =
-  ForgotPasswordErrors[keyof ForgotPasswordErrors];
+export type ForgotPasswordError = ForgotPasswordErrors[keyof ForgotPasswordErrors];
 
 export type ForgotPasswordResponses = {
   /**
@@ -5381,8 +5103,7 @@ export type ForgotPasswordResponses = {
   200: Ok;
 };
 
-export type ForgotPasswordResponse =
-  ForgotPasswordResponses[keyof ForgotPasswordResponses];
+export type ForgotPasswordResponse = ForgotPasswordResponses[keyof ForgotPasswordResponses];
 
 export type ResetPasswordData = {
   body: ResetPasswordRequest;
@@ -5407,8 +5128,7 @@ export type ResetPasswordResponses = {
   200: Ok;
 };
 
-export type ResetPasswordResponse =
-  ResetPasswordResponses[keyof ResetPasswordResponses];
+export type ResetPasswordResponse = ResetPasswordResponses[keyof ResetPasswordResponses];
 
 export type ListTokensData = {
   body?: never;
@@ -5450,8 +5170,7 @@ export type CreateTokenResponses = {
   200: ApiTokenCreated;
 };
 
-export type CreateTokenResponse =
-  CreateTokenResponses[keyof CreateTokenResponses];
+export type CreateTokenResponse = CreateTokenResponses[keyof CreateTokenResponses];
 
 export type RevokeTokenData = {
   body?: never;
@@ -5481,8 +5200,7 @@ export type RevokeTokenResponses = {
   200: Ok;
 };
 
-export type RevokeTokenResponse =
-  RevokeTokenResponses[keyof RevokeTokenResponses];
+export type RevokeTokenResponse = RevokeTokenResponses[keyof RevokeTokenResponses];
 
 export type ListUsersData = {
   body?: never;
@@ -5585,8 +5303,7 @@ export type ListMembersResponses = {
   200: Array<Member>;
 };
 
-export type ListMembersResponse =
-  ListMembersResponses[keyof ListMembersResponses];
+export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponses];
 
 export type SetMemberData = {
   body: MemberSet;
@@ -5635,8 +5352,7 @@ export type GetSettingsResponses = {
   };
 };
 
-export type GetSettingsResponse =
-  GetSettingsResponses[keyof GetSettingsResponses];
+export type GetSettingsResponse = GetSettingsResponses[keyof GetSettingsResponses];
 
 export type UpdateSettingsData = {
   /**
@@ -5662,8 +5378,7 @@ export type UpdateSettingsErrors = {
   422: HttpValidationError;
 };
 
-export type UpdateSettingsError =
-  UpdateSettingsErrors[keyof UpdateSettingsErrors];
+export type UpdateSettingsError = UpdateSettingsErrors[keyof UpdateSettingsErrors];
 
 export type UpdateSettingsResponses = {
   /**
@@ -5672,8 +5387,7 @@ export type UpdateSettingsResponses = {
   200: Ok;
 };
 
-export type UpdateSettingsResponse =
-  UpdateSettingsResponses[keyof UpdateSettingsResponses];
+export type UpdateSettingsResponse = UpdateSettingsResponses[keyof UpdateSettingsResponses];
 
 export type TestLlmData = {
   body?: never;
@@ -5752,8 +5466,7 @@ export type ReindexSearchResponses = {
   202: Started;
 };
 
-export type ReindexSearchResponse =
-  ReindexSearchResponses[keyof ReindexSearchResponses];
+export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
 
 export type ListNamespacesData = {
   body?: never;
@@ -5770,8 +5483,7 @@ export type ListNamespacesResponses = {
   200: Array<Namespace>;
 };
 
-export type ListNamespacesResponse =
-  ListNamespacesResponses[keyof ListNamespacesResponses];
+export type ListNamespacesResponse = ListNamespacesResponses[keyof ListNamespacesResponses];
 
 export type CreateNamespaceData = {
   body: NamespaceCreate;
@@ -5787,8 +5499,7 @@ export type CreateNamespaceErrors = {
   422: HttpValidationError;
 };
 
-export type CreateNamespaceError =
-  CreateNamespaceErrors[keyof CreateNamespaceErrors];
+export type CreateNamespaceError = CreateNamespaceErrors[keyof CreateNamespaceErrors];
 
 export type CreateNamespaceResponses = {
   /**
@@ -5797,8 +5508,7 @@ export type CreateNamespaceResponses = {
   200: Created;
 };
 
-export type CreateNamespaceResponse =
-  CreateNamespaceResponses[keyof CreateNamespaceResponses];
+export type CreateNamespaceResponse = CreateNamespaceResponses[keyof CreateNamespaceResponses];
 
 export type UpdateNamespaceData = {
   body: NamespaceUpdate;
@@ -5819,8 +5529,7 @@ export type UpdateNamespaceErrors = {
   422: HttpValidationError;
 };
 
-export type UpdateNamespaceError =
-  UpdateNamespaceErrors[keyof UpdateNamespaceErrors];
+export type UpdateNamespaceError = UpdateNamespaceErrors[keyof UpdateNamespaceErrors];
 
 export type UpdateNamespaceResponses = {
   /**
@@ -5829,8 +5538,7 @@ export type UpdateNamespaceResponses = {
   200: Ok;
 };
 
-export type UpdateNamespaceResponse =
-  UpdateNamespaceResponses[keyof UpdateNamespaceResponses];
+export type UpdateNamespaceResponse = UpdateNamespaceResponses[keyof UpdateNamespaceResponses];
 
 export type GetNamespaceWordcloudData = {
   body?: never;
@@ -5851,8 +5559,7 @@ export type GetNamespaceWordcloudErrors = {
   422: HttpValidationError;
 };
 
-export type GetNamespaceWordcloudError =
-  GetNamespaceWordcloudErrors[keyof GetNamespaceWordcloudErrors];
+export type GetNamespaceWordcloudError = GetNamespaceWordcloudErrors[keyof GetNamespaceWordcloudErrors];
 
 export type GetNamespaceWordcloudResponses = {
   /**
@@ -5861,8 +5568,7 @@ export type GetNamespaceWordcloudResponses = {
   200: Blob | File;
 };
 
-export type GetNamespaceWordcloudResponse =
-  GetNamespaceWordcloudResponses[keyof GetNamespaceWordcloudResponses];
+export type GetNamespaceWordcloudResponse = GetNamespaceWordcloudResponses[keyof GetNamespaceWordcloudResponses];
 
 export type ListRecordingsData = {
   body?: never;
@@ -5891,8 +5597,7 @@ export type ListRecordingsErrors = {
   422: HttpValidationError;
 };
 
-export type ListRecordingsError =
-  ListRecordingsErrors[keyof ListRecordingsErrors];
+export type ListRecordingsError = ListRecordingsErrors[keyof ListRecordingsErrors];
 
 export type ListRecordingsResponses = {
   /**
@@ -5902,8 +5607,7 @@ export type ListRecordingsResponses = {
   200: Array<RecordingSummary>;
 };
 
-export type ListRecordingsResponse =
-  ListRecordingsResponses[keyof ListRecordingsResponses];
+export type ListRecordingsResponse = ListRecordingsResponses[keyof ListRecordingsResponses];
 
 export type GetRecordingData = {
   body?: never;
@@ -5933,8 +5637,7 @@ export type GetRecordingResponses = {
   200: Recording;
 };
 
-export type GetRecordingResponse =
-  GetRecordingResponses[keyof GetRecordingResponses];
+export type GetRecordingResponse = GetRecordingResponses[keyof GetRecordingResponses];
 
 export type GetPlayerData = {
   body?: never;
@@ -6005,8 +5708,7 @@ export type GetEmbedLinkResponses = {
   200: EmbedLink;
 };
 
-export type GetEmbedLinkResponse =
-  GetEmbedLinkResponses[keyof GetEmbedLinkResponses];
+export type GetEmbedLinkResponse = GetEmbedLinkResponses[keyof GetEmbedLinkResponses];
 
 export type GetAudioData = {
   body?: never;
@@ -6069,8 +5771,7 @@ export type GetRecordingWordcloudErrors = {
   422: HttpValidationError;
 };
 
-export type GetRecordingWordcloudError =
-  GetRecordingWordcloudErrors[keyof GetRecordingWordcloudErrors];
+export type GetRecordingWordcloudError = GetRecordingWordcloudErrors[keyof GetRecordingWordcloudErrors];
 
 export type GetRecordingWordcloudResponses = {
   /**
@@ -6079,8 +5780,7 @@ export type GetRecordingWordcloudResponses = {
   200: Blob | File;
 };
 
-export type GetRecordingWordcloudResponse =
-  GetRecordingWordcloudResponses[keyof GetRecordingWordcloudResponses];
+export type GetRecordingWordcloudResponse = GetRecordingWordcloudResponses[keyof GetRecordingWordcloudResponses];
 
 export type ReprocessRecordingData = {
   /**
@@ -6104,8 +5804,7 @@ export type ReprocessRecordingErrors = {
   422: HttpValidationError;
 };
 
-export type ReprocessRecordingError =
-  ReprocessRecordingErrors[keyof ReprocessRecordingErrors];
+export type ReprocessRecordingError = ReprocessRecordingErrors[keyof ReprocessRecordingErrors];
 
 export type ReprocessRecordingResponses = {
   /**
@@ -6114,8 +5813,7 @@ export type ReprocessRecordingResponses = {
   200: JobQueued;
 };
 
-export type ReprocessRecordingResponse =
-  ReprocessRecordingResponses[keyof ReprocessRecordingResponses];
+export type ReprocessRecordingResponse = ReprocessRecordingResponses[keyof ReprocessRecordingResponses];
 
 export type RevokeSharesData = {
   body?: never;
@@ -6145,8 +5843,7 @@ export type RevokeSharesResponses = {
   200: Ok;
 };
 
-export type RevokeSharesResponse =
-  RevokeSharesResponses[keyof RevokeSharesResponses];
+export type RevokeSharesResponse = RevokeSharesResponses[keyof RevokeSharesResponses];
 
 export type CreateShareData = {
   /**
@@ -6179,8 +5876,7 @@ export type CreateShareResponses = {
   200: ShareLink;
 };
 
-export type CreateShareResponse =
-  CreateShareResponses[keyof CreateShareResponses];
+export type CreateShareResponse = CreateShareResponses[keyof CreateShareResponses];
 
 export type ListSharesData = {
   body?: never;
@@ -6236,8 +5932,7 @@ export type ExportRecordingErrors = {
   422: HttpValidationError;
 };
 
-export type ExportRecordingError =
-  ExportRecordingErrors[keyof ExportRecordingErrors];
+export type ExportRecordingError = ExportRecordingErrors[keyof ExportRecordingErrors];
 
 export type ExportRecordingResponses = {
   /**
@@ -6278,8 +5973,7 @@ export type EditSegmentResponses = {
   200: JobQueued;
 };
 
-export type EditSegmentResponse =
-  EditSegmentResponses[keyof EditSegmentResponses];
+export type EditSegmentResponse = EditSegmentResponses[keyof EditSegmentResponses];
 
 export type ListSegmentEditsData = {
   body?: never;
@@ -6300,8 +5994,7 @@ export type ListSegmentEditsErrors = {
   422: HttpValidationError;
 };
 
-export type ListSegmentEditsError =
-  ListSegmentEditsErrors[keyof ListSegmentEditsErrors];
+export type ListSegmentEditsError = ListSegmentEditsErrors[keyof ListSegmentEditsErrors];
 
 export type ListSegmentEditsResponses = {
   /**
@@ -6311,8 +6004,7 @@ export type ListSegmentEditsResponses = {
   200: Array<SegmentEdit>;
 };
 
-export type ListSegmentEditsResponse =
-  ListSegmentEditsResponses[keyof ListSegmentEditsResponses];
+export type ListSegmentEditsResponse = ListSegmentEditsResponses[keyof ListSegmentEditsResponses];
 
 export type ListOutputsData = {
   body?: never;
@@ -6343,8 +6035,7 @@ export type ListOutputsResponses = {
   200: Array<Output>;
 };
 
-export type ListOutputsResponse =
-  ListOutputsResponses[keyof ListOutputsResponses];
+export type ListOutputsResponse = ListOutputsResponses[keyof ListOutputsResponses];
 
 export type ImportTranscriptData = {
   body: ImportRequest;
@@ -6360,8 +6051,7 @@ export type ImportTranscriptErrors = {
   422: HttpValidationError;
 };
 
-export type ImportTranscriptError =
-  ImportTranscriptErrors[keyof ImportTranscriptErrors];
+export type ImportTranscriptError = ImportTranscriptErrors[keyof ImportTranscriptErrors];
 
 export type ImportTranscriptResponses = {
   /**
@@ -6370,8 +6060,7 @@ export type ImportTranscriptResponses = {
   200: ImportResult;
 };
 
-export type ImportTranscriptResponse =
-  ImportTranscriptResponses[keyof ImportTranscriptResponses];
+export type ImportTranscriptResponse = ImportTranscriptResponses[keyof ImportTranscriptResponses];
 
 export type PreviewImportData = {
   body: ImportPreviewRequest;
@@ -6396,8 +6085,7 @@ export type PreviewImportResponses = {
   200: ImportPreview;
 };
 
-export type PreviewImportResponse =
-  PreviewImportResponses[keyof PreviewImportResponses];
+export type PreviewImportResponse = PreviewImportResponses[keyof PreviewImportResponses];
 
 export type SearchTranscriptsData = {
   body?: never;
@@ -6443,8 +6131,7 @@ export type SearchTranscriptsErrors = {
   422: HttpValidationError;
 };
 
-export type SearchTranscriptsError =
-  SearchTranscriptsErrors[keyof SearchTranscriptsErrors];
+export type SearchTranscriptsError = SearchTranscriptsErrors[keyof SearchTranscriptsErrors];
 
 export type SearchTranscriptsResponses = {
   /**
@@ -6453,8 +6140,7 @@ export type SearchTranscriptsResponses = {
   200: SearchResults;
 };
 
-export type SearchTranscriptsResponse =
-  SearchTranscriptsResponses[keyof SearchTranscriptsResponses];
+export type SearchTranscriptsResponse = SearchTranscriptsResponses[keyof SearchTranscriptsResponses];
 
 export type GetGraphData = {
   body?: never;
@@ -6517,8 +6203,7 @@ export type ListMentionsResponses = {
   200: Array<Mention>;
 };
 
-export type ListMentionsResponse =
-  ListMentionsResponses[keyof ListMentionsResponses];
+export type ListMentionsResponse = ListMentionsResponses[keyof ListMentionsResponses];
 
 export type ListSpeakersData = {
   body?: never;
@@ -6548,8 +6233,7 @@ export type ListSpeakersResponses = {
   200: SpeakerDirectory;
 };
 
-export type ListSpeakersResponse =
-  ListSpeakersResponses[keyof ListSpeakersResponses];
+export type ListSpeakersResponse = ListSpeakersResponses[keyof ListSpeakersResponses];
 
 export type ListSpeakerRecordingsData = {
   body?: never;
@@ -6570,8 +6254,7 @@ export type ListSpeakerRecordingsErrors = {
   422: HttpValidationError;
 };
 
-export type ListSpeakerRecordingsError =
-  ListSpeakerRecordingsErrors[keyof ListSpeakerRecordingsErrors];
+export type ListSpeakerRecordingsError = ListSpeakerRecordingsErrors[keyof ListSpeakerRecordingsErrors];
 
 export type ListSpeakerRecordingsResponses = {
   /**
@@ -6581,8 +6264,7 @@ export type ListSpeakerRecordingsResponses = {
   200: Array<SpeakerRecording>;
 };
 
-export type ListSpeakerRecordingsResponse =
-  ListSpeakerRecordingsResponses[keyof ListSpeakerRecordingsResponses];
+export type ListSpeakerRecordingsResponse = ListSpeakerRecordingsResponses[keyof ListSpeakerRecordingsResponses];
 
 export type RenameSpeakerData = {
   body: SpeakerRename;
@@ -6612,8 +6294,7 @@ export type RenameSpeakerResponses = {
   200: Ok;
 };
 
-export type RenameSpeakerResponse =
-  RenameSpeakerResponses[keyof RenameSpeakerResponses];
+export type RenameSpeakerResponse = RenameSpeakerResponses[keyof RenameSpeakerResponses];
 
 export type MergeSpeakerData = {
   body: SpeakerMergeRequest;
@@ -6643,8 +6324,7 @@ export type MergeSpeakerResponses = {
   200: SpeakerMerged;
 };
 
-export type MergeSpeakerResponse =
-  MergeSpeakerResponses[keyof MergeSpeakerResponses];
+export type MergeSpeakerResponse = MergeSpeakerResponses[keyof MergeSpeakerResponses];
 
 export type UndoSpeakerMergeData = {
   body?: never;
@@ -6665,8 +6345,7 @@ export type UndoSpeakerMergeErrors = {
   422: HttpValidationError;
 };
 
-export type UndoSpeakerMergeError =
-  UndoSpeakerMergeErrors[keyof UndoSpeakerMergeErrors];
+export type UndoSpeakerMergeError = UndoSpeakerMergeErrors[keyof UndoSpeakerMergeErrors];
 
 export type UndoSpeakerMergeResponses = {
   /**
@@ -6675,8 +6354,7 @@ export type UndoSpeakerMergeResponses = {
   200: Ok;
 };
 
-export type UndoSpeakerMergeResponse =
-  UndoSpeakerMergeResponses[keyof UndoSpeakerMergeResponses];
+export type UndoSpeakerMergeResponse = UndoSpeakerMergeResponses[keyof UndoSpeakerMergeResponses];
 
 export type LinkSpeakerData = {
   body: SpeakerLinkRequest;
@@ -6706,8 +6384,7 @@ export type LinkSpeakerResponses = {
   200: Ok;
 };
 
-export type LinkSpeakerResponse =
-  LinkSpeakerResponses[keyof LinkSpeakerResponses];
+export type LinkSpeakerResponse = LinkSpeakerResponses[keyof LinkSpeakerResponses];
 
 export type ListEntitiesData = {
   body?: never;
@@ -6785,8 +6462,7 @@ export type ListEntitiesResponses = {
   200: EntityList;
 };
 
-export type ListEntitiesResponse =
-  ListEntitiesResponses[keyof ListEntitiesResponses];
+export type ListEntitiesResponse = ListEntitiesResponses[keyof ListEntitiesResponses];
 
 export type ListEntityTypesData = {
   body?: never;
@@ -6803,8 +6479,7 @@ export type ListEntityTypesResponses = {
   200: Array<EntityType>;
 };
 
-export type ListEntityTypesResponse =
-  ListEntityTypesResponses[keyof ListEntityTypesResponses];
+export type ListEntityTypesResponse = ListEntityTypesResponses[keyof ListEntityTypesResponses];
 
 export type ListEntitySuggestionsData = {
   body?: never;
@@ -6829,8 +6504,7 @@ export type ListEntitySuggestionsErrors = {
   422: HttpValidationError;
 };
 
-export type ListEntitySuggestionsError =
-  ListEntitySuggestionsErrors[keyof ListEntitySuggestionsErrors];
+export type ListEntitySuggestionsError = ListEntitySuggestionsErrors[keyof ListEntitySuggestionsErrors];
 
 export type ListEntitySuggestionsResponses = {
   /**
@@ -6842,8 +6516,7 @@ export type ListEntitySuggestionsResponses = {
   }>;
 };
 
-export type ListEntitySuggestionsResponse =
-  ListEntitySuggestionsResponses[keyof ListEntitySuggestionsResponses];
+export type ListEntitySuggestionsResponse = ListEntitySuggestionsResponses[keyof ListEntitySuggestionsResponses];
 
 export type ListEntityMergesData = {
   body?: never;
@@ -6862,8 +6535,7 @@ export type ListEntityMergesResponses = {
   }>;
 };
 
-export type ListEntityMergesResponse =
-  ListEntityMergesResponses[keyof ListEntityMergesResponses];
+export type ListEntityMergesResponse = ListEntityMergesResponses[keyof ListEntityMergesResponses];
 
 export type GetEntityTimelineData = {
   body?: never;
@@ -6888,8 +6560,7 @@ export type GetEntityTimelineErrors = {
   422: HttpValidationError;
 };
 
-export type GetEntityTimelineError =
-  GetEntityTimelineErrors[keyof GetEntityTimelineErrors];
+export type GetEntityTimelineError = GetEntityTimelineErrors[keyof GetEntityTimelineErrors];
 
 export type GetEntityTimelineResponses = {
   /**
@@ -6901,8 +6572,7 @@ export type GetEntityTimelineResponses = {
   };
 };
 
-export type GetEntityTimelineResponse =
-  GetEntityTimelineResponses[keyof GetEntityTimelineResponses];
+export type GetEntityTimelineResponse = GetEntityTimelineResponses[keyof GetEntityTimelineResponses];
 
 export type RetypeEntitiesData = {
   body: EntityRetype;
@@ -6918,8 +6588,7 @@ export type RetypeEntitiesErrors = {
   422: HttpValidationError;
 };
 
-export type RetypeEntitiesError =
-  RetypeEntitiesErrors[keyof RetypeEntitiesErrors];
+export type RetypeEntitiesError = RetypeEntitiesErrors[keyof RetypeEntitiesErrors];
 
 export type RetypeEntitiesResponses = {
   /**
@@ -6928,8 +6597,7 @@ export type RetypeEntitiesResponses = {
   200: Ok;
 };
 
-export type RetypeEntitiesResponse =
-  RetypeEntitiesResponses[keyof RetypeEntitiesResponses];
+export type RetypeEntitiesResponse = RetypeEntitiesResponses[keyof RetypeEntitiesResponses];
 
 export type MergeEntitiesData = {
   body: EntityMerge;
@@ -6954,8 +6622,7 @@ export type MergeEntitiesResponses = {
   200: EntityMerged;
 };
 
-export type MergeEntitiesResponse =
-  MergeEntitiesResponses[keyof MergeEntitiesResponses];
+export type MergeEntitiesResponse = MergeEntitiesResponses[keyof MergeEntitiesResponses];
 
 export type UndoEntityMergeData = {
   body?: never;
@@ -6976,8 +6643,7 @@ export type UndoEntityMergeErrors = {
   422: HttpValidationError;
 };
 
-export type UndoEntityMergeError =
-  UndoEntityMergeErrors[keyof UndoEntityMergeErrors];
+export type UndoEntityMergeError = UndoEntityMergeErrors[keyof UndoEntityMergeErrors];
 
 export type UndoEntityMergeResponses = {
   /**
@@ -6986,8 +6652,7 @@ export type UndoEntityMergeResponses = {
   200: Ok;
 };
 
-export type UndoEntityMergeResponse =
-  UndoEntityMergeResponses[keyof UndoEntityMergeResponses];
+export type UndoEntityMergeResponse = UndoEntityMergeResponses[keyof UndoEntityMergeResponses];
 
 export type MarkEntitiesNotSameData = {
   body: EntityNotSame;
@@ -7003,8 +6668,7 @@ export type MarkEntitiesNotSameErrors = {
   422: HttpValidationError;
 };
 
-export type MarkEntitiesNotSameError =
-  MarkEntitiesNotSameErrors[keyof MarkEntitiesNotSameErrors];
+export type MarkEntitiesNotSameError = MarkEntitiesNotSameErrors[keyof MarkEntitiesNotSameErrors];
 
 export type MarkEntitiesNotSameResponses = {
   /**
@@ -7013,8 +6677,7 @@ export type MarkEntitiesNotSameResponses = {
   200: Ok;
 };
 
-export type MarkEntitiesNotSameResponse =
-  MarkEntitiesNotSameResponses[keyof MarkEntitiesNotSameResponses];
+export type MarkEntitiesNotSameResponse = MarkEntitiesNotSameResponses[keyof MarkEntitiesNotSameResponses];
 
 export type GetEntityData = {
   body?: never;
@@ -7094,8 +6757,7 @@ export type ListEntityMentionsErrors = {
   422: HttpValidationError;
 };
 
-export type ListEntityMentionsError =
-  ListEntityMentionsErrors[keyof ListEntityMentionsErrors];
+export type ListEntityMentionsError = ListEntityMentionsErrors[keyof ListEntityMentionsErrors];
 
 export type ListEntityMentionsResponses = {
   /**
@@ -7104,8 +6766,7 @@ export type ListEntityMentionsResponses = {
   200: MentionList;
 };
 
-export type ListEntityMentionsResponse =
-  ListEntityMentionsResponses[keyof ListEntityMentionsResponses];
+export type ListEntityMentionsResponse = ListEntityMentionsResponses[keyof ListEntityMentionsResponses];
 
 export type GetEntityConnectionsData = {
   body?: never;
@@ -7126,8 +6787,7 @@ export type GetEntityConnectionsErrors = {
   422: HttpValidationError;
 };
 
-export type GetEntityConnectionsError =
-  GetEntityConnectionsErrors[keyof GetEntityConnectionsErrors];
+export type GetEntityConnectionsError = GetEntityConnectionsErrors[keyof GetEntityConnectionsErrors];
 
 export type GetEntityConnectionsResponses = {
   /**
@@ -7139,8 +6799,7 @@ export type GetEntityConnectionsResponses = {
   };
 };
 
-export type GetEntityConnectionsResponse =
-  GetEntityConnectionsResponses[keyof GetEntityConnectionsResponses];
+export type GetEntityConnectionsResponse = GetEntityConnectionsResponses[keyof GetEntityConnectionsResponses];
 
 export type RenameEntityData = {
   body: EntityRename;
@@ -7173,8 +6832,7 @@ export type RenameEntityResponses = {
   };
 };
 
-export type RenameEntityResponse =
-  RenameEntityResponses[keyof RenameEntityResponses];
+export type RenameEntityResponse = RenameEntityResponses[keyof RenameEntityResponses];
 
 export type HideEntityData = {
   /**
@@ -7271,8 +6929,7 @@ export type UnlinkEntityResponses = {
   200: Ok;
 };
 
-export type UnlinkEntityResponse =
-  UnlinkEntityResponses[keyof UnlinkEntityResponses];
+export type UnlinkEntityResponse = UnlinkEntityResponses[keyof UnlinkEntityResponses];
 
 export type MoveMentionData = {
   body: MentionMove;
@@ -7302,8 +6959,7 @@ export type MoveMentionResponses = {
   200: MentionMoved;
 };
 
-export type MoveMentionResponse =
-  MoveMentionResponses[keyof MoveMentionResponses];
+export type MoveMentionResponse = MoveMentionResponses[keyof MoveMentionResponses];
 
 export type ExploreGraphData = {
   body?: never;
@@ -7360,8 +7016,7 @@ export type ExploreGraphResponses = {
   };
 };
 
-export type ExploreGraphResponse =
-  ExploreGraphResponses[keyof ExploreGraphResponses];
+export type ExploreGraphResponse = ExploreGraphResponses[keyof ExploreGraphResponses];
 
 export type FindGraphPathData = {
   body?: never;
@@ -7402,8 +7057,7 @@ export type FindGraphPathResponses = {
   };
 };
 
-export type FindGraphPathResponse =
-  FindGraphPathResponses[keyof FindGraphPathResponses];
+export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
 
 export type GetRecordingMetadataData = {
   body?: never;
@@ -7424,8 +7078,7 @@ export type GetRecordingMetadataErrors = {
   422: HttpValidationError;
 };
 
-export type GetRecordingMetadataError =
-  GetRecordingMetadataErrors[keyof GetRecordingMetadataErrors];
+export type GetRecordingMetadataError = GetRecordingMetadataErrors[keyof GetRecordingMetadataErrors];
 
 export type GetRecordingMetadataResponses = {
   /**
@@ -7434,8 +7087,7 @@ export type GetRecordingMetadataResponses = {
   200: RecordingMetadata;
 };
 
-export type GetRecordingMetadataResponse =
-  GetRecordingMetadataResponses[keyof GetRecordingMetadataResponses];
+export type GetRecordingMetadataResponse = GetRecordingMetadataResponses[keyof GetRecordingMetadataResponses];
 
 export type UpdateRecordingMetadataData = {
   body: RecordingMetadataUpdate;
@@ -7456,8 +7108,7 @@ export type UpdateRecordingMetadataErrors = {
   422: HttpValidationError;
 };
 
-export type UpdateRecordingMetadataError =
-  UpdateRecordingMetadataErrors[keyof UpdateRecordingMetadataErrors];
+export type UpdateRecordingMetadataError = UpdateRecordingMetadataErrors[keyof UpdateRecordingMetadataErrors];
 
 export type UpdateRecordingMetadataResponses = {
   /**
@@ -7466,8 +7117,7 @@ export type UpdateRecordingMetadataResponses = {
   200: RecordingMetadata;
 };
 
-export type UpdateRecordingMetadataResponse =
-  UpdateRecordingMetadataResponses[keyof UpdateRecordingMetadataResponses];
+export type UpdateRecordingMetadataResponse = UpdateRecordingMetadataResponses[keyof UpdateRecordingMetadataResponses];
 
 export type ListRecordingMetadataHistoryData = {
   body?: never;
@@ -7521,8 +7171,7 @@ export type RevertMetadataEditErrors = {
   422: HttpValidationError;
 };
 
-export type RevertMetadataEditError =
-  RevertMetadataEditErrors[keyof RevertMetadataEditErrors];
+export type RevertMetadataEditError = RevertMetadataEditErrors[keyof RevertMetadataEditErrors];
 
 export type RevertMetadataEditResponses = {
   /**
@@ -7531,8 +7180,7 @@ export type RevertMetadataEditResponses = {
   200: Ok;
 };
 
-export type RevertMetadataEditResponse =
-  RevertMetadataEditResponses[keyof RevertMetadataEditResponses];
+export type RevertMetadataEditResponse = RevertMetadataEditResponses[keyof RevertMetadataEditResponses];
 
 export type GetNamespaceMetadataData = {
   body?: never;
@@ -7553,8 +7201,7 @@ export type GetNamespaceMetadataErrors = {
   422: HttpValidationError;
 };
 
-export type GetNamespaceMetadataError =
-  GetNamespaceMetadataErrors[keyof GetNamespaceMetadataErrors];
+export type GetNamespaceMetadataError = GetNamespaceMetadataErrors[keyof GetNamespaceMetadataErrors];
 
 export type GetNamespaceMetadataResponses = {
   /**
@@ -7563,8 +7210,7 @@ export type GetNamespaceMetadataResponses = {
   200: NamespaceMetadata;
 };
 
-export type GetNamespaceMetadataResponse =
-  GetNamespaceMetadataResponses[keyof GetNamespaceMetadataResponses];
+export type GetNamespaceMetadataResponse = GetNamespaceMetadataResponses[keyof GetNamespaceMetadataResponses];
 
 export type UpdateNamespaceMetadataData = {
   body: NamespaceMetadataUpdate;
@@ -7585,8 +7231,7 @@ export type UpdateNamespaceMetadataErrors = {
   422: HttpValidationError;
 };
 
-export type UpdateNamespaceMetadataError =
-  UpdateNamespaceMetadataErrors[keyof UpdateNamespaceMetadataErrors];
+export type UpdateNamespaceMetadataError = UpdateNamespaceMetadataErrors[keyof UpdateNamespaceMetadataErrors];
 
 export type UpdateNamespaceMetadataResponses = {
   /**
@@ -7595,8 +7240,7 @@ export type UpdateNamespaceMetadataResponses = {
   200: NamespaceMetadata;
 };
 
-export type UpdateNamespaceMetadataResponse =
-  UpdateNamespaceMetadataResponses[keyof UpdateNamespaceMetadataResponses];
+export type UpdateNamespaceMetadataResponse = UpdateNamespaceMetadataResponses[keyof UpdateNamespaceMetadataResponses];
 
 export type BulkUpdateMetadataData = {
   body: MetadataBulk;
@@ -7612,8 +7256,7 @@ export type BulkUpdateMetadataErrors = {
   422: HttpValidationError;
 };
 
-export type BulkUpdateMetadataError =
-  BulkUpdateMetadataErrors[keyof BulkUpdateMetadataErrors];
+export type BulkUpdateMetadataError = BulkUpdateMetadataErrors[keyof BulkUpdateMetadataErrors];
 
 export type BulkUpdateMetadataResponses = {
   /**
@@ -7622,8 +7265,7 @@ export type BulkUpdateMetadataResponses = {
   200: MetadataBulkResult;
 };
 
-export type BulkUpdateMetadataResponse =
-  BulkUpdateMetadataResponses[keyof BulkUpdateMetadataResponses];
+export type BulkUpdateMetadataResponse = BulkUpdateMetadataResponses[keyof BulkUpdateMetadataResponses];
 
 export type GetMediaData = {
   body?: never;
@@ -7731,8 +7373,7 @@ export type FixScreenTextResponses = {
   200: Ok;
 };
 
-export type FixScreenTextResponse =
-  FixScreenTextResponses[keyof FixScreenTextResponses];
+export type FixScreenTextResponse = FixScreenTextResponses[keyof FixScreenTextResponses];
 
 export type DeleteFaceTrackData = {
   body?: never;
@@ -7757,8 +7398,7 @@ export type DeleteFaceTrackErrors = {
   422: HttpValidationError;
 };
 
-export type DeleteFaceTrackError =
-  DeleteFaceTrackErrors[keyof DeleteFaceTrackErrors];
+export type DeleteFaceTrackError = DeleteFaceTrackErrors[keyof DeleteFaceTrackErrors];
 
 export type DeleteFaceTrackResponses = {
   /**
@@ -7767,8 +7407,7 @@ export type DeleteFaceTrackResponses = {
   200: Ok;
 };
 
-export type DeleteFaceTrackResponse =
-  DeleteFaceTrackResponses[keyof DeleteFaceTrackResponses];
+export type DeleteFaceTrackResponse = DeleteFaceTrackResponses[keyof DeleteFaceTrackResponses];
 
 export type DeleteNamespaceFacesData = {
   body?: never;
@@ -7789,8 +7428,7 @@ export type DeleteNamespaceFacesErrors = {
   422: HttpValidationError;
 };
 
-export type DeleteNamespaceFacesError =
-  DeleteNamespaceFacesErrors[keyof DeleteNamespaceFacesErrors];
+export type DeleteNamespaceFacesError = DeleteNamespaceFacesErrors[keyof DeleteNamespaceFacesErrors];
 
 export type DeleteNamespaceFacesResponses = {
   /**
@@ -7799,8 +7437,7 @@ export type DeleteNamespaceFacesResponses = {
   200: Ok;
 };
 
-export type DeleteNamespaceFacesResponse =
-  DeleteNamespaceFacesResponses[keyof DeleteNamespaceFacesResponses];
+export type DeleteNamespaceFacesResponse = DeleteNamespaceFacesResponses[keyof DeleteNamespaceFacesResponses];
 
 export type GetNamespaceFacesData = {
   body?: never;
@@ -7821,8 +7458,7 @@ export type GetNamespaceFacesErrors = {
   422: HttpValidationError;
 };
 
-export type GetNamespaceFacesError =
-  GetNamespaceFacesErrors[keyof GetNamespaceFacesErrors];
+export type GetNamespaceFacesError = GetNamespaceFacesErrors[keyof GetNamespaceFacesErrors];
 
 export type GetNamespaceFacesResponses = {
   /**
@@ -7831,8 +7467,7 @@ export type GetNamespaceFacesResponses = {
   200: NamespaceFaces;
 };
 
-export type GetNamespaceFacesResponse =
-  GetNamespaceFacesResponses[keyof GetNamespaceFacesResponses];
+export type GetNamespaceFacesResponse = GetNamespaceFacesResponses[keyof GetNamespaceFacesResponses];
 
 export type SetNamespaceFacesModeData = {
   body: FacesMode;
@@ -7853,8 +7488,7 @@ export type SetNamespaceFacesModeErrors = {
   422: HttpValidationError;
 };
 
-export type SetNamespaceFacesModeError =
-  SetNamespaceFacesModeErrors[keyof SetNamespaceFacesModeErrors];
+export type SetNamespaceFacesModeError = SetNamespaceFacesModeErrors[keyof SetNamespaceFacesModeErrors];
 
 export type SetNamespaceFacesModeResponses = {
   /**
@@ -7863,8 +7497,7 @@ export type SetNamespaceFacesModeResponses = {
   200: FacesModeSet;
 };
 
-export type SetNamespaceFacesModeResponse =
-  SetNamespaceFacesModeResponses[keyof SetNamespaceFacesModeResponses];
+export type SetNamespaceFacesModeResponse = SetNamespaceFacesModeResponses[keyof SetNamespaceFacesModeResponses];
 
 export type UndoFaceMergeData = {
   body?: never;
@@ -7894,8 +7527,7 @@ export type UndoFaceMergeResponses = {
   200: Ok;
 };
 
-export type UndoFaceMergeResponse =
-  UndoFaceMergeResponses[keyof UndoFaceMergeResponses];
+export type UndoFaceMergeResponse = UndoFaceMergeResponses[keyof UndoFaceMergeResponses];
 
 export type DeleteFaceData = {
   body?: never;
@@ -8006,8 +7638,7 @@ export type LinkFaceSpeakerErrors = {
   422: HttpValidationError;
 };
 
-export type LinkFaceSpeakerError =
-  LinkFaceSpeakerErrors[keyof LinkFaceSpeakerErrors];
+export type LinkFaceSpeakerError = LinkFaceSpeakerErrors[keyof LinkFaceSpeakerErrors];
 
 export type LinkFaceSpeakerResponses = {
   /**
@@ -8016,8 +7647,7 @@ export type LinkFaceSpeakerResponses = {
   200: Ok;
 };
 
-export type LinkFaceSpeakerResponse =
-  LinkFaceSpeakerResponses[keyof LinkFaceSpeakerResponses];
+export type LinkFaceSpeakerResponse = LinkFaceSpeakerResponses[keyof LinkFaceSpeakerResponses];
 
 export type DismissFaceSuggestionData = {
   body: FaceDismiss;
@@ -8038,8 +7668,7 @@ export type DismissFaceSuggestionErrors = {
   422: HttpValidationError;
 };
 
-export type DismissFaceSuggestionError =
-  DismissFaceSuggestionErrors[keyof DismissFaceSuggestionErrors];
+export type DismissFaceSuggestionError = DismissFaceSuggestionErrors[keyof DismissFaceSuggestionErrors];
 
 export type DismissFaceSuggestionResponses = {
   /**
@@ -8048,8 +7677,7 @@ export type DismissFaceSuggestionResponses = {
   200: Ok;
 };
 
-export type DismissFaceSuggestionResponse =
-  DismissFaceSuggestionResponses[keyof DismissFaceSuggestionResponses];
+export type DismissFaceSuggestionResponse = DismissFaceSuggestionResponses[keyof DismissFaceSuggestionResponses];
 
 export type GetRecordingIiifData = {
   body?: never;
@@ -8070,8 +7698,7 @@ export type GetRecordingIiifErrors = {
   422: HttpValidationError;
 };
 
-export type GetRecordingIiifError =
-  GetRecordingIiifErrors[keyof GetRecordingIiifErrors];
+export type GetRecordingIiifError = GetRecordingIiifErrors[keyof GetRecordingIiifErrors];
 
 export type GetRecordingIiifResponses = {
   /**
@@ -8080,8 +7707,7 @@ export type GetRecordingIiifResponses = {
   200: IiifPanel;
 };
 
-export type GetRecordingIiifResponse =
-  GetRecordingIiifResponses[keyof GetRecordingIiifResponses];
+export type GetRecordingIiifResponse = GetRecordingIiifResponses[keyof GetRecordingIiifResponses];
 
 export type GetContentStateData = {
   body?: never;
@@ -8111,8 +7737,7 @@ export type GetContentStateErrors = {
   422: HttpValidationError;
 };
 
-export type GetContentStateError =
-  GetContentStateErrors[keyof GetContentStateErrors];
+export type GetContentStateError = GetContentStateErrors[keyof GetContentStateErrors];
 
 export type GetContentStateResponses = {
   /**
@@ -8121,8 +7746,7 @@ export type GetContentStateResponses = {
   200: ContentState;
 };
 
-export type GetContentStateResponse =
-  GetContentStateResponses[keyof GetContentStateResponses];
+export type GetContentStateResponse = GetContentStateResponses[keyof GetContentStateResponses];
 
 export type PreviewIiifImportData = {
   body: IiifUrl;
@@ -8138,8 +7762,7 @@ export type PreviewIiifImportErrors = {
   422: HttpValidationError;
 };
 
-export type PreviewIiifImportError =
-  PreviewIiifImportErrors[keyof PreviewIiifImportErrors];
+export type PreviewIiifImportError = PreviewIiifImportErrors[keyof PreviewIiifImportErrors];
 
 export type PreviewIiifImportResponses = {
   /**
@@ -8151,8 +7774,7 @@ export type PreviewIiifImportResponses = {
   };
 };
 
-export type PreviewIiifImportResponse =
-  PreviewIiifImportResponses[keyof PreviewIiifImportResponses];
+export type PreviewIiifImportResponse = PreviewIiifImportResponses[keyof PreviewIiifImportResponses];
 
 export type ImportIiifData = {
   body: IiifImport;
@@ -8382,8 +8004,7 @@ export type ListWorkersResponses = {
   200: Array<WorkerInfo>;
 };
 
-export type ListWorkersResponse =
-  ListWorkersResponses[keyof ListWorkersResponses];
+export type ListWorkersResponse = ListWorkersResponses[keyof ListWorkersResponses];
 
 export type StreamEventsData = {
   body?: never;
@@ -8434,8 +8055,7 @@ export type ListBackendsResponses = {
   };
 };
 
-export type ListBackendsResponse =
-  ListBackendsResponses[keyof ListBackendsResponses];
+export type ListBackendsResponse = ListBackendsResponses[keyof ListBackendsResponses];
 
 export type ListSourcesData = {
   body?: never;
@@ -8452,8 +8072,7 @@ export type ListSourcesResponses = {
   200: Array<Source>;
 };
 
-export type ListSourcesResponse =
-  ListSourcesResponses[keyof ListSourcesResponses];
+export type ListSourcesResponse = ListSourcesResponses[keyof ListSourcesResponses];
 
 export type CreateSourceData = {
   body: SourceCreate;
@@ -8478,8 +8097,7 @@ export type CreateSourceResponses = {
   200: SourceCreated;
 };
 
-export type CreateSourceResponse =
-  CreateSourceResponses[keyof CreateSourceResponses];
+export type CreateSourceResponse = CreateSourceResponses[keyof CreateSourceResponses];
 
 export type DeleteSourceData = {
   body?: never;
@@ -8509,8 +8127,7 @@ export type DeleteSourceResponses = {
   200: Ok;
 };
 
-export type DeleteSourceResponse =
-  DeleteSourceResponses[keyof DeleteSourceResponses];
+export type DeleteSourceResponse = DeleteSourceResponses[keyof DeleteSourceResponses];
 
 export type UpdateSourceData = {
   body: SourceUpdate;
@@ -8540,8 +8157,7 @@ export type UpdateSourceResponses = {
   200: SourceUpdated;
 };
 
-export type UpdateSourceResponse =
-  UpdateSourceResponses[keyof UpdateSourceResponses];
+export type UpdateSourceResponse = UpdateSourceResponses[keyof UpdateSourceResponses];
 
 export type TestSourceData = {
   body?: never;
@@ -8607,8 +8223,7 @@ export type BrowseSourceResponses = {
   200: Array<BrowseEntry>;
 };
 
-export type BrowseSourceResponse =
-  BrowseSourceResponses[keyof BrowseSourceResponses];
+export type BrowseSourceResponse = BrowseSourceResponses[keyof BrowseSourceResponses];
 
 export type ListWatchesData = {
   body?: never;
@@ -8625,8 +8240,7 @@ export type ListWatchesResponses = {
   200: Array<Watch>;
 };
 
-export type ListWatchesResponse =
-  ListWatchesResponses[keyof ListWatchesResponses];
+export type ListWatchesResponse = ListWatchesResponses[keyof ListWatchesResponses];
 
 export type CreateWatchData = {
   body: WatchCreate;
@@ -8651,8 +8265,7 @@ export type CreateWatchResponses = {
   200: Created;
 };
 
-export type CreateWatchResponse =
-  CreateWatchResponses[keyof CreateWatchResponses];
+export type CreateWatchResponse = CreateWatchResponses[keyof CreateWatchResponses];
 
 export type PreviewWatchData = {
   body: WatchPreviewRequest;
@@ -8677,8 +8290,7 @@ export type PreviewWatchResponses = {
   200: WatchPreview;
 };
 
-export type PreviewWatchResponse =
-  PreviewWatchResponses[keyof PreviewWatchResponses];
+export type PreviewWatchResponse = PreviewWatchResponses[keyof PreviewWatchResponses];
 
 export type DeleteWatchData = {
   body?: never;
@@ -8708,8 +8320,7 @@ export type DeleteWatchResponses = {
   200: Ok;
 };
 
-export type DeleteWatchResponse =
-  DeleteWatchResponses[keyof DeleteWatchResponses];
+export type DeleteWatchResponse = DeleteWatchResponses[keyof DeleteWatchResponses];
 
 export type UpdateWatchData = {
   body: WatchUpdate;
@@ -8739,8 +8350,7 @@ export type UpdateWatchResponses = {
   200: Ok;
 };
 
-export type UpdateWatchResponse =
-  UpdateWatchResponses[keyof UpdateWatchResponses];
+export type UpdateWatchResponse = UpdateWatchResponses[keyof UpdateWatchResponses];
 
 export type ScanWatchData = {
   body?: never;
@@ -8787,8 +8397,7 @@ export type ListTemplatesResponses = {
   200: Array<TemplateSummary>;
 };
 
-export type ListTemplatesResponse =
-  ListTemplatesResponses[keyof ListTemplatesResponses];
+export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
 
 export type CreateTemplateData = {
   body: TemplateCreate;
@@ -8804,8 +8413,7 @@ export type CreateTemplateErrors = {
   422: HttpValidationError;
 };
 
-export type CreateTemplateError =
-  CreateTemplateErrors[keyof CreateTemplateErrors];
+export type CreateTemplateError = CreateTemplateErrors[keyof CreateTemplateErrors];
 
 export type CreateTemplateResponses = {
   /**
@@ -8814,8 +8422,7 @@ export type CreateTemplateResponses = {
   200: Created;
 };
 
-export type CreateTemplateResponse =
-  CreateTemplateResponses[keyof CreateTemplateResponses];
+export type CreateTemplateResponse = CreateTemplateResponses[keyof CreateTemplateResponses];
 
 export type PreviewTemplateData = {
   body: TemplatePreviewRequest;
@@ -8831,8 +8438,7 @@ export type PreviewTemplateErrors = {
   422: HttpValidationError;
 };
 
-export type PreviewTemplateError =
-  PreviewTemplateErrors[keyof PreviewTemplateErrors];
+export type PreviewTemplateError = PreviewTemplateErrors[keyof PreviewTemplateErrors];
 
 export type PreviewTemplateResponses = {
   /**
@@ -8841,8 +8447,7 @@ export type PreviewTemplateResponses = {
   200: TemplatePreview;
 };
 
-export type PreviewTemplateResponse =
-  PreviewTemplateResponses[keyof PreviewTemplateResponses];
+export type PreviewTemplateResponse = PreviewTemplateResponses[keyof PreviewTemplateResponses];
 
 export type GetTemplateData = {
   body?: never;
@@ -8877,8 +8482,7 @@ export type GetTemplateResponses = {
   200: Template;
 };
 
-export type GetTemplateResponse =
-  GetTemplateResponses[keyof GetTemplateResponses];
+export type GetTemplateResponse = GetTemplateResponses[keyof GetTemplateResponses];
 
 export type CreateTemplateVersionData = {
   body: TemplateVersionCreate;
@@ -8899,8 +8503,7 @@ export type CreateTemplateVersionErrors = {
   422: HttpValidationError;
 };
 
-export type CreateTemplateVersionError =
-  CreateTemplateVersionErrors[keyof CreateTemplateVersionErrors];
+export type CreateTemplateVersionError = CreateTemplateVersionErrors[keyof CreateTemplateVersionErrors];
 
 export type CreateTemplateVersionResponses = {
   /**
@@ -8909,8 +8512,7 @@ export type CreateTemplateVersionResponses = {
   200: VersionSaved;
 };
 
-export type CreateTemplateVersionResponse =
-  CreateTemplateVersionResponses[keyof CreateTemplateVersionResponses];
+export type CreateTemplateVersionResponse = CreateTemplateVersionResponses[keyof CreateTemplateVersionResponses];
 
 export type DiffTemplateVersionsData = {
   body?: never;
@@ -8940,8 +8542,7 @@ export type DiffTemplateVersionsErrors = {
   422: HttpValidationError;
 };
 
-export type DiffTemplateVersionsError =
-  DiffTemplateVersionsErrors[keyof DiffTemplateVersionsErrors];
+export type DiffTemplateVersionsError = DiffTemplateVersionsErrors[keyof DiffTemplateVersionsErrors];
 
 export type DiffTemplateVersionsResponses = {
   /**
@@ -8950,8 +8551,7 @@ export type DiffTemplateVersionsResponses = {
   200: string;
 };
 
-export type DiffTemplateVersionsResponse =
-  DiffTemplateVersionsResponses[keyof DiffTemplateVersionsResponses];
+export type DiffTemplateVersionsResponse = DiffTemplateVersionsResponses[keyof DiffTemplateVersionsResponses];
 
 export type ListPipelinesData = {
   body?: never;
@@ -8967,8 +8567,7 @@ export type ListPipelinesResponses = {
   200: PipelineCatalog;
 };
 
-export type ListPipelinesResponse =
-  ListPipelinesResponses[keyof ListPipelinesResponses];
+export type ListPipelinesResponse = ListPipelinesResponses[keyof ListPipelinesResponses];
 
 export type CreatePipelineData = {
   body: PipelineCreate;
@@ -8984,8 +8583,7 @@ export type CreatePipelineErrors = {
   422: HttpValidationError;
 };
 
-export type CreatePipelineError =
-  CreatePipelineErrors[keyof CreatePipelineErrors];
+export type CreatePipelineError = CreatePipelineErrors[keyof CreatePipelineErrors];
 
 export type CreatePipelineResponses = {
   /**
@@ -8994,8 +8592,7 @@ export type CreatePipelineResponses = {
   200: Created;
 };
 
-export type CreatePipelineResponse =
-  CreatePipelineResponses[keyof CreatePipelineResponses];
+export type CreatePipelineResponse = CreatePipelineResponses[keyof CreatePipelineResponses];
 
 export type GetPipelineData = {
   body?: never;
@@ -9030,8 +8627,7 @@ export type GetPipelineResponses = {
   200: Pipeline;
 };
 
-export type GetPipelineResponse =
-  GetPipelineResponses[keyof GetPipelineResponses];
+export type GetPipelineResponse = GetPipelineResponses[keyof GetPipelineResponses];
 
 export type CreatePipelineVersionData = {
   body: PipelineVersionCreate;
@@ -9052,8 +8648,7 @@ export type CreatePipelineVersionErrors = {
   422: HttpValidationError;
 };
 
-export type CreatePipelineVersionError =
-  CreatePipelineVersionErrors[keyof CreatePipelineVersionErrors];
+export type CreatePipelineVersionError = CreatePipelineVersionErrors[keyof CreatePipelineVersionErrors];
 
 export type CreatePipelineVersionResponses = {
   /**
@@ -9062,8 +8657,7 @@ export type CreatePipelineVersionResponses = {
   200: VersionSaved;
 };
 
-export type CreatePipelineVersionResponse =
-  CreatePipelineVersionResponses[keyof CreatePipelineVersionResponses];
+export type CreatePipelineVersionResponse = CreatePipelineVersionResponses[keyof CreatePipelineVersionResponses];
 
 export type RunPipelineData = {
   body: PipelineRunRequest;
@@ -9093,8 +8687,7 @@ export type RunPipelineResponses = {
   200: JobQueued;
 };
 
-export type RunPipelineResponse =
-  RunPipelineResponses[keyof RunPipelineResponses];
+export type RunPipelineResponse = RunPipelineResponses[keyof RunPipelineResponses];
 
 export type ListChatsData = {
   body?: never;
@@ -9291,8 +8884,7 @@ export type CheckMessageResponses = {
   200: AnswerCheck;
 };
 
-export type CheckMessageResponse =
-  CheckMessageResponses[keyof CheckMessageResponses];
+export type CheckMessageResponse = CheckMessageResponses[keyof CheckMessageResponses];
 
 export type ListApprovalsData = {
   body?: never;
@@ -9323,8 +8915,7 @@ export type ListApprovalsResponses = {
   200: Array<Approval>;
 };
 
-export type ListApprovalsResponse =
-  ListApprovalsResponses[keyof ListApprovalsResponses];
+export type ListApprovalsResponse = ListApprovalsResponses[keyof ListApprovalsResponses];
 
 export type DecideApprovalData = {
   body: ApprovalDecision;
@@ -9345,8 +8936,7 @@ export type DecideApprovalErrors = {
   422: HttpValidationError;
 };
 
-export type DecideApprovalError =
-  DecideApprovalErrors[keyof DecideApprovalErrors];
+export type DecideApprovalError = DecideApprovalErrors[keyof DecideApprovalErrors];
 
 export type DecideApprovalResponses = {
   /**
@@ -9355,8 +8945,7 @@ export type DecideApprovalResponses = {
   200: ApprovalOutcome;
 };
 
-export type DecideApprovalResponse =
-  DecideApprovalResponses[keyof DecideApprovalResponses];
+export type DecideApprovalResponse = DecideApprovalResponses[keyof DecideApprovalResponses];
 
 export type ListCollectionsData = {
   body?: never;
@@ -9373,8 +8962,7 @@ export type ListCollectionsResponses = {
   200: Array<Collection>;
 };
 
-export type ListCollectionsResponse =
-  ListCollectionsResponses[keyof ListCollectionsResponses];
+export type ListCollectionsResponse = ListCollectionsResponses[keyof ListCollectionsResponses];
 
 export type CreateCollectionData = {
   body: CollectionCreate;
@@ -9390,8 +8978,7 @@ export type CreateCollectionErrors = {
   422: HttpValidationError;
 };
 
-export type CreateCollectionError =
-  CreateCollectionErrors[keyof CreateCollectionErrors];
+export type CreateCollectionError = CreateCollectionErrors[keyof CreateCollectionErrors];
 
 export type CreateCollectionResponses = {
   /**
@@ -9400,8 +8987,7 @@ export type CreateCollectionResponses = {
   200: Created;
 };
 
-export type CreateCollectionResponse =
-  CreateCollectionResponses[keyof CreateCollectionResponses];
+export type CreateCollectionResponse = CreateCollectionResponses[keyof CreateCollectionResponses];
 
 export type DeleteCollectionData = {
   body?: never;
@@ -9422,8 +9008,7 @@ export type DeleteCollectionErrors = {
   422: HttpValidationError;
 };
 
-export type DeleteCollectionError =
-  DeleteCollectionErrors[keyof DeleteCollectionErrors];
+export type DeleteCollectionError = DeleteCollectionErrors[keyof DeleteCollectionErrors];
 
 export type DeleteCollectionResponses = {
   /**
@@ -9432,8 +9017,7 @@ export type DeleteCollectionResponses = {
   200: Ok;
 };
 
-export type DeleteCollectionResponse =
-  DeleteCollectionResponses[keyof DeleteCollectionResponses];
+export type DeleteCollectionResponse = DeleteCollectionResponses[keyof DeleteCollectionResponses];
 
 export type GetCollectionData = {
   body?: never;
@@ -9463,8 +9047,7 @@ export type GetCollectionResponses = {
   200: CollectionDetail;
 };
 
-export type GetCollectionResponse =
-  GetCollectionResponses[keyof GetCollectionResponses];
+export type GetCollectionResponse = GetCollectionResponses[keyof GetCollectionResponses];
 
 export type UpdateCollectionData = {
   body: CollectionUpdate;
@@ -9485,8 +9068,7 @@ export type UpdateCollectionErrors = {
   422: HttpValidationError;
 };
 
-export type UpdateCollectionError =
-  UpdateCollectionErrors[keyof UpdateCollectionErrors];
+export type UpdateCollectionError = UpdateCollectionErrors[keyof UpdateCollectionErrors];
 
 export type UpdateCollectionResponses = {
   /**
@@ -9495,8 +9077,7 @@ export type UpdateCollectionResponses = {
   200: Ok;
 };
 
-export type UpdateCollectionResponse =
-  UpdateCollectionResponses[keyof UpdateCollectionResponses];
+export type UpdateCollectionResponse = UpdateCollectionResponses[keyof UpdateCollectionResponses];
 
 export type EstimateBatchData = {
   body: BatchPlan;
@@ -9521,8 +9102,7 @@ export type EstimateBatchResponses = {
   200: BatchEstimate;
 };
 
-export type EstimateBatchResponse =
-  EstimateBatchResponses[keyof EstimateBatchResponses];
+export type EstimateBatchResponse = EstimateBatchResponses[keyof EstimateBatchResponses];
 
 export type ListBatchesData = {
   body?: never;
@@ -9539,8 +9119,7 @@ export type ListBatchesResponses = {
   200: Array<BatchSummary>;
 };
 
-export type ListBatchesResponse =
-  ListBatchesResponses[keyof ListBatchesResponses];
+export type ListBatchesResponse = ListBatchesResponses[keyof ListBatchesResponses];
 
 export type CreateBatchData = {
   body: BatchCreate;
@@ -9569,8 +9148,7 @@ export type CreateBatchResponses = {
   200: Created;
 };
 
-export type CreateBatchResponse =
-  CreateBatchResponses[keyof CreateBatchResponses];
+export type CreateBatchResponse = CreateBatchResponses[keyof CreateBatchResponses];
 
 export type GetBatchData = {
   body?: never;
@@ -9633,8 +9211,7 @@ export type CombineBatchResponses = {
   200: BatchReport;
 };
 
-export type CombineBatchResponse =
-  CombineBatchResponses[keyof CombineBatchResponses];
+export type CombineBatchResponse = CombineBatchResponses[keyof CombineBatchResponses];
 
 export type ControlBatchData = {
   body?: never;
@@ -9668,8 +9245,7 @@ export type ControlBatchResponses = {
   200: BatchActionResult;
 };
 
-export type ControlBatchResponse =
-  ControlBatchResponses[keyof ControlBatchResponses];
+export type ControlBatchResponse = ControlBatchResponses[keyof ControlBatchResponses];
 
 export type GetBatchResultsData = {
   body?: never;
@@ -9695,8 +9271,7 @@ export type GetBatchResultsErrors = {
   422: HttpValidationError;
 };
 
-export type GetBatchResultsError =
-  GetBatchResultsErrors[keyof GetBatchResultsErrors];
+export type GetBatchResultsError = GetBatchResultsErrors[keyof GetBatchResultsErrors];
 
 export type GetBatchResultsResponses = {
   /**
@@ -9705,8 +9280,7 @@ export type GetBatchResultsResponses = {
   200: BatchResults;
 };
 
-export type GetBatchResultsResponse =
-  GetBatchResultsResponses[keyof GetBatchResultsResponses];
+export type GetBatchResultsResponse = GetBatchResultsResponses[keyof GetBatchResultsResponses];
 
 export type ExportBatchResultsData = {
   body?: never;
@@ -9736,8 +9310,7 @@ export type ExportBatchResultsErrors = {
   422: HttpValidationError;
 };
 
-export type ExportBatchResultsError =
-  ExportBatchResultsErrors[keyof ExportBatchResultsErrors];
+export type ExportBatchResultsError = ExportBatchResultsErrors[keyof ExportBatchResultsErrors];
 
 export type ExportBatchResultsResponses = {
   /**
@@ -9747,5 +9320,5 @@ export type ExportBatchResultsResponses = {
 };
 
 export type ClientOptions = {
-  baseUrl: `${string}://openapi.json` | (string & {});
+  baseUrl: `${string}://${string}` | (string & {});
 };

@@ -4,18 +4,11 @@ import { redirect } from "next/navigation";
 
 import { Auth } from "@/app/openapi-client";
 import { createApiClient, getErrorMessage } from "@/lib/api/client";
-import {
-  type FormState,
-  passwordResetConfirmSchema,
-  passwordResetSchema,
-} from "@/lib/definitions";
+import { type FormState, passwordResetConfirmSchema, passwordResetSchema } from "@/lib/definitions";
 
 const UNEXPECTED = "An unexpected error occurred. Please try again later.";
 
-export async function passwordReset(
-  _prev: FormState,
-  formData: FormData,
-): Promise<FormState> {
+export async function passwordReset(_prev: FormState, formData: FormData): Promise<FormState> {
   const validated = passwordResetSchema.safeParse({
     email: formData.get("email") ?? "",
   });
@@ -40,10 +33,7 @@ export async function passwordReset(
   };
 }
 
-export async function passwordResetConfirm(
-  _prev: FormState,
-  formData: FormData,
-): Promise<FormState> {
+export async function passwordResetConfirm(_prev: FormState, formData: FormData): Promise<FormState> {
   const validated = passwordResetConfirmSchema.safeParse({
     token: formData.get("token") ?? "",
     password: formData.get("password") ?? "",

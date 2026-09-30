@@ -5,7 +5,13 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-export type TabItem = { value: string; label: ReactNode; count?: ReactNode; href?: string; disabled?: boolean };
+export type TabItem = {
+  value: string;
+  label: ReactNode;
+  count?: ReactNode;
+  href?: string;
+  disabled?: boolean;
+};
 
 /** Underlined tabs (Aladdin): blue 3px underline and bold label on the active one; optional counts. */
 export function Tabs({
@@ -24,7 +30,11 @@ export function Tabs({
   "aria-label"?: string;
 }) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className={cn("flex gap-1 overflow-x-auto border-b border-border", className)}>
+    <div
+      role="tablist"
+      aria-label={ariaLabel}
+      className={cn("flex gap-1 overflow-x-auto border-b border-border", className)}
+    >
       {items.map((it) => {
         const on = it.value === value;
         const cls = cn(
@@ -44,7 +54,15 @@ export function Tabs({
             {inner}
           </Link>
         ) : (
-          <button key={it.value} type="button" role="tab" aria-selected={on} disabled={it.disabled} onClick={() => onChange?.(it.value)} className={cls}>
+          <button
+            key={it.value}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            disabled={it.disabled}
+            onClick={() => onChange?.(it.value)}
+            className={cls}
+          >
             {inner}
           </button>
         );
@@ -54,7 +72,17 @@ export function Tabs({
 }
 
 /** Segmented control (Table / List, scope pickers). */
-export function Segmented({ items, value, onChange, className }: { items: { value: string; label: ReactNode; icon?: ReactNode }[]; value: string; onChange: (v: string) => void; className?: string }) {
+export function Segmented({
+  items,
+  value,
+  onChange,
+  className,
+}: {
+  items: { value: string; label: ReactNode; icon?: ReactNode }[];
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+}) {
   return (
     <div role="radiogroup" className={cn("inline-flex rounded-pill bg-surface-neutral p-1", className)}>
       {items.map((it) => (

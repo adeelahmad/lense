@@ -63,9 +63,13 @@ export function ReportView({ id }: { id: number }) {
             </Button>
           }
         >
-          {b.status === "finished" ? "Combine the results from the batch run to write the report." : `Reading… ${progressLabel(parts)}, then combining.`}
+          {b.status === "finished"
+            ? "Combine the results from the batch run to write the report."
+            : `Reading… ${progressLabel(parts)}, then combining.`}
         </EmptyState>
-        {b.status !== "finished" && <Progress value={parts.total ? (parts.done + parts.failed) / parts.total : 0} label="Reading progress" />}
+        {b.status !== "finished" && (
+          <Progress value={parts.total ? (parts.done + parts.failed) / parts.total : 0} label="Reading progress" />
+        )}
       </div>
     );
   }
@@ -85,7 +89,9 @@ export function ReportView({ id }: { id: number }) {
       <article className="flex flex-col gap-4 rounded-lg border border-border p-6">
         <header className="flex flex-wrap items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h1 className="text-[20px] font-bold leading-tight text-fg">{report.instructions && report.instructions.length < 90 ? report.instructions : b.label}</h1>
+            <h1 className="text-[20px] font-bold leading-tight text-fg">
+              {report.instructions && report.instructions.length < 90 ? report.instructions : b.label}
+            </h1>
             <p className="m-0 mt-1 text-[12.5px] text-fg-muted">
               {plural(b.recordings.length, "recording")}
               {hours ? ` · ${hoursShort(hours)}` : ""} · {b.label} → combined · {shortDate(report.at)}
@@ -96,7 +102,11 @@ export function ReportView({ id }: { id: number }) {
           </Button>
         </header>
         <div className="font-serif text-[16px] leading-[1.6] text-fg">
-          <RichText text={report.text} renderCite={(n, key) => <RefChip key={key} n={n} r={refs.get(n)} />} headingClassName="text-[15px] pt-2" />
+          <RichText
+            text={report.text}
+            renderCite={(n, key) => <RefChip key={key} n={n} r={refs.get(n)} />}
+            headingClassName="text-[15px] pt-2"
+          />
         </div>
       </article>
     </div>

@@ -8,7 +8,18 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Metadata } from "@/app/openapi-client";
 import type { MetadataEdit } from "@/app/openapi-client/types.gen";
 import { isUnreachable } from "@/components/errors/error-states";
-import { DateLanguages, IdentifiersLinks, Pairs, People, ProviderEditor, RightsAttribution, SectionHead, Subjects, TitleSummary, type SetMeta } from "@/components/iiif/metadata-fields";
+import {
+  DateLanguages,
+  IdentifiersLinks,
+  Pairs,
+  People,
+  ProviderEditor,
+  RightsAttribution,
+  SectionHead,
+  Subjects,
+  TitleSummary,
+  type SetMeta,
+} from "@/components/iiif/metadata-fields";
 import {
   ACCESS,
   conflictingFields,
@@ -30,7 +41,14 @@ import {
   type Meta,
   type Problem,
 } from "@/components/iiif/metadata-model";
-import { keys, useMetaHistory, useNamespaceMeta, useRecordingBrief, useRecordingMeta, type RecordingMeta } from "@/components/iiif/queries";
+import {
+  keys,
+  useMetaHistory,
+  useNamespaceMeta,
+  useRecordingBrief,
+  useRecordingMeta,
+  type RecordingMeta,
+} from "@/components/iiif/queries";
 import { rightsShort } from "@/components/iiif/rights";
 import { ChoiceCards } from "@/components/settings/controls";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +92,9 @@ const SECTIONS: { id: string; label: string; fields: Field[] }[] = [
   { id: "md-access", label: "Access", fields: ["access"] },
 ];
 
-export const FIELD_ANCHOR: Record<Field, string> = Object.fromEntries(SECTIONS.flatMap((s) => s.fields.map((f) => [f, s.id]))) as Record<Field, string>;
+export const FIELD_ANCHOR: Record<Field, string> = Object.fromEntries(
+  SECTIONS.flatMap((s) => s.fields.map((f) => [f, s.id])),
+) as Record<Field, string>;
 
 type Conflict = {
   fields: Field[];
@@ -244,7 +264,8 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
     },
     onError: (e) => setSaveError(e.message),
   });
-  const saveNow = (fields: Field[] = dirty, values: Meta = draft, force = false) => save.mutate({ fields, values, resets, force });
+  const saveNow = (fields: Field[] = dirty, values: Meta = draft, force = false) =>
+    save.mutate({ fields, values, resets, force });
 
   const discard = () => {
     if (!base) return;
@@ -283,7 +304,12 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
   };
   const stored = meta.data.stored ?? {};
   const defaults = meta.data.defaults ?? {};
-  const derivable = (f: Field) => !readOnly && stored[f] !== undefined && defaults[f] !== undefined && !same(stored[f], defaults[f]) && !resets.has(f);
+  const derivable = (f: Field) =>
+    !readOnly &&
+    stored[f] !== undefined &&
+    defaults[f] !== undefined &&
+    !same(stored[f], defaults[f]) &&
+    !resets.has(f);
   const applyDerived = (f: Field) => {
     setDraft((d) => ({ ...d, [f]: defaults[f] }));
     setResets((r) => new Set(r).add(f));
@@ -330,7 +356,11 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
     ),
     "md-date": (
       <>
-        <DateLanguages {...fieldProps} fromTranscribe={stored.language === undefined && Boolean(defaults.language)} vocabulary={profile.vocabularies?.language} />
+        <DateLanguages
+          {...fieldProps}
+          fromTranscribe={stored.language === undefined && Boolean(defaults.language)}
+          vocabulary={profile.vocabularies?.language}
+        />
         {derived("navDate", "language")}
       </>
     ),
@@ -346,13 +376,22 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
         {derived("subjects")}
       </>
     ),
-    "md-rights": <RightsAttribution {...fieldProps} lang={currentLang} attributionRequired={required.includes("attribution")} />,
+    "md-rights": (
+      <RightsAttribution {...fieldProps} lang={currentLang} attributionRequired={required.includes("attribution")} />
+    ),
     "md-provider": <ProviderEditor {...fieldProps} />,
     "md-links": <IdentifiersLinks {...fieldProps} />,
     "md-pairs": <Pairs {...fieldProps} lang={currentLang} />,
     "md-access": (
       <>
-        <AccessEditor value={access} onChange={(v) => set("access", v as Meta["access"])} canPublish={canPublish} ns={ns} problems={problems.length} fromProfile={stored.access === undefined} />
+        <AccessEditor
+          value={access}
+          onChange={(v) => set("access", v as Meta["access"])}
+          canPublish={canPublish}
+          ns={ns}
+          problems={problems.length}
+          fromProfile={stored.access === undefined}
+        />
         {derived("access")}
       </>
     ),
@@ -375,10 +414,21 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
   ) : (
     <span className="text-[12.5px] text-fg-muted">{required.length ? "all required ✓" : "no problems"}</span>
   );
-  const saveDisabledReason = readOnly ? needRole("editor", ns) : !dirty.length ? "No changes to save" : errorCount ? "Fix the fields marked in red first" : undefined;
+  const saveDisabledReason = readOnly
+    ? needRole("editor", ns)
+    : !dirty.length
+      ? "No changes to save"
+      : errorCount
+        ? "Fix the fields marked in red first"
+        : undefined;
 
   const saveBar = (dirty.length > 0 || saveError) && (
-    <div className={cn("sticky bottom-0 z-10 flex flex-wrap items-center gap-2.5 border-t border-border bg-background py-3", variant === "page" ? "px-6" : "px-4")}>
+    <div
+      className={cn(
+        "sticky bottom-0 z-10 flex flex-wrap items-center gap-2.5 border-t border-border bg-background py-3",
+        variant === "page" ? "px-6" : "px-4",
+      )}
+    >
       <span aria-hidden className={cn("size-2 rounded-full", errorCount ? "bg-red" : "bg-blue")} />
       <span className="flex-1 text-[13px] font-medium" aria-live="polite">
         {dirty.length} change{dirty.length === 1 ? "" : "s"}
@@ -392,7 +442,13 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
       <Button variant="ghost" size="sm" onClick={discard} disabled={save.isPending}>
         Discard
       </Button>
-      <Button variant="primary" size="sm" disabled={Boolean(saveDisabledReason) || save.isPending} disabledReason={saveDisabledReason} onClick={() => saveNow()}>
+      <Button
+        variant="primary"
+        size="sm"
+        disabled={Boolean(saveDisabledReason) || save.isPending}
+        disabledReason={saveDisabledReason}
+        onClick={() => saveNow()}
+      >
         {save.isPending ? "Saving…" : "Save"}
       </Button>
     </div>
@@ -454,11 +510,18 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
                 "no required fields"
               )}
             </span>
-            <Link href={`/iiif/metadata/${recordingId}`} className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-fg-accent hover:underline">
+            <Link
+              href={`/iiif/metadata/${recordingId}`}
+              className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-fg-accent hover:underline"
+            >
               Full page <ExternalLink className="size-3" />
             </Link>
           </div>
-          {readOnly && <Banner tone="info">You can read this metadata. Editors and owners of {ns ?? "this namespace"} can change it.</Banner>}
+          {readOnly && (
+            <Banner tone="info">
+              You can read this metadata. Editors and owners of {ns ?? "this namespace"} can change it.
+            </Banner>
+          )}
           {SECTIONS.map((s) => (
             <section key={s.id} aria-label={s.label} className="flex flex-col gap-2">
               {sections[s.id]}
@@ -498,7 +561,8 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
           <br />
           {lastEdit ? (
             <>
-              Last saved by {lastEdit.by === me?.user.email ? "you" : (lastEdit.by ?? "someone")} · {relative(lastEdit.at)}
+              Last saved by {lastEdit.by === me?.user.email ? "you" : (lastEdit.by ?? "someone")} ·{" "}
+              {relative(lastEdit.at)}
             </>
           ) : (
             "Not edited yet: values come from the recording"
@@ -507,7 +571,13 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
         <Button variant="ghost" size="sm" icon={<HistoryIcon />} onClick={() => setShowHistory(true)}>
           History
         </Button>
-        <Button variant="primary" size="sm" disabled={Boolean(saveDisabledReason) || save.isPending} disabledReason={saveDisabledReason} onClick={() => saveNow()}>
+        <Button
+          variant="primary"
+          size="sm"
+          disabled={Boolean(saveDisabledReason) || save.isPending}
+          disabledReason={saveDisabledReason}
+          onClick={() => saveNow()}
+        >
           {save.isPending ? "Saving…" : "Save"}
         </Button>
       </header>
@@ -517,7 +587,11 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
             {SECTIONS.map((s) => {
               const [g, c, what] = sectionGlyph(s);
               return (
-                <a key={s.id} href={`#${s.id}`} className="flex h-8 items-center justify-between rounded-sm px-2.5 text-[13px] font-medium text-fg-strong hover:bg-surface-neutral">
+                <a
+                  key={s.id}
+                  href={`#${s.id}`}
+                  className="flex h-8 items-center justify-between rounded-sm px-2.5 text-[13px] font-medium text-fg-strong hover:bg-surface-neutral"
+                >
                   {s.label}
                   {g && (
                     <span className={cn("text-[11px] font-bold", c)} aria-label={what}>
@@ -530,7 +604,11 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
           </div>
         </nav>
         <div className="flex min-w-0 flex-col gap-[18px] px-4 py-[18px] sm:px-6">
-          {readOnly && <Banner tone="info">You can read this metadata. Editors and owners of {ns ?? "this namespace"} can change it.</Banner>}
+          {readOnly && (
+            <Banner tone="info">
+              You can read this metadata. Editors and owners of {ns ?? "this namespace"} can change it.
+            </Banner>
+          )}
           {SECTIONS.map((s) => (
             <section key={s.id} id={s.id} aria-label={s.label} className="flex scroll-mt-20 flex-col gap-2">
               {sections[s.id]}
@@ -543,7 +621,9 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
             <ViewerPreview draft={draft} attributionRequired={required.includes("attribution")} />
             <b className="mt-1 text-[13px] font-bold">Machine-readable record</b>
             <RecordLinks recordingId={recordingId} />
-            <span className="text-[12px] leading-[1.4] text-fg-muted">Linked from the Manifest’s seeAlso and updated on save. EBUCore and PBCore aren’t produced yet.</span>
+            <span className="text-[12px] leading-[1.4] text-fg-muted">
+              Linked from the Manifest’s seeAlso and updated on save. EBUCore and PBCore aren’t produced yet.
+            </span>
           </div>
         </aside>
       </div>
@@ -649,7 +729,10 @@ export function ViewerPreview({ draft, attributionRequired }: { draft: Meta; att
             // eslint-disable-next-line @next/next/no-img-element
             <img src={draft.provider.logo} alt="" className="size-7 rounded-xs object-contain" />
           ) : (
-            <span aria-hidden className="grid size-7 place-items-center rounded-xs border border-dashed border-border text-[9px] font-semibold text-fg-muted">
+            <span
+              aria-hidden
+              className="grid size-7 place-items-center rounded-xs border border-dashed border-border text-[9px] font-semibold text-fg-muted"
+            >
               logo
             </span>
           )}
@@ -693,7 +776,12 @@ function RecordLinks({ recordingId }: { recordingId: number }) {
     <>
       <div className="flex flex-wrap gap-1.5">
         {RECORDS.map((r) => (
-          <button key={r.path} type="button" onClick={() => void show(r)} className="h-6 rounded-xs border border-border bg-background px-2 font-mono text-[11.5px] hover:bg-surface-neutral">
+          <button
+            key={r.path}
+            type="button"
+            onClick={() => void show(r)}
+            className="h-6 rounded-xs border border-border bg-background px-2 font-mono text-[11.5px] hover:bg-surface-neutral"
+          >
             {r.label}
           </button>
         ))}
@@ -704,7 +792,9 @@ function RecordLinks({ recordingId }: { recordingId: number }) {
         ) : text == null ? (
           <Skeleton className="h-40 w-full" />
         ) : (
-          <pre className="max-h-[60vh] overflow-auto rounded-sm border border-border bg-surface p-3 font-mono text-[11.5px] leading-[1.55] text-fg-strong">{text}</pre>
+          <pre className="max-h-[60vh] overflow-auto rounded-sm border border-border bg-surface p-3 font-mono text-[11.5px] leading-[1.55] text-fg-strong">
+            {text}
+          </pre>
         )}
       </Dialog>
     </>
@@ -748,13 +838,24 @@ function HistoryList({
     onError: (e) => toast({ title: "Couldn’t revert", body: e.message, tone: "red" }),
   });
   if (loading) return <Skeleton className="h-16 w-full" />;
-  if (!edits?.length) return <p className="py-2 text-[13px] text-fg-muted">No edits yet. Every save is kept here and can be reverted.</p>;
+  if (!edits?.length)
+    return <p className="py-2 text-[13px] text-fg-muted">No edits yet. Every save is kept here and can be reverted.</p>;
   return (
     <ul className="flex flex-col">
       {edits.map((e) => (
-        <li key={e.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2.5 gap-y-1 border-t border-border py-2.5 first:border-t-0">
+        <li
+          key={e.id}
+          className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2.5 gap-y-1 border-t border-border py-2.5 first:border-t-0"
+        >
           <span className="text-[13px] font-semibold leading-[1.35]">{describeEdit(e as never)}</span>
-          <Button variant="link" size="xs" className="text-[12.5px]" disabled={!canRevert || revert.isPending} disabledReason={!canRevert ? reason : undefined} onClick={() => revert.mutate(e)}>
+          <Button
+            variant="link"
+            size="xs"
+            className="text-[12.5px]"
+            disabled={!canRevert || revert.isPending}
+            disabledReason={!canRevert ? reason : undefined}
+            onClick={() => revert.mutate(e)}
+          >
             Revert
           </Button>
           <span className="text-[12px] leading-[1.3] text-fg-muted">
@@ -770,7 +871,8 @@ function summarize(field: Field, v: unknown): string {
   if (isEmpty(v)) return "(empty)";
   if (field === "rights") return rightsShort(v as string);
   if (field === "label" || field === "summary" || field === "attribution") return first(v as LangMap);
-  if (Array.isArray(v)) return v.map((x) => (typeof x === "string" ? x : (x.name ?? x.label ?? x.value ?? first(x.label)))).join(", ");
+  if (Array.isArray(v))
+    return v.map((x) => (typeof x === "string" ? x : (x.name ?? x.label ?? x.value ?? first(x.label)))).join(", ");
   if (typeof v === "object") return (v as { name?: string }).name ?? JSON.stringify(v);
   return String(v);
 }
@@ -805,7 +907,10 @@ function ConflictDialog({
           <Button variant="ghost" onClick={onDiscardMine}>
             Discard mine
           </Button>
-          <Button variant="primary" onClick={() => onSave(conflict.fields.filter((f) => (keep[f] ?? "mine") === "mine"))}>
+          <Button
+            variant="primary"
+            onClick={() => onSave(conflict.fields.filter((f) => (keep[f] ?? "mine") === "mine"))}
+          >
             Save my choices
           </Button>
         </>

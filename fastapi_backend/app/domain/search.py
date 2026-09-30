@@ -3,6 +3,7 @@
 Words are ANDed and matched after English stemming (exploit finds exploits and exploiting),
 "quoted phrases" must appear as written, and OR separates alternatives.
 """
+
 from __future__ import annotations
 
 import html
@@ -116,17 +117,53 @@ def search(db, q, ns=None, speaker=None, emotion=None, recording=None, limit=50,
     if not speaker and not emotion:  # text shown on screen in videos has no speaker or emotion
         hits += _screen(db, groups, space_filter(ns, spaces, recording, params), cap, params)
     hits.sort(key=lambda r: (-r["_score"], r["recording"], r.get("idx") or 0))
-    page = hits[offset:offset + limit]
-    recs = {x["id"]: x for x in db.rows("SELECT record::id(id) AS id, title, recorded_at FROM recording WHERE id IN $ids",
-                                        ids=[store.R("recording", i) for i in {h["recording"] for h in page}])} if page else {}
-    spk = {x["id"]: x.get("name") or x["label"] for x in db.rows("SELECT record::id(id) AS id, name, label FROM speaker WHERE id IN $ids",
-                                                                 ids=[store.R("speaker", i) for i in {h["speaker"] for h in page if h.get("speaker")}])} if page else {}
+    page = hits[offset : offset + limit]
+    recs = (
+        {
+            x["id"]: x
+            for x in db.rows(
+                "SELECT record::id(id) AS id, title, recorded_at FROM recording WHERE id IN $ids",
+                ids=[store.R("recording", i) for i in {h["recording"] for h in page}],
+            )
+        }
+        if page
+        else {}
+    )
+    spk = (
+        {
+            x["id"]: x.get("name") or x["label"]
+            for x in db.rows(
+                "SELECT record::id(id) AS id, name, label FROM speaker WHERE id IN $ids",
+                ids=[store.R("speaker", i) for i in {h["speaker"] for h in page if h.get("speaker")}],
+            )
+        }
+        if page
+        else {}
+    )
     spaces = store.space_names(db) if page else {}
-    out = [{"id": h["id"], "recording_id": h["recording"], "idx": h.get("idx"), "t0": h["t0"], "t1": h["t1"], "emotion": h.get("emotion"),
-            "speaker_id": h.get("speaker"), "speaker": spk.get(h.get("speaker")), "title": recs.get(h["recording"], {}).get("title"),
-            "recorded_at": recs.get(h["recording"], {}).get("recorded_at"), "namespace": spaces.get(h["space"]), "snippet": h["_snip"], "source": h["source"],
-            **({"frame": f"{store.API}/recordings/{h['recording']}/frames/{h['frame']}" if h.get("frame") else None, "box": h.get("box")} if h["source"] == "screen" else {})}
-           for h in page]
+    out = [
+        {
+            "id": h["id"],
+            "recording_id": h["recording"],
+            "idx": h.get("idx"),
+            "t0": h["t0"],
+            "t1": h["t1"],
+            "emotion": h.get("emotion"),
+            "speaker_id": h.get("speaker"),
+            "speaker": spk.get(h.get("speaker")),
+            "title": recs.get(h["recording"], {}).get("title"),
+            "recorded_at": recs.get(h["recording"], {}).get("recorded_at"),
+            "namespace": spaces.get(h["space"]),
+            "snippet": h["_snip"],
+            "source": h["source"],
+            **(
+                {"frame": f"{store.API}/recordings/{h['recording']}/frames/{h['frame']}" if h.get("frame") else None, "box": h.get("box")}
+                if h["source"] == "screen"
+                else {}
+            ),
+        }
+        for h in page
+    ]
     return {"q": q, "query": describe(groups), "total": len(hits), "capped": len(rows) >= cap, "hits": out}
 
 
@@ -149,13 +186,22 @@ def _screen(db, groups, where_f, cap, base):
         conds = [f"text @{k}@ $q{k}" for k in range(1, len(groups) + 1)]
         sel = [f"search::highlight($m0, $m1, {k}) AS h{k}, search::score({k}) AS s{k}" for k in range(1, len(groups) + 1)]
         try:
-            rows = db.rows(f"SELECT record::id(id) AS id, recording, t0, t1, space, text, frame, box, {', '.join(sel)} FROM ocr_span "
-                           f"WHERE ({' OR '.join(conds)}){where_f} LIMIT {cap}", **params)
+            rows = db.rows(
+                f"SELECT record::id(id) AS id, recording, t0, t1, space, text, frame, box, {', '.join(sel)} FROM ocr_span "
+                f"WHERE ({' OR '.join(conds)}){where_f} LIMIT {cap}",
+                **params,
+            )
         except Exception:  # noqa: BLE001
             rows = None
     if rows is None:
-        rows = [r for r in db.rows(f"SELECT record::id(id) AS id, recording, t0, t1, space, text, frame, box FROM ocr_span WHERE true{where_f} LIMIT 5000", **params)
-                if any(all(w.lower() in r["text"].lower() for w in g["words"] + g["phrases"]) for g in groups)]
+        rows = [
+            r
+            for r in db.rows(
+                f"SELECT record::id(id) AS id, recording, t0, t1, space, text, frame, box FROM ocr_span WHERE true{where_f} LIMIT 5000",
+                **params,
+            )
+            if any(all(w.lower() in r["text"].lower() for w in g["words"] + g["phrases"]) for g in groups)
+        ]
         for r in rows:
             r["h1"], r["s1"] = _mark_plain(r["text"], [w for g in groups for w in g["words"] + g["phrases"]]), 1
     out = []

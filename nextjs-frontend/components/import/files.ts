@@ -5,7 +5,19 @@
  */
 
 /** Transcript types the importer reads (the backend's IMPORT_EXT). */
-export const TRANSCRIPT_EXT = [".txt", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".json", ".jsonl", ".srt", ".vtt"];
+export const TRANSCRIPT_EXT = [
+  ".txt",
+  ".md",
+  ".markdown",
+  ".mdx",
+  ".docx",
+  ".doc",
+  ".pdf",
+  ".json",
+  ".jsonl",
+  ".srt",
+  ".vtt",
+];
 const AUDIO_EXT = [".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".wma", ".aif", ".aiff", ".amr", ".weba"];
 const VIDEO_EXT = [".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v", ".mpg", ".mpeg"];
 
@@ -65,7 +77,11 @@ export function titleFromName(name: string): string {
   return stemOf(name).replace(/[_]+/g, " ").replace(/\s+/g, " ").trim() || name;
 }
 
-export type Problem = { code: "unsupported" | "audio" | "too-large" | "unreadable" | "empty"; title: string; body: string };
+export type Problem = {
+  code: "unsupported" | "audio" | "too-large" | "unreadable" | "empty";
+  title: string;
+  body: string;
+};
 
 /** Why a file can't be imported before we even send it; null when it can be tried. */
 export function localProblem(file: { name: string; size: number }, maxMb = DEFAULT_MAX_MB): Problem | null {
@@ -100,11 +116,28 @@ export function readProblem(message: string, name: string): Problem {
   const m = message.replace(/^could not read that transcript:\s*/i, "");
   if (/no transcript text found|nothing to import/i.test(m) || /no text/i.test(m)) {
     return extOf(name) === ".pdf"
-      ? { code: "empty", title: "This PDF has no text to import", body: "It may be a scan. Export the text (or a .docx) from wherever it was typed and drop that instead." }
-      : { code: "empty", title: "No transcript text found", body: "The file is empty, or its lines aren’t in a shape the importer knows. Try pasting it instead to see how it’s read." };
+      ? {
+          code: "empty",
+          title: "This PDF has no text to import",
+          body: "It may be a scan. Export the text (or a .docx) from wherever it was typed and drop that instead.",
+        }
+      : {
+          code: "empty",
+          title: "No transcript text found",
+          body: "The file is empty, or its lines aren’t in a shape the importer knows. Try pasting it instead to see how it’s read.",
+        };
   }
-  if (/files up to/i.test(m)) return { code: "too-large", title: "Too large to upload here", body: `${m[0].toUpperCase()}${m.slice(1)}. Put it in a watched folder instead — sources have no size limit.` };
-  return { code: "unreadable", title: "We couldn’t read this transcript", body: `${m[0]?.toUpperCase() ?? ""}${m.slice(1)}` };
+  if (/files up to/i.test(m))
+    return {
+      code: "too-large",
+      title: "Too large to upload here",
+      body: `${m[0].toUpperCase()}${m.slice(1)}. Put it in a watched folder instead — sources have no size limit.`,
+    };
+  return {
+    code: "unreadable",
+    title: "We couldn’t read this transcript",
+    body: `${m[0]?.toUpperCase() ?? ""}${m.slice(1)}`,
+  };
 }
 
 // ---------- speaker mapping ----------
@@ -113,7 +146,11 @@ export function readProblem(message: string, name: string): Problem {
 export const GENERIC_LABEL = /^(?:SPEAKER_?\d+|spk_?\d+|S\d+|CH\d+|Speaker \d+|unknown)$/i;
 
 export type MappingLine = { label: string; name: string; line: number };
-export type Mapping = { pairs: MappingLine[]; errors: string[]; warnings: string[] };
+export type Mapping = {
+  pairs: MappingLine[];
+  errors: string[];
+  warnings: string[];
+};
 
 /** One line per detected label, mapped to itself: people edit the right-hand side. */
 export function initialMapping(labels: string[]): string {
@@ -154,7 +191,8 @@ export function parseMapping(text: string, known: string[] = []): Mapping {
       return;
     }
     seen.add(label);
-    if (known.length && !knownSet.has(label)) warnings.push(`“${label}” isn’t a label in this transcript; that line does nothing.`);
+    if (known.length && !knownSet.has(label))
+      warnings.push(`“${label}” isn’t a label in this transcript; that line does nothing.`);
     pairs.push({ label, name: name || label, line: i + 1 });
   });
   return { pairs, errors, warnings };
@@ -187,5 +225,7 @@ export function fileToBase64(file: Blob): Promise<string> {
 
 export function namespaceNameProblem(name: string): string | null {
   if (!name) return "Choose a namespace.";
-  return /^[a-z0-9][a-z0-9_-]{0,40}$/.test(name) ? null : "Use lowercase letters, digits, - and _ (up to 41 characters), starting with a letter or digit.";
+  return /^[a-z0-9][a-z0-9_-]{0,40}$/.test(name)
+    ? null
+    : "Use lowercase letters, digits, - and _ (up to 41 characters), starting with a letter or digit.";
 }

@@ -11,7 +11,10 @@ import { toSpec } from "@/components/pipelines/pipeline-model";
 import { data, useApiClient } from "@/lib/api/browser";
 
 /** Which pipeline steps use each template: template id → ["Podcast standard v4 → LLM", ...]. */
-export function useTemplateUsage(): { usage: Map<number, string[]>; loading: boolean } {
+export function useTemplateUsage(): {
+  usage: Map<number, string[]>;
+  loading: boolean;
+} {
   const client = useApiClient();
   const catalog = usePipelineCatalog();
   const list = catalog.data?.pipelines ?? [];
@@ -38,5 +41,8 @@ export function useTemplateUsage(): { usage: Map<number, string[]>; loading: boo
     }
     return m;
   }, [key]);
-  return { usage, loading: catalog.isLoading || details.some((d) => d.isLoading) };
+  return {
+    usage,
+    loading: catalog.isLoading || details.some((d) => d.isLoading),
+  };
 }

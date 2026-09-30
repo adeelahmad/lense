@@ -28,12 +28,27 @@ export type NavItem = {
 /** Primary navigation, in the design's order (Nav.dc.html). */
 export const NAV: NavItem[] = [
   { label: "Home", href: "/", icon: House },
-  { label: "Library", href: "/library", icon: LibraryBig, countKey: "recordings" },
+  {
+    label: "Library",
+    href: "/library",
+    icon: LibraryBig,
+    countKey: "recordings",
+  },
   { label: "Search", href: "/search", icon: Search },
   { label: "Chat", href: "/chat", icon: MessagesSquare },
-  { label: "Speakers", href: "/speakers", icon: AudioLines, countKey: "reviews" },
+  {
+    label: "Speakers",
+    href: "/speakers",
+    icon: AudioLines,
+    countKey: "reviews",
+  },
   { label: "Graph", href: "/graph", icon: Waypoints },
-  { label: "Reports", href: "/reports", icon: ChartNoAxesColumn, divider: true },
+  {
+    label: "Reports",
+    href: "/reports",
+    icon: ChartNoAxesColumn,
+    divider: true,
+  },
   { label: "Pipelines", href: "/pipelines", icon: Workflow },
   { label: "Sources", href: "/sources", icon: HardDriveDownload },
   { label: "Settings", href: "/settings", icon: Settings, adminOnly: true },
@@ -46,7 +61,8 @@ export function navFor(admin: boolean): NavItem[] {
 
 export function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
-  if (href === "/library") return pathname === "/library" || pathname.startsWith("/library/") || pathname.startsWith("/recordings/");
+  if (href === "/library")
+    return pathname === "/library" || pathname.startsWith("/library/") || pathname.startsWith("/recordings/");
   // Templates are the second tab of Pipelines.
   if (href === "/pipelines" && (pathname === "/templates" || pathname.startsWith("/templates/"))) return true;
   return pathname === href || pathname.startsWith(`${href}/`);

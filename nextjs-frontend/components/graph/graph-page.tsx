@@ -9,7 +9,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Admin, Entities, Search } from "@/app/openapi-client";
 import { GraphCanvas } from "@/components/graph/canvas";
 import { GraphFilters } from "@/components/graph/filters";
-import { EDGE_KINDS, filterGraph, findFocus, NODE_GROUPS, summarize, type GraphData, type GraphNode } from "@/components/graph/model";
+import {
+  EDGE_KINDS,
+  filterGraph,
+  findFocus,
+  NODE_GROUPS,
+  summarize,
+  type GraphData,
+  type GraphNode,
+} from "@/components/graph/model";
 import { NodePanel } from "@/components/graph/panel";
 import { GraphTable } from "@/components/graph/table";
 import { useSpeakerDirectory } from "@/components/search/data";
@@ -54,7 +62,10 @@ export function GraphPage() {
   const focusParam = params.get("focus");
   const urlNs = params.get("ns");
   const scopeMode: "ns" | "all" = params.get("scope") === "all" ? "all" : urlNs ? "ns" : topNs ? "ns" : "all";
-  const ns = urlNs && nsNames.includes(urlNs) ? urlNs : (topNs ?? namespaces.find((n) => n.graph !== "isolated")?.name ?? nsNames[0] ?? null);
+  const ns =
+    urlNs && nsNames.includes(urlNs)
+      ? urlNs
+      : (topNs ?? namespaces.find((n) => n.graph !== "isolated")?.name ?? nsNames[0] ?? null);
   const scope = scopeMode === "all" || !ns ? "global" : `ns:${ns}`;
   const view = params.get("view") === "table" ? "table" : "graph";
 
@@ -81,14 +92,28 @@ export function GraphPage() {
     queryFn: async () => (await data(Search.getGraph({ client, query: { scope } }))) as unknown as GraphData,
     staleTime: 60_000,
   });
-  const settings = useQuery({ queryKey: ["settings"], queryFn: () => data(Admin.getSettings({ client })), enabled: admin, staleTime: 60_000 });
-  const maxNodes = ((settings.data?.graph as { values?: { max_nodes?: number } } | undefined)?.values?.max_nodes ?? null) as number | null;
+  const settings = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => data(Admin.getSettings({ client })),
+    enabled: admin,
+    staleTime: 60_000,
+  });
+  const maxNodes = ((settings.data?.graph as { values?: { max_nodes?: number } } | undefined)?.values?.max_nodes ??
+    null) as number | null;
   const dir = useSpeakerDirectory(Boolean(focusParam?.startsWith("s")));
   const jobs = useJobs({ status: "queued,running", limit: 100 });
 
   const all = useMemo(() => graph.data ?? { scope, namespaces: [], nodes: [], edges: [] }, [graph.data, scope]);
   const visible = useMemo(() => filterGraph(all, { groups, kinds, minWeight }), [all, groups, kinds, minWeight]);
-  const maxWeight = Math.min(50, Math.max(1, ...all.edges.filter((e) => e.kind === "mentions" || e.kind === "mentioned together" || e.kind === "together").map((e) => e.w)));
+  const maxWeight = Math.min(
+    50,
+    Math.max(
+      1,
+      ...all.edges
+        .filter((e) => e.kind === "mentions" || e.kind === "mentioned together" || e.kind === "together")
+        .map((e) => e.w),
+    ),
+  );
   const scopeLabel = scope === "global" ? "all shared namespaces" : (ns ?? "");
   const summary = summarize(visible.nodes, visible.edges, scopeLabel);
   const node = selected ? all.nodes.find((n) => n.id === selected) : undefined;
@@ -126,8 +151,15 @@ export function GraphPage() {
     set({ focus: n ? focusKey(n) : null });
   };
 
-  const waiting = namespaces.filter((n) => scope === "global" ? n.graph !== "isolated" : n.name === ns).reduce((a, n) => a + Math.max(0, ((n.recordings as number) ?? 0) - ((n.analyzed as number) ?? 0)), 0);
-  const analyzing = (jobs.data?.jobs ?? []).filter((j) => j.status === "running" && (j.next_step === "analyze" || (j.steps ?? []).some((s) => (typeof s === "string" ? s : (s as { type?: string })?.type) === "analyze"))).length;
+  const waiting = namespaces
+    .filter((n) => (scope === "global" ? n.graph !== "isolated" : n.name === ns))
+    .reduce((a, n) => a + Math.max(0, ((n.recordings as number) ?? 0) - ((n.analyzed as number) ?? 0)), 0);
+  const analyzing = (jobs.data?.jobs ?? []).filter(
+    (j) =>
+      j.status === "running" &&
+      (j.next_step === "analyze" ||
+        (j.steps ?? []).some((s) => (typeof s === "string" ? s : (s as { type?: string })?.type) === "analyze")),
+  ).length;
 
   const filters = (
     <GraphFilters
@@ -169,15 +201,27 @@ export function GraphPage() {
   return (
     <div className="grid h-[calc(100dvh-4rem)] grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_320px]">
       <h1 className="sr-only">Graph</h1>
-      <aside aria-label="Graph filters" className="hidden min-h-0 flex-col gap-4 overflow-y-auto border-r border-border bg-surface p-4 lg:flex">
+      <aside
+        aria-label="Graph filters"
+        className="hidden min-h-0 flex-col gap-4 overflow-y-auto border-r border-border bg-surface p-4 lg:flex"
+      >
         {filters}
         <span className="flex-1" />
         {viewSwitch}
       </aside>
 
-      <section aria-label={view === "table" ? "Graph as tables" : "Graph"} className="relative flex min-h-0 min-w-0 flex-col">
+      <section
+        aria-label={view === "table" ? "Graph as tables" : "Graph"}
+        className="relative flex min-h-0 min-w-0 flex-col"
+      >
         <div className="flex items-center gap-2 border-b border-border px-3 py-2 lg:hidden">
-          <Button size="sm" variant="ghost" className="border-border" icon={<SlidersHorizontal />} onClick={() => setFiltersOpen(true)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="border-border"
+            icon={<SlidersHorizontal />}
+            onClick={() => setFiltersOpen(true)}
+          >
             Filters
           </Button>
           <span className="flex-1" />
@@ -185,7 +229,8 @@ export function GraphPage() {
         </div>
         {missing && (
           <Banner tone="warning" className="m-3 mb-0" onDismiss={() => setMissing(null)}>
-            That {missing.startsWith("s") ? "speaker" : "entity"} isn’t in this graph. It may have too few links to show, or be hidden.
+            That {missing.startsWith("s") ? "speaker" : "entity"} isn’t in this graph. It may have too few links to
+            show, or be hidden.
           </Banner>
         )}
         {graph.isLoading && (
@@ -220,11 +265,22 @@ export function GraphPage() {
             }
           >
             The graph is built by the Analyze step.
-            {waiting > 0 ? ` ${plural(waiting, "recording")} ${waiting === 1 ? "is" : "are"} waiting for it` : " Nothing is waiting for it"}
+            {waiting > 0
+              ? ` ${plural(waiting, "recording")} ${waiting === 1 ? "is" : "are"} waiting for it`
+              : " Nothing is waiting for it"}
             {analyzing > 0 ? ` — ${analyzing} ${analyzing === 1 ? "is" : "are"} being analyzed now.` : "."}
           </EmptyState>
         )}
-        {graph.data && !empty && view === "graph" && <GraphCanvas className="flex-1" nodes={visible.nodes} edges={visible.edges} selected={selected} onSelect={select} summary={summary} />}
+        {graph.data && !empty && view === "graph" && (
+          <GraphCanvas
+            className="flex-1"
+            nodes={visible.nodes}
+            edges={visible.edges}
+            selected={selected}
+            onSelect={select}
+            summary={summary}
+          />
+        )}
         {graph.data && !empty && view === "table" && (
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-5">
             <p className="m-0 mb-2 text-[13px] text-fg-secondary">{summary}</p>
@@ -233,19 +289,34 @@ export function GraphPage() {
         )}
       </section>
 
-      <aside aria-label="Selected node" className="hidden min-h-0 overflow-y-auto border-l border-border px-[18px] py-4 xl:block">
+      <aside
+        aria-label="Selected node"
+        className="hidden min-h-0 overflow-y-auto border-l border-border px-[18px] py-4 xl:block"
+      >
         {node ? (
           <NodePanel node={node} nodes={all.nodes} edges={all.edges} onSelect={select} onClose={() => select(null)} />
         ) : (
           <div className="flex flex-col gap-2 text-[13px] leading-snug text-fg-secondary">
             <h2 className="text-[15px] font-bold text-fg">Nothing selected</h2>
-            <p className="m-0">Pick a node to see where it’s mentioned and what it’s connected to. Tab into the graph and use the arrow keys, or use the Table view.</p>
+            <p className="m-0">
+              Pick a node to see where it’s mentioned and what it’s connected to. Tab into the graph and use the arrow
+              keys, or use the Table view.
+            </p>
           </div>
         )}
       </aside>
 
-      <Drawer open={Boolean(node) && !wide} onOpenChange={(o) => !o && select(null)} title={node?.label ?? "Node"} width={360}>
-        <div className="p-4">{node && <NodePanel node={node} nodes={all.nodes} edges={all.edges} onSelect={select} onClose={() => select(null)} />}</div>
+      <Drawer
+        open={Boolean(node) && !wide}
+        onOpenChange={(o) => !o && select(null)}
+        title={node?.label ?? "Node"}
+        width={360}
+      >
+        <div className="p-4">
+          {node && (
+            <NodePanel node={node} nodes={all.nodes} edges={all.edges} onSelect={select} onClose={() => select(null)} />
+          )}
+        </div>
       </Drawer>
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen} title="Graph filters">
         {filters}

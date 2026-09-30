@@ -46,7 +46,15 @@ function SourceCard({ p, active, onHover }: { p: Passage; active: boolean; onHov
 }
 
 /** Every passage sent to the model for an answer, in citation order; the hovered chip's passage is outlined. */
-export function SourcesList({ passages, hover, onHover }: { passages: Passage[]; hover: number | null; onHover?: (n: number | null) => void }) {
+export function SourcesList({
+  passages,
+  hover,
+  onHover,
+}: {
+  passages: Passage[];
+  hover: number | null;
+  onHover?: (n: number | null) => void;
+}) {
   const sorted = [...passages].sort((a, b) => a.n - b.n);
   return (
     <ul className="m-0 flex list-none flex-col gap-3 p-0">
@@ -65,16 +73,36 @@ export function sourcesCount(passages: Passage[] | null | undefined): string {
   return `${all.length} passages · ${used} cited`;
 }
 
-export function SourcesPanel({ passages, hover, onHover, loading }: { passages: Passage[] | null; hover: number | null; onHover?: (n: number | null) => void; loading?: boolean }) {
+export function SourcesPanel({
+  passages,
+  hover,
+  onHover,
+  loading,
+}: {
+  passages: Passage[] | null;
+  hover: number | null;
+  onHover?: (n: number | null) => void;
+  loading?: boolean;
+}) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2">
         <h2 className="flex-1 text-[14px] font-bold text-fg">Sources</h2>
-        <span className="text-[12px] text-fg-muted">{passages ? sourcesCount(passages) : loading ? "Looking…" : ""}</span>
+        <span className="text-[12px] text-fg-muted">
+          {passages ? sourcesCount(passages) : loading ? "Looking…" : ""}
+        </span>
       </div>
       {passages && passages.length > 0 && <SourcesList passages={passages} hover={hover} onHover={onHover} />}
-      {passages && passages.length === 0 && <p className="m-0 text-[13px] leading-snug text-fg-secondary">Nothing in scope matched this question, so no passages were sent.</p>}
-      {!passages && !loading && <p className="m-0 text-[13px] leading-snug text-fg-secondary">The passages an answer is based on show here, in citation order.</p>}
+      {passages && passages.length === 0 && (
+        <p className="m-0 text-[13px] leading-snug text-fg-secondary">
+          Nothing in scope matched this question, so no passages were sent.
+        </p>
+      )}
+      {!passages && !loading && (
+        <p className="m-0 text-[13px] leading-snug text-fg-secondary">
+          The passages an answer is based on show here, in citation order.
+        </p>
+      )}
     </div>
   );
 }
@@ -93,21 +121,35 @@ export function CitationSheet({ passage, onClose }: { passage: Passage | null; o
               <Play /> Play from {passageTime(passage)}
             </Link>
           </Button>
-          <p className="m-0 text-center text-[12.5px] text-fg-secondary">Tap a citation to preview it; Play opens the recording.</p>
+          <p className="m-0 text-center text-[12.5px] text-fg-secondary">
+            Tap a citation to preview it; Play opens the recording.
+          </p>
         </>
       )}
     </BottomSheet>
   );
 }
 
-export function SourcesSheet({ open, onOpenChange, passages }: { open: boolean; onOpenChange: (o: boolean) => void; passages: Passage[] | null }) {
+export function SourcesSheet({
+  open,
+  onOpenChange,
+  passages,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  passages: Passage[] | null;
+}) {
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} title="Sources">
       <div className="flex items-baseline gap-2">
         <h2 className="flex-1 text-[15px] font-bold text-fg">Sources</h2>
         <span className="text-[12px] text-fg-muted">{sourcesCount(passages)}</span>
       </div>
-      {passages && passages.length > 0 ? <SourcesList passages={passages} hover={null} /> : <p className="m-0 text-[13.5px] text-fg-secondary">No passages for this answer.</p>}
+      {passages && passages.length > 0 ? (
+        <SourcesList passages={passages} hover={null} />
+      ) : (
+        <p className="m-0 text-[13.5px] text-fg-secondary">No passages for this answer.</p>
+      )}
     </BottomSheet>
   );
 }

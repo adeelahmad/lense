@@ -8,7 +8,10 @@ import { cn } from "@/lib/utils";
  * bullet and numbered lists, **bold** and `code`, with [n] citations handed to `renderCite`. Nothing is parsed as HTML.
  */
 
-export type Block = { type: "p"; text: string } | { type: "h"; level: 1 | 2 | 3; text: string } | { type: "ul" | "ol"; items: string[] };
+export type Block =
+  | { type: "p"; text: string }
+  | { type: "h"; level: 1 | 2 | 3; text: string }
+  | { type: "ul" | "ol"; items: string[] };
 
 export function parseBlocks(text: string): Block[] {
   const out: Block[] = [];
@@ -96,7 +99,10 @@ function sentencesOf(text: string, cite: Cite, key: string, unsupported: string[
     if (!s.trim()) return s;
     if (!matches(s, unsupported)) return <Fragment key={`${key}-s${i}`}>{inline(s, cite, `${key}-s${i}`)}</Fragment>;
     return (
-      <span key={`${key}-s${i}`} className="rounded-[3px] bg-red-surface underline decoration-red decoration-wavy decoration-[1.5px] underline-offset-4">
+      <span
+        key={`${key}-s${i}`}
+        className="rounded-[3px] bg-red-surface underline decoration-red decoration-wavy decoration-[1.5px] underline-offset-4"
+      >
         <span className="sr-only">Unsupported claim: </span>
         {inline(s, cite, `${key}-s${i}`)}
       </span>
@@ -132,7 +138,10 @@ export function RichText({
         if ("items" in b) {
           const List = b.type;
           return (
-            <List key={key} className={cn("m-0 flex flex-col gap-1.5 pl-6", b.type === "ul" ? "list-disc" : "list-decimal")}>
+            <List
+              key={key}
+              className={cn("m-0 flex flex-col gap-1.5 pl-6", b.type === "ul" ? "list-disc" : "list-decimal")}
+            >
               {b.items.map((it, j) => (
                 <li key={j}>{sentencesOf(it, renderCite, `${key}-${j}`, claims)}</li>
               ))}

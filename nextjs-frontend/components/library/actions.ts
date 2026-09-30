@@ -26,7 +26,9 @@ function filenameFrom(res: Response, fallback: string): string {
 
 /** Fetch a file with the session token and hand it to the browser as a download. */
 export async function downloadWithToken(url: string, token: string | undefined, fallbackName: string): Promise<void> {
-  const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  const res = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (!res.ok) {
     let msg = `Download failed (${res.status})`;
     try {
@@ -64,10 +66,18 @@ export function useRecordingActions() {
     async (jid: number) => {
       try {
         await data(Jobs.retryJob({ client, path: { jid } }));
-        toast({ title: "Queued again", body: "It picks up from the step that failed.", tone: "intent" });
+        toast({
+          title: "Queued again",
+          body: "It picks up from the step that failed.",
+          tone: "intent",
+        });
         refresh();
       } catch (e) {
-        toast({ title: "Couldn’t retry", body: (e as Error).message, tone: "red" });
+        toast({
+          title: "Couldn’t retry",
+          body: (e as Error).message,
+          tone: "red",
+        });
       }
     },
     [client, refresh, toast],
@@ -79,13 +89,41 @@ export function useRecordingActions() {
       try {
         const res =
           recordings.length === 1
-            ? { jobs: [(await data(Recordings.reprocessRecording({ client, path: { rid: recordings[0] }, body: steps?.length ? { steps } : undefined }))).job] }
-            : await data(Jobs.createJobs({ client, body: { recordings, steps: steps?.length ? steps : undefined } }));
-        toast({ title: `${plural(res.jobs.length, "recording")} queued`, body: "Progress shows in the rows and in Activity.", tone: "intent" });
+            ? {
+                jobs: [
+                  (
+                    await data(
+                      Recordings.reprocessRecording({
+                        client,
+                        path: { rid: recordings[0] },
+                        body: steps?.length ? { steps } : undefined,
+                      }),
+                    )
+                  ).job,
+                ],
+              }
+            : await data(
+                Jobs.createJobs({
+                  client,
+                  body: {
+                    recordings,
+                    steps: steps?.length ? steps : undefined,
+                  },
+                }),
+              );
+        toast({
+          title: `${plural(res.jobs.length, "recording")} queued`,
+          body: "Progress shows in the rows and in Activity.",
+          tone: "intent",
+        });
         refresh();
         return true;
       } catch (e) {
-        toast({ title: "Couldn’t queue that", body: (e as Error).message, tone: "red" });
+        toast({
+          title: "Couldn’t queue that",
+          body: (e as Error).message,
+          tone: "red",
+        });
         return false;
       }
     },
@@ -100,10 +138,18 @@ export function useRecordingActions() {
           await downloadWithToken(`/api/v1/recordings/${id}/export.${fmt}`, token, `recording-${id}.${fmt}`);
           done++;
         } catch (e) {
-          toast({ title: `Couldn’t export recording ${id}`, body: (e as Error).message, tone: "red" });
+          toast({
+            title: `Couldn’t export recording ${id}`,
+            body: (e as Error).message,
+            tone: "red",
+          });
         }
       }
-      if (done) toast({ title: `Exported ${plural(done, "transcript")}`, tone: "green" });
+      if (done)
+        toast({
+          title: `Exported ${plural(done, "transcript")}`,
+          tone: "green",
+        });
     },
     [toast, token],
   );

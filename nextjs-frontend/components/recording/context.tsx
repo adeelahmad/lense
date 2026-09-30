@@ -7,7 +7,20 @@ import type { JobInfo, PageState } from "@/components/recording/jobs";
 import type { EntityRef, FindHit, PlayerModel, SpeakerInfo, Turn } from "@/components/recording/model";
 import type { Role } from "@/lib/hooks/session";
 
-export type PanelTab = "summary" | "speakers" | "entities" | "chat" | "notes" | "history" | "metadata" | "iiif" | "details" | "shots" | "text" | "people" | "transcript";
+export type PanelTab =
+  | "summary"
+  | "speakers"
+  | "entities"
+  | "chat"
+  | "notes"
+  | "history"
+  | "metadata"
+  | "iiif"
+  | "details"
+  | "shots"
+  | "text"
+  | "people"
+  | "transcript";
 
 /** Everything the recording page's parts share: the data, the person's role, and page-level UI state. */
 export type RecordingCtx = {
@@ -23,7 +36,15 @@ export type RecordingCtx = {
   canEdit: boolean;
   /** No playable media: an imported transcript. */
   transcriptOnly: boolean;
-  find: { open: boolean; query: string; hits: FindHit[]; index: number; setOpen: (o: boolean) => void; setQuery: (q: string) => void; setIndex: (i: number) => void };
+  find: {
+    open: boolean;
+    query: string;
+    hits: FindHit[];
+    index: number;
+    setOpen: (o: boolean) => void;
+    setQuery: (q: string) => void;
+    setIndex: (i: number) => void;
+  };
   entity: { selected: EntityRef | null; select: (e: EntityRef | null) => void };
   tab: PanelTab;
   setTab: (t: PanelTab) => void;

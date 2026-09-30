@@ -1,4 +1,5 @@
 """Find recordings, transcribe them, and import transcripts made elsewhere."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -36,8 +37,12 @@ def parse_sv(raw):
 def probe(path):
     ch = 0
     try:
-        out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=channels,codec_type",
-                              "-of", "json", str(path)], capture_output=True, text=True, timeout=120)
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=channels,codec_type", "-of", "json", str(path)],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
         j = json.loads(out.stdout or "{}")
         dur = float(j.get("format", {}).get("duration") or 0)
         ch = max([s.get("channels", 0) for s in j.get("streams", []) if s.get("codec_type") == "audio"] or [0])
@@ -87,8 +92,26 @@ def recorded_at(path, mtime):
 
 
 def decode(path, channels=1):
-    out = subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-i", str(path), "-f", "f32le", "-acodec", "pcm_f32le",
-                          "-ac", str(channels), "-ar", str(SR), "-"], capture_output=True)
+    out = subprocess.run(
+        [
+            "ffmpeg",
+            "-nostdin",
+            "-v",
+            "error",
+            "-i",
+            str(path),
+            "-f",
+            "f32le",
+            "-acodec",
+            "pcm_f32le",
+            "-ac",
+            str(channels),
+            "-ar",
+            str(SR),
+            "-",
+        ],
+        capture_output=True,
+    )
     if out.returncode != 0:
         raise RuntimeError("ffmpeg: " + out.stderr.decode(errors="replace")[-300:])
     x = np.frombuffer(out.stdout, dtype=np.float32)
@@ -123,7 +146,9 @@ def scan(db, cfg, only=None, log=print):
                 if not p.is_file() or p.suffix.lower() not in exts or p.name.startswith("."):
                     continue
                 st = p.stat()
-                row = db.one("SELECT record::id(id) AS id, size, mtime FROM recording WHERE space = $s AND path = $p LIMIT 1", s=nid, p=str(p))
+                row = db.one(
+                    "SELECT record::id(id) AS id, size, mtime FROM recording WHERE space = $s AND path = $p LIMIT 1", s=nid, p=str(p)
+                )
                 if row and row.get("size") == st.st_size and abs((row.get("mtime") or 0) - st.st_mtime) < 1:
                     stats["known"] += 1
                     continue
@@ -137,18 +162,43 @@ def scan(db, cfg, only=None, log=print):
                     rid = (dup or row)["id"]
                     if row and not dup:
                         store.reset_downstream(db, rid)
-                        db.q("UPDATE $r SET status = 'new', fingerprint = $f, fp_key = $k", r=store.R("recording", rid), f=fp, k=f"{nid}:{fp}")
+                        db.q(
+                            "UPDATE $r SET status = 'new', fingerprint = $f, fp_key = $k",
+                            r=store.R("recording", rid),
+                            f=fp,
+                            k=f"{nid}:{fp}",
+                        )
                         stats["changed"] += 1
                     else:
                         stats["known"] += 1
-                    db.q("UPDATE $r MERGE $d", r=store.R("recording", rid),
-                         d=store.clean({"path": str(p), "size": st.st_size, "mtime": st.st_mtime, "duration_ms": dur, "channels": ch}))
+                    db.q(
+                        "UPDATE $r MERGE $d",
+                        r=store.R("recording", rid),
+                        d=store.clean({"path": str(p), "size": st.st_size, "mtime": st.st_mtime, "duration_ms": dur, "channels": ch}),
+                    )
                     continue
                 rid = db.next_id("recording")
-                db.q("CREATE $r CONTENT $d", r=store.R("recording", rid), d=store.clean({
-                    "space": nid, "path": str(p), "source": "audio", "fingerprint": fp, "fp_key": f"{nid}:{fp}", "title": p.stem,
-                    "recorded_at": recorded_at(p, st.st_mtime), "duration_ms": dur, "channels": ch, "size": st.st_size,
-                    "mtime": st.st_mtime, "status": "new", "created_at": store.now()}))
+                db.q(
+                    "CREATE $r CONTENT $d",
+                    r=store.R("recording", rid),
+                    d=store.clean(
+                        {
+                            "space": nid,
+                            "path": str(p),
+                            "source": "audio",
+                            "fingerprint": fp,
+                            "fp_key": f"{nid}:{fp}",
+                            "title": p.stem,
+                            "recorded_at": recorded_at(p, st.st_mtime),
+                            "duration_ms": dur,
+                            "channels": ch,
+                            "size": st.st_size,
+                            "mtime": st.st_mtime,
+                            "status": "new",
+                            "created_at": store.now(),
+                        }
+                    ),
+                )
                 stats["new"] += 1
     return stats
 
@@ -159,6 +209,7 @@ def pick_device(pref):
         return pref
     try:
         import torch
+
         if torch.cuda.is_available():
             return "cuda"
         if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
@@ -170,6 +221,7 @@ def pick_device(pref):
 
 class SenseVoice:
     """fsmn-vad finds speech, SenseVoice transcribes each span with emotion and event tags."""
+
     name = "sensevoice"
 
     def __init__(self, cfg):
@@ -199,15 +251,25 @@ class SenseVoice:
         pieces = [(s, min(int(e), s + self.max_ms)) for b, e in spans for s in range(int(b), int(e), self.max_ms)]
         out = []
         for i in range(0, len(pieces), self.batch):
-            batch = [(s, e) for s, e in pieces[i:i + self.batch] if e - s >= 200]
+            batch = [(s, e) for s, e in pieces[i : i + self.batch] if e - s >= 200]
             if not batch:
                 continue
-            res = self._run([audio[s * SR // 1000:e * SR // 1000] for s, e in batch])
+            res = self._run([audio[s * SR // 1000 : e * SR // 1000] for s, e in batch])
             for (s, e), r in zip(batch, res):
                 lang, emo, ev, text = parse_sv(r.get("text", ""))
                 if any(ch.isalnum() for ch in text):
-                    out.append({"t0": s, "t1": e, "text": text, "raw_text": r.get("text"), "emotion": emo, "event": ev,
-                                "lang": lang, "words": None})
+                    out.append(
+                        {
+                            "t0": s,
+                            "t1": e,
+                            "text": text,
+                            "raw_text": r.get("text"),
+                            "emotion": emo,
+                            "event": ev,
+                            "lang": lang,
+                            "words": None,
+                        }
+                    )
         return out
 
 
@@ -221,12 +283,15 @@ class Whisper:
         try:
             if mlx:
                 import mlx_whisper
+
                 self.m, self.repo = mlx_whisper, t["mlx_whisper"]["model"]
             else:
                 from faster_whisper import WhisperModel
+
                 dev = pick_device(t["device"])
-                self.m = WhisperModel(t["whisper"]["model"], device="cpu" if dev == "mps" else dev,
-                                      compute_type=t["whisper"]["compute_type"])
+                self.m = WhisperModel(
+                    t["whisper"]["model"], device="cpu" if dev == "mps" else dev, compute_type=t["whisper"]["compute_type"]
+                )
         except ImportError as e:
             raise SystemExit(f"uv sync --extra {'mlx' if mlx else 'whisper'}") from e
 
@@ -237,9 +302,20 @@ class Whisper:
         else:
             segs, _ = self.m.transcribe(audio, vad_filter=True, word_timestamps=True, language=self.lang)
             rows = [(s.start, s.end, s.text, [(w.word, w.start, w.end) for w in (s.words or [])]) for s in segs]
-        return [{"t0": int(a * 1000), "t1": int(b * 1000), "text": x.strip(), "raw_text": None, "emotion": None, "event": None,
-                 "lang": self.lang, "words": json.dumps([[w.strip(), int(p * 1000), int(q * 1000)] for w, p, q in ws])}
-                for a, b, x, ws in rows if x.strip()]
+        return [
+            {
+                "t0": int(a * 1000),
+                "t1": int(b * 1000),
+                "text": x.strip(),
+                "raw_text": None,
+                "emotion": None,
+                "event": None,
+                "lang": self.lang,
+                "words": json.dumps([[w.strip(), int(p * 1000), int(q * 1000)] for w, p, q in ws]),
+            }
+            for a, b, x, ws in rows
+            if x.strip()
+        ]
 
 
 def get_engine(cfg):
@@ -256,10 +332,26 @@ def segment_rows(rid, nid, segs):
     for i, s in enumerate(segs):
         t0 = int(s["t0"])
         t1 = int(max(s["t1"], t0 + 1))
-        out.append(store.clean({"id": store.R("segment", rid * store.SEG + i), "recording": rid, "space": nid, "idx": i,
-                                "t0": t0, "t1": t1, "dur": t1 - t0, "local_speaker": s.get("speaker"), "text": s["text"],
-                                "raw_text": s.get("raw_text"), "emotion": store.norm_emotion(s.get("emotion")),
-                                "event": s.get("event"), "lang": s.get("lang"), "words": s.get("words")}))
+        out.append(
+            store.clean(
+                {
+                    "id": store.R("segment", rid * store.SEG + i),
+                    "recording": rid,
+                    "space": nid,
+                    "idx": i,
+                    "t0": t0,
+                    "t1": t1,
+                    "dur": t1 - t0,
+                    "local_speaker": s.get("speaker"),
+                    "text": s["text"],
+                    "raw_text": s.get("raw_text"),
+                    "emotion": store.norm_emotion(s.get("emotion")),
+                    "event": s.get("event"),
+                    "lang": s.get("lang"),
+                    "words": s.get("words"),
+                }
+            )
+        )
     return out
 
 
@@ -271,8 +363,14 @@ def _language(segs):
 def write_transcript(db, rid, nid, segs, patch):
     """Replace a recording's transcript and everything derived from it, atomically."""
     rows = segment_rows(rid, nid, segs)  # overwrite segments in place and drop the extra ones (see store.DOWNSTREAM)
-    db.run(store.DOWNSTREAM + ["FOR $s IN $segs { UPSERT $s.id CONTENT $s; }", "UPDATE $rec MERGE $patch"],
-           rid=rid, keep=len(rows), segs=rows, rec=store.R("recording", rid), patch=patch)
+    db.run(
+        store.DOWNSTREAM + ["FOR $s IN $segs { UPSERT $s.id CONTENT $s; }", "UPDATE $rec MERGE $patch"],
+        rid=rid,
+        keep=len(rows),
+        segs=rows,
+        rec=store.R("recording", rid),
+        patch=patch,
+    )
     db.q("UPDATE $rec SET error = NONE, diarized_at = NONE, analyzed_at = NONE", rec=store.R("recording", rid))
 
 
@@ -280,6 +378,7 @@ def audio_path(db, cfg, rec):
     """A local file for a recording's audio: the file itself, or a cached copy of one on a storage source."""
     if rec.get("remote"):
         from . import sources
+
         return str(sources.cached_copy(db, cfg, rec["remote"]["source"], rec["remote"]["path"]))
     return store.resolve_path(cfg, rec.get("path"))
 
@@ -291,8 +390,15 @@ def transcribe_one(db, cfg, rid, log=print, engine=None):
     segs = engine.transcribe(audio)
     env = envelope(audio)
     del audio
-    write_transcript(db, rid, r["space"], segs, store.clean({"status": "transcribed", "engine": engine.name, "language": _language(segs),
-                                                           "envelope": env, "transcribed_at": store.now()}))
+    write_transcript(
+        db,
+        rid,
+        r["space"],
+        segs,
+        store.clean(
+            {"status": "transcribed", "engine": engine.name, "language": _language(segs), "envelope": env, "transcribed_at": store.now()}
+        ),
+    )
     log(f"  {r['title']}: {len(segs)} segments in {time.time() - t:.0f}s")
     return len(segs)
 
@@ -301,8 +407,10 @@ def transcribe_pending(db, cfg, ns=None, limit=0, force=False, log=print):
     where = "source = 'audio' AND " + ("true" if force else "status IN ['new', 'error']")
     if ns:
         where += " AND space = $s"
-    rows = db.rows(f"SELECT record::id(id) AS id, title, recorded_at FROM recording WHERE {where} ORDER BY recorded_at, id",
-                   s=store.ns_id(db, ns, create=False) if ns else None)[:limit or None]
+    rows = db.rows(
+        f"SELECT record::id(id) AS id, title, recorded_at FROM recording WHERE {where} ORDER BY recorded_at, id",
+        s=store.ns_id(db, ns, create=False) if ns else None,
+    )[: limit or None]
     if not rows:
         return 0
     engine, done = get_engine(cfg), 0
@@ -374,8 +482,17 @@ def stitch_chunks(rows):
         prev_words, prev_end = words, t1
         kept = words[cut:]
         if kept:
-            out.append({"t0": t0, "t1": max(t1, t0 + 1), "text": " ".join(kept), "raw_text": r.get("raw_text"),
-                        "emotion": emo, "event": ev, "lang": lang})
+            out.append(
+                {
+                    "t0": t0,
+                    "t1": max(t1, t0 + 1),
+                    "text": " ".join(kept),
+                    "raw_text": r.get("raw_text"),
+                    "emotion": emo,
+                    "event": ev,
+                    "lang": lang,
+                }
+            )
     return [s for seg in out for s in _split_timed(seg)]
 
 
@@ -392,10 +509,16 @@ def _generic(s):
     if words and isinstance(words[0], dict):
         words = json.dumps([[w.get("word", "").strip(), _ms(w.get("start"), k), _ms(w.get("end"), k)] for w in words])
     tags = s.get("tags") or {}
-    return {"t0": _ms(a, k), "t1": _ms(b, k), "text": str(s.get("text", "")).strip(),
-            "speaker": s.get("speaker") or s.get("spk"), "emotion": s.get("emotion") or tags.get("emotion"),
-            "event": s.get("event"), "lang": s.get("lang") or s.get("language"),
-            "words": words if isinstance(words, str) else None}
+    return {
+        "t0": _ms(a, k),
+        "t1": _ms(b, k),
+        "text": str(s.get("text", "")).strip(),
+        "speaker": s.get("speaker") or s.get("spk"),
+        "emotion": s.get("emotion") or tags.get("emotion"),
+        "event": s.get("event"),
+        "lang": s.get("lang") or s.get("language"),
+        "words": words if isinstance(words, str) else None,
+    }
 
 
 PIPE = re.compile(r"^([^|]{1,40})\|([^|]{0,24})\|(.+)$")
@@ -405,7 +528,7 @@ VTT_TIME = re.compile(r"((?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*((?:\d+:)?\d
 
 def _clock(s):
     parts = s.replace(",", ".").split(":")
-    return int(round(sum(float(p) * 60 ** i for i, p in enumerate(reversed(parts))) * 1000))
+    return int(round(sum(float(p) * 60**i for i, p in enumerate(reversed(parts))) * 1000))
 
 
 def _cues(raw):
@@ -415,7 +538,7 @@ def _cues(raw):
         for i, l in enumerate(lines):
             m = VTT_TIME.search(l)
             if m:
-                text = " ".join(lines[i + 1:]).strip()
+                text = " ".join(lines[i + 1 :]).strip()
                 sm = SPK.match(text) or re.match(r"^<v\s+([^>]+)>(.*)$", text)
                 spk, text = (sm.group(sm.lastindex - 1).strip(), sm.group(sm.lastindex).strip()) if sm else (None, text)
                 if text:
@@ -442,7 +565,11 @@ def _text(raw):
         return []
     # Otter, Zoom and Teams exports: a "Name  12:34" line, then what they said
     heads = [HEADER.match(l) for l in lines]
-    if sum(1 for h in heads if h) >= 2 and len({h.group(1).strip() for h in heads if h}) <= 12 and sum(1 for h in heads if h) >= 0.15 * len(lines):
+    if (
+        sum(1 for h in heads if h) >= 2
+        and len({h.group(1).strip() for h in heads if h}) <= 12
+        and sum(1 for h in heads if h) >= 0.15 * len(lines)
+    ):
         segs = []
         for l, h in zip(lines, heads):
             if h:
@@ -489,7 +616,7 @@ def _timed(segs):
         n = len(s["text"].split())
         if s["t0"] is None:
             s["t0"] = t
-        nxt = next((x["t0"] for x in segs[i + 1:] if x["t0"] is not None), None)
+        nxt = next((x["t0"] for x in segs[i + 1 :] if x["t0"] is not None), None)
         s["t1"] = nxt if nxt is not None and nxt > s["t0"] else s["t0"] + n * 385
         t = s["t1"] + 250
     return segs
@@ -524,6 +651,7 @@ def read_docx(path):
     """Paragraph text from a .docx (tables included), without extra dependencies."""
     import xml.etree.ElementTree as ET
     import zipfile
+
     W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
     with zipfile.ZipFile(path) as z:
         root = ET.fromstring(z.read("word/document.xml"))
@@ -545,6 +673,7 @@ def read_doc(path):
     """Legacy Word files need antiword, catdoc or LibreOffice (the Docker image has antiword)."""
     import shutil
     import tempfile
+
     for cmd in (["antiword", "-w", "0", str(path)], ["catdoc", "-w", str(path)]):
         if shutil.which(cmd[0]):
             out = subprocess.run(cmd, capture_output=True, text=True)
@@ -562,9 +691,11 @@ def read_doc(path):
 def read_pdf(path):
     try:
         from pypdf import PdfReader
+
         text = "\n\n".join((page.extract_text() or "") for page in PdfReader(str(path)).pages)
     except ImportError:
         import shutil
+
         if not shutil.which("pdftotext"):
             raise SystemExit("reading PDFs needs pypdf (pip install pypdf) or pdftotext") from None
         text = subprocess.run(["pdftotext", "-layout", str(path), "-"], capture_output=True, text=True).stdout
@@ -583,8 +714,17 @@ def read_text_transcript(raw, fmt="auto", name=None):
     fmt = fmt or "auto"
     if fmt == "auto":
         ext = pathlib.Path(name or "").suffix.lower()
-        fmt = {".md": "markdown", ".markdown": "markdown", ".mdx": "mdx", ".json": "json", ".jsonl": "jsonl", ".srt": "srt",
-               ".vtt": "vtt", ".txt": "text", ".text": "text"}.get(ext) or sniff(raw)
+        fmt = {
+            ".md": "markdown",
+            ".markdown": "markdown",
+            ".mdx": "mdx",
+            ".json": "json",
+            ".jsonl": "jsonl",
+            ".srt": "srt",
+            ".vtt": "vtt",
+            ".txt": "text",
+            ".text": "text",
+        }.get(ext) or sniff(raw)
     speakers, title = {}, None
     if fmt in ("markdown", "mdx"):
         fm = re.match(r"\A---\n(.*?)\n---\n", raw, re.S)
@@ -651,6 +791,7 @@ def read_transcript(path, fmt="auto"):
 
 def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engine):
     from . import speakers as spk
+
     segs = t["segments"]
     if not segs:
         raise SystemExit("no transcript text found")
@@ -665,11 +806,32 @@ def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engi
     row = db.one("SELECT record::id(id) AS id FROM recording WHERE space = $s AND fingerprint = $f LIMIT 1", s=nid, f=fp)
     rid = row["id"] if row else db.next_id("recording")
     if not row:
-        db.q("CREATE $r CONTENT $d", r=store.R("recording", rid), d={"space": nid, "fingerprint": fp, "fp_key": f"{nid}:{fp}", "status": "new", "created_at": store.now()})
-    write_transcript(db, rid, nid, segs, store.clean({
-        "path": src, "source": "audio" if audio else "transcript", "title": title or t.get("title") or "Untitled",
-        "recorded_at": st, "duration_ms": dur or max(s["t1"] for s in segs), "channels": ch, "language": _language(segs),
-        "engine": engine, "envelope": env, "status": "transcribed", "transcribed_at": store.now()}))
+        db.q(
+            "CREATE $r CONTENT $d",
+            r=store.R("recording", rid),
+            d={"space": nid, "fingerprint": fp, "fp_key": f"{nid}:{fp}", "status": "new", "created_at": store.now()},
+        )
+    write_transcript(
+        db,
+        rid,
+        nid,
+        segs,
+        store.clean(
+            {
+                "path": src,
+                "source": "audio" if audio else "transcript",
+                "title": title or t.get("title") or "Untitled",
+                "recorded_at": st,
+                "duration_ms": dur or max(s["t1"] for s in segs),
+                "channels": ch,
+                "language": _language(segs),
+                "engine": engine,
+                "envelope": env,
+                "status": "transcribed",
+                "transcribed_at": store.now(),
+            }
+        ),
+    )
     names = {**(t.get("speakers") or {}), **(speaker_names or {})}
     locals_ = {s["speaker"] for s in segs if s.get("speaker")}
     if locals_:
@@ -682,8 +844,19 @@ def import_transcript(db, cfg, ns, tpath, audio=None, title=None, speaker_names=
     src = pathlib.Path(audio or tpath)
     t = read_transcript(tpath, fmt)
     st = src.stat()
-    return _store_import(db, cfg, ns, t, title or pathlib.Path(tpath).stem, fingerprint(src), str(src.resolve()),
-                         recorded_at(src, st.st_mtime), audio, speaker_names, "import:" + pathlib.Path(tpath).suffix.lstrip("."))
+    return _store_import(
+        db,
+        cfg,
+        ns,
+        t,
+        title or pathlib.Path(tpath).stem,
+        fingerprint(src),
+        str(src.resolve()),
+        recorded_at(src, st.st_mtime),
+        audio,
+        speaker_names,
+        "import:" + pathlib.Path(tpath).suffix.lstrip("."),
+    )
 
 
 def import_text(db, cfg, ns, text, title=None, fmt="auto", speaker_names=None, name=None):
@@ -693,5 +866,16 @@ def import_text(db, cfg, ns, text, title=None, fmt="auto", speaker_names=None, n
     t = read_text_transcript(text, fmt, name)
     fp = "paste-" + hashlib.sha1(text.encode("utf-8")).hexdigest()[:20]
     first = next((l.strip() for l in text.splitlines() if l.strip()), "Pasted transcript")
-    return _store_import(db, cfg, ns, t, title or re.sub(r"^#+\s*", "", first)[:80], fp, "paste:" + fp[6:],
-                         dt.datetime.now().isoformat(timespec="seconds"), None, speaker_names, "import:paste")
+    return _store_import(
+        db,
+        cfg,
+        ns,
+        t,
+        title or re.sub(r"^#+\s*", "", first)[:80],
+        fp,
+        "paste:" + fp[6:],
+        dt.datetime.now().isoformat(timespec="seconds"),
+        None,
+        speaker_names,
+        "import:paste",
+    )

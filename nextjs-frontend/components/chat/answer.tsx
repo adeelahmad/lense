@@ -29,10 +29,27 @@ function fromWhere(passages: Passage[] | null): string | null {
   return `${plural(recs, "recording")}${nss.length ? ` in ${nss.join(", ")}` : ""}`;
 }
 
-function StateCard({ tone, title, children, action }: { tone: "gate" | "red" | "neutral"; title: string; children: React.ReactNode; action?: React.ReactNode }) {
-  const cls = { gate: "border-gold-border bg-gold-surface", red: "border-red-border bg-red-surface", neutral: "border-border bg-surface" }[tone];
+function StateCard({
+  tone,
+  title,
+  children,
+  action,
+}: {
+  tone: "gate" | "red" | "neutral";
+  title: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  const cls = {
+    gate: "border-gold-border bg-gold-surface",
+    red: "border-red-border bg-red-surface",
+    neutral: "border-border bg-surface",
+  }[tone];
   return (
-    <div role={tone === "red" ? "alert" : "status"} className={cn("flex max-w-[560px] flex-col gap-2 rounded-md border px-4 py-3.5", cls)}>
+    <div
+      role={tone === "red" ? "alert" : "status"}
+      className={cn("flex max-w-[560px] flex-col gap-2 rounded-md border px-4 py-3.5", cls)}
+    >
       <b className={cn("text-[15px] font-bold leading-snug", tone === "red" ? "text-red-dark" : "text-fg")}>{title}</b>
       <div className="text-[13.5px] leading-normal text-fg-strong">{children}</div>
       {action && <div className="pt-1">{action}</div>}
@@ -41,7 +58,15 @@ function StateCard({ tone, title, children, action }: { tone: "gate" | "red" | "
 }
 
 /** Nothing in this scope answers the question: say where else it may be (namespaces you can read, outside the scope). */
-function NothingInScope({ question, scope, onAddScope }: { question: string; scope: Scope; onAddScope?: (ns: string) => void }) {
+function NothingInScope({
+  question,
+  scope,
+  onAddScope,
+}: {
+  question: string;
+  scope: Scope;
+  onAddScope?: (ns: string) => void;
+}) {
   const client = useApiClient();
   const { namespaces, roleIn } = useArchive();
   const kw = keywords(question);
@@ -54,7 +79,9 @@ function NothingInScope({ question, scope, onAddScope }: { question: string; sco
   });
   const other = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const h of elsewhere.data?.hits ?? []) if (h.namespace && !scope.namespaces?.includes(h.namespace)) counts.set(h.namespace, (counts.get(h.namespace) ?? 0) + 1);
+    for (const h of elsewhere.data?.hits ?? [])
+      if (h.namespace && !scope.namespaces?.includes(h.namespace))
+        counts.set(h.namespace, (counts.get(h.namespace) ?? 0) + 1);
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).filter(([ns]) => namespaces.some((n) => n.name === ns));
   }, [elsewhere.data, scope.namespaces, namespaces]);
   const best = other[0]?.[0];
@@ -76,7 +103,8 @@ function NothingInScope({ question, scope, onAddScope }: { question: string; sco
       }
     >
       Your scope is {scopeWords(scope)}. Nothing there mentions {words}.
-      {best && ` It may be in ${best}, where you’re ${roleIn(best) === "owner" ? "an owner" : `a ${roleIn(best) ?? "viewer"}`}.`}
+      {best &&
+        ` It may be in ${best}, where you’re ${roleIn(best) === "owner" ? "an owner" : `a ${roleIn(best) ?? "viewer"}`}.`}
     </StateCard>
   );
 }
@@ -115,10 +143,21 @@ export function Answer(p: AnswerProps) {
   const noModel = isNoModelAnswer(p.text);
   const blank = !p.text || p.text === NO_ANSWER;
   const cites = citedNumbers(p.text);
-  const nothing = p.status === "done" && !noModel && p.passages?.length === 0 && !(p.steps?.length) && (p.text === NOTHING_MATCHES || cites.length === 0);
+  const nothing =
+    p.status === "done" &&
+    !noModel &&
+    p.passages?.length === 0 &&
+    !p.steps?.length &&
+    (p.text === NOTHING_MATCHES || cites.length === 0);
   const failed = p.status === "error" || (p.status === "done" && p.text === NO_ANSWER);
   const check = useMutation({
-    mutationFn: () => data(Chats.checkMessage({ client, path: { cid: p.chatId as number, mid: p.messageId as number } })),
+    mutationFn: () =>
+      data(
+        Chats.checkMessage({
+          client,
+          path: { cid: p.chatId as number, mid: p.messageId as number },
+        }),
+      ),
     onSuccess: (c) => p.onChecked?.(c),
   });
   const result = p.check ?? check.data ?? null;
@@ -129,10 +168,20 @@ export function Answer(p: AnswerProps) {
     <article aria-label="Answer" aria-busy={streaming || undefined} className="flex max-w-[720px] flex-col gap-3">
       <div className="flex items-center gap-2 text-[12px] font-medium text-fg-muted">
         <span aria-hidden className={cn("size-2 rounded-full", streaming ? "animate-pulse bg-blue" : "bg-border")} />
-        {streaming ? (from ? `Answering from ${from}` : `Looking in ${scopeWords(p.scope)}…`) : from ? `From ${from}` : "Answer"}
+        {streaming
+          ? from
+            ? `Answering from ${from}`
+            : `Looking in ${scopeWords(p.scope)}…`
+          : from
+            ? `From ${from}`
+            : "Answer"}
         {p.model ? ` · ${p.model}` : ""}
         {p.onShowSources && p.passages && p.passages.length > 0 && (
-          <button type="button" onClick={p.onShowSources} className="ml-1 font-semibold text-fg-accent hover:underline xl:hidden">
+          <button
+            type="button"
+            onClick={p.onShowSources}
+            className="ml-1 font-semibold text-fg-accent hover:underline xl:hidden"
+          >
             Sources ({p.passages.length})
           </button>
         )}
@@ -141,12 +190,16 @@ export function Answer(p: AnswerProps) {
       <ToolSteps steps={p.steps ?? []} working={streaming && Boolean(p.steps?.length) && !p.text} />
 
       {p.notice && (
-        <div role="status" className="flex max-w-[560px] gap-2.5 rounded-md border border-border bg-surface px-3.5 py-3 text-[13px] leading-snug text-fg-strong">
+        <div
+          role="status"
+          className="flex max-w-[560px] gap-2.5 rounded-md border border-border bg-surface px-3.5 py-3 text-[13px] leading-snug text-fg-strong"
+        >
           <span aria-hidden className="font-bold text-fg-secondary">
             i
           </span>
           <span>
-            <b className="text-fg">{p.notice}</b> Questions across many recordings may be incomplete. An admin can pick a tool-capable model in Settings → AI.
+            <b className="text-fg">{p.notice}</b> Questions across many recordings may be incomplete. An admin can pick
+            a tool-capable model in Settings → AI.
           </span>
         </div>
       )}
@@ -158,14 +211,22 @@ export function Answer(p: AnswerProps) {
       {noModel ? (
         <div className="flex flex-col gap-2.5">
           <p className="m-0 text-[13px] leading-snug text-fg-secondary">
-            No language model is set up, so these are the passages that match best. An admin can add one in Settings → LLM provider.
+            No language model is set up, so these are the passages that match best. An admin can add one in Settings →
+            LLM provider.
           </p>
           <ul className="m-0 flex list-none flex-col gap-2.5 p-0 font-serif text-[16px] leading-[1.55] text-fg">
             {cites.map((n) => {
               const src = byN.get(n);
               return (
                 <li key={n}>
-                  <CitationChip n={n} passage={src} active={p.hover === n} onHover={p.onHover} onPreview={p.onPreview} /> {src ? `“${quoteOf(src).text}”` : null}
+                  <CitationChip
+                    n={n}
+                    passage={src}
+                    active={p.hover === n}
+                    onHover={p.onHover}
+                    onPreview={p.onPreview}
+                  />{" "}
+                  {src ? `“${quoteOf(src).text}”` : null}
                 </li>
               );
             })}
@@ -193,14 +254,29 @@ export function Answer(p: AnswerProps) {
             <RichText
               text={p.text}
               unsupported={unsupported}
-              renderCite={(n, key) => <CitationChip key={key} n={n} passage={byN.get(n)} active={p.hover === n} onHover={p.onHover} onPreview={p.onPreview} />}
+              renderCite={(n, key) => (
+                <CitationChip
+                  key={key}
+                  n={n}
+                  passage={byN.get(n)}
+                  active={p.hover === n}
+                  onHover={p.onHover}
+                  onPreview={p.onPreview}
+                />
+              )}
             />
-            {streaming && <span aria-hidden className="ml-1 inline-block h-[18px] w-2 translate-y-[3px] bg-fg opacity-60" />}
+            {streaming && (
+              <span aria-hidden className="ml-1 inline-block h-[18px] w-2 translate-y-[3px] bg-fg opacity-60" />
+            )}
           </div>
         )
       )}
 
-      {p.status === "stopped" && <p className="m-0 text-[12.5px] text-fg-muted">Stopped. What arrived is kept here; ask again for a full answer.</p>}
+      {p.status === "stopped" && (
+        <p className="m-0 text-[12.5px] text-fg-muted">
+          Stopped. What arrived is kept here; ask again for a full answer.
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-1.5">
         {streaming && p.onStop && (
@@ -209,7 +285,13 @@ export function Answer(p: AnswerProps) {
           </Button>
         )}
         {p.status === "done" && p.messageId != null && p.chatId != null && cites.length > 0 && !noModel && !result && (
-          <Button size="sm" variant="ghost" icon={<ShieldCheck />} onClick={() => check.mutate()} disabled={check.isPending}>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<ShieldCheck />}
+            onClick={() => check.mutate()}
+            disabled={check.isPending}
+          >
             {check.isPending ? "Checking sources…" : "Check sources"}
           </Button>
         )}

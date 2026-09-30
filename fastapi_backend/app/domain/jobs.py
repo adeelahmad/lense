@@ -4,6 +4,7 @@ A job carries one recording through a list of steps. A worker only runs the step
 only transcribe); when the next step isn't one of them, the job goes back on the queue for a worker that can.
 Workers heartbeat while they run; a job whose worker goes quiet is requeued, up to workers.max_attempts.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -18,8 +19,10 @@ R = store.R
 PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "report"]
 AFTER_IMPORT = ["analyze", "summarize", "report"]
 ACTIVE = ["queued", "running"]
-FIELDS = ("record::id(id) AS id, recording, space, batch, steps, step_index, next_step, status, worker, error, attempts, created_by, "
-          "created_at, started_at, finished_at, updated_at, cancel_requested")
+FIELDS = (
+    "record::id(id) AS id, recording, space, batch, steps, step_index, next_step, status, worker, error, attempts, created_by, "
+    "created_at, started_at, finished_at, updated_at, cancel_requested"
+)
 
 
 def _source(db, rid):
@@ -65,6 +68,7 @@ def _report(db, cfg, rid, say, spec=None):
     name = (db.one("SELECT name FROM $s", s=R("space", rec["space"])) or {}).get("name")
     render.build_reports(db, cfg, ns=name, rid=rid, log=say)
     from . import metadata
+
     metadata.touched(db, cfg, rid)  # harvesters see an Update for published recordings
 
 
@@ -78,21 +82,34 @@ def _export(db, cfg, rid, say, spec=None):
 
 def _shots(db, cfg, rid, say, spec=None):
     from . import video
+
     video.step_shots(db, cfg, rid, say)
 
 
 def _ocr(db, cfg, rid, say, spec=None):
     from . import video
+
     video.step_ocr(db, cfg, rid, say)
 
 
 def _faces(db, cfg, rid, say, spec=None):
     from . import video
+
     video.step_faces(db, cfg, rid, say)
 
 
-STEPS = {"transcribe": _transcribe, "diarize": _diarize, "shots": _shots, "ocr": _ocr, "faces": _faces, "analyze": _analyze,
-         "summarize": _summarize, "report": _report, "llm": _llm, "export": _export}
+STEPS = {
+    "transcribe": _transcribe,
+    "diarize": _diarize,
+    "shots": _shots,
+    "ocr": _ocr,
+    "faces": _faces,
+    "analyze": _analyze,
+    "summarize": _summarize,
+    "report": _report,
+    "llm": _llm,
+    "export": _export,
+}
 
 
 def enqueue(db, rid, steps=None, by=None, priority=0, pipeline=None, batch=None):
@@ -110,9 +127,28 @@ def enqueue(db, rid, steps=None, by=None, priority=0, pipeline=None, batch=None)
     if live:
         return live[0]
     jid, t = db.next_id("job"), store.now()
-    db.q("CREATE $r CONTENT $d", r=R("job", jid), d=store.clean({"recording": rid, "space": rec["space"], "steps": steps, "step_index": 0,
-                                                                  "next_step": steps[0]["type"], "status": "queued", "priority": priority, "created_by": by, "pipeline": ref, "batch": batch,
-                                                                  "created_at": t, "updated_at": t, "attempts": 0, "log": []}))
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("job", jid),
+        d=store.clean(
+            {
+                "recording": rid,
+                "space": rec["space"],
+                "steps": steps,
+                "step_index": 0,
+                "next_step": steps[0]["type"],
+                "status": "queued",
+                "priority": priority,
+                "created_by": by,
+                "pipeline": ref,
+                "batch": batch,
+                "created_at": t,
+                "updated_at": t,
+                "attempts": 0,
+                "log": [],
+            }
+        ),
+    )
     return jid
 
 
@@ -133,12 +169,21 @@ def enqueue_pending(db, space=None, by=None):
 
 
 def claim(db, worker, can):
-    for r in db.rows("SELECT record::id(id) AS id, priority, created_at, started_at FROM job WHERE status = 'queued' AND next_step IN $can "
-                     "ORDER BY priority DESC, created_at ASC LIMIT 10", can=sorted(can)):
+    for r in db.rows(
+        "SELECT record::id(id) AS id, priority, created_at, started_at FROM job WHERE status = 'queued' AND next_step IN $can "
+        "ORDER BY priority DESC, created_at ASC LIMIT 10",
+        can=sorted(can),
+    ):
         t = store.now()
         try:
-            got = db.rows("UPDATE $j SET status = 'running', worker = $w, started_at = $st, heartbeat_at = $t, updated_at = $t, attempts += 1 "
-                          "WHERE status = 'queued' RETURN AFTER", j=R("job", r["id"]), w=worker, st=r.get("started_at") or t, t=t)
+            got = db.rows(
+                "UPDATE $j SET status = 'running', worker = $w, started_at = $st, heartbeat_at = $t, updated_at = $t, attempts += 1 "
+                "WHERE status = 'queued' RETURN AFTER",
+                j=R("job", r["id"]),
+                w=worker,
+                st=r.get("started_at") or t,
+                t=t,
+            )
         except Exception:  # noqa: BLE001 - another worker won the race
             continue
         if got:
@@ -173,14 +218,32 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
             step = spec["type"]
             if (db.one("SELECT cancel_requested FROM $j", j=jr) or {}).get("cancel_requested"):
                 say("cancelled")
-                db.q("UPDATE $j SET status = 'cancelled', worker = NONE, finished_at = $t, updated_at = $t, log = $l", j=jr, t=store.now(), l=lines)
+                db.q(
+                    "UPDATE $j SET status = 'cancelled', worker = NONE, finished_at = $t, updated_at = $t, log = $l",
+                    j=jr,
+                    t=store.now(),
+                    l=lines,
+                )
                 return "cancelled"
             if step not in can:
                 say(f"handing {step} to a worker that can run it")
-                db.q("UPDATE $j SET status = 'queued', step_index = $i, next_step = $s, worker = NONE, updated_at = $t, log = $l",
-                     j=jr, i=i, s=step, t=store.now(), l=lines)
+                db.q(
+                    "UPDATE $j SET status = 'queued', step_index = $i, next_step = $s, worker = NONE, updated_at = $t, log = $l",
+                    j=jr,
+                    i=i,
+                    s=step,
+                    t=store.now(),
+                    l=lines,
+                )
                 return "handed-off"
-            db.q("UPDATE $j SET step_index = $i, next_step = $s, updated_at = $t, heartbeat_at = $t, log = $l", j=jr, i=i, s=step, t=store.now(), l=lines)
+            db.q(
+                "UPDATE $j SET step_index = $i, next_step = $s, updated_at = $t, heartbeat_at = $t, log = $l",
+                j=jr,
+                i=i,
+                s=step,
+                t=store.now(),
+                l=lines,
+            )
             if spec.get("when") and not pipelines.condition_ok(db, rid, spec["when"]):
                 say(f"{step} skipped: its condition isn't met")
                 i += 1
@@ -189,14 +252,26 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
             STEPS[step](db, cfg_fn(), rid, say, spec)
             say(f"{spec.get('name') or step} done in {time.time() - t0:.1f}s")
             i += 1
-        db.q("UPDATE $j SET status = 'succeeded', step_index = $i, next_step = NONE, error = NONE, finished_at = $t, updated_at = $t, log = $l",
-             j=jr, i=i, t=store.now(), l=lines)
+        db.q(
+            "UPDATE $j SET status = 'succeeded', step_index = $i, next_step = NONE, error = NONE, finished_at = $t, updated_at = $t, log = $l",
+            j=jr,
+            i=i,
+            t=store.now(),
+            l=lines,
+        )
         return "succeeded"
     except Exception as e:  # noqa: BLE001 - recorded on the job
         err = f"{type(e).__name__}: {e}"[:500]
         say(f"{_spec(steps[i])['type']} failed: {err}")
-        db.q("UPDATE $j SET status = 'failed', error = $e, step_index = $i, next_step = $s, finished_at = $t, updated_at = $t, log = $l",
-             j=jr, e=err, i=i, s=_spec(steps[i])["type"], t=store.now(), l=lines)
+        db.q(
+            "UPDATE $j SET status = 'failed', error = $e, step_index = $i, next_step = $s, finished_at = $t, updated_at = $t, log = $l",
+            j=jr,
+            e=err,
+            i=i,
+            s=_spec(steps[i])["type"],
+            t=store.now(),
+            l=lines,
+        )
         if _spec(steps[i])["type"] == "transcribe":
             db.q("UPDATE $r SET status = 'error', error = $e", r=R("recording", rid), e=err)
         return "failed"
@@ -228,22 +303,41 @@ def retry(db, jid):
     if j["status"] not in ("failed", "cancelled"):
         raise ValueError("only failed or cancelled jobs can be retried")
     i = min(j.get("step_index") or 0, len(j["steps"]) - 1)
-    db.q("UPDATE $j SET status = 'queued', next_step = $s, step_index = $i, error = NONE, cancel_requested = false, finished_at = NONE, "
-         "updated_at = $t", j=R("job", jid), s=_spec(j["steps"][i])["type"], i=i, t=store.now())
+    db.q(
+        "UPDATE $j SET status = 'queued', next_step = $s, step_index = $i, error = NONE, cancel_requested = false, finished_at = NONE, "
+        "updated_at = $t",
+        j=R("job", jid),
+        s=_spec(j["steps"][i])["type"],
+        i=i,
+        t=store.now(),
+    )
 
 
 def reap(db, stale_minutes=15, max_attempts=3):
     cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=stale_minutes)).isoformat(timespec="seconds")
     for j in db.rows("SELECT record::id(id) AS id, attempts FROM job WHERE status = 'running' AND heartbeat_at < $c", c=cutoff):
         if (j.get("attempts") or 0) >= max_attempts:
-            db.q("UPDATE $j SET status = 'failed', error = 'the worker stopped responding', updated_at = $t", j=R("job", j["id"]), t=store.now())
+            db.q(
+                "UPDATE $j SET status = 'failed', error = 'the worker stopped responding', updated_at = $t",
+                j=R("job", j["id"]),
+                t=store.now(),
+            )
         else:
             db.q("UPDATE $j SET status = 'queued', worker = NONE, updated_at = $t", j=R("job", j["id"]), t=store.now())
 
 
 def _decorate(db, rows):
-    titles = {r["id"]: r["title"] for r in db.rows("SELECT record::id(id) AS id, title FROM recording WHERE id IN $ids",
-                                                   ids=[R("recording", i) for i in {x["recording"] for x in rows}])} if rows else {}
+    titles = (
+        {
+            r["id"]: r["title"]
+            for r in db.rows(
+                "SELECT record::id(id) AS id, title FROM recording WHERE id IN $ids",
+                ids=[R("recording", i) for i in {x["recording"] for x in rows}],
+            )
+        }
+        if rows
+        else {}
+    )
     for r in rows:
         r["title"] = titles.get(r["recording"])
         r["progress"] = round((r.get("step_index") or 0) / max(1, len(r.get("steps") or [])), 3) if r["status"] != "succeeded" else 1.0
@@ -266,7 +360,11 @@ def list_jobs(db, spaces=None, status=None, recording=None, limit=100):
 
 
 def changes(db, since, spaces=None):
-    q = f"SELECT {FIELDS} FROM job WHERE updated_at > $s" + (" AND space IN $sp" if spaces is not None else "") + " ORDER BY updated_at LIMIT 200"
+    q = (
+        f"SELECT {FIELDS} FROM job WHERE updated_at > $s"
+        + (" AND space IN $sp" if spaces is not None else "")
+        + " ORDER BY updated_at LIMIT 200"
+    )
     return _decorate(db, db.rows(q, s=since or "", sp=sorted(spaces or [])))
 
 
@@ -282,8 +380,11 @@ class Worker:
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
 
     def register(self, current=None):
-        self.db.q("UPSERT $w CONTENT $d", w=R("worker", self.name), d=store.clean({"steps": sorted(self.can), "host": socket.gethostname(),
-                                                                                   "heartbeat_at": store.now(), "current": current}))
+        self.db.q(
+            "UPSERT $w CONTENT $d",
+            w=R("worker", self.name),
+            d=store.clean({"steps": sorted(self.can), "host": socket.gethostname(), "heartbeat_at": store.now(), "current": current}),
+        )
 
     def run_once(self):
         job = claim(self.db, self.name, self.can)

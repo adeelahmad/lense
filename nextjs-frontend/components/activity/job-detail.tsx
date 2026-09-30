@@ -26,7 +26,14 @@ import {
   type StepSpec,
 } from "@/components/activity/job-model";
 import { downloadText, LogViewer } from "@/components/activity/log-viewer";
-import { useJobActions, usePeopleNames, useSpaceNames, useWorkerSettings, useWorkerStates, useWorkers } from "@/components/activity/use-activity";
+import {
+  useJobActions,
+  usePeopleNames,
+  useSpaceNames,
+  useWorkerSettings,
+  useWorkerStates,
+  useWorkers,
+} from "@/components/activity/use-activity";
 import { StatusChip } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
@@ -41,7 +48,10 @@ const DOT: Record<StepRunState, { bg: string; glyph: string }> = {
   running: { bg: "bg-blue text-white animate-pulse", glyph: "" },
   failed: { bg: "bg-red text-white", glyph: "✕" },
   waiting: { bg: "bg-border", glyph: "" },
-  skipped: { bg: "bg-surface-neutral text-fg-secondary border border-border", glyph: "–" },
+  skipped: {
+    bg: "bg-surface-neutral text-fg-secondary border border-border",
+    glyph: "–",
+  },
   "not-run": { bg: "bg-border", glyph: "" },
 };
 
@@ -60,9 +70,18 @@ function secondsText(s: number | undefined) {
 
 /** What a step is set to do, from its spec (template, output key, conditions...). */
 function specText(s: StepSpec, templateName?: (id: number) => string | undefined): string | null {
-  const x = s.spec as { template?: number; version?: number; key?: string; filename?: string; model?: string; force?: boolean; when?: Record<string, unknown> };
+  const x = s.spec as {
+    template?: number;
+    version?: number;
+    key?: string;
+    filename?: string;
+    model?: string;
+    force?: boolean;
+    when?: Record<string, unknown>;
+  };
   const parts: string[] = [];
-  if (x.template != null) parts.push(`${templateName?.(x.template) ?? `template #${x.template}`}${x.version ? ` v${x.version}` : ""}`);
+  if (x.template != null)
+    parts.push(`${templateName?.(x.template) ?? `template #${x.template}`}${x.version ? ` v${x.version}` : ""}`);
   if (x.key) parts.push(`saves outputs.${x.key}`);
   if (x.filename) parts.push(`file ${x.filename}`);
   if (x.model) parts.push(`model ${x.model}`);
@@ -75,7 +94,17 @@ function specText(s: StepSpec, templateName?: (id: number) => string | undefined
   return parts.length ? parts.join(" · ") : null;
 }
 
-function Box({ tone, glyph, title, children }: { tone: "red" | "blue" | "green" | "neutral"; glyph: string; title: ReactNode; children?: ReactNode }) {
+function Box({
+  tone,
+  glyph,
+  title,
+  children,
+}: {
+  tone: "red" | "blue" | "green" | "neutral";
+  glyph: string;
+  title: ReactNode;
+  children?: ReactNode;
+}) {
   const t = {
     red: ["bg-red-surface border-red-border", "bg-red text-white"],
     blue: ["bg-blue-surface border-blue-border", "bg-blue text-white"],
@@ -84,7 +113,10 @@ function Box({ tone, glyph, title, children }: { tone: "red" | "blue" | "green" 
   }[tone];
   return (
     <div role={tone === "red" ? "alert" : "status"} className={cn("flex gap-3 rounded-md border px-3.5 py-3", t[0])}>
-      <span aria-hidden className={cn("grid size-[22px] shrink-0 place-items-center rounded-full text-[12px] font-extrabold", t[1])}>
+      <span
+        aria-hidden
+        className={cn("grid size-[22px] shrink-0 place-items-center rounded-full text-[12px] font-extrabold", t[1])}
+      >
         {glyph}
       </span>
       <div className="flex min-w-0 flex-col gap-1 text-[13.5px] leading-normal text-fg-strong">
@@ -134,7 +166,9 @@ export function JobDetail({ jobId }: { jobId: number }) {
   const states = useWorkerStates(workers.data, job ? [job] : []);
   // The single-run endpoint has no title: take it from any cached list, else from the recording.
   const listed = useMemo(() => {
-    for (const [, d] of qc.getQueriesData<{ jobs?: JobRecord[] }>({ queryKey: ["jobs"] })) {
+    for (const [, d] of qc.getQueriesData<{ jobs?: JobRecord[] }>({
+      queryKey: ["jobs"],
+    })) {
       const hit = d?.jobs?.find((j) => j.id === jobId);
       if (hit?.title) return hit.title;
     }
@@ -152,7 +186,11 @@ export function JobDetail({ jobId }: { jobId: number }) {
     queryFn: () => data(Pipelines.listPipelines({ client })),
     staleTime: 60_000,
   });
-  const templates = useQuery({ queryKey: ["templates"], queryFn: () => data(Templates.listTemplates({ client })), staleTime: 5 * 60_000 });
+  const templates = useQuery({
+    queryKey: ["templates"],
+    queryFn: () => data(Templates.listTemplates({ client })),
+    staleTime: 5 * 60_000,
+  });
   const templateName = (id: number) => templates.data?.find((t) => t.id === id)?.name;
 
   const specs = useMemo(() => stepSpecs(job?.steps), [job?.steps]);
@@ -164,8 +202,20 @@ export function JobDetail({ jobId }: { jobId: number }) {
       if (!job?.recording) throw new Error("This run has no recording");
       const r =
         pid == null
-          ? await data(Recordings.reprocessRecording({ client, path: { rid: job.recording }, body: {} }))
-          : await data(Pipelines.runPipeline({ client, path: { pid }, body: { recording: job.recording } }));
+          ? await data(
+              Recordings.reprocessRecording({
+                client,
+                path: { rid: job.recording },
+                body: {},
+              }),
+            )
+          : await data(
+              Pipelines.runPipeline({
+                client,
+                path: { pid },
+                body: { recording: job.recording },
+              }),
+            );
       return r.job;
     },
     onSuccess: (id) => {
@@ -191,7 +241,13 @@ export function JobDetail({ jobId }: { jobId: number }) {
       <EmptyState
         tone={e?.status === 404 ? "neutral" : "error"}
         icon={<FileAudio />}
-        title={e?.status === 404 ? "This run doesn’t exist" : e?.status === 403 ? "You can’t see this run" : "Couldn’t load this run"}
+        title={
+          e?.status === 404
+            ? "This run doesn’t exist"
+            : e?.status === 403
+              ? "You can’t see this run"
+              : "Couldn’t load this run"
+        }
         actions={
           <>
             <Button asChild variant="secondary">
@@ -217,7 +273,10 @@ export function JobDetail({ jobId }: { jobId: number }) {
   const sIdx = typeof selected === "number" ? selected : null;
   const logLines = sIdx != null ? (parsed.byStep[sIdx]?.lines ?? []) : parsed.lines;
   const finished = !active;
-  const reason = job.status === "queued" && job.next_step && workers.data ? waitingReason(job.next_step, workers.data, states) : null;
+  const reason =
+    job.status === "queued" && job.next_step && workers.data
+      ? waitingReason(job.next_step, workers.data, states)
+      : null;
   const curLower = (cur?.label ?? job.next_step ?? "").toLowerCase();
   const downstream = specs.slice(i + 1).map((s) => s.label);
 
@@ -233,21 +292,33 @@ export function JobDetail({ jobId }: { jobId: number }) {
     );
   else if (job.status === "queued")
     box = (
-      <Box tone="neutral" glyph="○" title={reason?.stuck ? `Waiting for a worker that can ${curLower}.` : `Queued. ${cur?.label ?? "It"} runs when a worker is free.`}>
+      <Box
+        tone="neutral"
+        glyph="○"
+        title={
+          reason?.stuck
+            ? `Waiting for a worker that can ${curLower}.`
+            : `Queued. ${cur?.label ?? "It"} runs when a worker is free.`
+        }
+      >
         {reason ? reason.text : `It starts when a worker that runs ${curLower} is free.`}
       </Box>
     );
   else if (job.status === "running")
     box = (
       <Box tone="blue" glyph="" title={`Running ${cur?.label ?? "a step"}${job.worker ? ` on ${job.worker}` : ""}.`}>
-        {job.cancel_requested ? "Stopping after this step, as asked." : "Cancel stops the run after this step; its output is kept."}
+        {job.cancel_requested
+          ? "Stopping after this step, as asked."
+          : "Cancel stops the run after this step; its output is kept."}
       </Box>
     );
   else if (job.status === "succeeded") {
     const skipped = specs.filter((_, k) => stepStateList[k] === "skipped").map((s) => s.label);
     box = (
       <Box tone="green" glyph="✓" title={`Succeeded${ran != null ? ` in ${took(ran)}` : ""}.`}>
-        {skipped.length ? `${skipped.join(", ")} skipped; the other steps finished.` : `All ${specs.length} steps finished.`}
+        {skipped.length
+          ? `${skipped.join(", ")} skipped; the other steps finished.`
+          : `All ${specs.length} steps finished.`}
       </Box>
     );
   } else if (job.status === "paused") box = <Box tone="neutral" glyph="॥" title="Paused with its batch." />;
@@ -285,20 +356,37 @@ export function JobDetail({ jobId }: { jobId: number }) {
           </span>
         </nav>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="min-w-0 text-[22px] font-bold leading-tight text-fg">{title ?? `Recording ${job.recording ?? ""}`}</h1>
+          <h1 className="min-w-0 text-[22px] font-bold leading-tight text-fg">
+            {title ?? `Recording ${job.recording ?? ""}`}
+          </h1>
           <StatusChip status={job.status} />
           <span className="flex-1" />
           <Button
             size="sm"
             variant="secondary"
             disabled={!active || job.status === "paused" || !allowed || Boolean(job.cancel_requested)}
-            disabledReason={!allowed ? needRole("editor", ns) : job.cancel_requested ? "Stopping after the current step" : job.status === "paused" ? "Paused runs are controlled by their batch" : "Run already finished"}
+            disabledReason={
+              !allowed
+                ? needRole("editor", ns)
+                : job.cancel_requested
+                  ? "Stopping after the current step"
+                  : job.status === "paused"
+                    ? "Paused runs are controlled by their batch"
+                    : "Run already finished"
+            }
             onClick={() => setCancelOpen(true)}
           >
             Cancel
           </Button>
           {!allowed || active || job.recording == null ? (
-            <Button size="sm" variant="secondary" disabled disabledReason={!allowed ? needRole("editor", ns) : active ? "Wait for this run to finish" : "This run has no recording"}>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled
+              disabledReason={
+                !allowed ? needRole("editor", ns) : active ? "Wait for this run to finish" : "This run has no recording"
+              }
+            >
               Re-run with another version <ChevronDown />
             </Button>
           ) : (
@@ -310,7 +398,9 @@ export function JobDetail({ jobId }: { jobId: number }) {
               </MenuTrigger>
               <MenuContent align="end" className="w-[280px]">
                 <MenuLabel>Run on this recording</MenuLabel>
-                <MenuItem onSelect={() => rerun.mutate(null)}>{ns ? `${ns}’s default pipeline` : "Namespace default"}</MenuItem>
+                <MenuItem onSelect={() => rerun.mutate(null)}>
+                  {ns ? `${ns}’s default pipeline` : "Namespace default"}
+                </MenuItem>
                 {(pipelines.data?.pipelines ?? []).length > 0 && <MenuSeparator />}
                 {(pipelines.data?.pipelines ?? []).map((p) => (
                   <MenuItem key={p.id} onSelect={() => rerun.mutate(p.id)} shortcut={`v${p.current}`}>
@@ -330,7 +420,9 @@ export function JobDetail({ jobId }: { jobId: number }) {
           {job.worker && <span className="font-mono text-[12.5px]">{job.worker}</span>}
           <span>
             {job.started_at ? `Started ${dayTime(job.started_at)}` : `Queued ${dayTime(job.created_at)}`}
-            {ran != null && job.started_at ? ` · ${active ? "running for" : "ran"} ${active ? span(ran) : took(ran)}` : ""}
+            {ran != null && job.started_at
+              ? ` · ${active ? "running for" : "ran"} ${active ? span(ran) : took(ran)}`
+              : ""}
           </span>
           {ns && <span>{ns}</span>}
           {job.recording != null && (
@@ -368,10 +460,20 @@ export function JobDetail({ jobId }: { jobId: number }) {
                     onClick={() => setSel(on ? "all" : k)}
                     className={cn(
                       "grid w-full grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[10px] border p-2.5 text-left transition-colors duration-fast",
-                      on ? (st === "failed" ? "border-red-border bg-background" : "border-blue-border bg-background") : "border-transparent hover:bg-surface-neutral",
+                      on
+                        ? st === "failed"
+                          ? "border-red-border bg-background"
+                          : "border-blue-border bg-background"
+                        : "border-transparent hover:bg-surface-neutral",
                     )}
                   >
-                    <span aria-hidden className={cn("grid size-5 place-items-center rounded-full text-[10px] font-extrabold", DOT[st].bg)}>
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "grid size-5 place-items-center rounded-full text-[10px] font-extrabold",
+                        DOT[st].bg,
+                      )}
+                    >
                       {DOT[st].glyph}
                     </span>
                     <span className="flex min-w-0 flex-col gap-[3px]">
@@ -379,11 +481,19 @@ export function JobDetail({ jobId }: { jobId: number }) {
                         {s.label}
                         <span className="sr-only"> · {WORD[st]}</span>
                       </span>
-                      <span className={cn("truncate text-[12px] leading-tight", st === "failed" ? "text-red-dark" : "text-fg-muted")} title={sub}>
+                      <span
+                        className={cn(
+                          "truncate text-[12px] leading-tight",
+                          st === "failed" ? "text-red-dark" : "text-fg-muted",
+                        )}
+                        title={sub}
+                      >
                         {sub}
                       </span>
                     </span>
-                    <span className="tabular text-[12px] font-medium text-fg-muted">{secondsText(info?.seconds) ?? (st === "running" ? "…" : "—")}</span>
+                    <span className="tabular text-[12px] font-medium text-fg-muted">
+                      {secondsText(info?.seconds) ?? (st === "running" ? "…" : "—")}
+                    </span>
                   </button>
                 </li>
               );
@@ -393,7 +503,10 @@ export function JobDetail({ jobId }: { jobId: number }) {
             type="button"
             aria-pressed={selected === "all"}
             onClick={() => setSel("all")}
-            className={cn("mt-2 w-full rounded-[10px] px-2.5 py-2 text-left text-[13px] font-semibold", selected === "all" ? "bg-background text-fg-accent" : "text-fg-secondary hover:bg-surface-neutral")}
+            className={cn(
+              "mt-2 w-full rounded-[10px] px-2.5 py-2 text-left text-[13px] font-semibold",
+              selected === "all" ? "bg-background text-fg-accent" : "text-fg-secondary hover:bg-surface-neutral",
+            )}
           >
             Whole log
           </button>
@@ -440,14 +553,19 @@ export function JobDetail({ jobId }: { jobId: number }) {
                   ],
                   ["Attempts", settingsLoaded ? `${job.attempts ?? 0} of ${maxAttempts}` : String(job.attempts ?? 0)],
                   ["Created", time(job.created_at)],
-                  ["Started · Finished", `${job.started_at ? time(job.started_at) : "—"} · ${job.finished_at ? time(job.finished_at) : "—"}`],
+                  [
+                    "Started · Finished",
+                    `${job.started_at ? time(job.started_at) : "—"} · ${job.finished_at ? time(job.finished_at) : "—"}`,
+                  ],
                   ["Worker", job.worker ?? "none yet"],
                   ...(job.batch != null ? ([["Batch", `batch #${job.batch}`]] as [string, ReactNode][]) : []),
                 ]}
               />
             </div>
             <div className="flex flex-col gap-2 rounded-md border border-border p-3.5">
-              <h2 className="label-caps">{sIdx != null ? `Step ${sIdx + 1} of ${specs.length} · ${specs[sIdx]?.label}` : "Steps"}</h2>
+              <h2 className="label-caps">
+                {sIdx != null ? `Step ${sIdx + 1} of ${specs.length} · ${specs[sIdx]?.label}` : "Steps"}
+              </h2>
               {sIdx != null ? (
                 <Dl
                   rows={[
@@ -459,9 +577,13 @@ export function JobDetail({ jobId }: { jobId: number }) {
                 />
               ) : (
                 <p className="text-[13px] leading-normal text-fg-secondary">
-                  Pick a step on the left to see its settings, how long it took and its part of the log. Outputs are saved on the{" "}
+                  Pick a step on the left to see its settings, how long it took and its part of the log. Outputs are
+                  saved on the{" "}
                   {job.recording != null ? (
-                    <Link href={`/recordings/${job.recording}`} className="font-semibold text-fg-accent hover:underline">
+                    <Link
+                      href={`/recordings/${job.recording}`}
+                      className="font-semibold text-fg-accent hover:underline"
+                    >
                       recording
                     </Link>
                   ) : (
@@ -479,11 +601,18 @@ export function JobDetail({ jobId }: { jobId: number }) {
             live={job.status === "running"}
             finished={finished}
             truncated={(job.log?.length ?? 0) >= 200}
-            empty={job.status === "queued" ? "The log streams here once it starts." : sIdx != null ? "This step hasn’t logged anything." : "No log lines."}
+            empty={
+              job.status === "queued"
+                ? "The log streams here once it starts."
+                : sIdx != null
+                  ? "This step hasn’t logged anything."
+                  : "No log lines."
+            }
             onDownload={() => downloadText(`run-${job.id}.log`, (job.log ?? []).join("\n") + "\n")}
           />
           <p className="text-[12.5px] leading-snug text-fg-secondary">
-            Cancel is immediate while queued; while running it stops after the current step. Retry resumes from the failed step.
+            Cancel is immediate while queued; while running it stops after the current step. Retry resumes from the
+            failed step.
           </p>
         </section>
       </div>

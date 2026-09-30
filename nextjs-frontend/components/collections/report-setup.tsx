@@ -17,7 +17,10 @@ import { needRole, useArchive } from "@/lib/hooks/session";
 function Stage({ n, children }: { n: number; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3">
-      <span aria-hidden className="grid size-[26px] shrink-0 place-items-center rounded-full bg-blue text-[12px] font-bold text-white">
+      <span
+        aria-hidden
+        className="grid size-[26px] shrink-0 place-items-center rounded-full bg-blue text-[12px] font-bold text-white"
+      >
         {n}
       </span>
       <div className="min-w-0 flex-1">{children}</div>
@@ -35,9 +38,25 @@ export function ReportSetup() {
   const client = useApiClient();
   const { namespaces, can } = useArchive();
   const cols = useCollections();
-  const templates = useQuery({ queryKey: ["templates"], queryFn: () => data(Templates.listTemplates({ client })), staleTime: 60_000 });
-  const ents = useQuery({ queryKey: ["entities", "top"], queryFn: () => data(Entities.listEntities({ client, query: { limit: 30 } })), staleTime: 60_000 });
-  const [set, setSet] = useState(params.get("collection") ? `c:${params.get("collection")}` : params.get("ns") ? `n:${params.get("ns")}` : params.get("entity") ? `e:${params.get("entity")}` : "");
+  const templates = useQuery({
+    queryKey: ["templates"],
+    queryFn: () => data(Templates.listTemplates({ client })),
+    staleTime: 60_000,
+  });
+  const ents = useQuery({
+    queryKey: ["entities", "top"],
+    queryFn: () => data(Entities.listEntities({ client, query: { limit: 30 } })),
+    staleTime: 60_000,
+  });
+  const [set, setSet] = useState(
+    params.get("collection")
+      ? `c:${params.get("collection")}`
+      : params.get("ns")
+        ? `n:${params.get("ns")}`
+        : params.get("entity")
+          ? `e:${params.get("entity")}`
+          : "",
+  );
   const [tpl, setTpl] = useState("");
   const [instructions, setInstructions] = useState("");
   const [output, setOutput] = useState("page");
@@ -46,7 +65,9 @@ export function ReportSetup() {
   if (!can("editor"))
     return (
       <div className="px-4 py-6 md:px-6">
-        <EmptyState title="Collection reports need editor access">{needRole("editor")}. They run a template on every recording in the set.</EmptyState>
+        <EmptyState title="Collection reports need editor access">
+          {needRole("editor")}. They run a template on every recording in the set.
+        </EmptyState>
       </div>
     );
 
@@ -67,9 +88,18 @@ export function ReportSetup() {
 
   const options = [
     { value: "", label: "Choose a set…" },
-    ...(cols.data ?? []).map((c) => ({ value: `c:${c.id}`, label: `Saved collection · ${c.name} (${count(c.count)})` })),
-    ...namespaces.map((n) => ({ value: `n:${n.name}`, label: `Namespace · ${n.name} (${count((n.recordings as number) ?? 0)})` })),
-    ...(ents.data?.items ?? []).map((e) => ({ value: `e:${e.id}`, label: `Entity · ${String(e.name)} (${count(Number(e.recordings))})` })),
+    ...(cols.data ?? []).map((c) => ({
+      value: `c:${c.id}`,
+      label: `Saved collection · ${c.name} (${count(c.count)})`,
+    })),
+    ...namespaces.map((n) => ({
+      value: `n:${n.name}`,
+      label: `Namespace · ${n.name} (${count((n.recordings as number) ?? 0)})`,
+    })),
+    ...(ents.data?.items ?? []).map((e) => ({
+      value: `e:${e.id}`,
+      label: `Entity · ${String(e.name)} (${count(Number(e.recordings))})`,
+    })),
   ];
   return (
     <div className="flex justify-center px-4 py-6 md:px-6">
@@ -77,7 +107,9 @@ export function ReportSetup() {
         <h1 className="text-[17px] font-bold text-fg">New collection report</h1>
         {(cols.isLoading || templates.isLoading) && <Skeleton className="h-10 w-full" />}
         {templates.isError && <Banner tone="error">{templates.error.message}</Banner>}
-        <Field label="Set">{({ id }) => <Select id={id} value={set} onChange={(e) => setSet(e.target.value)} options={options} />}</Field>
+        <Field label="Set">
+          {({ id }) => <Select id={id} value={set} onChange={(e) => setSet(e.target.value)} options={options} />}
+        </Field>
         <fieldset className="m-0 flex flex-col gap-2.5 border-0 p-0">
           <legend className="mb-2 text-[13px] font-bold text-fg-strong">Stages</legend>
           <Stage n={1}>
@@ -85,7 +117,18 @@ export function ReportSetup() {
               aria-label="Extract per recording"
               value={tpl}
               onChange={(e) => setTpl(e.target.value)}
-              options={[{ value: "", label: prompts.length ? "Extract per recording · choose a prompt template" : "No prompt templates yet" }, ...prompts.map((t) => ({ value: String(t.id), label: `Extract per recording · ${t.name}` }))]}
+              options={[
+                {
+                  value: "",
+                  label: prompts.length
+                    ? "Extract per recording · choose a prompt template"
+                    : "No prompt templates yet",
+                },
+                ...prompts.map((t) => ({
+                  value: String(t.id),
+                  label: `Extract per recording · ${t.name}`,
+                })),
+              ]}
             />
           </Stage>
           <Stage n={2}>
@@ -107,13 +150,22 @@ export function ReportSetup() {
               onChange={(e) => setOutput(e.target.value)}
               options={[
                 { value: "page", label: "Report page" },
-                { value: "pdf", label: "Report page + PDF (not available yet)", disabled: true },
+                {
+                  value: "pdf",
+                  label: "Report page + PDF (not available yet)",
+                  disabled: true,
+                },
               ]}
             />
           )}
         </Field>
         <div className="flex justify-end">
-          <Button variant="primary" disabled={!set || !tpl} disabledReason={!set ? "Choose a set" : "Choose a template for the first stage"} onClick={go}>
+          <Button
+            variant="primary"
+            disabled={!set || !tpl}
+            disabledReason={!set ? "Choose a set" : "Choose a template for the first stage"}
+            onClick={go}
+          >
             Double-check
           </Button>
         </div>

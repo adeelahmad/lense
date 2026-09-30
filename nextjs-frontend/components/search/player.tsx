@@ -12,7 +12,13 @@ import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { tc } from "@/lib/format";
 
-export type Moment = { key: string; recordingId: number; t0: number; title?: string | null; speaker?: string | null };
+export type Moment = {
+  key: string;
+  recordingId: number;
+  t0: number;
+  title?: string | null;
+  speaker?: string | null;
+};
 
 /**
  * One shared inline player for a list of moments (search hits, mentions, clips). Play fetches the recording's
@@ -52,12 +58,20 @@ export function useInlinePlayer() {
         });
         if (!p.audio) {
           setNoAudio((s) => new Set(s).add(m.recordingId));
-          toast({ title: "No audio to play", body: "This recording is a transcript only. Open it to read the moment.", tone: "gate" });
+          toast({
+            title: "No audio to play",
+            body: "This recording is a transcript only. Open it to read the moment.",
+            tone: "gate",
+          });
           return;
         }
         setCurrent({ ...m, src: p.audio });
       } catch (e) {
-        toast({ title: "Couldn’t load the audio", body: e instanceof Error ? e.message : undefined, tone: "red" });
+        toast({
+          title: "Couldn’t load the audio",
+          body: e instanceof Error ? e.message : undefined,
+          tone: "red",
+        });
       } finally {
         setLoading(null);
       }
@@ -78,7 +92,17 @@ export function useInlinePlayer() {
     onEnded: () => setPlaying(false),
     onTimeUpdate: (e: React.SyntheticEvent<HTMLAudioElement>) => setTime(e.currentTarget.currentTime),
   };
-  return { current, playing, time, loading, noAudio, play, stop, bind, isPlaying: (key: string) => playing && current?.key === key };
+  return {
+    current,
+    playing,
+    time,
+    loading,
+    noAudio,
+    play,
+    stop,
+    bind,
+    isPlaying: (key: string) => playing && current?.key === key,
+  };
 }
 
 export type InlinePlayer = ReturnType<typeof useInlinePlayer>;
@@ -92,17 +116,26 @@ export function InlinePlayerBar({ player, className }: { player: InlinePlayer; c
       {current && (
         <div role="region" aria-label="Player" className={className}>
           <div className="flex items-center gap-3 rounded-md border border-border bg-background px-3 py-2 shadow-2">
-            <IconButton label={playing ? "Pause" : "Play"} onClick={() => (playing ? bind.ref.current?.pause() : bind.ref.current?.play())} className="bg-blue text-white hover:bg-blue-dark">
+            <IconButton
+              label={playing ? "Pause" : "Play"}
+              onClick={() => (playing ? bind.ref.current?.pause() : bind.ref.current?.play())}
+              className="bg-blue text-white hover:bg-blue-dark"
+            >
               {playing ? <Pause /> : <Play />}
             </IconButton>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[13.5px] font-bold text-fg">{current.title ?? `Recording ${current.recordingId}`}</div>
+              <div className="truncate text-[13.5px] font-bold text-fg">
+                {current.title ?? `Recording ${current.recordingId}`}
+              </div>
               <div className="tabular text-[12px] text-fg-secondary">
                 {tc(time * 1000)}
                 {current.speaker ? ` · from ${current.speaker} at ${tc(current.t0)}` : ` · from ${tc(current.t0)}`}
               </div>
             </div>
-            <Link href={recordingHref(current.recordingId, Math.round(time * 1000))} className="inline-flex items-center gap-1 text-[13px] font-bold text-fg-accent hover:underline">
+            <Link
+              href={recordingHref(current.recordingId, Math.round(time * 1000))}
+              className="inline-flex items-center gap-1 text-[13px] font-bold text-fg-accent hover:underline"
+            >
               Open here <ExternalLink className="size-3.5" aria-hidden />
             </Link>
             <IconButton label="Close player" onClick={stop}>

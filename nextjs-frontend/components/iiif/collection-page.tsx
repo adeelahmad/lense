@@ -41,7 +41,11 @@ export function CollectionPage({ ns }: { ns: string }) {
   const root = usePublicIiif<IiifCollection>("/iiif/collection");
   const collection = usePublicIiif<IiifCollection>(`/iiif/collection/${ns}`, Boolean(known));
   const feed = usePublicIiif<Activity>("/iiif/discovery/activity");
-  const saved = useQuery({ queryKey: ["collections"], queryFn: () => data(Collections.listCollections({ client })), staleTime: 60_000 });
+  const saved = useQuery({
+    queryKey: ["collections"],
+    queryFn: () => data(Collections.listCollections({ client })),
+    staleTime: 60_000,
+  });
   const [open, setOpen] = useState<CollectionItem | null>(null);
   const [publishing, setPublishing] = useState<CollectionItem | null>(null);
   const [bulk, setBulk] = useState<null | "edit" | "unpublish" | "publish">(null);
@@ -49,8 +53,17 @@ export function CollectionPage({ ns }: { ns: string }) {
 
   if (namespaces.length && !known)
     return (
-      <EmptyState icon={<FolderOpen />} title="This collection doesn’t exist" actions={<Button asChild><Link href="/iiif">All collections</Link></Button>}>
-        The namespace may have been renamed, or you don’t have a role in it. Namespaces you don’t belong to are never shown here.
+      <EmptyState
+        icon={<FolderOpen />}
+        title="This collection doesn’t exist"
+        actions={
+          <Button asChild>
+            <Link href="/iiif">All collections</Link>
+          </Button>
+        }
+      >
+        The namespace may have been renamed, or you don’t have a role in it. Namespaces you don’t belong to are never
+        shown here.
       </EmptyState>
     );
 
@@ -81,13 +94,20 @@ export function CollectionPage({ ns }: { ns: string }) {
               <Badge tone={isPublic ? "green" : "neutral"} dot>
                 {isPublic ? "Published" : "Private"}
               </Badge>
-              <span className="text-[12.5px] text-fg-muted">{isPublic ? "part of the public top-level Collection" : "nothing here is public yet"}</span>
+              <span className="text-[12.5px] text-fg-muted">
+                {isPublic ? "part of the public top-level Collection" : "nothing here is public yet"}
+              </span>
             </span>
           </div>
           <Button size="sm" onClick={() => setEditMeta(true)} disabled={!isOwner} disabledReason={ownerReason}>
             Edit metadata
           </Button>
-          <Button size="sm" onClick={() => setBulk(isPublic ? "unpublish" : "publish")} disabled={!isOwner} disabledReason={ownerReason}>
+          <Button
+            size="sm"
+            onClick={() => setBulk(isPublic ? "unpublish" : "publish")}
+            disabled={!isOwner}
+            disabledReason={ownerReason}
+          >
             {isPublic ? "Unpublish" : "Publish all"}
           </Button>
         </div>
@@ -112,7 +132,8 @@ export function CollectionPage({ ns }: { ns: string }) {
               <>
                 <code className="break-all font-mono text-[12px] leading-[1.4]">{feed.data.id}</code>
                 <span className="text-[12px] text-fg-muted">
-                  IIIF Change Discovery · {count(feed.data.totalItems)} event{feed.data.totalItems === 1 ? "" : "s"} (whole archive)
+                  IIIF Change Discovery · {count(feed.data.totalItems)} event
+                  {feed.data.totalItems === 1 ? "" : "s"} (whole archive)
                 </span>
               </>
             ) : feed.isError ? (
@@ -121,9 +142,15 @@ export function CollectionPage({ ns }: { ns: string }) {
               <Skeleton className="h-4 w-4/5" />
             )}
           </div>
-          <div className={cn("flex min-w-0 flex-col gap-1.5 rounded-md border px-3.5 py-3", attention || blocked ? "border-gold-border bg-gold-surface" : "border-border")}>
+          <div
+            className={cn(
+              "flex min-w-0 flex-col gap-1.5 rounded-md border px-3.5 py-3",
+              attention || blocked ? "border-gold-border bg-gold-surface" : "border-border",
+            )}
+          >
             <b className="text-[12px] font-bold text-fg-secondary">
-              Validation across {count(checked.length)} Manifest{checked.length === 1 ? "" : "s"}
+              Validation across {count(checked.length)} Manifest
+              {checked.length === 1 ? "" : "s"}
               {total > PAGE ? " on this page" : ""}
             </b>
             {list.isPending || (loadingMeta && !checked.length) ? (
@@ -154,16 +181,38 @@ export function CollectionPage({ ns }: { ns: string }) {
             value="date"
             onChange={() => undefined}
             options={[
-              { value: "series", label: "By series", disabled: true, reason: "Not available yet: recordings have no series field" },
+              {
+                value: "series",
+                label: "By series",
+                disabled: true,
+                reason: "Not available yet: recordings have no series field",
+              },
               { value: "date", label: "By date" },
-              { value: "manual", label: "Manual", disabled: true, reason: "Not available yet: Collections are ordered by date" },
+              {
+                value: "manual",
+                label: "Manual",
+                disabled: true,
+                reason: "Not available yet: Collections are ordered by date",
+              },
             ]}
           />
           <span className="flex-1" />
-          <Button size="sm" variant="ghost" onClick={() => setBulk("edit")} disabled={!isEditor} disabledReason={needRole("editor", ns)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setBulk("edit")}
+            disabled={!isEditor}
+            disabledReason={needRole("editor", ns)}
+          >
             Bulk edit
           </Button>
-          <Button size="sm" variant="ghost" icon={<Upload />} disabled disabledReason="CSV import isn’t available yet: the server can’t match CSV rows to recordings by identifier">
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<Upload />}
+            disabled
+            disabledReason="CSV import isn’t available yet: the server can’t match CSV rows to recordings by identifier"
+          >
             Import metadata CSV
           </Button>
           <Button asChild size="sm" variant="ghost">
@@ -175,7 +224,12 @@ export function CollectionPage({ ns }: { ns: string }) {
           {list.isPending ? (
             <SkeletonRows rows={4} />
           ) : list.isError ? (
-            <EmptyState tone="error" icon={<FolderOpen />} title="Couldn’t load the recordings" actions={<Button onClick={() => list.refetch()}>Try again</Button>}>
+            <EmptyState
+              tone="error"
+              icon={<FolderOpen />}
+              title="Couldn’t load the recordings"
+              actions={<Button onClick={() => list.refetch()}>Try again</Button>}
+            >
               {list.error.message}
             </EmptyState>
           ) : !total ? (
@@ -185,10 +239,21 @@ export function CollectionPage({ ns }: { ns: string }) {
           ) : (
             <ul aria-label={`Recordings in ${ns}`} aria-busy={loadingMeta || undefined}>
               {items.map((it) => (
-                <ItemRow key={it.id} item={it} canEdit={isEditor} canPublish={isOwner} ownerReason={ownerReason} onOpen={() => setOpen(it)} onPublish={() => setPublishing(it)} />
+                <ItemRow
+                  key={it.id}
+                  item={it}
+                  canEdit={isEditor}
+                  canPublish={isOwner}
+                  ownerReason={ownerReason}
+                  onOpen={() => setOpen(it)}
+                  onPublish={() => setPublishing(it)}
+                />
               ))}
               {mySaved.map((c) => (
-                <li key={`c${c.id}`} className="grid grid-cols-[18px_minmax(0,1fr)_auto_auto] items-center gap-2.5 border-t border-border px-3.5 py-2.5 text-[13px] first:border-t-0 sm:grid-cols-[18px_minmax(0,1fr)_140px_90px]">
+                <li
+                  key={`c${c.id}`}
+                  className="grid grid-cols-[18px_minmax(0,1fr)_auto_auto] items-center gap-2.5 border-t border-border px-3.5 py-2.5 text-[13px] first:border-t-0 sm:grid-cols-[18px_minmax(0,1fr)_140px_90px]"
+                >
                   <FolderHeart aria-hidden className="size-[15px] text-fg-secondary" />
                   <span className="flex min-w-0 flex-col items-start gap-0.5 sm:flex-row sm:items-center sm:gap-2">
                     <b className="max-w-full truncate font-bold">Saved collection · {c.name}</b>
@@ -200,14 +265,29 @@ export function CollectionPage({ ns }: { ns: string }) {
                   <Badge tone="neutral" dot>
                     Not published
                   </Badge>
-                  <Button variant="link" size="xs" disabled disabledReason="Not available yet: saved collections aren’t published as IIIF Collections" className="justify-self-end">
+                  <Button
+                    variant="link"
+                    size="xs"
+                    disabled
+                    disabledReason="Not available yet: saved collections aren’t published as IIIF Collections"
+                    className="justify-self-end"
+                  >
                     Publish
                   </Button>
                 </li>
               ))}
             </ul>
           )}
-          {total > PAGE && <Pagination offset={offset} limit={PAGE} total={total} onChange={setOffset} loading={loadingMeta} className="border-t border-border" />}
+          {total > PAGE && (
+            <Pagination
+              offset={offset}
+              limit={PAGE}
+              total={total}
+              onChange={setOffset}
+              loading={loadingMeta}
+              className="border-t border-border"
+            />
+          )}
         </div>
       </section>
 
@@ -234,7 +314,11 @@ export function CollectionPage({ ns }: { ns: string }) {
         onClose={() => setBulk(null)}
         preset={
           bulk === "publish"
-            ? { field: "access", value: "public", title: `Publish every recording in ${ns}?` }
+            ? {
+                field: "access",
+                value: "public",
+                title: `Publish every recording in ${ns}?`,
+              }
             : { field: "access", value: "private", title: `Unpublish ${ns}?` }
         }
       />
@@ -243,7 +327,21 @@ export function CollectionPage({ ns }: { ns: string }) {
   );
 }
 
-function ItemRow({ item, canEdit, canPublish, ownerReason, onOpen, onPublish }: { item: CollectionItem; canEdit: boolean; canPublish: boolean; ownerReason: string; onOpen: () => void; onPublish: () => void }) {
+function ItemRow({
+  item,
+  canEdit,
+  canPublish,
+  ownerReason,
+  onOpen,
+  onPublish,
+}: {
+  item: CollectionItem;
+  canEdit: boolean;
+  canPublish: boolean;
+  ownerReason: string;
+  onOpen: () => void;
+  onPublish: () => void;
+}) {
   const badge = item.state ? PUBLISH_BADGE[item.state] : null;
   let action = null;
   if (item.state === "attention" || item.state === "draft")
@@ -265,10 +363,19 @@ function ItemRow({ item, canEdit, canPublish, ownerReason, onOpen, onPublish }: 
       </Button>
     );
   return (
-    <li className={cn("grid grid-cols-[18px_minmax(0,1fr)_auto_auto] items-center gap-2.5 border-t border-border px-3.5 py-2.5 text-[13px] first:border-t-0 sm:grid-cols-[18px_minmax(0,1fr)_140px_90px]", item.state === "attention" && "bg-hl")}>
+    <li
+      className={cn(
+        "grid grid-cols-[18px_minmax(0,1fr)_auto_auto] items-center gap-2.5 border-t border-border px-3.5 py-2.5 text-[13px] first:border-t-0 sm:grid-cols-[18px_minmax(0,1fr)_140px_90px]",
+        item.state === "attention" && "bg-hl",
+      )}
+    >
       <FileAudio aria-hidden className="size-[15px] text-fg-secondary" />
       <span className="flex min-w-0 flex-col items-start gap-0.5 sm:flex-row sm:items-center sm:gap-2">
-        <button type="button" onClick={onOpen} className="max-w-full truncate text-left font-medium text-fg hover:underline">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="max-w-full truncate text-left font-medium text-fg hover:underline"
+        >
           {item.title}
         </button>
         <span className="whitespace-nowrap text-[12px] text-fg-muted">{shortDate(item.recorded_at)}</span>
@@ -294,12 +401,23 @@ function PublishDialog({ item, onClose }: { item: CollectionItem | null; onClose
   const toast = useToast();
   const [access, setAccess] = useState("public");
   const publish = useMutation({
-    mutationFn: (rid: number) => data(Metadata.updateRecordingMetadata({ client, path: { rid }, body: { set: { access } } })),
+    mutationFn: (rid: number) =>
+      data(
+        Metadata.updateRecordingMetadata({
+          client,
+          path: { rid },
+          body: { set: { access } },
+        }),
+      ),
     onSuccess: (r, rid) => {
       qc.setQueryData(keys.meta(rid), r);
       void qc.invalidateQueries({ queryKey: keys.iiif(rid) });
       void qc.invalidateQueries({ queryKey: ["iiif-public"] });
-      toast({ title: `Published “${item?.title}”`, body: ACCESS.find((a) => a.value === access)?.anon, tone: "green" });
+      toast({
+        title: `Published “${item?.title}”`,
+        body: ACCESS.find((a) => a.value === access)?.anon,
+        tone: "green",
+      });
       onClose();
     },
   });
@@ -321,7 +439,17 @@ function PublishDialog({ item, onClose }: { item: CollectionItem | null; onClose
         </>
       }
     >
-      <ChoiceCards label="Access" size="sm" value={access} onChange={setAccess} options={options.map((a) => ({ value: a.value, label: a.label, hint: a.hint }))} />
+      <ChoiceCards
+        label="Access"
+        size="sm"
+        value={access}
+        onChange={setAccess}
+        options={options.map((a) => ({
+          value: a.value,
+          label: a.label,
+          hint: a.hint,
+        }))}
+      />
       <p className="text-[12.5px] leading-[1.4] text-fg-secondary">{ACCESS.find((a) => a.value === access)?.anon}</p>
       {publish.isError && <Banner tone="error">{publish.error.message}</Banner>}
     </Dialog>
@@ -381,14 +509,38 @@ function CollectionMetaDialog({ ns, onClose, meta }: { ns: string; onClose: () =
       }
     >
       <Field label="Label" hint={`Defaults to the namespace name, “${ns}”`}>
-        {(f) => <Input id={f.id} aria-describedby={f.describedBy} value={label} onChange={(e) => setLabel(e.target.value)} />}
+        {(f) => (
+          <Input id={f.id} aria-describedby={f.describedBy} value={label} onChange={(e) => setLabel(e.target.value)} />
+        )}
       </Field>
-      <Field label="Summary">{(f) => <Textarea id={f.id} rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} />}</Field>
+      <Field label="Summary">
+        {(f) => <Textarea id={f.id} rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} />}
+      </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Rights">{(f) => <Select id={f.id} value={rights} onChange={(e) => setRights(e.target.value)} options={[{ value: "", label: "None" }, ...RIGHTS.map((r) => ({ value: r.uri, label: r.code }))]} />}</Field>
-        <Field label="Required attribution">{(f) => <Input id={f.id} value={attribution} onChange={(e) => setAttribution(e.target.value)} />}</Field>
+        <Field label="Rights">
+          {(f) => (
+            <Select
+              id={f.id}
+              value={rights}
+              onChange={(e) => setRights(e.target.value)}
+              options={[{ value: "", label: "None" }, ...RIGHTS.map((r) => ({ value: r.uri, label: r.code }))]}
+            />
+          )}
+        </Field>
+        <Field label="Required attribution">
+          {(f) => <Input id={f.id} value={attribution} onChange={(e) => setAttribution(e.target.value)} />}
+        </Field>
       </div>
-      <Field label="Provider">{(f) => <Input id={f.id} value={provider} onChange={(e) => setProvider(e.target.value)} placeholder="Organisation name" />}</Field>
+      <Field label="Provider">
+        {(f) => (
+          <Input
+            id={f.id}
+            value={provider}
+            onChange={(e) => setProvider(e.target.value)}
+            placeholder="Organisation name"
+          />
+        )}
+      </Field>
       {save.isError && <Banner tone="error">{save.error.message}</Banner>}
     </Dialog>
   );

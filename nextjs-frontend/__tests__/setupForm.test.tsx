@@ -22,8 +22,7 @@ function fill(values: { code?: string; name?: string; email?: string; password?:
     ["Email", values.email],
     ["Password", values.password],
   ] as const) {
-    if (value !== undefined)
-      fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    if (value !== undefined) fireEvent.change(screen.getByLabelText(label), { target: { value } });
   }
 }
 
@@ -57,14 +56,11 @@ describe("SetupForm", () => {
 
     fill({ ...valid, password: "lens-arch" });
 
-    expect(
-      screen.getByText("9 of 10 characters — add at least 1 more"),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toHaveAttribute(
-      "aria-invalid",
-      "true",
-    );
-    const button = screen.getByRole("button", { name: /create admin account/i });
+    expect(screen.getByText("9 of 10 characters — add at least 1 more")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toHaveAttribute("aria-invalid", "true");
+    const button = screen.getByRole("button", {
+      name: /create admin account/i,
+    });
     expect(button).toHaveAttribute("aria-disabled", "true");
 
     fireEvent.click(button);
@@ -74,9 +70,7 @@ describe("SetupForm", () => {
   it("shows a wrong code under the setup code", async () => {
     (setup as jest.Mock).mockResolvedValue({
       errors: {
-        code: [
-          "Setup is closed or the code is wrong. Copy the code again from the server log.",
-        ],
+        code: ["Setup is closed or the code is wrong. Copy the code again from the server log."],
       },
     });
     renderForm();
@@ -84,21 +78,12 @@ describe("SetupForm", () => {
     fill(valid);
     fireEvent.click(screen.getByRole("button", { name: /create admin account/i }));
 
-    await waitFor(() =>
-      expect(screen.getByLabelText("Setup code")).toHaveAttribute(
-        "aria-invalid",
-        "true",
-      ),
-    );
-    expect(screen.getByLabelText("Setup code")).toHaveAccessibleDescription(
-      /setup is closed or the code is wrong/i,
-    );
+    await waitFor(() => expect(screen.getByLabelText("Setup code")).toHaveAttribute("aria-invalid", "true"));
+    expect(screen.getByLabelText("Setup code")).toHaveAccessibleDescription(/setup is closed or the code is wrong/i);
 
     // Editing the code clears its error.
     fill({ code: "c0de2" });
-    expect(screen.getByLabelText("Setup code")).not.toHaveAttribute(
-      "aria-invalid",
-    );
+    expect(screen.getByLabelText("Setup code")).not.toHaveAttribute("aria-invalid");
   });
 
   it("shows other failures above the button", async () => {
@@ -110,8 +95,6 @@ describe("SetupForm", () => {
     fill(valid);
     fireEvent.click(screen.getByRole("button", { name: /create admin account/i }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "An unexpected error occurred",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("An unexpected error occurred");
   });
 });

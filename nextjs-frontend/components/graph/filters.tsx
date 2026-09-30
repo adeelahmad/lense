@@ -44,7 +44,11 @@ export function GraphFinder({ nodes, onPick }: { nodes: GraphNode[]; onPick: (id
         className="[&_input]:bg-background"
       />
       {q.trim() && (
-        <ul id="graph-finder" role="listbox" className="absolute inset-x-0 top-10 z-10 m-0 list-none rounded-md border border-border bg-background p-1 shadow-2">
+        <ul
+          id="graph-finder"
+          role="listbox"
+          className="absolute inset-x-0 top-10 z-10 m-0 list-none rounded-md border border-border bg-background p-1 shadow-2"
+        >
           {hits.length === 0 && <li className="px-2.5 py-2 text-[13px] text-fg-muted">No node called that here</li>}
           {hits.map((n, i) => (
             <li key={n.id} id={`gf-${i}`} role="option" aria-selected={i === active}>
@@ -55,7 +59,10 @@ export function GraphFinder({ nodes, onPick }: { nodes: GraphNode[]; onPick: (id
                   onPick(n.id);
                   setQ("");
                 }}
-                className={cn("flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] text-fg", i === active && "bg-hl")}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] text-fg",
+                  i === active && "bg-hl",
+                )}
               >
                 <NodeIcon n={n} size={10} />
                 <span className="truncate">{n.label}</span>
@@ -123,18 +130,33 @@ export function GraphFilters({
           value={scope}
           onChange={(v) => onScope(v as "ns" | "all")}
           items={[
-            { value: "ns", label: <span className="block max-w-[96px] truncate">{ns ?? "Namespace"}</span> },
+            {
+              value: "ns",
+              label: <span className="block max-w-[96px] truncate">{ns ?? "Namespace"}</span>,
+            },
             { value: "all", label: "All shared" },
           ]}
         />
         {scope === "ns" && namespaces.length > 1 && (
-          <Select size="sm" aria-label="Namespace" value={ns ?? ""} onChange={(e) => onScope("ns", e.target.value)} options={namespaces} />
+          <Select
+            size="sm"
+            aria-label="Namespace"
+            value={ns ?? ""}
+            onChange={(e) => onScope("ns", e.target.value)}
+            options={namespaces}
+          />
         )}
-        {scope === "all" && isolated.length > 0 && <p className="m-0 text-[11.5px] leading-snug text-fg-muted">{isolated.join(", ")} keep their graph to themselves; pick them as the namespace to see it.</p>}
+        {scope === "all" && isolated.length > 0 && (
+          <p className="m-0 text-[11.5px] leading-snug text-fg-muted">
+            {isolated.join(", ")} keep their graph to themselves; pick them as the namespace to see it.
+          </p>
+        )}
       </div>
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
         <legend className="mb-2 label-caps">Nodes</legend>
-        {NODE_GROUPS.filter((g) => present.has(g.key) || g.key === "speaker" || ["ORG", "PRODUCT", "PLACE", "TERM"].includes(g.key)).map((g) => (
+        {NODE_GROUPS.filter(
+          (g) => present.has(g.key) || g.key === "speaker" || ["ORG", "PRODUCT", "PLACE", "TERM"].includes(g.key),
+        ).map((g) => (
           <Checkbox
             key={g.key}
             checked={groups.has(g.key)}
@@ -178,7 +200,8 @@ export function GraphFilters({
           className="w-full accent-[var(--aladdin-blue)]"
         />
         <span className="text-[12px] leading-snug text-fg-muted">
-          Showing {count(shown)} of {count(total)} nodes{maxNodes ? ` (max ${count(maxNodes)}, set in Settings)` : ""}
+          Showing {count(shown)} of {count(total)} nodes
+          {maxNodes ? ` (max ${count(maxNodes)}, set in Settings)` : ""}
         </span>
       </div>
     </div>

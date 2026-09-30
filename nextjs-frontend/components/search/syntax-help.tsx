@@ -21,7 +21,11 @@ export function SyntaxHelp({ className, onPick }: { className?: string; onPick?:
           <div key={k} className="contents">
             <dt>
               {onPick ? (
-                <button type="button" onClick={() => onPick(k)} className="text-left font-mono text-[12.5px] font-medium text-fg-accent hover:underline">
+                <button
+                  type="button"
+                  onClick={() => onPick(k)}
+                  className="text-left font-mono text-[12.5px] font-medium text-fg-accent hover:underline"
+                >
                   {k}
                 </button>
               ) : (
@@ -33,7 +37,8 @@ export function SyntaxHelp({ className, onPick }: { className?: string; onPick?:
         ))}
       </dl>
       <p className="m-0 border-t border-border pt-2 text-[12px] leading-snug text-fg-muted">
-        No prefix search: <code className="font-mono">interp*</code> won’t work — type the whole word. Press <kbd className="font-sans">/</kbd> to focus search.
+        No prefix search: <code className="font-mono">interp*</code> won’t work — type the whole word. Press{" "}
+        <kbd className="font-sans">/</kbd> to focus search.
       </p>
     </div>
   );

@@ -12,54 +12,174 @@ const nsById = new Map([
 
 describe("needs attention", () => {
   const jobs = latestJobs([
-    { id: 5, recording: 12, space: 1, status: "failed", next_step: "summarize", error: "Provider timed out", title: "Episode 12", worker: "lab-gpu", finished_at: "2026-09-14T10:00:00Z" } as Job,
-    { id: 4, recording: 13, space: 1, status: "failed", title: "Episode 13" } as Job,
-    { id: 3, recording: 13, space: 1, status: "failed", title: "Episode 13" } as Job,
-    { id: 2, recording: 14, space: 2, status: "succeeded", title: "Episode 14" } as Job,
+    {
+      id: 5,
+      recording: 12,
+      space: 1,
+      status: "failed",
+      next_step: "summarize",
+      error: "Provider timed out",
+      title: "Episode 12",
+      worker: "lab-gpu",
+      finished_at: "2026-09-14T10:00:00Z",
+    } as Job,
+    {
+      id: 4,
+      recording: 13,
+      space: 1,
+      status: "failed",
+      title: "Episode 13",
+    } as Job,
+    {
+      id: 3,
+      recording: 13,
+      space: 1,
+      status: "failed",
+      title: "Episode 13",
+    } as Job,
+    {
+      id: 2,
+      recording: 14,
+      space: 2,
+      status: "succeeded",
+      title: "Episode 14",
+    } as Job,
   ]);
 
   it("lists the latest failed job of each recording, with the namespace it needs rights in", () => {
-    const items = buildAttention({ latestJobs: jobs, recent: [], nsById, now: NOW });
+    const items = buildAttention({
+      latestJobs: jobs,
+      recent: [],
+      nsById,
+      now: NOW,
+    });
     expect(items.map((i) => i.key)).toEqual(["job-5", "job-4"]);
-    expect(items[0]).toMatchObject({ kind: "fail", title: "Summarize failed on Episode 12", namespace: "podcasts", action: { label: "Retry", do: { type: "retry-job", job: 5 } } });
+    expect(items[0]).toMatchObject({
+      kind: "fail",
+      title: "Summarize failed on Episode 12",
+      namespace: "podcasts",
+      action: { label: "Retry", do: { type: "retry-job", job: 5 } },
+    });
     expect(items[0].meta).toContain("Provider timed out");
     expect(items[0].meta).toContain("lab-gpu");
   });
 
   it("drops a failure once a later job for the recording exists", () => {
-    const later = latestJobs([{ id: 6, recording: 12, space: 1, status: "running" } as Job, { id: 5, recording: 12, space: 1, status: "failed" } as Job]);
+    const later = latestJobs([
+      { id: 6, recording: 12, space: 1, status: "running" } as Job,
+      { id: 5, recording: 12, space: 1, status: "failed" } as Job,
+    ]);
     expect(buildAttention({ latestJobs: later, recent: [], nsById })).toEqual([]);
   });
 
   it("adds recordings in error that have no failed job, sources, watches, reviews and expiring tokens", () => {
     const recent = [
-      { id: 20, space: 2, media_kind: "transcript", status: "error", error: "no transcript text found", title: "Call", namespace: "customer-calls" } as RecordingSummary,
-      { id: 12, space: 1, media_kind: "audio", status: "error", title: "Episode 12", namespace: "podcasts" } as RecordingSummary,
+      {
+        id: 20,
+        space: 2,
+        media_kind: "transcript",
+        status: "error",
+        error: "no transcript text found",
+        title: "Call",
+        namespace: "customer-calls",
+      } as RecordingSummary,
+      {
+        id: 12,
+        space: 1,
+        media_kind: "audio",
+        status: "error",
+        title: "Episode 12",
+        namespace: "podcasts",
+      } as RecordingSummary,
     ];
-    const sources = [{ id: 1, name: "calls-gw", type: "sftp", label: "SFTP", params: {}, secrets: {}, health: { ok: false, error: "dial tcp: i/o timeout", checked_at: "2026-09-30T10:00:00Z" } } as unknown as Source];
+    const sources = [
+      {
+        id: 1,
+        name: "calls-gw",
+        type: "sftp",
+        label: "SFTP",
+        params: {},
+        secrets: {},
+        health: {
+          ok: false,
+          error: "dial tcp: i/o timeout",
+          checked_at: "2026-09-30T10:00:00Z",
+        },
+      } as unknown as Source,
+    ];
     const watches = [
-      { id: 1, source: 1, path: "/in", space: 2, last_error: "same source" } as Watch,
-      { id: 2, source: 2, path: "/Apps/CallRecorder", space: 2, source_name: "Dropbox", last_error: "token expired" } as Watch,
+      {
+        id: 1,
+        source: 1,
+        path: "/in",
+        space: 2,
+        last_error: "same source",
+      } as Watch,
+      {
+        id: 2,
+        source: 2,
+        path: "/Apps/CallRecorder",
+        space: 2,
+        source_name: "Dropbox",
+        last_error: "token expired",
+      } as Watch,
     ];
     const reviews = [
       {
         namespace: "podcasts",
         speakers: [
-          { id: 7, label: "Speaker 7", display: "Speaker 7", suggestions: [{ id: 2, name: "Host B", score: 0.41 }] },
-          { id: 8, label: "Speaker 8", display: "Speaker 8", suggestions: [{ id: 1, name: "Host A", score: 0.38 }] },
+          {
+            id: 7,
+            label: "Speaker 7",
+            display: "Speaker 7",
+            suggestions: [{ id: 2, name: "Host B", score: 0.41 }],
+          },
+          {
+            id: 8,
+            label: "Speaker 8",
+            display: "Speaker 8",
+            suggestions: [{ id: 1, name: "Host A", score: 0.38 }],
+          },
           { id: 9, label: "Speaker 9", display: "Speaker 9", suggestions: [] },
         ] as Speaker[],
       },
     ];
     const tokens = [
-      { id: 1, name: "ci", scope: "read", prefix: "la_ab", created_at: "2026-01-01", expires_at: "2026-10-03T12:00:00Z" },
-      { id: 2, name: "old", scope: "read", prefix: "la_cd", created_at: "2026-01-01", expires_at: "2026-12-01T00:00:00Z" },
+      {
+        id: 1,
+        name: "ci",
+        scope: "read",
+        prefix: "la_ab",
+        created_at: "2026-01-01",
+        expires_at: "2026-10-03T12:00:00Z",
+      },
+      {
+        id: 2,
+        name: "old",
+        scope: "read",
+        prefix: "la_cd",
+        created_at: "2026-01-01",
+        expires_at: "2026-12-01T00:00:00Z",
+      },
     ] as ApiToken[];
-    const items = buildAttention({ latestJobs: jobs, recent, nsById, sources, watches, reviews, tokens, now: NOW });
+    const items = buildAttention({
+      latestJobs: jobs,
+      recent,
+      nsById,
+      sources,
+      watches,
+      reviews,
+      tokens,
+      now: NOW,
+    });
     const keys = items.map((i) => i.key);
     expect(keys).toEqual(["job-5", "job-4", "rec-20", "src-1", "watch-2", "review-podcasts", "token-1"]);
     expect(items.find((i) => i.key === "src-1")?.title).toBe("SFTP · calls-gw can’t be reached");
-    expect(items.find((i) => i.key === "review-podcasts")).toMatchObject({ kind: "gate", title: "Speaker 7 ↔ Host B · 0.41 · unsure", meta: "2 voice matches to review in podcasts" });
+    expect(items.find((i) => i.key === "review-podcasts")).toMatchObject({
+      kind: "gate",
+      title: "Speaker 7 ↔ Host B · 0.41 · unsure",
+      meta: "2 voice matches to review in podcasts",
+    });
     expect(items.find((i) => i.key === "token-1")?.title).toBe("API token “ci” expires in 3 days");
   });
 
@@ -73,10 +193,38 @@ describe("needs attention", () => {
 describe("namespace overview numbers", () => {
   const now = new Date(2026, 8, 30, 12);
   const recs = [
-    { id: 1, space: 1, media_kind: "audio", recorded_at: new Date(2026, 8, 12).toISOString(), duration_ms: 3_600_000, speakers: "Host A,Host B" },
-    { id: 2, space: 1, media_kind: "audio", recorded_at: new Date(2026, 8, 2).toISOString(), duration_ms: 1_800_000, speakers: "Host A" },
-    { id: 3, space: 1, media_kind: "audio", recorded_at: new Date(2026, 5, 20).toISOString(), duration_ms: 600_000, speakers: "Ravi" },
-    { id: 4, space: 1, media_kind: "audio", recorded_at: new Date(2025, 11, 1).toISOString(), duration_ms: 60_000, speakers: "Old" },
+    {
+      id: 1,
+      space: 1,
+      media_kind: "audio",
+      recorded_at: new Date(2026, 8, 12).toISOString(),
+      duration_ms: 3_600_000,
+      speakers: "Host A,Host B",
+    },
+    {
+      id: 2,
+      space: 1,
+      media_kind: "audio",
+      recorded_at: new Date(2026, 8, 2).toISOString(),
+      duration_ms: 1_800_000,
+      speakers: "Host A",
+    },
+    {
+      id: 3,
+      space: 1,
+      media_kind: "audio",
+      recorded_at: new Date(2026, 5, 20).toISOString(),
+      duration_ms: 600_000,
+      speakers: "Ravi",
+    },
+    {
+      id: 4,
+      space: 1,
+      media_kind: "audio",
+      recorded_at: new Date(2025, 11, 1).toISOString(),
+      duration_ms: 60_000,
+      speakers: "Old",
+    },
   ] as RecordingSummary[];
 
   it("builds the ranges and their labels", () => {
@@ -94,7 +242,11 @@ describe("namespace overview numbers", () => {
     expect(months.map((m) => m.label)).toEqual(["Apr", "May", "Jun", "Jul", "Aug", "Sep"]);
     expect(months.map((m) => m.recordings)).toEqual([0, 0, 1, 0, 0, 2]);
     expect(months[5].ms).toBe(5_400_000);
-    expect(overview(recs, b)).toEqual({ recordings: 3, ms: 6_000_000, speakers: 3 });
+    expect(overview(recs, b)).toEqual({
+      recordings: 3,
+      ms: 6_000_000,
+      speakers: 3,
+    });
   });
 
   it("formats talk time and sizes the entity cloud", () => {
@@ -114,9 +266,17 @@ describe("namespace overview numbers", () => {
 
 describe("report HTML", () => {
   it("adds a base and, for template reports, a no-scripts policy right after <head>", () => {
-    const out = prepareReportHtml("<html><head><title>x</title></head><body><script>1</script></body></html>", { scripts: false, newTab: true, origin: "https://lens.example" });
-    expect(out).toMatch(/^<html><head><base href="https:\/\/lens\.example\/" target="_blank"><meta http-equiv="Content-Security-Policy" content="script-src 'none'/);
-    expect(prepareReportHtml("<p>hi</p>", { scripts: true, origin: "https://a" })).toBe('<base href="https://a/"><p>hi</p>');
+    const out = prepareReportHtml("<html><head><title>x</title></head><body><script>1</script></body></html>", {
+      scripts: false,
+      newTab: true,
+      origin: "https://lens.example",
+    });
+    expect(out).toMatch(
+      /^<html><head><base href="https:\/\/lens\.example\/" target="_blank"><meta http-equiv="Content-Security-Policy" content="script-src 'none'/,
+    );
+    expect(prepareReportHtml("<p>hi</p>", { scripts: true, origin: "https://a" })).toBe(
+      '<base href="https://a/"><p>hi</p>',
+    );
   });
 
   it("knows template reports and makes file names", () => {

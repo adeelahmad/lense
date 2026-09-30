@@ -10,7 +10,13 @@ import { PasteTab } from "@/components/import/paste-tab";
 import { chooseFiles, defaultImportNamespace, isFileDrag, takeFiles } from "@/components/import/pending";
 import { SourceTab } from "@/components/import/source-tab";
 import { FileDetail, FileList, ProblemCard, audioTwinOf } from "@/components/import/upload-tab";
-import { fileBody, useImportFiles, useImportQueue, useNamespacePipeline, useNamespaceSpeakers } from "@/components/import/use-import";
+import {
+  fileBody,
+  useImportFiles,
+  useImportQueue,
+  useNamespacePipeline,
+  useNamespaceSpeakers,
+} from "@/components/import/use-import";
 import { LibraryTabs } from "@/components/library/library-tabs";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
@@ -23,7 +29,19 @@ type Tab = "upload" | "paste" | "source";
 const NEW_NS = "\u0000new";
 
 /** Where the import goes: a namespace you can edit, or (admins) a new one. */
-function NamespaceField({ value, onChange, options, admin, label = "Namespace" }: { value: string; onChange: (v: string) => void; options: string[]; admin: boolean; label?: string }) {
+function NamespaceField({
+  value,
+  onChange,
+  options,
+  admin,
+  label = "Namespace",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  admin: boolean;
+  label?: string;
+}) {
   const [creating, setCreating] = useState(Boolean(value && !options.includes(value)));
   const problem = creating ? namespaceNameProblem(value) : null;
   return (
@@ -66,7 +84,11 @@ function NamespaceField({ value, onChange, options, admin, label = "Namespace" }
           options={[...options, ...(admin ? [{ value: NEW_NS, label: "New namespace…" }] : [])]}
         />
       )}
-      {creating && <span className={cn("text-[12px] leading-snug", problem ? "text-red-dark" : "text-fg-muted")}>{problem ?? "It’s created when the first import lands."}</span>}
+      {creating && (
+        <span className={cn("text-[12px] leading-snug", problem ? "text-red-dark" : "text-fg-muted")}>
+          {problem ?? "It’s created when the first import lands."}
+        </span>
+      )}
     </div>
   );
 }
@@ -113,15 +135,31 @@ export function ImportScreen() {
 
   const setTabUrl = (t: Tab) => {
     setTab(t);
-    router.replace(t === "upload" ? "/import" : `/import?tab=${t}`, { scroll: false });
+    router.replace(t === "upload" ? "/import" : `/import?tab=${t}`, {
+      scroll: false,
+    });
   };
 
   const nsProblem = namespaceNameProblem(ns);
-  const nsReason = !ns ? "Choose a namespace" : editable.includes(ns) ? null : admin ? nsProblem : needRole("editor", ns);
+  const nsReason = !ns
+    ? "Choose a namespace"
+    : editable.includes(ns)
+      ? null
+      : admin
+        ? nsProblem
+        : needRole("editor", ns);
   const ready = items.filter((i) => i.status === "ready");
   const reading = items.filter((i) => i.status === "reading").length;
   const mappingProblem = ready.find((i) => parseMapping(i.mapping, i.preview?.speakers ?? []).errors.length);
-  const importReason = nsReason ?? (!ready.length ? (reading ? "Still reading the files…" : "No file is ready to import") : mappingProblem ? `Fix the speaker mapping of ${mappingProblem.file.name}` : null);
+  const importReason =
+    nsReason ??
+    (!ready.length
+      ? reading
+        ? "Still reading the files…"
+        : "No file is ready to import"
+      : mappingProblem
+        ? `Fix the speaker mapping of ${mappingProblem.file.name}`
+        : null);
   const current = items.find((i) => i.id === selected) ?? null;
 
   const nsControl = <NamespaceField value={ns} onChange={setNs} options={editable} admin={admin} />;
@@ -146,8 +184,8 @@ export function ImportScreen() {
       <div className="px-4 py-6 md:px-6">
         <h1 className="text-[24px] font-bold leading-tight tracking-[-.015em] text-fg">Import</h1>
         <EmptyState icon={<Upload />} title="Importing needs editor access">
-          You can read, listen, search and chat in {namespaces.map((n) => n.name).join(", ") || "your namespaces"}, but importing needs the editor role. Ask an owner of the
-          namespace to make you an editor.
+          You can read, listen, search and chat in {namespaces.map((n) => n.name).join(", ") || "your namespaces"}, but
+          importing needs the editor role. Ask an owner of the namespace to make you an editor.
         </EmptyState>
       </div>
     );
@@ -176,11 +214,19 @@ export function ImportScreen() {
               value={tab}
               onChange={setTabUrl}
               items={[
-                { value: "upload", label: "Upload", count: items.length || undefined },
+                {
+                  value: "upload",
+                  label: "Upload",
+                  count: items.length || undefined,
+                },
                 { value: "paste", label: "Paste" },
                 admin
                   ? { value: "source", label: "From a source" }
-                  : { value: "source", label: "From a source", disabledReason: "Only admins browse sources. Ask an admin to watch a folder for your namespace." },
+                  : {
+                      value: "source",
+                      label: "From a source",
+                      disabledReason: "Only admins browse sources. Ask an admin to watch a folder for your namespace.",
+                    },
               ]}
             />
           </div>
@@ -199,7 +245,13 @@ export function ImportScreen() {
                     title: b.title || "Pasted transcript",
                     namespace: ns,
                     kind: "paste",
-                    body: async () => ({ namespace: ns, text: b.text, title: b.title, speakers: b.speakers, format: "auto" as const }),
+                    body: async () => ({
+                      namespace: ns,
+                      text: b.text,
+                      title: b.title,
+                      speakers: b.speakers,
+                      format: "auto" as const,
+                    }),
                   },
                 ])
               }
@@ -238,7 +290,8 @@ export function ImportScreen() {
                   <div className="flex flex-col gap-1.5">
                     <h2 className="text-[17px] font-bold text-fg">Drop transcripts here</h2>
                     <p className="max-w-md text-[14px] leading-normal text-fg-secondary">
-                      txt, md, mdx, docx, doc, pdf, srt, vtt, json or jsonl, up to {files.maxMb} MB each. You’ll see how each one was read before anything is saved.
+                      txt, md, mdx, docx, doc, pdf, srt, vtt, json or jsonl, up to {files.maxMb} MB each. You’ll see how
+                      each one was read before anything is saved.
                     </p>
                   </div>
                   <div className="flex flex-wrap justify-center gap-2">
@@ -249,7 +302,9 @@ export function ImportScreen() {
                       Paste text instead
                     </Button>
                   </div>
-                  <p className="text-[12.5px] text-fg-muted">Audio and video come in through watched folders (Sources), which have no size limit.</p>
+                  <p className="text-[12.5px] text-fg-muted">
+                    Audio and video come in through watched folders (Sources), which have no size limit.
+                  </p>
                 </div>
               </div>
             ) : (
@@ -293,12 +348,19 @@ export function ImportScreen() {
                       {ready.length} of {plural(items.length, "file")} ready.
                     </b>{" "}
                     {reading ? `Reading ${reading}… ` : ""}
-                    {attention > 0 ? `${attention} ${attention === 1 ? "needs" : "need"} attention — ${attention === 1 ? "it’ll" : "they’ll"} be skipped unless fixed.` : ""}
+                    {attention > 0
+                      ? `${attention} ${attention === 1 ? "needs" : "need"} attention — ${attention === 1 ? "it’ll" : "they’ll"} be skipped unless fixed.`
+                      : ""}
                   </span>
                   <Button variant="ghost" onClick={files.clear}>
                     Cancel
                   </Button>
-                  <Button variant="primary" disabled={Boolean(importReason)} disabledReason={importReason ?? undefined} onClick={importFiles}>
+                  <Button
+                    variant="primary"
+                    disabled={Boolean(importReason)}
+                    disabledReason={importReason ?? undefined}
+                    onClick={importFiles}
+                  >
                     Import {plural(ready.length, "file")}
                   </Button>
                 </div>

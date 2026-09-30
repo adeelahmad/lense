@@ -18,7 +18,11 @@ export function SetupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   // A server error for a field stays until that field changes.
-  const [sent, setSent] = useState<{ code: string; email: string; password: string } | null>(null);
+  const [sent, setSent] = useState<{
+    code: string;
+    email: string;
+    password: string;
+  } | null>(null);
 
   const ready = code.trim().length > 0 && EMAIL.test(email.trim()) && [...password].length >= PASSWORD_MIN_LENGTH;
   const current = { code, email, password };
@@ -26,7 +30,11 @@ export function SetupForm() {
   const formError = state?.server_validation_error || state?.server_error;
 
   return (
-    <AuthCard wide title="Set up this server" description="No accounts exist yet. The account you create here is the platform admin.">
+    <AuthCard
+      wide
+      title="Set up this server"
+      description="No accounts exist yet. The account you create here is the platform admin."
+    >
       <div className="flex flex-col gap-1.5">
         <span className="text-[12.5px] leading-[1.4] text-fg-secondary">Find the setup code in the server log:</span>
         <code className="block overflow-x-auto whitespace-pre rounded-[10px] bg-term-bg px-3 py-2.5 font-mono text-[12px] leading-normal text-term-fg">
@@ -34,7 +42,8 @@ export function SetupForm() {
           <span className="text-[var(--term-gold)]">… with setup code: &lt;one-time code&gt;</span>
         </code>
         <span className="text-[12px] leading-[1.4] text-fg-muted">
-          Or start the server with <code className="font-mono text-[11.5px] text-fg-strong">LENS_SETUP_CODE</code> set to choose it yourself.
+          Or start the server with <code className="font-mono text-[11.5px] text-fg-strong">LENS_SETUP_CODE</code> set
+          to choose it yourself.
         </span>
       </div>
       <form
@@ -46,9 +55,28 @@ export function SetupForm() {
         className="flex flex-col gap-4"
         noValidate
       >
-        <AuthField name="code" label="Setup code" mono autoComplete="off" spellCheck={false} required value={code} onChange={(e) => setCode(e.target.value)} state={fieldState("code")} />
+        <AuthField
+          name="code"
+          label="Setup code"
+          mono
+          autoComplete="off"
+          spellCheck={false}
+          required
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          state={fieldState("code")}
+        />
         <AuthField name="name" label="Name" autoComplete="name" state={state} />
-        <AuthField name="email" label="Email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} state={fieldState("email")} />
+        <AuthField
+          name="email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          state={fieldState("email")}
+        />
         <AuthField
           name="password"
           label="Password"
@@ -62,7 +90,12 @@ export function SetupForm() {
           state={fieldState("password")}
         />
         {formError && <AuthAlert tone="error">{formError}</AuthAlert>}
-        <AuthSubmit pending={pending} pendingText="Creating…" disabled={!ready} disabledReason="Fill in the setup code, your email and a password of at least 10 characters">
+        <AuthSubmit
+          pending={pending}
+          pendingText="Creating…"
+          disabled={!ready}
+          disabledReason="Fill in the setup code, your email and a password of at least 10 characters"
+        >
           Create admin account
         </AuthSubmit>
       </form>

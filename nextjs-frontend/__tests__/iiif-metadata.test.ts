@@ -1,5 +1,14 @@
 import { bulkValue } from "@/components/iiif/bulk-edit";
-import { contentStateTarget, decodeContentState, formatExt, includedFrom, momentLabel, parseClock, runtime, schemaProblem } from "@/components/iiif/iiif-model";
+import {
+  contentStateTarget,
+  decodeContentState,
+  formatExt,
+  includedFrom,
+  momentLabel,
+  parseClock,
+  runtime,
+  schemaProblem,
+} from "@/components/iiif/iiif-model";
 import { importProblem } from "@/components/iiif/import";
 import {
   conflictingFields,
@@ -19,17 +28,27 @@ import {
 } from "@/components/iiif/metadata-model";
 import { canonicalRights, rightsFor, rightsShort } from "@/components/iiif/rights";
 
-jest.mock("@/lib/api/browser", () => ({ useApiClient: jest.fn(), data: jest.fn(), ApiError: class extends Error {} }));
+jest.mock("@/lib/api/browser", () => ({
+  useApiClient: jest.fn(),
+  data: jest.fn(),
+  ApiError: class extends Error {},
+}));
 
 describe("language maps", () => {
   it("sets and clears one language", () => {
-    expect(withLang({ none: ["A"] }, "en", "Title")).toEqual({ none: ["A"], en: ["Title"] });
+    expect(withLang({ none: ["A"] }, "en", "Title")).toEqual({
+      none: ["A"],
+      en: ["Title"],
+    });
     expect(withLang({ en: ["Title"] }, "en", "")).toBeNull();
     expect(withLang(null, "pt", "Título")).toEqual({ pt: ["Título"] });
   });
 
   it("reports ✓ ◐ ○ per language and the gaps viewers fall back on", () => {
-    const m: Meta = { label: { en: ["Ep 12"], pt: ["Ep 12"] }, summary: { en: ["Two hosts…"] } };
+    const m: Meta = {
+      label: { en: ["Ep 12"], pt: ["Ep 12"] },
+      summary: { en: ["Two hosts…"] },
+    };
     expect(langStatus(m, "en")).toBe("full");
     expect(langStatus(m, "pt")).toBe("partial");
     expect(langStatus(m, "de")).toBe("empty");
@@ -61,14 +80,35 @@ describe("validation", () => {
       creators: "Use an http(s) link",
       navDate: "Use a date like 2026-09-30",
     });
-    expect(validate({ rights: "http://creativecommons.org/licenses/by-nc/4.0/", homepage: "https://x.org/ep", label: { none: ["x"] } })).toEqual({});
+    expect(
+      validate({
+        rights: "http://creativecommons.org/licenses/by-nc/4.0/",
+        homepage: "https://x.org/ep",
+        label: { none: ["x"] },
+      }),
+    ).toEqual({});
     expect(uriError("ftp://x")).toBe("Use an http(s) address");
   });
 
   it("applies the namespace profile: required fields and vocabularies", () => {
-    expect(profileProblems({ label: { en: ["x"] }, subjects: [{ label: "Corvid-2" }] }, { required: ["label", "attribution"], vocabularies: { subjects: ["Safety"] } }, "podcasts")).toEqual([
-      { field: "attribution", message: "Required attribution is required by the podcasts profile" },
-      { field: "subjects", message: "“Corvid-2” isn’t in this namespace’s list" },
+    expect(
+      profileProblems(
+        { label: { en: ["x"] }, subjects: [{ label: "Corvid-2" }] },
+        {
+          required: ["label", "attribution"],
+          vocabularies: { subjects: ["Safety"] },
+        },
+        "podcasts",
+      ),
+    ).toEqual([
+      {
+        field: "attribution",
+        message: "Required attribution is required by the podcasts profile",
+      },
+      {
+        field: "subjects",
+        message: "“Corvid-2” isn’t in this namespace’s list",
+      },
     ]);
   });
 });
@@ -76,21 +116,37 @@ describe("validation", () => {
 describe("changes", () => {
   it("finds changed fields and builds the save body", () => {
     const base: Meta = { label: { en: ["A"] }, subjects: [], rights: null };
-    const draft: Meta = { label: { en: ["A "] }, subjects: [{ label: "X" }], rights: "http://creativecommons.org/licenses/by/4.0/", homepage: "" };
+    const draft: Meta = {
+      label: { en: ["A "] },
+      subjects: [{ label: "X" }],
+      rights: "http://creativecommons.org/licenses/by/4.0/",
+      homepage: "",
+    };
     expect(dirtyFields(base, draft)).toEqual(["rights", "subjects"]);
-    expect(patchFor({ ...draft, summary: null }, ["rights", "summary"])).toEqual({ rights: "http://creativecommons.org/licenses/by/4.0/", summary: null });
+    expect(patchFor({ ...draft, summary: null }, ["rights", "summary"])).toEqual({
+      rights: "http://creativecommons.org/licenses/by/4.0/",
+      summary: null,
+    });
     expect(conflictingFields(["rights", "summary"], ["summary", "label"])).toEqual(["summary"]);
   });
 
   it("describes history entries in plain words", () => {
-    expect(describeChange("rights", undefined, "http://creativecommons.org/licenses/by-nc/4.0/")).toBe("Rights: none → CC BY-NC 4.0");
-    expect(describeChange("subjects", [{ label: "A" }], [{ label: "A" }, { label: "Corvid-2" }])).toBe("Added subject “Corvid-2”");
+    expect(describeChange("rights", undefined, "http://creativecommons.org/licenses/by-nc/4.0/")).toBe(
+      "Rights: none → CC BY-NC 4.0",
+    );
+    expect(describeChange("subjects", [{ label: "A" }], [{ label: "A" }, { label: "Corvid-2" }])).toBe(
+      "Added subject “Corvid-2”",
+    );
     expect(describeChange("summary", { en: ["x"] }, { en: ["y"], pt: ["z"] })).toBe("Summary · en, pt edited");
     expect(describeChange("homepage", "https://a", null)).toBe("Related link (homepage) cleared");
     expect(describeChange("access", "public", undefined)).toBe("Access: back to the derived value");
-    expect(describeEdit({ changed: ["access", "navDate"], before: { access: "private" }, after: { access: "public", navDate: "2026-09-12T00:00:00Z" } })).toBe(
-      "Access: private → public; Date: none → 2026-09-12",
-    );
+    expect(
+      describeEdit({
+        changed: ["access", "navDate"],
+        before: { access: "private" },
+        after: { access: "public", navDate: "2026-09-12T00:00:00Z" },
+      }),
+    ).toBe("Access: private → public; Date: none → 2026-09-12");
   });
 
   it("tells draft, private, published and needs attention apart", () => {
@@ -106,7 +162,9 @@ describe("rights", () => {
     expect(rightsShort("https://creativecommons.org/licenses/by-nc/4.0")).toBe("CC BY-NC 4.0");
     expect(rightsFor("http://rightsstatements.org/vocab/InC/1.0/")?.name).toBe("In Copyright");
     expect(rightsShort(null)).toBe("none");
-    expect(canonicalRights("https://creativecommons.org/publicdomain/zero/1.0/")).toBe("http://creativecommons.org/publicdomain/zero/1.0/");
+    expect(canonicalRights("https://creativecommons.org/publicdomain/zero/1.0/")).toBe(
+      "http://creativecommons.org/publicdomain/zero/1.0/",
+    );
   });
 });
 
@@ -114,8 +172,27 @@ describe("IIIF panel", () => {
   const manifest = {
     items: [
       {
-        items: [{ items: [{ body: { id: "a", type: "Sound", format: "audio/mp4", duration: 2838, service: [{}] } }] }],
-        annotations: [{ items: [{ body: { id: "v", format: "text/vtt", language: "en" } }] }, { id: "l1", label: { en: ["Speakers"] } }],
+        items: [
+          {
+            items: [
+              {
+                body: {
+                  id: "a",
+                  type: "Sound",
+                  format: "audio/mp4",
+                  duration: 2838,
+                  service: [{}],
+                },
+              },
+            ],
+          },
+        ],
+        annotations: [
+          {
+            items: [{ body: { id: "v", format: "text/vtt", language: "en" } }],
+          },
+          { id: "l1", label: { en: ["Speakers"] } },
+        ],
       },
     ],
     structures: [{ id: "x/range/contents", items: [1, 2, 3] }],
@@ -152,7 +229,11 @@ describe("IIIF panel", () => {
   it("decodes a content state the backend made", () => {
     const token =
       "JTdCJTIyJTQwY29udGV4dCUyMiUzQSUyMmh0dHAlM0ElMkYlMkZpaWlmLmlvJTJGYXBpJTJGcHJlc2VudGF0aW9uJTJGMyUyRmNvbnRleHQuanNvbiUyMiUyQyUyMmlkJTIyJTNBJTIyaHR0cCUzQSUyRiUyRjEyNy4wLjAuMSUzQTgwMTElMkZpaWlmJTJGMSUyRnN0YXRlJTJGdCUzRDEyJTJDMTglMjIlMkMlMjJ0eXBlJTIyJTNBJTIyQW5ub3RhdGlvbiUyMiUyQyUyMm1vdGl2YXRpb24lMjIlM0ElNUIlMjJjb250ZW50U3RhdGUlMjIlNUQlMkMlMjJ0YXJnZXQlMjIlM0ElN0IlMjJpZCUyMiUzQSUyMmh0dHAlM0ElMkYlMkYxMjcuMC4wLjElM0E4MDExJTJGaWlpZiUyRjElMkZjYW52YXMlMkYxJTIzdCUzRDEyJTJDMTglMjIlMkMlMjJ0eXBlJTIyJTNBJTIyQ2FudmFzJTIyJTJDJTIycGFydE9mJTIyJTNBJTVCJTdCJTIyaWQlMjIlM0ElMjJodHRwJTNBJTJGJTJGMTI3LjAuMC4xJTNBODAxMSUyRmlpaWYlMkYxJTJGbWFuaWZlc3QlMjIlMkMlMjJ0eXBlJTIyJTNBJTIyTWFuaWZlc3QlMjIlN0QlNUQlN0QlN0Q";
-    expect(contentStateTarget(decodeContentState(token))).toEqual({ recording: 1, t0: 12, t1: 18 });
+    expect(contentStateTarget(decodeContentState(token))).toEqual({
+      recording: 1,
+      t0: 12,
+      t1: 18,
+    });
     expect(decodeContentState("not a state")).toBeNull();
     expect(contentStateTarget({ target: { id: "https://elsewhere.org/canvas/1" } })).toBeNull();
   });
@@ -165,24 +246,39 @@ describe("IIIF panel", () => {
   });
 
   it("splits schema problems", () => {
-    expect(schemaProblem("items/0: [] is too short")).toEqual({ where: "items/0", what: "[] is too short" });
+    expect(schemaProblem("items/0: [] is too short")).toEqual({
+      where: "items/0",
+      what: "[] is too short",
+    });
     expect(schemaProblem("bad")).toEqual({ where: "", what: "bad" });
   });
 });
 
 describe("imports and bulk edits", () => {
   it("turns the backend's refusals into the design's error cards", () => {
-    expect(importProblem("couldn't read that IIIF resource: only IIIF Presentation 3 carries audio; version 2 manifests are images only").tag).toBe("Version 2.x");
-    expect(importProblem("couldn't read that IIIF resource: https://x isn't a IIIF JSON document (Expecting value)").tag).toBe("Not IIIF");
+    expect(
+      importProblem(
+        "couldn't read that IIIF resource: only IIIF Presentation 3 carries audio; version 2 manifests are images only",
+      ).tag,
+    ).toBe("Version 2.x");
+    expect(
+      importProblem("couldn't read that IIIF resource: https://x isn't a IIIF JSON document (Expecting value)").tag,
+    ).toBe("Not IIIF");
     expect(importProblem("couldn't read that IIIF resource: HTTP Error 401: Unauthorized").tag).toBe("Access denied");
     expect(importProblem("couldn't read that IIIF resource: use an http(s) address").tag).toBe("Address");
     expect(importProblem("couldn't read that IIIF resource: timed out").body).toContain("timed out");
   });
 
   it("parses bulk values", () => {
-    expect(bulkValue("provider", "Halden Labs")).toEqual({ value: { name: "Halden Labs" } });
-    expect(bulkValue("language", "en, pt-BR")).toEqual({ value: ["en", "pt-BR"] });
-    expect(bulkValue("language", "english!")).toEqual({ error: "Use language codes such as en, pt-BR" });
+    expect(bulkValue("provider", "Halden Labs")).toEqual({
+      value: { name: "Halden Labs" },
+    });
+    expect(bulkValue("language", "en, pt-BR")).toEqual({
+      value: ["en", "pt-BR"],
+    });
+    expect(bulkValue("language", "english!")).toEqual({
+      error: "Use language codes such as en, pt-BR",
+    });
     expect(bulkValue("rights", " ")).toEqual({ error: "Choose a value" });
   });
 });

@@ -24,16 +24,27 @@ describe("what a dropped file is", () => {
 
   it("says why a file can't be imported before sending it", () => {
     expect(localProblem({ name: "ep14.m4a", size: 1 })?.code).toBe("audio");
-    expect(localProblem({ name: "townhall.pages", size: 1 })).toMatchObject({ code: "unsupported", title: "PAGES files can’t be imported" });
-    expect(localProblem({ name: "big.srt", size: 60 * 1024 * 1024 }, 50)).toMatchObject({ code: "too-large", title: "Too large to upload here (limit 50 MB)" });
+    expect(localProblem({ name: "townhall.pages", size: 1 })).toMatchObject({
+      code: "unsupported",
+      title: "PAGES files can’t be imported",
+    });
+    expect(localProblem({ name: "big.srt", size: 60 * 1024 * 1024 }, 50)).toMatchObject({
+      code: "too-large",
+      title: "Too large to upload here (limit 50 MB)",
+    });
     expect(localProblem({ name: "ok.srt", size: 1024 })).toBeNull();
   });
 
   it("turns the server's parse errors into problem cards", () => {
-    expect(readProblem("could not read that transcript: no transcript text found", "scan.pdf").title).toBe("This PDF has no text to import");
+    expect(readProblem("could not read that transcript: no transcript text found", "scan.pdf").title).toBe(
+      "This PDF has no text to import",
+    );
     expect(readProblem("no transcript text found", "notes.txt").title).toBe("No transcript text found");
     expect(readProblem("files up to 50 MB", "x.txt").code).toBe("too-large");
-    expect(readProblem("could not read that transcript: bad JSON", "x.json")).toMatchObject({ code: "unreadable", body: "Bad JSON" });
+    expect(readProblem("could not read that transcript: bad JSON", "x.json")).toMatchObject({
+      code: "unreadable",
+      body: "Bad JSON",
+    });
   });
 
   it("names formats and knows which have no timings", () => {
@@ -71,7 +82,10 @@ describe("speaker mapping text", () => {
 
   it("an empty right-hand side keeps the label", () => {
     const m = parseMapping("SPEAKER_00 =", labels);
-    expect(m.pairs[0]).toMatchObject({ label: "SPEAKER_00", name: "SPEAKER_00" });
+    expect(m.pairs[0]).toMatchObject({
+      label: "SPEAKER_00",
+      name: "SPEAKER_00",
+    });
     expect(mappingParam(m)).toBeNull();
   });
 

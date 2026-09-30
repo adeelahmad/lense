@@ -1,6 +1,17 @@
 "use client";
 
-import { BookOpen, Box, Building2, CalendarDays, ChevronRight, Hash, MapPin, Tag, User, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  Box,
+  Building2,
+  CalendarDays,
+  ChevronRight,
+  Hash,
+  MapPin,
+  Tag,
+  User,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
@@ -13,7 +24,11 @@ import { EmptyState, Skeleton } from "@/components/ui/states";
 import { tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export const ENTITY_GROUPS: { type: string; label: string; icon: LucideIcon }[] = [
+export const ENTITY_GROUPS: {
+  type: string;
+  label: string;
+  icon: LucideIcon;
+}[] = [
   { type: "PERSON", label: "People", icon: User },
   { type: "ORG", label: "Organisations", icon: Building2 },
   { type: "PRODUCT", label: "Products", icon: Box },
@@ -24,12 +39,27 @@ export const ENTITY_GROUPS: { type: string; label: string; icon: LucideIcon }[] 
 ];
 
 /** Player entities grouped by type, in the design's order; unknown types go last under their own name. */
-export function groupEntities(entities: EntityRef[]): { type: string; label: string; icon: LucideIcon; items: EntityRef[] }[] {
+export function groupEntities(
+  entities: EntityRef[],
+): { type: string; label: string; icon: LucideIcon; items: EntityRef[] }[] {
   const by = new Map<string, EntityRef[]>();
   for (const e of entities) by.set(e.type, [...(by.get(e.type) ?? []), e]);
-  const known = ENTITY_GROUPS.filter((g) => by.has(g.type)).map((g) => ({ ...g, items: by.get(g.type)! }));
-  const other = [...by.keys()].filter((t) => !ENTITY_GROUPS.some((g) => g.type === t)).map((t) => ({ type: t, label: t[0] + t.slice(1).toLowerCase(), icon: Tag, items: by.get(t)! }));
-  return [...known, ...other].map((g) => ({ ...g, items: [...g.items].sort((a, b) => b.segs.length - a.segs.length || a.name.localeCompare(b.name)) }));
+  const known = ENTITY_GROUPS.filter((g) => by.has(g.type)).map((g) => ({
+    ...g,
+    items: by.get(g.type)!,
+  }));
+  const other = [...by.keys()]
+    .filter((t) => !ENTITY_GROUPS.some((g) => g.type === t))
+    .map((t) => ({
+      type: t,
+      label: t[0] + t.slice(1).toLowerCase(),
+      icon: Tag,
+      items: by.get(t)!,
+    }));
+  return [...known, ...other].map((g) => ({
+    ...g,
+    items: [...g.items].sort((a, b) => b.segs.length - a.segs.length || a.name.localeCompare(b.name)),
+  }));
 }
 
 /**
@@ -45,7 +75,13 @@ export function EntitiesTab() {
   const ids = useMemo(() => {
     const m = new Map<string, number>();
     for (const raw of list.data?.items ?? []) {
-      const e = raw as { id?: unknown; name?: unknown; key?: unknown; type?: unknown; aliases?: unknown };
+      const e = raw as {
+        id?: unknown;
+        name?: unknown;
+        key?: unknown;
+        type?: unknown;
+        aliases?: unknown;
+      };
       if (typeof e.id !== "number") continue;
       const names = [e.name, e.key, ...(Array.isArray(e.aliases) ? e.aliases : [])];
       for (const n of names) if (typeof n === "string" && n) m.set(`${String(e.type)}:${fold(n)}`, e.id);
@@ -66,12 +102,20 @@ export function EntitiesTab() {
   return (
     <>
       {top.length > 0 && (
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md border border-border bg-surface p-3.5" role="img" aria-label={`Keyword cloud: ${top.map((k) => k.text).join(", ")}`}>
+        <div
+          className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md border border-border bg-surface p-3.5"
+          role="img"
+          aria-label={`Keyword cloud: ${top.map((k) => k.text).join(", ")}`}
+        >
           {top.map((k, i) => {
             const f = max > min ? (k.weight - min) / (max - min) : 1;
             const size = 12 + Math.round(f * 10);
             return (
-              <span key={k.text} className={cn(size > 16 ? "font-bold" : "font-medium", i % 3 === 0 ? "text-fg" : "text-fg-secondary")} style={{ fontSize: size, lineHeight: 1.2 }}>
+              <span
+                key={k.text}
+                className={cn(size > 16 ? "font-bold" : "font-medium", i % 3 === 0 ? "text-fg" : "text-fg-secondary")}
+                style={{ fontSize: size, lineHeight: 1.2 }}
+              >
                 {k.text}
               </span>
             );
@@ -90,7 +134,13 @@ export function EntitiesTab() {
               const on = entity.selected?.name === e.name && entity.selected.type === e.type;
               const first = model.segments[e.segs[0]];
               return (
-                <li key={e.name} className={cn("flex h-8 items-center gap-1 rounded-sm pl-2 pr-1 text-[13.5px] font-medium", on ? "bg-hl" : "hover:bg-surface-neutral")}>
+                <li
+                  key={e.name}
+                  className={cn(
+                    "flex h-8 items-center gap-1 rounded-sm pl-2 pr-1 text-[13.5px] font-medium",
+                    on ? "bg-hl" : "hover:bg-surface-neutral",
+                  )}
+                >
                   <button
                     type="button"
                     aria-pressed={on}
@@ -99,7 +149,11 @@ export function EntitiesTab() {
                       if (!on && first) api.seek(first.t0, { manual: true });
                     }}
                     className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left"
-                    title={on ? "Hide its mentions on the timeline" : `Show mentions on the timeline${first ? ` and go to ${tc(first.t0)}` : ""}`}
+                    title={
+                      on
+                        ? "Hide its mentions on the timeline"
+                        : `Show mentions on the timeline${first ? ` and go to ${tc(first.t0)}` : ""}`
+                    }
                   >
                     <span className="min-w-0 flex-1 truncate text-fg">{e.name}</span>
                     <span className="tabular shrink-0 text-[12px] font-normal text-fg-muted">
@@ -107,7 +161,11 @@ export function EntitiesTab() {
                     </span>
                   </button>
                   {eid ? (
-                    <Link href={`/graph?focus=e${eid}`} aria-label={`Open ${e.name} in the graph`} className="grid size-7 shrink-0 place-items-center rounded-full text-fg-muted hover:bg-background hover:text-fg">
+                    <Link
+                      href={`/graph?focus=e${eid}`}
+                      aria-label={`Open ${e.name} in the graph`}
+                      className="grid size-7 shrink-0 place-items-center rounded-full text-fg-muted hover:bg-background hover:text-fg"
+                    >
                       <ChevronRight className="size-3.5" />
                     </Link>
                   ) : list.isLoading ? (

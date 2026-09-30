@@ -3,13 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 
 import { Auth } from "@/app/openapi-client";
 import { createApiClient } from "@/lib/api/client";
-import {
-  endBackendSession,
-  needsRefresh,
-  refreshTokens,
-  sessionUser,
-  tokensFromPair,
-} from "@/lib/auth/tokens";
+import { endBackendSession, needsRefresh, refreshTokens, sessionUser, tokensFromPair } from "@/lib/auth/tokens";
 import { loginSchema } from "@/lib/definitions";
 
 /** Too many sign-in attempts (backend answered 429). */

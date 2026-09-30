@@ -15,16 +15,14 @@ describe("createSSEParser", () => {
     const parser = createSSEParser();
 
     expect(parser.push("data: x\r")).toEqual([]);
-    expect(parser.push("\n\r\n")).toEqual([
-      { event: "message", data: "x", id: undefined, retry: undefined },
-    ]);
+    expect(parser.push("\n\r\n")).toEqual([{ event: "message", data: "x", id: undefined, retry: undefined }]);
   });
 
   it("ignores comments and events without data", () => {
     const parser = createSSEParser();
 
-    expect(
-      parser.push(": keep-alive\n\nevent: ping\n\nretry: 3000\ndata: ok\n\n"),
-    ).toEqual([{ event: "message", data: "ok", id: undefined, retry: 3000 }]);
+    expect(parser.push(": keep-alive\n\nevent: ping\n\nretry: 3000\ndata: ok\n\n")).toEqual([
+      { event: "message", data: "ok", id: undefined, retry: 3000 },
+    ]);
   });
 });

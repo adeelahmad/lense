@@ -33,7 +33,9 @@ export function useExport(id: number) {
   const toast = useToast();
   return async (fmt: "csv" | "md") => {
     try {
-      const r = await fetch(`/api/v1/batches/${id}/results.${fmt}`, { headers: session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {} });
+      const r = await fetch(`/api/v1/batches/${id}/results.${fmt}`, {
+        headers: session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {},
+      });
       if (!r.ok) throw new Error(`The server answered ${r.status}`);
       const blob = await r.blob();
       const a = document.createElement("a");
@@ -42,7 +44,11 @@ export function useExport(id: number) {
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
     } catch (e) {
-      toast({ title: "Couldn’t download the results", body: e instanceof Error ? e.message : undefined, tone: "red" });
+      toast({
+        title: "Couldn’t download the results",
+        body: e instanceof Error ? e.message : undefined,
+        tone: "red",
+      });
     }
   };
 }
@@ -50,13 +56,18 @@ export function useExport(id: number) {
 /** BA3 (right): the run's outputs as one table, one row per item; filter, sort, page, and export as CSV or Markdown. */
 export function ResultsTable({ id, results, recordings }: { id: number; results: BatchResults; recordings: number }) {
   const [q, setQ] = useState("");
-  const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
+  const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" }>({
+    key: "date",
+    dir: "desc",
+  });
   const [offset, setOffset] = useState(0);
   const exp = useExport(id);
   const cols = results.columns.filter((c) => c !== "recording" && c !== "title" && c !== "date");
   const rows = useMemo(() => {
     const t = q.trim().toLowerCase();
-    const f = t ? results.rows.filter((r) => Object.values(r).some((v) => cellText(v).toLowerCase().includes(t))) : results.rows;
+    const f = t
+      ? results.rows.filter((r) => Object.values(r).some((v) => cellText(v).toLowerCase().includes(t)))
+      : results.rows;
     return [...f].sort((a, b) => {
       const x = cellText(a[sort.key]).toLowerCase();
       const y = cellText(b[sort.key]).toLowerCase();
@@ -64,7 +75,15 @@ export function ResultsTable({ id, results, recordings }: { id: number; results:
       return sort.dir === "asc" ? c : -c;
     });
   }, [results.rows, q, sort]);
-  const th = (key: string) => ({ active: sort.key === key, dir: sort.dir, onSort: () => setSort((s) => ({ key, dir: s.key === key && s.dir === "desc" ? "asc" : "desc" })) });
+  const th = (key: string) => ({
+    active: sort.key === key,
+    dir: sort.dir,
+    onSort: () =>
+      setSort((s) => ({
+        key,
+        dir: s.key === key && s.dir === "desc" ? "asc" : "desc",
+      })),
+  });
   const page = rows.slice(offset, offset + PAGE);
   return (
     <section aria-labelledby="results" className="flex flex-col gap-3 rounded-lg border border-border p-5">
@@ -72,10 +91,22 @@ export function ResultsTable({ id, results, recordings }: { id: number; results:
         <h2 id="results" className="flex-1 text-[17px] font-bold text-fg">
           Results · {results.key ?? "outputs"} from {count(recordings)} {recordings === 1 ? "recording" : "recordings"}
         </h2>
-        <Button size="sm" variant="secondary" icon={<Download />} onClick={() => exp("csv")} disabled={!results.rows.length}>
+        <Button
+          size="sm"
+          variant="secondary"
+          icon={<Download />}
+          onClick={() => exp("csv")}
+          disabled={!results.rows.length}
+        >
           CSV
         </Button>
-        <Button size="sm" variant="secondary" icon={<Download />} onClick={() => exp("md")} disabled={!results.rows.length}>
+        <Button
+          size="sm"
+          variant="secondary"
+          icon={<Download />}
+          onClick={() => exp("md")}
+          disabled={!results.rows.length}
+        >
           Markdown
         </Button>
       </div>
@@ -120,16 +151,29 @@ export function ResultsTable({ id, results, recordings }: { id: number; results:
                     </Td>
                   ))}
                   <Td className="max-w-[220px]">
-                    <Link href={recordingHref(Number(r.recording))} className="block truncate text-fg-secondary hover:text-fg-accent hover:underline">
+                    <Link
+                      href={recordingHref(Number(r.recording))}
+                      className="block truncate text-fg-secondary hover:text-fg-accent hover:underline"
+                    >
                       {cellText(r.title) || `Recording ${cellText(r.recording)}`}
                     </Link>
                   </Td>
-                  <Td className="tabular whitespace-nowrap text-fg-secondary">{r.date ? shortDate(String(r.date)) : ""}</Td>
+                  <Td className="tabular whitespace-nowrap text-fg-secondary">
+                    {r.date ? shortDate(String(r.date)) : ""}
+                  </Td>
                 </Tr>
               ))}
             </tbody>
           </Table>
-          {rows.length > PAGE && <Pagination offset={offset} limit={PAGE} total={rows.length} onChange={setOffset} className="border-t border-border" />}
+          {rows.length > PAGE && (
+            <Pagination
+              offset={offset}
+              limit={PAGE}
+              total={rows.length}
+              onChange={setOffset}
+              className="border-t border-border"
+            />
+          )}
         </div>
       )}
     </section>

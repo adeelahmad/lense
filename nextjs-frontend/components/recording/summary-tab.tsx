@@ -35,14 +35,24 @@ export function SummaryTab() {
   return (
     <>
       {failed && (
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-lg border border-red-border bg-red-surface p-5">
+        <div
+          role="alert"
+          className="flex flex-col items-start gap-3 rounded-lg border border-red-border bg-red-surface p-5"
+        >
           <div className="text-[15px] font-bold leading-snug text-red-dark">No summary yet</div>
           <p className="text-[13.5px] leading-normal text-fg-strong">
-            The {state.failedStep === "llm" ? "template" : "Summarize"} step failed{state.error ? `: ${shortError(state.error)}` : ""}. Retrying keeps every earlier step&apos;s output — nothing is
-            re-transcribed.
+            The {state.failedStep === "llm" ? "template" : "Summarize"} step failed
+            {state.error ? `: ${shortError(state.error)}` : ""}. Retrying keeps every earlier step&apos;s output —
+            nothing is re-transcribed.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="primary" disabled={!canEdit} disabledReason={needRole("editor", ns)} onClick={() => reprocess.mutate({ steps: ["summarize", "report"] })}>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={!canEdit}
+              disabledReason={needRole("editor", ns)}
+              onClick={() => reprocess.mutate({ steps: ["summarize", "report"] })}
+            >
               Retry
             </Button>
             {admin ? (
@@ -62,7 +72,8 @@ export function SummaryTab() {
           doc={summaryDoc(summary)}
           source={
             <>
-              <b className="font-semibold text-fg-strong">Summarize</b> step{rec.summarized_at ? ` · ${relative(rec.summarized_at)}` : ""}
+              <b className="font-semibold text-fg-strong">Summarize</b> step
+              {rec.summarized_at ? ` · ${relative(rec.summarized_at)}` : ""}
             </>
           }
           sourceTitle={rec.summarized_at ? absolute(rec.summarized_at) : undefined}
@@ -74,7 +85,11 @@ export function SummaryTab() {
       {outs
         .filter((o) => !isFileOutput(o.key))
         .map((o) => {
-          const origin = (o.origin ?? {}) as { template?: number; version?: number; model?: string };
+          const origin = (o.origin ?? {}) as {
+            template?: number;
+            version?: number;
+            model?: string;
+          };
           const t = templates.data?.find((x) => x.id === origin.template);
           return (
             <SummaryBlock
@@ -89,7 +104,21 @@ export function SummaryTab() {
                 </>
               }
               sourceTitle={o.created_at ? absolute(o.created_at) : undefined}
-              onRegenerate={origin.template ? () => reprocess.mutate({ steps: [{ type: "llm", template: origin.template, key: o.key, ...(origin.model ? { model: origin.model } : {}) }] }) : undefined}
+              onRegenerate={
+                origin.template
+                  ? () =>
+                      reprocess.mutate({
+                        steps: [
+                          {
+                            type: "llm",
+                            template: origin.template,
+                            key: o.key,
+                            ...(origin.model ? { model: origin.model } : {}),
+                          },
+                        ],
+                      })
+                  : undefined
+              }
               regenDisabled={regenReason}
               pending={reprocess.isPending}
             />
@@ -102,12 +131,22 @@ export function SummaryTab() {
             {outs
               .filter((o) => isFileOutput(o.key))
               .map((o) => {
-                const origin = (o.origin ?? {}) as { template?: number; version?: number };
+                const origin = (o.origin ?? {}) as {
+                  template?: number;
+                  version?: number;
+                };
                 const t = templates.data?.find((x) => x.id === origin.template);
-                const v = (o.value ?? {}) as { url?: string; file?: string; uploaded_to?: string };
+                const v = (o.value ?? {}) as {
+                  url?: string;
+                  file?: string;
+                  uploaded_to?: string;
+                };
                 const report = o.key.startsWith("report_");
                 return (
-                  <li key={o.key} className="flex items-center gap-2 border-t border-border py-2 text-[13px] first:border-t-0">
+                  <li
+                    key={o.key}
+                    className="flex items-center gap-2 border-t border-border py-2 text-[13px] first:border-t-0"
+                  >
                     <FileCode2 aria-hidden className="size-3.5 shrink-0 text-fg-muted" />
                     <span className="min-w-0 flex-1 truncate">
                       <b className="font-semibold">{t?.name ?? o.key}</b>
@@ -118,7 +157,10 @@ export function SummaryTab() {
                       </span>
                     </span>
                     {report && (
-                      <Link href={`/reports?recording=${id}`} className="shrink-0 text-[12.5px] font-semibold text-fg-accent hover:underline">
+                      <Link
+                        href={`/reports?recording=${id}`}
+                        className="shrink-0 text-[12.5px] font-semibold text-fg-accent hover:underline"
+                      >
                         Open in Reports
                       </Link>
                     )}
@@ -128,11 +170,14 @@ export function SummaryTab() {
           </ul>
         </section>
       )}
-      {!summary && !outs.filter((o) => !isFileOutput(o.key)).length && !failed && (
-        busy ? (
+      {!summary &&
+        !outs.filter((o) => !isFileOutput(o.key)).length &&
+        !failed &&
+        (busy ? (
           <div className="flex flex-col gap-3 py-1">
             <p className="text-[13px] leading-[1.45] text-fg-secondary">
-              The summary is written by the <b className="text-fg">Summarize</b> step, after Analyze. It appears here when that finishes.
+              The summary is written by the <b className="text-fg">Summarize</b> step, after Analyze. It appears here
+              when that finishes.
             </p>
             <SkeletonLines still />
           </div>
@@ -142,15 +187,22 @@ export function SummaryTab() {
             title="No summary yet"
             className="py-10"
             actions={
-              <Button size="sm" variant="secondary" icon={<Sparkles />} disabled={Boolean(regenReason)} disabledReason={regenReason} onClick={() => reprocess.mutate({ steps: ["summarize", "report"] })}>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Sparkles />}
+                disabled={Boolean(regenReason)}
+                disabledReason={regenReason}
+                onClick={() => reprocess.mutate({ steps: ["summarize", "report"] })}
+              >
                 Run Summarize
               </Button>
             }
           >
-            Summaries, action items and template outputs are written by the Summarize and template steps. They need an AI provider, set up by an admin in Settings.
+            Summaries, action items and template outputs are written by the Summarize and template steps. They need an
+            AI provider, set up by an admin in Settings.
           </EmptyState>
-        )
-      )}
+        ))}
     </>
   );
 }
@@ -187,7 +239,8 @@ function SummaryBlock({
 }) {
   const { speakers } = useRec();
   const api = usePlayerApi();
-  const colorOf = (who: string | null | undefined) => (who ? [...speakers.values()].find((s) => s.name.toLowerCase() === who.toLowerCase())?.color : undefined);
+  const colorOf = (who: string | null | undefined) =>
+    who ? [...speakers.values()].find((s) => s.name.toLowerCase() === who.toLowerCase())?.color : undefined;
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-center gap-2 text-[12px] leading-snug text-fg-muted">
@@ -196,7 +249,14 @@ function SummaryBlock({
           {source}
         </span>
         {onRegenerate && (
-          <Button variant="ghost" size="sm" icon={<RefreshCw />} onClick={onRegenerate} disabled={Boolean(regenDisabled) || pending} disabledReason={regenDisabled}>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<RefreshCw />}
+            onClick={onRegenerate}
+            disabled={Boolean(regenDisabled) || pending}
+            disabledReason={regenDisabled}
+          >
             Regenerate
           </Button>
         )}
@@ -213,7 +273,10 @@ function SummaryBlock({
           <Label as="h3">{s.title}</Label>
           <ul className="m-0 flex list-none flex-col gap-[7px] p-0">
             {s.items.map((it, i) => (
-              <li key={i} className="grid grid-cols-[16px_1fr_auto] items-start gap-2 text-[13.5px] leading-[1.45] text-fg">
+              <li
+                key={i}
+                className="grid grid-cols-[16px_1fr_auto] items-start gap-2 text-[13.5px] leading-[1.45] text-fg"
+              >
                 <span aria-hidden className="text-center text-[12px] font-bold leading-[19px] text-fg-muted">
                   {s.glyph}
                 </span>
@@ -221,7 +284,13 @@ function SummaryBlock({
                   {it.text}
                   {it.who && (
                     <span className="ml-1.5 inline-flex items-center gap-1 text-[11.5px] font-semibold leading-none text-fg-secondary">
-                      <span aria-hidden className="size-[7px] rounded-[2px]" style={{ background: colorOf(it.who) ?? "var(--text-muted)" }} />
+                      <span
+                        aria-hidden
+                        className="size-[7px] rounded-[2px]"
+                        style={{
+                          background: colorOf(it.who) ?? "var(--text-muted)",
+                        }}
+                      />
                       {it.who}
                     </span>
                   )}
@@ -249,7 +318,10 @@ function SummaryBlock({
           <Label as="h3">{c.title}</Label>
           <div className="flex flex-wrap gap-1.5">
             {c.items.map((x, i) => (
-              <span key={i} className="rounded-pill bg-surface-neutral px-2.5 py-1 text-[12.5px] font-medium text-fg-strong">
+              <span
+                key={i}
+                className="rounded-pill bg-surface-neutral px-2.5 py-1 text-[12.5px] font-medium text-fg-strong"
+              >
                 {x}
               </span>
             ))}

@@ -16,7 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, SecretField, Select, Textarea } from "@/components/ui/field";
 import { Segmented } from "@/components/ui/tabs";
 
-const SERVICE: Partial<Record<SourceType, string>> = { dropbox: "Dropbox", drive: "Google", onedrive: "Microsoft" };
+const SERVICE: Partial<Record<SourceType, string>> = {
+  dropbox: "Dropbox",
+  drive: "Google",
+  onedrive: "Microsoft",
+};
 
 /** SO2 step 2: the details for one type of connection, from the backend's field list, with type-specific widgets. */
 export function ConnectionFields({
@@ -45,8 +49,23 @@ export function ConnectionFields({
   const set = (k: string, v: string) => onChange({ ...form, params: { ...p, [k]: v } });
   const setSecret = (k: string, v: string | undefined) => onChange({ ...form, secrets: { ...form.secrets, [k]: v } });
 
-  const text = (k: string, opts: { mono?: boolean; placeholder?: string; hint?: string; label?: string; optional?: boolean } = {}) => (
-    <Field key={k} label={opts.label ?? FIELD_LABEL[k] ?? k} hint={opts.hint} error={errors[k]} optional={opts.optional}>
+  const text = (
+    k: string,
+    opts: {
+      mono?: boolean;
+      placeholder?: string;
+      hint?: string;
+      label?: string;
+      optional?: boolean;
+    } = {},
+  ) => (
+    <Field
+      key={k}
+      label={opts.label ?? FIELD_LABEL[k] ?? k}
+      hint={opts.hint}
+      error={errors[k]}
+      optional={opts.optional}
+    >
       {({ id, describedBy, invalid }) => (
         <Input
           id={id}
@@ -64,11 +83,24 @@ export function ConnectionFields({
   );
   const select = (k: string, options: { value: string; label: string }[]) => (
     <Field key={k} label={FIELD_LABEL[k] ?? k} error={errors[k]}>
-      {({ id, describedBy }) => <Select id={id} aria-describedby={describedBy} value={p[k] ?? ""} onChange={(e) => set(k, e.target.value)} options={options} />}
+      {({ id, describedBy }) => (
+        <Select
+          id={id}
+          aria-describedby={describedBy}
+          value={p[k] ?? ""}
+          onChange={(e) => set(k, e.target.value)}
+          options={options}
+        />
+      )}
     </Field>
   );
   const secret = (k: string, opts: { hint?: string; multiline?: boolean; label?: string } = {}) => (
-    <Field key={k} label={opts.label ?? FIELD_LABEL[k] ?? k} hint={editing ? undefined : (opts.hint ?? "Never shown again after saving")} error={errors[k]}>
+    <Field
+      key={k}
+      label={opts.label ?? FIELD_LABEL[k] ?? k}
+      hint={editing ? undefined : (opts.hint ?? "Never shown again after saving")}
+      error={errors[k]}
+    >
       {({ id, describedBy, invalid }) =>
         editing && isSet(k) ? (
           <SecretField id={id} isSet value={form.secrets[k]} onChange={(v) => setSecret(k, v)} />
@@ -80,7 +112,7 @@ export function ConnectionFields({
             mono
             rows={3}
             className="min-h-[64px] text-[12px]"
-            placeholder={"-----BEGIN OPENSSH PRIVATE KEY-----\n…"}
+            placeholder="Paste the whole private key file (OpenSSH or PEM)"
             value={form.secrets[k] ?? ""}
             onChange={(e) => setSecret(k, e.target.value || undefined)}
             spellCheck={false}
@@ -110,7 +142,13 @@ export function ConnectionFields({
       </div>
     ) : (
       <div className="flex flex-col gap-1">
-        <TokenPaste command={spec.oauth} service={SERVICE[type] ?? "your account"} value={form.tokenText} onChange={(v) => onChange({ ...form, tokenText: v })} replacing={editing} />
+        <TokenPaste
+          command={spec.oauth}
+          service={SERVICE[type] ?? "your account"}
+          value={form.tokenText}
+          onChange={(v) => onChange({ ...form, tokenText: v })}
+          replacing={editing}
+        />
         {errors.token && form.tokenText.trim() === "" && (
           <p role="alert" className="text-[12.5px] text-red-dark">
             {errors.token}
@@ -128,7 +166,11 @@ export function ConnectionFields({
             {select("provider", S3_PROVIDERS)}
             {text("region", { placeholder: "eu-central-1" })}
           </div>
-          {text("endpoint", { mono: true, placeholder: p.provider === "AWS" ? "Leave empty for AWS" : "https://s3.example.com", optional: p.provider === "AWS" })}
+          {text("endpoint", {
+            mono: true,
+            placeholder: p.provider === "AWS" ? "Leave empty for AWS" : "https://s3.example.com",
+            optional: p.provider === "AWS",
+          })}
           {text("access_key_id", { mono: true })}
           {secret("secret_access_key")}
         </div>
@@ -140,7 +182,12 @@ export function ConnectionFields({
         <div className="flex flex-col gap-3">
           {token}
           {select("scope", DRIVE_SCOPES)}
-          {text("root_folder_id", { mono: true, label: "Root folder ID", optional: true, hint: "From the folder’s URL; limits the connection to that folder" })}
+          {text("root_folder_id", {
+            mono: true,
+            label: "Root folder ID",
+            optional: true,
+            hint: "From the folder’s URL; limits the connection to that folder",
+          })}
         </div>
       );
     case "onedrive":
@@ -148,8 +195,15 @@ export function ConnectionFields({
         <div className="flex flex-col gap-3">
           {token}
           <div className="grid grid-cols-2 gap-2.5">
-            {text("drive_id", { mono: true, optional: true, hint: "rclone config shows it" })}
-            {text("drive_type", { optional: true, placeholder: "personal, business…" })}
+            {text("drive_id", {
+              mono: true,
+              optional: true,
+              hint: "rclone config shows it",
+            })}
+            {text("drive_type", {
+              optional: true,
+              placeholder: "personal, business…",
+            })}
           </div>
         </div>
       );
@@ -170,7 +224,12 @@ export function ConnectionFields({
               { value: "key_pem", label: "Private key" },
             ]}
           />
-          {form.sftpAuth === "pass" ? secret("pass") : secret("key_pem", { multiline: true, hint: "The whole key, including the BEGIN and END lines" })}
+          {form.sftpAuth === "pass"
+            ? secret("pass")
+            : secret("key_pem", {
+                multiline: true,
+                hint: "The whole key, including the BEGIN and END lines",
+              })}
         </div>
       );
     case "smb":
@@ -187,7 +246,10 @@ export function ConnectionFields({
     case "webdav":
       return (
         <div className="flex flex-col gap-3">
-          {text("url", { mono: true, placeholder: "https://cloud.example.com/remote.php/dav/files/lens" })}
+          {text("url", {
+            mono: true,
+            placeholder: "https://cloud.example.com/remote.php/dav/files/lens",
+          })}
           {select("vendor", WEBDAV_VENDORS)}
           <div className="grid grid-cols-2 gap-2.5">
             {text("user")}
@@ -198,8 +260,9 @@ export function ConnectionFields({
     default:
       return (
         <p className="rounded-sm border border-dashed border-border bg-surface px-3.5 py-3 text-[13px] leading-normal text-fg-secondary">
-          Only folders allowed in the server config can be used (<code className="font-mono text-[12px]">sources.local_roots</code>, set at startup). You pick
-          the folder when you watch it: Browse folders lists the allowed ones.
+          Only folders allowed in the server config can be used (
+          <code className="font-mono text-[12px]">sources.local_roots</code>, set at startup). You pick the folder when
+          you watch it: Browse folders lists the allowed ones.
         </p>
       );
   }

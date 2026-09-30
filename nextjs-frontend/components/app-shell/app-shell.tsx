@@ -47,7 +47,14 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (e.key === "[" && !e.metaKey && !e.ctrlKey && !["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) && !t.isContentEditable) toggle();
+      if (
+        e.key === "[" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) &&
+        !t.isContentEditable
+      )
+        toggle();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -58,7 +65,9 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
   const [peek, setPeek] = useState(false);
   useEffect(() => setPeek(false), [pathname]);
 
-  const recordings = namespaces.filter((n) => !namespace || n.name === namespace).reduce((a, n) => a + ((n.recordings as number) ?? 0), 0);
+  const recordings = namespaces
+    .filter((n) => !namespace || n.name === namespace)
+    .reduce((a, n) => a + ((n.recordings as number) ?? 0), 0);
   const reviews = useQuery({
     queryKey: ["speaker-reviews", namespace],
     queryFn: async () => {
@@ -73,16 +82,30 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
 
   return (
     <div className="flex min-h-screen bg-background">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[400] focus:rounded-sm focus:bg-background focus:px-3 focus:py-2 focus:shadow-2">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[400] focus:rounded-sm focus:bg-background focus:px-3 focus:py-2 focus:shadow-2"
+      >
         Skip to content
       </a>
       <div className="sticky top-0 hidden h-screen shrink-0 md:block">
-        <Nav admin={admin || user.admin} collapsed={autoCollapse ? !peek : collapsed} onToggle={autoCollapse ? () => setPeek((p) => !p) : toggle} counts={counts} />
+        <Nav
+          admin={admin || user.admin}
+          collapsed={autoCollapse ? !peek : collapsed}
+          onToggle={autoCollapse ? () => setPeek((p) => !p) : toggle}
+          counts={counts}
+        />
       </div>
       {mobileOpen && (
         <div className="fixed inset-0 z-[120] md:hidden">
           <div className="absolute inset-0 bg-[var(--scrim)]" onClick={() => setMobileOpen(false)} aria-hidden />
-          <Nav admin={admin || user.admin} collapsed={false} counts={counts} onNavigate={() => setMobileOpen(false)} className="relative shadow-3" />
+          <Nav
+            admin={admin || user.admin}
+            collapsed={false}
+            counts={counts}
+            onNavigate={() => setMobileOpen(false)}
+            className="relative shadow-3"
+          />
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">

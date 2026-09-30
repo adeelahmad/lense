@@ -8,7 +8,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Batches, Collections, Entities, Jobs } from "@/app/openapi-client";
 import { useBatch, useBatchJobs, useBatchResults, type BatchJob } from "@/components/batches/data";
 import { forgetCombine, pendingCombine } from "@/components/batches/plan";
-import { approxDuration, batchTone, describeSelection, eta, money, progressLabel, progressParts } from "@/components/batches/format";
+import {
+  approxDuration,
+  batchTone,
+  describeSelection,
+  eta,
+  money,
+  progressLabel,
+  progressParts,
+} from "@/components/batches/format";
 import { ResultsTable } from "@/components/batches/results-table";
 import { Badge } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
@@ -38,7 +46,8 @@ function seconds(j: BatchJob): string {
 /** The progress bar in four colours: done (green), failed (red), running (blue), waiting (grey). */
 function ProgressBar({ parts }: { parts: ReturnType<typeof progressParts> }) {
   const t = Math.max(1, parts.total);
-  const seg = (n: number, c: string) => (n ? <span style={{ width: `${(n / t) * 100}%`, background: c }} className="h-full" /> : null);
+  const seg = (n: number, c: string) =>
+    n ? <span style={{ width: `${(n / t) * 100}%`, background: c }} className="h-full" /> : null;
   return (
     <div
       role="progressbar"
@@ -88,7 +97,13 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
   const sel = (b?.selection ?? {}) as { collection?: number; entity?: number };
   const colName = useQuery({
     queryKey: ["collection", sel.collection],
-    queryFn: () => data(Collections.getCollection({ client, path: { cid: sel.collection as number } })),
+    queryFn: () =>
+      data(
+        Collections.getCollection({
+          client,
+          path: { cid: sel.collection as number },
+        }),
+      ),
     enabled: Boolean(sel.collection),
     staleTime: 60_000,
   });
@@ -110,11 +125,21 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
   }, [doneCount, id, qc]);
 
   const control = useMutation({
-    mutationFn: (action: "continue" | "pause" | "resume" | "cancel" | "retry") => data(Batches.controlBatch({ client, path: { bid: id, action } })),
+    mutationFn: (action: "continue" | "pause" | "resume" | "cancel" | "retry") =>
+      data(Batches.controlBatch({ client, path: { bid: id, action } })),
     onSuccess: (_r, action) => {
       qc.invalidateQueries({ queryKey: ["batch", id] });
       qc.invalidateQueries({ queryKey: ["batch-jobs", id] });
-      toast({ title: { continue: "Running the rest", pause: "Paused", resume: "Resumed", cancel: "Cancelled what hadn’t started", retry: "Retrying the failed recordings" }[action], tone: "intent" });
+      toast({
+        title: {
+          continue: "Running the rest",
+          pause: "Paused",
+          resume: "Resumed",
+          cancel: "Cancelled what hadn’t started",
+          retry: "Retrying the failed recordings",
+        }[action],
+        tone: "intent",
+      });
     },
   });
   const retryJob = useMutation({
@@ -122,7 +147,14 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
     onSuccess: () => qc.invalidateQueries({ queryKey: ["batch-jobs", id] }),
   });
   const combine = useMutation({
-    mutationFn: (text: string) => data(Batches.combineBatch({ client, path: { bid: id }, body: text.trim() ? { instructions: text.trim() } : {} })),
+    mutationFn: (text: string) =>
+      data(
+        Batches.combineBatch({
+          client,
+          path: { bid: id },
+          body: text.trim() ? { instructions: text.trim() } : {},
+        }),
+      ),
     onSuccess: () => {
       forgetCombine(id);
       setIntent(null);
@@ -165,7 +197,9 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
             </Button>
           }
         >
-          {batch.error?.message === "not found" ? "Batch runs are visible to whoever started them, and to admins." : batch.error?.message}
+          {batch.error?.message === "not found"
+            ? "Batch runs are visible to whoever started them, and to admins."
+            : batch.error?.message}
         </EmptyState>
       </div>
     );
@@ -177,23 +211,35 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
   const rest = b.progress.remaining;
   const est = b.estimate;
   const perRecordingCost = est?.llm?.cost != null && est.recordings ? est.llm.cost / est.recordings : null;
-  const jobRows = [...(jobs.data ?? [])].sort((x, y) => (x.status === "running" ? -1 : 0) - (y.status === "running" ? -1 : 0));
+  const jobRows = [...(jobs.data ?? [])].sort(
+    (x, y) => (x.status === "running" ? -1 : 0) - (y.status === "running" ? -1 : 0),
+  );
   const reporting = intent != null || autoReport;
 
   return (
     <div className="flex flex-col gap-4 px-4 py-6 md:px-6">
-      <Link href="/batches" className="inline-flex w-fit items-center gap-1 text-[13px] font-semibold text-fg-secondary hover:text-fg">
+      <Link
+        href="/batches"
+        className="inline-flex w-fit items-center gap-1 text-[13px] font-semibold text-fg-secondary hover:text-fg"
+      >
         <ChevronLeft className="size-4" aria-hidden /> Batch runs
       </Link>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,540px)_minmax(0,1fr)]">
-        <section aria-labelledby="batch-title" className="flex h-fit flex-col gap-3 rounded-lg border border-border p-5">
+        <section
+          aria-labelledby="batch-title"
+          className="flex h-fit flex-col gap-3 rounded-lg border border-border p-5"
+        >
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <h1 id="batch-title" className="text-[17px] font-bold leading-snug text-fg">
                 {b.label} · batch #{b.id}
               </h1>
               <p className="m-0 mt-0.5 text-[12.5px] leading-snug text-fg-muted">
-                Started by {b.created_by ?? "someone"} {relative(b.created_at)} · {describeSelection(b.selection, { collection: colName.data?.name, entity: entName.data?.name })}
+                Started by {b.created_by ?? "someone"} {relative(b.created_at)} ·{" "}
+                {describeSelection(b.selection, {
+                  collection: colName.data?.name,
+                  entity: entName.data?.name,
+                })}
               </p>
             </div>
             <Badge tone={allFailed ? "red" : batchTone(b.status)} dot>
@@ -204,25 +250,51 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
             <b className="tabular text-fg">{progressLabel(parts)}</b>
             <span className="flex-1" />
             <span className="tabular text-fg-secondary">
-              {[parts.failed ? `${parts.failed} failed` : null, active && left ? `ETA ${approxDuration(left).replace("~", "")}` : null, rest > 0 && !sampleDone ? `${count(rest)} not started` : null].filter(Boolean).join(" · ")}
+              {[
+                parts.failed ? `${parts.failed} failed` : null,
+                active && left ? `ETA ${approxDuration(left).replace("~", "")}` : null,
+                rest > 0 && !sampleDone ? `${count(rest)} not started` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </span>
           </div>
-          <LiveProgress text={`${b.status}: ${progressLabel(parts)}${parts.failed ? `, ${parts.failed} failed` : ""}`} />
+          <LiveProgress
+            text={`${b.status}: ${progressLabel(parts)}${parts.failed ? `, ${parts.failed} failed` : ""}`}
+          />
           <ProgressBar parts={parts} />
           <div className="flex flex-wrap gap-2">
             {b.status === "paused" ? (
-              <Button size="sm" variant="secondary" icon={<Play />} onClick={() => control.mutate("resume")} disabled={control.isPending}>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Play />}
+                onClick={() => control.mutate("resume")}
+                disabled={control.isPending}
+              >
                 Resume
               </Button>
             ) : (
               ["running", "sample"].includes(b.status) && (
-                <Button size="sm" variant="secondary" icon={<Pause />} onClick={() => control.mutate("pause")} disabled={control.isPending}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={<Pause />}
+                  onClick={() => control.mutate("pause")}
+                  disabled={control.isPending}
+                >
                   Pause
                 </Button>
               )
             )}
             {parts.failed > 0 && (
-              <Button size="sm" variant="secondary" icon={<RotateCcw />} onClick={() => control.mutate("retry")} disabled={control.isPending}>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<RotateCcw />}
+                onClick={() => control.mutate("retry")}
+                disabled={control.isPending}
+              >
                 Retry failed
               </Button>
             )}
@@ -247,9 +319,16 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
               </p>
               <div className="flex flex-wrap justify-end gap-2">
                 <Button asChild size="sm" variant="ghost">
-                  <Link href={templateId != null ? `/templates/${templateId}` : "/pipelines"}>{templateId != null ? "Edit template" : "Edit pipeline"}</Link>
+                  <Link href={templateId != null ? `/templates/${templateId}` : "/pipelines"}>
+                    {templateId != null ? "Edit template" : "Edit pipeline"}
+                  </Link>
                 </Button>
-                <Button size="sm" variant="primary" onClick={() => control.mutate("continue")} disabled={control.isPending}>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => control.mutate("continue")}
+                  disabled={control.isPending}
+                >
                   Continue with {count(rest)}
                 </Button>
               </div>
@@ -258,32 +337,50 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
 
           <div className="overflow-hidden rounded-md border border-border">
             {jobs.isLoading && <Skeleton className="m-3 h-20" />}
-            {!jobs.isLoading && jobRows.length === 0 && <p className="m-0 p-3 text-[13px] text-fg-secondary">Recordings show here as their jobs start.</p>}
+            {!jobs.isLoading && jobRows.length === 0 && (
+              <p className="m-0 p-3 text-[13px] text-fg-secondary">Recordings show here as their jobs start.</p>
+            )}
             <ul className="m-0 max-h-[420px] list-none overflow-y-auto p-0">
               {jobRows.map((j) => {
                 const g = GLYPH[j.status] ?? GLYPH.queued;
                 const items = j.recording != null ? perRec.get(j.recording) : undefined;
                 return (
-                  <li key={j.id} className="grid grid-cols-[18px_minmax(0,1fr)_44px_minmax(0,170px)] items-center gap-2.5 border-b border-border px-3 py-2.5 text-[13px] last:border-b-0">
+                  <li
+                    key={j.id}
+                    className="grid grid-cols-[18px_minmax(0,1fr)_44px_minmax(0,170px)] items-center gap-2.5 border-b border-border px-3 py-2.5 text-[13px] last:border-b-0"
+                  >
                     <span aria-hidden className="text-center font-bold" style={{ color: g.c }}>
                       {g.g}
                     </span>
-                    <Link href={j.recording != null ? `/recordings/${j.recording}` : "#"} className="truncate font-semibold text-fg hover:text-fg-accent hover:underline">
+                    <Link
+                      href={j.recording != null ? `/recordings/${j.recording}` : "#"}
+                      className="truncate font-semibold text-fg hover:text-fg-accent hover:underline"
+                    >
                       <span className="sr-only">{g.label}: </span>
                       {j.title ?? `Recording ${j.recording}`}
                     </Link>
                     <span className="tabular text-fg-secondary">{seconds(j)}</span>
                     {j.status === "failed" ? (
                       <span className="flex min-w-0 items-baseline gap-1.5 text-red-dark">
-                        <Link href={`/activity/${j.id}`} className="truncate hover:underline" title={j.error ? `${j.error} — open the job log` : "Open the job log"}>
+                        <Link
+                          href={`/activity/${j.id}`}
+                          className="truncate hover:underline"
+                          title={j.error ? `${j.error} — open the job log` : "Open the job log"}
+                        >
                           {j.error ?? "failed"}
                         </Link>
-                        <button type="button" className="shrink-0 font-semibold underline" onClick={() => retryJob.mutate(j.id)}>
+                        <button
+                          type="button"
+                          className="shrink-0 font-semibold underline"
+                          onClick={() => retryJob.mutate(j.id)}
+                        >
                           Retry
                         </button>
                       </span>
                     ) : (
-                      <span className="truncate text-fg-secondary">{j.status === "succeeded" ? (items != null ? plural(items, "result") : "done") : g.label}</span>
+                      <span className="truncate text-fg-secondary">
+                        {j.status === "succeeded" ? (items != null ? plural(items, "result") : "done") : g.label}
+                      </span>
                     )}
                   </li>
                 );
@@ -300,9 +397,7 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
           ) : reporting && b.status !== "finished" ? (
             <div className="flex flex-col gap-2 rounded-md border border-blue-border bg-blue-surface px-3 py-2.5">
               <div className="flex items-baseline justify-between text-[13px]">
-                <b className="text-fg">
-                  Reading… {progressLabel(parts)}
-                </b>
+                <b className="text-fg">Reading… {progressLabel(parts)}</b>
                 <span className="text-fg-secondary">then combining</span>
               </div>
               <ProgressBar parts={parts} />
@@ -312,9 +407,20 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
             (results.data?.rows.length ?? 0) > 0 && (
               <div className="flex flex-col gap-2 border-t border-border pt-3">
                 <h2 className="text-[14px] font-bold text-fg">Combine into one report</h2>
-                <Field label="What the report should cover" optional hint="The model reads every recording’s result and writes one overview, citing each recording.">
+                <Field
+                  label="What the report should cover"
+                  optional
+                  hint="The model reads every recording’s result and writes one overview, citing each recording."
+                >
                   {({ id: fid, describedBy }) => (
-                    <Textarea id={fid} aria-describedby={describedBy} rows={2} value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="The main themes, notable points, and what changed over time." />
+                    <Textarea
+                      id={fid}
+                      aria-describedby={describedBy}
+                      rows={2}
+                      value={instructions}
+                      onChange={(e) => setInstructions(e.target.value)}
+                      placeholder="The main themes, notable points, and what changed over time."
+                    />
                   )}
                 </Field>
                 {combine.isError && <Banner tone="error">{combine.error.message}</Banner>}
@@ -326,12 +432,19 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
               </div>
             )
           )}
-          {combine.isPending && reporting && <p className="m-0 text-[13px] text-fg-secondary">Combining the results into one report…</p>}
+          {combine.isPending && reporting && (
+            <p className="m-0 text-[13px] text-fg-secondary">Combining the results into one report…</p>
+          )}
           {combine.isError && reporting && <Banner tone="error">Couldn’t combine: {combine.error.message}</Banner>}
         </section>
 
         {results.isError && <Banner tone="error">{results.error.message}</Banner>}
-        {results.data && (results.data.key ? <ResultsTable id={id} results={results.data} recordings={b.progress.total} /> : <NoTable steps={b.steps} />)}
+        {results.data &&
+          (results.data.key ? (
+            <ResultsTable id={id} results={results.data} recordings={b.progress.total} />
+          ) : (
+            <NoTable steps={b.steps} />
+          ))}
       </div>
     </div>
   );
@@ -341,7 +454,8 @@ function NoTable({ steps }: { steps: { type?: unknown }[] }) {
   return (
     <section className="h-fit rounded-lg border border-border p-5 text-[13.5px] leading-normal text-fg-secondary">
       <h2 className="mb-1 text-[17px] font-bold text-fg">Results</h2>
-      This run ({steps.map((s) => String(s.type)).join(", ")}) doesn’t write a table of results. Open each recording to see what changed.
+      This run ({steps.map((s) => String(s.type)).join(", ")}) doesn’t write a table of results. Open each recording to
+      see what changed.
     </section>
   );
 }

@@ -7,6 +7,7 @@ date, language, speakers, topics, summary); every change is kept and can be reve
 publishes: public (everything), transcript (transcript open, audio after sign-in), signed-in (both after sign-in),
 private (not published).
 """
+
 from __future__ import annotations
 
 import copy
@@ -19,8 +20,23 @@ from . import render, store
 
 R = store.R
 ACCESS = ("public", "transcript", "signed-in", "private")
-FIELDS = ("label", "summary", "metadata", "rights", "attribution", "provider", "navDate", "language", "creators", "contributors",
-          "subjects", "identifiers", "homepage", "related", "access")
+FIELDS = (
+    "label",
+    "summary",
+    "metadata",
+    "rights",
+    "attribution",
+    "provider",
+    "navDate",
+    "language",
+    "creators",
+    "contributors",
+    "subjects",
+    "identifiers",
+    "homepage",
+    "related",
+    "access",
+)
 LANG_RX = re.compile(r"^(none|[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})*)$")
 RIGHTS_RX = re.compile(r"^https?://(creativecommons\.org/(licenses|publicdomain)/|rightsstatements\.org/vocab/)")
 
@@ -36,7 +52,7 @@ def langmap(v, field):
     if isinstance(v, str):
         return {"none": [v.strip()]}
     if not isinstance(v, dict):
-        raise MetaProblem(f"{field} must be text or a language map like {{\"en\": [\"...\"]}}")
+        raise MetaProblem(f'{field} must be text or a language map like {{"en": ["..."]}}')
     out = {}
     for lang, vals in v.items():
         if not LANG_RX.match(str(lang)):
@@ -78,7 +94,11 @@ def clean(patch):
         elif k == "metadata":
             if not isinstance(v, list):
                 raise MetaProblem("metadata is a list of {label, value} pairs")
-            pairs = [{"label": langmap(x.get("label"), "metadata label"), "value": langmap(x.get("value"), "metadata value")} for x in v if isinstance(x, dict)]
+            pairs = [
+                {"label": langmap(x.get("label"), "metadata label"), "value": langmap(x.get("value"), "metadata value")}
+                for x in v
+                if isinstance(x, dict)
+            ]
             if any(not p["label"] or not p["value"] for p in pairs):
                 raise MetaProblem("every metadata pair needs a label and a value")
             out[k] = pairs
@@ -90,8 +110,13 @@ def clean(patch):
         elif k == "provider":
             if not isinstance(v, dict) or not str(v.get("name") or "").strip():
                 raise MetaProblem("the provider needs a name")
-            out[k] = store.clean({"name": str(v["name"]).strip()[:200], "homepage": _uri(v.get("homepage"), "provider homepage"),
-                                  "logo": _uri(v.get("logo"), "provider logo")})
+            out[k] = store.clean(
+                {
+                    "name": str(v["name"]).strip()[:200],
+                    "homepage": _uri(v.get("homepage"), "provider homepage"),
+                    "logo": _uri(v.get("logo"), "provider logo"),
+                }
+            )
         elif k == "navDate":
             try:
                 d = dt.datetime.fromisoformat(str(v).replace("Z", "+00:00"))
@@ -109,8 +134,16 @@ def clean(patch):
                 p = {"name": p} if isinstance(p, str) else dict(p)
                 if not str(p.get("name") or "").strip():
                     raise MetaProblem(f"every {k[:-1]} needs a name")
-                people.append(store.clean({"name": p["name"].strip()[:200], "role": p.get("role") or None, "uri": _uri(p.get("uri"), f"{k[:-1]} link"),
-                                           "speaker": p.get("speaker")}))
+                people.append(
+                    store.clean(
+                        {
+                            "name": p["name"].strip()[:200],
+                            "role": p.get("role") or None,
+                            "uri": _uri(p.get("uri"), f"{k[:-1]} link"),
+                            "speaker": p.get("speaker"),
+                        }
+                    )
+                )
             out[k] = people
         elif k == "subjects":
             subs = []
@@ -118,7 +151,9 @@ def clean(patch):
                 x = {"label": x} if isinstance(x, str) else dict(x)
                 if not str(x.get("label") or "").strip():
                     raise MetaProblem("every subject needs a label")
-                subs.append(store.clean({"label": x["label"].strip()[:200], "uri": _uri(x.get("uri"), "subject link"), "entity": x.get("entity")}))
+                subs.append(
+                    store.clean({"label": x["label"].strip()[:200], "uri": _uri(x.get("uri"), "subject link"), "entity": x.get("entity")})
+                )
             out[k] = subs
         elif k == "identifiers":
             ids = []
@@ -131,8 +166,15 @@ def clean(patch):
         elif k == "homepage":
             out[k] = _uri(v, "homepage")
         elif k == "related":
-            out[k] = [store.clean({"id": _uri(x.get("id") if isinstance(x, dict) else x, "related link"),
-                                   "label": x.get("label") if isinstance(x, dict) else None}) for x in (v if isinstance(v, list) else [v])]
+            out[k] = [
+                store.clean(
+                    {
+                        "id": _uri(x.get("id") if isinstance(x, dict) else x, "related link"),
+                        "label": x.get("label") if isinstance(x, dict) else None,
+                    }
+                )
+                for x in (v if isinstance(v, list) else [v])
+            ]
         else:  # access
             if v not in ACCESS:
                 raise MetaProblem(f"access is one of {', '.join(ACCESS)}")
@@ -152,9 +194,17 @@ def namespace(db, sid):
 
 def check_profile(p):
     p = dict(p or {})
-    out = {"required": [f for f in p.get("required") or [] if f in FIELDS], "defaults": clean(p.get("defaults") or {}),
-           "vocabularies": {k: [str(x) for x in v] for k, v in (p.get("vocabularies") or {}).items() if k in ("subjects", "language") and isinstance(v, list)},
-           "order": [f for f in p.get("order") or [] if f in FIELDS], "default_access": p.get("default_access") or "private"}
+    out = {
+        "required": [f for f in p.get("required") or [] if f in FIELDS],
+        "defaults": clean(p.get("defaults") or {}),
+        "vocabularies": {
+            k: [str(x) for x in v]
+            for k, v in (p.get("vocabularies") or {}).items()
+            if k in ("subjects", "language") and isinstance(v, list)
+        },
+        "order": [f for f in p.get("order") or [] if f in FIELDS],
+        "default_access": p.get("default_access") or "private",
+    }
     if out["default_access"] not in ACCESS:
         raise MetaProblem(f"default access is one of {', '.join(ACCESS)}")
     return out
@@ -162,8 +212,10 @@ def check_profile(p):
 
 def save_namespace(db, sid, meta=None, profile=None, user=None):
     cur = namespace(db, sid)
-    after = {"meta": {**cur["meta"], **clean(meta)} if meta is not None else cur["meta"],
-             "profile": check_profile(profile) if profile is not None else cur["profile"]}
+    after = {
+        "meta": {**cur["meta"], **clean(meta)} if meta is not None else cur["meta"],
+        "profile": check_profile(profile) if profile is not None else cur["profile"],
+    }
     db.q("UPDATE $r SET meta_json = $m, profile_json = $p", r=R("space", sid), m=json.dumps(after["meta"]), p=json.dumps(after["profile"]))
     _history(db, f"space:{sid}", {"meta": cur["meta"], "profile": cur["profile"]}, after, user)
     return after
@@ -195,11 +247,18 @@ def defaults(db, cfg, rid):
     for m in db.rows("SELECT entity FROM mentions WHERE recording = $r", r=rid):
         counts[m["entity"]] = counts.get(m["entity"], 0) + 1
     if counts:
-        ents = {e["id"]: e for e in db.rows("SELECT record::id(id) AS id, name, type FROM entity WHERE id IN $ids AND hidden != true",
-                                            ids=[R("entity", i) for i in counts])}
+        ents = {
+            e["id"]: e
+            for e in db.rows(
+                "SELECT record::id(id) AS id, name, type FROM entity WHERE id IN $ids AND hidden != true",
+                ids=[R("entity", i) for i in counts],
+            )
+        }
         top = [ents[i] for i in sorted(counts, key=lambda i: -counts[i]) if i in ents and ents[i]["type"] not in ("NUMBER", "DATE")][:10]
         d["subjects"] = [{"label": e["name"], "entity": e["id"]} for e in top]
-    notes = (db.one("SELECT * FROM $o", o=R("output", f"{rid}-meeting_notes")) or {}).get("value") or {}  # "SELECT value" parses as SELECT VALUE
+    notes = (db.one("SELECT * FROM $o", o=R("output", f"{rid}-meeting_notes")) or {}).get(
+        "value"
+    ) or {}  # "SELECT value" parses as SELECT VALUE
     summary = (rec.get("summary") or {}).get("tldr") or (rec.get("summary") or {}).get("summary") or notes.get("tldr")
     if summary:
         d["summary"] = {lang: [summary]}
@@ -235,13 +294,20 @@ def access_of(db, cfg, rid):
 def get(db, cfg, rid):
     rec = db.one("SELECT space FROM $r", r=R("recording", rid)) or {}
     meta = effective(db, cfg, rid)
-    return {"meta": meta, "stored": stored(db, rid), "defaults": defaults(db, cfg, rid),
-            "problems": problems(meta, namespace(db, rec.get("space"))["profile"])}
+    return {
+        "meta": meta,
+        "stored": stored(db, rid),
+        "defaults": defaults(db, cfg, rid),
+        "problems": problems(meta, namespace(db, rec.get("space"))["profile"]),
+    }
 
 
 def _history(db, target, before, after, user):
-    db.q("CREATE $r CONTENT $d", r=R("meta_edit", db.next_id("meta_edit")), d=store.clean({"target": target, "before": json.dumps(before),
-                                                                                           "after": json.dumps(after), "by": user, "at": store.now()}))
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("meta_edit", db.next_id("meta_edit")),
+        d=store.clean({"target": target, "before": json.dumps(before), "after": json.dumps(after), "by": user, "at": store.now()}),
+    )
 
 
 def save(db, cfg, rid, patch=None, reset=(), user=None):
@@ -258,7 +324,9 @@ def save(db, cfg, rid, patch=None, reset=(), user=None):
 
 
 def history(db, target):
-    rows = db.rows("SELECT record::id(id) AS id, before, after, by, at FROM meta_edit WHERE target = $t ORDER BY id DESC LIMIT 100", t=target)
+    rows = db.rows(
+        "SELECT record::id(id) AS id, before, after, by, at FROM meta_edit WHERE target = $t ORDER BY id DESC LIMIT 100", t=target
+    )
     for r in rows:
         b, a = json.loads(r.pop("before")), json.loads(r.pop("after"))
         r["changed"] = sorted(k for k in set(b) | set(a) if b.get(k) != a.get(k))
@@ -320,20 +388,49 @@ def _iso_duration(ms):
 
 
 def schema_org(meta, rec, urls):
-    people = lambda xs: [store.clean({"@type": "Person", "name": p["name"], "sameAs": p.get("uri"), "roleName": p.get("role")}) for p in xs or []]  # noqa: E731
-    return store.clean({
-        "@context": "https://schema.org", "@type": "AudioObject", "@id": urls["manifest"] + "#record", "name": first(meta.get("label")),
-        "description": first(meta.get("summary")), "dateCreated": meta.get("navDate"), "duration": _iso_duration(rec.get("duration_ms")),
-        "inLanguage": meta.get("language"), "creator": people(meta.get("creators")) or None, "contributor": people(meta.get("contributors")) or None,
-        "about": [store.clean({"@type": "Thing", "name": s["label"], "sameAs": s.get("uri")}) for s in meta.get("subjects") or []] or None,
-        "license": meta.get("rights"), "creditText": first(meta.get("attribution")),
-        "provider": store.clean({"@type": "Organization", "name": meta["provider"]["name"], "url": meta["provider"].get("homepage"),
-                                 "logo": meta["provider"].get("logo")}) if meta.get("provider") else None,
-        "identifier": [store.clean({"@type": "PropertyValue", "propertyID": i.get("type"), "value": i["value"]}) for i in meta.get("identifiers") or []] or None,
-        "additionalProperty": [{"@type": "PropertyValue", "name": first(p["label"]), "value": first(p["value"])} for p in meta.get("metadata") or []] or None,
-        "isPartOf": {"@type": "Collection", "@id": urls["collection"]}, "url": meta.get("homepage") or urls.get("page"),
-        "subjectOf": {"@type": "CreativeWork", "@id": urls["manifest"], "encodingFormat": "application/ld+json"},
-    })
+    people = lambda xs: [
+        store.clean({"@type": "Person", "name": p["name"], "sameAs": p.get("uri"), "roleName": p.get("role")}) for p in xs or []
+    ]  # noqa: E731
+    return store.clean(
+        {
+            "@context": "https://schema.org",
+            "@type": "AudioObject",
+            "@id": urls["manifest"] + "#record",
+            "name": first(meta.get("label")),
+            "description": first(meta.get("summary")),
+            "dateCreated": meta.get("navDate"),
+            "duration": _iso_duration(rec.get("duration_ms")),
+            "inLanguage": meta.get("language"),
+            "creator": people(meta.get("creators")) or None,
+            "contributor": people(meta.get("contributors")) or None,
+            "about": [store.clean({"@type": "Thing", "name": s["label"], "sameAs": s.get("uri")}) for s in meta.get("subjects") or []]
+            or None,
+            "license": meta.get("rights"),
+            "creditText": first(meta.get("attribution")),
+            "provider": store.clean(
+                {
+                    "@type": "Organization",
+                    "name": meta["provider"]["name"],
+                    "url": meta["provider"].get("homepage"),
+                    "logo": meta["provider"].get("logo"),
+                }
+            )
+            if meta.get("provider")
+            else None,
+            "identifier": [
+                store.clean({"@type": "PropertyValue", "propertyID": i.get("type"), "value": i["value"]})
+                for i in meta.get("identifiers") or []
+            ]
+            or None,
+            "additionalProperty": [
+                {"@type": "PropertyValue", "name": first(p["label"]), "value": first(p["value"])} for p in meta.get("metadata") or []
+            ]
+            or None,
+            "isPartOf": {"@type": "Collection", "@id": urls["collection"]},
+            "url": meta.get("homepage") or urls.get("page"),
+            "subjectOf": {"@type": "CreativeWork", "@id": urls["manifest"], "encodingFormat": "application/ld+json"},
+        }
+    )
 
 
 def dublin_core(meta, rec, urls):
@@ -343,16 +440,28 @@ def dublin_core(meta, rec, urls):
 
     lines = [el("title", v, lang) for lang, vals in (meta.get("label") or {}).items() for v in vals]
     lines += [el("description", v, lang) for lang, vals in (meta.get("summary") or {}).items() for v in vals]
-    lines += [el("creator", p["name"]) for p in meta.get("creators") or []] + [el("contributor", p["name"]) for p in meta.get("contributors") or []]
+    lines += [el("creator", p["name"]) for p in meta.get("creators") or []] + [
+        el("contributor", p["name"]) for p in meta.get("contributors") or []
+    ]
     lines += [el("subject", s["label"]) for s in meta.get("subjects") or []]
-    lines += [el("date", (meta.get("navDate") or "")[:10]), el("type", "Sound"), el("format", rec.get("format") or "audio"),
-              el("identifier", urls["manifest"])] + [el("identifier", i["value"]) for i in meta.get("identifiers") or []]
-    lines += [el("language", x) for x in meta.get("language") or []] + [el("rights", meta.get("rights")), el("rights", first(meta.get("attribution")))]
+    lines += [
+        el("date", (meta.get("navDate") or "")[:10]),
+        el("type", "Sound"),
+        el("format", rec.get("format") or "audio"),
+        el("identifier", urls["manifest"]),
+    ] + [el("identifier", i["value"]) for i in meta.get("identifiers") or []]
+    lines += [el("language", x) for x in meta.get("language") or []] + [
+        el("rights", meta.get("rights")),
+        el("rights", first(meta.get("attribution"))),
+    ]
     lines += [el("publisher", (meta.get("provider") or {}).get("name")), el("relation", urls["collection"])]
-    return ('<?xml version="1.0" encoding="UTF-8"?>\n<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" '
-            'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-            'xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd">\n'
-            + "\n".join(x for x in lines if x) + "\n</oai_dc:dc>\n")
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" '
+        'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        'xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd">\n'
+        + "\n".join(x for x in lines if x)
+        + "\n</oai_dc:dc>\n"
+    )
 
 
 def copy_of(meta):

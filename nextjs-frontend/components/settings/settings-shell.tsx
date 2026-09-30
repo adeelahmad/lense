@@ -1,7 +1,23 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AudioLines, Bot, Captions, ChartNoAxesColumn, Clapperboard, Cpu, Fingerprint, Globe, ScanText, Search, Settings, ShieldCheck, Sparkles, Terminal, type LucideIcon } from "lucide-react";
+import {
+  AudioLines,
+  Bot,
+  Captions,
+  ChartNoAxesColumn,
+  Clapperboard,
+  Cpu,
+  Fingerprint,
+  Globe,
+  ScanText,
+  Search,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Terminal,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
@@ -53,14 +69,26 @@ export function SettingsShell({ section }: { section: SectionId }) {
 
   if (me && !admin)
     return (
-      <EmptyState icon={<Settings />} title="Settings are for admins" actions={<Button asChild><Link href="/">Go to Home</Link></Button>}>
-        Platform admins change how the archive transcribes, analyses and publishes. Your own profile and API tokens are in the account menu.
+      <EmptyState
+        icon={<Settings />}
+        title="Settings are for admins"
+        actions={
+          <Button asChild>
+            <Link href="/">Go to Home</Link>
+          </Button>
+        }
+      >
+        Platform admins change how the archive transcribes, analyses and publishes. Your own profile and API tokens are
+        in the account menu.
       </EmptyState>
     );
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] md:min-h-[calc(100vh-64px)] md:grid-cols-[230px_minmax(0,1fr)]">
-      <nav aria-label="Settings sections" className="flex min-w-0 flex-col gap-px border-b border-border bg-surface px-2.5 py-[18px] md:sticky md:top-16 md:h-[calc(100vh-64px)] md:overflow-y-auto md:border-b-0 md:border-r">
+      <nav
+        aria-label="Settings sections"
+        className="flex min-w-0 flex-col gap-px border-b border-border bg-surface px-2.5 py-[18px] md:sticky md:top-16 md:h-[calc(100vh-64px)] md:overflow-y-auto md:border-b-0 md:border-r"
+      >
         <div className="px-2.5 pb-3.5 pt-1 text-[20px] font-bold leading-none text-fg">Settings</div>
         <div className="flex gap-1 overflow-x-auto md:flex-col md:gap-px md:overflow-visible">
           {SECTIONS.map((s) => {
@@ -73,7 +101,9 @@ export function SettingsShell({ section }: { section: SectionId }) {
                 aria-current={on ? "page" : undefined}
                 className={cn(
                   "flex h-8 shrink-0 items-center gap-2.5 whitespace-nowrap rounded-sm px-2.5 text-[13.5px] leading-none transition-colors duration-fast",
-                  on ? "bg-blue-surface font-bold text-fg-accent" : "font-medium text-fg-strong hover:bg-surface-neutral",
+                  on
+                    ? "bg-blue-surface font-bold text-fg-accent"
+                    : "font-medium text-fg-strong hover:bg-surface-neutral",
                 )}
               >
                 <Icon aria-hidden className="size-[15px] shrink-0" />
@@ -99,7 +129,12 @@ export function SettingsShell({ section }: { section: SectionId }) {
           isUnreachable(settings.error) ? (
             <ServerUnreachable error={settings.error} onRetry={() => settings.refetch()} />
           ) : (
-            <EmptyState tone="error" icon={<Settings />} title="Couldn’t load the settings" actions={<Button onClick={() => settings.refetch()}>Try again</Button>}>
+            <EmptyState
+              tone="error"
+              icon={<Settings />}
+              title="Couldn’t load the settings"
+              actions={<Button onClick={() => settings.refetch()}>Try again</Button>}
+            >
               {settings.error.message}
             </EmptyState>
           )

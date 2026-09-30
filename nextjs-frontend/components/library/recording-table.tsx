@@ -7,7 +7,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
 import type { Job, RecordingSummary } from "@/app/openapi-client/types.gen";
-import { EmotionCell, ImportanceCell, MediaIcon, SpeakersCell, StatusCell, TextBadge } from "@/components/library/cells";
+import {
+  EmotionCell,
+  ImportanceCell,
+  MediaIcon,
+  SpeakersCell,
+  StatusCell,
+  TextBadge,
+} from "@/components/library/cells";
 import { statusView, type SortDir, type SortKey } from "@/components/library/model";
 import { Checkbox } from "@/components/ui/field";
 import { Menu, MenuContent, MenuLabel, MenuTrigger } from "@/components/ui/menu";
@@ -47,11 +54,45 @@ type Col = {
 };
 
 const COLUMNS: Col[] = [
-  { key: "date", label: "Date", width: 110, sort: "date", cell: (r) => shortDate(r.recorded_at), cls: "tabular whitespace-nowrap text-fg-secondary" },
-  { key: "duration", label: "Duration", width: 70, sort: "duration", right: true, cell: (r) => (r.duration_ms ? tc(r.duration_ms) : "—"), cls: "tabular text-right text-fg-secondary" },
-  { key: "speakers", label: "Speakers", width: 164, sort: "speakers", cell: (r) => <SpeakersCell speakers={r.speakers} />, cls: "min-w-0" },
-  { key: "emotion", label: "Emotion", width: 70, cell: (r) => <EmotionCell emotions={r.emotions} /> },
-  { key: "importance", label: "Importance · tone", width: 150, sort: "importance", cell: (r) => <ImportanceCell importance={r.importance} sentiment={r.sentiment} />, cls: "min-w-0" },
+  {
+    key: "date",
+    label: "Date",
+    width: 110,
+    sort: "date",
+    cell: (r) => shortDate(r.recorded_at),
+    cls: "tabular whitespace-nowrap text-fg-secondary",
+  },
+  {
+    key: "duration",
+    label: "Duration",
+    width: 70,
+    sort: "duration",
+    right: true,
+    cell: (r) => (r.duration_ms ? tc(r.duration_ms) : "—"),
+    cls: "tabular text-right text-fg-secondary",
+  },
+  {
+    key: "speakers",
+    label: "Speakers",
+    width: 164,
+    sort: "speakers",
+    cell: (r) => <SpeakersCell speakers={r.speakers} />,
+    cls: "min-w-0",
+  },
+  {
+    key: "emotion",
+    label: "Emotion",
+    width: 70,
+    cell: (r) => <EmotionCell emotions={r.emotions} />,
+  },
+  {
+    key: "importance",
+    label: "Importance · tone",
+    width: 150,
+    sort: "importance",
+    cell: (r) => <ImportanceCell importance={r.importance} sentiment={r.sentiment} />,
+    cls: "min-w-0",
+  },
 ];
 
 const HIDDEN_KEY = "lens.library.hidden-columns";
@@ -95,7 +136,10 @@ export function RecordingTable({
   onOpen,
   sort,
   onSort,
-}: RowProps & { sort: { key: SortKey; dir: SortDir }; onSort: (key: SortKey) => void }) {
+}: RowProps & {
+  sort: { key: SortKey; dir: SortDir };
+  onSort: (key: SortKey) => void;
+}) {
   const router = useRouter();
   const shift = useRef(false);
   const [hidden, toggleColumn] = useHiddenColumns();
@@ -147,7 +191,11 @@ export function RecordingTable({
         <THead className="border-t-0">
           <tr>
             <Th className={th}>
-              <Checkbox checked={all ? true : some ? "indeterminate" : false} onCheckedChange={(v) => onToggleAll(v)} aria-label={all ? "Clear selection" : "Select all shown"} />
+              <Checkbox
+                checked={all ? true : some ? "indeterminate" : false}
+                onCheckedChange={(v) => onToggleAll(v)}
+                aria-label={all ? "Clear selection" : "Select all shown"}
+              />
             </Th>
             {sortable("title", "Title · namespace")}
             {beforeStatus.map(header)}
@@ -155,7 +203,10 @@ export function RecordingTable({
             {afterStatus.map(header)}
             <Th className="h-9 py-0 pr-4 text-right">
               <Menu>
-                <MenuTrigger className="inline-grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral" aria-label="Show or hide columns">
+                <MenuTrigger
+                  className="inline-grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral"
+                  aria-label="Show or hide columns"
+                >
                   <Columns3 className="size-4" aria-hidden />
                 </MenuTrigger>
                 <MenuContent align="end">
@@ -170,7 +221,10 @@ export function RecordingTable({
                     >
                       <span
                         aria-hidden
-                        className={cn("grid size-4 place-items-center rounded-[3px] border-2 text-[10px] font-bold text-white", hidden.has(c.key) ? "border-fg-secondary" : "border-blue bg-blue")}
+                        className={cn(
+                          "grid size-4 place-items-center rounded-[3px] border-2 text-[10px] font-bold text-white",
+                          hidden.has(c.key) ? "border-fg-secondary" : "border-blue bg-blue",
+                        )}
                       >
                         {hidden.has(c.key) ? "" : "✓"}
                       </span>
@@ -196,15 +250,27 @@ export function RecordingTable({
                 data-row-id={r.id}
                 aria-selected={sel}
                 onClick={(e) => rowClick(e, open)}
-                className={cn("h-[52px] cursor-pointer border-b border-border transition-colors duration-fast", sel ? "bg-hl" : "hover:bg-surface")}
+                className={cn(
+                  "h-[52px] cursor-pointer border-b border-border transition-colors duration-fast",
+                  sel ? "bg-hl" : "hover:bg-surface",
+                )}
               >
                 <td className="pl-6 pr-[7px]" onClickCapture={(e) => (shift.current = e.shiftKey)}>
-                  <Checkbox checked={sel} onCheckedChange={() => onToggle(r.id, i, shift.current)} aria-label={`Select ${r.title ?? "recording"}`} />
+                  <Checkbox
+                    checked={sel}
+                    onCheckedChange={() => onToggle(r.id, i, shift.current)}
+                    aria-label={`Select ${r.title ?? "recording"}`}
+                  />
                 </td>
                 <td className="min-w-0 px-[7px]">
                   <span className="flex min-w-0 flex-col gap-[3px]">
                     <span className="flex min-w-0 items-center gap-2">
-                      <Link href={`/recordings/${r.id}`} data-row-link onClick={() => onOpen?.(r)} className="truncate text-[13.5px] font-semibold leading-tight text-fg hover:underline">
+                      <Link
+                        href={`/recordings/${r.id}`}
+                        data-row-link
+                        onClick={() => onOpen?.(r)}
+                        className="truncate text-[13.5px] font-semibold leading-tight text-fg hover:underline"
+                      >
                         {r.title || "Untitled"}
                       </Link>
                       {r.media_kind === "transcript" && <TextBadge />}
@@ -217,7 +283,11 @@ export function RecordingTable({
                 </td>
                 {beforeStatus.map((c) => cell(c, r))}
                 <td className="min-w-0 px-[7px] py-1.5">
-                  <StatusCell view={view} onRetry={() => onRetry(r, view)} retryDisabledReason={editReason(r.namespace) ?? undefined} />
+                  <StatusCell
+                    view={view}
+                    onRetry={() => onRetry(r, view)}
+                    retryDisabledReason={editReason(r.namespace) ?? undefined}
+                  />
                 </td>
                 {afterStatus.map((c) => cell(c, r))}
                 <td aria-hidden />

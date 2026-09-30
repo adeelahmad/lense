@@ -57,7 +57,12 @@ export function RecordingHeader() {
         </Link>
         <ChevronRight aria-hidden className="size-3" />
         {ns ? (
-          <Link href="/library" onClick={() => setNamespace(ns)} className="hover:text-fg hover:underline" aria-label={`${ns} in the Library`}>
+          <Link
+            href="/library"
+            onClick={() => setNamespace(ns)}
+            className="hover:text-fg hover:underline"
+            aria-label={`${ns} in the Library`}
+          >
             {ns}
           </Link>
         ) : (
@@ -70,7 +75,12 @@ export function RecordingHeader() {
             {model.title}
           </span>
           <Tooltip content="Renaming recordings isn't available yet">
-            <button type="button" aria-label="Rename recording" aria-disabled className="grid size-7 shrink-0 cursor-not-allowed place-items-center rounded-sm text-fg-muted opacity-60">
+            <button
+              type="button"
+              aria-label="Rename recording"
+              aria-disabled
+              className="grid size-7 shrink-0 cursor-not-allowed place-items-center rounded-sm text-fg-muted opacity-60"
+            >
               <Pencil className="size-[15px]" />
             </button>
           </Tooltip>
@@ -100,7 +110,9 @@ export function RecordingHeader() {
         <Meta icon={<Workflow />}>
           <span title={ns ? `The pipeline new recordings in ${ns} go through` : undefined}>
             {pipeline ? pipeline.name : "Standard pipeline"}
-            {pipeline && <span className="ml-1 font-mono text-[11px] font-medium text-fg-muted">v{pipeline.current}</span>}
+            {pipeline && (
+              <span className="ml-1 font-mono text-[11px] font-medium text-fg-muted">v{pipeline.current}</span>
+            )}
           </span>
         </Meta>
         <StatusChip status={status} label={status ? status[0].toUpperCase() + status.slice(1) : "Unknown"} />
@@ -127,7 +139,12 @@ export function HeaderActions({ compact }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2">
       {!compact && (
-        <Button variant="secondary" size="sm" icon={<CodeXml />} onClick={() => openShare(Math.floor(api.now()) || undefined)}>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<CodeXml />}
+          onClick={() => openShare(Math.floor(api.now()) || undefined)}
+        >
           Share / Embed
         </Button>
       )}
@@ -181,11 +198,24 @@ export function ReprocessMenu({ disabled, reason }: { disabled: boolean; reason:
   const router = useRouter();
   const running = jobs.find(isActive);
   const off = disabled || Boolean(running);
-  const why = disabled ? reason : running ? "A job is already running for this recording; follow it in Activity" : undefined;
+  const why = disabled
+    ? reason
+    : running
+      ? "A job is already running for this recording; follow it in Activity"
+      : undefined;
   const nsPipeline = pipelines.data?.pipelines.find((p) => ns && p.namespaces?.includes(ns));
   const run = (body: { pipeline?: number }, label: string) =>
     reprocess.mutate(body, {
-      onSuccess: (res) => toast({ title: `${label} queued`, body: "The step timeline shows progress; the job is also in Activity.", tone: "intent", action: { label: "View job", onClick: () => router.push(`/activity/${res.job}`) } }),
+      onSuccess: (res) =>
+        toast({
+          title: `${label} queued`,
+          body: "The step timeline shows progress; the job is also in Activity.",
+          tone: "intent",
+          action: {
+            label: "View job",
+            onClick: () => router.push(`/activity/${res.job}`),
+          },
+        }),
     });
   if (off)
     return (
@@ -206,7 +236,10 @@ export function ReprocessMenu({ disabled, reason }: { disabled: boolean; reason:
         </MenuItem>
         <MenuSeparator />
         <MenuLabel>Run a whole pipeline</MenuLabel>
-        <MenuItem icon={<Workflow />} onSelect={() => run({ pipeline: nsPipeline?.id }, nsPipeline ? nsPipeline.name : "Standard pipeline")}>
+        <MenuItem
+          icon={<Workflow />}
+          onSelect={() => run({ pipeline: nsPipeline?.id }, nsPipeline ? nsPipeline.name : "Standard pipeline")}
+        >
           {nsPipeline ? `${nsPipeline.name} (${ns}'s default)` : `Standard${ns ? ` (${ns}'s default)` : ""}`}
         </MenuItem>
         {(pipelines.data?.pipelines ?? [])
@@ -231,7 +264,10 @@ function MoreMenu({ compact }: { compact?: boolean }) {
     const url = `${window.location.origin}/recordings/${r.id}${withTime && t > 0 ? `?t=${t}` : ""}`;
     try {
       await navigator.clipboard.writeText(url);
-      toast({ title: withTime ? `Link at ${tc(t * 1000)} copied` : "Link copied", tone: "green" });
+      toast({
+        title: withTime ? `Link at ${tc(t * 1000)} copied` : "Link copied",
+        tone: "green",
+      });
     } catch {
       toast({ title: "Couldn't copy", body: url, tone: "red" });
     }
@@ -300,18 +336,31 @@ export function Banners({ className }: { className?: string }) {
     const step = stepLabel(job.nextStep ?? job.steps[job.stepIndex]?.type ?? "analyze");
     const queued = job.status === "queued";
     return (
-      <div role="status" className={cn("mt-1.5 flex items-center gap-3 rounded-md border border-blue-border bg-blue-surface px-3.5 py-2.5", className)}>
+      <div
+        role="status"
+        className={cn(
+          "mt-1.5 flex items-center gap-3 rounded-md border border-blue-border bg-blue-surface px-3.5 py-2.5",
+          className,
+        )}
+      >
         <span aria-hidden className="size-2 shrink-0 rounded-full bg-blue" />
         <p className="min-w-0 flex-1 text-[13px] leading-[1.45] text-fg-strong">
           {state.justImported ? (
             <>
-              <b className="text-fg">Imported — the transcript is ready to read.</b> {queued ? `${step} is waiting for a worker.` : `${step} is running (${Math.round(job.progress * 100)}%).`}{" "}
-              Chapters, stats, keywords, the summary and the report fill in when it finishes; nothing on this page moves while they do.
+              <b className="text-fg">Imported — the transcript is ready to read.</b>{" "}
+              {queued ? `${step} is waiting for a worker.` : `${step} is running (${Math.round(job.progress * 100)}%).`}{" "}
+              Chapters, stats, keywords, the summary and the report fill in when it finishes; nothing on this page moves
+              while they do.
             </>
           ) : (
             <>
-              <b className="text-fg">{queued ? `Queued — waiting for a worker to run ${step}.` : `${step} is running (${Math.round(job.progress * 100)}%).`}</b> Chapters, stats, keywords and the
-              summary refresh in place when it finishes; you can keep reading{job ? " and listening" : ""}.
+              <b className="text-fg">
+                {queued
+                  ? `Queued — waiting for a worker to run ${step}.`
+                  : `${step} is running (${Math.round(job.progress * 100)}%).`}
+              </b>{" "}
+              Chapters, stats, keywords and the summary refresh in place when it finishes; you can keep reading
+              {job ? " and listening" : ""}.
             </>
           )}
         </p>
@@ -335,8 +384,14 @@ export function Banners({ className }: { className?: string }) {
           <StepLoop steps={loopSteps(job)} compact label="Pipeline steps of the last run" />
         </div>
       )}
-      <div role="alert" className="mt-1.5 flex flex-wrap items-center gap-3 rounded-md border border-red-border bg-red-surface py-2.5 pl-3.5 pr-3">
-        <span aria-hidden className="grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-[12px] font-extrabold text-white">
+      <div
+        role="alert"
+        className="mt-1.5 flex flex-wrap items-center gap-3 rounded-md border border-red-border bg-red-surface py-2.5 pl-3.5 pr-3"
+      >
+        <span
+          aria-hidden
+          className="grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-[12px] font-extrabold text-white"
+        >
           ✕
         </span>
         <p className="min-w-[240px] flex-1 text-[13px] leading-[1.45] text-fg-strong">
@@ -356,7 +411,12 @@ export function Banners({ className }: { className?: string }) {
           </Button>
         )}
         {llm && (
-          <Button variant="secondary" size="sm" disabled disabledReason="Choosing another model for one retry isn't available yet">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled
+            disabledReason="Choosing another model for one retry isn't available yet"
+          >
             Retry with another model
           </Button>
         )}
@@ -366,7 +426,13 @@ export function Banners({ className }: { className?: string }) {
           icon={<RotateCw />}
           disabled={!canEdit || retry.isPending || reprocess.isPending}
           disabledReason={!canEdit ? needRole("editor", ns) : undefined}
-          onClick={() => (job ? retry.mutate(job.id) : reprocess.mutate({ steps: ["transcribe", "diarize", "analyze", "summarize", "report"] }))}
+          onClick={() =>
+            job
+              ? retry.mutate(job.id)
+              : reprocess.mutate({
+                  steps: ["transcribe", "diarize", "analyze", "summarize", "report"],
+                })
+          }
         >
           Retry
         </Button>

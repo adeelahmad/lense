@@ -3,6 +3,7 @@
 Admins can do everything. Otherwise access is per namespace: viewer (read, listen, search, chat), editor (import,
 correct, rename and merge speakers, run pipelines) and owner (members and namespace settings).
 """
+
 from __future__ import annotations
 
 import base64
@@ -39,7 +40,7 @@ def sha(s):
 def hash_password(pw):
     if len(pw or "") < 10:
         raise ValueError("passwords need at least 10 characters")
-    salt, n, r, p = secrets.token_bytes(16), 2 ** 15, 8, 1
+    salt, n, r, p = secrets.token_bytes(16), 2**15, 8, 1
     h = hashlib.scrypt(pw.encode(), salt=salt, n=n, r=r, p=p, maxmem=64 * 1024 * 1024, dklen=32)
     return f"scrypt${n}${r}${p}${_b64(salt)}${_b64(h)}"
 
@@ -65,8 +66,18 @@ def create_account(db, email, password, name=None, admin=False):
     if db.values("SELECT VALUE id FROM account WHERE email = $e", e=email):
         raise ValueError("that email already has an account")
     uid = db.next_id("account")
-    db.q("CREATE $r CONTENT $d", r=R("account", uid), d={"email": email, "name": (name or email.split("@")[0])[:80], "pw": hash_password(password),
-                                                          "admin": bool(admin), "disabled": False, "created_at": store.now()})
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("account", uid),
+        d={
+            "email": email,
+            "name": (name or email.split("@")[0])[:80],
+            "pw": hash_password(password),
+            "admin": bool(admin),
+            "disabled": False,
+            "created_at": store.now(),
+        },
+    )
     return uid
 
 
@@ -83,7 +94,10 @@ def get_account(db, uid):
 
 
 def find_account(db, email):
-    return db.one("SELECT record::id(id) AS id, email, name, admin, disabled, pw FROM account WHERE email = $e LIMIT 1", e=(email or "").strip().lower())
+    return db.one(
+        "SELECT record::id(id) AS id, email, name, admin, disabled, pw FROM account WHERE email = $e LIMIT 1",
+        e=(email or "").strip().lower(),
+    )
 
 
 def throttled(key):
@@ -120,9 +134,18 @@ def update_account(db, uid, name=None, admin=None, disabled=None, password=None)
 # rotates it, and presenting a rotated-out token ends that whole session (it was probably stolen).
 def start_session(db, cfg, uid, ua="", ip=""):
     raw, sid = secrets.token_urlsafe(32), secrets.token_urlsafe(12)
-    db.q("CREATE $r CONTENT $d", r=R("login_session", sha(raw)), d={"account": uid, "sid": sid, "created_at": store.now(),
-                                                                      "expires_at": _later(cfg["server"].get("session_hours", 168)),
-                                                                      "ua": (ua or "")[:200], "ip": ip})
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("login_session", sha(raw)),
+        d={
+            "account": uid,
+            "sid": sid,
+            "created_at": store.now(),
+            "expires_at": _later(cfg["server"].get("session_hours", 168)),
+            "ua": (ua or "")[:200],
+            "ip": ip,
+        },
+    )
     return raw, sid
 
 
@@ -142,10 +165,13 @@ def refresh_session(db, cfg, raw):
     if not _active(u):
         return None
     new = secrets.token_urlsafe(32)
-    db.run(["UPDATE $old SET rotated = true, rotated_at = rotated_at OR $now",
-            "CREATE $new CONTENT $d"],
-           old=R("login_session", sha(raw)), now=store.now(), new=R("login_session", sha(new)),
-           d={"account": u["id"], "sid": s["sid"], "created_at": store.now(), "expires_at": _later(cfg["server"].get("session_hours", 168))})
+    db.run(
+        ["UPDATE $old SET rotated = true, rotated_at = rotated_at OR $now", "CREATE $new CONTENT $d"],
+        old=R("login_session", sha(raw)),
+        now=store.now(),
+        new=R("login_session", sha(new)),
+        d={"account": u["id"], "sid": s["sid"], "created_at": store.now(), "expires_at": _later(cfg["server"].get("session_hours", 168))},
+    )
     return public(u), new, s["sid"]
 
 
@@ -157,7 +183,9 @@ def end_session(db, raw):
 
 
 def session_active(db, sid):
-    return bool(sid) and bool(db.values("SELECT VALUE id FROM login_session WHERE sid = $s AND expires_at > $n LIMIT 1", s=sid, n=store.now()))
+    return bool(sid) and bool(
+        db.values("SELECT VALUE id FROM login_session WHERE sid = $s AND expires_at > $n LIMIT 1", s=sid, n=store.now())
+    )
 
 
 def _active(u):
@@ -177,8 +205,11 @@ def start_reset(db, email, minutes=60):
         return None, None
     raw = secrets.token_urlsafe(32)
     db.q("DELETE password_reset WHERE account = $a", a=u["id"])
-    db.q("CREATE $r CONTENT $d", r=R("password_reset", sha(raw)), d={"account": u["id"], "created_at": store.now(),
-                                                                       "expires_at": _later(minutes / 60)})
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("password_reset", sha(raw)),
+        d={"account": u["id"], "created_at": store.now(), "expires_at": _later(minutes / 60)},
+    )
     return raw, public(u)
 
 
@@ -196,9 +227,21 @@ def create_token(db, uid, name, scope="read", days=90):
         raise ValueError("scope is read or write")
     raw = "la_" + secrets.token_urlsafe(32)
     tid = db.next_id("api_token")
-    db.q("CREATE $r CONTENT $d", r=R("api_token", tid), d=store.clean({"account": uid, "name": (name or "token")[:80], "scope": scope,
-                                                                        "hash": sha(raw), "prefix": raw[:9], "created_at": store.now(),
-                                                                        "expires_at": _later(24 * days) if days else None}))
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("api_token", tid),
+        d=store.clean(
+            {
+                "account": uid,
+                "name": (name or "token")[:80],
+                "scope": scope,
+                "hash": sha(raw),
+                "prefix": raw[:9],
+                "created_at": store.now(),
+                "expires_at": _later(24 * days) if days else None,
+            }
+        ),
+    )
     return tid, raw
 
 
@@ -216,7 +259,9 @@ def token_account(db, raw):
 
 
 def list_tokens(db, uid):
-    return db.rows("SELECT record::id(id) AS id, name, scope, prefix, created_at, expires_at, last_used_at FROM api_token WHERE account = $a", a=uid)
+    return db.rows(
+        "SELECT record::id(id) AS id, name, scope, prefix, created_at, expires_at, last_used_at FROM api_token WHERE account = $a", a=uid
+    )
 
 
 def revoke_token(db, uid, tid):
@@ -249,17 +294,35 @@ def set_role(db, uid, sid, role):
 
 def members(db, sid):
     rows = db.rows("SELECT account, role FROM membership WHERE space = $s", s=sid)
-    people = {u["id"]: u for u in db.rows("SELECT record::id(id) AS id, email, name FROM account WHERE id IN $ids",
-                                          ids=[R("account", r["account"]) for r in rows])} if rows else {}
-    return [{"account": r["account"], "role": r["role"], "email": people.get(r["account"], {}).get("email"),
-             "name": people.get(r["account"], {}).get("name")} for r in rows]
+    people = (
+        {
+            u["id"]: u
+            for u in db.rows(
+                "SELECT record::id(id) AS id, email, name FROM account WHERE id IN $ids", ids=[R("account", r["account"]) for r in rows]
+            )
+        }
+        if rows
+        else {}
+    )
+    return [
+        {
+            "account": r["account"],
+            "role": r["role"],
+            "email": people.get(r["account"], {}).get("email"),
+            "name": people.get(r["account"], {}).get("name"),
+        }
+        for r in rows
+    ]
 
 
 # ---------- share links (read-only access to one recording, revocable) ----------
 def create_share(db, rid, uid, days=30):
     raw = secrets.token_urlsafe(24)
-    db.q("CREATE $r CONTENT $d", r=R("share_link", sha(raw)), d={"recording": rid, "created_by": uid, "created_at": store.now(),
-                                                                  "expires_at": _later(24 * days), "revoked": False})
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("share_link", sha(raw)),
+        d={"recording": rid, "created_by": uid, "created_at": store.now(), "expires_at": _later(24 * days), "revoked": False},
+    )
     return raw
 
 
@@ -275,5 +338,16 @@ def revoke_shares(db, rid):
 
 
 def audit(db, user, action, target=None, detail=None):
-    db.q("CREATE audit_log CONTENT $d", d=store.clean({"at": store.now(), "account": (user or {}).get("id"), "email": (user or {}).get("email"),
-                                                       "action": action, "target": target, "detail": detail}))
+    db.q(
+        "CREATE audit_log CONTENT $d",
+        d=store.clean(
+            {
+                "at": store.now(),
+                "account": (user or {}).get("id"),
+                "email": (user or {}).get("email"),
+                "action": action,
+                "target": target,
+                "detail": detail,
+            }
+        ),
+    )

@@ -1,5 +1,25 @@
-import { approxCount, approxDuration, confirmMatches, confirmNumber, describeSelection, eta, money, nothingRunnable, progressParts } from "@/components/batches/format";
-import { filterGraph, findFocus, findNodes, nearestInDirection, neighbours, nodeShape, summarize, type GraphEdge, type GraphNode } from "@/components/graph/model";
+import {
+  approxCount,
+  approxDuration,
+  confirmMatches,
+  confirmNumber,
+  describeSelection,
+  eta,
+  money,
+  nothingRunnable,
+  progressParts,
+} from "@/components/batches/format";
+import {
+  filterGraph,
+  findFocus,
+  findNodes,
+  nearestInDirection,
+  neighbours,
+  nodeShape,
+  summarize,
+  type GraphEdge,
+  type GraphNode,
+} from "@/components/graph/model";
 import { isUnnamed, monthLabel, speakerInitials, talkByMonth, talkTime } from "@/components/speakers/format";
 
 describe("speaker formatting", () => {
@@ -61,25 +81,58 @@ describe("batch formatting", () => {
   });
 
   it("describes where recordings come from", () => {
-    expect(describeSelection({ entity: 4 }, { entity: "Northwind Labs" })).toBe("every recording that mentions Northwind Labs");
+    expect(describeSelection({ entity: 4 }, { entity: "Northwind Labs" })).toBe(
+      "every recording that mentions Northwind Labs",
+    );
     expect(describeSelection({ namespace: "podcasts" })).toBe("every recording in podcasts");
-    expect(describeSelection({ filter: { q: "refund", namespaces: ["customer-calls"] } })).toBe("recordings matching “refund” in customer-calls");
+    expect(
+      describeSelection({
+        filter: { q: "refund", namespaces: ["customer-calls"] },
+      }),
+    ).toBe("recordings matching “refund” in customer-calls");
     expect(describeSelection({ recordings: [1, 2, 3] })).toBe("3 chosen recordings");
     expect(describeSelection({ collection: 5 }, { collection: "Cohort B" })).toBe("the saved collection “Cohort B”");
   });
 
   it("computes progress and a time left", () => {
-    const p = progressParts({ counts: { succeeded: 23, failed: 1, running: 1 }, done: 24, total: 39, remaining: 0 });
-    expect(p).toEqual({ done: 23, failed: 1, running: 1, queued: 14, total: 39 });
+    const p = progressParts({
+      counts: { succeeded: 23, failed: 1, running: 1 },
+      done: 24,
+      total: 39,
+      remaining: 0,
+    });
+    expect(p).toEqual({
+      done: 23,
+      failed: 1,
+      running: 1,
+      queued: 14,
+      total: 39,
+    });
     expect(eta(p, "2026-09-30T10:00:00Z", Date.parse("2026-09-30T10:24:00Z"))).toBeCloseTo(15 * 60);
     expect(eta({ ...p, done: 0, failed: 0 }, "2026-09-30T10:00:00Z")).toBeNull();
   });
 });
 
-const N = (id: string, x: number, y: number, over: Partial<GraphNode> = {}): GraphNode => ({ id, kind: "entity", label: id, type: "ORG", ns: ["podcasts"], weight: 1, refs: [], x, y, ...over });
+const N = (id: string, x: number, y: number, over: Partial<GraphNode> = {}): GraphNode => ({
+  id,
+  kind: "entity",
+  label: id,
+  type: "ORG",
+  ns: ["podcasts"],
+  weight: 1,
+  refs: [],
+  x,
+  y,
+  ...over,
+});
 
 describe("graph model", () => {
-  const nodes = [N("s1", 0, 0, { kind: "speaker", label: "Host A" }), N("s2", 1, 0, { kind: "speaker", label: "Host B" }), N("e:meridian", 0, -1, { refs: [12], label: "Meridian" }), N("e:london", -1, 0.1, { type: "PLACE", label: "London" })];
+  const nodes = [
+    N("s1", 0, 0, { kind: "speaker", label: "Host A" }),
+    N("s2", 1, 0, { kind: "speaker", label: "Host B" }),
+    N("e:meridian", 0, -1, { refs: [12], label: "Meridian" }),
+    N("e:london", -1, 0.1, { type: "PLACE", label: "London" }),
+  ];
   const edges: GraphEdge[] = [
     { a: "s1", b: "s2", w: 212, kind: "together" },
     { a: "e:meridian", b: "s1", w: 12, kind: "mentions" },
@@ -87,7 +140,11 @@ describe("graph model", () => {
   ];
 
   it("filters by type, kind and weight, dropping unlinked entities", () => {
-    const all = { groups: new Set(["speaker", "ORG", "PLACE"]), kinds: new Set(["together", "mentions"]), minWeight: 2 };
+    const all = {
+      groups: new Set(["speaker", "ORG", "PLACE"]),
+      kinds: new Set(["together", "mentions"]),
+      minWeight: 2,
+    };
     const f = filterGraph({ nodes, edges }, all);
     expect(f.nodes.map((n) => n.id)).toEqual(["s1", "s2", "e:meridian"]);
     expect(f.edges).toHaveLength(2);
@@ -114,7 +171,9 @@ describe("graph model", () => {
   });
 
   it("summarises the picture in words", () => {
-    expect(summarize(nodes, edges, "podcasts")).toBe("4 nodes (2 speakers) and 3 links in podcasts. Most connected: Host A (2 links), Host B (2 links), Meridian (1 link).");
+    expect(summarize(nodes, edges, "podcasts")).toBe(
+      "4 nodes (2 speakers) and 3 links in podcasts. Most connected: Host A (2 links), Host B (2 links), Meridian (1 link).",
+    );
     expect(summarize([], [], "podcasts")).toBe("The graph for podcasts is empty.");
   });
 });

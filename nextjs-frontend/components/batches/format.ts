@@ -56,15 +56,23 @@ export function describeSelection(
   if (s.recordings?.length) return plural(s.recordings.length, "chosen recording");
   const parts: string[] = [];
   const f = (s.filter ?? {}) as Record<string, unknown>;
-  if (s.entity || (f.entities as unknown[] | undefined)?.length) parts.push(`every recording that mentions ${names.entity ?? "the entity"}`);
-  if (s.speaker || (f.speakers as unknown[] | undefined)?.length) parts.push(`every recording with ${names.speaker ?? "the speaker"}`);
+  if (s.entity || (f.entities as unknown[] | undefined)?.length)
+    parts.push(`every recording that mentions ${names.entity ?? "the entity"}`);
+  if (s.speaker || (f.speakers as unknown[] | undefined)?.length)
+    parts.push(`every recording with ${names.speaker ?? "the speaker"}`);
   if (typeof f.q === "string" && f.q) parts.push(`recordings matching “${f.q}”`);
   const ns = s.namespace ?? (Array.isArray(f.namespaces) ? (f.namespaces as string[]).join(", ") : null);
   if (ns) parts.push(parts.length ? `in ${ns}` : `every recording in ${ns}`);
   return parts.join(" ") || "every recording you can change";
 }
 
-export type ProgressParts = { done: number; failed: number; running: number; queued: number; total: number };
+export type ProgressParts = {
+  done: number;
+  failed: number;
+  running: number;
+  queued: number;
+  total: number;
+};
 
 /** Progress counts from a batch's job counts. */
 export function progressParts(p: BatchProgress | null | undefined): ProgressParts {
@@ -73,7 +81,13 @@ export function progressParts(p: BatchProgress | null | undefined): ProgressPart
   const done = (c.succeeded ?? 0) + (c.cancelled ?? 0);
   const failed = c.failed ?? 0;
   const running = c.running ?? 0;
-  return { done, failed, running, queued: Math.max(0, total - done - failed - running), total };
+  return {
+    done,
+    failed,
+    running,
+    queued: Math.max(0, total - done - failed - running),
+    total,
+  };
 }
 
 /** A rough time left from the average pace so far. */

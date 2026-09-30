@@ -78,7 +78,10 @@ export function buildAttention(input: {
       kind: "fail",
       title: `Processing failed on ${r.title || `recording ${r.id}`}`,
       meta: [short(r.error) || "No error message", r.namespace].filter(Boolean).join(" · "),
-      action: { label: "Reprocess", do: { type: "reprocess", recording: r.id } },
+      action: {
+        label: "Reprocess",
+        do: { type: "reprocess", recording: r.id },
+      },
       namespace: r.namespace ?? null,
     });
   }
@@ -89,8 +92,16 @@ export function buildAttention(input: {
       key: `src-${s.id}`,
       kind: "fail",
       title: `${sourceTypeLabel(s.type, s.label)} · ${s.name} can’t be reached`,
-      meta: [short(s.health.error) || "The connection test failed", s.health.checked_at ? relative(s.health.checked_at, now) : null].filter(Boolean).join(" · "),
-      action: { label: "Test again", do: { type: "test-source", source: s.id } },
+      meta: [
+        short(s.health.error) || "The connection test failed",
+        s.health.checked_at ? relative(s.health.checked_at, now) : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      action: {
+        label: "Test again",
+        do: { type: "test-source", source: s.id },
+      },
     });
   }
 
@@ -110,14 +121,19 @@ export function buildAttention(input: {
     const pending = r.speakers.filter((s) => (s.suggestions ?? []).length > 0);
     if (!pending.length) continue;
     let best: { from: Speaker; to: string; score: number } | null = null;
-    for (const s of pending) for (const g of s.suggestions ?? []) if (!best || g.score > best.score) best = { from: s, to: g.name, score: g.score };
+    for (const s of pending)
+      for (const g of s.suggestions ?? [])
+        if (!best || g.score > best.score) best = { from: s, to: g.name, score: g.score };
     if (!best) continue;
     out.push({
       key: `review-${r.namespace}`,
       kind: "gate",
       title: `${best.from.display} ↔ ${best.to} · ${best.score.toFixed(2)} · unsure`,
       meta: `${pending.length} voice ${pending.length === 1 ? "match" : "matches"} to review in ${r.namespace}`,
-      action: { label: "Review", do: { type: "link", href: "/speakers", namespace: r.namespace } },
+      action: {
+        label: "Review",
+        do: { type: "link", href: "/speakers", namespace: r.namespace },
+      },
     });
   }
 
@@ -130,8 +146,15 @@ export function buildAttention(input: {
       key: `token-${t.id}`,
       kind: "gate",
       title: `API token “${t.name}” expires ${days <= 1 ? "within a day" : `in ${days} days`}`,
-      meta: [`${t.prefix}…`, t.scope, t.last_used_at ? `last used ${relative(t.last_used_at, now)}` : "never used"].join(" · "),
-      action: { label: "Manage tokens", do: { type: "link", href: "/account/tokens" } },
+      meta: [
+        `${t.prefix}…`,
+        t.scope,
+        t.last_used_at ? `last used ${relative(t.last_used_at, now)}` : "never used",
+      ].join(" · "),
+      action: {
+        label: "Manage tokens",
+        do: { type: "link", href: "/account/tokens" },
+      },
     });
   }
 

@@ -2,13 +2,7 @@ import type { FormState } from "@/lib/definitions";
 import { cn } from "@/lib/utils";
 
 /** The form-level error (server rejected the request or failed). */
-export function FormError({
-  state,
-  className,
-}: {
-  state?: FormState;
-  className?: string;
-}) {
+export function FormError({ state, className }: { state?: FormState; className?: string }) {
   const error = state?.server_validation_error || state?.server_error;
   if (!error) return null;
   return (

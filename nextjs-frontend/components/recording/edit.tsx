@@ -84,7 +84,10 @@ export function EditProvider({ children }: { children: ReactNode }) {
     if (await save(last.idx, { ...last.before }, { record: false })) setChanges((c) => c.slice(0, -1));
   }, [changes, save]);
 
-  const value = useMemo(() => ({ target, setTarget, changes, save, undo, saving }), [target, changes, save, undo, saving]);
+  const value = useMemo(
+    () => ({ target, setTarget, changes, save, undo, saving }),
+    [target, changes, save, undo, saving],
+  );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -150,7 +153,15 @@ export function ReassignMenu({ turn, current }: { turn: Turn; current: SpeakerIn
   const assign = async (sid: number | null, name: string) => {
     let ok = true;
     for (const idx of turn.segs) ok = (await edit.save(idx, { speaker: sid })) && ok;
-    if (ok) toast({ title: `Turn at ${tc(turn.t0)} reassigned to ${name}`, tone: "green", action: { label: "Undo", onClick: () => void undoMany(edit, turn.segs.length) } });
+    if (ok)
+      toast({
+        title: `Turn at ${tc(turn.t0)} reassigned to ${name}`,
+        tone: "green",
+        action: {
+          label: "Undo",
+          onClick: () => void undoMany(edit, turn.segs.length),
+        },
+      });
   };
   return (
     <Menu>
@@ -168,7 +179,12 @@ export function ReassignMenu({ turn, current }: { turn: Turn; current: SpeakerIn
         <MenuLabel>Speakers in {ns}</MenuLabel>
         {dir.isLoading && <Skeleton className="m-2 w-40" />}
         {(dir.data?.speakers ?? []).map((s) => (
-          <MenuItem key={s.id} onSelect={() => void assign(s.id, s.display)} shortcut={current?.id === s.id ? "current" : undefined} disabled={current?.id === s.id}>
+          <MenuItem
+            key={s.id}
+            onSelect={() => void assign(s.id, s.display)}
+            shortcut={current?.id === s.id ? "current" : undefined}
+            disabled={current?.id === s.id}
+          >
             {s.display}
           </MenuItem>
         ))}
@@ -191,7 +207,12 @@ export function EditToolbar() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey && !["INPUT", "TEXTAREA"].includes(t.tagName)) {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key.toLowerCase() === "z" &&
+        !e.shiftKey &&
+        !["INPUT", "TEXTAREA"].includes(t.tagName)
+      ) {
         e.preventDefault();
         void edit?.undo();
       }
@@ -216,7 +237,8 @@ export function EditToolbar() {
         disabled={!n || edit?.saving}
         className="flex h-7 items-center gap-1.5 rounded-pill px-2.5 text-[12.5px] font-semibold text-fg-strong hover:bg-background disabled:opacity-40"
       >
-        <Undo2 className="size-3.5" /> Undo <kbd className="rounded-xs border border-border px-1 py-0.5 font-sans text-[10.5px] font-medium">⌘Z</kbd>
+        <Undo2 className="size-3.5" /> Undo{" "}
+        <kbd className="rounded-xs border border-border px-1 py-0.5 font-sans text-[10.5px] font-medium">⌘Z</kbd>
       </button>
       <ChangeHistory />
       <Button size="sm" variant="primary" onClick={() => setEditing(false)}>
@@ -234,24 +256,37 @@ export function ChangeHistoryList({ limit = 50 }: { limit?: number }) {
   const edit = useEdit();
   const { editSegment } = useRecordingActions(id);
   const { me } = useArchive();
-  const name = (sid: number | null) => (sid == null ? "nobody" : (dir.data?.speakers.find((s) => s.id === sid)?.display ?? `Speaker ${sid}`));
+  const name = (sid: number | null) =>
+    sid == null ? "nobody" : (dir.data?.speakers.find((s) => s.id === sid)?.display ?? `Speaker ${sid}`);
   const list = edits.data ?? [];
   if (edits.isLoading) return <Skeleton className="m-1 w-48" />;
-  if (!list.length) return <p className="border-t border-border px-1 py-2.5 text-[12.5px] leading-snug text-fg-muted">No corrections yet. Fixed lines and reassigned speakers are listed here, with Revert.</p>;
+  if (!list.length)
+    return (
+      <p className="border-t border-border px-1 py-2.5 text-[12.5px] leading-snug text-fg-muted">
+        No corrections yet. Fixed lines and reassigned speakers are listed here, with Revert.
+      </p>
+    );
   return (
     <ul className="m-0 max-h-[320px] list-none overflow-y-auto p-0">
       {list.slice(0, limit).map((e, i) => {
         const seg = model.segments[e.idx];
         const patch = revertPatch(e);
         return (
-          <li key={`${e.idx}-${e.at}-${i}`} className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-[3px] border-t border-border px-1 py-2">
+          <li
+            key={`${e.idx}-${e.at}-${i}`}
+            className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-[3px] border-t border-border px-1 py-2"
+          >
             <span className="text-[12.5px] font-semibold leading-snug text-fg">{describeEdit(e, name)}</span>
             {canEdit && patch ? (
               <button
                 type="button"
                 className="self-start text-[12px] font-semibold text-blue hover:underline disabled:opacity-50"
                 disabled={edit?.saving || editSegment.isPending}
-                onClick={() => void (edit ? edit.save(e.idx, patch) : editSegment.mutateAsync({ idx: e.idx, ...patch }).catch(() => undefined))}
+                onClick={() =>
+                  void (edit
+                    ? edit.save(e.idx, patch)
+                    : editSegment.mutateAsync({ idx: e.idx, ...patch }).catch(() => undefined))
+                }
               >
                 Revert
               </button>
@@ -259,7 +294,8 @@ export function ChangeHistoryList({ limit = 50 }: { limit?: number }) {
               <span />
             )}
             <span className="col-span-2 text-[11.5px] leading-snug text-fg-muted">
-              {seg ? tc(seg.t0) : `line ${e.idx + 1}`} · {e.by && me?.user.email === e.by ? "you" : (e.by ?? "someone")} · {relative(e.at)}
+              {seg ? tc(seg.t0) : `line ${e.idx + 1}`} · {e.by && me?.user.email === e.by ? "you" : (e.by ?? "someone")}{" "}
+              · {relative(e.at)}
             </span>
           </li>
         );
@@ -272,7 +308,10 @@ export function ChangeHistory() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button type="button" className="flex h-7 items-center gap-1.5 rounded-pill border border-border bg-background px-2.5 text-[12.5px] font-semibold text-fg-strong hover:bg-surface-neutral">
+        <button
+          type="button"
+          className="flex h-7 items-center gap-1.5 rounded-pill border border-border bg-background px-2.5 text-[12.5px] font-semibold text-fg-strong hover:bg-surface-neutral"
+        >
           <History className="size-3.5" /> Change history
         </button>
       </PopoverTrigger>

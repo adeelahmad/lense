@@ -6,7 +6,14 @@ import type { Job } from "@/app/openapi-client/types.gen";
 import type { LoopStep } from "@/components/ui/loop";
 import { STEP_LABEL, STEP_TONE } from "@/components/ui/loop";
 
-export type StepSpec = { type: string; name?: string; key?: string; template?: number; version?: number; model?: string };
+export type StepSpec = {
+  type: string;
+  name?: string;
+  key?: string;
+  template?: number;
+  version?: number;
+  model?: string;
+};
 
 export type JobInfo = {
   id: number;
@@ -87,16 +94,25 @@ export function loopSteps(j: JobInfo, notes?: StepNote[]): LoopStep[] {
   return j.steps.map((spec, i) => {
     let state: LoopStep["state"] = "todo";
     if (j.status === "succeeded" || i < j.stepIndex) state = "done";
-    else if (i === j.stepIndex) state = j.status === "failed" ? "failed" : j.status === "cancelled" ? "skipped" : "current";
+    else if (i === j.stepIndex)
+      state = j.status === "failed" ? "failed" : j.status === "cancelled" ? "skipped" : "current";
     else if (j.status === "failed" || j.status === "cancelled") state = "skipped";
     const note = notes?.[i];
     let sub: string | undefined;
-    if (state === "current") sub = j.status === "queued" ? (i === 0 && !j.startedAt ? "queued" : "waiting for a worker") : "running";
+    if (state === "current")
+      sub = j.status === "queued" ? (i === 0 && !j.startedAt ? "queued" : "waiting for a worker") : "running";
     else if (state === "failed") sub = shortError(j.error) ?? "failed";
     else if (state === "skipped") sub = j.status === "cancelled" ? "cancelled" : "skipped";
-    else if (state === "done") sub = note?.skipped ? "skipped" : note?.seconds != null ? duration(note.seconds) : undefined;
+    else if (state === "done")
+      sub = note?.skipped ? "skipped" : note?.seconds != null ? duration(note.seconds) : undefined;
     else if (i === j.stepIndex + 1 && isActive(j)) sub = "waiting";
-    return { key: spec.type, label: stepLabel(spec), tone: STEP_TONE[spec.type] ?? "neutral", state, sub };
+    return {
+      key: spec.type,
+      label: stepLabel(spec),
+      tone: STEP_TONE[spec.type] ?? "neutral",
+      state,
+      sub,
+    };
   });
 }
 
@@ -115,7 +131,11 @@ export function duration(seconds: number): string {
   return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} m` : `${m} m ${s} s`;
 }
 
-export type StepNote = { seconds: number | null; notes: string[]; skipped: boolean };
+export type StepNote = {
+  seconds: number | null;
+  notes: string[];
+  skipped: boolean;
+};
 
 const DONE_RX = /^(?:\d\d:\d\d:\d\d\s+)?(.+?) done in ([\d.]+)s$/;
 const SKIP_RX = /skipped|nothing to transcribe|kept them|kept it/i;
@@ -125,7 +145,11 @@ const SKIP_RX = /skipped|nothing to transcribe|kept them|kept it/i;
  * that marker belong to the step. Returns one entry per job step (null times for steps that haven't run).
  */
 export function stepNotes(j: JobInfo): StepNote[] {
-  const out: StepNote[] = j.steps.map(() => ({ seconds: null, notes: [], skipped: false }));
+  const out: StepNote[] = j.steps.map(() => ({
+    seconds: null,
+    notes: [],
+    skipped: false,
+  }));
   let i = 0;
   let pending: string[] = [];
   for (const raw of j.log) {
@@ -133,7 +157,11 @@ export function stepNotes(j: JobInfo): StepNote[] {
     if (!line) continue;
     const m = DONE_RX.exec(line);
     if (m && i < out.length) {
-      out[i] = { seconds: Number(m[2]), notes: pending, skipped: pending.some((p) => SKIP_RX.test(p)) };
+      out[i] = {
+        seconds: Number(m[2]),
+        notes: pending,
+        skipped: pending.some((p) => SKIP_RX.test(p)),
+      };
       pending = [];
       i++;
     } else if (/^handing .* to a worker|^cancelled$/.test(line)) continue;
@@ -167,20 +195,48 @@ const TRANSCRIBING = new Set(["transcribe", "diarize"]);
  * Newest job first. An active job decides: transcribing/diarizing is "processing" (R5), anything later is "analyzing"
  * (R8). Otherwise a failed newest job (or a recording in error) is "failed" (R6).
  */
-export function pageState(recording: { status?: string | null; error?: string | null; source?: string | null }, jobs: JobInfo[]): PageState {
+export function pageState(
+  recording: {
+    status?: string | null;
+    error?: string | null;
+    source?: string | null;
+  },
+  jobs: JobInfo[],
+): PageState {
   const sorted = [...jobs].sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "") || b.id - a.id);
   const active = sorted.find(isActive) ?? null;
   const status = (recording.status ?? "").toLowerCase();
-  const justImported = recording.source !== "audio" && (status === "transcribed" || status === "diarized" || status === "new");
+  const justImported =
+    recording.source !== "audio" && (status === "transcribed" || status === "diarized" || status === "new");
   if (active) {
     const step = currentStep(active);
     const phase: Phase = step && TRANSCRIBING.has(step) && recording.source === "audio" ? "processing" : "analyzing";
     return { phase, job: active, failedStep: null, error: null, justImported };
   }
   const latest = sorted[0] ?? null;
-  if (latest?.status === "failed") return { phase: "failed", job: latest, failedStep: currentStep(latest), error: latest.error, justImported: false };
-  if (status === "error") return { phase: "failed", job: null, failedStep: "transcribe", error: recording.error ?? null, justImported: false };
-  return { phase: "ready", job: latest, failedStep: null, error: null, justImported: false };
+  if (latest?.status === "failed")
+    return {
+      phase: "failed",
+      job: latest,
+      failedStep: currentStep(latest),
+      error: latest.error,
+      justImported: false,
+    };
+  if (status === "error")
+    return {
+      phase: "failed",
+      job: null,
+      failedStep: "transcribe",
+      error: recording.error ?? null,
+      justImported: false,
+    };
+  return {
+    phase: "ready",
+    job: latest,
+    failedStep: null,
+    error: null,
+    justImported: false,
+  };
 }
 
 /** What still works after a failure: the labels of the steps that finished before it. */
@@ -222,14 +278,21 @@ export type StepOption = { key: StepKey; disabled: string | null };
 export function reprocessOptions(opts: { video: boolean; hasAudio: boolean }): StepOption[] {
   return STEP_ORDER.filter((k) => opts.video || !["shots", "ocr", "faces"].includes(k)).map((key) => {
     let disabled: string | null = null;
-    if (!opts.hasAudio && key === "transcribe") disabled = "This recording has no audio: its transcript was imported, so there's nothing to transcribe.";
-    else if (!opts.hasAudio && key === "diarize") disabled = "Speakers come from the imported transcript; diarizing needs the audio.";
+    if (!opts.hasAudio && key === "transcribe")
+      disabled = "This recording has no audio: its transcript was imported, so there's nothing to transcribe.";
+    else if (!opts.hasAudio && key === "diarize")
+      disabled = "Speakers come from the imported transcript; diarizing needs the audio.";
     return { key, disabled };
   });
 }
 
 /** Toggle a step: ticking adds its (enabled) dependents, unticking removes only that step. */
-export function toggleStep(selected: ReadonlySet<StepKey>, key: StepKey, on: boolean, options: StepOption[]): Set<StepKey> {
+export function toggleStep(
+  selected: ReadonlySet<StepKey>,
+  key: StepKey,
+  on: boolean,
+  options: StepOption[],
+): Set<StepKey> {
   const enabled = new Set(options.filter((o) => !o.disabled).map((o) => o.key));
   const next = new Set(selected);
   if (!on) {

@@ -31,13 +31,33 @@ export type Segment = {
   event: string | null;
 };
 
-export type Chapter = { idx: number; seg0: number; seg1: number; t0: number; t1: number; title: string };
+export type Chapter = {
+  idx: number;
+  seg0: number;
+  seg1: number;
+  t0: number;
+  t1: number;
+  title: string;
+};
 export type EntityRef = { name: string; type: string; segs: number[] };
 export type Keyword = { text: string; weight: number };
-export type Shot = { idx: number; t0: number; t1: number; frame: string | null };
+export type Shot = {
+  idx: number;
+  t0: number;
+  t1: number;
+  frame: string | null;
+};
 /** x, y, w, h as fractions of the frame. */
 export type Box = [number, number, number, number];
-export type ScreenText = { id: string; t0: number; t1: number; text: string; box: Box | null; frame: string | null; edited: boolean };
+export type ScreenText = {
+  id: string;
+  t0: number;
+  t1: number;
+  text: string;
+  box: Box | null;
+  frame: string | null;
+  edited: boolean;
+};
 export type FaceTrack = {
   id: string;
   local: string;
@@ -68,7 +88,12 @@ export type PlayerModel = {
   /** Loudness per time bin, 0..1; null when there's no audio analysis. */
   envelope: number[] | null;
   summary: Record<string, unknown> | null;
-  media: { kind: MediaKind; width: number | null; height: number | null; fps: number | null };
+  media: {
+    kind: MediaKind;
+    width: number | null;
+    height: number | null;
+    fps: number | null;
+  };
   shots: Shot[];
   screenText: ScreenText[];
   faces: FaceTrack[];
@@ -76,9 +101,15 @@ export type PlayerModel = {
   poster: string | null;
 };
 
-const num = (v: unknown, d = 0): number => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v.trim() && Number.isFinite(Number(v)) ? Number(v) : d);
+const num = (v: unknown, d = 0): number =>
+  typeof v === "number" && Number.isFinite(v)
+    ? v
+    : typeof v === "string" && v.trim() && Number.isFinite(Number(v))
+      ? Number(v)
+      : d;
 const str = (v: unknown): string | null => (typeof v === "string" ? v : v == null ? null : String(v));
-const rec = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+const rec = (v: unknown): Record<string, unknown> =>
+  v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
 function box(v: unknown): Box | null {
@@ -113,12 +144,26 @@ export function normalizePlayer(raw: Player): PlayerModel {
   const speakers: SpeakerInfo[] = arr(r.speakers).map((s, i) => {
     const o = rec(s);
     const id = num(o.id, i + 1);
-    return { key: str(o.key) ?? `s${id}`, id, name: str(o.name) ?? `Speaker ${id}`, index: i, color: speakerColor(i) };
+    return {
+      key: str(o.key) ?? `s${id}`,
+      id,
+      name: str(o.name) ?? `Speaker ${id}`,
+      index: i,
+      color: speakerColor(i),
+    };
   });
   const segments: Segment[] = arr(r.segments).map((s, i) => {
     const o = rec(s);
     const t0 = num(o.t0);
-    return { idx: i, t0, t1: Math.max(t0, num(o.t1, t0)), speaker: str(o.s), text: str(o.text) ?? "", emotion: str(o.e), event: str(o.v) };
+    return {
+      idx: i,
+      t0,
+      t1: Math.max(t0, num(o.t1, t0)),
+      speaker: str(o.s),
+      text: str(o.text) ?? "",
+      emotion: str(o.e),
+      event: str(o.v),
+    };
   });
   const lastEnd = segments.reduce((m, s) => Math.max(m, s.t1), 0);
   const media = rec(r.media);
@@ -135,25 +180,63 @@ export function normalizePlayer(raw: Player): PlayerModel {
     segments,
     chapters: arr(r.sections).map((s, i) => {
       const o = rec(s);
-      return { idx: num(o.idx, i), seg0: num(o.seg0), seg1: num(o.seg1), t0: num(o.t0), t1: num(o.t1), title: str(o.title) || `Chapter ${i + 1}` };
+      return {
+        idx: num(o.idx, i),
+        seg0: num(o.seg0),
+        seg1: num(o.seg1),
+        t0: num(o.t0),
+        t1: num(o.t1),
+        title: str(o.title) || `Chapter ${i + 1}`,
+      };
     }),
     entities: arr(r.entities).map((e) => {
       const o = rec(e);
-      return { name: str(o.name) ?? "", type: str(o.type) ?? "TERM", segs: arr(o.segs).map((x) => num(x, -1)).filter((x) => x >= 0) };
+      return {
+        name: str(o.name) ?? "",
+        type: str(o.type) ?? "TERM",
+        segs: arr(o.segs)
+          .map((x) => num(x, -1))
+          .filter((x) => x >= 0),
+      };
     }),
     keywords: arr(r.keywords)
-      .map((k) => (Array.isArray(k) ? { text: str(k[0]) ?? "", weight: num(k[1], 1) } : { text: str(rec(k).text ?? k) ?? "", weight: num(rec(k).weight, 1) }))
+      .map((k) =>
+        Array.isArray(k)
+          ? { text: str(k[0]) ?? "", weight: num(k[1], 1) }
+          : {
+              text: str(rec(k).text ?? k) ?? "",
+              weight: num(rec(k).weight, 1),
+            },
+      )
       .filter((k) => k.text),
     envelope: normalizeEnvelope(r.envelope),
     summary: r.summary && typeof r.summary === "object" ? (r.summary as Record<string, unknown>) : null,
-    media: { kind, width: num(media.width) || null, height: num(media.height) || null, fps: num(media.fps) || null },
+    media: {
+      kind,
+      width: num(media.width) || null,
+      height: num(media.height) || null,
+      fps: num(media.fps) || null,
+    },
     shots: arr(r.shots).map((s, i) => {
       const o = rec(s);
-      return { idx: num(o.idx, i), t0: num(o.t0), t1: num(o.t1), frame: str(o.frame) };
+      return {
+        idx: num(o.idx, i),
+        t0: num(o.t0),
+        t1: num(o.t1),
+        frame: str(o.frame),
+      };
     }),
     screenText: arr(r.screen_text).map((s, i) => {
       const o = rec(s);
-      return { id: str(o.id) ?? String(i), t0: num(o.t0), t1: num(o.t1), text: str(o.text) ?? "", box: box(o.box), frame: str(o.frame), edited: Boolean(o.edited) };
+      return {
+        id: str(o.id) ?? String(i),
+        t0: num(o.t0),
+        t1: num(o.t1),
+        text: str(o.text) ?? "",
+        box: box(o.box),
+        frame: str(o.frame),
+        edited: Boolean(o.edited),
+      };
     }),
     faces: arr(r.faces).map((f, i) => {
       const o = rec(f);
@@ -206,7 +289,14 @@ export function groupTurns(segments: Segment[], maxSegs = 6, maxMs = 90_000): Tu
     if (last && s.speaker && last.speaker === s.speaker && last.segs.length < maxSegs && s.t1 - last.t0 <= maxMs) {
       last.segs.push(s.idx);
       last.t1 = Math.max(last.t1, s.t1);
-    } else out.push({ key: s.idx, speaker: s.speaker, t0: s.t0, t1: s.t1, segs: [s.idx] });
+    } else
+      out.push({
+        key: s.idx,
+        speaker: s.speaker,
+        t0: s.t0,
+        t1: s.t1,
+        segs: [s.idx],
+      });
   }
   return out;
 }
@@ -264,7 +354,11 @@ export function chapterAt(chapters: Chapter[], t: number): number {
 // ---------- timeline lanes ----------
 
 /** Fractions of the recording (0..1) where each speaker talks, merged when closer than `mergeGap` of the length. */
-export function speakerSpans(segments: Segment[], durationMs: number, mergeGap = 0.002): Map<string, [number, number][]> {
+export function speakerSpans(
+  segments: Segment[],
+  durationMs: number,
+  mergeGap = 0.002,
+): Map<string, [number, number][]> {
   const out = new Map<string, [number, number][]>();
   if (durationMs <= 0) return out;
   for (const s of segments) {
@@ -286,7 +380,13 @@ export type Bar = { h: number; played: boolean };
  * Waveform bars per speaker lane: the loudness envelope sampled into `n` bars, each bar credited to whoever is
  * talking at that moment (other lanes get a flat stub). With no speaker, the bar goes to the "" lane.
  */
-export function laneBars(envelope: number[] | null, segments: Segment[], durationMs: number, n: number, laneKeys: string[]): Map<string, number[]> {
+export function laneBars(
+  envelope: number[] | null,
+  segments: Segment[],
+  durationMs: number,
+  n: number,
+  laneKeys: string[],
+): Map<string, number[]> {
   const lanes = new Map<string, number[]>(laneKeys.map((k) => [k, new Array(n).fill(0)]));
   if (durationMs <= 0 || n <= 0) return lanes;
   for (let i = 0; i < n; i++) {
@@ -367,7 +467,10 @@ export function fold(s: string): string {
 }
 
 /** Split text into plain / highlighted runs for the given ranges (sorted, non-overlapping). */
-export function splitRuns(text: string, ranges: { start: number; end: number; kind: string }[]): { text: string; kind: string | null }[] {
+export function splitRuns(
+  text: string,
+  ranges: { start: number; end: number; kind: string }[],
+): { text: string; kind: string | null }[] {
   const out: { text: string; kind: string | null }[] = [];
   let at = 0;
   for (const r of [...ranges].sort((a, b) => a.start - b.start)) {
@@ -393,7 +496,11 @@ export function entityRanges(text: string, names: string[]): { start: number; en
       if (at < 0) break;
       const before = at === 0 ? " " : folded[at - 1];
       const after = folded[at + q.length] ?? " ";
-      if (!/[\p{L}\p{N}]/u.test(before) && !/[\p{L}\p{N}]/u.test(after) && !out.some((r) => at < r.end && at + q.length > r.start)) {
+      if (
+        !/[\p{L}\p{N}]/u.test(before) &&
+        !/[\p{L}\p{N}]/u.test(after) &&
+        !out.some((r) => at < r.end && at + q.length > r.start)
+      ) {
         out.push({ start: at, end: at + q.length, kind: "entity" });
       }
       from = at + q.length;
@@ -404,7 +511,15 @@ export function entityRanges(text: string, names: string[]): { start: number; en
 
 // ---------- speakers ----------
 
-export type SpeakerStat = { id: number | null; name: string; talkMs: number; turns: number; words: number; wpm: number; share: number };
+export type SpeakerStat = {
+  id: number | null;
+  name: string;
+  talkMs: number;
+  turns: number;
+  words: number;
+  wpm: number;
+  share: number;
+};
 
 /** Talk time per speaker from the recording's stats (GET /recordings/{id} → stats.speakers). */
 export function speakerStats(stats: Record<string, unknown> | null | undefined): SpeakerStat[] {

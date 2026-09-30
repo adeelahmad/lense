@@ -147,10 +147,20 @@ export function PlayerProvider({
   useEffect(() => {
     const p = loadPrefs();
     skipRef.current = p.skipSilence;
-    setState((s) => ({ ...s, rate: p.rate, volume: p.volume, skipSilence: p.skipSilence }));
+    setState((s) => ({
+      ...s,
+      rate: p.rate,
+      volume: p.volume,
+      skipSilence: p.skipSilence,
+    }));
   }, []);
   useEffect(() => {
-    setState((s) => ({ ...s, hasMedia, status: hasMedia ? (s.status === "none" ? "loading" : s.status) : "none", duration: Math.max(durationMs, s.hasMedia ? s.duration : 0) }));
+    setState((s) => ({
+      ...s,
+      hasMedia,
+      status: hasMedia ? (s.status === "none" ? "loading" : s.status) : "none",
+      duration: Math.max(durationMs, s.hasMedia ? s.duration : 0),
+    }));
   }, [hasMedia, durationMs]);
   useEffect(() => {
     durationRef.current = state.duration;
@@ -212,9 +222,14 @@ export function PlayerProvider({
           }));
         let restored = false;
         m.addEventListener("loadedmetadata", () => {
-          setState((s) => ({ ...s, status: "ready", duration: Number.isFinite(m.duration) && m.duration > 0 ? m.duration * 1000 : s.duration }));
+          setState((s) => ({
+            ...s,
+            status: "ready",
+            duration: Number.isFinite(m.duration) && m.duration > 0 ? m.duration * 1000 : s.duration,
+          }));
           // A seek made before the file was ready (e.g. ?t=) applies once it is; only once, so a reload can't loop.
-          if (!restored && cursor.current > 0 && Math.abs(m.currentTime * 1000 - cursor.current) > 500) m.currentTime = cursor.current / 1000;
+          if (!restored && cursor.current > 0 && Math.abs(m.currentTime * 1000 - cursor.current) > 500)
+            m.currentTime = cursor.current / 1000;
           restored = true;
         });
         m.addEventListener("error", () => setState((s) => ({ ...s, status: "error", playing: false })));
@@ -303,5 +318,9 @@ export function usePlayerTick(fn: Tick) {
 
 /** Whether the person asked for less motion (auto-scroll then jumps instead of easing). */
 export function prefersReducedMotion(): boolean {
-  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
 }

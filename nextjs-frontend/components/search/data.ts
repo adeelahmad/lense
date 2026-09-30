@@ -39,20 +39,42 @@ export function useSpeakerDirectory(enabled = true) {
     })),
   });
   const speakers = useMemo<DirectorySpeaker[]>(
-    () => results.flatMap((r, i) => (r.data?.speakers ?? []).map((s) => ({ ...s, namespace: namespaces[i]?.name ?? "" }))),
+    () =>
+      results.flatMap((r, i) =>
+        (r.data?.speakers ?? []).map((s) => ({
+          ...s,
+          namespace: namespaces[i]?.name ?? "",
+        })),
+      ),
     [results.map((r) => r.dataUpdatedAt).join(","), namespaces],
   );
-  return { speakers, isLoading: results.some((r) => r.isLoading), isError: results.some((r) => r.isError) };
+  return {
+    speakers,
+    isLoading: results.some((r) => r.isLoading),
+    isError: results.some((r) => r.isError),
+  };
 }
 
-export type PlayerSegment = { t0: number; t1: number; s?: string | null; text: string; e?: string | null };
+export type PlayerSegment = {
+  t0: number;
+  t1: number;
+  s?: string | null;
+  text: string;
+  e?: string | null;
+};
 
 /** The segments of player data, typed. */
 export function playerSegments(p: Player | undefined): PlayerSegment[] {
-  return ((p?.segments ?? []) as unknown[]).filter((x): x is PlayerSegment => !!x && typeof (x as PlayerSegment).t0 === "number");
+  return ((p?.segments ?? []) as unknown[]).filter(
+    (x): x is PlayerSegment => !!x && typeof (x as PlayerSegment).t0 === "number",
+  );
 }
 
 /** Player speakers: key ("s2") → speaker id and name. */
 export function playerSpeakers(p: Player | undefined): { key: string; id: number | null; name: string }[] {
-  return ((p?.speakers ?? []) as { key?: string; id?: number; name?: string }[]).map((s) => ({ key: String(s.key ?? ""), id: s.id ?? null, name: s.name ?? "Speaker" }));
+  return ((p?.speakers ?? []) as { key?: string; id?: number; name?: string }[]).map((s) => ({
+    key: String(s.key ?? ""),
+    id: s.id ?? null,
+    name: s.name ?? "Speaker",
+  }));
 }

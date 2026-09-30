@@ -17,7 +17,11 @@ export const TYPE_ICON: Record<SourceType, LucideIcon> = {
 export function TypeTile({ type, size = 32 }: { type: SourceType; size?: number }) {
   const Icon = TYPE_ICON[type] ?? Cloud;
   return (
-    <span aria-hidden className="grid shrink-0 place-items-center rounded-[9px] bg-surface-neutral text-fg-secondary" style={{ width: size, height: size }}>
+    <span
+      aria-hidden
+      className="grid shrink-0 place-items-center rounded-[9px] bg-surface-neutral text-fg-secondary"
+      style={{ width: size, height: size }}
+    >
       <Icon style={{ width: size * 0.53, height: size * 0.53 }} />
     </span>
   );

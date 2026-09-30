@@ -5,13 +5,25 @@ import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-export type Choice = { value: string; label: ReactNode; hint?: ReactNode; disabled?: boolean; reason?: ReactNode };
+export type Choice = {
+  value: string;
+  label: ReactNode;
+  hint?: ReactNode;
+  disabled?: boolean;
+  reason?: ReactNode;
+};
 
 /** Arrow keys move the selection in a radio group (roving focus). */
-function useRovingRadios<T extends HTMLElement>(options: Choice[], value: string, onChange: (v: string) => void, disabled?: boolean) {
+function useRovingRadios<T extends HTMLElement>(
+  options: Choice[],
+  value: string,
+  onChange: (v: string) => void,
+  disabled?: boolean,
+) {
   const refs = useRef<(T | null)[]>([]);
   const onKeyDown = (e: KeyboardEvent, i: number) => {
-    const dir = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    const dir =
+      e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
     if (!dir || disabled) return;
     e.preventDefault();
     for (let step = 1; step <= options.length; step++) {
@@ -58,7 +70,13 @@ export function ChoiceCards({
 }) {
   const { refs, onKeyDown, tabIndexOf } = useRovingRadios<HTMLButtonElement>(options, value, onChange, disabled);
   const group = (
-    <div role="radiogroup" aria-label={label} aria-disabled={disabled || undefined} className={cn("grid gap-2", className)} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+    <div
+      role="radiogroup"
+      aria-label={label}
+      aria-disabled={disabled || undefined}
+      className={cn("grid gap-2", className)}
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    >
       {options.map((o, i) => {
         const on = o.value === value;
         const off = disabled || o.disabled;
@@ -83,8 +101,14 @@ export function ChoiceCards({
               off && "cursor-not-allowed opacity-60 hover:bg-background",
             )}
           >
-            <span className={cn("font-bold leading-[1.2] text-fg", size === "sm" ? "text-[12.5px]" : "text-[13.5px]")}>{o.label}</span>
-            {o.hint && <span className={cn("leading-[1.35] text-fg-secondary", size === "sm" ? "text-[11px]" : "text-[12px]")}>{o.hint}</span>}
+            <span className={cn("font-bold leading-[1.2] text-fg", size === "sm" ? "text-[12.5px]" : "text-[13.5px]")}>
+              {o.label}
+            </span>
+            {o.hint && (
+              <span className={cn("leading-[1.35] text-fg-secondary", size === "sm" ? "text-[11px]" : "text-[12px]")}>
+                {o.hint}
+              </span>
+            )}
           </button>
         );
         return o.disabled && o.reason ? (
@@ -107,7 +131,19 @@ export function ChoiceCards({
 }
 
 /** Pill options in a row (Speaker separation method, audit filters). The chosen one is blue-tinted. */
-export function Pills({ options, value, onChange, label, className }: { options: Choice[]; value: string; onChange: (v: string) => void; label: string; className?: string }) {
+export function Pills({
+  options,
+  value,
+  onChange,
+  label,
+  className,
+}: {
+  options: Choice[];
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+  className?: string;
+}) {
   const { refs, onKeyDown, tabIndexOf } = useRovingRadios<HTMLButtonElement>(options, value, onChange);
   return (
     <div role="radiogroup" aria-label={label} className={cn("flex flex-wrap gap-1.5", className)}>
@@ -128,7 +164,9 @@ export function Pills({ options, value, onChange, label, className }: { options:
             onClick={() => !o.disabled && onChange(o.value)}
             className={cn(
               "h-8 rounded-pill border px-3 text-[12.5px] font-semibold transition-colors duration-fast",
-              on ? "border-blue bg-blue-surface text-fg-accent" : "border-border bg-background text-fg-strong hover:bg-surface",
+              on
+                ? "border-blue bg-blue-surface text-fg-accent"
+                : "border-border bg-background text-fg-strong hover:bg-surface",
               o.disabled && "cursor-not-allowed opacity-50",
             )}
           >
@@ -148,10 +186,26 @@ export function Pills({ options, value, onChange, label, className }: { options:
 }
 
 /** Segmented control where some options can be unavailable (with a reason on hover and focus). */
-export function SegmentedChoice({ options, value, onChange, label, className }: { options: Choice[]; value: string; onChange: (v: string) => void; label: string; className?: string }) {
+export function SegmentedChoice({
+  options,
+  value,
+  onChange,
+  label,
+  className,
+}: {
+  options: Choice[];
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+  className?: string;
+}) {
   const { refs, onKeyDown, tabIndexOf } = useRovingRadios<HTMLButtonElement>(options, value, onChange);
   return (
-    <div role="radiogroup" aria-label={label} className={cn("inline-flex gap-0.5 rounded-pill bg-surface-neutral p-[3px]", className)}>
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className={cn("inline-flex gap-0.5 rounded-pill bg-surface-neutral p-[3px]", className)}
+    >
       {options.map((o, i) => {
         const on = o.value === value;
         const seg = (

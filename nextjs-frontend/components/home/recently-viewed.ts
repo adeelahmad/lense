@@ -7,7 +7,12 @@ import { useEffect, useState } from "react";
  * kept in localStorage. Any screen can call `rememberView` when someone opens a recording, speaker or chat.
  */
 export type ViewedKind = "recording" | "speaker" | "chat" | "report";
-export type Viewed = { kind: ViewedKind; href: string; title: string; at: number };
+export type Viewed = {
+  kind: ViewedKind;
+  href: string;
+  title: string;
+  at: number;
+};
 
 const KEY = "lens.recent";
 const MAX = 8;
@@ -16,7 +21,9 @@ const EVENT = "lens:recent";
 export function readViews(): Viewed[] {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || "[]");
-    return Array.isArray(raw) ? raw.filter((v) => v && typeof v.href === "string" && typeof v.title === "string").slice(0, MAX) : [];
+    return Array.isArray(raw)
+      ? raw.filter((v) => v && typeof v.href === "string" && typeof v.title === "string").slice(0, MAX)
+      : [];
   } catch {
     return [];
   }

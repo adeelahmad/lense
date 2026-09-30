@@ -54,7 +54,11 @@ async function run(accessToken: string, signal: AbortSignal) {
         if (openedBefore) openListeners.forEach((l) => l());
         openedBefore = true;
       };
-      for await (const msg of streamSSE(path, { accessToken, signal, onOpen })) {
+      for await (const msg of streamSSE(path, {
+        accessToken,
+        signal,
+        onOpen,
+      })) {
         if (msg.event !== "job") continue;
         let job: JobRecord;
         try {
