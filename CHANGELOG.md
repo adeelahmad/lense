@@ -2,6 +2,34 @@
 
 The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are versioned together.
 
+## 0.3.0 <small>September 30, 2026</small> {id="0.3.0"}
+
+The web app implements the Lens Archive design (built on the Aladdin design system).
+
+- **Foundations:** design tokens with a dark theme and speaker and emotion palettes, self-hosted fonts (DM Sans,
+  Source Serif 4 for transcripts, JetBrains Mono), and the design's components: buttons that explain why they're
+  disabled, status, role, speaker, emotion and job-step chips, secret fields, tables with sorting and paging, dialogs,
+  drawers, toasts, banners, the four-colour step loop and verdict cards.
+- **App shell:** collapsible navigation, namespace switcher, ⌘K palette, live activity drawer, account menu with
+  appearance and keyboard shortcuts.
+- **Screens:** Home, Library, Import, Reports; the audio and video recording pages with the player; Search; Chat with
+  citations, tool steps and approvals; Speakers; Graph; Batch runs and Collections; Activity; Sources; Pipelines and
+  Templates; Sharing and Embed; Settings; Admin (people, members, audit, health); IIIF metadata and publishing;
+  sign-in, first-run setup, password reset, API tokens, and signed-out-mid-task recovery.
+- Every screen follows the role rule (actions you can't take are disabled with a reason; namespaces you have no role
+  in never appear), has loading, empty and error states, and works in dark mode and at phone width.
+- The web app forwards API, media, embed, IIIF and report paths at request time, so one build works against any
+  API address.
+- Features the design shows but the API doesn't support yet are disabled with a reason and listed in
+  `docs/backend-gaps.md`.
+
+Backend:
+
+- Fix: on the embedded engine, search silently missed most segments after a restart (the full-text index lost
+  entries on reopen). The index is now repaired once per process before the first search.
+- Fix: IIIF "Open in" viewer links can be saved in Settings (only http(s) URLs are accepted).
+- The job event stream opens immediately.
+
 ## 0.2.0 <small>September 30, 2026</small> {id="0.2.0"}
 
 Lens moves from a single-process prototype to a platform on the Next.js FastAPI template.

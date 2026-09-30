@@ -5,6 +5,17 @@ can't provide yet, the control is visible but disabled with a reason ("Not avail
 around it (noted below). No screen shows sample data. This is the list of API work that would light those up,
 grouped by area; each item names the smallest endpoint or field that would do.
 
+## Accounts and administration
+
+| Feature | Needed |
+|---|---|
+| Change your own password (today: admins via the user admin, others by reset email) | `POST /auth/password {current_password, new_password}` |
+| Change your own name | `PATCH /auth/me {name}` |
+| Reindex progress | a job id or status from `POST /admin/reindex` |
+| Audit entries with the previous value and the request address | `before` and `ip` on audit entries |
+| Health: when source credentials expire; disk split into audio, cache and database | `credentials_expire_at` per source; `disk: {audio, cache, database}` |
+| How long face data is kept | a setting such as `video.face_retention_days` |
+
 ## Recordings and the library
 
 | Feature | Needed |
@@ -104,3 +115,17 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | Embed layout and theme | embed parameters |
 | Origin check for non-admins (frame ancestors are admin-only settings) | a public "can this origin embed?" check |
 | Expired or revoked links show a page, not JSON 401 | a neutral 410 page on `/embed` |
+
+## IIIF and metadata
+
+| Feature | Needed |
+|---|---|
+| IIIF Presentation 4.0 | a version option on manifests and collections |
+| Choose layers per recording (today: archive-wide) | `layers` in recording metadata |
+| Order a collection by series or by hand | a `series` field and `PUT /namespaces/{ns}/iiif/order` |
+| CSV metadata import with a column mapping and dry run | `POST /metadata/import` |
+| Publish saved collections as IIIF Collections | `/iiif/collection/{ns}/saved/{id}` and a publish flag |
+| Custom fields in a namespace profile | field definitions in `PUT /namespaces/{ns}/metadata` |
+| Subject lookups (Wikidata, GeoNames, LCSH) | `GET /authorities/search?source=&q=` |
+| EBUCore and PBCore records | `/iiif/{rid}/ebucore.xml`, `/iiif/{rid}/pbcore.xml` |
+| Import IIIF audio by reference, re-harvest from change feeds, import resources behind IIIF Auth | `audio: "reference"`, a harvest schedule, an Auth 2 client |

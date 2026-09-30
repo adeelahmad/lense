@@ -1,6 +1,6 @@
 [project]
 name = "lens"
-version = "0.2.0"
+version = "0.3.0"
 description = "Lens: an archive for recorded speech and video. Transcription, speakers, search, knowledge graph and IIIF, on SurrealDB."
 requires-python = ">=3.12,<3.14"
 readme = "README.md"
