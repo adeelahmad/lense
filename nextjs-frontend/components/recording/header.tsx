@@ -12,6 +12,7 @@ import {
   ExternalLink,
   FileText,
   Folder,
+  Globe,
   Keyboard,
   Link2,
   ListChecks,
@@ -24,6 +25,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { AccessBadge } from "@/components/access/access-fields";
 import { usePlayerApi } from "@/components/player/media";
 import { useRec } from "@/components/recording/context";
 import { useExport, usePipelines, useRecordingActions } from "@/components/recording/hooks";
@@ -42,7 +44,7 @@ import { cn } from "@/lib/utils";
 /** Header (R1): breadcrumb, title, actions, the meta line, and the running / failed banners. */
 export function RecordingHeader() {
   const r = useRec();
-  const { rec, model, ns, transcriptOnly, canEdit, openRename } = r;
+  const { rec, model, ns, transcriptOnly, canEdit, openRename, openAccess } = r;
   const { setNamespace } = useArchive();
   const pipelines = usePipelines();
   const source = sourceLabel(rec);
@@ -120,6 +122,7 @@ export function RecordingHeader() {
           </span>
         </Meta>
         <StatusChip status={status} label={status ? status[0].toUpperCase() + status.slice(1) : "Unknown"} />
+        <AccessBadge value={rec} onClick={openAccess} />
         {transcriptOnly && <Badge tone="neutral">Transcript only</Badge>}
       </div>
       <Banners />
@@ -300,6 +303,9 @@ function MoreMenu({ compact }: { compact?: boolean }) {
             </MenuItem>
             <MenuItem icon={<Pencil />} disabled={!r.canEdit} onSelect={r.openRename}>
               Rename…
+            </MenuItem>
+            <MenuItem icon={<Globe />} onSelect={r.openAccess}>
+              Access…
             </MenuItem>
             <MenuItem icon={<RotateCw />} onSelect={() => r.setTab("history")}>
               History

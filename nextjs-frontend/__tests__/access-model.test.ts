@@ -1,0 +1,69 @@
+import {
+  ALL_PARTS,
+  accessLabel,
+  accessPatch,
+  accessSummary,
+  partsText,
+  togglePart,
+  type AccessValue,
+} from "@/components/access/model";
+import { describeChange, patchFor, type Meta } from "@/components/iiif/metadata-model";
+
+describe("access", () => {
+  it("names the levels, falling back to private", () => {
+    expect(accessLabel("public")).toBe("Public");
+    expect(accessLabel("restricted")).toBe("Restricted");
+    expect(accessLabel(undefined)).toBe("Private");
+    expect(accessLabel("signed-in")).toBe("Private");
+  });
+
+  it("lists the open parts in plain words", () => {
+    expect(partsText(ALL_PARTS)).toBe("Media, transcript and index");
+    expect(partsText(["index", "transcript"])).toBe("Transcript and index");
+    expect(partsText(["media"])).toBe("Media");
+    expect(partsText([])).toBe("Nothing");
+    expect(partsText(null)).toBe("Nothing");
+  });
+
+  it("sums a recording's access up in one line", () => {
+    expect(accessSummary({ access: "public", open: ALL_PARTS })).toBe("Public · everything open");
+    expect(accessSummary({ access: "public", open: ["transcript", "index"], featured: true })).toBe(
+      "Public · transcript and index open to everyone · featured",
+    );
+    expect(accessSummary({ access: "public", open: [] })).toBe("Public · page and description only");
+    // parts and featured only mean something for a public recording
+    expect(accessSummary({ access: "restricted", open: [], featured: true })).toBe("Restricted");
+    expect(accessSummary(null)).toBe("Private");
+  });
+
+  it("toggles a part and keeps the canonical order", () => {
+    expect(togglePart(["index"], "media", true)).toEqual(["media", "index"]);
+    expect(togglePart(["media", "index"], "media", false)).toEqual(["index"]);
+    expect(togglePart(["media"], "media", true)).toEqual(["media"]);
+  });
+
+  it("sends only what changed", () => {
+    const saved: AccessValue = { access: "private", open: ALL_PARTS, featured: false };
+    expect(accessPatch(saved, saved)).toEqual({});
+    expect(accessPatch(saved, { ...saved, access: "public", featured: true })).toEqual({
+      access: "public",
+      featured: true,
+    });
+    // closing every part is a change of its own
+    expect(accessPatch(saved, { ...saved, open: [] })).toEqual({ open: [] });
+  });
+
+  it("keeps no open parts as a value when saving metadata, and describes it", () => {
+    const draft: Meta = { access: "public", open: [], featured: false };
+    expect(patchFor(draft, ["access", "open", "featured"])).toEqual({ access: "public", open: [], featured: false });
+    expect(patchFor({ access: "public" }, ["open"])).toEqual({ open: null });
+    expect(describeChange("open", ["media", "transcript"], [])).toBe(
+      "Open to everyone: Media and transcript → Nothing",
+    );
+    expect(describeChange("open", undefined, ["index"])).toBe("Open to everyone: default → Index");
+    expect(describeChange("open", ["index"], null)).toBe("Open to everyone cleared");
+    expect(describeChange("featured", false, true)).toBe("Featured");
+    expect(describeChange("featured", true, false)).toBe("No longer featured");
+    expect(describeChange("access", "private", "restricted")).toBe("Access: private → restricted");
+  });
+});

@@ -11,6 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 Role = Literal["viewer", "editor", "owner"]
+AccessLevel = Literal["public", "restricted", "private"]
+AccessPart = Literal["media", "transcript", "index"]
 
 
 class RequestModel(BaseModel):

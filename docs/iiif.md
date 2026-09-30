@@ -24,12 +24,13 @@ can open them, and harvesters can follow them.
   - It copies the audio, keeps WebVTT captions as the transcript (speakers included), and maps the metadata.
   - It then queues the namespace's pipeline, skipping transcription.
 
-Access decides what is published. It's set per recording, with a default per namespace:
+A recording's access decides what is published ([Access](access.md)). It's set per recording, with a default per
+namespace, and only owners change it:
 
-- `public`: everything is open.
-- `transcript`: the transcript is open; the audio needs sign-in.
-- `signed-in`: the metadata is open; the audio and transcript need sign-in.
-- `private` (the default): not published at all.
+- `public`: published. Its open parts (media, transcript, index) are plain links; closed ones sit behind the
+  Authorization Flow. Chapters are ranges when the index is open.
+- `restricted` and `private` (the default): not published. The manifest answers 404 unless the request carries
+  permission, and collections leave the recording out.
 
 Set `iiif.base_url` to the stable public HTTPS address, since identifiers are built from it. Put the server behind
 HTTPS before publishing: the authorization flow requires it, and its cookie is `SameSite=None; Secure`. Other IIIF
@@ -41,12 +42,12 @@ RightsStatements.org URI), attribution, provider, date, languages, creators, con
 to authorities such as Wikidata), identifiers and related links.
 
 - Values that aren't set come from the recording itself: its title, date, language, speakers, main topics and summary.
-- A namespace profile sets required fields, defaults, controlled vocabularies and the default access.
+- A namespace profile sets required fields, defaults, controlled vocabularies, and the default access and open parts.
 - Every change is kept and can be reverted. Bulk edits report what would change before applying.
 
 Manifests are checked against IIIF's Presentation 3 JSON Schema, bundled from IIIF's presentation-validator. This needs
-`pip install jsonschema`. `GET /api/v1/recordings/<id>/iiif` returns the manifest link, its access level, the validation
-result and the viewer links.
+`pip install jsonschema`. `GET /api/v1/recordings/<id>/iiif` returns the manifest link, the recording's access, open
+parts and whether it's published, the validation result and the viewer links.
 
 ## Embedding the player
 

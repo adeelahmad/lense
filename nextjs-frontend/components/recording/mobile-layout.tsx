@@ -5,6 +5,7 @@ import { ChevronLeft, PanelBottomOpen } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { accessLabel } from "@/components/access/model";
 import { usePlayerState } from "@/components/player/media";
 import { PlayButton, SkipButton, SpeedMenu } from "@/components/player/transport";
 import { Waveform } from "@/components/player/waveform";
@@ -68,6 +69,7 @@ export function MobileLayout() {
               tc(model.durationMs),
               word,
               r.transcriptOnly ? "Transcript only" : null,
+              rec.access && rec.access !== "private" ? accessLabel(rec.access) : null,
             ]
               .filter(Boolean)
               .join(" · ")}

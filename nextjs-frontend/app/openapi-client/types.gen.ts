@@ -1806,9 +1806,19 @@ export type IiifPanel = {
   /**
    * Access
    */
-  access: string;
+  access: "public" | "restricted" | "private";
+  /**
+   * Open
+   * the parts anyone may use, when the recording is public
+   */
+  open: Array<"media" | "transcript" | "index">;
+  /**
+   * Featured
+   */
+  featured?: boolean;
   /**
    * Published
+   * IIIF publishes public recordings
    */
   published: boolean;
   /**
@@ -1833,13 +1843,18 @@ export type IiifPanel = {
   [key: string]:
     | unknown
     | string
+    | "public"
+    | "restricted"
+    | "private"
+    | Array<"media" | "transcript" | "index">
     | boolean
     | Array<unknown>
     | IiifValidation
     | Array<ViewerLink>
     | {
         [key: string]: unknown;
-      };
+      }
+    | undefined;
 };
 
 /**
@@ -2555,6 +2570,21 @@ export type Namespace = {
 };
 
 /**
+ * NamespaceAccess
+ */
+export type NamespaceAccess = {
+  /**
+   * Access
+   */
+  access: "public" | "restricted" | "private";
+  /**
+   * Open
+   */
+  open: Array<"media" | "transcript" | "index">;
+  [key: string]: unknown | "public" | "restricted" | "private" | Array<"media" | "transcript" | "index">;
+};
+
+/**
  * NamespaceCreate
  */
 export type NamespaceCreate = {
@@ -3193,6 +3223,25 @@ export type Recording = {
   jobs?: Array<{
     [key: string]: unknown;
   }>;
+  /**
+   * Access
+   * its own access, or its namespace's default
+   */
+  access?: "public" | "restricted" | "private";
+  /**
+   * Open
+   * the parts anyone may use when it is public
+   */
+  open?: Array<"media" | "transcript" | "index">;
+  /**
+   * Featured
+   */
+  featured?: boolean;
+  /**
+   * Access Inherited
+   * the access comes from the namespace's default
+   */
+  access_inherited?: boolean;
   [key: string]:
     | unknown
     | number
@@ -3220,7 +3269,68 @@ export type Recording = {
     | Array<{
         [key: string]: unknown;
       }>
+    | "public"
+    | "restricted"
+    | "private"
+    | Array<"media" | "transcript" | "index">
+    | boolean
     | undefined;
+};
+
+/**
+ * RecordingAccess
+ * Who may see the recording: public, restricted or private (docs/access.md).
+ */
+export type RecordingAccess = {
+  /**
+   * Access
+   */
+  access: "public" | "restricted" | "private";
+  /**
+   * Open
+   * the parts anyone may use when it is public: media, transcript, index
+   */
+  open: Array<"media" | "transcript" | "index">;
+  /**
+   * Featured
+   */
+  featured: boolean;
+  /**
+   * Inherited
+   * access and open come from the namespace's default
+   */
+  inherited: boolean;
+  /**
+   * the namespace's default
+   */
+  default: NamespaceAccess;
+  [key: string]:
+    | unknown
+    | "public"
+    | "restricted"
+    | "private"
+    | Array<"media" | "transcript" | "index">
+    | boolean
+    | NamespaceAccess;
+};
+
+/**
+ * RecordingAccessUpdate
+ * Send the settings to change. access or open set to null follow the namespace's default again.
+ */
+export type RecordingAccessUpdate = {
+  /**
+   * Access
+   */
+  access?: "public" | "restricted" | "private" | null;
+  /**
+   * Open
+   */
+  open?: Array<"media" | "transcript" | "index"> | null;
+  /**
+   * Featured
+   */
+  featured?: boolean | null;
 };
 
 /**
@@ -3382,6 +3492,20 @@ export type RecordingSummary = {
    * speaker names, comma separated
    */
   speakers?: string;
+  /**
+   * Access
+   * its own access, or its namespace's default
+   */
+  access?: "public" | "restricted" | "private";
+  /**
+   * Open
+   * the parts anyone may use when it is public
+   */
+  open?: Array<"media" | "transcript" | "index">;
+  /**
+   * Featured
+   */
+  featured?: boolean;
   [key: string]:
     | unknown
     | number
@@ -3407,6 +3531,11 @@ export type RecordingSummary = {
       }
     | number
     | null
+    | "public"
+    | "restricted"
+    | "private"
+    | Array<"media" | "transcript" | "index">
+    | boolean
     | undefined;
 };
 
@@ -5642,6 +5771,16 @@ export type ListRecordingsData = {
      */
     media?: "audio" | "video" | "transcript" | null;
     /**
+     * Access
+     * public, restricted or private; repeat for several
+     */
+    access?: Array<"public" | "restricted" | "private"> | null;
+    /**
+     * Featured
+     * only featured recordings (true) or only the others (false)
+     */
+    featured?: boolean | null;
+    /**
      * Sort
      * date, title, duration, speakers, status or importance; prefix - for descending
      */
@@ -5748,6 +5887,66 @@ export type UpdateRecordingResponses = {
 };
 
 export type UpdateRecordingResponse = UpdateRecordingResponses[keyof UpdateRecordingResponses];
+
+export type GetRecordingAccessData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/access";
+};
+
+export type GetRecordingAccessErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRecordingAccessError = GetRecordingAccessErrors[keyof GetRecordingAccessErrors];
+
+export type GetRecordingAccessResponses = {
+  /**
+   * Successful Response
+   */
+  200: RecordingAccess;
+};
+
+export type GetRecordingAccessResponse = GetRecordingAccessResponses[keyof GetRecordingAccessResponses];
+
+export type UpdateRecordingAccessData = {
+  body: RecordingAccessUpdate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/access";
+};
+
+export type UpdateRecordingAccessErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateRecordingAccessError = UpdateRecordingAccessErrors[keyof UpdateRecordingAccessErrors];
+
+export type UpdateRecordingAccessResponses = {
+  /**
+   * Successful Response
+   */
+  200: RecordingAccess;
+};
+
+export type UpdateRecordingAccessResponse = UpdateRecordingAccessResponses[keyof UpdateRecordingAccessResponses];
 
 export type GetPlayerData = {
   body?: never;

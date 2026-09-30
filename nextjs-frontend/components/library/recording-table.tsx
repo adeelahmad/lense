@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
 import type { Job, RecordingSummary } from "@/app/openapi-client/types.gen";
+import { AccessBadge } from "@/components/access/access-fields";
 import {
   EmotionCell,
   ImportanceCell,
@@ -278,6 +279,9 @@ export function RecordingTable({
                     <span className="flex items-center gap-[5px] whitespace-nowrap text-[12px] leading-none text-fg-muted">
                       <MediaIcon kind={r.media_kind} />
                       {r.namespace}
+                      {r.access && r.access !== "private" && (
+                        <AccessBadge value={r} compact className="text-fg-muted" />
+                      )}
                     </span>
                   </span>
                 </td>

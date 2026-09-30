@@ -1,9 +1,10 @@
 """IIIF: each recording is a Presentation 3.0 Manifest, each namespace a Collection. Also Content Search 2.0,
 Content State 1.0 links, Change Discovery 1.0 and importing IIIF audio published elsewhere.
 
-What a Manifest carries depends on the recording's access (see metadata.ACCESS): open resources are plain links;
-protected ones carry IIIF Authorization Flow 2.0 probe services (see iiif_auth), and transcript layers are only
-published when the transcript is open.
+IIIF publishes public recordings (see access.py and docs/access.md). A public recording's open parts are plain links;
+closed ones carry IIIF Authorization Flow 2.0 probe services (see iiif_auth), transcript layers are only published
+when the transcript is open, and chapters only when the index is. Restricted and private recordings are left out of
+collections unless the requester may read them.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ import urllib.parse
 import urllib.request
 from collections import Counter
 
-from . import ingest, metadata as md, pipelines, render, settings, speakers as spk, store
+from . import access as acc, ingest, metadata as md, pipelines, render, settings, speakers as spk, store
 
 R = store.R
 P3 = "http://iiif.io/api/presentation/3/context.json"
@@ -28,7 +29,6 @@ SEARCH2 = "http://iiif.io/api/search/2/context.json"
 AUTH2 = "http://iiif.io/api/auth/2/context.json"
 DISCOVERY1 = "http://iiif.io/api/discovery/1/context.json"
 JSONLD = 'application/ld+json;profile="http://iiif.io/api/presentation/3/context.json"'
-OPEN_TRANSCRIPT = ("public", "transcript")
 LAYERS = {
     "transcript": "Transcript",
     "speakers": "Speakers",
@@ -126,13 +126,13 @@ def manifest(db, cfg, rid, base):
     if not rec:
         raise KeyError(rid)
     meta = md.effective(db, cfg, rid)
-    level = meta.get("access") or "private"
+    a = acc.of(db, rid)
     ns = (db.one("SELECT name FROM $s", s=R("space", rec["space"])) or {}).get("name")
     d = render.player_data(db, rid)
     m, lang, tlang = f"{base}/iiif/{rid}", cfg["iiif"].get("default_language") or "none", _lang(rec)
     canvas, dur = f"{m}/canvas/1", max(round((d["duration_ms"] or 0) / 1000, 3), 0.001)
     layers = set(cfg["iiif"].get("layers") or [])
-    audio_locked, text_locked = level != "public", level not in OPEN_TRANSCRIPT
+    audio_locked, text_locked = not acc.is_open(a, "media"), not acc.is_open(a, "transcript")
     has_audio = rec.get("source") == "audio" and bool(rec.get("remote") or render.has_audio(db, cfg, rid))
     title = md.first(meta.get("label")) or d["title"]
     media = rec.get("media") or {}
@@ -167,7 +167,7 @@ def manifest(db, cfg, rid, base):
             "items": [{"id": f"{canvas}/captions/1", "type": "Annotation", "motivation": "supplementing", "body": vtt, "target": canvas}],
         }
     ]
-    faces_published = bool(is_video and cfg["video"].get("publish_faces") and level == "public" and d.get("faces_mode") != "off")
+    faces_published = bool(is_video and cfg["video"].get("publish_faces") and not audio_locked and d.get("faces_mode") != "off")
     if not text_locked:
         annotations += [
             {"id": f"{m}/annotations/{k}", "type": "AnnotationPage", "label": lm(v, "en")}
@@ -257,7 +257,7 @@ def manifest(db, cfg, rid, base):
                 ],
             }
         )
-    if "chapters" in layers and d["sections"]:
+    if "chapters" in layers and d["sections"] and acc.is_open(a, "index"):
         structures.insert(
             0,
             {
@@ -366,13 +366,19 @@ def annotation_page(db, cfg, rid, base, layer):
 
 
 def collection(db, cfg, sid, base, readable=None):
-    """A namespace as a Collection: published recordings, plus private ones the requester may read."""
+    """A namespace as a Collection: its public recordings, and the others when the requester may read the namespace."""
     ns = md.namespace(db, sid)
     meta = ns["meta"]
     items = []
-    for r in db.rows("SELECT record::id(id) AS id, title, recorded_at FROM recording WHERE space = $s ORDER BY recorded_at", s=sid):
-        eff = md.effective(db, cfg, r["id"])
-        if (eff.get("access") or "private") != "private" or (readable is not None and sid in readable):
+    rows = db.rows(
+        "SELECT record::id(id) AS id, space, title, recorded_at, access, access_parts, featured FROM recording WHERE space = $s "
+        "ORDER BY recorded_at",
+        s=sid,
+    )
+    access = acc.many(db, rows)
+    for r in rows:
+        if acc.published(access[r["id"]]) or (readable is not None and sid in readable):
+            eff = md.effective(db, cfg, r["id"])
             items.append(
                 _prune(
                     {

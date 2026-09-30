@@ -35,8 +35,8 @@ class Env:
         analyze.analyze_pending(db, cfg, log=quiet)
         rights = "https://creativecommons.org/licenses/by/4.0/"
         metadata.save(db, cfg, self.clip, {"access": "public", "rights": rights, "attribution": "Courtesy of the lab"})
-        metadata.save(db, cfg, self.pub, {"access": "transcript"})
-        metadata.save(db, cfg, self.call, {"access": "signed-in"})  # self.locked stays private
+        metadata.save(db, cfg, self.pub, {"access": "public", "open": ["transcript", "index"]})  # media closed
+        metadata.save(db, cfg, self.call, {"access": "restricted"})  # self.locked stays private
         make_user(db, "root@x.io", "root password 1", admin=True)
         self.vi = make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
 
@@ -88,11 +88,15 @@ def test_manifests_collections_search_state_discovery(env):
     assert man["items"][0]["annotations"][0]["items"][0]["body"]["format"] == "text/vtt"
     assert man["service"][0]["type"] == "SearchService2"
     assert anon.get(f"/iiif/{env.locked}/manifest").status_code == 404  # private
-    locked = anon.get(f"/iiif/{env.call}/manifest").json()  # signed-in: transcript-only, text locked
+    assert anon.get(f"/iiif/{env.call}/manifest").status_code == 404  # restricted: not published
+    # public with every part closed: the manifest, its content behind the IIIF sign-in, no chapters
+    metadata.save(env.db, env.cfg, env.call, {"access": "public", "open": []})
+    locked = anon.get(f"/iiif/{env.call}/manifest").json()
     assert iiif.validate(locked) == []
     assert locked["@context"][0] == iiif.AUTH2
     assert locked["items"][0]["annotations"][0]["items"][0]["body"]["service"][0]["type"] == "AuthProbeService2"
-    assert "service" not in locked  # no open search on a locked transcript
+    assert "service" not in locked  # no open search on a closed transcript
+    assert "structures" not in locked and "structures" in anon.get(f"/iiif/{env.pub}/manifest").json()
     coll = anon.get("/iiif/collection/pods").json()
     assert iiif.validate(coll) == []
     assert {x["id"] for x in coll["items"]} == {f"{BASE}/iiif/{env.pub}/manifest", f"{BASE}/iiif/{env.clip}/manifest"}
@@ -108,7 +112,7 @@ def test_manifests_collections_search_state_discovery(env):
     assert "<dc:rights>http://creativecommons.org/licenses/by/4.0/</dc:rights>" in anon.get(f"/iiif/{env.clip}/dc.xml").text
     assert anon.get(f"/iiif/{env.pub}/transcript.vtt").text.startswith("WEBVTT")
     assert anon.get(f"/iiif/{env.call}/transcript.vtt").status_code == 401
-    assert anon.get(f"/iiif/{env.pub}/audio").status_code == 401  # transcript level: audio needs sign-in
+    assert anon.get(f"/iiif/{env.pub}/audio").status_code == 401  # media closed: audio needs sign-in
     r = anon.get(f"/iiif/{env.clip}/audio", headers={"Range": "bytes=0-9"})
     assert (r.status_code, r.content) == (206, env.wav.read_bytes()[:10])
 
@@ -133,7 +137,7 @@ def test_manifests_collections_search_state_discovery(env):
 
 
 def test_authorization_flow(env):
-    metadata.save(env.db, env.cfg, env.clip, {"access": "signed-in"})
+    metadata.save(env.db, env.cfg, env.clip, {"access": "public", "open": ["transcript", "index"]})
     anon = env.client()
     probe = f"/iiif/auth/probe/{env.clip}/audio"
     r = anon.get(probe)

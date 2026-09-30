@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
+import { AccessFields } from "@/components/access/access-fields";
+import { useRecordingAccess, useSaveAccess } from "@/components/access/hooks";
+import { ALL_PARTS, accessLabel, accessPatch, partsText, type AccessValue } from "@/components/access/model";
 import { useRec } from "@/components/recording/context";
 import { ShareEmbedDialog } from "@/components/sharing/share-dialog";
 import { useEdits, useRecordingActions } from "@/components/recording/hooks";
@@ -13,17 +16,25 @@ import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Field, Input } from "@/components/ui/field";
 import { STEP_LABEL } from "@/components/ui/loop";
 import { useToast } from "@/components/ui/toast";
+import { Skeleton } from "@/components/ui/states";
 import { Tooltip } from "@/components/ui/tooltip";
+import { needRole, useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-export type DialogState = null | { kind: "reprocess" } | { kind: "rename" } | { kind: "share"; startMs?: number };
+export type DialogState =
+  | null
+  | { kind: "reprocess" }
+  | { kind: "rename" }
+  | { kind: "access" }
+  | { kind: "share"; startMs?: number };
 
-/** The page's dialogs: Reprocess (R9), Rename and Share / Embed. */
+/** The page's dialogs: Reprocess (R9), Rename, Access and Share / Embed. */
 export function RecordingDialogs({ state, onClose }: { state: DialogState; onClose: () => void }) {
   return (
     <>
       <ReprocessDialog open={state?.kind === "reprocess"} onOpenChange={(o) => !o && onClose()} />
       <RenameDialog open={state?.kind === "rename"} onOpenChange={(o) => !o && onClose()} />
+      <AccessDialog open={state?.kind === "access"} onOpenChange={(o) => !o && onClose()} />
       <ShareSlot
         open={state?.kind === "share"}
         startMs={state?.kind === "share" ? state.startMs : undefined}
@@ -76,6 +87,91 @@ export function RenameDialog({ open, onOpenChange }: { open: boolean; onOpenChan
           </Button>
         </div>
       </form>
+    </Dialog>
+  );
+}
+
+/** Who may see the recording (docs/access.md). Everyone with access can look; owners change it. */
+export function AccessDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { id, ns } = useRec();
+  const { can } = useArchive();
+  const canPublish = can("owner", ns);
+  const q = useRecordingAccess(id, open);
+  const save = useSaveAccess(id);
+  const saved: AccessValue | null = q.data
+    ? { access: q.data.access, open: q.data.open, featured: q.data.featured }
+    : null;
+  const [draft, setDraft] = useState<AccessValue | null>(null);
+  useEffect(() => {
+    if (open) setDraft(null);
+  }, [open]);
+  const value = draft ?? saved;
+  const patch = saved && value ? accessPatch(saved, value) : {};
+  const dirty = Object.keys(patch).length > 0;
+  const nsDefault = q.data?.default;
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Who can see this recording"
+      description="Members of its namespace, and people it’s shared with, always see all of it."
+      wide
+    >
+      {!value ? (
+        <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading access">
+          <Skeleton className="h-[74px] w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      ) : (
+        <div className="flex flex-col gap-5">
+          <AccessFields
+            value={value}
+            onChange={setDraft}
+            disabled={!canPublish || save.isPending}
+            disabledReason={needRole("owner", ns)}
+          />
+          {nsDefault && (
+            <p className="rounded-md bg-surface px-3 py-2.5 text-[12.5px] leading-[1.45] text-fg-secondary">
+              {q.data?.inherited ? "Follows the default of " : "Its own setting. The default of "}
+              <b className="text-fg">{ns}</b> is {accessLabel(nsDefault.access).toLowerCase()}
+              {nsDefault.access === "public"
+                ? `, ${nsDefault.open.length === ALL_PARTS.length ? "everything" : partsText(nsDefault.open).toLowerCase()} open`
+                : ""}
+              .{" "}
+              {!q.data?.inherited && canPublish && (
+                <Button
+                  variant="link"
+                  size="xs"
+                  disabled={save.isPending}
+                  onClick={() => save.mutate({ access: null, open: null }, { onSuccess: () => onOpenChange(false) })}
+                >
+                  Use the namespace’s default
+                </Button>
+              )}
+            </p>
+          )}
+          <div className="flex items-center justify-end gap-2">
+            {!canPublish && (
+              <span className="mr-auto text-[12.5px] text-fg-muted">
+                Only owners of <b className="font-semibold text-fg-secondary">{ns}</b> change who can see it.
+              </span>
+            )}
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              {canPublish ? "Cancel" : "Close"}
+            </Button>
+            {canPublish && (
+              <Button
+                variant="primary"
+                disabled={!dirty || save.isPending}
+                disabledReason={!dirty ? "No changes to save" : undefined}
+                onClick={() => save.mutate(patch, { onSuccess: () => onOpenChange(false) })}
+              >
+                {save.isPending ? "Saving…" : "Save"}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
     </Dialog>
   );
 }

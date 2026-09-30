@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import Field
 
-from app.schemas.common import Ok, RequestModel, ResponseModel
+from app.schemas.common import AccessLevel, AccessPart, Ok, RequestModel, ResponseModel
 
 
 class ViewerLink(ResponseModel):
@@ -22,8 +22,10 @@ class IiifValidation(ResponseModel):
 class IiifPanel(ResponseModel):
     manifest: str
     collection: str
-    access: str
-    published: bool
+    access: AccessLevel
+    open: list[AccessPart] = Field(description="the parts anyone may use, when the recording is public")
+    featured: bool = False
+    published: bool = Field(description="IIIF publishes public recordings")
     layers: list[Any]
     search: bool
     validation: IiifValidation

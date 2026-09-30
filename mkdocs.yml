@@ -64,6 +64,7 @@ nav:
   - Architecture: architecture.md
   - Web app: frontend.md
   - Authentication: authentication.md
+  - Access: access.md
   - Database: database.md
   - Configuration: configuration.md
   - Processing: processing.md

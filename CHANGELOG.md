@@ -18,6 +18,22 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Rename recordings.** Editors rename a recording from the pencil next to its title (or ⋯ → Rename on a phone):
   `PATCH /api/v1/recordings/{rid}` with `title`, audited as `recording.rename`. The report page is renamed with it,
   so its link keeps working, and a report job rewrites the title inside; IIIF harvesters see an Update.
+- **Access: public, restricted or private** (after Aviary's roles and permissions matrix; `docs/access.md`). Every
+  recording is public, restricted or private, following its namespace's default unless it sets its own; a public one
+  chooses which parts anyone may use (media, transcript, index) and can be featured. This replaces the four IIIF-only
+  access levels.
+    - **Converted on first start, once:** `public` stays public; `transcript` becomes public with the media closed;
+      `signed-in` becomes restricted; `private` stays private. Namespace defaults convert the same way. Restricted
+      recordings aren't published in IIIF (the old `signed-in` ones were listed), so the conversion announces a
+      Delete for each in the change feed.
+    - **Publishing is for owners**, as the web app already said: changing a recording's access, open parts or
+      featured flag needs the owner role, through `PUT /api/v1/recordings/{rid}/access`, metadata edits, bulk edits
+      and reverts alike (editors got a 403 only from the web app before). Changes are audited as `recording.access`.
+    - `GET /api/v1/recordings/{rid}/access`; the recording list and detail carry `access`, `open` and `featured`,
+      and the list filters by `access` and `featured`.
+    - The web app shows a recording's access next to its status (click it to change it), marks public and
+      restricted recordings in the Library, and the IIIF panel, metadata editor, metadata profile and Publish dialog
+      use the new setting.
 
 Tooling:
 

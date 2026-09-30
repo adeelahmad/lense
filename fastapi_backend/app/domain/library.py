@@ -7,7 +7,7 @@ import os
 import pathlib
 from collections import defaultdict
 
-from . import metadata, render, store
+from . import access as acc, metadata, render, store
 
 R = store.R
 STATUSES = ("new", "transcribed", "diarized", "analyzed", "error")
@@ -23,7 +23,7 @@ SORTS = {
     "status": ("array::find_index($order, status ?? 'new') ?? 9", "false"),
     "importance": ("summary.importance", "summary.importance = NONE"),
 }
-FIELDS = "record::id(id) AS id, title, recorded_at, duration_ms, status, error, source, stats, summary, space, media"
+FIELDS = "record::id(id) AS id, title, recorded_at, duration_ms, status, error, source, stats, summary, space, media, access, access_parts, featured"
 MAX_WORDS = 10
 
 
@@ -76,12 +76,16 @@ def where(
     min_duration=None,
     max_duration=None,
     media=None,
+    access=None,
+    featured=None,
 ):
     """The WHERE clause and its parameters for these filters. Filters combine with AND, the values of one filter with OR.
 
     q: every word in the title, the namespace's name or a speaker's name. status: recording statuses and job states
     (STATES). attention: errored, latest job failed, or a voice match to review. processing: a job queued or running.
     speakers: speaker ids. date_from/date_to: the recording date, inclusive. min/max_duration: seconds, max exclusive.
+    access: levels (public, restricted, private), a namespace's default counting for recordings without their own.
+    featured: true or false.
     """
     spaces = sorted(spaces)
     w, p = ["space IN $spaces"], {"spaces": spaces}
@@ -142,6 +146,16 @@ def where(
                 "transcript": "(media.kind = 'transcript' OR (media.kind = NONE AND source != 'audio'))",
             }[media]
         )
+    levels = list(dict.fromkeys(access or []))
+    if levels:
+        if any(x not in acc.LEVELS for x in levels):
+            raise ValueError(f"access is one of {', '.join(acc.LEVELS)}")
+        # a recording without its own access follows its namespace's default
+        p["lv"] = levels
+        p["lv_spaces"] = [sid for sid, (level, _) in acc.namespace_defaults(db, spaces).items() if level in levels]
+        w.append("(access IN $lv OR (access = NONE AND space IN $lv_spaces))")
+    if featured is not None:
+        w.append("featured = true" if featured else "featured != true")
     return " AND ".join(w), p
 
 
@@ -180,6 +194,7 @@ def summaries(db, rows):
     for a in db.rows("SELECT recording, speaker FROM appearance WHERE recording IN $r", r=ids) if rows else []:
         apps[a["recording"]].append(a["speaker"])
     names, spaces = render.speaker_names(db, [x for v in apps.values() for x in v]), store.space_names(db)
+    access = acc.many(db, rows)
     posters = (
         {x["recording"]: x.get("frame") for x in db.rows("SELECT recording, frame FROM shot WHERE recording IN $r AND idx = 0", r=ids)}
         if rows
@@ -187,8 +202,10 @@ def summaries(db, rows):
     )
     out = []
     for r in rows:
-        for k in ("_k", "_none"):
+        for k in ("_k", "_none", "access_parts"):
             r.pop(k, None)
+        a = access[r["id"]]
+        r.update(access=a["access"], open=a["open"], featured=a["featured"])
         st, sm = r.pop("stats", None) or {}, r.pop("summary", None) or {}
         r["media_kind"] = (r.pop("media", None) or {}).get("kind") or ("audio" if r.get("source") == "audio" else "transcript")
         r["poster"] = f"{store.API}/recordings/{r['id']}/frames/{posters[r['id']]}" if posters.get(r["id"]) else None

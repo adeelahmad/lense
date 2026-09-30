@@ -80,6 +80,12 @@ import type {
   UpdateRecordingData,
   UpdateRecordingResponses,
   UpdateRecordingErrors,
+  GetRecordingAccessData,
+  GetRecordingAccessResponses,
+  GetRecordingAccessErrors,
+  UpdateRecordingAccessData,
+  UpdateRecordingAccessResponses,
+  UpdateRecordingAccessErrors,
   GetPlayerData,
   GetPlayerResponses,
   GetPlayerErrors,
@@ -844,6 +850,39 @@ export class Recordings {
   }
 
   /**
+   * Get Recording Access
+   * Who may see the recording: public, restricted or private, the parts a public one opens, featured.
+   */
+  public static getRecordingAccess<ThrowOnError extends boolean = false>(
+    options: Options<GetRecordingAccessData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetRecordingAccessResponses, GetRecordingAccessErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/access",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Recording Access
+   * Make a recording public, restricted or private, choose what a public one opens, feature it (owners).
+   *
+   * access or open set to null follow the namespace's default again. The change is kept in the metadata history, and
+   * IIIF harvesters hear when the recording is published, changed or withdrawn.
+   */
+  public static updateRecordingAccess<ThrowOnError extends boolean = false>(
+    options: Options<UpdateRecordingAccessData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<UpdateRecordingAccessResponses, UpdateRecordingAccessErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/access",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Get Player
    * Player data. Works with a share link (``?s=``) as well as signed in; media links in it are signed.
    */
@@ -1405,6 +1444,7 @@ export class Metadata {
 
   /**
    * Update Recording Metadata
+   * Save fields (null clears one) or put them back to their derived values. The access fields need an owner.
    */
   public static updateRecordingMetadata<ThrowOnError extends boolean = false>(
     options: Options<UpdateRecordingMetadataData, ThrowOnError>,

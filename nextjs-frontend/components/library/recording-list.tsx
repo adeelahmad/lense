@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef } from "react";
 
 import type { RecordingSummary } from "@/app/openapi-client/types.gen";
+import { AccessBadge } from "@/components/access/access-fields";
 import { MediaIcon } from "@/components/library/cells";
 import { speakerList, statusView } from "@/components/library/model";
 import { rowClick, type RowProps } from "@/components/library/recording-table";
@@ -151,6 +152,7 @@ export function RecordingCards({ rows, jobs, reviews, selected, onOpen }: RowPro
               <span className="tabular flex items-center gap-2 text-[12.5px] leading-none text-fg-muted">
                 <MediaIcon kind={r.media_kind} className="size-[13px]" />
                 <span className="truncate">{meta(r, true)}</span>
+                {r.access && r.access !== "private" && <AccessBadge value={r} compact className="text-fg-muted" />}
                 <span className="flex-1" />
                 {spk.map((s) => (
                   <span

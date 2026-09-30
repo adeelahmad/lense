@@ -16,16 +16,21 @@ from fastapi.responses import Response
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_url, sign_urls
 from app.api.streaming import file_response, range_response
+from app.domain import access as acc
 from app.domain import analyze, auth, jobs, library, render, sources, store, video
+from app.domain import metadata as md
 from app.domain.store import API, DB
-from app.schemas.common import Ok
+from app.schemas.common import AccessLevel, Ok
 from app.schemas.recordings import (
     EmbedLink,
     JobQueued,
     MediaKind,
+    NamespaceAccess,
     Output,
     Player,
     Recording,
+    RecordingAccess,
+    RecordingAccessUpdate,
     RecordingSort,
     RecordingState,
     RecordingSummary,
@@ -80,6 +85,8 @@ def list_recordings(
     min_duration: int | None = Query(None, ge=0, description="at least this many seconds long"),
     max_duration: int | None = Query(None, ge=1, description="shorter than this many seconds"),
     media: MediaKind | None = Query(None, description="audio, video or transcript (no media)"),
+    access: list[AccessLevel] | None = Query(None, description="public, restricted or private; repeat for several"),
+    featured: bool | None = Query(None, description="only featured recordings (true) or only the others (false)"),
     sort: RecordingSort = Query("-date", description="date, title, duration, speakers, status or importance; prefix - for descending"),
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
@@ -104,6 +111,8 @@ def list_recordings(
             min_duration=min_duration,
             max_duration=max_duration,
             media=media,
+            access=access,
+            featured=featured,
         )
     response.headers["X-Total-Count"] = str(total)
     return [RecordingSummary.model_validate(x) for x in sign_urls(rows)]
@@ -113,7 +122,9 @@ def list_recordings(
 def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     r = acl.recording(rid)
     space = db.one("SELECT name FROM $s", s=R("space", r["space"])) or {}
-    d = {k: v for k, v in r.items() if k not in ("envelope", "stats", "summary")}
+    d = {k: v for k, v in r.items() if k not in ("envelope", "stats", "summary", "access_parts")}
+    a = acc.of(db, rid)
+    d.update(access=a["access"], open=a["open"], featured=a["featured"], access_inherited=a["inherited"])
     d.update(
         id=rid, namespace=space.get("name"), summary=r.get("summary"), stats=render.recording_stats(db, rid), role=acl.roles.get(r["space"])
     )
@@ -141,6 +152,38 @@ def update_recording(rid: int, body: RecordingUpdate, acl: Acl, user: Writer, db
         if rec.get("analyzed_at"):
             jobs.enqueue(db, rid, ["report"], by=user.email)
     return get_recording(rid, acl, db, cfg)
+
+
+def _access(db: DB, rid: int) -> RecordingAccess:
+    a = acc.of(db, rid)
+    space = (db.one("SELECT space FROM $r", r=R("recording", rid)) or {}).get("space")
+    level, open_ = acc.namespace_defaults(db, [space]).get(space, ("private", list(acc.PARTS)))
+    return RecordingAccess.model_validate({**a, "default": NamespaceAccess.model_validate({"access": level, "open": open_})})
+
+
+@router.get("/{rid}/access")
+def get_recording_access(rid: int, acl: Acl, user: CurrentUser, db: Db) -> RecordingAccess:
+    """Who may see the recording: public, restricted or private, the parts a public one opens, featured."""
+    acl.recording(rid)
+    return _access(db, rid)
+
+
+@router.put("/{rid}/access")
+def update_recording_access(rid: int, body: RecordingAccessUpdate, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> RecordingAccess:
+    """Make a recording public, restricted or private, choose what a public one opens, feature it (owners).
+
+    access or open set to null follow the namespace's default again. The change is kept in the metadata history, and
+    IIIF harvesters hear when the recording is published, changed or withdrawn."""
+    acl.recording(rid, "owner")
+    sent = body.model_fields_set
+    if not sent:
+        raise HTTPException(400, "send access, open or featured")
+    patch = {k: getattr(body, k) for k in sent if getattr(body, k) is not None}
+    reset = [k for k in sent if getattr(body, k) is None]
+    with domain_errors():
+        md.save(db, cfg, rid, patch, reset, user.email)
+    auth.audit(db, user.as_audit(), "recording.access", f"recording:{rid}", {k: getattr(body, k) for k in sorted(sent)})
+    return _access(db, rid)
 
 
 @router.get("/{rid}/player")

@@ -435,6 +435,8 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS recording_fp ON recording FIELDS fp_key UNIQUE",
     "DEFINE INDEX IF NOT EXISTS recording_path ON recording FIELDS path",
     "DEFINE INDEX IF NOT EXISTS recording_status ON recording FIELDS status",
+    "DEFINE INDEX IF NOT EXISTS recording_access ON recording FIELDS access",
+    "DEFINE INDEX IF NOT EXISTS recording_featured ON recording FIELDS featured",
     "DEFINE TABLE IF NOT EXISTS segment SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_rec ON segment FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS segment_space ON segment FIELDS space",
@@ -574,7 +576,24 @@ def connect(cfg):
     for name, spec in cfg["namespaces"].items():
         sid = ns_id(db, name)
         db.q("UPDATE $r SET graph = $g", r=R("space", sid), g=spec["graph"])
+    migrate(db)
     return db
+
+
+def _migrations():
+    from . import access  # each step lives with the code it serves
+
+    return [access.migrate_legacy]
+
+
+def migrate(db):
+    """Data rewrites that run once per database, in order. The last one done is kept in seq:migrations; each step is
+    safe to repeat, so two processes starting together, or a start that stops half way, do no harm."""
+    done = int((db.one("SELECT n FROM $r", r=R("seq", "migrations")) or {}).get("n") or 0)
+    for n, step in enumerate(_migrations(), 1):
+        if n > done:
+            step(db)
+            db.q("UPSERT $r SET n = $n", r=R("seq", "migrations"), n=n)
 
 
 def reindex(db, cfg):

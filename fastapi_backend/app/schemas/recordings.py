@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from app.schemas.common import Ok, RequestModel, ResponseModel, Role
+from app.schemas.common import AccessLevel, AccessPart, Ok, RequestModel, ResponseModel, Role
 
 # Recording statuses, plus two job states: a job queued or running (processing), the latest job failed (failed).
 RecordingState = Literal["new", "transcribed", "diarized", "analyzed", "error", "processing", "failed"]
@@ -42,6 +42,9 @@ class RecordingSummary(ResponseModel):
     importance: Any = None
     sentiment: Any = None
     speakers: str = Field("", description="speaker names, comma separated")
+    access: AccessLevel = Field("private", description="its own access, or its namespace's default")
+    open: list[AccessPart] = Field(default_factory=list, description="the parts anyone may use when it is public")
+    featured: bool = False
 
 
 class RecordingSpeaker(ResponseModel):
@@ -65,6 +68,10 @@ class Recording(ResponseModel):
     report_url: str | None = Field(None, description="signed link to the built report page, if one exists")
     speakers: list[RecordingSpeaker] = Field(default_factory=list)
     jobs: list[dict[str, Any]] = Field(default_factory=list)
+    access: AccessLevel = Field("private", description="its own access, or its namespace's default")
+    open: list[AccessPart] = Field(default_factory=list, description="the parts anyone may use when it is public")
+    featured: bool = False
+    access_inherited: bool = Field(True, description="the access comes from the namespace's default")
 
 
 class Player(ResponseModel):
@@ -90,6 +97,29 @@ class RecordingUpdate(RequestModel):
     """The fields to change; the others stay as they are."""
 
     title: str | None = Field(None, min_length=1, max_length=200, description="whitespace is collapsed")
+
+
+class NamespaceAccess(ResponseModel):
+    access: AccessLevel
+    open: list[AccessPart]
+
+
+class RecordingAccess(ResponseModel):
+    """Who may see the recording: public, restricted or private (docs/access.md)."""
+
+    access: AccessLevel
+    open: list[AccessPart] = Field(description="the parts anyone may use when it is public: media, transcript, index")
+    featured: bool
+    inherited: bool = Field(description="access and open come from the namespace's default")
+    default: NamespaceAccess = Field(description="the namespace's default")
+
+
+class RecordingAccessUpdate(RequestModel):
+    """Send the settings to change. access or open set to null follow the namespace's default again."""
+
+    access: AccessLevel | None = None
+    open: list[AccessPart] | None = None
+    featured: bool | None = None
 
 
 class ReprocessRequest(RequestModel):

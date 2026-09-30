@@ -63,6 +63,8 @@ GET    /api/v1/namespaces/{name}/wordcloud.svg
 GET    /api/v1/recordings
 GET    /api/v1/recordings/{rid}
 PATCH  /api/v1/recordings/{rid}
+GET    /api/v1/recordings/{rid}/access
+PUT    /api/v1/recordings/{rid}/access
 GET    /api/v1/recordings/{rid}/player
 GET    /api/v1/recordings/{rid}/embed-link
 GET    /api/v1/recordings/{rid}/audio
@@ -91,6 +93,8 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 | `from`, `to` | the recording date, `YYYY-MM-DD`, both days included; recordings without a date don't match |
 | `min_duration`, `max_duration` | seconds: at least `min_duration`, shorter than `max_duration` |
 | `media` | `audio`, `video` or `transcript` (no media) |
+| `access` | `public`, `restricted` or `private`: the recording's own setting, else its namespace's default |
+| `featured` | `true`: only featured recordings; `false`: only the others |
 | `sort` | `date`, `title`, `duration`, `speakers`, `status` or `importance`; `-` in front for descending (default `-date`). Recordings without the value come last either way |
 | `limit`, `offset` | one page (default 500 rows, at most 1000) |
 
@@ -99,6 +103,12 @@ The body is the page's rows; the `X-Total-Count` header says how many recordings
 `PATCH /recordings/{rid}` with `{"title": …}` renames a recording (editors; whitespace is collapsed, at most 200
 characters). It is audited as `recording.rename`; the recording's report page follows the new title and is rebuilt,
 and a published recording shows up as an Update in the IIIF change feed.
+
+`GET /recordings/{rid}/access` says who may see a recording (members): `access` (`public`, `restricted` or
+`private`), `open` (the parts a public recording opens to everyone: `media`, `transcript`, `index`), `featured`,
+`inherited` (the access comes from the namespace) and the namespace's `default`. `PUT` changes any of them (owners);
+`null` follows the namespace again. Changes are audited as `recording.access`, kept in the metadata history, and
+announced in the IIIF change feed. [Access](access.md) explains what each level lets people do.
 
 ## imports
 

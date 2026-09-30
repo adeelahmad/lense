@@ -3,9 +3,11 @@
 Two layers, as IIIF intends: what viewers display (language maps for label and summary, label/value pairs, rights,
 required attribution, provider, date), and a richer machine-readable record linked from each Manifest with seeAlso
 (schema.org JSON-LD and Dublin Core). Values someone saves override values derived from the recording (title,
-date, language, speakers, topics, summary); every change is kept and can be reverted. Access decides what IIIF
-publishes: public (everything), transcript (transcript open, audio after sign-in), signed-in (both after sign-in),
-private (not published).
+date, language, speakers, topics, summary); every change is kept and can be reverted.
+
+Three fields are the recording's access (see access.py and docs/access.md) rather than description: access (public,
+restricted or private), open (the parts of a public recording anyone may use) and featured. They are kept in the
+recording's own fields, so lists can filter by them, and the namespace profile holds their defaults.
 """
 
 from __future__ import annotations
@@ -16,10 +18,11 @@ import json
 import re
 from xml.sax.saxutils import escape, quoteattr
 
-from . import render, store
+from . import access as acc, render, store
 
 R = store.R
-ACCESS = ("public", "transcript", "signed-in", "private")
+ACCESS = acc.LEVELS
+COLUMNS = {"access": "access", "open": "access_parts", "featured": "featured"}  # stored on the recording, not in meta_json
 FIELDS = (
     "label",
     "summary",
@@ -36,6 +39,8 @@ FIELDS = (
     "homepage",
     "related",
     "access",
+    "open",
+    "featured",
 )
 LANG_RX = re.compile(r"^(none|[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})*)$")
 RIGHTS_RX = re.compile(r"^https?://(creativecommons\.org/(licenses|publicdomain)/|rightsstatements\.org/vocab/)")
@@ -87,7 +92,9 @@ def clean(patch):
     for k, v in (patch or {}).items():
         if k not in FIELDS:
             raise MetaProblem(f"unknown field {k}")
-        if v is None or v == "" or v == []:
+        if k == "open" and v == []:
+            out[k] = []  # a public recording with every part closed: its page and description only
+        elif v is None or v == "" or v == []:
             out[k] = None
         elif k in ("label", "summary", "attribution"):
             out[k] = langmap(v, k)
@@ -175,6 +182,15 @@ def clean(patch):
                 )
                 for x in (v if isinstance(v, list) else [v])
             ]
+        elif k == "open":
+            try:
+                out[k] = acc.parts(v)
+            except ValueError as e:
+                raise MetaProblem(str(e)) from None
+        elif k == "featured":
+            if not isinstance(v, bool):
+                raise MetaProblem("featured is true or false")
+            out[k] = v
         else:  # access
             if v not in ACCESS:
                 raise MetaProblem(f"access is one of {', '.join(ACCESS)}")
@@ -207,6 +223,11 @@ def check_profile(p):
     }
     if out["default_access"] not in ACCESS:
         raise MetaProblem(f"default access is one of {', '.join(ACCESS)}")
+    if p.get("default_open") is not None:
+        try:
+            out["default_open"] = acc.parts(p["default_open"])
+        except ValueError as e:
+            raise MetaProblem(f"default {e}") from None
     return out
 
 
@@ -216,14 +237,53 @@ def save_namespace(db, sid, meta=None, profile=None, user=None):
         "meta": {**cur["meta"], **clean(meta)} if meta is not None else cur["meta"],
         "profile": check_profile(profile) if profile is not None else cur["profile"],
     }
+    inheriting = db.rows(
+        "SELECT record::id(id) AS id, space, access, access_parts, featured FROM recording WHERE space = $s AND access = NONE", s=sid
+    )
+    before = acc.many(db, inheriting)
     db.q("UPDATE $r SET meta_json = $m, profile_json = $p", r=R("space", sid), m=json.dumps(after["meta"]), p=json.dumps(after["profile"]))
     _history(db, f"space:{sid}", {"meta": cur["meta"], "profile": cur["profile"]}, after, user)
+    # recordings that follow the namespace's default access are published, withdrawn or changed with it
+    for rid, a in acc.many(db, inheriting).items():
+        if a["access"] != before[rid]["access"] or (acc.published(a) and a["open"] != before[rid]["open"]):
+            acc.announce(db, rid, before[rid]["access"], a["access"])
     return after
 
 
 # ---------- recordings ----------
+def _split(row):
+    """The metadata someone saved on a recording: meta_json, plus the access fields kept in their own columns."""
+    meta = _load(row.get("meta_json"))
+    level = meta.pop("access", None)  # meta_json held it before access had its own fields (converted on first start)
+    if level is not None and row.get("access") is None:
+        if level not in ACCESS:  # transcript or signed-in, from the IIIF-only levels
+            level, open_ = acc.LEGACY.get(level) or ("private", None)
+            if open_ is not None and "open" not in meta:
+                meta["open"] = open_
+        meta["access"] = level
+    for field, col in COLUMNS.items():
+        if row.get(col) is not None:
+            meta[field] = row[col]
+    return meta
+
+
 def stored(db, rid):
-    return _load((db.one("SELECT meta_json FROM $r", r=R("recording", rid)) or {}).get("meta_json"))
+    return _split(db.one("SELECT meta_json, access, access_parts, featured FROM $r", r=R("recording", rid)) or {})
+
+
+def _write(db, rid, meta):
+    """Save a recording's metadata: the access fields to their columns (NONE: follow the namespace), the rest as JSON."""
+    rest = {k: v for k, v in meta.items() if k not in COLUMNS}
+    if "access" in meta and meta["access"] not in ACCESS:  # an old level from a history entry
+        meta = {**meta, **dict(zip(("access", "open"), acc.LEGACY.get(meta["access"]) or ("private", None)))}
+    sets, params = ["meta_json = $m"], {"m": json.dumps(rest)}
+    for field, col in COLUMNS.items():
+        if meta.get(field) is None:
+            sets.append(f"{col} = NONE")
+        else:
+            sets.append(f"{col} = $v_{col}")  # $access itself is a protected parameter name
+            params[f"v_{col}"] = meta[field]
+    db.q(f"UPDATE $r SET {', '.join(sets)}", r=R("recording", rid), **params)
 
 
 def defaults(db, cfg, rid):
@@ -231,7 +291,8 @@ def defaults(db, cfg, rid):
     rec = db.one("SELECT title, recorded_at, language, summary, space FROM $r", r=R("recording", rid)) or {}
     ns = namespace(db, rec.get("space"))
     lang = cfg["iiif"].get("default_language") or "none"
-    d = {"label": {lang: [rec.get("title") or f"Recording {rid}"]}, "access": ns["profile"].get("default_access") or "private"}
+    level, open_ = acc.namespace_defaults(db, [rec["space"]]).get(rec.get("space"), ("private", list(acc.PARTS)))
+    d = {"label": {lang: [rec.get("title") or f"Recording {rid}"]}, "access": level, "open": open_, "featured": False}
     if rec.get("recorded_at"):
         try:
             d["navDate"] = clean({"navDate": rec["recorded_at"]})["navDate"]
@@ -288,7 +349,7 @@ def problems(meta, profile):
 
 
 def access_of(db, cfg, rid):
-    return effective(db, cfg, rid).get("access") or "private"
+    return acc.of(db, rid)["access"]
 
 
 def get(db, cfg, rid):
@@ -314,13 +375,13 @@ def save(db, cfg, rid, patch=None, reset=(), user=None):
     """Save fields (None clears one); reset puts fields back to their derived values. Returns (old access, new access)."""
     changes = clean(patch)
     before = stored(db, rid)
-    old_access = access_of(db, cfg, rid)
+    old = acc.of(db, rid)
     after = {k: v for k, v in {**before, **changes}.items() if k not in set(reset)}
-    db.q("UPDATE $r SET meta_json = $m", r=R("recording", rid), m=json.dumps(after))
+    _write(db, rid, after)
     _history(db, f"recording:{rid}", before, after, user)
-    new_access = access_of(db, cfg, rid)
-    note_change(db, rid, old_access, new_access)
-    return old_access, new_access
+    new = acc.of(db, rid)
+    note_change(db, rid, old["access"], new["access"])
+    return old["access"], new["access"]
 
 
 def history(db, target):
@@ -344,7 +405,7 @@ def revert(db, cfg, eid, user=None):
         rid = int(key)
         old = access_of(db, cfg, rid)
         cur = stored(db, rid)
-        db.q("UPDATE $r SET meta_json = $m", r=R("recording", rid), m=json.dumps(before))
+        _write(db, rid, before)
         _history(db, e["target"], cur, before, user)
         note_change(db, rid, old, access_of(db, cfg, rid))
     else:
@@ -364,15 +425,8 @@ def bulk(db, cfg, rids, set_fields=None, clear=(), user=None, dry_run=True):
 
 # ---------- change discovery (what harvesters see) ----------
 def note_change(db, rid, old_access, new_access):
-    if old_access == "private" and new_access != "private":
-        kind = "Create"
-    elif old_access != "private" and new_access == "private":
-        kind = "Delete"
-    elif new_access != "private":
-        kind = "Update"
-    else:
-        return
-    db.q("CREATE $r CONTENT $d", r=R("iiif_activity", db.next_id("iiif_activity")), d={"type": kind, "recording": rid, "at": store.now()})
+    """IIIF publishes public recordings: becoming public is a Create, staying public an Update, leaving it a Delete."""
+    acc.announce(db, rid, old_access, new_access)
 
 
 def touched(db, cfg, rid):

@@ -57,6 +57,7 @@ export type RecordingCtx = {
   openReprocess: () => void;
   openShare: (startMs?: number) => void;
   openRename: () => void;
+  openAccess: () => void;
 };
 
 const Ctx = createContext<RecordingCtx | null>(null);

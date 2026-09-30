@@ -53,11 +53,14 @@ export function BulkEditDialog({
   open,
   onClose,
   preset,
+  canPublish = true,
 }: {
   ns: string;
   open: boolean;
   onClose: () => void;
   preset?: { field: BulkField; value: string; title: string };
+  /** Access is for owners (publishing); editors bulk-edit the rest. */
+  canPublish?: boolean;
 }) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -163,7 +166,9 @@ export function BulkEditDialog({
                   setRaw("");
                   dry.reset();
                 }}
-                options={FIELDS}
+                options={FIELDS.map((x) =>
+                  x.value === "access" && !canPublish ? { ...x, label: `${x.label} (owners only)`, disabled: true } : x,
+                )}
               />
             )}
           </Field>

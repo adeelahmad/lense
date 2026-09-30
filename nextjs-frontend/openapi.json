@@ -1191,6 +1191,50 @@
             "description": "audio, video or transcript (no media)"
           },
           {
+            "name": "access",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "public",
+                      "restricted",
+                      "private"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "public, restricted or private; repeat for several",
+              "title": "Access"
+            },
+            "description": "public, restricted or private; repeat for several"
+          },
+          {
+            "name": "featured",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only featured recordings (true) or only the others (false)",
+              "title": "Featured"
+            },
+            "description": "only featured recordings (true) or only the others (false)"
+          },
+          {
             "name": "sort",
             "in": "query",
             "required": false,
@@ -1352,6 +1396,100 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Recording"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{rid}/access": {
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Get Recording Access",
+        "description": "Who may see the recording: public, restricted or private, the parts a public one opens, featured.",
+        "operationId": "get_recording_access",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingAccess"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Update Recording Access",
+        "description": "Make a recording public, restricted or private, choose what a public one opens, feature it (owners).\n\naccess or open set to null follow the namespace's default again. The change is kept in the metadata history, and\nIIIF harvesters hear when the recording is published, changed or withdrawn.",
+        "operationId": "update_recording_access",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordingAccessUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingAccess"
                 }
               }
             }
@@ -3799,6 +3937,7 @@
           "metadata"
         ],
         "summary": "Update Recording Metadata",
+        "description": "Save fields (null clears one) or put them back to their derived values. The access fields need an owner.",
         "operationId": "update_recording_metadata",
         "parameters": [
           {
@@ -10031,11 +10170,35 @@
           },
           "access": {
             "type": "string",
+            "enum": [
+              "public",
+              "restricted",
+              "private"
+            ],
             "title": "Access"
+          },
+          "open": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "media",
+                "transcript",
+                "index"
+              ]
+            },
+            "type": "array",
+            "title": "Open",
+            "description": "the parts anyone may use, when the recording is public"
+          },
+          "featured": {
+            "type": "boolean",
+            "title": "Featured",
+            "default": false
           },
           "published": {
             "type": "boolean",
-            "title": "Published"
+            "title": "Published",
+            "description": "IIIF publishes public recordings"
           },
           "layers": {
             "items": {},
@@ -10068,6 +10231,7 @@
           "manifest",
           "collection",
           "access",
+          "open",
           "published",
           "layers",
           "search",
@@ -11252,6 +11416,38 @@
         ],
         "title": "Namespace"
       },
+      "NamespaceAccess": {
+        "properties": {
+          "access": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted",
+              "private"
+            ],
+            "title": "Access"
+          },
+          "open": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "media",
+                "transcript",
+                "index"
+              ]
+            },
+            "type": "array",
+            "title": "Open"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "access",
+          "open"
+        ],
+        "title": "NamespaceAccess"
+      },
       "NamespaceCreate": {
         "properties": {
           "name": {
@@ -12224,6 +12420,41 @@
             },
             "type": "array",
             "title": "Jobs"
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted",
+              "private"
+            ],
+            "title": "Access",
+            "description": "its own access, or its namespace's default",
+            "default": "private"
+          },
+          "open": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "media",
+                "transcript",
+                "index"
+              ]
+            },
+            "type": "array",
+            "title": "Open",
+            "description": "the parts anyone may use when it is public"
+          },
+          "featured": {
+            "type": "boolean",
+            "title": "Featured",
+            "default": false
+          },
+          "access_inherited": {
+            "type": "boolean",
+            "title": "Access Inherited",
+            "description": "the access comes from the namespace's default",
+            "default": true
           }
         },
         "additionalProperties": true,
@@ -12234,6 +12465,110 @@
         ],
         "title": "Recording",
         "description": "The recording row (less its envelope) plus what the recording page needs."
+      },
+      "RecordingAccess": {
+        "properties": {
+          "access": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted",
+              "private"
+            ],
+            "title": "Access"
+          },
+          "open": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "media",
+                "transcript",
+                "index"
+              ]
+            },
+            "type": "array",
+            "title": "Open",
+            "description": "the parts anyone may use when it is public: media, transcript, index"
+          },
+          "featured": {
+            "type": "boolean",
+            "title": "Featured"
+          },
+          "inherited": {
+            "type": "boolean",
+            "title": "Inherited",
+            "description": "access and open come from the namespace's default"
+          },
+          "default": {
+            "$ref": "#/components/schemas/NamespaceAccess",
+            "description": "the namespace's default"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "access",
+          "open",
+          "featured",
+          "inherited",
+          "default"
+        ],
+        "title": "RecordingAccess",
+        "description": "Who may see the recording: public, restricted or private (docs/access.md)."
+      },
+      "RecordingAccessUpdate": {
+        "properties": {
+          "access": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "restricted",
+                  "private"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access"
+          },
+          "open": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "media",
+                    "transcript",
+                    "index"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open"
+          },
+          "featured": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Featured"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RecordingAccessUpdate",
+        "description": "Send the settings to change. access or open set to null follow the namespace's default again."
       },
       "RecordingMetadata": {
         "properties": {
@@ -12465,6 +12800,35 @@
             "title": "Speakers",
             "description": "speaker names, comma separated",
             "default": ""
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted",
+              "private"
+            ],
+            "title": "Access",
+            "description": "its own access, or its namespace's default",
+            "default": "private"
+          },
+          "open": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "media",
+                "transcript",
+                "index"
+              ]
+            },
+            "type": "array",
+            "title": "Open",
+            "description": "the parts anyone may use when it is public"
+          },
+          "featured": {
+            "type": "boolean",
+            "title": "Featured",
+            "default": false
           }
         },
         "additionalProperties": true,

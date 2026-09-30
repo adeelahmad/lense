@@ -194,7 +194,7 @@ export function CollectionsIndex() {
                         <Skeleton className="h-4 w-20" />
                       ) : (
                         <Badge tone={pub ? "green" : "neutral"} dot>
-                          {pub ? "Published" : "Private"}
+                          {pub ? "Published" : "Not published"}
                         </Badge>
                       )}
                     </Td>

@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.deps import Acl, AdminWriter, Cfg, CurrentUser, Db
 from app.api.iiif import base_url, viewer_links
+from app.domain import access as acc
 from app.domain import auth, iiif, store
 from app.domain import metadata as md
 from app.schemas.iiif import ContentState, IiifImport, IiifImported, IiifPanel, IiifUrl, ViewerLink
@@ -26,13 +27,15 @@ def get_recording_iiif(rid: int, request: Request, user: CurrentUser, acl: Acl, 
     acl.recording(rid)
     man = iiif.manifest(db, cfg, rid, base_url(request, cfg))
     problems = iiif.validate(man)
-    level = md.access_of(db, cfg, rid)
+    a = acc.of(db, rid)
     return IiifPanel.model_validate(
         {
             "manifest": man["id"],
             "collection": man["partOf"][0]["id"],
-            "access": level,
-            "published": level != "private",
+            "access": a["access"],
+            "open": a["open"],
+            "featured": a["featured"],
+            "published": acc.published(a),
             "layers": [a.get("label") and md.first(a["label"]) for a in man["items"][0].get("annotations", [])[1:]],
             "search": bool(man.get("service")),
             "validation": {"checked": problems is not None, "problems": problems or []},
