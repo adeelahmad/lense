@@ -1,18 +1,13 @@
-site_name: Next.js FastAPI Template
-site_description: Kickstart scalable apps with our Next.js FastAPI Template. Includes auth, type safety (Zod), hot reload, Docker, and Vercel-ready deployment.
-site_url: https://vintasoftware.github.io/nextjs-fastapi-template/
+site_name: Lens
+site_description: An archive for recorded speech and video, on FastAPI, Next.js and SurrealDB.
 
-repo_name: vintasoftware/nextjs-fastapi-template
-repo_url: https://github.com/vintasoftware/nextjs-fastapi-template/
+repo_name: adeelahmad/lense
+repo_url: https://github.com/adeelahmad/lense/
 edit_uri: blob/main/docs/
-
-copyright: From <a href="https://www.vintasoftware.com">Vinta Software</a> to the community with 💙
 
 theme:
   name: material
   custom_dir: overrides
-  logo: images/nav-logo.png
-  favicon: images/github-favicon.png
   features:
     - navigation.footer
     - navigation.indexes
@@ -65,34 +60,25 @@ markdown_extensions:
 
 nav:
   - Home: README.md
-  - Get Started: get-started.md
-  - Additional Settings: additional-settings.md
-  - Technology Selection: technology-selection.md
+  - Get started: get-started.md
+  - Architecture: architecture.md
+  - Web app: frontend.md
+  - Authentication: authentication.md
+  - Database: database.md
+  - Configuration: configuration.md
+  - Processing: processing.md
+  - Video: video.md
+  - Chat and batch runs: assistant.md
+  - IIIF: iiif.md
+  - API: api.md
+  - API work the design needs: backend-gaps.md
   - Deployment: deployment.md
-  - Changelog: CHANGELOG.md
+  - Technology: technology-selection.md
   - Contributing: contributing.md
-  - Support: support.md
-
+  - Changelog: CHANGELOG.md
 
 plugins:
   - search
-
-extra:
-  social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/vintasoftware/nextjs-fastapi-template/
-      name: Nextjs FastAPI Template GitHub
-    - icon: fontawesome/brands/x-twitter
-      link: https://x.com/vintasoftware
-      name: Vinta Software X
-    - icon: fontawesome/brands/linkedin
-      link: https://linkedin.com/company/vintasoftware
-      name: Vinta Software LinkedIn
-  version:
-    provider: mike
-  analytics:
-    provider: google
-    property: GTM-M9GMGBHR
 
 extra_css:
   - stylesheets/extra.css

@@ -2,11 +2,7 @@
 
 export type { Auth } from "../core/auth.gen";
 export type { QuerySerializerOptions } from "../core/bodySerializer.gen";
-export {
-  formDataBodySerializer,
-  jsonBodySerializer,
-  urlSearchParamsBodySerializer,
-} from "../core/bodySerializer.gen";
+export { formDataBodySerializer, jsonBodySerializer, urlSearchParamsBodySerializer } from "../core/bodySerializer.gen";
 export { buildClientParams } from "../core/params.gen";
 export { createClient } from "./client.gen";
 export type {
@@ -18,6 +14,8 @@ export type {
   OptionsLegacyParser,
   RequestOptions,
   RequestResult,
+  ResolvedRequestOptions,
+  ResponseStyle,
   TDataShape,
 } from "./types.gen";
-export { createConfig } from "./utils.gen";
+export { createConfig, mergeHeaders } from "./utils.gen";

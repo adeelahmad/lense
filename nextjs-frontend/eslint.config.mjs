@@ -9,6 +9,8 @@ const eslintConfig = [
     ignores: [
       "node_modules/**",
       ".next/**",
+      // Per-dev-server build folders (NEXT_DIST_DIR=.next-a …)
+      ".next-*/**",
       "out/**",
       "build/**",
       "next-env.d.ts",
@@ -35,6 +37,15 @@ const eslintConfig = [
         ...globals.node,
       },
       sourceType: "commonjs",
+    },
+  },
+  // ESM config files
+  {
+    files: ["*.mjs"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
     },
   },
   prettier,

@@ -1,70 +1,50 @@
-## Next.js FastAPI Template
+# Lens
 
-<a href="https://www.vintasoftware.com/blog/next-js-fastapi-template"><img src="docs/images/banner.png" alt="Next.js FastAPI Template" width="auto"></a>
-<p align="center">
-    <em>Next.js FastAPI Template: Python + Modern TypeScript stack with Zod validation.</em>
-</p>
-<p align="center">
-<a href="https://github.com/vintasoftware/nextjs-fastapi-template/actions/workflows/ci.yml" target="_blank">
-    <img src="https://github.com/vintasoftware/nextjs-fastapi-template/actions/workflows/ci.yml/badge.svg" alt="CI">
-</a>
-<a href="https://coveralls.io/github/vintasoftware/nextjs-fastapi-template" target="_blank">
-    <img src="https://coveralls.io/repos/github/vintasoftware/nextjs-fastapi-template/badge.svg" alt="Coverage">
-</a>
-</p>
+An archive for recorded speech and video. Lens transcribes recordings in batches, recognises speakers by voice within
+a namespace, extracts people, organisations and topics into a knowledge graph, makes everything searchable, and
+publishes recordings as IIIF. It also offers an assistant that answers with citations to the exact moment in a
+recording.
 
----
+- **Sources:** audio and video from watched folders on S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local
+  disks, plus uploaded or pasted transcripts (txt, md, docx, pdf, srt, vtt, json and more).
+- **Processing:** transcription (SenseVoice, faster-whisper, mlx-whisper), diarisation and voice IDs, entities,
+  chapters and keywords, LLM summaries and templated outputs, and for video: shots, text on screen and (opt-in) faces.
+- **Exploring:** full-text search with stemming, a speaker registry with merge and undo, an entity index and graph
+  explorer, collections, batch runs with cost estimates, and chat scoped to what each person may read.
+- **Publishing:** an embeddable transcript player, static reports, and IIIF Presentation 3 with Content Search, Change
+  Discovery and the Authorization Flow.
+- **Multi-user:** roles per namespace (viewer, editor, owner), API tokens, share links, and an audit log.
 
-**Documentation**: <a href="https://vintasoftware.github.io/nextjs-fastapi-template/" target="_blank">https://vintasoftware.github.io/nextjs-fastapi-template/</a>
+## Stack
 
-**Source Code**: <a href="https://github.com/vintasoftware/nextjs-fastapi-template/" target="_blank">https://github.com/vintasoftware/nextjs-fastapi-template/</a>
+| | |
+|---|---|
+| `fastapi_backend/` | FastAPI API (`/api/v1`), the processing engine, and the `lens` CLI and workers |
+| `nextjs-frontend/` | Next.js web app with NextAuth (Auth.js v5) and a typed client generated from the API's OpenAPI schema |
+| SurrealDB | all data: documents, graph edges, full-text indexes, the job queue |
 
----
+## Quick start
 
-The Next.js FastAPI Template provides a solid foundation for scalable, high-performance web applications, following clean architecture and best practices. It simplifies development by integrating FastAPI, Pydantic, and Next.js with TypeScript and Zod, ensuring end-to-end type safety and schema validation between frontend and backend.
+```bash
+cp fastapi_backend/.env.example fastapi_backend/.env          # set ACCESS_SECRET_KEY
+cp nextjs-frontend/.env.example nextjs-frontend/.env.local    # set AUTH_SECRET
+docker compose up --build
+```
 
-The FastAPI backend supports fully asynchronous operations, optimizing database queries, API routes, and test execution for better performance. Deployment is seamless, with both backend and frontend fully deployable to Vercel, enabling quick product releases with minimal configuration.
+Open <http://localhost:3000> and create the first admin with the setup code from the backend log. The API docs are at
+<http://localhost:8000/docs>.
 
-### Key features
-✔ End-to-end type safety – Automatically generated typed clients from the OpenAPI schema ensure seamless API contracts between frontend and backend.
+## Documentation
 
-✔ Hot-reload updates – The client updates automatically when backend routes change, keeping FastAPI and Next.js in sync.
+Start with [Get started](docs/get-started.md), then:
 
-✔ Versatile foundation – Designed for MVPs and production-ready applications, with a pre-configured authentication system and API layer.
+- [Architecture](docs/architecture.md): how the pieces fit, and why
+- [Web app](docs/frontend.md): structure, design system, data layer
+- [Authentication](docs/authentication.md): NextAuth, API tokens, share links, IIIF sign-in
+- [Database](docs/database.md): SurrealDB modes, schema, and the traps the code avoids
+- [Configuration](docs/configuration.md)
+- [Processing](docs/processing.md), [Video](docs/video.md), [Chat and batch runs](docs/assistant.md), [IIIF](docs/iiif.md)
+- [API](docs/api.md), [what the design needs from the API next](docs/backend-gaps.md)
+- [Deployment](docs/deployment.md), [Contributing](docs/contributing.md)
 
-✔ Quick deployment – Deploys a full-stack application—including authentication flow and a dashboard—on Vercel in just a few steps.
-
-✔ Production-ready authentication – Includes a pre-configured authentication system and dashboard interface, allowing you to immediately start development with user management features.
-
-## Technology stack
-This template features a carefully selected set of technologies to ensure efficiency, scalability, and ease of use:
-
-- Zod + TypeScript – Type safety and schema validation across the stack.
-- fastapi-users – Complete authentication system with:
-    - Secure password hashing
-    - JWT authentication
-- Email-based password recovery
-- shadcn/ui – Prebuilt React components with Tailwind CSS.
-- OpenAPI-fetch – Fully typed client generation from the OpenAPI schema.
-- UV – Simplified dependency management and packaging.
-- Docker Compose – Consistent environments for development and production.
-- Pre-commit hooks – Automated code linting, formatting, and validation before commits.
-- Vercel Deployment – Serverless backend and scalable frontend, deployable with minimal configuration.
-
-This is a partial list of the technologies included in the template. For a complete overview, visit our [Technology selection](https://vintasoftware.github.io/nextjs-fastapi-template/technology-selection/) page.
-
-## Get Started
-
-To use this template, visit our [Get Started](https://vintasoftware.github.io/nextjs-fastapi-template/get-started/) and follow the steps.
-
-## Using the template? Let's talk!
-
-We’re always curious to see how the community builds on top of it and where it’s being used. To collaborate:
-
-- Join the conversation on [GitHub Discussions](https://github.com/vintasoftware/nextjs-fastapi-template/discussions)
-- Report bugs or suggest improvements via [issues](https://github.com/vintasoftware/nextjs-fastapi-template/issues)
-- Check the [Contributing](https://vintasoftware.github.io/nextjs-fastapi-template/contributing/) guide to get involved
-
-This project is maintained by [Vinta Software](https://www.vinta.com.br/) and is actively used in production systems we build for clients. Talk to our expert consultants — get a free technical review: contact@vinta.com.br.
-
-*Disclaimer: This project is not affiliated with Vercel.*
+Built on the [Next.js FastAPI Template](https://github.com/vintasoftware/nextjs-fastapi-template) (MIT).

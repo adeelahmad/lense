@@ -1,28 +1,40 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { usersCurrentUser } from "@/app/clientService";
 
-export async function proxy(request: NextRequest) {
-  const token = request.cookies.get("accessToken");
+import { auth } from "@/auth";
 
-  if (!token) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
+/** Pages reachable without a session. */
+const PUBLIC_PATHS = ["/login", "/setup", "/password-recovery"];
 
-  const options = {
-    headers: {
-      Authorization: `Bearer ${token.value}`,
-    },
-  };
-
-  const { error } = await usersCurrentUser(options);
-
-  if (error) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-  return NextResponse.next();
+function isPublic(pathname: string): boolean {
+  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+/*
+ * Runs before every page request. Reading the session here also refreshes the
+ * access token when it is about to expire and writes the new session cookie on
+ * the response (server components can't set cookies themselves).
+ */
+export default auth((req) => {
+  const { pathname, search } = req.nextUrl;
+  // The API's "share a moment" links point at the site root (`/?iiif-content=…`); /iiif opens them. Redirect first,
+  // so a signed-out visitor keeps the moment through sign-in.
+  if (pathname === "/" && req.nextUrl.searchParams.has("iiif-content")) {
+    return NextResponse.redirect(new URL(`/iiif${search}`, req.nextUrl));
+  }
+  if (isPublic(pathname)) return;
+
+  if (!req.auth || req.auth.error) {
+    const url = new URL("/login", req.nextUrl);
+    if (pathname !== "/") url.searchParams.set("callbackUrl", pathname + search);
+    return NextResponse.redirect(url);
+  }
+});
+
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  // Skip Auth.js, the backend paths (proxied by route handlers, see lib/api/backend-proxy.ts), Next's files and assets.
+  // Under /iiif only the backend's IIIF resources are skipped (collection, discovery, auth, /iiif/<id>/…); the app's own
+  // IIIF pages (/iiif, /iiif/collections/…, /iiif/import, /iiif/metadata/…) need the session like any other page.
+  matcher: [
+    "/((?!api/|_next/|embed/|iiif/(?:collection(?!s)|discovery|auth|\\d)|reports/|static/|fonts/|favicon\\.ico|icon\\.svg|robots\\.txt).*)",
+  ],
 };

@@ -1,1 +1,8 @@
 openapi.json
+# build output and reports
+.next/
+.next-*/
+coverage/
+node_modules/
+# managed by Next.js (it rewrites the include list)
+tsconfig.json

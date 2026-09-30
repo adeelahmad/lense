@@ -1,64 +1,60 @@
 "use server";
 
-import { resetForgotPassword, resetResetPassword } from "@/app/clientService";
 import { redirect } from "next/navigation";
-import { passwordResetConfirmSchema } from "@/lib/definitions";
-import { getErrorMessage } from "@/lib/utils";
 
-export async function passwordReset(prevState: unknown, formData: FormData) {
-  const input = {
-    body: {
-      email: formData.get("email") as string,
-    },
-  };
+import { Auth } from "@/app/openapi-client";
+import { createApiClient, getErrorMessage } from "@/lib/api/client";
+import { type FormState, passwordResetConfirmSchema, passwordResetSchema } from "@/lib/definitions";
+
+const UNEXPECTED = "An unexpected error occurred. Please try again later.";
+
+export async function passwordReset(_prev: FormState, formData: FormData): Promise<FormState> {
+  const validated = passwordResetSchema.safeParse({
+    email: formData.get("email") ?? "",
+  });
+  if (!validated.success) {
+    return { errors: validated.error.flatten().fieldErrors };
+  }
 
   try {
-    const { error } = await resetForgotPassword(input);
+    const { error } = await Auth.forgotPassword({
+      client: createApiClient(),
+      body: validated.data,
+    });
     if (error) {
       return { server_validation_error: getErrorMessage(error) };
     }
-    return { message: "Password reset instructions sent to your email." };
   } catch (err) {
     console.error("Password reset error:", err);
-    return {
-      server_error: "An unexpected error occurred. Please try again later.",
-    };
+    return { server_error: UNEXPECTED };
   }
+  return {
+    message: "If that address has an account, a reset link is on its way.",
+  };
 }
 
-export async function passwordResetConfirm(
-  prevState: unknown,
-  formData: FormData,
-) {
-  const validatedFields = passwordResetConfirmSchema.safeParse({
-    token: formData.get("resetToken") as string,
-    password: formData.get("password") as string,
-    passwordConfirm: formData.get("passwordConfirm") as string,
+export async function passwordResetConfirm(_prev: FormState, formData: FormData): Promise<FormState> {
+  const validated = passwordResetConfirmSchema.safeParse({
+    token: formData.get("token") ?? "",
+    password: formData.get("password") ?? "",
+    passwordConfirm: formData.get("passwordConfirm") ?? "",
   });
-
-  if (!validatedFields.success) {
-    return {
-      errors: validatedFields.error.flatten().fieldErrors,
-    };
+  if (!validated.success) {
+    return { errors: validated.error.flatten().fieldErrors };
   }
+  const { token, password } = validated.data;
 
-  const { token, password } = validatedFields.data;
-  const input = {
-    body: {
-      token,
-      password,
-    },
-  };
   try {
-    const { error } = await resetResetPassword(input);
+    const { error } = await Auth.resetPassword({
+      client: createApiClient(),
+      body: { token, password },
+    });
     if (error) {
       return { server_validation_error: getErrorMessage(error) };
     }
-    redirect(`/login`);
   } catch (err) {
     console.error("Password reset confirmation error:", err);
-    return {
-      server_error: "An unexpected error occurred. Please try again later.",
-    };
+    return { server_error: UNEXPECTED };
   }
+  redirect("/login?reset=1");
 }

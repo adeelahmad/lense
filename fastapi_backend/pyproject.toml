@@ -1,43 +1,78 @@
 [project]
-name = "app"
-version = "0.0.6"
-description = ""
-authors = [{ name = "Anderson Resende", email = "anderson@vinta.com.br" }]
-requires-python = ">=3.12,<3.13"
+name = "lens"
+version = "0.3.0"
+description = "Lens: an archive for recorded speech and video. Transcription, speakers, search, knowledge graph and IIIF, on SurrealDB."
+requires-python = ">=3.12,<3.14"
 readme = "README.md"
 dependencies = [
     "fastapi[standard]>=0.115.0,<0.116",
-    "asyncpg>=0.29.0,<0.30",
-    "fastapi-users[sqlalchemy]>=13.0.0,<14",
     "pydantic-settings>=2.5.2,<3",
+    "pyjwt>=2.9,<3",
     "fastapi-mail>=1.4.1,<2",
-    "fastapi-pagination==0.13.3"
+    "surrealdb>=2.0,<3",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pyyaml>=6",
+    "jinja2>=3.1",
+    "pypdf>=4",
+    "pillow>=10",
+    "cryptography>=42",
 ]
+
+[project.optional-dependencies]
+# Transcription, diarisation and voice IDs. Heavy; install only on machines that run those steps.
+sensevoice = ["funasr", "modelscope", "torch", "torchaudio"]
+whisper = ["faster-whisper"]
+mlx = ["mlx-whisper"]
+voices = ["speechbrain", "torch", "torchaudio"]
+pyannote = ["pyannote.audio"]
+# Video: faces and alternative OCR engines (Tesseract is used through its binary)
+faces = ["opencv-python-headless"]
+mac-ocr = ["pyobjc-framework-Vision; sys_platform == 'darwin'"]  # Apple Vision; a no-op elsewhere
+rapidocr = ["rapidocr_onnxruntime"]
+insightface = ["insightface", "onnxruntime"]
+# Checking IIIF manifests against the official schema
+validate = ["jsonschema"]
+
+[project.scripts]
+lens = "app.cli:main"
 
 [dependency-groups]
 dev = [
     "pre-commit>=3.4.0,<4",
-    "ruff>=0.1.0,<0.2",
+    "ruff>=0.12,<0.13",
     "watchdog>=5.0.3,<6",
     "python-dotenv>=1.0.1,<2",
     "pytest>=8.3.3,<9",
     "pytest-mock>=3.14.0,<4",
+    "pytest-xdist>=3.6,<4",
+    "pytest-cov>=5,<8",
+    "httpx>=0.27",
+    "jsonschema>=4.23",
     "mypy>=1.13.0,<2",
+    "types-pyyaml",
+    "coverage>=7.6",
     "coveralls>=4.0.1,<5",
-    "alembic>=1.14.0,<2",
-    "pytest-asyncio>=0.24.0,<0.25",
     "mkdocs-material>=9.6.9",
     "mkdocs-material[imaging]>=9.6.9",
 ]
 
-[tool.uv]
-package = false
-
-[tool.hatch.build.targets.sdist]
-include = ["commands"]
-
 [tool.hatch.build.targets.wheel]
-include = ["commands"]
+packages = ["app", "commands"]
+
+[tool.ruff]
+line-length = 140
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "BLE"]
+ignore = ["E501", "B008", "UP038"]
+
+[tool.ruff.lint.per-file-ignores]
+# The processing engine came from the original prototype and keeps its compact style for now.
+"app/domain/**" = ["E", "B", "UP", "I", "BLE001", "E731", "E741"]
+"tests/**" = ["B011", "E741"]
+"tests/fake_llm.py" = ["E", "B", "UP", "BLE001"]
 
 [build-system]
 requires = ["hatchling"]

@@ -1,0 +1,20 @@
+# Processing configuration used inside the containers. Recordings from $AUDIO_DIR on the host appear under /audio.
+data_dir: /data
+namespaces:
+  podcasts:
+    paths: [/audio/podcasts]
+    graph: shared
+  interviews:
+    paths: [/audio/interviews]
+    graph: isolated
+audio:
+  # Recordings scanned by native workers on a Mac are stored with Mac paths; map them to /audio, e.g.
+  # path_map: {"/Users/you/Audio": "/audio"}
+  path_map: {}
+server:
+  # "backend" is the Host the Next.js server uses to reach the API inside the compose network
+  allowed_hosts: [127.0.0.1, localhost, backend]
+workers:
+  inline: 0                      # the worker service does the work
+sources:
+  local_roots: [/audio]          # folders the web app may watch on this machine (bootstrap-only on purpose)

@@ -1,13 +1,15 @@
-import time
+import os
 import re
 import subprocess
-import os
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+import sys
+import time
 from threading import Timer
 
-# Updated regex to include main.py, schemas.py, and all .py files in app/routes
-WATCHER_REGEX_PATTERN = re.compile(r"(main\.py|schemas\.py|routes/.*\.py)$")
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+
+# Changes to the app, its schemas or its routes regenerate the OpenAPI schema (and so the frontend client)
+WATCHER_REGEX_PATTERN = re.compile(r"(main\.py|schemas/.*\.py|api/.*\.py)$")
 APP_PATH = "app"
 
 
@@ -18,9 +20,7 @@ class MyHandler(FileSystemEventHandler):
         self.last_modified = 0
 
     def on_modified(self, event):
-        if not event.is_directory and WATCHER_REGEX_PATTERN.search(
-            os.path.relpath(event.src_path, APP_PATH)
-        ):
+        if not event.is_directory and WATCHER_REGEX_PATTERN.search(os.path.relpath(event.src_path, APP_PATH)):
             current_time = time.time()
             if current_time - self.last_modified > 1:
                 self.last_modified = current_time
@@ -38,15 +38,14 @@ class MyHandler(FileSystemEventHandler):
         """Run mypy type checks and print output."""
         print("Running mypy type checks...")
         result = subprocess.run(
-            ["uv", "run", "mypy", "app"],
+            [sys.executable, "-m", "mypy"],
             capture_output=True,
             text=True,
             check=False,
         )
         print(result.stdout, result.stderr, sep="\n")
         print(
-            "Type errors detected! We recommend checking the mypy output for "
-            "more information on the issues."
+            "Type errors detected! We recommend checking the mypy output for more information on the issues."
             if result.returncode
             else "No type errors detected."
         )
@@ -56,13 +55,7 @@ class MyHandler(FileSystemEventHandler):
         print("Proceeding with OpenAPI schema generation...")
         try:
             subprocess.run(
-                [
-                    "uv",
-                    "run",
-                    "python",
-                    "-m",
-                    "commands.generate_openapi_schema",
-                ],
+                [sys.executable, "-m", "commands.generate_openapi_schema"],
                 check=True,
             )
             print("OpenAPI schema generation completed successfully.")

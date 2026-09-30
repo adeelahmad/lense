@@ -1,48 +1,42 @@
-interface ErrorState {
-  errors?: {
-    [key: string]: string | string[];
-  };
-  server_validation_error?: string;
-  server_error?: string;
-}
+import type { FormState } from "@/lib/definitions";
+import { cn } from "@/lib/utils";
 
-interface FormErrorProps {
-  state?: ErrorState;
-  className?: string;
-}
-
-export function FormError({ state, className = "" }: FormErrorProps) {
-  if (!state) return null;
-
-  const error = state.server_validation_error || state.server_error;
+/** The form-level error (server rejected the request or failed). */
+export function FormError({ state, className }: { state?: FormState; className?: string }) {
+  const error = state?.server_validation_error || state?.server_error;
   if (!error) return null;
-
-  return <p className={`text-sm text-red-500 ${className}`}>{error}</p>;
+  return (
+    <p role="alert" className={cn("text-sm text-red-dark", className)}>
+      {error}
+    </p>
+  );
 }
 
-interface FieldErrorProps {
-  state?: ErrorState;
+/** Validation errors for one field; `id` is what the input's aria-describedby points at. */
+export function FieldError({
+  state,
+  field,
+  id,
+  className,
+}: {
+  state?: FormState;
   field: string;
+  id?: string;
   className?: string;
-}
-
-export function FieldError({ state, field, className = "" }: FieldErrorProps) {
-  if (!state?.errors) return null;
-
-  const error = state.errors[field];
-  if (!error) return null;
-
-  if (Array.isArray(error)) {
-    return (
-      <div className={`text-sm text-red-500 ${className}`}>
-        <ul className="list-disc ml-4">
-          {error.map((err) => (
+}) {
+  const errors = state?.errors?.[field];
+  if (!errors?.length) return null;
+  return (
+    <div id={id} className={cn("text-sm text-red-dark", className)}>
+      {errors.length === 1 ? (
+        <p>{errors[0]}</p>
+      ) : (
+        <ul className="ml-4 list-disc">
+          {errors.map((err) => (
             <li key={err}>{err}</li>
           ))}
         </ul>
-      </div>
-    );
-  }
-
-  return <p className={`text-sm text-red-500 ${className}`}>{error}</p>;
+      )}
+    </div>
+  );
 }

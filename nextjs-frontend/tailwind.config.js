@@ -1,64 +1,90 @@
 /** @type {import('tailwindcss').Config} */
 
+/* Every colour, radius and shadow comes from app/styles/tokens.css, so light and dark themes switch by CSS variables. */
+const v = (name) => `var(--${name})`;
+const spk = Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].map((n) => [n, v(`spk-${n}`)]));
+const emo = Object.fromEntries(
+  ["neutral", "happy", "amused", "surprise", "sad", "angry", "fear", "disgust"].map((k) => [k, v(`emo-${k}`)]),
+);
+
 /* eslint-disable @typescript-eslint/no-require-imports */
 module.exports = {
-  darkMode: ["class"],
-  content: [
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-
-    // Or if using `src` directory:
-    "./src/**/*.{js,ts,jsx,tsx,mdx}",
-  ],
+  darkMode: ["selector", '[data-theme="dark"]'],
+  content: ["./app/**/*.{js,ts,jsx,tsx,mdx}", "./components/**/*.{js,ts,jsx,tsx,mdx}", "./lib/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
-      borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+      fontFamily: {
+        sans: ["DM Sans", "ui-sans-serif", "system-ui", "sans-serif"],
+        serif: ['"Source Serif 4"', "Georgia", "serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "Menlo", "monospace"],
       },
       colors: {
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+        background: v("background"),
+        surface: { DEFAULT: v("surface"), neutral: v("surface-neutral") },
+        border: v("border"),
+        fg: {
+          DEFAULT: v("text-primary"),
+          strong: v("text-strong"),
+          secondary: v("text-secondary"),
+          muted: v("text-muted"),
+          accent: v("accent-text"),
+          "on-color": v("text-on-color"),
         },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
+        blue: {
+          DEFAULT: v("aladdin-blue"),
+          dark: v("blue-dark"),
+          surface: v("intent-surface"),
+          border: v("intent-border"),
         },
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+        red: {
+          DEFAULT: v("aladdin-red"),
+          dark: v("red-dark"),
+          surface: v("red-surface"),
+          border: v("red-border"),
         },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
+        green: {
+          DEFAULT: v("aladdin-green"),
+          dark: v("green-dark"),
+          surface: v("green-surface"),
+          border: v("green-border"),
         },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
+        gold: {
+          DEFAULT: v("aladdin-gold"),
+          dark: v("gold-dark"),
+          surface: v("gate-surface"),
+          border: v("gate-border"),
         },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+        hl: { DEFAULT: v("hl"), word: v("hl-word") },
+        spk,
+        emo,
+        term: { bg: v("term-bg"), fg: v("term-fg"), muted: v("term-muted") },
+      },
+      borderRadius: {
+        xs: "4px",
+        sm: "8px",
+        md: "12px",
+        lg: "16px",
+        xl: "24px",
+        pill: "999px",
+      },
+      boxShadow: {
+        1: v("shadow-1"),
+        2: v("shadow-2"),
+        3: v("shadow-3"),
+        ring: v("ring-focus"),
+      },
+      transitionTimingFunction: { standard: "cubic-bezier(.2,0,0,1)" },
+      transitionDuration: { fast: "120ms", base: "200ms", slow: "320ms" },
+      keyframes: {
+        "slide-in-right": {
+          from: { transform: "translateX(100%)" },
+          to: { transform: "translateX(0)" },
         },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        chart: {
-          1: "hsl(var(--chart-1))",
-          2: "hsl(var(--chart-2))",
-          3: "hsl(var(--chart-3))",
-          4: "hsl(var(--chart-4))",
-          5: "hsl(var(--chart-5))",
-        },
+        "fade-in": { from: { opacity: "0" }, to: { opacity: "1" } },
+      },
+      animation: {
+        "slide-in-right": "slide-in-right 200ms cubic-bezier(.2,0,0,1)",
+        "fade-in": "fade-in 120ms cubic-bezier(.2,0,0,1)",
       },
     },
   },

@@ -54,8 +54,8 @@ repos:
         name: generate OpenAPI schema
         entry: sh -c 'cd fastapi_backend && uv run python -m commands.generate_openapi_schema'
         language: system
-        # Only run OpenAPI schema generation if schemas.py, main.py or package version have changed:
-        files: (main\.py$|schemas\.py$|pyproject\.toml)
+        # Only when the app, its routes, its schemas or the package version change:
+        files: ^fastapi_backend/(app/main\.py|app/api/.*\.py|app/schemas/.*\.py|pyproject\.toml)$
         pass_filenames: false
       - id: generate-frontend-client
         name: generate frontend client

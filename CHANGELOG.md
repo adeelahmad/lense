@@ -1,40 +1,60 @@
 # Changelog
 
-This changelog references changes made both to the FastAPI backend, `fastapi_backend`, and the
-frontend TypeScript client, `nextjs-frontend`.
+The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are versioned together.
 
-!!! note
-    The backend and the frontend are versioned together, that is, they have the same version number.
-    When you update the backend, you should also update the frontend to the same version.
+## 0.3.0 <small>September 30, 2026</small> {id="0.3.0"}
 
-## 0.0.8 <small>December 17, 2025</small> {id="0.0.8"}
+The web app implements the Lens Archive design (built on the Aladdin design system).
 
-- Upgrade Next.js version to latest version
+- **Foundations:** design tokens with a dark theme and speaker and emotion palettes, self-hosted fonts (DM Sans,
+  Source Serif 4 for transcripts, JetBrains Mono), and the design's components: buttons that explain why they're
+  disabled, status, role, speaker, emotion and job-step chips, secret fields, tables with sorting and paging, dialogs,
+  drawers, toasts, banners, the four-colour step loop and verdict cards.
+- **App shell:** collapsible navigation, namespace switcher, ⌘K palette, live activity drawer, account menu with
+  appearance and keyboard shortcuts.
+- **Screens:** Home, Library, Import, Reports; the audio and video recording pages with the player; Search; Chat with
+  citations, tool steps and approvals; Speakers; Graph; Batch runs and Collections; Activity; Sources; Pipelines and
+  Templates; Sharing and Embed; Settings; Admin (people, members, audit, health); IIIF metadata and publishing;
+  sign-in, first-run setup, password reset, API tokens, and signed-out-mid-task recovery.
+- Every screen follows the role rule (actions you can't take are disabled with a reason; namespaces you have no role
+  in never appear), has loading, empty and error states, and works in dark mode and at phone width.
+- The web app forwards API, media, embed, IIIF and report paths at request time, so one build works against any
+  API address.
+- Features the design shows but the API doesn't support yet are disabled with a reason and listed in
+  `docs/backend-gaps.md`.
 
-## 0.0.7 <small>October 24, 2025</small> {id="0.0.7"}
+Backend:
 
-- Upgrade @hey-api/openapi-ts version to ^0.83.1
+- Fix: on the embedded engine, search silently missed most segments after a restart (the full-text index lost
+  entries on reopen). The index is now repaired once per process before the first search.
+- Fix: IIIF "Open in" viewer links can be saved in Settings (only http(s) URLs are accepted).
+- The job event stream opens immediately.
 
-## 0.0.6 <small>September 1, 2025</small> {id="0.0.6"}
+Tooling:
 
-- Upgrade Next.js version to 15.5.0
+- CI reports coverage in each run's summary and keeps the reports as artifacts (Coveralls needs a paid plan for
+  private repositories). The pnpm version comes from the frontend's `package.json`.
+- pre-commit installs only the dev tools (the processing extras include macOS-only packages), and every hook passes:
+  the backend is formatted with Ruff throughout, the frontend with Prettier at 120 columns.
 
-## 0.0.5 <small>July 9, 2025</small> {id="0.0.5"}
+## 0.2.0 <small>September 30, 2026</small> {id="0.2.0"}
 
-- Items Pagination
+Lens moves from a single-process prototype to a platform on the Next.js FastAPI template.
 
-## 0.0.4 <small>July 9, 2025</small> {id="0.0.4"}
-
-- Fix ESlint missing for pre-commit
-
-## 0.0.3 <small>April 23, 2025</small> {id="0.0.3"}
-
-- Created docs
-
-## 0.0.2 <small>March 12, 2025</small> {id="0.0.2"}
-
-- Generate release draft using github actions
-
-## 0.0.1 <small>March 12, 2025</small> {id="0.0.1"}
-
-- Initial release
+- **Backend**
+    - The prototype's processing engine now lives in `app/domain`, unchanged in behaviour.
+    - The API is split into routers under `/api/v1` with Pydantic request and response models, so the OpenAPI schema
+      and the frontend's typed client cover every endpoint.
+    - Authentication: short-lived JWT access tokens and rotating refresh tokens (with reuse detection) for NextAuth,
+      replacing session cookies and CSRF tokens; password reset by email; API tokens unchanged.
+    - Media is served through signed links, since `<audio>` and `<img>` can't send bearer tokens.
+    - SurrealDB: a connection pool for servers, and automatic retries of write conflicts.
+    - Workers run as their own process (`lens worker`); the API can still run them inline for development.
+    - Removed the template's Postgres, SQLAlchemy, Alembic, fastapi-users and Vercel backend deployment.
+- **Frontend**
+    - NextAuth (Auth.js v5) with a credentials provider backed by the API, token refresh, first-run setup and password
+      reset. Public registration is gone: admins invite people.
+    - A typed API client wired to the session, and rewrites so media and IIIF are served from the web app's origin.
+- **Operations**
+    - Docker Compose for development (SurrealDB, API, worker, web app, MailHog) and a production-shaped compose file.
+    - CI runs lint, type checks, an OpenAPI drift check and the tests against embedded SurrealDB and a SurrealDB server.

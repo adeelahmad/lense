@@ -1,0 +1,125 @@
+# Lens processing configuration (the API reads it from $ARCHIVE_CONFIG, default ./archive.yaml). Paths are relative to this file.
+data_dir: ./archive-data            # embedded SurrealDB, model cache, reports, locks
+
+database:                           # SURREAL_URL / _USER / _PASS / _NS / _DB / _POOL_SIZE override these
+  url: null                         # null: embedded (surrealkv under data_dir); ws://127.0.0.1:8000 for a server
+  namespace: archive
+  database: main
+  user: root
+  password: root                    # prefer SURREAL_PASS
+
+namespaces:                         # one folder tree per namespace; voice IDs never cross namespaces
+  podcasts:
+    paths: [~/Audio/podcasts]
+    graph: shared                   # shared: joins the cross-namespace graph; isolated: only its own graph
+  interviews:
+    paths: [~/Audio/interviews]
+    graph: isolated
+
+audio:
+  extensions: [.m4a, .mp3, .wav, .flac, .ogg, .opus, .aac, .mp4, .webm, .amr]
+  path_map: {}                      # serve files scanned elsewhere, e.g. {"/Users/you/Audio": "/audio"}
+
+transcribe:
+  engine: sensevoice                # sensevoice | whisper (faster-whisper) | mlx-whisper
+  device: auto                      # auto | cpu | cuda | mps  (FunASR and faster-whisper use cpu on a Mac)
+  language: auto
+  sensevoice: {model: iic/SenseVoiceSmall, hub: ms, vad_max_segment_ms: 30000, batch_size: 16}
+  whisper: {model: large-v3-turbo, compute_type: default}
+  mlx_whisper: {model: mlx-community/whisper-large-v3-turbo}
+
+diarize:
+  engine: auto                      # auto: channels when a file is genuinely two-channel, else cluster
+                                    # channels | cluster (voice embeddings) | pyannote | none
+  cluster_threshold: 0.55           # cosine distance cut inside one recording
+  min_speakers: null
+  max_speakers: null
+  pyannote: {model: pyannote/speaker-diarization-3.1, token_env: HF_TOKEN}
+
+speakers:                           # voice IDs, scoped to a namespace
+  embedder: speechbrain             # speechbrain | none
+  model: speechbrain/spkrec-ecapa-voxceleb
+  match_threshold: 0.50             # cosine similarity to reuse an existing speaker in the namespace
+  review_threshold: 0.35            # between the two: new speaker plus a suggested merge for you to confirm
+  sample_seconds: 60                # audio per speaker used for the voiceprint
+  cross_namespace: suggest          # suggest: show likely matches across namespaces as graph edges (never merged); off
+
+analysis:
+  entities: rules                   # rules | spacy (pip install spacy + a model)
+  spacy_model: en_core_web_sm
+  gazetteer: []                     # ["Dyno Therapeutics | ORG", "CoBench"]
+
+llm:                                # optional summaries; any OpenAI-compatible server
+  base_url: null                    # e.g. http://localhost:1234/v1 (LM Studio) or http://localhost:11434/v1 (Ollama)
+  model: null
+  api_key_env: null
+  max_chars: 24000
+
+graph:
+  max_nodes: 150
+  min_edge_weight: 2
+
+search:
+  stemming: english                 # english | none (run `lens-archive reindex` after changing)
+
+server:
+  host: 127.0.0.1
+  port: 8770
+  allowed_hosts: [127.0.0.1, localhost]
+  embed_frame_ancestors: ["'self'"] # pages allowed to iframe /embed/<id>, e.g. ["'self'", "https://intranet.example"]
+  max_upload_mb: 50                 # largest file the Import dialog accepts
+  session_hours: 168                # how long a sign-in lasts
+  secure_cookies: false             # true behind HTTPS
+
+workers:                            # background jobs; everything below can also be changed in the app
+  inline: 1                         # workers inside the server (0 when separate `lens-archive worker` processes do the work)
+  poll_seconds: 2
+  stale_minutes: 15                 # a job whose worker goes quiet this long is retried
+  max_attempts: 3
+  steps: [transcribe, diarize, analyze, summarize, llm, report, export]
+
+sources:                            # bootstrap-only: the web app can't change these
+  rclone: null                      # path to rclone; null: rclone on PATH
+  local_roots: []                   # folders on this machine the app may watch, e.g. [~/Audio]
+  check_seconds: 15                 # how often watched folders are checked for due scans
+  cache_dir: null                   # where remote audio is cached for processing; null: data_dir/cache/remote
+
+iiif:                               # can also be changed in the app
+  base_url: null                    # the stable public HTTPS address; identifiers are built from it (null: the request's address)
+  default_language: none            # language of titles and summaries when not given, e.g. en
+  layers: [transcript, speakers, entities, chapters, screen]   # what published manifests carry (when the transcript is open)
+  rights: null                      # default licence, e.g. http://creativecommons.org/licenses/by/4.0/
+  attribution: null                 # default required statement
+  provider: null                    # {name: ..., homepage: ..., logo: ...}
+  viewers: []                       # "Open in" links, e.g. [{name: My viewer, url: "https://viewer.example/?iiif-content={manifest}"}]
+  allowed_origins: ["*"]            # viewer sites allowed to get sign-in tokens
+  token_minutes: 60
+
+ai:                                 # the chat assistant's tools and the double check before batch runs (also in the app)
+  tools: true                       # let the model call tools (needs a model/server with function calling; otherwise search-and-answer)
+  disabled_tools: []                # e.g. [run_template, propose_entity_change]
+  max_steps: 6                      # tool calls per question
+  max_transcript_reads: 20          # transcripts the assistant may read per question
+  confirm_over_recordings: 100      # batch runs bigger than this need the confirmation typed
+  confirm_over_cost: null           # ...or costing more than this (needs the prices below)
+  price_in: null                    # price per million input tokens, for estimates
+  price_out: null                   # price per million output tokens
+
+video:                              # everything here except the model paths can also be changed in the app
+  sample_seconds: 5                 # a frame every N seconds for text on screen and faces
+  scene_threshold: 0.3              # shot cuts; lower it (0.1) for slide decks that share one template
+  min_shot_seconds: 1.0
+  frame_width: 960
+  ocr_engine: auto                  # auto (Apple Vision on a Mac, else Tesseract, else RapidOCR) | tesseract | apple-vision | rapidocr | none
+  ocr_languages: [eng]
+  ocr_min_confidence: 60
+  face_engine: opencv               # opencv (YuNet + SFace from the OpenCV Zoo) | insightface (non-commercial models) | none
+  yunet_model: null                 # path to face_detection_yunet_2023mar.onnx (bootstrap-only)
+  sface_model: null                 # path to face_recognition_sface_2021dec.onnx (bootstrap-only)
+  face_cluster_threshold: 0.6
+  face_match_threshold: 0.45        # auto-match to a known face in the namespace
+  face_review_threshold: 0.3        # between the two: a new face plus a suggestion to review
+  publish_faces: false              # never put faces in IIIF manifests unless you mean to
+
+reports:
+  audio: link                       # link (relative path) | embed (inline, large) | none

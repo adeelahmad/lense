@@ -1,24 +1,18 @@
-FROM node:20-bookworm
+FROM node:22-bookworm
 
-# Set the working directory
 WORKDIR /app
 
-# Install pnpm globally
-RUN npm install -g pnpm
+# pnpm at the version pinned in package.json#packageManager
+RUN corepack enable
 
-# Copy package files and install dependencies
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
-# Install dependencies as root (or myappuser, depending on your structure)
-RUN pnpm install
-
-## Switch to the non-root user
 USER node
 
-# Copy the rest of your application code
 COPY . .
 
 EXPOSE 3000
 
-# Start the application
+# Dev server plus the watcher that regenerates the API client when openapi.json changes
 CMD ["./start.sh"]

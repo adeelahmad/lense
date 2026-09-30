@@ -1,77 +1,64 @@
 # Makefile
 
-# Variables
 BACKEND_DIR=fastapi_backend
 FRONTEND_DIR=nextjs-frontend
 DOCKER_COMPOSE=docker compose
 
-# Help
 .PHONY: help
-help:
-	@echo "Available commands:"
-	@awk '/^[a-zA-Z_-]+:/{split($$1, target, ":"); print "  " target[1] "\t" substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
+help: ## List the commands
+	@awk '/^[a-zA-Z_-]+:.*##/{split($$1, target, ":"); print "  " target[1] "\t" substr($$0, index($$0,"##")+3)}' $(MAKEFILE_LIST)
 
-# Backend commands
-.PHONY: start-backend test-backend
+# Local development
+.PHONY: start-backend test-backend lint-backend start-frontend test-frontend lint-frontend openapi worker docs
 
-start-backend: ## Start the backend server with FastAPI and hot reload
+start-backend: ## Start the API with hot reload (and the OpenAPI watcher)
 	cd $(BACKEND_DIR) && ./start.sh
 
-test-backend: ## Run backend tests using pytest
-	cd $(BACKEND_DIR) && uv run pytest
+worker: ## Run a job worker against the configured database
+	cd $(BACKEND_DIR) && uv run lens worker
 
+test-backend: ## Run the backend tests
+	cd $(BACKEND_DIR) && uv run pytest -n auto
 
-# Frontend commands
-.PHONY: start-frontend test-frontend
+lint-backend: ## Lint, format check and type check the backend
+	cd $(BACKEND_DIR) && uv run ruff check . && uv run ruff format --check . && uv run mypy
 
-start-frontend: ## Start the frontend server with pnpm and hot reload
+start-frontend: ## Start the web app with hot reload
 	cd $(FRONTEND_DIR) && ./start.sh
 
-test-frontend: ## Run frontend tests using npm
+test-frontend: ## Run the frontend tests
 	cd $(FRONTEND_DIR) && pnpm run test
 
+lint-frontend: ## Lint and type check the frontend
+	cd $(FRONTEND_DIR) && pnpm run lint && pnpm run tsc
 
-# Docker commands
-.PHONY: docker-backend-shell docker-frontend-shell docker-build docker-build-backend \
-        docker-build-frontend docker-start-backend docker-start-frontend docker-up-test-db \
-        docker-migrate-db docker-db-schema docker-test-backend docker-test-frontend
+openapi: ## Regenerate the OpenAPI schema and the frontend client
+	cd $(BACKEND_DIR) && uv run python -m commands.generate_openapi_schema
+	cd $(FRONTEND_DIR) && pnpm run generate-client
 
+docs: ## Serve the documentation
+	cd $(BACKEND_DIR) && uv run mkdocs serve -f ../mkdocs.yml
 
-docker-backend-shell: ## Access the backend container shell
+# Docker
+.PHONY: docker-up docker-build docker-backend-shell docker-frontend-shell docker-test-backend docker-test-frontend docker-logs-setup
+
+docker-up: ## Start the whole stack
+	$(DOCKER_COMPOSE) up
+
+docker-build: ## Build all the images
+	$(DOCKER_COMPOSE) build
+
+docker-backend-shell: ## A shell in the backend container
 	$(DOCKER_COMPOSE) run --rm backend sh
 
-docker-frontend-shell: ## Access the frontend container shell
+docker-frontend-shell: ## A shell in the frontend container
 	$(DOCKER_COMPOSE) run --rm frontend sh
 
-docker-build: ## Build all the services
-	$(DOCKER_COMPOSE) build --no-cache
-
-docker-build-backend: ## Build the backend container with no cache
-	$(DOCKER_COMPOSE) build backend --no-cache
-
-docker-build-frontend: ## Build the frontend container with no cache
-	$(DOCKER_COMPOSE) build frontend --no-cache
-
-docker-start-backend: ## Start the backend container
-	$(DOCKER_COMPOSE) up backend
-
-docker-start-frontend: ## Start the frontend container
-	$(DOCKER_COMPOSE) up frontend
-
-docker-up-test-db: ## Start the test database container
-	$(DOCKER_COMPOSE) up db_test
-
-docker-migrate-db: ## Run database migrations using Alembic
-	$(DOCKER_COMPOSE) run --rm backend alembic upgrade head
-
-docker-db-schema: ## Generate a new migration schema. Usage: make docker-db-schema migration_name="add users"
-	$(DOCKER_COMPOSE) run --rm backend alembic revision --autogenerate -m "$(migration_name)"
-
-docker-test-backend: ## Run tests for the backend
+docker-test-backend: ## Run the backend tests in Docker
 	$(DOCKER_COMPOSE) run --rm backend pytest
 
-docker-test-frontend: ## Run tests for the frontend
+docker-test-frontend: ## Run the frontend tests in Docker
 	$(DOCKER_COMPOSE) run --rm frontend pnpm run test
 
-docker-up-mailhog: ## Start mailhog server
-	$(DOCKER_COMPOSE) up mailhog
+docker-logs-setup: ## Show the first-admin setup code
+	$(DOCKER_COMPOSE) logs backend | grep -i "setup code"
