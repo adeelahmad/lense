@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import re
 import urllib.parse
+from typing import Any, cast
 
 from app.core.security import sign_path
 from app.domain.store import API
 
 MEDIA_RX = re.compile(rf"^{re.escape(API)}/recordings/\d+/(audio|media|wordcloud\.svg|frames/[\w.-]+)$")
+NS_MEDIA_RX = re.compile(rf"^{re.escape(API)}/namespaces/[a-z0-9][a-z0-9_-]*/wordcloud\.svg$")
 REPORT_RX = re.compile(r"^/(reports|embed)/")
 
 
@@ -22,12 +24,12 @@ def sign_url(url: str | None) -> str | None:
     if not url:
         return url
     path, _, query = url.partition("?")
-    if not (MEDIA_RX.match(path) or REPORT_RX.match(path)):
+    if not (MEDIA_RX.match(path) or NS_MEDIA_RX.match(path) or REPORT_RX.match(path)):
         return url
     params = dict(urllib.parse.parse_qsl(query))
     params.pop("exp", None)
     params.pop("sig", None)
-    return sign_path(path, **params)
+    return sign_path(path, **cast(dict[str, Any], params))
 
 
 def sign_urls[T](obj: T) -> T:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
@@ -23,6 +24,7 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     SetupRequest,
     TokenPair,
+    UserPublic,
 )
 from app.schemas.common import Ok
 
@@ -87,8 +89,8 @@ def logout(body: RefreshRequest, db: Db) -> Ok:
 @router.get("/me")
 def me(user: CurrentUser, db: Db) -> Me:
     names = store.space_names(db)
-    u = auth.active_account(db, user.id) or {}
-    return Me(user=u, roles={names.get(k, str(k)): v for k, v in user.roles.items()}, via=user.via, scope=user.scope)
+    roles: dict[str, Any] = {names.get(k, str(k)): v for k, v in user.roles.items()}
+    return Me(user=UserPublic(**(auth.active_account(db, user.id) or {})), roles=roles, via=user.via, scope=user.scope)
 
 
 @router.post("/password/forgot")
