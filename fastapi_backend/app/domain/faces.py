@@ -7,7 +7,6 @@ be deleted per person or per namespace, and is never published through IIIF unle
 """
 from __future__ import annotations
 
-import pathlib
 from collections import defaultdict
 
 import numpy as np

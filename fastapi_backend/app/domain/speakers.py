@@ -91,7 +91,7 @@ class Embedder:
             except ImportError:
                 from speechbrain.pretrained import EncoderClassifier
         except ImportError as e:
-            raise RuntimeError("voice IDs need SpeechBrain: pip install 'lens-archive[voices]'") from e
+            raise RuntimeError("voice IDs need SpeechBrain: uv sync --extra voices") from e
         self.torch = torch
         save = pathlib.Path(cfg["data_dir"]) / "models" / sc["model"].replace("/", "_")
         self.enc = EncoderClassifier.from_hparams(source=sc["model"], savedir=str(save),
@@ -126,7 +126,7 @@ def pyannote_turns(cfg, path):
             import torch
             from pyannote.audio import Pipeline
         except ImportError as e:
-            raise RuntimeError("pip install 'lens-archive[pyannote]'") from e
+            raise RuntimeError("uv sync --extra pyannote") from e
         tok = os.environ.get(d["pyannote"].get("token_env") or "HF_TOKEN")
         try:
             pipe = Pipeline.from_pretrained(d["pyannote"]["model"], token=tok)

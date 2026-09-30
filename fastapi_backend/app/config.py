@@ -59,4 +59,4 @@ class Settings(BaseSettings):
         return bool(self.MAIL_SERVER and self.MAIL_FROM)
 
 
-settings = Settings()  # type: ignore[call-arg]
+settings = Settings()

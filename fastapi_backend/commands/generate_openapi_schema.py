@@ -1,9 +1,10 @@
 import json
-from pathlib import Path
-from app.main import app
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
+
+from app.main import app
 
 load_dotenv()
 

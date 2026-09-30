@@ -177,7 +177,7 @@ class SenseVoice:
         try:
             from funasr import AutoModel
         except ImportError as e:
-            raise SystemExit("SenseVoice needs FunASR: pip install 'lens-archive[sensevoice]'") from e
+            raise SystemExit("SenseVoice needs FunASR: uv sync --extra sensevoice") from e
         dev = pick_device(t["device"])
         kw = {"disable_update": True, "device": "cpu" if dev == "mps" else dev}
         if c.get("hub") == "hf":
@@ -228,7 +228,7 @@ class Whisper:
                 self.m = WhisperModel(t["whisper"]["model"], device="cpu" if dev == "mps" else dev,
                                       compute_type=t["whisper"]["compute_type"])
         except ImportError as e:
-            raise SystemExit(f"pip install 'lens-archive[{'mlx' if mlx else 'whisper'}]'") from e
+            raise SystemExit(f"uv sync --extra {'mlx' if mlx else 'whisper'}") from e
 
     def transcribe(self, audio):
         if self.mlx:
@@ -459,7 +459,7 @@ def _text(raw):
             elif segs:
                 segs[-1]["text"] += " " + l
         return _timed(segs)
-    segs, t = [], 0
+    segs = []
     pipe = sum(1 for l in lines if PIPE.match(l)) >= max(3, 0.6 * len(lines))
     spk_hits = [SPK.match(l) for l in lines]
     names = _speaker_names([m.group(2).strip() for m in spk_hits if m])

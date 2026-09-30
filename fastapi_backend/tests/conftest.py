@@ -14,7 +14,6 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.domain import auth, store  # noqa: E402
 
-
 # Tests use an in-memory SurrealDB; LENS_TEST_SURREAL_URL=ws://host:8000 runs them against a server instead
 # (each test gets its own database there).
 TEST_URL = os.environ.get("LENS_TEST_SURREAL_URL", "mem://")

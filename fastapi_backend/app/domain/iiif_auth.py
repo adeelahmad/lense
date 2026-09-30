@@ -103,7 +103,7 @@ def access_page(site, nonce, account=None, csrf="", origin="", error="", done=Fa
                 + (f'<p class="err">{esc(error)}</p>' if error else "")
                 + f'<form method="post"><input type="hidden" name="origin" value="{esc(origin)}">'
                 + (f'<input type="hidden" name="csrf" value="{esc(csrf)}">' if csrf else "")
-                + f'<label>Email <input name="email" type="email" autocomplete="username" required></label>'
-                  f'<label>Password <input name="password" type="password" autocomplete="current-password" required></label>'
-                  f'<button type="submit">Sign in</button></form>')
+                + '<label>Email <input name="email" type="email" autocomplete="username" required></label>'
+                  '<label>Password <input name="password" type="password" autocomplete="current-password" required></label>'
+                  '<button type="submit">Sign in</button></form>')
     return f'<!doctype html><html><head><meta charset="utf-8"><title>Sign in to {esc(site)}</title><style>{style}</style></head><body>{body}</body></html>'

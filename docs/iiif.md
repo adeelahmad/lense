@@ -51,10 +51,10 @@ result and the viewer links.
 ## Embedding the player
 
 ```html
-<iframe src="https://lens.example.org/embed/12?t=90" style="width:100%;height:560px;border:0"></iframe>
+<iframe src="https://lens.example.org/embed/12?s=<share token>&t=90" style="width:100%;height:560px;border:0"></iframe>
 ```
 
-Only `/embed/<id>` may be framed, and only by origins listed in `server.embed_frame_ancestors`. A host page can drive it:
+The embed needs a share link (`?s=…`, from `POST /api/v1/recordings/<id>/share`, which can be revoked) or a signed link from `GET /api/v1/recordings/<id>/embed-link` (which expires). Only `/embed/<id>` may be framed, and only by origins listed in `server.embed_frame_ancestors`. A host page can drive it:
 
 ```js
 frame.contentWindow.postMessage({ type: 'archive:seek', t: 90, play: true }, '*')

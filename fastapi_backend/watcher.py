@@ -1,11 +1,12 @@
-import time
+import os
 import re
 import subprocess
-import os
 import sys
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+import time
 from threading import Timer
+
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 # Changes to the app, its schemas or its routes regenerate the OpenAPI schema (and so the frontend client)
 WATCHER_REGEX_PATTERN = re.compile(r"(main\.py|schemas/.*\.py|api/.*\.py)$")

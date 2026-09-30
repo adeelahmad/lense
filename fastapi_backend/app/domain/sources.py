@@ -356,7 +356,6 @@ def poll_watch(db, cfg, wid, log=print):
                "FROM $r", r=R("watch_path", wid))
     src = get(db, w["source"])
     first, now = not w.get("last_scan_at"), dt.datetime.now(dt.timezone.utc)
-    audio_ext = {e.lower() for e in cfg["audio"]["extensions"]}
     known = {r["path"]: r for r in db.rows("SELECT path, size, modified, status FROM remote_file WHERE watch = $w", w=wid)}
     stats = {"seen": 0, "new": 0, "waiting": 0, "skipped": 0, "errors": 0}
     for f in list_files(db, cfg, src, w["path"]):

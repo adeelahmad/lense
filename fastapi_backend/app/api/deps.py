@@ -13,7 +13,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import Depends, HTTPException, Request
 
@@ -42,8 +42,8 @@ class Principal:
     email: str
     name: str | None
     admin: bool
-    via: str  # "access" (signed-in session) or "token" (API token)
-    scope: str = "write"
+    via: Literal["access", "token"]  # a signed-in session, or an API token
+    scope: Literal["read", "write"] = "write"
     sid: str | None = None
     roles: dict[int, str] = field(default_factory=dict)
 
@@ -64,7 +64,9 @@ def _principal(request: Request, db: DB) -> Principal | None:
     if raw.startswith("la_"):
         u = auth.token_account(db, raw)
         if u:
-            p = Principal(u["id"], u["email"], u.get("name"), bool(u.get("admin")), "token", u.get("scope") or "read")
+            p = Principal(
+                u["id"], u["email"], u.get("name"), bool(u.get("admin")), "token", "write" if u.get("scope") == "write" else "read"
+            )
     elif raw:
         claims = security.decode_access_token(raw)
         u = auth.active_account(db, claims.account) if claims and auth.session_active(db, claims.sid) else None

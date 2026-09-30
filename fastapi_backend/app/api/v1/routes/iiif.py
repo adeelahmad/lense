@@ -15,7 +15,7 @@ from app.api.deps import Acl, AdminWriter, Cfg, CurrentUser, Db
 from app.api.iiif import base_url, viewer_links
 from app.domain import auth, iiif, store
 from app.domain import metadata as md
-from app.schemas.iiif import ContentState, IiifImport, IiifImported, IiifPanel, IiifUrl
+from app.schemas.iiif import ContentState, IiifImport, IiifImported, IiifPanel, IiifUrl, ViewerLink
 
 router = APIRouter(tags=["iiif"])
 
@@ -54,7 +54,7 @@ def get_content_state(
         content_state=state,
         encoded=enc,
         link=f"{base}/?iiif-content={enc}#/rec/{rid}",
-        viewers=viewer_links(cfg, f"{base}/iiif/{rid}/manifest", enc),
+        viewers=[ViewerLink(**v) for v in viewer_links(cfg, f"{base}/iiif/{rid}/manifest", enc)],
     )
 
 

@@ -140,7 +140,8 @@ def _main_base(argv=None):
                 pathlib.Path(a.out).write_text(text, encoding="utf-8")
             print(f"{len(g['nodes'])} nodes, {len(g['edges'])} edges across {', '.join(g['namespaces']) or 'nothing'}")
         elif a.cmd == "status":
-            names, agg = store.space_names(conn), {}
+            names = store.space_names(conn)
+            agg: dict[tuple[str, str | None], tuple[int, int]] = {}
             for r in conn.rows("SELECT space, status, duration_ms FROM recording"):
                 k = (names.get(r["space"], "?"), r.get("status"))
                 c, ms = agg.get(k, (0, 0))
