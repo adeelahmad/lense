@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { fetchWithReauth } from "@/lib/api/browser";
+import { data, fetchWithReauth, page } from "@/lib/api/browser";
 import {
   describeHeld,
   discardHeld,
@@ -150,5 +150,33 @@ describe("fetchWithReauth", () => {
     expect(getReauthState().open).toBe(true);
     signedInAgain("new");
     await pending;
+  });
+});
+
+describe("data and page", () => {
+  const call = <T>(body: T, init: ResponseInit & { error?: unknown } = {}) =>
+    Promise.resolve({
+      data: init.error === undefined ? body : undefined,
+      error: init.error,
+      response: new Response(JSON.stringify(body), init),
+    });
+
+  it("unwraps a list with the total from X-Total-Count", async () => {
+    await expect(page(call([{ id: 1 }], { headers: { "X-Total-Count": "42" } }))).resolves.toEqual({
+      items: [{ id: 1 }],
+      total: 42,
+    });
+  });
+
+  it("falls back to the page's length without the header", async () => {
+    await expect(page(call([{ id: 1 }, { id: 2 }]))).resolves.toEqual({ items: [{ id: 1 }, { id: 2 }], total: 2 });
+  });
+
+  it("throws the API's message", async () => {
+    await expect(data(call(null, { status: 404, error: { detail: "not found" } }))).rejects.toMatchObject({
+      status: 404,
+      message: "not found",
+    });
+    await expect(data(Promise.reject(new TypeError("offline")))).rejects.toMatchObject({ status: 0 });
   });
 });

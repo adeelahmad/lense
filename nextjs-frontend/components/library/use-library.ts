@@ -1,27 +1,27 @@
 "use client";
 
-import { useInfiniteQuery, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 
 import { Recordings, Sources, Speakers } from "@/app/openapi-client";
 import type { RecordingSummary } from "@/app/openapi-client/types.gen";
-import { isActiveJob, latestJobs } from "@/components/library/model";
-import { data, useApiClient } from "@/lib/api/browser";
+import { isActiveJob, latestJobs, speakerChoices, type LibraryQuery } from "@/components/library/model";
+import { data, page, useApiClient } from "@/lib/api/browser";
 import { useJobs } from "@/lib/hooks/jobs";
 import { useArchive } from "@/lib/hooks/session";
 
-/** Rows fetched per request. The backend orders by date, newest first, and has no total, so we page by offset. */
+/** Rows fetched per request; the server filters, sorts and counts, and we page by offset. */
 export const PAGE = 200;
 
-export function recordingsKey(ns: string | null) {
-  return ["recordings", "library", ns ?? "*"] as const;
+export function recordingsKey(query: LibraryQuery) {
+  return ["recordings", "library", query] as const;
 }
 
 /**
- * The library's data: recordings (paged, newest first), the latest job of each, and the namespace totals.
- * While any job is queued or running, the rows refresh so statuses update in place.
+ * The library's data: the recordings matching `query` (paged, with how many match in all), the latest job of each,
+ * and the namespace totals. While any job is queued or running, the rows refresh so statuses update in place.
  */
-export function useLibrary(ns: string | null) {
+export function useLibrary(ns: string | null, query: LibraryQuery) {
   const client = useApiClient();
   const qc = useQueryClient();
   const { namespaces } = useArchive();
@@ -29,17 +29,17 @@ export function useLibrary(ns: string | null) {
   const running = Boolean(jobs.data?.running);
 
   const recordings = useInfiniteQuery({
-    queryKey: recordingsKey(ns),
+    queryKey: recordingsKey(query),
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
-      data(
-        Recordings.listRecordings({
-          client,
-          query: { ns: ns ?? undefined, limit: PAGE, offset: pageParam },
-        }),
-      ),
-    getNextPageParam: (last, pages) => (last.length < PAGE ? undefined : pages.length * PAGE),
+      page(Recordings.listRecordings({ client, query: { ...query, limit: PAGE, offset: pageParam } })),
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((a, p) => a + p.items.length, 0);
+      return last.items.length && loaded < last.total ? loaded : undefined;
+    },
     refetchInterval: running ? 10_000 : 60_000,
+    // Other filters keep showing the last rows (dimmed) until the new ones arrive, rather than a skeleton.
+    placeholderData: keepPreviousData,
   });
 
   // When a job finishes (or fails), the recording's status changed: refresh the rows now rather than on the next tick.
@@ -62,8 +62,8 @@ export function useLibrary(ns: string | null) {
   const rows: RecordingSummary[] = useMemo(() => {
     const seen = new Set<number>();
     const out: RecordingSummary[] = [];
-    for (const page of recordings.data?.pages ?? []) {
-      for (const r of page) {
+    for (const p of recordings.data?.pages ?? []) {
+      for (const r of p.items) {
         if (!seen.has(r.id)) {
           seen.add(r.id);
           out.push(r);
@@ -79,8 +79,11 @@ export function useLibrary(ns: string | null) {
   const ms = scope.reduce((a, n) => a + ((n.ms as number) ?? 0), 0);
   const counts = jobs.data?.counts ?? {};
 
+  const pages = recordings.data?.pages;
   return {
     rows,
+    /** How many recordings match the query, on every page (null until the first page arrives). */
+    matching: pages?.length ? pages[pages.length - 1].total : null,
     jobsByRecording,
     jobsCounts: {
       running: counts.running ?? 0,
@@ -151,4 +154,41 @@ export function useReviewsByRecording(nsList: string[]): Map<number, number> {
     return out;
     // `recs` is a new array on every render; `key` changes exactly when its data does.
   }, [key]);
+}
+
+/** How many recordings need attention and how many are processing, in this namespace (or all of them). */
+export function useLibraryCounts(ns: string | null) {
+  const client = useApiClient();
+  const jobs = useJobs({ limit: 200 });
+  const running = Boolean(jobs.data?.running);
+  const count = (extra: Pick<LibraryQuery, "attention" | "processing">) => ({
+    queryKey: ["recordings", "count", ns ?? "*", extra] as const,
+    queryFn: async () =>
+      (await page(Recordings.listRecordings({ client, query: { ns: ns ?? undefined, ...extra, limit: 1 } }))).total,
+    refetchInterval: running ? 10_000 : 60_000,
+  });
+  const attention = useQuery(count({ attention: true }));
+  const processing = useQuery(count({ processing: true }));
+  return { attention: attention.data, processing: processing.data };
+}
+
+/** Everyone who speaks in these namespaces, merged by name, for the speaker filter. */
+export function useSpeakerChoices(nsList: string[]) {
+  const client = useApiClient();
+  const dirs = useQueries({
+    queries: nsList.map((ns) => ({
+      queryKey: ["speakers", ns],
+      queryFn: () => data(Speakers.listSpeakers({ client, query: { ns } })),
+      staleTime: 60_000,
+    })),
+  });
+  const key = dirs.map((d) => d.dataUpdatedAt).join(",");
+  return useMemo(
+    () => ({
+      choices: speakerChoices(dirs.flatMap((d) => d.data?.speakers ?? [])),
+      loading: dirs.some((d) => d.isLoading),
+    }),
+    // `dirs` is a new array on every render; `key` changes exactly when its data does.
+    [key],
+  );
 }

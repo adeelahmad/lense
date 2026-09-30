@@ -2,6 +2,20 @@
 
 The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are versioned together.
 
+## Unreleased
+
+- **Library: filters, sorting and counts on the server.** The Library's filters, tabs and sorting now look at every
+  recording you can read, not just the rows loaded so far, and the page no longer says it can't.
+  `GET /api/v1/recordings` takes `q`, `status` (the recording statuses plus the job states `processing` and `failed`),
+  `attention`, `processing`, `speaker`, `from`/`to`, `min_duration`/`max_duration`, `media` and `sort`, and says how
+  many recordings match in the `X-Total-Count` response header (documented in `docs/api.md`).
+    - The body is still the list of rows, so existing API clients keep working; the total is a header rather than a
+      new envelope for that reason (it is exposed to cross-origin browsers too).
+    - `from`/`to` are days (both included) and durations are seconds, so the API doesn't bake in the web app's ranges.
+    - `speaker` takes speaker ids. Speakers belong to one namespace, so the web app's speaker filter lists everyone
+      who speaks in the namespaces in scope by name and sends every id with that name.
+    - The Needs attention and Processing tab counts come from the server too.
+
 ## 0.3.0 <small>September 30, 2026</small> {id="0.3.0"}
 
 The web app implements the Lens Archive design (built on the Aladdin design system).

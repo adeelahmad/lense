@@ -1,19 +1,18 @@
 "use client";
 
 import { BookmarkPlus, Check, ChevronDown, Search, X } from "lucide-react";
-import { forwardRef, useMemo, useState, type ReactNode } from "react";
+import { forwardRef, useState, type ReactNode } from "react";
 
-import type { RecordingSummary } from "@/app/openapi-client/types.gen";
 import {
   DATE_LABEL,
   DURATION_LABEL,
   MEDIA_LABEL,
   STATUS_FILTER_LABEL,
-  speakerList,
   type DateRange,
   type DurationRange,
   type Filters,
   type MediaFilter,
+  type SpeakerChoice,
   type StatusFilter,
 } from "@/components/library/model";
 import { Button } from "@/components/ui/button";
@@ -188,25 +187,22 @@ export const FilterInput = forwardRef<
 export function FiltersBar({
   filters,
   onChange,
-  rows,
+  speakers,
+  speakersLoading,
   inputRef,
   compact,
 }: {
   filters: Filters;
   onChange: (f: Filters) => void;
-  rows: RecordingSummary[];
+  /** Everyone who speaks in the namespaces in scope, by name, most recordings first. */
+  speakers: SpeakerChoice[];
+  speakersLoading?: boolean;
   inputRef: React.Ref<HTMLInputElement>;
   compact?: boolean;
 }) {
   const { namespaces, namespace, setNamespace } = useArchive();
   const [spkQuery, setSpkQuery] = useState("");
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
-
-  const speakers = useMemo(() => {
-    const n = new Map<string, number>();
-    for (const r of rows) for (const s of speakerList(r.speakers)) n.set(s.name, (n.get(s.name) ?? 0) + 1);
-    return [...n.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [rows]);
 
   const statusLabel =
     filters.statuses.length === 1 ? STATUS_FILTER_LABEL[filters.statuses[0]] : `${filters.statuses.length} statuses`;
@@ -273,7 +269,7 @@ export function FiltersBar({
         )}
       </Chip>
       <Chip
-        label={filters.speaker ? `Speaker: ${filters.speaker}` : "Speaker"}
+        label={filters.speaker ? `Speaker: ${filters.speaker.name}` : "Speaker"}
         active={Boolean(filters.speaker)}
         onClear={() => set({ speaker: null })}
         width={260}
@@ -289,25 +285,29 @@ export function FiltersBar({
             />
             <div role="menu" className="max-h-64 overflow-y-auto">
               {speakers
-                .filter(([name]) => name.toLowerCase().includes(spkQuery.trim().toLowerCase()))
+                .filter((s) => s.name.toLowerCase().includes(spkQuery.trim().toLowerCase()))
                 .slice(0, 50)
-                .map(([name, n]) => (
+                .map((s) => (
                   <Option
-                    key={name}
-                    on={filters.speaker === name}
+                    key={s.name}
+                    on={filters.speaker?.name === s.name}
                     onClick={() => {
-                      set({ speaker: filters.speaker === name ? null : name });
+                      set({
+                        speaker: filters.speaker?.name === s.name ? null : { name: s.name, ids: s.ids },
+                      });
                       close();
                     }}
                   >
                     <span className="flex items-center justify-between gap-2">
-                      {name}
-                      <span className="tabular text-[12px] font-normal text-fg-muted">{n}</span>
+                      {s.name}
+                      <span className="tabular text-[12px] font-normal text-fg-muted">{count(s.recordings)}</span>
                     </span>
                   </Option>
                 ))}
               {!speakers.length && (
-                <p className="px-2.5 py-3 text-[13px] text-fg-muted">No speakers in the loaded recordings.</p>
+                <p className="px-2.5 py-3 text-[13px] text-fg-muted">
+                  {speakersLoading ? "Loading speakers…" : "No speakers yet."}
+                </p>
               )}
             </div>
           </div>

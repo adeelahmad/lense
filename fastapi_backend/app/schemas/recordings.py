@@ -1,10 +1,28 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
 from app.schemas.common import Ok, RequestModel, ResponseModel, Role
+
+# Recording statuses, plus two job states: a job queued or running (processing), the latest job failed (failed).
+RecordingState = Literal["new", "transcribed", "diarized", "analyzed", "error", "processing", "failed"]
+MediaKind = Literal["audio", "video", "transcript"]
+RecordingSort = Literal[
+    "date",
+    "-date",
+    "title",
+    "-title",
+    "duration",
+    "-duration",
+    "speakers",
+    "-speakers",
+    "status",
+    "-status",
+    "importance",
+    "-importance",
+]
 
 
 class RecordingSummary(ResponseModel):

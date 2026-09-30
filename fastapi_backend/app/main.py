@@ -71,6 +71,7 @@ def create_app(cfg: dict[str, Any] | None = None, db: store.DB | None = None, ba
         allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Total-Count"],
     )
     middleware.install(app)
 

@@ -1,11 +1,11 @@
 /**
- * The library's view model: status + job overlay, speakers, importance, emotion mix, and the client-side filters and
- * sorting. Pure functions so they can be tested without a browser.
+ * The library's view model: status + job overlay, speakers, importance, emotion mix, and the list query that the
+ * filters, tabs and sort turn into. Pure functions so they can be tested without a browser.
  *
- * The backend lists recordings newest first (`GET /recordings?ns&limit&offset`) and can't filter or sort, so every
- * filter here runs over the rows loaded so far; the page says so when there are more to load.
+ * Filtering, sorting and counting happen on the server (`GET /recordings`), over every recording in scope; the list
+ * endpoint says how many match in its X-Total-Count header.
  */
-import type { Job, RecordingSummary } from "@/app/openapi-client/types.gen";
+import type { Job, ListRecordingsData, RecordingSummary, Speaker } from "@/app/openapi-client/types.gen";
 import type { Tone } from "@/components/ui/badge";
 import { STEP_LABEL } from "@/components/ui/loop";
 
@@ -199,7 +199,7 @@ export function emotionMix(emotions: Record<string, unknown> | null | undefined)
   return out;
 }
 
-// ---------- filters ----------
+// ---------- filters (answered by the server) ----------
 
 export type DateRange = "any" | "today" | "7d" | "30d" | "90d" | "1y";
 export type DurationRange = "any" | "short" | "medium" | "long" | "xlong";
@@ -207,11 +207,13 @@ export type MediaFilter = "any" | "audio" | "video" | "transcript";
 export type LibraryView = "all" | "attention" | "processing";
 /** Status filter values: the backend statuses plus two job states. */
 export type StatusFilter = RecordingStatus | "processing" | "failed";
+/** A speaker picked by name. Speakers belong to one namespace, so one name can stand for an id in each of several. */
+export type SpeakerFilter = { name: string; ids: number[] };
 
 export type Filters = {
   q: string;
   statuses: StatusFilter[];
-  speaker: string | null;
+  speaker: SpeakerFilter | null;
   date: DateRange;
   duration: DurationRange;
   media: MediaFilter;
@@ -273,54 +275,26 @@ export function activeFilterCount(f: Filters): number {
 
 const DAY = 86_400_000;
 
-function inDate(iso: string | null | undefined, range: DateRange, now: number): boolean {
-  if (range === "any") return true;
-  const t = iso ? Date.parse(iso) : NaN;
-  if (Number.isNaN(t)) return false;
-  if (range === "today") return new Date(t).toDateString() === new Date(now).toDateString();
+/** Seconds [at least, under] for each duration range. */
+const DURATION_SECONDS: Record<Exclude<DurationRange, "any">, [number | null, number | null]> = {
+  short: [null, 600],
+  medium: [600, 1800],
+  long: [1800, 3600],
+  xlong: [3600, null],
+};
+
+/** YYYY-MM-DD in this browser's time zone. */
+export function localDay(t: number): string {
+  const d = new Date(t);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** The first day a date range includes (recording dates are compared by day). */
+export function dateFrom(range: DateRange, now = Date.now()): string | undefined {
+  if (range === "any") return undefined;
+  if (range === "today") return localDay(now);
   const days = { "7d": 7, "30d": 30, "90d": 90, "1y": 365 }[range];
-  return now - t <= days * DAY;
-}
-
-function inDuration(ms: number | null | undefined, range: DurationRange): boolean {
-  if (range === "any") return true;
-  if (ms == null) return false;
-  const min = ms / 60000;
-  if (range === "short") return min < 10;
-  if (range === "medium") return min >= 10 && min < 30;
-  if (range === "long") return min >= 30 && min < 60;
-  return min >= 60;
-}
-
-/** Whether a row needs someone: it errored, its latest job failed, or voice matches wait for review. */
-export function needsAttention(rec: RecordingSummary, job?: Job, reviews = 0): boolean {
-  return (rec.status || "").toLowerCase() === "error" || job?.status === "failed" || reviews > 0;
-}
-
-export function matchesFilters(rec: RecordingSummary, f: Filters, job: Job | undefined, now = Date.now()): boolean {
-  const q = f.q.trim().toLowerCase();
-  if (q) {
-    const hay = `${rec.title ?? ""} ${rec.namespace ?? ""} ${rec.speakers ?? ""}`.toLowerCase();
-    if (!q.split(/\s+/).every((w) => hay.includes(w))) return false;
-  }
-  if (f.statuses.length) {
-    const st = (rec.status || "new").toLowerCase();
-    const ok = f.statuses.some((s) =>
-      s === "processing" ? isActiveJob(job) : s === "failed" ? job?.status === "failed" : s === st,
-    );
-    if (!ok) return false;
-  }
-  if (f.speaker && !speakerList(rec.speakers).some((s) => s.name === f.speaker)) return false;
-  if (!inDate(rec.recorded_at, f.date, now)) return false;
-  if (!inDuration(rec.duration_ms, f.duration)) return false;
-  if (f.media !== "any" && (rec.media_kind || "transcript") !== f.media) return false;
-  return true;
-}
-
-export function matchesView(rec: RecordingSummary, view: LibraryView, job: Job | undefined, reviews = 0): boolean {
-  if (view === "attention") return needsAttention(rec, job, reviews);
-  if (view === "processing") return isActiveJob(job);
-  return true;
+  return localDay(now - days * DAY);
 }
 
 // ---------- sorting ----------
@@ -328,44 +302,48 @@ export function matchesView(rec: RecordingSummary, view: LibraryView, job: Job |
 export type SortKey = "title" | "date" | "duration" | "speakers" | "status" | "importance";
 export type SortDir = "asc" | "desc";
 
-const STATUS_ORDER: Record<string, number> = {
-  error: 0,
-  new: 1,
-  transcribed: 2,
-  diarized: 3,
-  analyzed: 4,
-};
+export type LibraryQuery = NonNullable<ListRecordingsData["query"]>;
 
-function sortValue(rec: RecordingSummary, key: SortKey): string | number | null {
-  switch (key) {
-    case "title":
-      return (rec.title ?? "").toLowerCase();
-    case "date":
-      return rec.recorded_at ? Date.parse(rec.recorded_at) : null;
-    case "duration":
-      return rec.duration_ms ?? null;
-    case "speakers":
-      return speakerList(rec.speakers).length;
-    case "status":
-      return STATUS_ORDER[(rec.status || "new").toLowerCase()] ?? 5;
-    case "importance":
-      return importanceInfo(rec.importance)?.value ?? null;
+/** The list endpoint's query for these filters, tab, sort and namespace. Undefined values are left out. */
+export function libraryQuery(
+  f: Filters,
+  view: LibraryView,
+  sort: { key: SortKey; dir: SortDir },
+  ns: string | null,
+  now = Date.now(),
+): LibraryQuery {
+  const q: LibraryQuery = { sort: sort.dir === "desc" ? `-${sort.key}` : sort.key };
+  if (ns) q.ns = ns;
+  if (f.q.trim()) q.q = f.q.trim();
+  if (f.statuses.length) q.status = f.statuses;
+  if (f.speaker) q.speaker = f.speaker.ids;
+  const from = dateFrom(f.date, now);
+  if (from) q.from = from;
+  if (f.duration !== "any") {
+    const [min, max] = DURATION_SECONDS[f.duration];
+    if (min != null) q.min_duration = min;
+    if (max != null) q.max_duration = max;
   }
+  if (f.media !== "any") q.media = f.media;
+  if (view === "attention") q.attention = true;
+  if (view === "processing") q.processing = true;
+  return q;
 }
 
-/** A stable sort; rows without a value go last either way. */
-export function sortRows<T extends RecordingSummary>(rows: T[], key: SortKey, dir: SortDir): T[] {
-  const sign = dir === "asc" ? 1 : -1;
-  return rows
-    .map((r, i) => ({ r, i, v: sortValue(r, key) }))
-    .sort((a, b) => {
-      if (a.v == null && b.v == null) return a.i - b.i;
-      if (a.v == null) return 1;
-      if (b.v == null) return -1;
-      const c = typeof a.v === "string" ? a.v.localeCompare(b.v as string) : (a.v as number) - (b.v as number);
-      return c ? c * sign : a.i - b.i;
-    })
-    .map((x) => x.r);
+export type SpeakerChoice = SpeakerFilter & { recordings: number };
+
+/** The namespaces’ speakers merged by name (each namespace has its own ids), most recordings first. */
+export function speakerChoices(speakers: Pick<Speaker, "id" | "display" | "recordings">[]): SpeakerChoice[] {
+  const by = new Map<string, SpeakerChoice>();
+  for (const s of speakers) {
+    const name = s.display.trim();
+    if (!name) continue;
+    const c = by.get(name) ?? { name, ids: [], recordings: 0 };
+    c.ids.push(s.id);
+    c.recordings += s.recordings ?? 0;
+    by.set(name, c);
+  }
+  return [...by.values()].sort((a, b) => b.recordings - a.recordings || a.name.localeCompare(b.name));
 }
 
 /** Rows from index a to b inclusive, either direction: shift-click range selection. */

@@ -76,6 +76,25 @@ GET    /api/v1/recordings/{rid}/edits
 GET    /api/v1/recordings/{rid}/outputs
 ```
 
+`GET /recordings` filters, sorts and pages on the server, over every recording you can read. Filters combine with AND;
+repeat a parameter that takes several values (`?status=new&status=error`) to match any of them.
+
+| Parameter | |
+|---|---|
+| `ns` | one namespace (default: every namespace you can read) |
+| `q` | words that must all appear in the title, the namespace's name or a speaker's name |
+| `status` | `new`, `transcribed`, `diarized`, `analyzed`, `error`, and two job states: `processing` (a job is queued or running) and `failed` (the latest job failed) |
+| `attention` | `true`: only recordings that need a person (errored, latest job failed, or a voice match waiting for review) |
+| `processing` | `true`: only recordings with a job queued or running |
+| `speaker` | speaker ids |
+| `from`, `to` | the recording date, `YYYY-MM-DD`, both days included; recordings without a date don't match |
+| `min_duration`, `max_duration` | seconds: at least `min_duration`, shorter than `max_duration` |
+| `media` | `audio`, `video` or `transcript` (no media) |
+| `sort` | `date`, `title`, `duration`, `speakers`, `status` or `importance`; `-` in front for descending (default `-date`). Recordings without the value come last either way |
+| `limit`, `offset` | one page (default 500 rows, at most 1000) |
+
+The body is the page's rows; the `X-Total-Count` header says how many recordings match on all pages.
+
 ## imports
 
 ```

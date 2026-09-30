@@ -801,6 +801,8 @@ export class Namespaces {
 export class Recordings {
   /**
    * List Recordings
+   * Recordings you can read, newest first by default. Filters combine with AND; the ``X-Total-Count`` header says how many
+   * match in all, so pages can be counted.
    */
   public static listRecordings<ThrowOnError extends boolean = false>(
     options?: Options<ListRecordingsData, ThrowOnError>,

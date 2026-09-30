@@ -20,7 +20,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| Server-side filtering, sorting and totals (today: the loaded page, and the page says so) | `GET /recordings` with `status`, `speaker`, `from`/`to`, `duration`, `media`, `q`, `sort`, and a total count |
 | Tags (column, filter, bulk) | per-recording tags, `tags` in the list, `?tag=` |
 | Saved views | `/views` (list, create, delete) |
 | "Edited by me" tab | `?edited_by=me` |

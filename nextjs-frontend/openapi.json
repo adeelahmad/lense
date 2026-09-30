@@ -976,6 +976,7 @@
           "recordings"
         ],
         "summary": "List Recordings",
+        "description": "Recordings you can read, newest first by default. Filters combine with AND; the ``X-Total-Count`` header says how many\nmatch in all, so pages can be counted.",
         "operationId": "list_recordings",
         "parameters": [
           {
@@ -991,8 +992,229 @@
                   "type": "null"
                 }
               ],
+              "description": "one namespace (default: every namespace you can read)",
               "title": "Ns"
-            }
+            },
+            "description": "one namespace (default: every namespace you can read)"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "words that must all appear in the title, the namespace or a speaker's name",
+              "title": "Q"
+            },
+            "description": "words that must all appear in the title, the namespace or a speaker's name"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "new",
+                      "transcribed",
+                      "diarized",
+                      "analyzed",
+                      "error",
+                      "processing",
+                      "failed"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "recording statuses, or processing (a job is queued or running) and failed (the latest job failed); repeat for several (any of them matches)",
+              "title": "Status"
+            },
+            "description": "recording statuses, or processing (a job is queued or running) and failed (the latest job failed); repeat for several (any of them matches)"
+          },
+          {
+            "name": "attention",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "only recordings that need a person: errored, latest job failed, or a voice match to review",
+              "default": false,
+              "title": "Attention"
+            },
+            "description": "only recordings that need a person: errored, latest job failed, or a voice match to review"
+          },
+          {
+            "name": "processing",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "only recordings with a job queued or running",
+              "default": false,
+              "title": "Processing"
+            },
+            "description": "only recordings with a job queued or running"
+          },
+          {
+            "name": "speaker",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "speaker ids; repeat for several (any of them matches)",
+              "title": "Speaker"
+            },
+            "description": "speaker ids; repeat for several (any of them matches)"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "recorded on or after this day",
+              "title": "From"
+            },
+            "description": "recorded on or after this day"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "recorded on or before this day",
+              "title": "To"
+            },
+            "description": "recorded on or before this day"
+          },
+          {
+            "name": "min_duration",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "at least this many seconds long",
+              "title": "Min Duration"
+            },
+            "description": "at least this many seconds long"
+          },
+          {
+            "name": "max_duration",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "shorter than this many seconds",
+              "title": "Max Duration"
+            },
+            "description": "shorter than this many seconds"
+          },
+          {
+            "name": "media",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "audio",
+                    "video",
+                    "transcript"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "audio, video or transcript (no media)",
+              "title": "Media"
+            },
+            "description": "audio, video or transcript (no media)"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "date",
+                "-date",
+                "title",
+                "-title",
+                "duration",
+                "-duration",
+                "speakers",
+                "-speakers",
+                "status",
+                "-status",
+                "importance",
+                "-importance"
+              ],
+              "type": "string",
+              "description": "date, title, duration, speakers, status or importance; prefix - for descending",
+              "default": "-date",
+              "title": "Sort"
+            },
+            "description": "date, title, duration, speakers, status or importance; prefix - for descending"
           },
           {
             "name": "limit",
@@ -1029,6 +1251,14 @@
                     "$ref": "#/components/schemas/RecordingSummary"
                   },
                   "title": "Response Recordings-List Recordings"
+                }
+              }
+            },
+            "headers": {
+              "X-Total-Count": {
+                "description": "how many recordings match the filters, on all pages",
+                "schema": {
+                  "type": "integer"
                 }
               }
             }

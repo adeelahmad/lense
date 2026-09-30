@@ -5576,8 +5576,76 @@ export type ListRecordingsData = {
   query?: {
     /**
      * Ns
+     * one namespace (default: every namespace you can read)
      */
     ns?: string | null;
+    /**
+     * Q
+     * words that must all appear in the title, the namespace or a speaker's name
+     */
+    q?: string | null;
+    /**
+     * Status
+     * recording statuses, or processing (a job is queued or running) and failed (the latest job failed); repeat for several (any of them matches)
+     */
+    status?: Array<"new" | "transcribed" | "diarized" | "analyzed" | "error" | "processing" | "failed"> | null;
+    /**
+     * Attention
+     * only recordings that need a person: errored, latest job failed, or a voice match to review
+     */
+    attention?: boolean;
+    /**
+     * Processing
+     * only recordings with a job queued or running
+     */
+    processing?: boolean;
+    /**
+     * Speaker
+     * speaker ids; repeat for several (any of them matches)
+     */
+    speaker?: Array<number> | null;
+    /**
+     * From
+     * recorded on or after this day
+     */
+    from?: string | null;
+    /**
+     * To
+     * recorded on or before this day
+     */
+    to?: string | null;
+    /**
+     * Min Duration
+     * at least this many seconds long
+     */
+    min_duration?: number | null;
+    /**
+     * Max Duration
+     * shorter than this many seconds
+     */
+    max_duration?: number | null;
+    /**
+     * Media
+     * audio, video or transcript (no media)
+     */
+    media?: "audio" | "video" | "transcript" | null;
+    /**
+     * Sort
+     * date, title, duration, speakers, status or importance; prefix - for descending
+     */
+    sort?:
+      | "date"
+      | "-date"
+      | "title"
+      | "-title"
+      | "duration"
+      | "-duration"
+      | "speakers"
+      | "-speakers"
+      | "status"
+      | "-status"
+      | "importance"
+      | "-importance";
     /**
      * Limit
      */
@@ -9320,5 +9388,5 @@ export type ExportBatchResultsResponses = {
 };
 
 export type ClientOptions = {
-  baseUrl: `${string}://${string}` | (string & {});
+  baseUrl: `${string}://openapi.json` | (string & {});
 };

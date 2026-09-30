@@ -7,7 +7,7 @@ share link (``?s=``) or a signed link from one of the JSON responses here.
 from __future__ import annotations
 
 import pathlib
-from collections import defaultdict
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -16,15 +16,18 @@ from fastapi.responses import Response
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_url, sign_urls
 from app.api.streaming import file_response, range_response
-from app.domain import analyze, auth, jobs, render, sources, store, video
+from app.domain import analyze, auth, jobs, library, render, sources, store, video
 from app.domain.store import API, DB
 from app.schemas.common import Ok
 from app.schemas.recordings import (
     EmbedLink,
     JobQueued,
+    MediaKind,
     Output,
     Player,
     Recording,
+    RecordingSort,
+    RecordingState,
     RecordingSummary,
     ReprocessRequest,
     SegmentEdit,
@@ -50,50 +53,59 @@ def audio_link(db: DB, cfg: dict[str, Any], rid: int, share: str = "") -> str | 
     return (f"{API}/recordings/{rid}/audio" + (f"?s={share}" if share else "")) if has_audio(db, cfg, rid) else None
 
 
-@router.get("")
+TOTAL_HEADER = {"X-Total-Count": {"description": "how many recordings match the filters, on all pages", "schema": {"type": "integer"}}}
+
+
+@router.get("", responses={200: {"headers": TOTAL_HEADER}})
 def list_recordings(
     acl: Acl,
     user: CurrentUser,
     db: Db,
-    ns: str | None = None,
+    response: Response,
+    ns: str | None = Query(None, description="one namespace (default: every namespace you can read)"),
+    q: str | None = Query(None, max_length=200, description="words that must all appear in the title, the namespace or a speaker's name"),
+    status: list[RecordingState] | None = Query(
+        None,
+        description="recording statuses, or processing (a job is queued or running) and failed (the latest job failed); "
+        "repeat for several (any of them matches)",
+    ),
+    attention: bool = Query(
+        False, description="only recordings that need a person: errored, latest job failed, or a voice match to review"
+    ),
+    processing: bool = Query(False, description="only recordings with a job queued or running"),
+    speaker: list[int] | None = Query(None, description="speaker ids; repeat for several (any of them matches)"),
+    date_from: date | None = Query(None, alias="from", description="recorded on or after this day"),
+    date_to: date | None = Query(None, alias="to", description="recorded on or before this day"),
+    min_duration: int | None = Query(None, ge=0, description="at least this many seconds long"),
+    max_duration: int | None = Query(None, ge=1, description="shorter than this many seconds"),
+    media: MediaKind | None = Query(None, description="audio, video or transcript (no media)"),
+    sort: RecordingSort = Query("-date", description="date, title, duration, speakers, status or importance; prefix - for descending"),
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ) -> list[RecordingSummary]:
-    if ns:
-        acl.need(acl.nsid(ns))
-    spaces = [acl.nsid(ns)] if ns else acl.spaces()
-    rows = db.rows(
-        "SELECT record::id(id) AS id, title, recorded_at, duration_ms, status, error, source, stats, summary, space, media "
-        f"FROM recording WHERE space IN $s ORDER BY recorded_at DESC LIMIT {int(limit)} START {int(offset)}",
-        s=spaces,
-    )
-    ids = [r["id"] for r in rows]
-    apps: dict[int, list[int]] = defaultdict(list)
-    for a in db.rows("SELECT recording, speaker FROM appearance WHERE recording IN $r", r=ids) if rows else []:
-        apps[a["recording"]].append(a["speaker"])
-    names, spaces_n = render.speaker_names(db, [x for v in apps.values() for x in v]), store.space_names(db)
-    posters = (
-        {x["recording"]: x.get("frame") for x in db.rows("SELECT recording, frame FROM shot WHERE recording IN $r AND idx = 0", r=ids)}
-        if rows
-        else {}
-    )
-    out = []
-    for r in rows:
-        st, sm = r.pop("stats", None) or {}, r.pop("summary", None) or {}
-        r["media_kind"] = (r.pop("media", None) or {}).get("kind") or ("audio" if r.get("source") == "audio" else "transcript")
-        r["poster"] = f"{API}/recordings/{r['id']}/frames/{posters[r['id']]}" if posters.get(r["id"]) else None
-        out.append(
-            {
-                **r,
-                "namespace": spaces_n.get(r["space"]),
-                "emotions": st.get("emotions", {}),
-                "words": st.get("words"),
-                "importance": sm.get("importance"),
-                "sentiment": sm.get("sentiment"),
-                "speakers": ",".join(dict.fromkeys(names.get(x, "?") for x in apps.get(r["id"], []))),
-            }
+    """Recordings you can read, newest first by default. Filters combine with AND; the ``X-Total-Count`` header says how many
+    match in all, so pages can be counted."""
+    spaces = [acl.namespace(ns)] if ns else acl.spaces()
+    with domain_errors():
+        rows, total = library.list_recordings(
+            db,
+            spaces,
+            sort=sort,
+            limit=limit,
+            offset=offset,
+            q=q,
+            status=status,
+            attention=attention,
+            processing=processing,
+            speakers=speaker,
+            date_from=date_from,
+            date_to=date_to,
+            min_duration=min_duration,
+            max_duration=max_duration,
+            media=media,
         )
-    return [RecordingSummary.model_validate(x) for x in sign_urls(out)]
+    response.headers["X-Total-Count"] = str(total)
+    return [RecordingSummary.model_validate(x) for x in sign_urls(rows)]
 
 
 @router.get("/{rid}")

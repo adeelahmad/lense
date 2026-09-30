@@ -14,12 +14,8 @@ import { LibraryTabs } from "@/components/library/library-tabs";
 import {
   NO_FILTERS,
   activeFilterCount,
-  isActiveJob,
-  matchesFilters,
-  matchesView,
-  needsAttention,
+  libraryQuery,
   rangeIds,
-  sortRows,
   totalDuration,
   type Filters,
   type LibraryView,
@@ -30,7 +26,14 @@ import {
 import { RecordingCards, RecordingList } from "@/components/library/recording-list";
 import { RecordingTable } from "@/components/library/recording-table";
 import { SourcesStrip } from "@/components/library/sources-strip";
-import { PAGE, useLibrary, useReviewsByRecording, useWatchedSources } from "@/components/library/use-library";
+import {
+  PAGE,
+  useLibrary,
+  useLibraryCounts,
+  useReviewsByRecording,
+  useSpeakerChoices,
+  useWatchedSources,
+} from "@/components/library/use-library";
 import { useIsNarrow } from "@/components/library/use-media";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -58,6 +61,16 @@ function useThrottled<T>(value: T, ms: number): T {
   return shown;
 }
 
+/** The value once it has stopped changing for `ms`. */
+function useDebounced<T>(value: T, ms: number): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return v;
+}
+
 function typing(t: EventTarget | null): boolean {
   const el = t as HTMLElement | null;
   return Boolean(el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable));
@@ -66,13 +79,6 @@ function typing(t: EventTarget | null): boolean {
 /** The Library (L1–L6): every recording you can see, across namespaces, with live job progress in its row. */
 export function LibraryScreen() {
   const { namespace, namespaces, roleIn, can, me } = useArchive();
-  const lib = useLibrary(namespace);
-  const src = useWatchedSources(namespace);
-  const actions = useRecordingActions();
-  const toast = useToast();
-  const narrow = useIsNarrow();
-  const send = useSendToImport(namespace);
-
   const [layout, setLayout] = useState<"table" | "list">("table");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [view, setView] = useState<LibraryView>("all");
@@ -80,6 +86,20 @@ export function LibraryScreen() {
     key: "date",
     dir: "desc",
   });
+  // The server filters, sorts and counts; typing in the filter box waits for a pause before asking again.
+  const q = useDebounced(filters.q, 250);
+  const query = useMemo(
+    () => libraryQuery({ ...filters, q }, view, sort, namespace),
+    [filters, q, view, sort, namespace],
+  );
+  const queryKey = JSON.stringify(query);
+  const lib = useLibrary(namespace, query);
+  const counts = useLibraryCounts(namespace);
+  const src = useWatchedSources(namespace);
+  const actions = useRecordingActions();
+  const toast = useToast();
+  const narrow = useIsNarrow();
+  const send = useSendToImport(namespace);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [reprocessOpen, setReprocessOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -104,20 +124,24 @@ export function LibraryScreen() {
     }
   };
 
-  // A new namespace is a new list: forget the selection and the speaker filter (names differ per namespace).
+  // A new namespace is a new list: forget the speaker filter (speakers differ per namespace).
+  useEffect(() => {
+    setFilters((f) => ({ ...f, speaker: null }));
+  }, [namespace]);
+  // Other filters, another tab or sort: a new list too, so the selection starts over.
   useEffect(() => {
     setSelected(new Set());
-    setFilters((f) => ({ ...f, speaker: null }));
     lastIndex.current = null;
-  }, [namespace]);
+  }, [queryKey]);
 
   // New rows collect behind a "3 new" pill instead of shifting the list under the cursor, unless you're at the top.
-  const seen = useRef<{ ns: string | null; ids: Set<number> } | null>(null);
+  const seen = useRef<{ key: string; ids: Set<number> } | null>(null);
   const [held, setHeld] = useState<number[]>([]);
   useEffect(() => {
-    if (!lib.recordings.isSuccess) return;
-    if (!seen.current || seen.current.ns !== namespace) {
-      seen.current = { ns: namespace, ids: new Set(lib.rows.map((r) => r.id)) };
+    // While another query's rows stand in for this one's, there is nothing new to compare.
+    if (!lib.recordings.isSuccess || lib.recordings.isPlaceholderData) return;
+    if (!seen.current || seen.current.key !== queryKey) {
+      seen.current = { key: queryKey, ids: new Set(lib.rows.map((r) => r.id)) };
       setHeld([]);
       return;
     }
@@ -135,7 +159,7 @@ export function LibraryScreen() {
       fresh.forEach((id) => known.add(id));
       setHeld([]);
     } else setHeld(fresh);
-  }, [lib.rows, lib.recordings.isSuccess, namespace]);
+  }, [lib.rows, lib.recordings.isSuccess, lib.recordings.isPlaceholderData, queryKey]);
   const showHeld = useCallback(
     (scroll = true) => {
       held.forEach((id) => seen.current?.ids.add(id));
@@ -157,20 +181,9 @@ export function LibraryScreen() {
   const jobs = lib.jobsByRecording;
   const reviewScope = useMemo(() => (namespace ? [namespace] : namespaces.map((n) => n.name)), [namespace, namespaces]);
   const reviews = useReviewsByRecording(reviewScope);
+  const speakers = useSpeakerChoices(reviewScope);
   const heldSet = useMemo(() => new Set(held), [held]);
-  const base = useMemo(() => lib.rows.filter((r) => !heldSet.has(r.id)), [lib.rows, heldSet]);
-  const shown = useMemo(() => {
-    const now = Date.now();
-    const rows = base.filter(
-      (r) => matchesView(r, view, jobs.get(r.id), reviews.get(r.id)) && matchesFilters(r, filters, jobs.get(r.id), now),
-    );
-    return sort.key === "date" && sort.dir === "desc" ? rows : sortRows(rows, sort.key, sort.dir);
-  }, [base, view, filters, jobs, sort, reviews]);
-  const attention = useMemo(
-    () => base.filter((r) => needsAttention(r, jobs.get(r.id), reviews.get(r.id))).length,
-    [base, jobs, reviews],
-  );
-  const processing = useMemo(() => base.filter((r) => isActiveJob(jobs.get(r.id))).length, [base, jobs]);
+  const shown = useMemo(() => lib.rows.filter((r) => !heldSet.has(r.id)), [lib.rows, heldSet]);
 
   const onSort = (key: SortKey) =>
     setSort((s) =>
@@ -287,8 +300,9 @@ export function LibraryScreen() {
   const role = roleIn(namespace);
   const viewerEverywhere = !namespace && namespaces.length > 0 && !can("editor");
   const loaded = lib.recordings.isSuccess;
-  const empty = loaded && lib.rows.length === 0 && !lib.recordings.hasNextPage;
   const filtering = activeFilterCount(filters) > 0 || view !== "all";
+  const empty = loaded && !filtering && lib.rows.length === 0;
+  const matching = lib.matching ?? lib.rows.length;
   const processingNow = lib.jobsCounts.running + lib.jobsCounts.queued;
   const countLine = [
     plural(lib.total, "recording"),
@@ -384,12 +398,12 @@ export function LibraryScreen() {
                   {
                     value: "attention",
                     label: "Needs attention",
-                    count: attention || undefined,
+                    count: counts.attention ? count(counts.attention) : undefined,
                   },
                   {
                     value: "processing",
                     label: "Processing",
-                    count: processing || undefined,
+                    count: counts.processing ? count(counts.processing) : undefined,
                   },
                   {
                     value: "mine",
@@ -399,7 +413,14 @@ export function LibraryScreen() {
                 ]}
               />
             )}
-            <FiltersBar filters={filters} onChange={setFilters} rows={lib.rows} inputRef={filterRef} compact={narrow} />
+            <FiltersBar
+              filters={filters}
+              onChange={setFilters}
+              speakers={speakers.choices}
+              speakersLoading={speakers.loading}
+              inputRef={filterRef}
+              compact={narrow}
+            />
           </>
         )}
       </div>
@@ -417,7 +438,14 @@ export function LibraryScreen() {
         </div>
       )}
 
-      <div ref={listRef} className="mt-2.5 flex min-h-0 flex-1 flex-col">
+      <div
+        ref={listRef}
+        aria-busy={lib.recordings.isPlaceholderData || undefined}
+        className={cn(
+          "mt-2.5 flex min-h-0 flex-1 flex-col transition-opacity duration-fast",
+          lib.recordings.isPlaceholderData && "opacity-60",
+        )}
+      >
         {lib.recordings.isLoading ? (
           <LibrarySkeleton />
         ) : lib.recordings.isError ? (
@@ -456,9 +484,7 @@ export function LibraryScreen() {
               </Button>
             }
           >
-            {lib.recordings.hasNextPage
-              ? `Filters look at the ${count(lib.rows.length)} most recent recordings loaded so far. Load more to look further back.`
-              : "Try fewer filters."}
+            Try fewer filters.
           </EmptyState>
         ) : narrow ? (
           <RecordingCards {...rowProps} />
@@ -470,12 +496,13 @@ export function LibraryScreen() {
           <RecordingList {...rowProps} />
         )}
 
-        {loaded && !empty && (lib.recordings.hasNextPage || filtering) && (
+        {loaded && !empty && matching > 0 && (lib.recordings.hasNextPage || filtering) && (
           <div className="flex flex-wrap items-center gap-3 px-4 py-4 text-[13px] text-fg-secondary md:px-6">
             <span className="tabular">
-              {filtering ? `${count(shown.length)} shown · ` : ""}
-              {count(lib.rows.length)} of {count(Math.max(lib.total, lib.rows.length))} loaded
-              {filtering && lib.recordings.hasNextPage ? " — filters and sorting apply to the loaded recordings" : ""}
+              {filtering
+                ? `${plural(matching, "recording")} ${matching === 1 ? "matches" : "match"}`
+                : plural(matching, "recording")}
+              {lib.recordings.hasNextPage ? ` · ${count(lib.rows.length)} loaded` : ""}
             </span>
             {lib.recordings.hasNextPage && (
               <Button

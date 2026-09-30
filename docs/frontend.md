@@ -51,7 +51,8 @@ four-colour loop (Transcribe blue, Diarize red, Analyze green, Summarize and Rep
 ## Data
 
 * Client components use `useApiClient()` with React Query and the generated SDK; `data()` unwraps a call and throws
-  `ApiError` with the API's message. Server components use `getApiClient()`.
+  `ApiError` with the API's message, and `page()` unwraps a list call into `{items, total}` (the total comes from the
+  `X-Total-Count` header). Server components use `getApiClient()`.
 * Streams (job events, chat answers) use `streamSSE()` with the session's access token.
 * Media links in API responses are signed relative URLs; the proxy serves them from the app's origin, so they work in
   `<audio>`, `<video>` and `<img>`.
