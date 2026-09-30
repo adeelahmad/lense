@@ -1,5 +1,7 @@
 import {
+  cardLine,
   closedNote,
+  collectionPath,
   descriptionRows,
   findLines,
   lineAt,
@@ -15,8 +17,16 @@ const lines = [
 ];
 
 describe("public recording page", () => {
-  it("links to the page visitors see", () => {
+  it("links to the pages visitors see", () => {
     expect(publicPath(12)).toBe("/explore/recordings/12");
+    expect(collectionPath("podcasts")).toBe("/explore/collections/podcasts");
+    expect(collectionPath("a b")).toBe("/explore/collections/a%20b");
+  });
+
+  it("says when and what a card's recording is", () => {
+    expect(cardLine({ recorded_at: "2025-09-12T10:00:00Z", media_kind: "video" })).toBe("12 Sept 2025 · Video");
+    expect(cardLine({ recorded_at: null, media_kind: "transcript" })).toBe("Transcript only");
+    expect(cardLine({ media_kind: "audio" })).toBe("Audio");
   });
 
   it("finds the lines with every word, ignoring case and accents", () => {

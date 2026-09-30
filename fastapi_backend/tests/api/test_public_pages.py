@@ -6,7 +6,7 @@ import urllib.parse
 
 import pytest
 
-from app.domain import analyze, ingest, metadata
+from app.domain import analyze, ingest, metadata, store
 from tests.helpers import login, make_user, quiet, seed, write_wav
 
 CLIP = "[00:00] Alice: A short clip about the capsid.\n[00:02] Bob: Indeed it is short.\n[00:02] Alice: Bye."
@@ -15,7 +15,7 @@ CC = "https://creativecommons.org/licenses/by/4.0/"
 
 @pytest.fixture
 def env(db, cfg, folder, client):
-    a, _b, call = seed(db, cfg, folder)
+    a, b, call = seed(db, cfg, folder)
     wav, tr = folder / "clip.wav", folder / "clip.txt"
     write_wav(wav)
     tr.write_text(CLIP)
@@ -28,6 +28,7 @@ def env(db, cfg, folder, client):
     make_user(db, "out@x.io", "outsider password 1", roles={"calls": "viewer"})  # signed in, no role in pods
     return {
         "a": a,
+        "b": b,
         "call": call,
         "clip": clip,
         "wav": wav,
@@ -118,3 +119,66 @@ def test_text_that_looks_like_a_link_stays_text(client, new_client, env, db, cfg
     d = page(new_client(), clip).json()
     assert d["description"]["attribution"] == {"none": [victim]}
     assert d["transcript"]["segments"][0]["text"] == victim
+
+
+def test_home_features_public_recordings_for_everyone(client, new_client, env, db, cfg):
+    clip, a, call = env["clip"], env["a"], env["call"]
+    metadata.save(db, cfg, clip, {"access": "public", "featured": True})
+    metadata.save(db, cfg, a, {"access": "public"})
+    metadata.save(db, cfg, call, {"access": "restricted", "featured": True})  # featured, but only public ones are shown
+
+    def home(headers=None):
+        r = client.get("/api/v1/public/home", headers=headers or {})
+        assert r.status_code == 200, r.text
+        d = r.json()
+        return [c["id"] for c in d["featured"]], {c["name"]: (c["recordings"], c["member"]) for c in d["collections"]}
+
+    # visitors: the featured public recording; pods has two public recordings, calls nothing they may see
+    assert home() == ([clip], {"pods": (2, False)})
+    # signed in: calls' restricted recording is listed (locked); members count everything in their namespaces
+    assert home(env["hv"]) == ([clip], {"pods": (3, True), "calls": (1, False)})
+    assert home(env["ho"]) == ([clip], {"pods": (2, False), "calls": (1, True)})
+    assert home(env["ha"])[1] == {"pods": (3, True), "calls": (1, True)}
+    card = new_client().get("/api/v1/public/home").json()["featured"][0]
+    assert (card["view"], card["namespace"], card["featured"], card["media_kind"]) == ("public", "pods", True, "audio")
+
+
+def test_collection_pages(client, new_client, env, db, cfg):
+    clip, a, call = env["clip"], env["a"], env["call"]
+    metadata.save(db, cfg, clip, {"access": "public"})
+    metadata.save(db, cfg, a, {"access": "public"})
+    metadata.save(db, cfg, call, {"access": "restricted"})
+    metadata.save_namespace(db, store.ns_id(db, "pods"), meta={"summary": {"en": ["Our podcast."]}})
+    anon = new_client()
+
+    def coll(ns, headers=None, **params):
+        return client.get(f"/api/v1/public/collections/{ns}", params=params, headers=headers or {})
+
+    d = coll("pods").json()
+    assert (d["name"], d["label"], d["summary"], d["member"], d["total"]) == ("pods", "pods", "Our podcast.", False, 2)
+    assert {x["id"] for x in d["items"]} == {clip, a} and {x["view"] for x in d["items"]} == {"public"}
+    # restricted recordings: hidden from visitors (a collection with nothing for them looks absent), locked for others
+    assert coll("calls").status_code == 404 and anon.get("/api/v1/public/collections/nowhere").status_code == 404
+    locked = coll("calls", env["hv"]).json()["items"]
+    assert [(x["id"], x["view"], x["summary"], x["poster"]) for x in locked] == [(call, "locked", None, None)]
+    # members see all of their namespace's recordings
+    d = coll("pods", env["hv"]).json()
+    assert (d["member"], d["total"]) == (True, 3) and {x["view"] for x in d["items"]} == {"full"}
+    # recordings that follow a public namespace default are listed too; pages of the list
+    metadata.save_namespace(db, store.ns_id(db, "pods"), profile={"default_access": "public"})
+    assert coll("pods").json()["total"] == 3
+    page2 = coll("pods", limit=1, offset=1).json()
+    assert (page2["total"], len(page2["items"])) == (3, 1)
+
+
+def test_posters_come_with_media_the_visitor_may_play(client, new_client, env, db, cfg):
+    clip = env["clip"]
+    db.q("CREATE shot CONTENT $d", d={"recording": clip, "idx": 0, "t0": 0, "t1": 1000, "frame": "f0.jpg"})
+    metadata.save(db, cfg, clip, {"access": "public", "featured": True, "open": ["media"]})
+    anon = new_client()
+    poster = anon.get("/api/v1/public/home").json()["featured"][0]["poster"]
+    path, _, query = poster.partition("?")
+    assert path == f"/api/v1/recordings/{clip}/frames/f0.jpg" and "sig=" in query
+    metadata.save(db, cfg, clip, {"open": ["transcript"]})
+    assert anon.get("/api/v1/public/home").json()["featured"][0]["poster"] is None
+    assert client.get("/api/v1/public/home", headers=env["hv"]).json()["featured"][0]["poster"]  # members may play it

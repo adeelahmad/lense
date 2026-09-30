@@ -46,6 +46,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   recording's title behind a lock; members see all of it, with a link back to the workspace. Restricted and private
   recordings are "not available" to everyone else. Owners copy the link from the Access dialog.
   `GET /api/v1/public/recordings/{rid}` answers with only what the caller may use (`docs/api.md`).
+- **Explore: the public home page and collections** (Aviary's home and collection splash pages). `/explore` shows
+  the featured public recordings, to everyone, and the collections the visitor can browse; a collection's page shows
+  its description and recordings: public ones for everyone, restricted ones behind a lock ("content locked") for
+  signed-in people, all of them for members. The sign-in page links there. `GET /api/v1/public/home` and
+  `GET /api/v1/public/collections/{name}`.
 
 Tooling:
 

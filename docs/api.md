@@ -293,8 +293,16 @@ GET    /api/v1/batches/{bid}/results.{fmt}
 What visitors see ([Access](access.md)). No sign-in is needed; send a token and people with permission see more.
 
 ```
+GET    /api/v1/public/home
+GET    /api/v1/public/collections/{name}
 GET    /api/v1/public/recordings/{rid}
 ```
+
+`GET /public/home` lists the featured public recordings (for everyone, members too) and the collections the caller
+sees anything in, with how many of their recordings they see. `GET /public/collections/{name}` is a collection's page:
+the namespace's description and the recordings the caller sees there, newest first (`limit`, `offset`, and `total` on
+all pages). Each recording is a card with the caller's `view` of it; `locked` cards carry the title only. A poster
+frame comes only with media the caller may play. A collection with nothing for the caller answers 404.
 
 `GET /public/recordings/{rid}` is a recording's public page as the caller may see it. `view` says how:
 

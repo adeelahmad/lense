@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
@@ -22,9 +23,17 @@ export default async function LoginPage({
   if (await isSetupRequired()) redirect("/setup");
 
   return (
-    <LoginForm
-      callbackUrl={destination}
-      notice={reset ? "Your password was changed. Sign in with the new one." : undefined}
-    />
+    <>
+      <LoginForm
+        callbackUrl={destination}
+        notice={reset ? "Your password was changed. Sign in with the new one." : undefined}
+      />
+      {/* recordings made public need no account (docs/access.md) */}
+      <p className="mt-4 text-center text-[13px] text-fg-secondary">
+        <Link href="/explore" className="font-semibold text-fg-accent hover:underline">
+          Explore the public archive
+        </Link>
+      </p>
+    </>
   );
 }

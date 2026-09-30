@@ -3167,6 +3167,85 @@ export type PreviewLine = {
 };
 
 /**
+ * PublicCard
+ * A recording in a list, as this visitor may see it: a locked one (restricted, signed in without permission) shows
+ * its title only.
+ */
+export type PublicCard = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null;
+  /**
+   * Media Kind
+   */
+  media_kind: "audio" | "video" | "transcript";
+  /**
+   * View
+   */
+  view: "full" | "public" | "locked";
+  /**
+   * Access
+   */
+  access: "public" | "restricted" | "private";
+  /**
+   * Featured
+   */
+  featured: boolean;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Poster
+   * signed link to a video's first frame, when the visitor may play it
+   */
+  poster?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | number
+    | null
+    | "audio"
+    | "video"
+    | "transcript"
+    | "full"
+    | "public"
+    | "locked"
+    | "public"
+    | "restricted"
+    | "private"
+    | boolean
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
  * PublicChapter
  */
 export type PublicChapter = {
@@ -3186,6 +3265,97 @@ export type PublicChapter = {
 };
 
 /**
+ * PublicCollection
+ */
+export type PublicCollection = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Rights
+   */
+  rights?: string | null;
+  /**
+   * Attribution
+   */
+  attribution?: string | null;
+  /**
+   * Provider
+   */
+  provider?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Member
+   * the visitor has a role in this namespace, so they see all of its recordings
+   */
+  member: boolean;
+  /**
+   * Total
+   * how many recordings this visitor sees here, on all pages
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<PublicCard>;
+  [key: string]:
+    | unknown
+    | string
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | {
+        [key: string]: unknown;
+      }
+    | null
+    | boolean
+    | number
+    | Array<PublicCard>
+    | undefined;
+};
+
+/**
+ * PublicCollectionSummary
+ */
+export type PublicCollectionSummary = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Recordings
+   * how many of its recordings this visitor sees
+   */
+  recordings: number;
+  /**
+   * Member
+   */
+  member: boolean;
+  [key: string]: unknown | string | string | null | number | boolean | undefined;
+};
+
+/**
  * PublicDownload
  */
 export type PublicDownload = {
@@ -3202,6 +3372,23 @@ export type PublicDownload = {
    */
   url: string;
   [key: string]: unknown | string;
+};
+
+/**
+ * PublicHome
+ */
+export type PublicHome = {
+  /**
+   * Featured
+   * featured public recordings, newest first
+   */
+  featured: Array<PublicCard>;
+  /**
+   * Collections
+   * the collections this visitor sees anything in
+   */
+  collections: Array<PublicCollectionSummary>;
+  [key: string]: unknown | Array<PublicCard> | Array<PublicCollectionSummary>;
 };
 
 /**
@@ -9884,6 +10071,61 @@ export type ExportBatchResultsResponses = {
    */
   200: unknown;
 };
+
+export type GetPublicHomeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/public/home";
+};
+
+export type GetPublicHomeResponses = {
+  /**
+   * Successful Response
+   */
+  200: PublicHome;
+};
+
+export type GetPublicHomeResponse = GetPublicHomeResponses[keyof GetPublicHomeResponses];
+
+export type GetPublicCollectionData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/public/collections/{name}";
+};
+
+export type GetPublicCollectionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetPublicCollectionError = GetPublicCollectionErrors[keyof GetPublicCollectionErrors];
+
+export type GetPublicCollectionResponses = {
+  /**
+   * Successful Response
+   */
+  200: PublicCollection;
+};
+
+export type GetPublicCollectionResponse = GetPublicCollectionResponses[keyof GetPublicCollectionResponses];
 
 export type GetPublicRecordingData = {
   body?: never;

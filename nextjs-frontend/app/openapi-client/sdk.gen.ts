@@ -435,6 +435,11 @@ import type {
   ExportBatchResultsData,
   ExportBatchResultsResponses,
   ExportBatchResultsErrors,
+  GetPublicHomeData,
+  GetPublicHomeResponses,
+  GetPublicCollectionData,
+  GetPublicCollectionResponses,
+  GetPublicCollectionErrors,
   GetPublicRecordingData,
   GetPublicRecordingResponses,
   GetPublicRecordingErrors,
@@ -2496,6 +2501,34 @@ export class Batches {
 }
 
 export class Public {
+  /**
+   * Get Public Home
+   * The home page: featured public recordings, for everyone, and the collections this visitor sees anything in.
+   */
+  public static getPublicHome<ThrowOnError extends boolean = false>(
+    options?: Options<GetPublicHomeData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<GetPublicHomeResponses, unknown, ThrowOnError>({
+      url: "/api/v1/public/home",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Public Collection
+   * A collection's page: its description and the recordings this visitor sees, newest first. Visitors see the public
+   * ones; signed-in people also see restricted ones, locked; members see all of them. A collection with nothing for
+   * this visitor answers 404, as a missing one does.
+   */
+  public static getPublicCollection<ThrowOnError extends boolean = false>(
+    options: Options<GetPublicCollectionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetPublicCollectionResponses, GetPublicCollectionErrors, ThrowOnError>({
+      url: "/api/v1/public/collections/{name}",
+      ...options,
+    });
+  }
+
   /**
    * Get Public Recording
    * A recording's public page: what this visitor may see of it, and nothing more.

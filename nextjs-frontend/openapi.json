@@ -7488,6 +7488,94 @@
         }
       }
     },
+    "/api/v1/public/home": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Get Public Home",
+        "description": "The home page: featured public recordings, for everyone, and the collections this visitor sees anything in.",
+        "operationId": "get_public_home",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicHome"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/collections/{name}": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Get Public Collection",
+        "description": "A collection's page: its description and the recordings this visitor sees, newest first. Visitors see the public\nones; signed-in people also see restricted ones, locked; members see all of them. A collection with nothing for\nthis visitor answers 404, as a missing one does.",
+        "operationId": "get_public_collection",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 48,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCollection"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/public/recordings/{rid}": {
       "get": {
         "tags": [
@@ -12353,6 +12441,123 @@
         ],
         "title": "PreviewLine"
       },
+      "PublicCard": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "media_kind": {
+            "type": "string",
+            "enum": [
+              "audio",
+              "video",
+              "transcript"
+            ],
+            "title": "Media Kind"
+          },
+          "view": {
+            "type": "string",
+            "enum": [
+              "full",
+              "public",
+              "locked"
+            ],
+            "title": "View"
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted",
+              "private"
+            ],
+            "title": "Access"
+          },
+          "featured": {
+            "type": "boolean",
+            "title": "Featured"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "poster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster",
+            "description": "signed link to a video's first frame, when the visitor may play it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "media_kind",
+          "view",
+          "access",
+          "featured"
+        ],
+        "title": "PublicCard",
+        "description": "A recording in a list, as this visitor may see it: a locked one (restricted, signed in without permission) shows\nits title only."
+      },
       "PublicChapter": {
         "properties": {
           "t0": {
@@ -12389,6 +12594,131 @@
         ],
         "title": "PublicChapter"
       },
+      "PublicCollection": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "rights": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rights"
+          },
+          "attribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "member": {
+            "type": "boolean",
+            "title": "Member",
+            "description": "the visitor has a role in this namespace, so they see all of its recordings"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "how many recordings this visitor sees here, on all pages"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublicCard"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "member",
+          "total",
+          "items"
+        ],
+        "title": "PublicCollection"
+      },
+      "PublicCollectionSummary": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "description": "how many of its recordings this visitor sees"
+          },
+          "member": {
+            "type": "boolean",
+            "title": "Member"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "recordings",
+          "member"
+        ],
+        "title": "PublicCollectionSummary"
+      },
       "PublicDownload": {
         "properties": {
           "format": {
@@ -12412,6 +12742,33 @@
           "url"
         ],
         "title": "PublicDownload"
+      },
+      "PublicHome": {
+        "properties": {
+          "featured": {
+            "items": {
+              "$ref": "#/components/schemas/PublicCard"
+            },
+            "type": "array",
+            "title": "Featured",
+            "description": "featured public recordings, newest first"
+          },
+          "collections": {
+            "items": {
+              "$ref": "#/components/schemas/PublicCollectionSummary"
+            },
+            "type": "array",
+            "title": "Collections",
+            "description": "the collections this visitor sees anything in"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "featured",
+          "collections"
+        ],
+        "title": "PublicHome"
       },
       "PublicMedia": {
         "properties": {

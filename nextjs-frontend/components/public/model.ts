@@ -5,10 +5,25 @@
 import type { AccessPart } from "@/components/access/model";
 import { first, langName, type Meta, type Person } from "@/components/iiif/metadata-model";
 import { rightsFor } from "@/components/iiif/rights";
+import { shortDate } from "@/lib/format";
 
 /** The public page of a recording, the link to share. */
 export function publicPath(id: number): string {
   return `/explore/recordings/${id}`;
+}
+
+/** A collection's page for visitors. */
+export function collectionPath(name: string): string {
+  return `/explore/collections/${encodeURIComponent(name)}`;
+}
+
+const KIND_WORD: Record<string, string> = { audio: "Audio", video: "Video", transcript: "Transcript only" };
+
+/** The line under a card's title: "12 Sep 2026 · Video". */
+export function cardLine(card: { recorded_at?: string | null; media_kind: string }): string {
+  return [card.recorded_at ? shortDate(card.recorded_at) : null, KIND_WORD[card.media_kind] ?? null]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** Lower case, without accents: what "find in transcript" compares. */

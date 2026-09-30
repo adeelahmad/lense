@@ -57,7 +57,7 @@ export function PublicShell({
     <div className="flex min-h-screen flex-col bg-surface">
       <header className="sticky top-0 z-20 border-b border-border bg-background">
         <div className="mx-auto flex h-14 w-full max-w-[1120px] items-center gap-3 px-4 sm:px-6">
-          <Brand href="/" size={17} />
+          <Brand href="/explore" size={17} />
           <span className="flex-1" />
           {signedIn ? (
             <>

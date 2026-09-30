@@ -5,8 +5,8 @@ Lens follows the roles and permissions matrix of Aviary, the audio and video acc
 closed. Who may open what depends on who is asking.
 
 !!! note "Being built"
-    Recordings' access settings, the web app, IIIF and a recording's public page follow this model now. The other
-    pages for visitors (home, collection and search), per-recording grants, access requests and IP groups come next.
+    Recordings' access settings, the web app, IIIF and the pages for visitors (home, collections and a recording's
+    page) follow this model now. Public search, per-recording grants, access requests and IP groups come next.
 
 ## A recording's access
 
@@ -49,10 +49,16 @@ The home page shows featured public recordings only, to everyone, members includ
 
 | Aviary page | Lens |
 |---|---|
-| Home, featured resources | the public home page |
-| Collection splash page, all resources | a namespace's public page |
+| Home, featured resources | the public home page, `/explore` |
+| Collection splash page, all resources | a namespace's public page, `/explore/collections/<name>` |
 | Search results page | public search |
 | Resource detail page | a recording's public page, `/explore/recordings/<id>` (members open it in the workspace too) |
+
+**The home page** shows the featured public recordings, to everyone, and the collections the visitor can see anything
+in. **A collection's page** has the namespace's label, summary, rights and provider (its IIIF metadata) and the
+recordings the visitor sees, newest first: public ones for everyone, restricted ones with a lock ("content locked" over
+the picture) for people who are signed in, and all of them for members. A collection with nothing for the visitor
+isn't there for them. The sign-in page links to the home page.
 
 **A recording's public page** shows what the visitor may see: its title, date and description, and each open part:
 the player, the transcript (with find in the transcript, and its files to download) and the chapters. A closed part

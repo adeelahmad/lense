@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, ChevronDown, ChevronUp, Clock3, Download, FileQuestion, Lock } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronUp, Clock3, Download, Lock } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -16,12 +16,21 @@ import { PlayButton, SkipButton, SpeedMenu, TimeReadout, VolumeControl } from "@
 import { useMediaQuery } from "@/components/player/use-media-query";
 import { Waveform, type WaveLane } from "@/components/player/waveform";
 import type { Segment } from "@/components/recording/model";
-import { closedNote, descriptionRows, findLines, lineAt, markParts, safeHref } from "@/components/public/model";
+import {
+  closedNote,
+  collectionPath,
+  descriptionRows,
+  findLines,
+  lineAt,
+  markParts,
+  safeHref,
+} from "@/components/public/model";
 import { useSignInHref } from "@/components/public/public-shell";
+import { Centered, LoadError, Unavailable } from "@/components/public/states";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/field";
-import { EmptyState, Skeleton } from "@/components/ui/states";
+import { Skeleton } from "@/components/ui/states";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { shortDate, tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -52,48 +61,12 @@ export function PublicRecordingView({ id }: { id: number }) {
   if (q.isPending) return <PageSkeleton />;
   if (q.isError)
     return q.error instanceof ApiError && q.error.status === 404 ? (
-      <NotAvailable signedIn={signedIn} />
+      <Unavailable what="recording" signedIn={signedIn} />
     ) : (
-      <Centered>
-        <EmptyState
-          tone="error"
-          icon={<FileQuestion />}
-          title="Couldn’t load this recording"
-          actions={<Button onClick={() => q.refetch()}>Try again</Button>}
-        >
-          {q.error.message}
-        </EmptyState>
-      </Centered>
+      <LoadError what="this recording" message={q.error.message} retry={() => q.refetch()} />
     );
   if (q.data.view === "locked") return <Locked rec={q.data} />;
   return <RecordingBody rec={q.data} signedIn={signedIn} />;
-}
-
-function Centered({ children }: { children: ReactNode }) {
-  return <div className="mx-auto flex w-full max-w-[560px] flex-1 flex-col justify-center px-4 py-12">{children}</div>;
-}
-
-function NotAvailable({ signedIn }: { signedIn: boolean }) {
-  const signIn = useSignInHref();
-  return (
-    <Centered>
-      <EmptyState
-        icon={<FileQuestion />}
-        title="This recording isn’t available"
-        actions={
-          signedIn ? undefined : (
-            <Button asChild variant="primary">
-              <Link href={signIn}>Sign in</Link>
-            </Button>
-          )
-        }
-      >
-        {signedIn
-          ? "It may not be public, or the link may be wrong."
-          : "It may not be public, or you may need to sign in to see it."}
-      </EmptyState>
-    </Centered>
-  );
 }
 
 /** A restricted recording, for someone signed in without permission: its title behind a lock. */
@@ -162,7 +135,14 @@ function PageHead({ rec, meta, duration }: { rec: Rec; meta: Meta; duration: num
   const summary = first(meta.summary);
   return (
     <header className="flex flex-col gap-2">
-      {rec.namespace && <span className="text-[12.5px] font-semibold text-fg-muted">{rec.namespace}</span>}
+      {rec.namespace && (
+        <Link
+          href={collectionPath(rec.namespace)}
+          className="w-fit text-[12.5px] font-semibold text-fg-muted hover:text-fg hover:underline"
+        >
+          {rec.namespace}
+        </Link>
+      )}
       <h1 className="text-[24px] font-bold leading-[1.2] text-fg sm:text-[28px]">{rec.title || "Untitled"}</h1>
       <div className="tabular flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[13px] text-fg-secondary">
         {rec.recorded_at && <time dateTime={rec.recorded_at}>{shortDate(rec.recorded_at)}</time>}

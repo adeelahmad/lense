@@ -72,3 +72,45 @@ class PublicRecording(ResponseModel):
     transcript: PublicTranscript | None = None
     chapters: list[PublicChapter] | None = None
     closed: list[AccessPart] = Field(description="parts the recording has that this visitor can't use")
+
+
+class PublicCard(ResponseModel):
+    """A recording in a list, as this visitor may see it: a locked one (restricted, signed in without permission) shows
+    its title only."""
+
+    id: int
+    title: str | None = None
+    namespace: str | None = None
+    recorded_at: str | None = None
+    duration_ms: int | None = None
+    media_kind: MediaKind
+    view: View
+    access: AccessLevel
+    featured: bool
+    summary: str | None = None
+    poster: str | None = Field(None, description="signed link to a video's first frame, when the visitor may play it")
+
+
+class PublicCollectionSummary(ResponseModel):
+    name: str
+    label: str
+    summary: str | None = None
+    recordings: int = Field(description="how many of its recordings this visitor sees")
+    member: bool
+
+
+class PublicHome(ResponseModel):
+    featured: list[PublicCard] = Field(description="featured public recordings, newest first")
+    collections: list[PublicCollectionSummary] = Field(description="the collections this visitor sees anything in")
+
+
+class PublicCollection(ResponseModel):
+    name: str
+    label: str
+    summary: str | None = None
+    rights: str | None = None
+    attribution: str | None = None
+    provider: dict[str, Any] | None = None
+    member: bool = Field(description="the visitor has a role in this namespace, so they see all of its recordings")
+    total: int = Field(description="how many recordings this visitor sees here, on all pages")
+    items: list[PublicCard]
