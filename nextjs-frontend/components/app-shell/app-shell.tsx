@@ -53,6 +53,10 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   useEffect(() => setMobileOpen(false), [pathname]);
+  // Recording pages collapse the nav to icons to give the transcript room (Recording R1); the toggle still opens it.
+  const autoCollapse = pathname.startsWith("/recordings/");
+  const [peek, setPeek] = useState(false);
+  useEffect(() => setPeek(false), [pathname]);
 
   const recordings = namespaces.filter((n) => !namespace || n.name === namespace).reduce((a, n) => a + ((n.recordings as number) ?? 0), 0);
   const reviews = useQuery({
@@ -73,7 +77,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
         Skip to content
       </a>
       <div className="sticky top-0 hidden h-screen shrink-0 md:block">
-        <Nav admin={admin || user.admin} collapsed={collapsed} onToggle={toggle} counts={counts} />
+        <Nav admin={admin || user.admin} collapsed={autoCollapse ? !peek : collapsed} onToggle={autoCollapse ? () => setPeek((p) => !p) : toggle} counts={counts} />
       </div>
       {mobileOpen && (
         <div className="fixed inset-0 z-[120] md:hidden">
