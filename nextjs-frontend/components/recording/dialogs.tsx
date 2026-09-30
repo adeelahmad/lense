@@ -1,11 +1,15 @@
 "use client";
 
+import { ArrowUpRight } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { AccessFields } from "@/components/access/access-fields";
 import { useRecordingAccess, useSaveAccess } from "@/components/access/hooks";
 import { ALL_PARTS, accessLabel, accessPatch, partsText, type AccessValue } from "@/components/access/model";
+import { CopyButton } from "@/components/iiif/collections";
+import { publicPath } from "@/components/public/model";
 import { useRec } from "@/components/recording/context";
 import { ShareEmbedDialog } from "@/components/sharing/share-dialog";
 import { useEdits, useRecordingActions } from "@/components/recording/hooks";
@@ -130,6 +134,7 @@ export function AccessDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             disabled={!canPublish || save.isPending}
             disabledReason={needRole("owner", ns)}
           />
+          {saved?.access === "public" && <PublicPageLink id={id} />}
           {nsDefault && (
             <p className="rounded-md bg-surface px-3 py-2.5 text-[12.5px] leading-[1.45] text-fg-secondary">
               {q.data?.inherited ? "Follows the default of " : "Its own setting. The default of "}
@@ -173,6 +178,32 @@ export function AccessDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         </div>
       )}
     </Dialog>
+  );
+}
+
+/** Where visitors see a public recording: its page, to open or copy. */
+function PublicPageLink({ id }: { id: number }) {
+  const path = publicPath(id);
+  const [url, setUrl] = useState(path);
+  useEffect(() => setUrl(window.location.origin + path), [path]);
+  return (
+    <div className="flex flex-col gap-1 rounded-md border border-border px-3 py-2.5">
+      <b className="text-[12px] font-bold text-fg-secondary">Public page</b>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <code className="min-w-0 break-all font-mono text-[12px] text-fg">{url}</code>
+        <span className="flex items-center gap-3">
+          <CopyButton text={url} label="Public page link" />
+          <Link
+            href={path}
+            target="_blank"
+            className="inline-flex items-center gap-0.5 text-[12px] font-semibold text-blue hover:underline"
+          >
+            Open
+            <ArrowUpRight aria-hidden className="size-3" />
+          </Link>
+        </span>
+      </div>
+    </div>
   );
 }
 

@@ -3167,6 +3167,263 @@ export type PreviewLine = {
 };
 
 /**
+ * PublicChapter
+ */
+export type PublicChapter = {
+  /**
+   * T0
+   */
+  t0: number;
+  /**
+   * T1
+   */
+  t1?: number | null;
+  /**
+   * Title
+   */
+  title?: string | null;
+  [key: string]: unknown | number | number | null | string | null | undefined;
+};
+
+/**
+ * PublicDownload
+ */
+export type PublicDownload = {
+  /**
+   * Format
+   */
+  format: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Url
+   */
+  url: string;
+  [key: string]: unknown | string;
+};
+
+/**
+ * PublicMedia
+ */
+export type PublicMedia = {
+  /**
+   * Url
+   * signed link to the audio or video
+   */
+  url: string;
+  /**
+   * Kind
+   */
+  kind: "audio" | "video";
+  /**
+   * Width
+   */
+  width?: number | null;
+  /**
+   * Height
+   */
+  height?: number | null;
+  /**
+   * Poster
+   * signed link to a video's first frame
+   */
+  poster?: string | null;
+  /**
+   * Envelope
+   * loudness over time, for drawing the waveform
+   */
+  envelope?: Array<unknown> | null;
+  [key: string]:
+    | unknown
+    | string
+    | "audio"
+    | "video"
+    | number
+    | null
+    | number
+    | null
+    | string
+    | null
+    | Array<unknown>
+    | null
+    | undefined;
+};
+
+/**
+ * PublicRecording
+ * A recording as this visitor may see it: all of it with permission, else its page, description and open parts,
+ * or (restricted, signed in) its title only. Parts left out are null.
+ */
+export type PublicRecording = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null;
+  /**
+   * Media Kind
+   */
+  media_kind: "audio" | "video" | "transcript";
+  /**
+   * View
+   * full: with permission; public: a public recording; locked: restricted, listed with a lock
+   */
+  view: "full" | "public" | "locked";
+  /**
+   * Access
+   */
+  access: "public" | "restricted" | "private";
+  /**
+   * Open
+   * the parts a public recording opens to everyone
+   */
+  open: Array<"media" | "transcript" | "index">;
+  /**
+   * Featured
+   */
+  featured: boolean;
+  /**
+   * Member
+   * the visitor has a role in the recording's namespace, so it opens in the workspace too
+   */
+  member: boolean;
+  /**
+   * Description
+   * descriptive metadata, as IIIF publishes it
+   */
+  description?: {
+    [key: string]: unknown;
+  } | null;
+  media?: PublicMedia | null;
+  transcript?: PublicTranscript | null;
+  /**
+   * Chapters
+   */
+  chapters?: Array<PublicChapter> | null;
+  /**
+   * Closed
+   * parts the recording has that this visitor can't use
+   */
+  closed: Array<"media" | "transcript" | "index">;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | number
+    | null
+    | "audio"
+    | "video"
+    | "transcript"
+    | "full"
+    | "public"
+    | "locked"
+    | "public"
+    | "restricted"
+    | "private"
+    | Array<"media" | "transcript" | "index">
+    | boolean
+    | {
+        [key: string]: unknown;
+      }
+    | null
+    | PublicMedia
+    | null
+    | PublicTranscript
+    | null
+    | Array<PublicChapter>
+    | null
+    | Array<"media" | "transcript" | "index">
+    | undefined;
+};
+
+/**
+ * PublicSegment
+ */
+export type PublicSegment = {
+  /**
+   * T0
+   * start, in ms
+   */
+  t0: number;
+  /**
+   * T1
+   * end, in ms
+   */
+  t1: number;
+  /**
+   * S
+   * the speaker's key
+   */
+  s?: string | null;
+  /**
+   * Text
+   */
+  text: string;
+  [key: string]: unknown | number | string | null | string | undefined;
+};
+
+/**
+ * PublicSpeaker
+ */
+export type PublicSpeaker = {
+  /**
+   * Key
+   */
+  key: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Color
+   */
+  color: string;
+  [key: string]: unknown | string;
+};
+
+/**
+ * PublicTranscript
+ */
+export type PublicTranscript = {
+  /**
+   * Speakers
+   */
+  speakers: Array<PublicSpeaker>;
+  /**
+   * Segments
+   */
+  segments: Array<PublicSegment>;
+  /**
+   * Downloads
+   * transcript files; offered when the transcript is open to everyone
+   */
+  downloads: Array<PublicDownload>;
+  [key: string]: unknown | Array<PublicSpeaker> | Array<PublicSegment> | Array<PublicDownload>;
+};
+
+/**
  * Recording
  * The recording row (less its envelope) plus what the recording page needs.
  */
@@ -9627,6 +9884,36 @@ export type ExportBatchResultsResponses = {
    */
   200: unknown;
 };
+
+export type GetPublicRecordingData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/public/recordings/{rid}";
+};
+
+export type GetPublicRecordingErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetPublicRecordingError = GetPublicRecordingErrors[keyof GetPublicRecordingErrors];
+
+export type GetPublicRecordingResponses = {
+  /**
+   * Successful Response
+   */
+  200: PublicRecording;
+};
+
+export type GetPublicRecordingResponse = GetPublicRecordingResponses[keyof GetPublicRecordingResponses];
 
 export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});

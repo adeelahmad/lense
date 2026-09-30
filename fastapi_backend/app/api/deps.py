@@ -164,6 +164,10 @@ class Access:
         self.need(rec["space"], role)
         return rec
 
+    def permitted(self, rec: dict[str, Any]) -> bool:
+        """Permission on a recording (docs/access.md): a role in its namespace. Admins have every role."""
+        return auth.allows(self.roles, rec["space"])
+
     def signed(self) -> bool:
         q = self.request.query_params
         return security.verify_path(self.request.url.path, q.get("exp"), q.get("sig"))

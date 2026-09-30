@@ -7487,6 +7487,49 @@
           }
         }
       }
+    },
+    "/api/v1/public/recordings/{rid}": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Get Public Recording",
+        "description": "A recording's public page: what this visitor may see of it, and nothing more.\n\nAnyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title\nwith a lock; people with a role in its namespace see all of it. Everything else answers 404, as a recording that\ndoesn't exist would.",
+        "operationId": "get_public_recording",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicRecording"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -12309,6 +12352,409 @@
           "text"
         ],
         "title": "PreviewLine"
+      },
+      "PublicChapter": {
+        "properties": {
+          "t0": {
+            "type": "integer",
+            "title": "T0"
+          },
+          "t1": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T1"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "t0"
+        ],
+        "title": "PublicChapter"
+      },
+      "PublicDownload": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "title": "Format"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "format",
+          "label",
+          "url"
+        ],
+        "title": "PublicDownload"
+      },
+      "PublicMedia": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "signed link to the audio or video"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "audio",
+              "video"
+            ],
+            "title": "Kind"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "poster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster",
+            "description": "signed link to a video's first frame"
+          },
+          "envelope": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Envelope",
+            "description": "loudness over time, for drawing the waveform"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "kind"
+        ],
+        "title": "PublicMedia"
+      },
+      "PublicRecording": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "media_kind": {
+            "type": "string",
+            "enum": [
+              "audio",
+              "video",
+              "transcript"
+            ],
+            "title": "Media Kind"
+          },
+          "view": {
+            "type": "string",
+            "enum": [
+              "full",
+              "public",
+              "locked"
+            ],
+            "title": "View",
+            "description": "full: with permission; public: a public recording; locked: restricted, listed with a lock"
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted",
+              "private"
+            ],
+            "title": "Access"
+          },
+          "open": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "media",
+                "transcript",
+                "index"
+              ]
+            },
+            "type": "array",
+            "title": "Open",
+            "description": "the parts a public recording opens to everyone"
+          },
+          "featured": {
+            "type": "boolean",
+            "title": "Featured"
+          },
+          "member": {
+            "type": "boolean",
+            "title": "Member",
+            "description": "the visitor has a role in the recording's namespace, so it opens in the workspace too"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "descriptive metadata, as IIIF publishes it"
+          },
+          "media": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicMedia"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transcript": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicTranscript"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chapters": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PublicChapter"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapters"
+          },
+          "closed": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "media",
+                "transcript",
+                "index"
+              ]
+            },
+            "type": "array",
+            "title": "Closed",
+            "description": "parts the recording has that this visitor can't use"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "media_kind",
+          "view",
+          "access",
+          "open",
+          "featured",
+          "member",
+          "closed"
+        ],
+        "title": "PublicRecording",
+        "description": "A recording as this visitor may see it: all of it with permission, else its page, description and open parts,\nor (restricted, signed in) its title only. Parts left out are null."
+      },
+      "PublicSegment": {
+        "properties": {
+          "t0": {
+            "type": "integer",
+            "title": "T0",
+            "description": "start, in ms"
+          },
+          "t1": {
+            "type": "integer",
+            "title": "T1",
+            "description": "end, in ms"
+          },
+          "s": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "S",
+            "description": "the speaker's key"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "t0",
+          "t1",
+          "text"
+        ],
+        "title": "PublicSegment"
+      },
+      "PublicSpeaker": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "color"
+        ],
+        "title": "PublicSpeaker"
+      },
+      "PublicTranscript": {
+        "properties": {
+          "speakers": {
+            "items": {
+              "$ref": "#/components/schemas/PublicSpeaker"
+            },
+            "type": "array",
+            "title": "Speakers"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/PublicSegment"
+            },
+            "type": "array",
+            "title": "Segments"
+          },
+          "downloads": {
+            "items": {
+              "$ref": "#/components/schemas/PublicDownload"
+            },
+            "type": "array",
+            "title": "Downloads",
+            "description": "transcript files; offered when the transcript is open to everyone"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "speakers",
+          "segments",
+          "downloads"
+        ],
+        "title": "PublicTranscript"
       },
       "Recording": {
         "properties": {

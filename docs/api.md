@@ -287,3 +287,22 @@ POST   /api/v1/batches/{bid}/{action}
 GET    /api/v1/batches/{bid}/results
 GET    /api/v1/batches/{bid}/results.{fmt}
 ```
+
+## public
+
+What visitors see ([Access](access.md)). No sign-in is needed; send a token and people with permission see more.
+
+```
+GET    /api/v1/public/recordings/{rid}
+```
+
+`GET /public/recordings/{rid}` is a recording's public page as the caller may see it. `view` says how:
+
+* `full`: the caller has a role in its namespace (admins have every role): all of it, and `member` is true.
+* `public`: a public recording, for everyone else: its description (the metadata IIIF publishes) and only its open
+  parts: `media` (a signed link to the audio or video, with its waveform), `transcript` (speakers and lines, and the
+  transcript files to download when the transcript is open to everyone) and `chapters` (the index).
+* `locked`: a restricted recording, for someone signed in without permission: its title and namespace only.
+
+Parts the caller can't use are `null` and listed in `closed`. Recordings the caller may not see at all (restricted ones
+to visitors who aren't signed in, private ones to anyone without permission) answer 404, as missing ones do.

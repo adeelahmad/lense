@@ -15,6 +15,7 @@ from app.api.v1.routes import (
     metadata,
     namespaces,
     pipelines,
+    public,
     recordings,
     search,
     sources,
@@ -46,5 +47,6 @@ for module in (
     chats,
     collections,
     batches,
+    public,
 ):
     api_router.include_router(module.router)

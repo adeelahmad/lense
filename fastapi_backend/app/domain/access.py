@@ -88,6 +88,27 @@ def is_open(a, part):
     return a["access"] == "public" and part in a["open"]
 
 
+def view(a, permitted, signed_in):
+    """What someone sees of a recording, after Aviary's matrix (docs/access.md).
+
+    full: they have permission (a role in its namespace), so all of it. public: a public recording's page, description
+    and open parts. locked: a restricted recording, for someone signed in: listed with a lock, its page closed.
+    None: hidden (restricted ones from visitors who aren't signed in, private ones from everyone without permission).
+    """
+    if permitted:
+        return "full"
+    if a["access"] == "public":
+        return "public"
+    if a["access"] == "restricted" and signed_in:
+        return "locked"
+    return None
+
+
+def usable(a, seen, part):
+    """Whether someone who sees the recording this way (view()) may use a part: media, transcript or index."""
+    return seen == "full" or (seen == "public" and part in a["open"])
+
+
 def activity(db, rid, kind):
     """A IIIF Change Discovery activity (Create, Update or Delete) for this recording."""
     db.q("CREATE $r CONTENT $d", r=R("iiif_activity", db.next_id("iiif_activity")), d={"type": kind, "recording": rid, "at": store.now()})

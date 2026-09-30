@@ -1,0 +1,74 @@
+"""What visitors see: a recording's public page (docs/access.md)."""
+
+from __future__ import annotations
+
+from typing import Any, Literal
+
+from pydantic import Field
+
+from app.schemas.common import AccessLevel, AccessPart, ResponseModel
+from app.schemas.recordings import MediaKind
+
+View = Literal["full", "public", "locked"]
+
+
+class PublicMedia(ResponseModel):
+    url: str = Field(description="signed link to the audio or video")
+    kind: Literal["audio", "video"]
+    width: int | None = None
+    height: int | None = None
+    poster: str | None = Field(None, description="signed link to a video's first frame")
+    envelope: list[Any] | None = Field(None, description="loudness over time, for drawing the waveform")
+
+
+class PublicSpeaker(ResponseModel):
+    key: str
+    name: str
+    color: str
+
+
+class PublicSegment(ResponseModel):
+    t0: int = Field(description="start, in ms")
+    t1: int = Field(description="end, in ms")
+    s: str | None = Field(None, description="the speaker's key")
+    text: str
+
+
+class PublicDownload(ResponseModel):
+    format: str
+    label: str
+    url: str
+
+
+class PublicTranscript(ResponseModel):
+    speakers: list[PublicSpeaker]
+    segments: list[PublicSegment]
+    downloads: list[PublicDownload] = Field(description="transcript files; offered when the transcript is open to everyone")
+
+
+class PublicChapter(ResponseModel):
+    t0: int
+    t1: int | None = None
+    title: str | None = None
+
+
+class PublicRecording(ResponseModel):
+    """A recording as this visitor may see it: all of it with permission, else its page, description and open parts,
+    or (restricted, signed in) its title only. Parts left out are null."""
+
+    id: int
+    title: str | None = None
+    namespace: str | None = None
+    recorded_at: str | None = None
+    duration_ms: int | None = None
+    media_kind: MediaKind
+    view: View = Field(description="full: with permission; public: a public recording; locked: restricted, listed with a lock")
+    access: AccessLevel
+    open: list[AccessPart] = Field(description="the parts a public recording opens to everyone")
+    featured: bool
+    member: bool = Field(description="the visitor has a role in the recording's namespace, so it opens in the workspace too")
+    description: dict[str, Any] | None = Field(None, description="descriptive metadata, as IIIF publishes it")
+    media: PublicMedia | None = None
+    transcript: PublicTranscript | None = None
+    chapters: list[PublicChapter] | None = None
+    closed: list[AccessPart] = Field(description="parts the recording has that this visitor can't use")

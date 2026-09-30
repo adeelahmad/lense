@@ -435,6 +435,9 @@ import type {
   ExportBatchResultsData,
   ExportBatchResultsResponses,
   ExportBatchResultsErrors,
+  GetPublicRecordingData,
+  GetPublicRecordingResponses,
+  GetPublicRecordingErrors,
 } from "./types.gen";
 import { client } from "./client.gen";
 
@@ -2487,6 +2490,25 @@ export class Batches {
   ) {
     return (options.client ?? client).get<ExportBatchResultsResponses, ExportBatchResultsErrors, ThrowOnError>({
       url: "/api/v1/batches/{bid}/results.{fmt}",
+      ...options,
+    });
+  }
+}
+
+export class Public {
+  /**
+   * Get Public Recording
+   * A recording's public page: what this visitor may see of it, and nothing more.
+   *
+   * Anyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title
+   * with a lock; people with a role in its namespace see all of it. Everything else answers 404, as a recording that
+   * doesn't exist would.
+   */
+  public static getPublicRecording<ThrowOnError extends boolean = false>(
+    options: Options<GetPublicRecordingData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetPublicRecordingResponses, GetPublicRecordingErrors, ThrowOnError>({
+      url: "/api/v1/public/recordings/{rid}",
       ...options,
     });
   }

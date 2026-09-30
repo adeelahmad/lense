@@ -9,6 +9,7 @@ system). NextAuth holds the session; every screen talks to the API through the g
 nextjs-frontend/
   app/
     (auth)/                 sign in, first-run setup, password reset
+    (public)/explore/       pages for visitors, no sign-in needed (docs/access.md): recordings/[id]
     (app)/                  every signed-in screen, inside the app shell
       page.tsx              Home
       library/ import/ reports/ recordings/[id]/

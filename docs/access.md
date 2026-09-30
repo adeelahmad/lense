@@ -5,9 +5,8 @@ Lens follows the roles and permissions matrix of Aviary, the audio and video acc
 closed. Who may open what depends on who is asking.
 
 !!! note "Being built"
-    Recordings' access settings, the web app and IIIF follow this model now. The pages for visitors (home, collection,
-    search and recording pages), per-recording grants, access requests and IP groups come next; until then a
-    recording is reached outside IIIF only by its namespace's members, admins and share links.
+    Recordings' access settings, the web app, IIIF and a recording's public page follow this model now. The other
+    pages for visitors (home, collection and search), per-recording grants, access requests and IP groups come next.
 
 ## A recording's access
 
@@ -53,7 +52,14 @@ The home page shows featured public recordings only, to everyone, members includ
 | Home, featured resources | the public home page |
 | Collection splash page, all resources | a namespace's public page |
 | Search results page | public search |
-| Resource detail page | a recording's public page (members and grant holders can open it in the workspace too) |
+| Resource detail page | a recording's public page, `/explore/recordings/<id>` (members open it in the workspace too) |
+
+**A recording's public page** shows what the visitor may see: its title, date and description, and each open part:
+the player, the transcript (with find in the transcript, and its files to download) and the chapters. A closed part
+says who can open it and offers visitors to sign in; signing in comes back to the page. Signed-in people without
+permission see a restricted recording's title behind a lock ("content locked"); members see all of it, with a link to
+the workspace. Owners find the link to share in a public recording's Access dialog. The page is left out of search
+engines unless the recording is public.
 
 The workspace (Library, recording pages, Search, Chat and the rest) stays as it is: namespaces you have no role in
 never appear there, and grant holders see the recordings shared with them.

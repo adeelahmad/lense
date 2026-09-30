@@ -40,6 +40,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - The web app shows a recording's access next to its status (click it to change it), marks public and
       restricted recordings in the Library, and the IIIF panel, metadata editor, metadata profile and Publish dialog
       use the new setting.
+- **A recording's public page**, `/explore/recordings/<id>`, for anyone, signed in or not (Aviary's resource detail
+  page). Visitors see a public recording's description and its open parts: the player, the transcript with find and
+  downloads, the chapters; closed parts say who can open them. Signed-in people without permission see a restricted
+  recording's title behind a lock; members see all of it, with a link back to the workspace. Restricted and private
+  recordings are "not available" to everyone else. Owners copy the link from the Access dialog.
+  `GET /api/v1/public/recordings/{rid}` answers with only what the caller may use (`docs/api.md`).
 
 Tooling:
 
