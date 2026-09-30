@@ -1,10 +1,14 @@
+import path from "node:path";
+
 import { defineConfig } from "@hey-api/openapi-ts";
 import { config } from "dotenv";
 
 config({ path: ".env.local" });
 
 export default defineConfig({
-  input: process.env.OPENAPI_OUTPUT_FILE || "openapi.json",
+  // An absolute path: the generator reads a bare "openapi.json" as a server address and bakes it into the client's
+  // types, so `make openapi`, the dev watcher and the pre-commit hook would each write a different client.
+  input: path.resolve(process.env.OPENAPI_OUTPUT_FILE || "openapi.json"),
   output: {
     format: "prettier",
     lint: "eslint",

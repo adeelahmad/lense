@@ -16,6 +16,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       who speaks in the namespaces in scope by name and sends every id with that name.
     - The Needs attention and Processing tab counts come from the server too.
 
+Tooling:
+
+- `make openapi`, the dev watcher and the pre-commit hook write the same client: the generator reads its input as an
+  absolute path now (given a bare `openapi.json`, it had baked that name into the client's `baseUrl` type).
+
 ## 0.3.0 <small>September 30, 2026</small> {id="0.3.0"}
 
 The web app implements the Lens Archive design (built on the Aladdin design system).

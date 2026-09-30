@@ -9388,5 +9388,5 @@ export type ExportBatchResultsResponses = {
 };
 
 export type ClientOptions = {
-  baseUrl: `${string}://openapi.json` | (string & {});
+  baseUrl: `${string}://${string}` | (string & {});
 };
