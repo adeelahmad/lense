@@ -1,5 +1,7 @@
 import type { Job } from "@/app/openapi-client/types.gen";
 import {
+  blockedBy,
+  deletedToast,
   NO_FILTERS,
   activeFilterCount,
   dateFrom,
@@ -273,5 +275,32 @@ describe("durations", () => {
     expect(totalDuration(12 * 60000)).toBe("12 min");
     expect(totalDuration(84 * 60000)).toBe("1.4 h");
     expect(totalDuration(96 * 3.6e6)).toBe("96 h");
+  });
+});
+
+describe("deleting from the Library", () => {
+  it("says which selected recordings a role short blocks, and where", () => {
+    const rows = [{ namespace: "pods" }, { namespace: "calls" }, { namespace: "calls" }, { namespace: null }];
+    expect(blockedBy(rows, (ns) => ns === "pods")).toEqual({ count: 3, namespaces: ["calls", "?"] });
+    expect(blockedBy(rows, () => true)).toEqual({ count: 0, namespaces: [] });
+  });
+
+  it("sums up what went, and why the rest didn't", () => {
+    expect(deletedToast(3, [])).toEqual({
+      title: "Deleted 3 recordings",
+      body: "The media files stay where they are, and won’t be imported again.",
+      tone: "green",
+    });
+    const busy = { title: "Board call", message: "A job is working on it." };
+    expect(deletedToast(2, [busy])).toEqual({
+      title: "Deleted 2 of 3 recordings",
+      body: "Board call: A job is working on it.",
+      tone: "red",
+    });
+    expect(deletedToast(0, [busy])).toMatchObject({ title: "Couldn’t delete the recording" });
+    expect(deletedToast(0, [busy, busy])).toMatchObject({
+      title: "Couldn’t delete 2 recordings",
+      body: "Board call: A job is working on it. (and 1 more)",
+    });
   });
 });

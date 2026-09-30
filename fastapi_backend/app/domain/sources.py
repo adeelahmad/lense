@@ -19,7 +19,7 @@ import shutil
 import subprocess
 import tempfile
 
-from . import ingest, jobs, settings, store
+from . import deletion, ingest, jobs, settings, store
 
 R = store.R
 BACKENDS = {
@@ -463,6 +463,7 @@ def poll_watch(db, cfg, wid, log=print):
     src = get(db, w["source"])
     first, now = not w.get("last_scan_at"), dt.datetime.now(dt.timezone.utc)
     known = {r["path"]: r for r in db.rows("SELECT path, size, modified, status FROM remote_file WHERE watch = $w", w=wid)}
+    gone = deletion.gone_remote(db, w["space"])  # recordings someone deleted stay deleted
     stats = {"seen": 0, "new": 0, "waiting": 0, "skipped": 0, "errors": 0}
     for f in list_files(db, cfg, src, w["path"]):
         kind = kind_of(cfg, w, f)
@@ -474,7 +475,7 @@ def poll_watch(db, cfg, wid, log=print):
             continue
         key = R("remote_file", f"{wid}-{hashlib.sha1(f['path'].encode()).hexdigest()[:20]}")
         row = {"watch": wid, "path": f["path"], "size": f["size"], "modified": f["modified"], "seen_at": store.now()}
-        if first and not w.get("backfill"):
+        if (first and not w.get("backfill")) or (src["id"], f["path"]) in gone:
             db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "skipped"})
             stats["skipped"] += 1
         elif (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0):

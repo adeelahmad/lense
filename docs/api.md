@@ -74,6 +74,7 @@ All three answer with the list and are audited as `namespace.ip_group.create`, `
 GET    /api/v1/recordings
 GET    /api/v1/recordings/{rid}
 PATCH  /api/v1/recordings/{rid}
+DELETE /api/v1/recordings/{rid}
 GET    /api/v1/recordings/{rid}/access
 PUT    /api/v1/recordings/{rid}/access
 GET    /api/v1/recordings/{rid}/permissions
@@ -123,6 +124,16 @@ The body is the page's rows; the `X-Total-Count` header says how many recordings
 `PATCH /recordings/{rid}` with `{"title": …}` renames a recording (editors; whitespace is collapsed, at most 200
 characters). It is audited as `recording.rename`; the recording's report page follows the new title and is rebuilt,
 and a published recording shows up as an Update in the IIIF change feed.
+
+`DELETE /recordings/{rid}` deletes a recording (owners). Everything Lens made from it goes: its transcript and analysis
+(segments, speakers' turns, chapters, entity mentions, terms, edits), video shots, text on screen, face tracks and
+frames, outputs, reports and exports, shares, permissions, requests for access, and its place in IP groups, fixed
+collections, chat scopes and batch runs that haven't started it. Speakers and faces only it had are removed unless
+someone named them. Its waiting jobs are cancelled; while a job is running on it the answer is 409, and a worker that
+finds its recording gone stops. The media file stays where it is: scans skip the same path and the same file elsewhere,
+and watched folders skip the same remote file, even when it changes; importing it on purpose (the Import dialog,
+`lens import`, a IIIF manifest) brings it back. A public recording shows up as a Delete in the IIIF change feed. It is
+audited as `recording.delete` with its title, namespace and path.
 
 `GET /recordings/{rid}/access` says who may see a recording (members): `access` (`public`, `restricted` or
 `private`), `open` (the parts a public recording opens to everyone: `media`, `transcript`, `index`), `featured`,

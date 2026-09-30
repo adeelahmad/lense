@@ -792,7 +792,10 @@ def undo_merge(db, mid):
             db.q("DELETE entity_alias WHERE space = $s AND key = $k AND entity = $e", s=o["space"], k=key, e=keep)
         for key in sn["aliases"]:
             _add_alias(db, o["space"], key, o["id"])
-        for x in sn["mentions"]:
+        segs = [R("segment", x["segment"]) for x in sn["mentions"]]
+        alive = set(db.values("SELECT VALUE record::id(id) FROM segment WHERE id IN $s", s=segs)) if segs else set()
+        mentions = [x for x in sn["mentions"] if x["segment"] in alive]  # a deleted recording's are gone
+        for x in mentions:
             db.q("DELETE mentions WHERE entity = $k AND in = $s AND text = $t", k=keep, s=R("segment", x["segment"]), t=x["text"])
         rows = [
             store.clean(
@@ -806,7 +809,7 @@ def undo_merge(db, mid):
                     "text": x["text"],
                 }
             )
-            for x in sn["mentions"]
+            for x in mentions
         ]
         if rows:
             db.run(["INSERT RELATION INTO mentions $rows"], rows=rows)

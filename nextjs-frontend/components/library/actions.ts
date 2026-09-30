@@ -6,6 +6,7 @@ import { useCallback } from "react";
 
 import { Jobs, Recordings } from "@/app/openapi-client";
 import { useToast } from "@/components/ui/toast";
+import { deletedToast } from "@/components/library/model";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
 
@@ -50,7 +51,9 @@ export async function downloadWithToken(url: string, token: string | undefined, 
   setTimeout(() => URL.revokeObjectURL(href), 10_000);
 }
 
-/** Retry a failed job, reprocess recordings and export transcripts; each refreshes the library and says what happened. */
+/**
+ * Retry a failed job, reprocess, export and delete recordings; each refreshes the library and says what happened.
+ */
 export function useRecordingActions() {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -154,5 +157,28 @@ export function useRecordingActions() {
     [toast, token],
   );
 
-  return { retryJob, reprocess, exportMany };
+  /** Delete recordings one by one (owners). Returns the ids that went. */
+  const deleteMany = useCallback(
+    async (recs: readonly { id: number; title?: string | null }[], onProgress?: (n: number) => void) => {
+      const gone: number[] = [];
+      const failed: { title: string; message: string }[] = [];
+      for (const r of recs) {
+        try {
+          await data(Recordings.deleteRecording({ client, path: { rid: r.id } }));
+          gone.push(r.id);
+          qc.removeQueries({ queryKey: ["recording", r.id] });
+        } catch (e) {
+          failed.push({ title: r.title || `Recording ${r.id}`, message: (e as Error).message });
+        }
+        onProgress?.(gone.length + failed.length);
+      }
+      toast(deletedToast(gone.length, failed));
+      refresh();
+      void qc.invalidateQueries({ queryKey: ["namespaces"] });
+      return gone;
+    },
+    [client, qc, refresh, toast],
+  );
+
+  return { retryJob, reprocess, exportMany, deleteMany };
 }

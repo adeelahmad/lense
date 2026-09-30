@@ -172,7 +172,10 @@ def continue_run(db, bid, user):
     b = get(db, bid)
     rest = [i for i in b["recordings"] if i not in set(b["started"])]
     for rid in rest:
-        jobs.enqueue(db, rid, b["steps"], by=user, batch=b["id"])
+        try:
+            jobs.enqueue(db, rid, b["steps"], by=user, batch=b["id"])
+        except KeyError:  # deleted since the run was planned
+            continue
     db.q("UPDATE $r SET started = $s, status = 'running'", r=R("batch", b["id"]), s=b["recordings"])
     return len(rest)
 
@@ -200,9 +203,14 @@ def cancel(db, bid):
 
 def retry_failed(db, bid):
     ids = db.values("SELECT VALUE record::id(id) FROM job WHERE batch = $b AND status = 'failed'", b=int(bid))
+    done = 0
     for jid in ids:
-        jobs.retry(db, jid)
-    return len(ids)
+        try:
+            jobs.retry(db, jid)
+            done += 1
+        except ValueError:  # its recording was deleted
+            continue
+    return done
 
 
 def results(db, bid, key=None):

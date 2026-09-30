@@ -10,14 +10,14 @@ import pathlib
 from datetime import date
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 from fastapi.responses import Response
 
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_url, sign_urls
 from app.api.streaming import file_response, range_response
 from app.domain import access as acc
-from app.domain import analyze, auth, ipgroups, jobs, library, render, sources, store, video
+from app.domain import analyze, auth, deletion, ipgroups, jobs, library, render, sources, store, video
 from app.domain import metadata as md
 from app.domain.store import API, DB
 from app.schemas.common import AccessLevel, Ok
@@ -156,6 +156,25 @@ def update_recording(rid: int, body: RecordingUpdate, acl: Acl, user: Writer, db
         if rec.get("analyzed_at"):
             jobs.enqueue(db, rid, ["report"], by=user.email)
     return get_recording(rid, acl, db, cfg)
+
+
+@router.delete("/{rid}")
+def delete_recording(rid: int, acl: Acl, user: Writer, db: Db, cfg: Cfg, request: Request, tasks: BackgroundTasks) -> Ok:
+    """Delete a recording (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and
+    outputs, shares, permissions and requests for access. The media file stays where it is, and scans and watched
+    folders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job
+    is running on it, this answers 409. Audited as `recording.delete`."""
+    acl.recording(rid, "owner")
+    try:
+        with domain_errors():
+            gone = deletion.delete(db, cfg, rid, user.email)
+    except deletion.Running as e:
+        raise HTTPException(409, str(e)) from None
+    auth.audit(db, user.as_audit(), "recording.delete", f"recording:{rid}", gone)
+    request.app.state.graph_cache.clear()
+    if gone.get("namespace"):
+        tasks.add_task(render.refresh_overview, db, cfg, gone["namespace"])
+    return Ok()
 
 
 def _access(db: DB, rid: int) -> RecordingAccess:

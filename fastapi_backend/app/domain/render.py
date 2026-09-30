@@ -9,6 +9,7 @@ import math
 import os
 import pathlib
 import re
+import threading
 import urllib.parse
 from collections import Counter, defaultdict
 
@@ -337,6 +338,16 @@ def report_namespace(db, cfg, nid, out_dir, links):
     return out
 
 
+def _links(out_dir, links=None):
+    """The recording report pages in a namespace's folder: {recording id: file name}."""
+    links = links if links is not None else {}
+    for p in out_dir.glob("*-*.html"):
+        m = re.search(r"-(\d+)\.html$", p.name)
+        if m:
+            links.setdefault(int(m.group(1)), p.name)
+    return links
+
+
 def build_reports(db, cfg, ns=None, rid=None, audio_mode=None, log=print):
     base, mode, written = pathlib.Path(cfg["data_dir"]) / "reports", audio_mode or cfg["reports"]["audio"], []
     spaces = db.rows("SELECT record::id(id) AS id, name FROM space" + (" WHERE name = $n" if ns else ""), n=ns)
@@ -349,14 +360,40 @@ def build_reports(db, cfg, ns=None, rid=None, audio_mode=None, log=print):
             p = report_recording(db, cfg, r["id"], out_dir, mode)
             links[r["id"]] = p.name
             written.append(p)
-        for p in out_dir.glob("*-*.html"):
-            m = re.search(r"-(\d+)\.html$", p.name)
-            if m:
-                links.setdefault(int(m.group(1)), p.name)
+        _links(out_dir, links)
         if links:
             written.append(report_namespace(db, cfg, n["id"], out_dir, links))
             log(f"  {n['name']}: {len(links)} recording report(s) and an overview")
     return written
+
+
+_OVERVIEWS: dict[str, bool] = {}  # namespace -> asked again while its overview was being rewritten
+_OL = threading.Lock()
+
+
+def refresh_overview(db, cfg, ns):
+    """Rewrite a namespace's report overview (index.html) after recordings went away, when it has one. Calls that come
+    while a rewrite runs make it run once more, instead of running alongside it."""
+    with _OL:
+        if ns in _OVERVIEWS:
+            _OVERVIEWS[ns] = True
+            return
+        _OVERVIEWS[ns] = False
+    try:
+        while True:
+            out_dir = pathlib.Path(cfg["data_dir"]) / "reports" / ns
+            row = db.one("SELECT record::id(id) AS id FROM space WHERE name = $n", n=ns)
+            if row and (out_dir / "index.html").exists():
+                report_namespace(db, cfg, row["id"], out_dir, _links(out_dir))
+            with _OL:
+                if not _OVERVIEWS[ns]:
+                    del _OVERVIEWS[ns]
+                    return
+                _OVERVIEWS[ns] = False
+    except BaseException:
+        with _OL:
+            _OVERVIEWS.pop(ns, None)
+        raise
 
 
 def _ts(ms, sep):

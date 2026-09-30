@@ -52,25 +52,33 @@ function BarButton({
 
 /**
  * Library L2: the floating bulk bar. Actions you can't take in one of the selected namespaces are disabled with a count;
- * Move, Tag and Delete have no backend yet and say so.
+ * Move and Tag have no backend yet and say so.
  */
 export function BulkBar({
   selected,
   blocked,
+  notOwner,
   onReprocess,
   onExport,
+  onDelete,
   onClear,
 }: {
   selected: number;
   /** How many selected recordings are in namespaces where this person can't edit, and where. */
   blocked: { count: number; namespaces: string[] };
+  /** The same for owning: only owners delete. */
+  notOwner: { count: number; namespaces: string[] };
   onReprocess: () => void;
   onExport: (fmt: ExportFormat) => void;
+  onDelete: () => void;
   onClear: () => void;
 }) {
   if (!selected) return null;
   const roleReason = blocked.count
     ? `You’re a viewer in ${blocked.namespaces.join(", ")}: ${count(blocked.count)} of ${count(selected)} selected can’t be changed. Ask an owner for editor access.`
+    : undefined;
+  const deleteReason = notOwner.count
+    ? `Only owners delete recordings. You don’t own ${notOwner.namespaces.join(", ")}: ${count(notOwner.count)} of ${count(selected)} selected can’t be deleted.`
     : undefined;
   return (
     <div className="pointer-events-none sticky bottom-5 z-30 mt-4 flex justify-center px-4">
@@ -103,12 +111,7 @@ export function BulkBar({
             ))}
           </MenuContent>
         </Menu>
-        <BarButton
-          icon={Trash2}
-          label="Delete"
-          danger
-          disabledReason="Not available yet: recordings can’t be deleted from the app."
-        />
+        <BarButton icon={Trash2} label="Delete" danger onClick={onDelete} disabledReason={deleteReason} />
         <button
           type="button"
           onClick={onClear}
@@ -228,6 +231,77 @@ export function ReprocessDialog({
           );
         })}
       </fieldset>
+    </Dialog>
+  );
+}
+
+/** Confirm deleting recordings (owners): what goes with them, and that their media files stay. */
+export function DeleteDialog({
+  open,
+  onOpenChange,
+  rows,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  rows: readonly { id: number; title?: string | null }[];
+  /** Deletes them, reporting how many are done so far. */
+  onConfirm: (onProgress: (n: number) => void) => Promise<unknown>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(0);
+  useEffect(() => {
+    if (open) {
+      setBusy(false);
+      setDone(0);
+    }
+  }, [open]);
+  const n = rows.length;
+  const name = (r: { id: number; title?: string | null }) => r.title || `Recording ${r.id}`;
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => !busy && onOpenChange(o)}
+      title={n === 1 ? `Delete “${name(rows[0])}”?` : `Delete ${plural(n, "recording")}?`}
+      description="Their transcripts and analysis, chapters, reports and outputs, shares and permissions go with them. This can’t be undone."
+      actions={
+        <>
+          <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            disabled={busy || !n}
+            onClick={async () => {
+              setBusy(true);
+              await onConfirm(setDone);
+              setBusy(false);
+              onOpenChange(false);
+            }}
+          >
+            {busy
+              ? `Deleting… ${count(done)} of ${count(n)}`
+              : n === 1
+                ? "Delete recording"
+                : `Delete ${plural(n, "recording")}`}
+          </Button>
+        </>
+      }
+    >
+      {n > 1 && (
+        <ul aria-label="Recordings to delete" className="flex flex-col gap-1 text-[13.5px] text-fg">
+          {rows.slice(0, 5).map((r) => (
+            <li key={r.id} className="truncate">
+              {name(r)}
+            </li>
+          ))}
+          {n > 5 && <li className="text-fg-muted">and {plural(n - 5, "more", "more")}</li>}
+        </ul>
+      )}
+      <p className="rounded-md bg-surface px-3 py-2.5 text-[12.5px] leading-[1.45] text-fg-secondary">
+        The media files stay where they are, and scans and watched folders won’t import them again. Importing one on
+        purpose brings it back.
+      </p>
     </Dialog>
   );
 }

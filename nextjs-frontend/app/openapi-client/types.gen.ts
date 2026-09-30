@@ -6875,6 +6875,36 @@ export type ListRecordingsResponses = {
 
 export type ListRecordingsResponse = ListRecordingsResponses[keyof ListRecordingsResponses];
 
+export type DeleteRecordingData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}";
+};
+
+export type DeleteRecordingErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteRecordingError = DeleteRecordingErrors[keyof DeleteRecordingErrors];
+
+export type DeleteRecordingResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteRecordingResponse = DeleteRecordingResponses[keyof DeleteRecordingResponses];
+
 export type GetRecordingData = {
   body?: never;
   path: {

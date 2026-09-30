@@ -8,6 +8,7 @@
 import type { Job, ListRecordingsData, RecordingSummary, Speaker } from "@/app/openapi-client/types.gen";
 import type { Tone } from "@/components/ui/badge";
 import { STEP_LABEL } from "@/components/ui/loop";
+import { plural } from "@/lib/format";
 
 /** Recording statuses as the backend names them, in pipeline order. */
 export const STATUSES = ["new", "transcribed", "diarized", "analyzed", "error"] as const;
@@ -350,4 +351,35 @@ export function speakerChoices(speakers: Pick<Speaker, "id" | "display" | "recor
 export function rangeIds(ids: number[], from: number, to: number): number[] {
   const [a, b] = from < to ? [from, to] : [to, from];
   return ids.slice(Math.max(0, a), b + 1);
+}
+
+/** Selected rows in namespaces where this person lacks a role an action needs: how many, and where. */
+export function blockedBy(
+  rows: readonly { namespace?: string | null }[],
+  allowed: (ns: string | null | undefined) => boolean,
+): { count: number; namespaces: string[] } {
+  const out = rows.filter((r) => !allowed(r.namespace));
+  return { count: out.length, namespaces: [...new Set(out.map((r) => r.namespace ?? "?"))] };
+}
+
+/** The toast after deleting recordings: how many went, and why the first one that didn't. */
+export function deletedToast(
+  done: number,
+  failed: readonly { title: string; message: string }[],
+): { title: string; body: string; tone: "green" | "red" } {
+  if (!failed.length)
+    return {
+      title: `Deleted ${plural(done, "recording")}`,
+      body: "The media files stay where they are, and won’t be imported again.",
+      tone: "green",
+    };
+  const total = done + failed.length;
+  const why = `${failed[0].title}: ${failed[0].message}${failed.length > 1 ? ` (and ${failed.length - 1} more)` : ""}`;
+  return {
+    title: done
+      ? `Deleted ${done} of ${plural(total, "recording")}`
+      : `Couldn’t delete ${total === 1 ? "the recording" : plural(total, "recording")}`,
+    body: why,
+    tone: "red",
+  };
 }

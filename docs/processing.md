@@ -4,7 +4,8 @@ How recordings move through Lens: where they come from, what each step does, and
 
 ## Steps
 
-- `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped.
+- `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped,
+  and so are files whose recording someone deleted (at the same path, or a copy of the same file).
 - `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. A file that fails is marked and the batch carries on.
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
   matches voiceprints against the namespace's speakers.
@@ -113,7 +114,7 @@ WebDAV, or a folder on this machine. A watched folder maps a path on a source to
 patterns, audio and/or transcripts, a polling interval, how long a file must be unchanged before it is picked up, and
 whether files already there are imported (backfill). New audio is queued for the full pipeline; new transcripts are
 imported and analysed. Audio stays where it is: it is copied to a cache for processing and streamed from the source for
-playback.
+playback. A file whose recording someone deleted isn't imported again, even when it changes.
 
 - Credentials are encrypted in the database (AES-GCM, key from `ARCHIVE_SECRET_KEY` or `data_dir/secret.key`) and given
   to rclone in a private temporary config file per call. For Dropbox, Drive and OneDrive, paste the token from

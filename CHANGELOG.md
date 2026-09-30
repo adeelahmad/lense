@@ -21,6 +21,17 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - `speaker` takes speaker ids. Speakers belong to one namespace, so the web app's speaker filter lists everyone
       who speaks in the namespaces in scope by name and sends every id with that name.
     - The Needs attention and Processing tab counts come from the server too.
+- **Delete recordings.** Owners delete recordings from the Library's bulk bar, after a confirmation that lists them;
+  `DELETE /api/v1/recordings/{rid}`, audited as `recording.delete` (`docs/api.md`).
+    - Everything Lens made from a recording goes with it: transcript, analysis, frames, outputs and reports, shares,
+      permissions and requests for access, and its place in IP groups, fixed collections, chat scopes and batch runs
+      that haven't reached it. Unnamed speakers and faces only it had go too; named ones stay.
+    - The media file stays where it is, and isn't imported again: scans skip the same path or the same file elsewhere,
+      watched folders skip the same remote file. Importing it on purpose brings it back.
+    - Its waiting jobs are cancelled; a running job holds the delete back (409), and a worker whose recording is gone
+      stops. A deleted recording's failed jobs can't be retried, batch runs continue without it, and undoing an entity
+      merge no longer brings back mentions in deleted recordings. Public recordings show up as a Delete in IIIF change
+      discovery; the namespace's report overview is rewritten in the background.
 - **Rename recordings.** Editors rename a recording from the pencil next to its title (or ⋯ → Rename on a phone):
   `PATCH /api/v1/recordings/{rid}` with `title`, audited as `recording.rename`. The report page is renamed with it,
   so its link keeps working, and a report job rewrites the title inside; IIIF harvesters see an Update.

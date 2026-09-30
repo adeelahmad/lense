@@ -86,6 +86,9 @@ import type {
   ListRecordingsData,
   ListRecordingsResponses,
   ListRecordingsErrors,
+  DeleteRecordingData,
+  DeleteRecordingResponses,
+  DeleteRecordingErrors,
   GetRecordingData,
   GetRecordingResponses,
   GetRecordingErrors,
@@ -927,6 +930,22 @@ export class Recordings {
   ) {
     return (options?.client ?? client).get<ListRecordingsResponses, ListRecordingsErrors, ThrowOnError>({
       url: "/api/v1/recordings",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Recording
+   * Delete a recording (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and
+   * outputs, shares, permissions and requests for access. The media file stays where it is, and scans and watched
+   * folders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job
+   * is running on it, this answers 409. Audited as `recording.delete`.
+   */
+  public static deleteRecording<ThrowOnError extends boolean = false>(
+    options: Options<DeleteRecordingData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<DeleteRecordingResponses, DeleteRecordingErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}",
       ...options,
     });
   }

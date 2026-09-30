@@ -21,7 +21,7 @@ import urllib.parse
 import urllib.request
 from collections import Counter
 
-from . import access as acc, ingest, metadata as md, pipelines, render, settings, speakers as spk, store
+from . import access as acc, deletion, ingest, metadata as md, pipelines, render, settings, speakers as spk, store
 
 R = store.R
 P3 = "http://iiif.io/api/presentation/3/context.json"
@@ -743,6 +743,7 @@ def import_manifest(db, cfg, url, ns, keep_transcripts=True, user=None, log=prin
         title = c["label"] or p["label"] or "Imported recording"
         if len(usable) > 1 and not c["label"]:
             title = f"{title} ({n})"
+        deletion.forget(db, sid, fp)  # imported on purpose: a deleted recording may come back
         rid = db.next_id("recording")
         dur = int((c.get("duration") or (c["audio"] or {}).get("duration") or 0) * 1000) or None
         db.q(

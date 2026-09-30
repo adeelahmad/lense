@@ -25,7 +25,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | "Edited by me" tab | `?edited_by=me` |
 | Source and language filters | `path`/`remote` and `language` in `RecordingSummary` |
 | Move to another namespace | `POST /recordings/{id}/move {namespace, rediarize}` |
-| Delete | `DELETE /recordings/{id}` |
 | Bulk export as one file | `POST /recordings/export` returning a zip |
 | Attach audio to a transcript; upload audio/video | a resumable upload endpoint (tus or S3 multipart) |
 | Notes | notes create/read/update/delete |

@@ -131,12 +131,15 @@ def envelope(x, bins=1600):
 
 
 def scan(db, cfg, only=None, log=print):
+    from . import deletion
+
     exts = {e.lower() for e in cfg["audio"]["extensions"]}
-    stats = {"new": 0, "known": 0, "changed": 0, "duplicate": 0}
+    stats = {"new": 0, "known": 0, "changed": 0, "duplicate": 0, "deleted": 0}
     for name, spec in cfg["namespaces"].items():
         if only and name != only:
             continue
         nid = store.ns_id(db, name)
+        gone_paths, gone_fps = deletion.gone(db, nid)  # recordings someone deleted stay deleted
         for root in spec["paths"]:
             rootp = pathlib.Path(root)
             if not rootp.exists():
@@ -152,7 +155,13 @@ def scan(db, cfg, only=None, log=print):
                 if row and row.get("size") == st.st_size and abs((row.get("mtime") or 0) - st.st_mtime) < 1:
                     stats["known"] += 1
                     continue
+                if not row and str(p) in gone_paths:
+                    stats["deleted"] += 1
+                    continue
                 fp = fingerprint(p)
+                if not row and fp in gone_fps:
+                    stats["deleted"] += 1
+                    continue
                 dup = db.one("SELECT record::id(id) AS id, path FROM recording WHERE space = $s AND fingerprint = $f LIMIT 1", s=nid, f=fp)
                 if dup and dup["path"] != str(p) and pathlib.Path(store.resolve_path(cfg, dup["path"])).exists():
                     stats["duplicate"] += 1
@@ -790,12 +799,13 @@ def read_transcript(path, fmt="auto"):
 
 
 def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engine):
-    from . import speakers as spk
+    from . import deletion, speakers as spk
 
     segs = t["segments"]
     if not segs:
         raise SystemExit("no transcript text found")
     nid = store.ns_id(db, ns)
+    deletion.forget(db, nid, fp, src)  # imported on purpose: a deleted recording may come back
     dur, ch, env = (None, None, None)
     if audio:
         dur, ch = probe(audio)

@@ -481,6 +481,9 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS access_request SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS access_request_recording ON access_request FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS access_request_status ON access_request FIELDS status",
+    # a deleted recording's path, fingerprint and remote file, which scans and watched folders skip (domain/deletion.py)
+    "DEFINE TABLE IF NOT EXISTS deleted_recording SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS deleted_recording_space ON deleted_recording FIELDS space",
     # address ranges whose visitors see all of a namespace's recordings, or chosen ones (docs/access.md): ip_group:<n>
     "DEFINE TABLE IF NOT EXISTS ip_group SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS ip_group_space ON ip_group FIELDS space",
