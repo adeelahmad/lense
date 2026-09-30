@@ -62,6 +62,7 @@ nav:
   - Home: README.md
   - Get started: get-started.md
   - Architecture: architecture.md
+  - Web app: frontend.md
   - Authentication: authentication.md
   - Database: database.md
   - Configuration: configuration.md
@@ -70,6 +71,7 @@ nav:
   - Chat and batch runs: assistant.md
   - IIIF: iiif.md
   - API: api.md
+  - API work the design needs: backend-gaps.md
   - Deployment: deployment.md
   - Technology: technology-selection.md
   - Contributing: contributing.md
