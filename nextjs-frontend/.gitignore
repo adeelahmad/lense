@@ -37,3 +37,5 @@ yarn-error.log*
 next-env.d.ts
 
 !/lib/
+# per-developer dev server build folders (NEXT_DIST_DIR)
+/.next-*/
