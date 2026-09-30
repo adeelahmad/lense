@@ -1,0 +1,34 @@
+:root { --paper: #F3F5F7; --panel: #FFFFFF; --ink: #15202B; --muted: #5B6875; --rule: #D8DEE4; --soft: #E8ECF0; --here: #FF5A1F; color-scheme: light dark; }
+@media (prefers-color-scheme: dark) { :root { --paper: #11171D; --panel: #18212A; --ink: #E4EAF0; --muted: #8E9BA8; --rule: #2A3540; --soft: #202A34; --here: #FF7A45; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: inherit; }
+.rp { max-width: 70rem; margin: 0 auto; padding: 28px 22px 64px; }
+.rp-kicker { margin: 0; color: var(--muted); font-size: 13px; }
+h1 { font: 600 28px/1.2 "Iowan Old Style", Charter, Georgia, serif; margin: 6px 0 6px; letter-spacing: -.01em; }
+.rp-facts { color: var(--muted); margin: 0 0 22px; }
+h2 { font-size: 15px; margin: 0 0 10px; }
+.rp-card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px 20px; margin: 0 0 16px; }
+.rp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.rp-grid .rp-card { margin: 0; }
+.rp-summary p { font: 16px/1.6 "Iowan Old Style", Charter, Georgia, serif; margin: 0 0 8px; }
+.rp-tags { color: var(--muted); font-size: 13px; }
+.rp-bar { display: grid; grid-template-columns: minmax(0, 10rem) minmax(0, 1fr) auto; gap: 10px; align-items: center; margin: 6px 0; font-size: 13.5px; }
+.rp-bar i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; }
+.rp-bar span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-track { background: var(--soft); height: 8px; border-radius: 4px; overflow: hidden; } .rp-track b { display: block; height: 100%; }
+.rp-num { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.rp-stack { display: flex; height: 14px; border-radius: 4px; overflow: hidden; margin: 4px 0 10px; }
+.rp-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); }
+.rp-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+.rp-cloud svg, .rp-graph svg { width: 100%; height: auto; display: block; color: var(--ink); }
+.rp-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.rp-table th { text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--rule); padding: 6px 8px; }
+.rp-table td { border-bottom: 1px solid var(--soft); padding: 7px 8px; vertical-align: top; }
+.rp-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rp-chips { display: flex; flex-wrap: wrap; gap: 6px; } .rp-chips span { border: 1px solid var(--rule); border-radius: 5px; padding: 1px 8px; font-size: 13px; }
+.rp-chips small { color: var(--muted); margin-left: 4px; }
+.rp-months { display: flex; align-items: stretch; gap: 4px; height: 90px; max-width: 40rem; } .rp-months div { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; min-width: 0; }
+.rp-months b { width: 100%; background: var(--here); border-radius: 3px 3px 0 0; min-height: 2px; } .rp-months span { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.rp-foot { color: var(--muted); font-size: 12px; margin-top: 30px; }
+.table-wrap { overflow-x: auto; }

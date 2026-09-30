@@ -1,0 +1,58 @@
+.ap { --ap-ink: #15202B; --ap-muted: #5B6875; --ap-rule: #D8DEE4; --ap-soft: #E8ECF0; --ap-panel: #FFFFFF; --ap-quiet: #C3CBD3; --ap-here: #FF5A1F;
+  --ap-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; --ap-serif: "Iowan Old Style", Charter, Georgia, "Times New Roman", serif;
+  color: var(--ap-ink); font: 14px/1.5 var(--ap-sans); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+@media (prefers-color-scheme: dark) { .ap { --ap-ink: #E4EAF0; --ap-muted: #8E9BA8; --ap-rule: #2A3540; --ap-soft: #202A34; --ap-panel: #18212A; --ap-quiet: #46525E; --ap-here: #FF7A45; } }
+.ap button { font: inherit; color: inherit; cursor: pointer; }
+.ap-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ap-play { width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--ap-here); color: #fff !important; font-size: 14px; }
+.ap-play:disabled { background: var(--ap-quiet); cursor: default; }
+.ap-clock { font-variant-numeric: tabular-nums; color: var(--ap-muted); }
+.ap-rate { border: 1px solid var(--ap-rule); background: var(--ap-panel); color: inherit; border-radius: 5px; padding: 2px 4px; font: inherit; }
+.ap-now { color: var(--ap-muted); font-size: 12.5px; }
+.ap-secs { position: relative; height: 18px; margin-top: 4px; }
+.ap-sb { position: absolute; top: 0; height: 18px; border: 0; border-radius: 3px; background: var(--ap-soft); color: var(--ap-muted); font-size: 11px; line-height: 18px;
+  padding: 0 5px; text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ap-sb:hover { color: var(--ap-ink); background: var(--ap-rule); }
+.ap-sb b { font-weight: 600; }
+.ap-marks { position: relative; height: 20px; }
+.ap-mk { position: absolute; top: 1px; transform: translateX(-50%); border: 0; background: none; padding: 0; font-size: 14px; line-height: 18px; }
+.ap-mk:hover { transform: translateX(-50%) scale(1.25); }
+.ap-rail { position: relative; height: 64px; cursor: pointer; touch-action: none; border-radius: 4px; }
+.ap-rail:focus-visible { outline: 2px solid var(--ap-here); outline-offset: 2px; }
+.ap-rail canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ap-tip { position: absolute; bottom: 100%; margin-bottom: 26px; max-width: 320px; background: var(--ap-ink); color: var(--ap-panel); font-size: 12px; line-height: 1.4;
+  padding: 5px 8px; border-radius: 6px; pointer-events: none; z-index: 3; }
+.ap-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--ap-muted); }
+.ap-legend i, .ap-spk i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+.ap-tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--ap-rule); padding: 8px 0 6px; margin-top: 4px; }
+.ap-tabs button { border: 1px solid var(--ap-rule); background: var(--ap-panel); border-radius: 6px; padding: 3px 10px; }
+.ap-tabs button[aria-selected="true"] { background: var(--ap-ink); color: var(--ap-panel); border-color: var(--ap-ink); }
+.ap-find { flex: 1 1 160px; min-width: 120px; border: 1px solid var(--ap-rule); background: var(--ap-panel); color: inherit; border-radius: 6px; padding: 4px 8px; font: inherit; }
+.ap-found { color: var(--ap-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ap-follow { color: var(--ap-muted); font-size: 12px; display: flex; align-items: center; gap: 4px; }
+.ap-body { max-height: var(--ap-h, 60vh); overflow: auto; padding: 4px 2px 12px; scrollbar-width: thin; }
+.ap-sec { display: flex; gap: 8px; align-items: baseline; font: 600 13.5px/1.3 var(--ap-sans); margin: 18px 0 6px; cursor: pointer; }
+.ap-sec span { color: var(--ap-muted); } .ap-sec time { color: var(--ap-muted); font-weight: 400; font-size: 12px; font-variant-numeric: tabular-nums; }
+.ap-turn { border-left: 3px solid var(--sc); padding: 2px 0 2px 12px; margin: 8px 0; }
+.ap-who { display: flex; gap: 10px; align-items: baseline; font-size: 12.5px; }
+.ap-who b { font-weight: 600; } .ap-t { color: var(--ap-muted); text-decoration: none; font-variant-numeric: tabular-nums; } .ap-t:hover { text-decoration: underline; }
+.ap-turn p { margin: 2px 0 0; font: 16px/1.62 var(--ap-serif); overflow-wrap: anywhere; }
+.ap-seg { cursor: pointer; border-radius: 3px; transition: background .15s; }
+.ap-seg:hover { background: var(--ap-soft); }
+.ap-seg.on { background: color-mix(in srgb, var(--ap-here) 16%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ap-here) 16%, transparent); }
+.ap-seg mark { background: color-mix(in srgb, var(--ap-here) 32%, transparent); color: inherit; border-radius: 2px; }
+.ap-emo { font-size: 13px; margin-right: 3px; }
+.ap-empty, .ap-hint { color: var(--ap-muted); font-size: 12.5px; }
+.ap-ixgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 24px; padding-top: 6px; }
+.ap-ixgrid h4 { margin: 8px 0 6px; font-size: 13px; } .ap-ixgrid h5 { margin: 8px 0 4px; font-size: 12.5px; }
+.ap-wide { grid-column: 1 / -1; } .ap-wide p { margin: 0; font: 15px/1.55 var(--ap-serif); }
+.ap-list { margin: 0; padding-left: 18px; font-size: 13px; } .ap-list li { margin: 3px 0; } .ap-list time { color: var(--ap-muted); margin-left: 6px; font-size: 12px; }
+.ap-list a { color: inherit; }
+.ap-spk { display: grid; grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%; border: 0; background: none; padding: 3px 0; text-align: left; font-size: 13px; }
+.ap-spk span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ap-spk b { height: 6px; border-radius: 3px; } .ap-spk small { color: var(--ap-muted); font-variant-numeric: tabular-nums; }
+.ap-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.ap-chips button { border: 1px solid var(--ap-rule); background: var(--ap-panel); border-radius: 5px; padding: 1px 7px; font-size: 12.5px; }
+.ap-chips button.on { border-color: var(--ap-ink); background: var(--ap-soft); }
+.ap-chips small { color: var(--ap-muted); margin-left: 4px; }
+.ap-ment { margin-top: 6px; }
+@media (prefers-reduced-motion: reduce) { .ap-seg { transition: none; } }
