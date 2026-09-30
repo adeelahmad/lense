@@ -95,6 +95,9 @@ import type {
   UpdateRecordingData,
   UpdateRecordingResponses,
   UpdateRecordingErrors,
+  MoveRecordingData,
+  MoveRecordingResponses,
+  MoveRecordingErrors,
   GetRecordingAccessData,
   GetRecordingAccessResponses,
   GetRecordingAccessErrors,
@@ -969,6 +972,27 @@ export class Recordings {
   ) {
     return (options.client ?? client).patch<UpdateRecordingResponses, UpdateRecordingErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Move Recording
+   * Move a recording to another namespace (owners of its namespace, editors of the new one).
+   *
+   * It keeps its transcript, media, outputs, permissions and share links (`revoke_shares` stops them working); its IIIF
+   * manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and faces are
+   * matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and analysis
+   * runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409 when the
+   * new namespace has the same file or a job is running on it. Audited as `recording.move`.
+   */
+  public static moveRecording<ThrowOnError extends boolean = false>(options: Options<MoveRecordingData, ThrowOnError>) {
+    return (options.client ?? client).post<MoveRecordingResponses, MoveRecordingErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/move",
       ...options,
       headers: {
         "Content-Type": "application/json",

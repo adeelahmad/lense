@@ -21,6 +21,18 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - `speaker` takes speaker ids. Speakers belong to one namespace, so the web app's speaker filter lists everyone
       who speaks in the namespaces in scope by name and sends every id with that name.
     - The Needs attention and Processing tab counts come from the server too.
+- **Move recordings to another namespace.** Owners move recordings from the Library's bulk bar to a namespace they
+  edit: `POST /api/v1/recordings/{rid}/move`, audited as `recording.move` (`docs/api.md`).
+    - They keep their transcripts, media, outputs, permissions and share links; a checkbox stops the share links
+      working.
+    - Their IIIF manifests stay as they were: the access, open parts and metadata defaults they had from their old
+      namespace are pinned on them wherever the new one would change them (kept in their metadata history).
+    - Speakers and faces are matched by name in the new namespace, or start there with each recording's voice and
+      face; a checkbox identifies them again from their voices instead (audio only). Analysis runs again there, so
+      entity mentions (and corrections to them) start over.
+    - Report pages and exports move to the new namespace's folders; the old namespace's scans and watched folders don't
+      import the files again, and its IP groups no longer open them. 409 when the new namespace already has the same
+      file, or while a job is running.
 - **Delete recordings.** Owners delete recordings from the Library's bulk bar, after a confirmation that lists them;
   `DELETE /api/v1/recordings/{rid}`, audited as `recording.delete` (`docs/api.md`).
     - Everything Lens made from a recording goes with it: transcript, analysis, frames, outputs and reports, shares,

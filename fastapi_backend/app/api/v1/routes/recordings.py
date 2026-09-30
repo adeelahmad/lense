@@ -17,7 +17,7 @@ from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_url, sign_urls
 from app.api.streaming import file_response, range_response
 from app.domain import access as acc
-from app.domain import analyze, auth, deletion, ipgroups, jobs, library, render, sources, store, video
+from app.domain import analyze, auth, deletion, ipgroups, jobs, library, moving, render, sources, store, video
 from app.domain import metadata as md
 from app.domain.store import API, DB
 from app.schemas.common import AccessLevel, Ok
@@ -35,6 +35,8 @@ from app.schemas.recordings import (
     RecordingAccess,
     RecordingAccessUpdate,
     RecordingIpGroup,
+    RecordingMove,
+    RecordingMoved,
     RecordingSort,
     RecordingState,
     RecordingSummary,
@@ -175,6 +177,30 @@ def delete_recording(rid: int, acl: Acl, user: Writer, db: Db, cfg: Cfg, request
     if gone.get("namespace"):
         tasks.add_task(render.refresh_overview, db, cfg, gone["namespace"])
     return Ok()
+
+
+@router.post("/{rid}/move")
+def move_recording(
+    rid: int, body: RecordingMove, acl: Acl, user: Writer, db: Db, cfg: Cfg, request: Request, tasks: BackgroundTasks
+) -> RecordingMoved:
+    """Move a recording to another namespace (owners of its namespace, editors of the new one).
+
+    It keeps its transcript, media, outputs, permissions and share links (`revoke_shares` stops them working); its IIIF
+    manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and faces are
+    matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and analysis
+    runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409 when the
+    new namespace has the same file or a job is running on it. Audited as `recording.move`."""
+    acl.recording(rid, "owner")
+    dst = acl.namespace(body.namespace.strip(), "editor")
+    try:
+        with domain_errors():
+            done = moving.move(db, cfg, rid, dst, body.rediarize, body.revoke_shares, user.email)
+    except (deletion.Running, moving.Conflict) as e:
+        raise HTTPException(409, str(e)) from None
+    auth.audit(db, user.as_audit(), "recording.move", f"recording:{rid}", {k: v for k, v in done.items() if k != "job"})
+    request.app.state.graph_cache.clear()
+    tasks.add_task(render.refresh_overview, db, cfg, done["from"])
+    return RecordingMoved(namespace=done["to"], job=done["job"], pinned=done["pinned"], shares_revoked=done["shares_revoked"])
 
 
 def _access(db: DB, rid: int) -> RecordingAccess:

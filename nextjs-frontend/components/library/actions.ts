@@ -6,7 +6,7 @@ import { useCallback } from "react";
 
 import { Jobs, Recordings } from "@/app/openapi-client";
 import { useToast } from "@/components/ui/toast";
-import { deletedToast } from "@/components/library/model";
+import { deletedToast, movedToast } from "@/components/library/model";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
 
@@ -180,5 +180,43 @@ export function useRecordingActions() {
     [client, qc, refresh, toast],
   );
 
-  return { retryJob, reprocess, exportMany, deleteMany };
+  /** Move recordings to another namespace one by one (owners where they are, editors there). Returns the ids moved. */
+  const moveMany = useCallback(
+    async (
+      recs: readonly { id: number; title?: string | null; namespace?: string | null; media_kind?: string | null }[],
+      to: string,
+      opts: { rediarize: boolean; revokeShares: boolean },
+      onProgress?: (n: number) => void,
+    ) => {
+      const moved: number[] = [];
+      const failed: { title: string; message: string }[] = [];
+      for (const r of recs) {
+        try {
+          await data(
+            Recordings.moveRecording({
+              client,
+              path: { rid: r.id },
+              body: {
+                namespace: to,
+                rediarize: opts.rediarize && r.media_kind !== "transcript",
+                revoke_shares: opts.revokeShares,
+              },
+            }),
+          );
+          moved.push(r.id);
+          void qc.invalidateQueries({ queryKey: ["recording", r.id] });
+        } catch (e) {
+          failed.push({ title: r.title || `Recording ${r.id}`, message: (e as Error).message });
+        }
+        onProgress?.(moved.length + failed.length);
+      }
+      toast(movedToast(moved.length, to, failed));
+      refresh();
+      void qc.invalidateQueries({ queryKey: ["namespaces"] });
+      return moved;
+    },
+    [client, qc, refresh, toast],
+  );
+
+  return { retryJob, reprocess, exportMany, deleteMany, moveMany };
 }

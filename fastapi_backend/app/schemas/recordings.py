@@ -159,6 +159,23 @@ class RecordingIpGroup(ResponseModel):
     opens: bool = Field(description="visitors from its addresses see all of this recording")
 
 
+class RecordingMove(RequestModel):
+    namespace: str = Field(min_length=1, description="the namespace to move it to")
+    rediarize: bool = Field(
+        False, description="identify its speakers again from their voices in the new namespace (audio only); else matched by name"
+    )
+    revoke_shares: bool = Field(False, description="stop its share links working; otherwise they keep working")
+
+
+class RecordingMoved(Ok):
+    namespace: str
+    job: int = Field(description="the job that analyses it again in the new namespace")
+    pinned: list[str] = Field(
+        default_factory=list, description="what it had from its old namespace and keeps: access, open parts, metadata defaults"
+    )
+    shares_revoked: int = 0
+
+
 class PermissionAdd(RequestModel):
     email: str = Field(min_length=3, max_length=320, description="the address of an account in this archive")
 

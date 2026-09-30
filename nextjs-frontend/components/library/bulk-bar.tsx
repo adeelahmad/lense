@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { EXPORT_FORMATS, type ExportFormat } from "@/components/library/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { Checkbox, Field, Select } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { count, plural } from "@/lib/format";
@@ -52,24 +53,29 @@ function BarButton({
 
 /**
  * Library L2: the floating bulk bar. Actions you can't take in one of the selected namespaces are disabled with a count;
- * Move and Tag have no backend yet and say so.
+ * Tag has no backend yet and says so.
  */
 export function BulkBar({
   selected,
   blocked,
   notOwner,
+  moveTargets,
   onReprocess,
   onExport,
+  onMove,
   onDelete,
   onClear,
 }: {
   selected: number;
   /** How many selected recordings are in namespaces where this person can't edit, and where. */
   blocked: { count: number; namespaces: string[] };
-  /** The same for owning: only owners delete. */
+  /** The same for owning: only owners move and delete. */
   notOwner: { count: number; namespaces: string[] };
+  /** Namespaces the selection can move to. */
+  moveTargets: string[];
   onReprocess: () => void;
   onExport: (fmt: ExportFormat) => void;
+  onMove: () => void;
   onDelete: () => void;
   onClear: () => void;
 }) {
@@ -80,6 +86,11 @@ export function BulkBar({
   const deleteReason = notOwner.count
     ? `Only owners delete recordings. You don’t own ${notOwner.namespaces.join(", ")}: ${count(notOwner.count)} of ${count(selected)} selected can’t be deleted.`
     : undefined;
+  const moveReason = notOwner.count
+    ? `Only owners move recordings out of their namespace. You don’t own ${notOwner.namespaces.join(", ")}: ${count(notOwner.count)} of ${count(selected)} selected can’t be moved.`
+    : !moveTargets.length
+      ? "There’s no other namespace you edit to move them to."
+      : undefined;
   return (
     <div className="pointer-events-none sticky bottom-5 z-30 mt-4 flex justify-center px-4">
       <div
@@ -91,11 +102,7 @@ export function BulkBar({
           {count(selected)} selected
         </span>
         <BarButton icon={RefreshCw} label="Reprocess" onClick={onReprocess} disabledReason={roleReason} />
-        <BarButton
-          icon={FolderInput}
-          label="Move"
-          disabledReason="Not available yet: recordings can’t be moved between namespaces."
-        />
+        <BarButton icon={FolderInput} label="Move" onClick={onMove} disabledReason={moveReason} />
         <BarButton icon={Tag} label="Tag" disabledReason="Not available yet: recordings can’t be tagged." />
         <Menu>
           <MenuTrigger className={actionCls}>
@@ -302,6 +309,136 @@ export function DeleteDialog({
         The media files stay where they are, and scans and watched folders won’t import them again. Importing one on
         purpose brings it back.
       </p>
+    </Dialog>
+  );
+}
+
+type MoveRow = { id: number; title?: string | null; namespace?: string | null; media_kind?: string | null };
+
+/**
+ * Move recordings to another namespace (owners where they are, editors there). Their access and IIIF stay as they
+ * were; speakers are matched by name there, or identified again from their voices; share links keep working unless
+ * revoked (docs/api.md).
+ */
+export function MoveDialog({
+  open,
+  onOpenChange,
+  rows,
+  targets,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  rows: readonly MoveRow[];
+  targets: readonly string[];
+  /** Moves them, reporting how many are done so far. */
+  onConfirm: (
+    rows: readonly MoveRow[],
+    to: string,
+    opts: { rediarize: boolean; revokeShares: boolean },
+    onProgress: (n: number) => void,
+  ) => Promise<unknown>;
+}) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const [rediarize, setRediarize] = useState(false);
+  const [revokeShares, setRevokeShares] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(0);
+  useEffect(() => {
+    if (open) {
+      setPicked(null);
+      setRediarize(false);
+      setRevokeShares(false);
+      setBusy(false);
+      setDone(0);
+    }
+  }, [open]);
+  const to = picked && targets.includes(picked) ? picked : (targets[0] ?? "");
+  const moving = rows.filter((r) => r.namespace !== to);
+  const already = rows.length - moving.length;
+  const withAudio = moving.filter((r) => r.media_kind !== "transcript").length;
+  const from = [...new Set(moving.map((r) => r.namespace ?? "?"))].join(", ");
+  const n = moving.length;
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => !busy && onOpenChange(o)}
+      title={
+        rows.length === 1
+          ? `Move “${rows[0].title || `Recording ${rows[0].id}`}”`
+          : `Move ${plural(rows.length, "recording")}`
+      }
+      description="Their transcripts, media, outputs and permissions go with them."
+      actions={
+        <>
+          <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            disabled={busy || !n || !to}
+            disabledReason={!n ? `They’re already in ${to}` : undefined}
+            onClick={async () => {
+              setBusy(true);
+              await onConfirm(moving, to, { rediarize, revokeShares }, setDone);
+              setBusy(false);
+              onOpenChange(false);
+            }}
+          >
+            {busy ? `Moving… ${count(done)} of ${count(n)}` : `Move ${plural(n, "recording")}`}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <Field
+          label="To"
+          hint={already ? `${plural(already, "recording")} already there stay as they are.` : undefined}
+        >
+          {(f) => (
+            <Select
+              id={f.id}
+              aria-describedby={f.describedBy}
+              value={to}
+              onChange={(e) => setPicked(e.target.value)}
+              options={targets.map((t) => ({ value: t, label: t }))}
+            />
+          )}
+        </Field>
+        <Tooltip content={!withAudio ? "Only recordings with audio have voices to identify" : undefined}>
+          <span className="w-fit">
+            <Checkbox
+              checked={rediarize && withAudio > 0}
+              disabled={!withAudio || busy}
+              onCheckedChange={setRediarize}
+              label={
+                <span className="flex flex-col">
+                  <span className="text-[13.5px] font-semibold text-fg">Identify speakers again from their voices</span>
+                  <span className="text-[12px] text-fg-muted">
+                    Against {to || "the new namespace"}’s voiceprints. Otherwise speakers are matched by name.
+                  </span>
+                </span>
+              }
+            />
+          </span>
+        </Tooltip>
+        <Checkbox
+          checked={revokeShares}
+          disabled={busy}
+          onCheckedChange={setRevokeShares}
+          label={
+            <span className="flex flex-col">
+              <span className="text-[13.5px] font-semibold text-fg">Stop their share links working</span>
+              <span className="text-[12px] text-fg-muted">Otherwise links already sent keep working.</span>
+            </span>
+          }
+        />
+        <p className="rounded-md bg-surface px-3 py-2.5 text-[12.5px] leading-[1.45] text-fg-secondary">
+          Their access and IIIF manifests stay as they are: what they had from {from || "their namespace"} is kept on
+          each recording. Analysis runs again in {to || "the new namespace"} to find their entities, and{" "}
+          {from || "their namespace"}’s scans and watched folders won’t import them again.
+        </p>
+      </div>
     </Dialog>
   );
 }

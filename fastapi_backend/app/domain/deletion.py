@@ -7,9 +7,10 @@ permissions, requests for access, and its place in IP groups, fixed collections,
 started it. Speakers and faces that only it had, and that nobody named, go too; named ones stay. Its jobs are cancelled
 (a job that is running has to stop first), and harvesters hear a Delete when it was public.
 
-What stays: the media file, the audit log, IIIF change discovery, and a note (`deleted_recording`) of its path,
+What stays: the media file, the audit log, IIIF change discovery, and a note (`gone_recording`) of its path,
 fingerprint and remote file, which scans and watched folders check. Importing the file on purpose (the Import dialog,
-`lens import`, a IIIF manifest) brings it back and clears the note.
+`lens import`, a IIIF manifest) brings it back and clears the note. Moving a recording to another namespace leaves the
+same note in the namespace it left (domain/moving.py).
 """
 
 from __future__ import annotations
@@ -47,10 +48,10 @@ def _running(db, rid):
     return db.values("SELECT VALUE record::id(id) FROM job WHERE recording = $r AND status = 'running'", r=rid)
 
 
-def _stop_jobs(db, rid):
+def stop_jobs(db, rid, verb="delete"):
     """Cancel the recording's waiting jobs. Raises Running when one is running: it is asked to stop after its step."""
     if _running(db, rid):
-        raise Running("A job is working on it. Cancel it in Activity, or wait until it finishes, then delete it.")
+        raise Running(f"A job is working on it. Cancel it in Activity, or wait until it finishes, then {verb} it.")
     t = store.now()
     db.q(
         "UPDATE job SET status = 'cancelled', finished_at = $t, updated_at = $t WHERE recording = $r AND status IN ['queued', 'paused']",
@@ -100,7 +101,7 @@ def _files(db, cfg, rec, rid, ns):
     return out
 
 
-def _orphans(db, speakers, faces):
+def orphans(db, speakers, faces):
     """Speakers and faces nothing else has, which nobody named: they only existed for the deleted recording."""
     for s in sorted(speakers):
         r = R("speaker", s)
@@ -135,7 +136,7 @@ def delete(db, cfg, rid, by=None):
     rec = db.one("SELECT title, space, path, fingerprint, remote FROM $r", r=R("recording", rid))
     if not rec:
         raise KeyError(rid)
-    _stop_jobs(db, rid)
+    stop_jobs(db, rid)
     a = acc.of(db, rid)
     ns = store.space_names(db).get(rec["space"])
     speakers = set(db.values("SELECT VALUE speaker FROM appearance WHERE recording = $r", r=rid)) | {
@@ -143,18 +144,6 @@ def delete(db, cfg, rid, by=None):
     }
     faces = {f for f in db.values("SELECT VALUE face FROM face_track WHERE recording = $r AND face > 0", r=rid) if f}
     files = _files(db, cfg, rec, rid, ns)
-    note = store.clean(
-        {
-            "recording": rid,
-            "space": rec["space"],
-            "path": rec.get("path"),
-            "fingerprint": rec.get("fingerprint"),
-            "remote": rec.get("remote"),
-            "title": rec.get("title"),
-            "by": by,
-            "at": store.now(),
-        }
-    )
     db.run(
         [f"DELETE {t} WHERE recording = $r" for t in OWN]
         + [
@@ -167,37 +156,55 @@ def delete(db, cfg, rid, by=None):
             "DELETE $rec",
         ],
         r=rid,
-        g=R("deleted_recording", db.next_id("deleted_recording")),
-        note=note,
+        g=R("gone_recording", db.next_id("gone_recording")),
+        note=note(rec, rid, "deleted", by),
         target=f"recording:{rid}",
         rec=R("recording", rid),
     )
     shutil.rmtree(video.frames_dir(cfg, rid), ignore_errors=True)
     for f in files:
         f.unlink(missing_ok=True)
-    _orphans(db, speakers, faces)
+    orphans(db, speakers, faces)
     if acc.published(a):
         acc.activity(db, rid, "Delete")  # harvesters drop it
     return store.clean({"title": rec.get("title"), "namespace": ns, "path": rec.get("path"), "access": a["access"]})
 
 
 # ---------- what imports check ----------
+def note(rec, rid, why, by=None, **more):
+    """What a namespace remembers of a recording that left it (deleted, or moved): its scans and watches skip the file."""
+    return store.clean(
+        {
+            "recording": rid,
+            "space": rec["space"],
+            "why": why,
+            "path": rec.get("path"),
+            "fingerprint": rec.get("fingerprint"),
+            "remote": rec.get("remote"),
+            "title": rec.get("title"),
+            "by": by,
+            "at": store.now(),
+            **more,
+        }
+    )
+
+
 def gone(db, space):
-    """The paths and fingerprints of a namespace's deleted recordings, which a scan skips."""
-    rows = db.rows("SELECT path, fingerprint FROM deleted_recording WHERE space = $s", s=space)
+    """The paths and fingerprints of the recordings that left a namespace, which a scan skips."""
+    rows = db.rows("SELECT path, fingerprint FROM gone_recording WHERE space = $s", s=space)
     return {r["path"] for r in rows if r.get("path")}, {r["fingerprint"] for r in rows if r.get("fingerprint")}
 
 
 def gone_remote(db, space):
-    """The remote files (source id, path) of a namespace's deleted recordings, which watched folders skip."""
-    rows = db.rows("SELECT remote FROM deleted_recording WHERE space = $s AND remote != NONE", s=space)
+    """The remote files (source id, path) of the recordings that left a namespace, which watched folders skip."""
+    rows = db.rows("SELECT remote FROM gone_recording WHERE space = $s AND remote != NONE", s=space)
     return {(r["remote"].get("source"), r["remote"].get("path")) for r in rows}
 
 
 def forget(db, space, fingerprint=None, path=None):
-    """Someone imports a deleted file on purpose: it may come back, and scans may find it again."""
+    """Someone imports a file into a namespace on purpose: it may come back, and scans may find it again."""
     db.q(
-        "DELETE deleted_recording WHERE space = $s AND ((fingerprint != NONE AND fingerprint = $f) OR (path != NONE AND path = $p))",
+        "DELETE gone_recording WHERE space = $s AND ((fingerprint != NONE AND fingerprint = $f) OR (path != NONE AND path = $p))",
         s=space,
         f=fingerprint,
         p=path,

@@ -7,7 +7,7 @@ import type { RecordingSummary } from "@/app/openapi-client/types.gen";
 import { rememberView } from "@/components/home/recently-viewed";
 import { isFileDrag, useSendToImport } from "@/components/import/pending";
 import { useRecordingActions } from "@/components/library/actions";
-import { BulkBar, DeleteDialog, ReprocessDialog } from "@/components/library/bulk-bar";
+import { BulkBar, DeleteDialog, MoveDialog, ReprocessDialog } from "@/components/library/bulk-bar";
 import { FiltersBar } from "@/components/library/filters-bar";
 import { LibraryEmpty } from "@/components/library/library-empty";
 import { LibraryTabs } from "@/components/library/library-tabs";
@@ -16,6 +16,7 @@ import {
   activeFilterCount,
   blockedBy,
   libraryQuery,
+  moveTargets,
   rangeIds,
   totalDuration,
   type Filters,
@@ -104,6 +105,7 @@ export function LibraryScreen() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [reprocessOpen, setReprocessOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const lastIndex = useRef<number | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -239,6 +241,10 @@ export function LibraryScreen() {
 
   const selectedRows = lib.rows.filter((r) => selected.has(r.id));
   const blocked = blockedBy(selectedRows, (ns) => can("editor", ns));
+  const targets = moveTargets(
+    namespaces.map((n) => n.name).filter((ns) => can("editor", ns)),
+    selectedRows.map((r) => r.namespace),
+  );
 
   // Keyboard: J/K move between rows, X selects, Enter opens (the title link), / focuses the filter, Esc clears.
   useEffect(() => {
@@ -517,8 +523,10 @@ export function LibraryScreen() {
           selected={selected.size}
           blocked={blocked}
           notOwner={blockedBy(selectedRows, (ns) => can("owner", ns))}
+          moveTargets={targets}
           onReprocess={() => setReprocessOpen(true)}
           onExport={(fmt) => actions.exportMany([...selected], fmt)}
+          onMove={() => setMoveOpen(true)}
           onDelete={() => setDeleteOpen(true)}
           onClear={() => setSelected(new Set())}
         />
@@ -530,6 +538,16 @@ export function LibraryScreen() {
         n={selected.size}
         withoutAudio={selectedRows.filter((r) => r.media_kind === "transcript").length}
         onConfirm={(steps) => actions.reprocess([...selected], steps)}
+      />
+      <MoveDialog
+        open={moveOpen}
+        onOpenChange={setMoveOpen}
+        rows={selectedRows}
+        targets={targets}
+        onConfirm={async (rows, to, opts, progress) => {
+          const moved = await actions.moveMany(rows, to, opts, progress);
+          setSelected((cur) => new Set([...cur].filter((id) => !moved.includes(id))));
+        }}
       />
       <DeleteDialog
         open={deleteOpen}

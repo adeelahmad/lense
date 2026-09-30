@@ -383,3 +383,31 @@ export function deletedToast(
     tone: "red",
   };
 }
+
+/** Where selected recordings can move: the namespaces this person edits, other than the only one they're all in. */
+export function moveTargets(editable: readonly string[], from: readonly (string | null | undefined)[]): string[] {
+  const here = new Set(from);
+  return editable.filter((ns) => !(here.size === 1 && here.has(ns)));
+}
+
+/** The toast after moving recordings: how many went where, and why the first one that didn't. */
+export function movedToast(
+  done: number,
+  to: string,
+  failed: readonly { title: string; message: string }[],
+): { title: string; body: string; tone: "green" | "red" } {
+  if (!failed.length)
+    return {
+      title: `Moved ${plural(done, "recording")} to ${to}`,
+      body: `Analysis runs again in ${to}; their access and IIIF stay as they were.`,
+      tone: "green",
+    };
+  const total = done + failed.length;
+  return {
+    title: done
+      ? `Moved ${done} of ${plural(total, "recording")} to ${to}`
+      : `Couldn’t move ${total === 1 ? "the recording" : plural(total, "recording")}`,
+    body: `${failed[0].title}: ${failed[0].message}${failed.length > 1 ? ` (and ${failed.length - 1} more)` : ""}`,
+    tone: "red",
+  };
+}

@@ -4316,6 +4316,56 @@ export type RecordingMetadataUpdate = {
 };
 
 /**
+ * RecordingMove
+ */
+export type RecordingMove = {
+  /**
+   * Namespace
+   * the namespace to move it to
+   */
+  namespace: string;
+  /**
+   * Rediarize
+   * identify its speakers again from their voices in the new namespace (audio only); else matched by name
+   */
+  rediarize?: boolean;
+  /**
+   * Revoke Shares
+   * stop its share links working; otherwise they keep working
+   */
+  revoke_shares?: boolean;
+};
+
+/**
+ * RecordingMoved
+ */
+export type RecordingMoved = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Job
+   * the job that analyses it again in the new namespace
+   */
+  job: number;
+  /**
+   * Pinned
+   * what it had from its old namespace and keeps: access, open parts, metadata defaults
+   */
+  pinned?: Array<string>;
+  /**
+   * Shares Revoked
+   */
+  shares_revoked?: number;
+  [key: string]: unknown | boolean | string | number | Array<string> | undefined;
+};
+
+/**
  * RecordingSpeaker
  */
 export type RecordingSpeaker = {
@@ -6964,6 +7014,36 @@ export type UpdateRecordingResponses = {
 };
 
 export type UpdateRecordingResponse = UpdateRecordingResponses[keyof UpdateRecordingResponses];
+
+export type MoveRecordingData = {
+  body: RecordingMove;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/move";
+};
+
+export type MoveRecordingErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MoveRecordingError = MoveRecordingErrors[keyof MoveRecordingErrors];
+
+export type MoveRecordingResponses = {
+  /**
+   * Successful Response
+   */
+  200: RecordingMoved;
+};
+
+export type MoveRecordingResponse = MoveRecordingResponses[keyof MoveRecordingResponses];
 
 export type GetRecordingAccessData = {
   body?: never;

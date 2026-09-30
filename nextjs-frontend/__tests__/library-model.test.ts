@@ -2,6 +2,8 @@ import type { Job } from "@/app/openapi-client/types.gen";
 import {
   blockedBy,
   deletedToast,
+  moveTargets,
+  movedToast,
   NO_FILTERS,
   activeFilterCount,
   dateFrom,
@@ -302,5 +304,28 @@ describe("deleting from the Library", () => {
       title: "Couldn’t delete 2 recordings",
       body: "Board call: A job is working on it. (and 1 more)",
     });
+  });
+});
+
+describe("moving from the Library", () => {
+  it("offers the namespaces this person edits, but not the only one the selection is in", () => {
+    expect(moveTargets(["calls", "pods", "research"], ["pods", "pods"])).toEqual(["calls", "research"]);
+    expect(moveTargets(["calls", "pods"], ["pods", "calls"])).toEqual(["calls", "pods"]); // from both: either
+    expect(moveTargets(["pods"], ["pods"])).toEqual([]);
+  });
+
+  it("sums up what moved where, and why the rest didn't", () => {
+    expect(movedToast(2, "calls", [])).toEqual({
+      title: "Moved 2 recordings to calls",
+      body: "Analysis runs again in calls; their access and IIIF stay as they were.",
+      tone: "green",
+    });
+    const same = { title: "Board call", message: "calls already has the same file." };
+    expect(movedToast(1, "calls", [same])).toEqual({
+      title: "Moved 1 of 2 recordings to calls",
+      body: "Board call: calls already has the same file.",
+      tone: "red",
+    });
+    expect(movedToast(0, "calls", [same])).toMatchObject({ title: "Couldn’t move the recording" });
   });
 });

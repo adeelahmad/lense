@@ -18,6 +18,8 @@ closed part: whoever may see the recording's page sees it, as IIIF manifests alw
 Publishing is for owners: they set a recording's access, open parts and featured flag (in its Access dialog, or
 through its metadata, bulk edits and reverts), and their namespace's default access and parts in its metadata
 profile. Editors edit the rest of the metadata. Every change is kept in the metadata history and can be reverted.
+Moving a recording to another namespace doesn't change who sees it: the access it had from its old namespace is pinned
+on it.
 
 ## Who is asking
 

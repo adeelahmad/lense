@@ -75,6 +75,7 @@ GET    /api/v1/recordings
 GET    /api/v1/recordings/{rid}
 PATCH  /api/v1/recordings/{rid}
 DELETE /api/v1/recordings/{rid}
+POST   /api/v1/recordings/{rid}/move
 GET    /api/v1/recordings/{rid}/access
 PUT    /api/v1/recordings/{rid}/access
 GET    /api/v1/recordings/{rid}/permissions
@@ -134,6 +135,18 @@ finds its recording gone stops. The media file stays where it is: scans skip the
 and watched folders skip the same remote file, even when it changes; importing it on purpose (the Import dialog,
 `lens import`, a IIIF manifest) brings it back. A public recording shows up as a Delete in the IIIF change feed. It is
 audited as `recording.delete` with its title, namespace and path.
+
+`POST /recordings/{rid}/move` with `{"namespace", "rediarize", "revoke_shares"}` moves a recording to another namespace
+(owners of its namespace, editors of the new one). It keeps its transcript, media, frames, outputs, the people given
+permission on it and its share links (`revoke_shares`: they stop working). Its IIIF manifest stays as it was: what it
+had from its old namespace (default access and open parts, the metadata profile's defaults) is pinned on it wherever
+the new namespace would change it, kept in its metadata history and listed in `pinned`. Speakers and faces are matched
+by name in the new namespace, or start there with this recording's voice and face (`rediarize`, audio only: identified
+again from their voices instead); unnamed ones left with nothing in the old namespace are removed. Its entity mentions
+and per-mention corrections start over: analysis runs again in the new namespace (`job`). Its report pages and exports
+move to the new namespace's folders. The old namespace's scans and watched folders don't import the file again, and
+its IP groups no longer open the recording. 409 when the new namespace already has the same file or a job is running
+on it. Audited as `recording.move`.
 
 `GET /recordings/{rid}/access` says who may see a recording (members): `access` (`public`, `restricted` or
 `private`), `open` (the parts a public recording opens to everyone: `media`, `transcript`, `index`), `featured`,
