@@ -38,6 +38,7 @@ def write_wav(path, seconds=3.0, sr=16000):
 def write_docx(path, paras):
     try:
         import docx
+
         d = docx.Document()
         for p in paras:
             d.add_paragraph(p)
@@ -45,17 +46,24 @@ def write_docx(path, paras):
     except ImportError:
         import zipfile
         from xml.sax.saxutils import escape
+
         body = "".join(f'<w:p><w:r><w:t xml:space="preserve">{escape(p)}</w:t></w:r></w:p>' for p in paras)
         with zipfile.ZipFile(path, "w") as z:
-            z.writestr("word/document.xml", '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-                                            f"<w:body>{body}</w:body></w:document>")
+            z.writestr(
+                "word/document.xml",
+                f'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>{body}</w:body></w:document>',
+            )
 
 
 def write_pdf(path, lines):
     content = "BT /F1 11 Tf 60 740 Td 15 TL " + " ".join(f"({l.replace('(', '').replace(')', '')}) Tj T*" for l in lines) + " ET"
-    objs = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
-            f"<< /Length {len(content)} >>\nstream\n{content}\nendstream", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+    objs = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+        f"<< /Length {len(content)} >>\nstream\n{content}\nendstream",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
     out, offs = "%PDF-1.4\n", []
     for i, o in enumerate(objs, 1):
         offs.append(len(out))

@@ -10,12 +10,10 @@ from __future__ import annotations
 
 import re
 import urllib.parse
-from typing import TypeVar
 
 from app.core.security import sign_path
 from app.domain.store import API
 
-T = TypeVar("T")
 MEDIA_RX = re.compile(rf"^{re.escape(API)}/recordings/\d+/(audio|media|wordcloud\.svg|frames/[\w.-]+)$")
 REPORT_RX = re.compile(r"^/(reports|embed)/")
 
@@ -32,7 +30,7 @@ def sign_url(url: str | None) -> str | None:
     return sign_path(path, **params)
 
 
-def sign_urls(obj: T) -> T:
+def sign_urls[T](obj: T) -> T:
     """Sign every media link found in a JSON-like structure (in place for dicts and lists; returns it)."""
     if isinstance(obj, dict):
         for k, v in obj.items():
@@ -52,4 +50,3 @@ def sign_urls(obj: T) -> T:
 def sign_html_links(html: str) -> str:
     """Sign audio links inside a stored report page as it is served."""
     return re.sub(rf'{re.escape(API)}/recordings/\d+/audio(?=["\'])', lambda m: sign_path(m.group(0)), html)
-

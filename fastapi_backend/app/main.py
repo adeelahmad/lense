@@ -15,9 +15,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api.v1.router import api_router
-from app.api.pages import router as pages_router
 from app.api.iiif import router as iiif_router
+from app.api.pages import router as pages_router
+from app.api.v1.router import api_router
 from app.config import settings
 from app.core import middleware
 from app.core.runtime import Archive

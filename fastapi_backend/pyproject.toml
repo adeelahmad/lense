@@ -65,12 +65,13 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "BLE"]
-ignore = ["E501", "B008"]
+ignore = ["E501", "B008", "UP038"]
 
 [tool.ruff.lint.per-file-ignores]
 # The processing engine came from the original prototype and keeps its compact style for now.
 "app/domain/**" = ["E", "B", "UP", "I", "BLE001", "E731", "E741"]
-"tests/**" = ["B011"]
+"tests/**" = ["B011", "E741"]
+"tests/fake_llm.py" = ["E", "B", "UP", "BLE001"]
 
 [build-system]
 requires = ["hatchling"]
