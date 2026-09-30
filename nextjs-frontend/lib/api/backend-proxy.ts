@@ -42,7 +42,31 @@ async function proxy(req: Request): Promise<Response> {
   upstream.headers.forEach((v, k) => {
     if (!HOP.has(k) && k !== "content-encoding") out.set(k, v);
   });
-  return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers: out });
+  return new Response(openEventStream(upstream), { status: upstream.status, statusText: upstream.statusText, headers: out });
+}
+
+/**
+ * Next sends a response's headers together with its first body chunk, and an event stream may stay quiet for a
+ * while (the job feed only speaks when something changes). Starting it with an SSE comment lets the browser see
+ * the stream open straight away; SSE readers ignore comment lines.
+ */
+function openEventStream(upstream: Response): ReadableStream<Uint8Array> | null {
+  const body = upstream.body;
+  if (!body || !(upstream.headers.get("content-type") ?? "").startsWith("text/event-stream")) return body;
+  const reader = body.getReader();
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(": open\n\n"));
+    },
+    async pull(controller) {
+      const { value, done } = await reader.read();
+      if (done) controller.close();
+      else controller.enqueue(value);
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
 }
 
 export const handlers = { GET: proxy, HEAD: proxy, POST: proxy, PUT: proxy, PATCH: proxy, DELETE: proxy, OPTIONS: proxy };

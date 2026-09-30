@@ -26,6 +26,8 @@ export type StreamSSEOptions = {
   body?: unknown;
   headers?: HeadersInit;
   signal?: AbortSignal;
+  /** Called once the server has accepted the stream (before any message arrives). */
+  onOpen?: () => void;
 };
 
 export class SSEError extends Error {
@@ -89,7 +91,7 @@ export function createSSEParser() {
 
 export async function* streamSSE(
   path: string,
-  { accessToken, method = "GET", body, headers, signal }: StreamSSEOptions = {},
+  { accessToken, method = "GET", body, headers, signal, onOpen }: StreamSSEOptions = {},
 ): AsyncGenerator<SSEMessage> {
   const h = new Headers(headers);
   h.set("Accept", "text/event-stream");
@@ -109,6 +111,7 @@ export async function* streamSSE(
       `Stream ${path} failed with status ${response.status}`,
     );
   }
+  onOpen?.();
 
   const parser = createSSEParser();
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
