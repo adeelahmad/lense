@@ -42,3 +42,19 @@ def test_read_only_token_cant_change_settings(client, db):
     bearer = {"Authorization": f"Bearer {tok}"}
     assert client.get("/api/v1/settings", headers=bearer).status_code == 200
     assert client.put("/api/v1/settings/search", json={"stemming": "none"}, headers=bearer).status_code == 403
+
+
+def test_iiif_viewer_links(client, db, cfg, folder):
+    """ "Open in" viewers are {name, url} objects; only http(s) URLs are accepted (they become links in the app)."""
+    from tests.helpers import seed
+
+    rid = seed(db, cfg, folder)[0]
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    h = login(client, "root@x.io", "root password 1")
+    ramp = {"name": "Ramp", "url": "https://ramp.example/?iiif-content={manifest}"}
+    assert client.put("/api/v1/settings/iiif", json={"viewers": [ramp]}, headers=h).status_code == 200
+    viewers = client.get(f"/api/v1/recordings/{rid}/iiif", headers=h).json()["viewers"]
+    assert viewers[0]["name"] == "Ramp" and viewers[0]["url"].startswith("https://ramp.example/?iiif-content=http")
+    for bad in ([{"name": "x", "url": "javascript:alert(1)"}], [{"url": "https://ok.example", "extra": 1}], ["https://ramp.example"]):
+        r = client.put("/api/v1/settings/iiif", json={"viewers": bad}, headers=h)
+        assert r.status_code == 400, bad

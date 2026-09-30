@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import secrets
 import threading
 
@@ -30,6 +31,7 @@ ENUMS = {("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"}, ("t
          ("search", "stemming"): {"english", "none"}, ("reports", "audio"): {"link", "embed", "none"},
          ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "none"}, ("video", "face_engine"): {"opencv", "insightface", "none"}}
 ENV_OVERRIDES = {("server", "allowed_hosts"): "ARCHIVE_ALLOWED_HOSTS"}
+VIEWER_URL = re.compile(r"^https?://[^\s]+$")
 _KEYS, _KL = {}, threading.Lock()
 
 
@@ -131,6 +133,13 @@ def _check(section, key, value, default):
     enum = ENUMS.get((section, key))
     if enum and value not in enum:
         raise ValueError(f"{section}.{key} must be one of: {', '.join(sorted(enum))}")
+    if (section, key) == ("iiif", "viewers"):
+        # "Open in" links: [{name, url}], where the URL may use {manifest} and {content_state}. Only http(s) URLs,
+        # since they become links in the web app.
+        if not (isinstance(value, list) and all(isinstance(v, dict) and set(v) <= {"name", "url"} and isinstance(v.get("name", ""), str)
+                                                and isinstance(v.get("url"), str) and VIEWER_URL.match(v["url"]) for v in value)):
+            raise ValueError("iiif.viewers is a list of {name, url} with an http(s) URL; the URL may use {manifest} and {content_state}")
+        return value
     if default is None or value is None:
         return value
     if isinstance(default, bool):
