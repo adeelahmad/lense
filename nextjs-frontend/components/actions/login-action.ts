@@ -1,44 +1,48 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { AuthError, CredentialsSignin } from "next-auth";
 
-import { authJwtLogin } from "@/app/clientService";
-import { redirect } from "next/navigation";
-import { loginSchema } from "@/lib/definitions";
-import { getErrorMessage } from "@/lib/utils";
+import { signIn } from "@/auth";
+import {
+  type FormState,
+  loginSchema,
+  safeCallbackUrl,
+} from "@/lib/definitions";
 
-export async function login(prevState: unknown, formData: FormData) {
-  const validatedFields = loginSchema.safeParse({
-    username: formData.get("username") as string,
-    password: formData.get("password") as string,
+const UNEXPECTED = "An unexpected error occurred. Please try again later.";
+
+export async function login(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const validated = loginSchema.safeParse({
+    email: formData.get("email") ?? "",
+    password: formData.get("password") ?? "",
   });
-
-  if (!validatedFields.success) {
-    return {
-      errors: validatedFields.error.flatten().fieldErrors,
-    };
+  if (!validated.success) {
+    return { errors: validated.error.flatten().fieldErrors };
   }
-
-  const { username, password } = validatedFields.data;
-
-  const input = {
-    body: {
-      username,
-      password,
-    },
-  };
 
   try {
-    const { data, error } = await authJwtLogin(input);
-    if (error) {
-      return { server_validation_error: getErrorMessage(error) };
-    }
-    (await cookies()).set("accessToken", data.access_token);
+    // Redirects (by throwing) on success.
+    await signIn("credentials", {
+      ...validated.data,
+      redirectTo: safeCallbackUrl(formData.get("callbackUrl")),
+    });
   } catch (err) {
-    console.error("Login error:", err);
-    return {
-      server_error: "An unexpected error occurred. Please try again later.",
-    };
+    if (err instanceof CredentialsSignin) {
+      return {
+        server_validation_error:
+          err.code === "throttled"
+            ? "Too many attempts. Try again in a few minutes."
+            : "Wrong email or password.",
+      };
+    }
+    if (err instanceof AuthError) {
+      console.error("Sign-in error:", err);
+      return { server_error: UNEXPECTED };
+    }
+    throw err;
   }
-  redirect("/dashboard");
+  return undefined;
 }

@@ -37,6 +37,15 @@ const eslintConfig = [
       sourceType: "commonjs",
     },
   },
+  // ESM config files
+  {
+    files: ["*.mjs"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
   prettier,
 ];
 

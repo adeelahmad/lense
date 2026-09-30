@@ -3,14 +3,18 @@ import { config } from "dotenv";
 
 config({ path: ".env.local" });
 
-const openapiFile = process.env.OPENAPI_OUTPUT_FILE;
-
 export default defineConfig({
-  input: openapiFile as string,
+  input: process.env.OPENAPI_OUTPUT_FILE || "openapi.json",
   output: {
     format: "prettier",
     lint: "eslint",
     path: "app/openapi-client",
   },
-  plugins: ["@hey-api/client-axios"],
+  plugins: [
+    // No baseUrl baked in: lib/api/* configures it (API_BASE_URL on the server).
+    { name: "@hey-api/client-fetch", baseUrl: false },
+    // One class per OpenAPI tag (Auth.login, Tokens.listTokens, ...) so operation
+    // names from different routers never collide.
+    { name: "@hey-api/sdk", asClass: true },
+  ],
 });
