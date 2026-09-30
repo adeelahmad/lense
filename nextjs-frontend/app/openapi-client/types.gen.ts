@@ -2828,6 +2828,47 @@ export type Passage = {
 };
 
 /**
+ * Permission
+ * Someone given permission on a recording (docs/access.md): they see all of it on the pages visitors see and in
+ * IIIF, whatever its access.
+ */
+export type Permission = {
+  /**
+   * Account
+   */
+  account: number;
+  /**
+   * Email
+   */
+  email: string;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * By
+   * who gave it
+   */
+  by?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  [key: string]: unknown | number | string | string | null | string | null | string | null | undefined;
+};
+
+/**
+ * PermissionAdd
+ */
+export type PermissionAdd = {
+  /**
+   * Email
+   * the address of an account in this archive
+   */
+  email: string;
+};
+
+/**
  * Pipeline
  */
 export type Pipeline = {
@@ -3401,11 +3442,16 @@ export type PublicHome = {
    */
   featured: Array<PublicCard>;
   /**
+   * Shared
+   * recordings the visitor was given permission on, outside their namespaces
+   */
+  shared?: Array<PublicCard>;
+  /**
    * Collections
    * the collections this visitor sees anything in
    */
   collections: Array<PublicCollectionSummary>;
-  [key: string]: unknown | Array<PublicCard> | Array<PublicCollectionSummary>;
+  [key: string]: unknown | Array<PublicCard> | Array<PublicCard> | Array<PublicCollectionSummary> | undefined;
 };
 
 /**
@@ -3508,6 +3554,11 @@ export type PublicRecording = {
    * the visitor has a role in the recording's namespace, so it opens in the workspace too
    */
   member: boolean;
+  /**
+   * Granted
+   * the visitor was given permission on this recording, so they see all of it
+   */
+  granted?: boolean;
   /**
    * Description
    * descriptive metadata, as IIIF publishes it
@@ -6516,6 +6567,105 @@ export type UpdateRecordingAccessResponses = {
 };
 
 export type UpdateRecordingAccessResponse = UpdateRecordingAccessResponses[keyof UpdateRecordingAccessResponses];
+
+export type ListRecordingPermissionsData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/permissions";
+};
+
+export type ListRecordingPermissionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListRecordingPermissionsError = ListRecordingPermissionsErrors[keyof ListRecordingPermissionsErrors];
+
+export type ListRecordingPermissionsResponses = {
+  /**
+   * Response Recordings-List Recording Permissions
+   * Successful Response
+   */
+  200: Array<Permission>;
+};
+
+export type ListRecordingPermissionsResponse =
+  ListRecordingPermissionsResponses[keyof ListRecordingPermissionsResponses];
+
+export type AddRecordingPermissionData = {
+  body: PermissionAdd;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/permissions";
+};
+
+export type AddRecordingPermissionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddRecordingPermissionError = AddRecordingPermissionErrors[keyof AddRecordingPermissionErrors];
+
+export type AddRecordingPermissionResponses = {
+  /**
+   * Response Recordings-Add Recording Permission
+   * Successful Response
+   */
+  200: Array<Permission>;
+};
+
+export type AddRecordingPermissionResponse = AddRecordingPermissionResponses[keyof AddRecordingPermissionResponses];
+
+export type RemoveRecordingPermissionData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Account
+     */
+    account: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/permissions/{account}";
+};
+
+export type RemoveRecordingPermissionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveRecordingPermissionError = RemoveRecordingPermissionErrors[keyof RemoveRecordingPermissionErrors];
+
+export type RemoveRecordingPermissionResponses = {
+  /**
+   * Response Recordings-Remove Recording Permission
+   * Successful Response
+   */
+  200: Array<Permission>;
+};
+
+export type RemoveRecordingPermissionResponse =
+  RemoveRecordingPermissionResponses[keyof RemoveRecordingPermissionResponses];
 
 export type GetPlayerData = {
   body?: never;

@@ -56,6 +56,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   (`?t=`). Restricted recordings (for signed-in people, locked) and closed transcripts match on the title only, so a
   search never reveals what they say. A search box sits on the home page and in the header.
   `GET /api/v1/public/search`; `search()` can be limited to a set of recordings.
+- **Permission on a recording** (Aviary's "registered user with view permission"). Owners give a person with an
+  account permission on one recording from its Access dialog, by email address, and take it away there (audited).
+  They then see all of it on the pages for visitors and in IIIF, whatever its access; private recordings are listed
+  for them, and the home page shows what's shared with them. `GET`/`POST /api/v1/recordings/{rid}/permissions`,
+  `DELETE /api/v1/recordings/{rid}/permissions/{account}`.
+    - Fix: IIIF resources of a recording that isn't public now also open with the IIIF access cookie, and the
+      signed links the auth probe hands out work for them (they answered 404, so viewers couldn't play them).
 
 Tooling:
 

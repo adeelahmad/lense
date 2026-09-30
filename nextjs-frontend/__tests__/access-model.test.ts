@@ -4,6 +4,7 @@ import {
   accessPatch,
   accessSummary,
   partsText,
+  permissionLine,
   togglePart,
   type AccessValue,
 } from "@/components/access/model";
@@ -65,5 +66,13 @@ describe("access", () => {
     expect(describeChange("featured", false, true)).toBe("Featured");
     expect(describeChange("featured", true, false)).toBe("No longer featured");
     expect(describeChange("access", "private", "restricted")).toBe("Access: private → restricted");
+  });
+
+  it("says who gave someone permission, and when", () => {
+    expect(permissionLine({ by: "ana@example.org", at: "2026-09-30T19:40:00Z" })).toBe(
+      "Given by ana@example.org on 30 Sept 2026",
+    );
+    expect(permissionLine({ by: null, at: "2026-09-30T19:40:00Z" })).toBe("Given on 30 Sept 2026");
+    expect(permissionLine({ by: "ana@example.org", at: "not a date" })).toBe("Given by ana@example.org");
   });
 });

@@ -128,6 +128,12 @@ function RecordingBody({ rec, signedIn, start }: { rec: Rec; signedIn: boolean; 
       <article className="mx-auto flex w-full max-w-[1120px] flex-col gap-5 px-4 py-6 sm:px-6">
         <PageHead rec={rec} meta={meta} duration={duration} />
         {rec.member && <MemberNote rec={rec} />}
+        {rec.granted && (
+          <Banner>
+            You were given permission on this recording, so you see all of it
+            {rec.access === "public" ? ", not only the parts open to everyone." : "."}
+          </Banner>
+        )}
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="flex min-w-0 flex-col gap-5">
             <MediaCard rec={rec} duration={duration} signedIn={signedIn} />

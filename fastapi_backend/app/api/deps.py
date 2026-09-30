@@ -18,6 +18,7 @@ from typing import Annotated, Any, Literal
 from fastapi import Depends, HTTPException, Request
 
 from app.core import security
+from app.domain import access as acc
 from app.domain import auth, store
 from app.domain.store import DB
 
@@ -164,9 +165,14 @@ class Access:
         self.need(rec["space"], role)
         return rec
 
-    def permitted(self, rec: dict[str, Any]) -> bool:
-        """Permission on a recording (docs/access.md): a role in its namespace. Admins have every role."""
-        return auth.allows(self.roles, rec["space"])
+    def permitted(self, rid: int, space: int) -> bool:
+        """Permission on a recording (docs/access.md): a role in its namespace (admins have every role), or permission
+        given on the recording."""
+        return acc.permitted(self.db, self.roles, self.user.id if self.user else None, rid, space)
+
+    def who(self) -> acc.Who:
+        """Who is asking, for the pages visitors see."""
+        return acc.Who(frozenset(self.roles), acc.granted(self.db, self.user.id if self.user else None), self.user is not None)
 
     def signed(self) -> bool:
         q = self.request.query_params

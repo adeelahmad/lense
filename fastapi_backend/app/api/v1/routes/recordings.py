@@ -27,6 +27,8 @@ from app.schemas.recordings import (
     MediaKind,
     NamespaceAccess,
     Output,
+    Permission,
+    PermissionAdd,
     Player,
     Recording,
     RecordingAccess,
@@ -184,6 +186,39 @@ def update_recording_access(rid: int, body: RecordingAccessUpdate, acl: Acl, use
         md.save(db, cfg, rid, patch, reset, user.email)
     auth.audit(db, user.as_audit(), "recording.access", f"recording:{rid}", {k: getattr(body, k) for k in sorted(sent)})
     return _access(db, rid)
+
+
+@router.get("/{rid}/permissions")
+def list_recording_permissions(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[Permission]:
+    """The people given permission on the recording (owners), newest first."""
+    acl.recording(rid, "owner")
+    return [Permission.model_validate(p) for p in acc.people(db, rid)]
+
+
+@router.post("/{rid}/permissions")
+def add_recording_permission(rid: int, body: PermissionAdd, acl: Acl, user: Writer, db: Db) -> list[Permission]:
+    """Give someone with an account permission on the recording (owners): they see all of it on the pages visitors see
+    and in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission."""
+    r = acl.recording(rid, "owner")
+    acct = auth.find_account(db, body.email)
+    if not acct or acct.get("disabled"):
+        raise HTTPException(404, "No account uses that address. An admin can create one.")
+    if auth.allows(auth.roles(db, acct), r["space"]):
+        raise HTTPException(400, "They have a role in this namespace, so they already see all of it.")
+    acc.give(db, rid, acct["id"], user.email)
+    auth.audit(db, user.as_audit(), "recording.permission.give", f"recording:{rid}", {"email": acct["email"]})
+    return [Permission.model_validate(p) for p in acc.people(db, rid)]
+
+
+@router.delete("/{rid}/permissions/{account}")
+def remove_recording_permission(rid: int, account: int, acl: Acl, user: Writer, db: Db) -> list[Permission]:
+    """Take someone's permission on the recording away (owners). Answers with everyone who still has it."""
+    acl.recording(rid, "owner")
+    if not acc.take(db, rid, account):
+        raise HTTPException(404, "not found")
+    email = (auth.get_account(db, account) or {}).get("email")
+    auth.audit(db, user.as_audit(), "recording.permission.take", f"recording:{rid}", {"email": email})
+    return [Permission.model_validate(p) for p in acc.people(db, rid)]
 
 
 @router.get("/{rid}/player")

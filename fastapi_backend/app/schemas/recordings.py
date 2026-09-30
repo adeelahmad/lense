@@ -122,6 +122,21 @@ class RecordingAccessUpdate(RequestModel):
     featured: bool | None = None
 
 
+class Permission(ResponseModel):
+    """Someone given permission on a recording (docs/access.md): they see all of it on the pages visitors see and in
+    IIIF, whatever its access."""
+
+    account: int
+    email: str
+    name: str | None = None
+    by: str | None = Field(None, description="who gave it")
+    at: str | None = None
+
+
+class PermissionAdd(RequestModel):
+    email: str = Field(min_length=3, max_length=320, description="the address of an account in this archive")
+
+
 class ReprocessRequest(RequestModel):
     steps: list[str | dict[str, Any]] | None = Field(None, description="default: the namespace's pipeline")
     pipeline: int | None = None

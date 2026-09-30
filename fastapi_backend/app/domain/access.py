@@ -10,8 +10,9 @@ access, open and featured, with history. See docs/access.md.
 from __future__ import annotations
 
 import json
+from typing import NamedTuple
 
-from . import store
+from . import auth, store
 
 R = store.R
 LEVELS = ("public", "restricted", "private")
@@ -88,10 +89,83 @@ def is_open(a, part):
     return a["access"] == "public" and part in a["open"]
 
 
+class Who(NamedTuple):
+    """Who is asking, for the pages visitors see and IIIF: the namespaces they have a role in (admins have every role),
+    the recordings they were given permission on, and whether they're signed in."""
+
+    member_of: frozenset
+    granted: frozenset
+    signed_in: bool
+
+    def permitted(self, rid, space):
+        """Permission on a recording: a role in its namespace, or permission given on the recording itself."""
+        return space in self.member_of or rid in self.granted
+
+
+def granted(db, account):
+    """The recordings someone was given permission on."""
+    return frozenset(db.values("SELECT VALUE recording FROM permission WHERE account = $a", a=account)) if account else frozenset()
+
+
+def has_permission(db, rid, account):
+    return bool(account and db.one("SELECT id FROM $p", p=R("permission", f"{rid}-{account}")))
+
+
+def permitted(db, roles, account, rid, space):
+    """Permission on a recording (docs/access.md): a role in its namespace, or permission given on the recording."""
+    return auth.allows(roles, space) or has_permission(db, rid, account)
+
+
+def people(db, rid):
+    """The people given permission on a recording, newest first."""
+    rows = db.rows("SELECT account, by, at FROM permission WHERE recording = $r", r=rid)
+    accounts = (
+        {
+            a["id"]: a
+            for a in db.rows(
+                "SELECT record::id(id) AS id, email, name FROM account WHERE id IN $ids", ids=[R("account", r["account"]) for r in rows]
+            )
+        }
+        if rows
+        else {}
+    )
+    out = [
+        {
+            "account": r["account"],
+            "email": accounts[r["account"]]["email"],
+            "name": accounts[r["account"]].get("name"),
+            "by": r.get("by"),
+            "at": r.get("at"),
+        }
+        for r in rows
+        if r["account"] in accounts
+    ]
+    return sorted(out, key=lambda x: x.get("at") or "", reverse=True)
+
+
+def give(db, rid, account, by=None):
+    """Give someone permission on a recording (again: keeps the first grant)."""
+    db.q(
+        "UPSERT $p SET recording = $r, account = $a, by = by ?? $by, at = at ?? $at",
+        p=R("permission", f"{rid}-{account}"),
+        r=rid,
+        a=account,
+        by=by,
+        at=store.now(),
+    )
+
+
+def take(db, rid, account):
+    """Take someone's permission on a recording away; False when they had none."""
+    had = has_permission(db, rid, account)
+    db.q("DELETE $p", p=R("permission", f"{rid}-{account}"))
+    return had
+
+
 def view(a, permitted, signed_in):
     """What someone sees of a recording, after Aviary's matrix (docs/access.md).
 
-    full: they have permission (a role in its namespace), so all of it. public: a public recording's page, description
+    full: they have permission (a role in its namespace, or permission on the recording), so all of it. public: a public recording's page, description
     and open parts. locked: a restricted recording, for someone signed in: listed with a lock, its page closed.
     None: hidden (restricted ones from visitors who aren't signed in, private ones from everyone without permission).
     """

@@ -92,3 +92,13 @@ export function accessPatch(
   if (draft.featured !== saved.featured) out.featured = draft.featured;
   return out;
 }
+
+/** Under a person with permission: who gave it and when ("Given by ana@example.org on 30 Sep 2026"). */
+export function permissionLine(p: { by?: string | null; at?: string | null }): string {
+  const d = p.at ? new Date(p.at) : null;
+  const when =
+    d && !Number.isNaN(d.getTime())
+      ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+      : "";
+  return ["Given", p.by ? `by ${p.by}` : "", when ? `on ${when}` : ""].filter(Boolean).join(" ");
+}

@@ -86,6 +86,15 @@ import type {
   UpdateRecordingAccessData,
   UpdateRecordingAccessResponses,
   UpdateRecordingAccessErrors,
+  ListRecordingPermissionsData,
+  ListRecordingPermissionsResponses,
+  ListRecordingPermissionsErrors,
+  AddRecordingPermissionData,
+  AddRecordingPermissionResponses,
+  AddRecordingPermissionErrors,
+  RemoveRecordingPermissionData,
+  RemoveRecordingPermissionResponses,
+  RemoveRecordingPermissionErrors,
   GetPlayerData,
   GetPlayerResponses,
   GetPlayerErrors,
@@ -890,6 +899,60 @@ export class Recordings {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List Recording Permissions
+   * The people given permission on the recording (owners), newest first.
+   */
+  public static listRecordingPermissions<ThrowOnError extends boolean = false>(
+    options: Options<ListRecordingPermissionsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<
+      ListRecordingPermissionsResponses,
+      ListRecordingPermissionsErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/recordings/{rid}/permissions",
+      ...options,
+    });
+  }
+
+  /**
+   * Add Recording Permission
+   * Give someone with an account permission on the recording (owners): they see all of it on the pages visitors see
+   * and in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission.
+   */
+  public static addRecordingPermission<ThrowOnError extends boolean = false>(
+    options: Options<AddRecordingPermissionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<AddRecordingPermissionResponses, AddRecordingPermissionErrors, ThrowOnError>(
+      {
+        url: "/api/v1/recordings/{rid}/permissions",
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      },
+    );
+  }
+
+  /**
+   * Remove Recording Permission
+   * Take someone's permission on the recording away (owners). Answers with everyone who still has it.
+   */
+  public static removeRecordingPermission<ThrowOnError extends boolean = false>(
+    options: Options<RemoveRecordingPermissionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<
+      RemoveRecordingPermissionResponses,
+      RemoveRecordingPermissionErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/recordings/{rid}/permissions/{account}",
+      ...options,
     });
   }
 
@@ -2550,8 +2613,8 @@ export class Public {
    * A recording's public page: what this visitor may see of it, and nothing more.
    *
    * Anyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title
-   * with a lock; people with a role in its namespace see all of it. Everything else answers 404, as a recording that
-   * doesn't exist would.
+   * with a lock; people with a role in its namespace, or given permission on the recording, see all of it. Everything
+   * else answers 404, as a recording that doesn't exist would.
    */
   public static getPublicRecording<ThrowOnError extends boolean = false>(
     options: Options<GetPublicRecordingData, ThrowOnError>,

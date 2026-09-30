@@ -28,7 +28,7 @@ def _any(db, table, rid):
     return bool(db.values(f"SELECT VALUE record::id(id) FROM {table} WHERE recording = $r LIMIT 1", r=rid))
 
 
-def recording(db, cfg, rid, seen, a, member=False):
+def recording(db, cfg, rid, seen, a, member=False, granted=False):
     """A recording's public page for someone who sees it as `seen` (access.view()), given its access (access.of()).
 
     `closed` lists the parts the recording has that this visitor can't use; a locked recording closes all of them.
@@ -54,6 +54,7 @@ def recording(db, cfg, rid, seen, a, member=False):
         "open": a["open"],
         "featured": a["featured"],
         "member": member,
+        "granted": granted,
         "description": None,
         "media": None,
         "transcript": None,
@@ -96,22 +97,27 @@ def recording(db, cfg, rid, seen, a, member=False):
 CARD = "record::id(id) AS id, title, recorded_at, duration_ms, space, source, media, summary, meta_json, access, access_parts, featured"
 
 
-def listed(db, sid, member, signed_in):
+def _granted(who):
+    return [R("recording", i) for i in sorted(who.granted)]
+
+
+def listed(db, sid, who):
     """The WHERE clause (and its parameters) for the recordings of one namespace that someone sees listed, i.e. whose
-    access.view() isn't None: all of them for members, else public ones, and restricted ones when signed in."""
-    if member:
+    access.view() isn't None: all of them for members; else public ones, restricted ones when signed in, and the ones
+    they were given permission on."""
+    if sid in who.member_of:
         return "space = $s", {"s": sid}
-    levels = ["public", "restricted"] if signed_in else ["public"]
+    levels = ["public", "restricted"] if who.signed_in else ["public"]
     default, _ = acc.namespace_defaults(db, [sid]).get(sid, ("private", None))
     follows = " OR access = NONE" if default in levels else ""  # recordings without their own setting follow the namespace
-    return f"space = $s AND (access IN $lv{follows})", {"s": sid, "lv": levels}
+    return f"space = $s AND (access IN $lv{follows} OR id IN $g)", {"s": sid, "lv": levels, "g": _granted(who)}
 
 
 def _count(db, cond, p):
     return db.values(f"RETURN array::len((SELECT VALUE id FROM recording WHERE {cond}))", **p)[0]
 
 
-def cards(db, rows, member_of, signed_in):
+def cards(db, rows, who):
     """Recording rows (CARD fields) as cards for this visitor: a locked card has no summary, and a poster frame only
     comes with media the visitor may play."""
     access = acc.many(db, rows)
@@ -125,7 +131,7 @@ def cards(db, rows, member_of, signed_in):
     out = []
     for r in rows:
         a = access[r["id"]]
-        seen = acc.view(a, r["space"] in member_of, signed_in)
+        seen = acc.view(a, who.permitted(r["id"], r["space"]), who.signed_in)
         if seen is None:
             continue
         meta = md._load(r.get("meta_json"))
@@ -162,9 +168,10 @@ def _collection_meta(db, sid):
     }
 
 
-def home(db, member_of, signed_in, featured_limit=12):
-    """The public home page: featured public recordings (for everyone, members too) and the collections this visitor
-    sees anything in, with how many recordings they see there."""
+def home(db, who, featured_limit=12):
+    """The public home page: featured public recordings (for everyone, members too), the recordings shared with this
+    visitor (permission given on them), and the collections they see anything in, with how many recordings they see
+    there."""
     public_spaces = [sid for sid, (level, _) in acc.namespace_defaults(db).items() if level == "public"]
     rows = db.rows(
         f"SELECT {CARD} FROM recording WHERE featured = true AND (access = 'public' OR (access = NONE AND space IN $pub)) "
@@ -172,52 +179,65 @@ def home(db, member_of, signed_in, featured_limit=12):
         pub=public_spaces,
         n=featured_limit,
     )
+    shared = (
+        db.rows(
+            f"SELECT {CARD} FROM recording WHERE id IN $g AND space NOT IN $ms ORDER BY recorded_at DESC LIMIT 48",
+            g=_granted(who),
+            ms=sorted(who.member_of),
+        )
+        if who.granted
+        else []
+    )
     collections = []
     for sid, name in sorted(store.space_names(db).items(), key=lambda x: x[1]):
-        cond, p = listed(db, sid, sid in member_of, signed_in)
+        cond, p = listed(db, sid, who)
         n = _count(db, cond, p)
         if n:
             c = _collection_meta(db, sid)
-            collections.append({"name": name, "label": c["label"], "summary": c["summary"], "recordings": n, "member": sid in member_of})
-    return {"featured": cards(db, rows, member_of, signed_in), "collections": collections}
+            collections.append(
+                {"name": name, "label": c["label"], "summary": c["summary"], "recordings": n, "member": sid in who.member_of}
+            )
+    return {"featured": cards(db, rows, who), "shared": cards(db, shared, who), "collections": collections}
 
 
-def collection(db, sid, member_of, signed_in, limit=48, offset=0):
+def collection(db, sid, who, limit=48, offset=0):
     """A collection's page: the namespace's description and the recordings this visitor sees listed, newest first.
     Raises KeyError when they see none and aren't a member, so the namespace looks absent."""
-    member = sid in member_of
-    cond, p = listed(db, sid, member, signed_in)
+    member = sid in who.member_of
+    cond, p = listed(db, sid, who)
     total = _count(db, cond, p)
     if not total and not member:
         raise KeyError(sid)
     rows = db.rows(f"SELECT {CARD} FROM recording WHERE {cond} ORDER BY recorded_at DESC LIMIT $n START $o", **p, n=limit, o=offset)
-    return {**_collection_meta(db, sid), "member": member, "total": total, "items": cards(db, rows, member_of, signed_in)}
+    return {**_collection_meta(db, sid), "member": member, "total": total, "items": cards(db, rows, who)}
 
 
 # ---------- search ----------
 HITS_PER_RECORDING = 3
 
 
-def visible(db, member_of, signed_in):
+def visible(db, who):
     """The WHERE clause for every recording someone sees listed, in any namespace (as listed() does for one)."""
-    levels = ["public", "restricted"] if signed_in else ["public"]
+    levels = ["public", "restricted"] if who.signed_in else ["public"]
     follow = [sid for sid, (level, _) in acc.namespace_defaults(db).items() if level in levels]
-    return "(space IN $ms OR access IN $lv OR (access = NONE AND space IN $follow))", {
-        "ms": sorted(member_of),
+    return "(space IN $ms OR access IN $lv OR (access = NONE AND space IN $follow) OR id IN $g)", {
+        "ms": sorted(who.member_of),
         "lv": levels,
         "follow": follow,
+        "g": _granted(who),
     }
 
 
-def readable(db, member_of):
-    """The WHERE clause for the recordings whose transcript someone may read: all of them in their namespaces, and
-    public ones with the transcript open to everyone."""
+def readable(db, who):
+    """The WHERE clause for the recordings whose transcript someone may read: all of them in their namespaces, the ones
+    they were given permission on, and public ones with the transcript open to everyone."""
     defaults = acc.namespace_defaults(db)
     return (
-        "(space IN $ms OR ((access = 'public' OR (access = NONE AND space IN $pub)) "
+        "(space IN $ms OR id IN $g OR ((access = 'public' OR (access = NONE AND space IN $pub)) "
         "AND ($part IN access_parts OR (access_parts = NONE AND space IN $open))))",
         {
-            "ms": sorted(member_of),
+            "ms": sorted(who.member_of),
+            "g": _granted(who),
             "pub": [sid for sid, (level, _) in defaults.items() if level == "public"],
             "open": [sid for sid, (_, parts) in defaults.items() if "transcript" in parts],
             "part": "transcript",
@@ -235,17 +255,17 @@ def _title_match(groups):
     return "(" + " OR ".join(alts) + ")", p
 
 
-def search(db, q, member_of, signed_in, limit=20, offset=0):
+def search(db, q, who, limit=20, offset=0):
     """Public search: the recordings this visitor sees whose title matches, and the lines of the transcripts they may
     read. Title matches come first; a recording whose transcript they can't read (locked, or closed) matches on its
     title only, so a search never tells what it says."""
     groups = searchmod.parse_query(q)
     if not groups:
         return {"q": q, "total": 0, "capped": False, "items": []}
-    vis, vp = visible(db, member_of, signed_in)
+    vis, vp = visible(db, who)
     tcond, tp = _title_match(groups)
     titled = db.rows(f"SELECT record::id(id) AS id, recorded_at FROM recording WHERE {vis} AND {tcond}", **vp, **tp)
-    rcond, rp = readable(db, member_of)
+    rcond, rp = readable(db, who)
     ids = db.values(f"SELECT VALUE record::id(id) FROM recording WHERE {rcond}", **rp)
     found = searchmod.search(db, q, recordings=ids, screen=False, limit=500)
     hits: dict[int, list[dict]] = {}
@@ -262,5 +282,5 @@ def search(db, q, member_of, signed_in, limit=20, offset=0):
     )
     page = order[offset : offset + limit]
     rows = db.rows(f"SELECT {CARD} FROM recording WHERE id IN $ids", ids=[R("recording", i) for i in page]) if page else []
-    items = {c["id"]: {**c, "hits": hits.get(c["id"], []) if c["view"] != "locked" else []} for c in cards(db, rows, member_of, signed_in)}
+    items = {c["id"]: {**c, "hits": hits.get(c["id"], []) if c["view"] != "locked" else []} for c in cards(db, rows, who)}
     return {"q": q, "total": len(order), "capped": found["capped"], "items": [items[i] for i in page if i in items]}

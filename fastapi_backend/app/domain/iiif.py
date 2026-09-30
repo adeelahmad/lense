@@ -365,8 +365,9 @@ def annotation_page(db, cfg, rid, base, layer):
     return {"@context": P3, "id": f"{m}/annotations/{layer}", "type": "AnnotationPage", "label": lm(LAYERS[layer], "en"), "items": items}
 
 
-def collection(db, cfg, sid, base, readable=None):
-    """A namespace as a Collection: its public recordings, and the others when the requester may read the namespace."""
+def collection(db, cfg, sid, base, readable=None, granted=frozenset()):
+    """A namespace as a Collection: its public recordings, and the others the requester may read (a role in the
+    namespace, or permission given on the recording)."""
     ns = md.namespace(db, sid)
     meta = ns["meta"]
     items = []
@@ -377,7 +378,7 @@ def collection(db, cfg, sid, base, readable=None):
     )
     access = acc.many(db, rows)
     for r in rows:
-        if acc.published(access[r["id"]]) or (readable is not None and sid in readable):
+        if acc.published(access[r["id"]]) or (readable is not None and sid in readable) or r["id"] in granted:
             eff = md.effective(db, cfg, r["id"])
             items.append(
                 _prune(
@@ -406,10 +407,10 @@ def collection(db, cfg, sid, base, readable=None):
     )
 
 
-def root_collection(db, cfg, base, readable=None):
+def root_collection(db, cfg, base, readable=None, granted=frozenset()):
     items = []
     for s in db.rows("SELECT record::id(id) AS id, name FROM space ORDER BY name"):
-        c = collection(db, cfg, s["id"], base, readable)
+        c = collection(db, cfg, s["id"], base, readable, granted)
         if c.get("items"):
             items.append({"id": c["id"], "type": "Collection", "label": c["label"]})
     return {"@context": P3, "id": f"{base}/iiif/collection", "type": "Collection", "label": lm(site_label(cfg, base)), "items": items}

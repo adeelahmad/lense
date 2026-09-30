@@ -67,6 +67,7 @@ class PublicRecording(ResponseModel):
     open: list[AccessPart] = Field(description="the parts a public recording opens to everyone")
     featured: bool
     member: bool = Field(description="the visitor has a role in the recording's namespace, so it opens in the workspace too")
+    granted: bool = Field(False, description="the visitor was given permission on this recording, so they see all of it")
     description: dict[str, Any] | None = Field(None, description="descriptive metadata, as IIIF publishes it")
     media: PublicMedia | None = None
     transcript: PublicTranscript | None = None
@@ -101,6 +102,9 @@ class PublicCollectionSummary(ResponseModel):
 
 class PublicHome(ResponseModel):
     featured: list[PublicCard] = Field(description="featured public recordings, newest first")
+    shared: list[PublicCard] = Field(
+        default_factory=list, description="recordings the visitor was given permission on, outside their namespaces"
+    )
     collections: list[PublicCollectionSummary] = Field(description="the collections this visitor sees anything in")
 
 

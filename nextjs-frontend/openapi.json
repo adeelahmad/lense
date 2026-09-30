@@ -1507,6 +1507,164 @@
         }
       }
     },
+    "/api/v1/recordings/{rid}/permissions": {
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "List Recording Permissions",
+        "description": "The people given permission on the recording (owners), newest first.",
+        "operationId": "list_recording_permissions",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Permission"
+                  },
+                  "title": "Response Recordings-List Recording Permissions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Add Recording Permission",
+        "description": "Give someone with an account permission on the recording (owners): they see all of it on the pages visitors see\nand in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission.",
+        "operationId": "add_recording_permission",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PermissionAdd"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Permission"
+                  },
+                  "title": "Response Recordings-Add Recording Permission"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{rid}/permissions/{account}": {
+      "delete": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Remove Recording Permission",
+        "description": "Take someone's permission on the recording away (owners). Answers with everyone who still has it.",
+        "operationId": "remove_recording_permission",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "account",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Account"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Permission"
+                  },
+                  "title": "Response Recordings-Remove Recording Permission"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/recordings/{rid}/player": {
       "get": {
         "tags": [
@@ -7651,7 +7809,7 @@
           "public"
         ],
         "summary": "Get Public Recording",
-        "description": "A recording's public page: what this visitor may see of it, and nothing more.\n\nAnyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title\nwith a lock; people with a role in its namespace see all of it. Everything else answers 404, as a recording that\ndoesn't exist would.",
+        "description": "A recording's public page: what this visitor may see of it, and nothing more.\n\nAnyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title\nwith a lock; people with a role in its namespace, or given permission on the recording, see all of it. Everything\nelse answers 404, as a recording that doesn't exist would.",
         "operationId": "get_public_recording",
         "parameters": [
           {
@@ -11995,6 +12153,77 @@
         ],
         "title": "Passage"
       },
+      "Permission": {
+        "properties": {
+          "account": {
+            "type": "integer",
+            "title": "Account"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who gave it"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "account",
+          "email"
+        ],
+        "title": "Permission",
+        "description": "Someone given permission on a recording (docs/access.md): they see all of it on the pages visitors see and in\nIIIF, whatever its access."
+      },
+      "PermissionAdd": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "description": "the address of an account in this archive"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "PermissionAdd"
+      },
       "Pipeline": {
         "properties": {
           "id": {
@@ -12843,6 +13072,14 @@
             "title": "Featured",
             "description": "featured public recordings, newest first"
           },
+          "shared": {
+            "items": {
+              "$ref": "#/components/schemas/PublicCard"
+            },
+            "type": "array",
+            "title": "Shared",
+            "description": "recordings the visitor was given permission on, outside their namespaces"
+          },
           "collections": {
             "items": {
               "$ref": "#/components/schemas/PublicCollectionSummary"
@@ -13030,6 +13267,12 @@
             "type": "boolean",
             "title": "Member",
             "description": "the visitor has a role in the recording's namespace, so it opens in the workspace too"
+          },
+          "granted": {
+            "type": "boolean",
+            "title": "Granted",
+            "description": "the visitor was given permission on this recording, so they see all of it",
+            "default": false
           },
           "description": {
             "anyOf": [

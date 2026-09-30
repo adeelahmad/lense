@@ -471,6 +471,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS membership SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS membership_account ON membership FIELDS account",
     "DEFINE INDEX IF NOT EXISTS membership_space ON membership FIELDS space",
+    # permission on one recording for someone without a role in its namespace (docs/access.md): permission:<rid>-<account>
+    "DEFINE TABLE IF NOT EXISTS permission SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS permission_account ON permission FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS permission_recording ON permission FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS login_session SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS login_session_account ON login_session FIELDS account",
     "DEFINE INDEX IF NOT EXISTS login_session_sid ON login_session FIELDS sid",

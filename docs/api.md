@@ -65,6 +65,9 @@ GET    /api/v1/recordings/{rid}
 PATCH  /api/v1/recordings/{rid}
 GET    /api/v1/recordings/{rid}/access
 PUT    /api/v1/recordings/{rid}/access
+GET    /api/v1/recordings/{rid}/permissions
+POST   /api/v1/recordings/{rid}/permissions
+DELETE /api/v1/recordings/{rid}/permissions/{account}
 GET    /api/v1/recordings/{rid}/player
 GET    /api/v1/recordings/{rid}/embed-link
 GET    /api/v1/recordings/{rid}/audio
@@ -109,6 +112,11 @@ and a published recording shows up as an Update in the IIIF change feed.
 `inherited` (the access comes from the namespace) and the namespace's `default`. `PUT` changes any of them (owners);
 `null` follows the namespace again. Changes are audited as `recording.access`, kept in the metadata history, and
 announced in the IIIF change feed. [Access](access.md) explains what each level lets people do.
+
+`/recordings/{rid}/permissions` lists the people given permission on the recording (owners). `POST` with `{"email":
+…}` gives it to the account with that address (404 when there is none, 400 for members of the namespace, who already
+see all of it); `DELETE …/{account}` takes it away. Both answer with the list and are audited as
+`recording.permission.give` and `recording.permission.take`.
 
 ## imports
 

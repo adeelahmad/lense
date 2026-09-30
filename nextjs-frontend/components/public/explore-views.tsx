@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { FolderOpen, Star } from "lucide-react";
+import { FolderOpen, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -50,6 +50,19 @@ export function PublicHomeView() {
         </p>
         <PublicSearchForm className="mt-2 max-w-[560px]" />
       </header>
+      {q.data?.shared?.length ? (
+        <section aria-labelledby="shared-heading" className="flex flex-col gap-3">
+          <h2 id="shared-heading" className="flex items-center gap-2 text-[18px] font-bold text-fg">
+            <Users aria-hidden className="size-4 text-fg-secondary" />
+            Shared with you
+          </h2>
+          <div className={GRID}>
+            {q.data.shared.map((c) => (
+              <RecordingCard key={c.id} card={c} showNamespace />
+            ))}
+          </div>
+        </section>
+      ) : null}
       <section aria-labelledby="featured-heading" className="flex flex-col gap-3">
         <h2 id="featured-heading" className="flex items-center gap-2 text-[18px] font-bold text-fg">
           <Star aria-hidden className="size-4 fill-current text-fg-secondary" />

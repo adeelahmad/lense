@@ -25,8 +25,9 @@ def _signed(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 @router.get("/home")
 def get_public_home(acl: Acl, db: Db) -> PublicHome:
     """The home page: featured public recordings, for everyone, and the collections this visitor sees anything in."""
-    d = public.home(db, set(acl.roles), acl.user is not None)
+    d = public.home(db, acl.who())
     _signed(d["featured"])
+    _signed(d["shared"])
     return PublicHome.model_validate(d)
 
 
@@ -43,7 +44,7 @@ def get_public_collection(
     this visitor answers 404, as a missing one does."""
     sid = acl.nsid(name)
     with domain_errors():
-        d = public.collection(db, sid, set(acl.roles), acl.user is not None, limit, offset)
+        d = public.collection(db, sid, acl.who(), limit, offset)
     _signed(d["items"])
     return PublicCollection.model_validate(d)
 
@@ -59,7 +60,7 @@ def search_public(
     """Search what this visitor may see: titles of the recordings they see listed, and the lines of the transcripts
     they may read. Title matches come first. Restricted recordings (for signed-in people) and public ones with the
     transcript closed match on their title only."""
-    d = public.search(db, q, set(acl.roles), acl.user is not None, limit, offset)
+    d = public.search(db, q, acl.who(), limit, offset)
     _signed(d["items"])
     return PublicSearch.model_validate(d)
 
@@ -69,17 +70,18 @@ def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecordin
     """A recording's public page: what this visitor may see of it, and nothing more.
 
     Anyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title
-    with a lock; people with a role in its namespace see all of it. Everything else answers 404, as a recording that
-    doesn't exist would."""
+    with a lock; people with a role in its namespace, or given permission on the recording, see all of it. Everything
+    else answers 404, as a recording that doesn't exist would."""
     rec = db.one("SELECT space FROM $r", r=R("recording", rid))
     if not rec:
         raise HTTPException(404, "not found")
     a = acc.of(db, rid)
-    member = acl.permitted(rec)
-    seen = acc.view(a, member, acl.user is not None)
+    who = acl.who()
+    member, granted = rec["space"] in who.member_of, rid in who.granted
+    seen = acc.view(a, member or granted, who.signed_in)
     if seen is None:
         raise HTTPException(404, "not found")
-    d = public.recording(db, cfg, rid, seen, a, member)
+    d = public.recording(db, cfg, rid, seen, a, member, granted and not member)
     if d["media"]:  # only the media this visitor may play is signed
         d["media"]["url"] = sign_url(d["media"]["url"])
         d["media"]["poster"] = sign_url(d["media"]["poster"])

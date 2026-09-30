@@ -5,8 +5,8 @@ Lens follows the roles and permissions matrix of Aviary, the audio and video acc
 closed. Who may open what depends on who is asking.
 
 !!! note "Being built"
-    Recordings' access settings, the web app, IIIF and the pages for visitors (home, collections, search and a
-    recording's page) follow this model now. Per-recording grants, access requests and IP groups come next.
+    Recordings' access settings, permission on a recording, the web app, IIIF and the pages for visitors (home,
+    collections, search and a recording's page) follow this model now. Access requests and IP groups come next.
 
 ## A recording's access
 
@@ -29,12 +29,11 @@ profile. Editors edit the rest of the metadata. Every change is kept in the meta
 |---|---|
 | public user | a visitor who isn't signed in |
 | public user with view permission in an IP group | a visitor whose address is in an IP group with view permission on the recording or its namespace |
-| registered user | a signed-in person with no role in the recording's namespace and no grant on it |
-| registered user with view permission | a signed-in person with a view grant on the recording |
-| registered user with edit permission | a signed-in person with an edit grant on the recording |
+| registered user | a signed-in person with no role in the recording's namespace and no permission on it |
+| registered user with view or edit permission | a signed-in person given permission on the recording (below) |
 | organization user, admin, owner | a member of the recording's namespace (viewer, editor or owner), and admins everywhere |
 
-Members, grant holders and IP-group visitors have **permission**: they see the recording everywhere and open all of
+Members, people given permission and IP-group visitors have **permission**: they see the recording everywhere and open all of
 it. Everyone else gets what the recording's access allows:
 
 | | Public user | Registered user | With permission |
@@ -44,6 +43,17 @@ it. Everyone else gets what the recording's access allows:
 | **private** | hidden | hidden | everything |
 
 The home page shows featured public recordings only, to everyone, members included.
+
+## Permission on a recording
+
+Owners give someone permission on one recording in its Access dialog, by the email address of their account (an admin
+creates accounts), and take it away there; both are audited. With permission, a person sees all of the recording on
+the pages for visitors, whatever its access: a private recording is listed for them in its collection and in search,
+and under "Shared with you" on the home page. IIIF lets them in too: its manifest with their token or the IIIF access
+cookie, and its media and transcript through the Authorization Flow. Face crops stay with members unless the namespace
+publishes them. Permission doesn't open the workspace: that stays with the namespace's members.
+
+In the matrix, view and edit permission open the same pages; Lens has one permission for both.
 
 ## Pages
 
