@@ -69,6 +69,17 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   dialog and on Home under Needs attention, and approve (which gives permission) or decline, audited.
   `POST /api/v1/public/recordings/{rid}/request`, `GET /api/v1/recordings/{rid}/requests`,
   `POST …/requests/{account}/approve|decline`, `GET /api/v1/access-requests`.
+- **IP groups** (Aviary's "public user with view permission in an IP group"). Owners name address ranges on their
+  namespace's page (a reading room, a campus) that open every recording in the namespace, or the ones chosen in each
+  recording's Access dialog. Visitors from those addresses see what a group opens without signing in: in collections,
+  search, a recording's page ("You're connecting from Reading room") and IIIF, the Authorization Flow's probe
+  included. Groups and choices are audited. `/api/v1/namespaces/{name}/ip-groups` (list with your address as the
+  server sees it, add, change, delete) and `/api/v1/recordings/{rid}/ip-groups` (open or close one recording).
+    - The visitor's address comes from `X-Forwarded-For` only when the request arrives from a trusted proxy: the new
+      `server.trusted_proxies` setting (Settings → Access & embedding; default this machine). A proxy that isn't
+      trusted, or the web app asking on its own behalf, counts for no group. Behind the web app, a reverse proxy that
+      sets the header is needed, or visitors could claim any address (`docs/configuration.md`, Trusted proxies).
+    - Server-side page titles for visitors pass their address on, so a reading room sees the right titles.
 
 Tooling:
 

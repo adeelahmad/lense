@@ -2,9 +2,10 @@
 Authorization Flow 2.0 services other IIIF viewers use to play restricted recordings.
 
 What a recording publishes follows its access (docs/access.md): a public recording's manifest is open, and so are the
-parts it opens (media, transcript, index); restricted and private recordings answer 404 unless the request has a role in
-their namespace. Closed content is open to a bearer token with a role in the namespace, a link signed by the probe
-service, or the IIIF access cookie set by the sign-in page below.
+parts it opens (media, transcript, index); restricted and private recordings answer 404 unless the request has
+permission: a role in their namespace, permission given on the recording, or an address in an IP group that opens it.
+Closed content is open to the same, a link signed by the probe service, or the IIIF access cookie set by the sign-in
+page below.
 
 The sign-in page (the access service) is opened by a viewer on another site in a new tab. It authenticates with its own
 email/password form (throttled like the API's sign-in) and, on success, sets the IIIF access cookie (HttpOnly,
@@ -27,7 +28,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import Cfg, Db, OptionalUser, Principal, client_ip, get_cfg, get_db
+from app.api.deps import Cfg, Db, OptionalUser, Principal, client_ip, get_cfg, get_db, network
 from app.api.v1.routes.recordings import serve_audio
 from app.domain import access as acc
 from app.domain import auth, iiif, iiif_auth, render, store, video
@@ -70,17 +71,24 @@ def _account_permitted(db: DB, acct: dict[str, Any], rid: int, space: int) -> bo
     return acc.permitted(db, auth.roles(db, acct), acct["id"], rid, space)
 
 
-def _granted(db: DB, user: Principal | None) -> frozenset[int]:
-    return acc.granted(db, user.id if user else None)
+def _readable(request: Request, db: DB, user: Principal | None) -> set[int]:
+    """The namespaces whose recordings the requester sees all of: a role there, or an IP group that opens everything."""
+    return set(_roles(user)) | set(network(request, db).spaces)
+
+
+def _granted(request: Request, db: DB, user: Principal | None) -> frozenset[int]:
+    """The recordings given to the requester, and those an IP group opens to their address."""
+    return acc.granted(db, user.id if user else None) | frozenset(network(request, db).recordings)
 
 
 PART = {"audio": "media", "transcript": "transcript"}  # what the probe and content routes call each part
 
 
 def _allowed(request: Request, db: DB, cfg: Config, user: Principal | None, rec: dict[str, Any], rid: int, what: str | None = None) -> bool:
-    """Permission, however it arrives: the requester's (a role in the namespace, or permission given on the recording),
-    the IIIF access cookie's account's, or, for content, a link the probe service signed for it."""
-    if _permitted(db, user, rid, rec["space"]):
+    """Permission, however it arrives: the requester's (a role in the namespace, permission given on the recording, or
+    an IP group their address is in), the IIIF access cookie's account's, or, for content, a link the probe service
+    signed for it."""
+    if _permitted(db, user, rid, rec["space"]) or network(request, db).opens(rid, rec["space"]):
         return True
     q = request.query_params
     if what and q.get("sig") and iiif.signed_ok(cfg, rid, what, q.get("exp"), q.get("sig")):
@@ -125,19 +133,20 @@ def _nsid(db: DB, name: str) -> int:
 # ---------- collections and change discovery ----------
 @router.get("/iiif/collection")
 def iiif_root_collection(request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
-    return _ld(iiif.root_collection(db, cfg, base_url(request, cfg), set(_roles(user)), _granted(db, user)))
+    return _ld(iiif.root_collection(db, cfg, base_url(request, cfg), _readable(request, db, user), _granted(request, db, user)))
 
 
 @router.get("/iiif/collection/{name}")
 def iiif_collection(name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
-    return _ld(iiif.collection(db, cfg, _nsid(db, name), base_url(request, cfg), set(_roles(user)), _granted(db, user)))
+    sid = _nsid(db, name)
+    return _ld(iiif.collection(db, cfg, sid, base_url(request, cfg), _readable(request, db, user), _granted(request, db, user)))
 
 
 @router.get("/iiif/collection/{name}/search")
 def iiif_collection_search(name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg, q: str = "", page: int = 0) -> JSONResponse:
     sid = _nsid(db, name)
     rows = db.rows("SELECT record::id(id) AS id, space, access, access_parts, featured FROM recording WHERE space = $s", s=sid)
-    readable, granted = auth.allows(_roles(user), sid), _granted(db, user)
+    readable, granted = sid in _readable(request, db, user), _granted(request, db, user)
     rids = [rid for rid, a in acc.many(db, rows).items() if readable or rid in granted or acc.is_open(a, "transcript")]
     base = base_url(request, cfg)
     url = f"{base}/iiif/collection/{name}/search?q={urllib.parse.quote(q)}" + (f"&page={page}" if page else "")
@@ -201,7 +210,7 @@ def iiif_probe(rid: int, what: str, request: Request, db: Db, cfg: Cfg) -> JSONR
         return result(200)
     h = request.headers.get("authorization", "")
     acct = iiif_auth.token_account(db, h[7:].strip() if h.lower().startswith("bearer ") else "")
-    if acct and _account_permitted(db, acct, rid, rec["space"]):
+    if (acct and _account_permitted(db, acct, rid, rec["space"])) or network(request, db).opens(rid, rec["space"]):
         base = base_url(request, cfg)
         if what == "audio":
             ext = pathlib.PurePosixPath((rec.get("remote") or {}).get("path") or rec.get("path") or "").suffix.lower()

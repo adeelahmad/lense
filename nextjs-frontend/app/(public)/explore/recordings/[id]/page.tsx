@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { Public } from "@/app/openapi-client";
@@ -21,9 +22,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const rid = recordingId((await params).id);
   const session = await auth();
   const token = session && !session.error ? session.accessToken : undefined;
-  const { data } = await Public.getPublicRecording({ client: createApiClient(token), path: { rid } }).catch(() => ({
-    data: undefined,
-  }));
+  const client = createApiClient(token, (await headers()).get("x-forwarded-for"));
+  const { data } = await Public.getPublicRecording({ client, path: { rid } }).catch(() => ({ data: undefined }));
   if (!data || data.view === "locked") return { title: data?.title ?? "Recording", robots: { index: false } };
   const summary = first((data.description as Meta | null)?.summary) || undefined;
   return {

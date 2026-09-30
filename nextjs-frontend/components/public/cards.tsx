@@ -99,7 +99,7 @@ export function CollectionCard({ c }: { c: PublicCollectionSummary }) {
         <span className="truncate text-[14.5px] font-bold text-fg group-hover:underline">{c.label}</span>
         <span className={cn("text-[12.5px] text-fg-secondary", !c.summary && "text-fg-muted")}>
           {c.recordings} recording{c.recordings === 1 ? "" : "s"}
-          {c.member ? " · you’re a member" : ""}
+          {c.member ? " · you’re a member" : c.network ? ` · open from ${c.network}` : ""}
         </span>
         {c.summary && <span className="line-clamp-2 text-[13px] leading-[1.45] text-fg-secondary">{c.summary}</span>}
       </span>

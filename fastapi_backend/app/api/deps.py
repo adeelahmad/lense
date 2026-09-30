@@ -11,6 +11,7 @@ change says so (403). Admins own every namespace.
 from __future__ import annotations
 
 import contextlib
+import ipaddress
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal
@@ -19,7 +20,7 @@ from fastapi import Depends, HTTPException, Request
 
 from app.core import security
 from app.domain import access as acc
-from app.domain import auth, store
+from app.domain import auth, ipgroups, store
 from app.domain.store import DB
 
 Config = dict[str, Any]
@@ -166,13 +167,18 @@ class Access:
         return rec
 
     def permitted(self, rid: int, space: int) -> bool:
-        """Permission on a recording (docs/access.md): a role in its namespace (admins have every role), or permission
-        given on the recording."""
-        return acc.permitted(self.db, self.roles, self.user.id if self.user else None, rid, space)
+        """Permission on a recording (docs/access.md): a role in its namespace (admins have every role), permission
+        given on the recording, or an IP group the request's address is in."""
+        return acc.permitted(self.db, self.roles, self.user.id if self.user else None, rid, space, self.network())
+
+    def network(self) -> ipgroups.Network:
+        """What the request's address opens (IP groups)."""
+        return network(self.request, self.db)
 
     def who(self) -> acc.Who:
         """Who is asking, for the pages visitors see."""
-        return acc.Who(frozenset(self.roles), acc.granted(self.db, self.user.id if self.user else None), self.user is not None)
+        account = self.user.id if self.user else None
+        return acc.Who(frozenset(self.roles), acc.granted(self.db, account), self.user is not None, self.network())
 
     def signed(self) -> bool:
         q = self.request.query_params
@@ -201,3 +207,19 @@ def domain_errors() -> Iterator[None]:
 
 def client_ip(request: Request) -> str:
     return request.client.host if request.client else ""
+
+
+def visitor_address(request: Request) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """The address a visitor comes from, for IP groups: the peer, or what the trusted proxies (server.trusted_proxies)
+    report in X-Forwarded-For. None when the server can't vouch for one (ipgroups.client_address())."""
+    c = request.client
+    trusted = tuple(request.app.state.settings.current()["server"].get("trusted_proxies") or ())
+    forwarded = ", ".join(request.headers.getlist("x-forwarded-for"))
+    return ipgroups.client_address(c.host if c else None, c.port if c else None, forwarded, trusted)
+
+
+def network(request: Request, db: DB) -> ipgroups.Network:
+    """What the request's address opens (IP groups), worked out once per request."""
+    if not hasattr(request.state, "network"):
+        request.state.network = ipgroups.of(db, visitor_address(request))
+    return request.state.network

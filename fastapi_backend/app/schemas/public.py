@@ -82,6 +82,7 @@ class PublicRecording(ResponseModel):
     featured: bool
     member: bool = Field(description="the visitor has a role in the recording's namespace, so it opens in the workspace too")
     granted: bool = Field(False, description="the visitor was given permission on this recording, so they see all of it")
+    network: str | None = Field(None, description="the IP group whose addresses see all of it, when that's why the visitor does")
     description: dict[str, Any] | None = Field(None, description="descriptive metadata, as IIIF publishes it")
     media: PublicMedia | None = None
     transcript: PublicTranscript | None = None
@@ -114,6 +115,7 @@ class PublicCollectionSummary(ResponseModel):
     summary: str | None = None
     recordings: int = Field(description="how many of its recordings this visitor sees")
     member: bool
+    network: str | None = Field(None, description="the IP group that opens all of it to the visitor's address")
 
 
 class PublicHome(ResponseModel):
@@ -132,6 +134,7 @@ class PublicCollection(ResponseModel):
     attribution: str | None = None
     provider: dict[str, Any] | None = None
     member: bool = Field(description="the visitor has a role in this namespace, so they see all of its recordings")
+    network: str | None = Field(None, description="the IP group that opens all of its recordings to the visitor's address")
     total: int = Field(description="how many recordings this visitor sees here, on all pages")
     items: list[PublicCard]
 

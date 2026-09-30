@@ -7,6 +7,7 @@ import {
   lineAt,
   markParts,
   momentPath,
+  networkNote,
   publicPath,
   requestLine,
   safeHref,
@@ -137,6 +138,20 @@ describe("public recording page", () => {
     );
     expect(requestLine({ status: "declined", decided_at: "2026-09-28T20:00:00Z" }, "podcasts", true, now)).toBe(
       "The owners of podcasts declined your request 2 days ago. You can ask again.",
+    );
+  });
+});
+
+describe("networkNote", () => {
+  it("tells a visitor from an IP group why they see everything", () => {
+    expect(networkNote("Reading room", "recording", "public")).toBe(
+      "You’re connecting from Reading room, so you see all of it, not only the parts open to everyone.",
+    );
+    expect(networkNote("Reading room", "recording", "private")).toBe(
+      "You’re connecting from Reading room, so you see all of it.",
+    );
+    expect(networkNote("Campus", "collection")).toBe(
+      "You’re connecting from Campus, so you see all of its recordings. Visitors elsewhere see the public ones.",
     );
   });
 });

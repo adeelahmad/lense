@@ -18,6 +18,8 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
   HTTPS.
 * **Allowed hosts.** Add your public host name to `server.allowed_hosts` (in the app) or `ARCHIVE_ALLOWED_HOSTS`, next
   to `backend`, the name the frontend uses inside the network.
+* **Visitors' addresses, for IP groups.** Have the reverse proxy set `X-Forwarded-For`, and list the web app's address
+  (in Docker, the compose network) in `server.trusted_proxies`. See [Trusted proxies](configuration.md#trusted-proxies).
 * **Stable secrets.** `ACCESS_SECRET_KEY` (changing it signs everyone out), `ARCHIVE_SECRET_KEY` (changing it makes
   stored source credentials and LLM keys unreadable), `AUTH_SECRET`.
 * **SurrealDB storage engine**: `surrealkv` (as in the compose file), RocksDB or TiKV. Not `memory`; see

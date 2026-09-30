@@ -71,6 +71,18 @@ import type {
   GetNamespaceWordcloudData,
   GetNamespaceWordcloudResponses,
   GetNamespaceWordcloudErrors,
+  ListIpGroupsData,
+  ListIpGroupsResponses,
+  ListIpGroupsErrors,
+  CreateIpGroupData,
+  CreateIpGroupResponses,
+  CreateIpGroupErrors,
+  DeleteIpGroupData,
+  DeleteIpGroupResponses,
+  DeleteIpGroupErrors,
+  UpdateIpGroupData,
+  UpdateIpGroupResponses,
+  UpdateIpGroupErrors,
   ListRecordingsData,
   ListRecordingsResponses,
   ListRecordingsErrors,
@@ -95,6 +107,15 @@ import type {
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionResponses,
   RemoveRecordingPermissionErrors,
+  ListRecordingIpGroupsData,
+  ListRecordingIpGroupsResponses,
+  ListRecordingIpGroupsErrors,
+  CloseRecordingToIpGroupData,
+  CloseRecordingToIpGroupResponses,
+  CloseRecordingToIpGroupErrors,
+  OpenRecordingToIpGroupData,
+  OpenRecordingToIpGroupResponses,
+  OpenRecordingToIpGroupErrors,
   ListAccessRequestsData,
   ListAccessRequestsResponses,
   ListAccessRequestsErrors,
@@ -839,6 +860,60 @@ export class Namespaces {
       ...options,
     });
   }
+
+  /**
+   * List Ip Groups
+   * The namespace's IP groups (owners), and your address as the server sees it, to check the ranges against.
+   */
+  public static listIpGroups<ThrowOnError extends boolean = false>(options: Options<ListIpGroupsData, ThrowOnError>) {
+    return (options.client ?? client).get<ListIpGroupsResponses, ListIpGroupsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/ip-groups",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Ip Group
+   * Add an IP group (owners): visitors from its addresses see all of every recording in the namespace
+   * (everything), or of the recordings chosen on each. Answers with all of the namespace's groups.
+   */
+  public static createIpGroup<ThrowOnError extends boolean = false>(options: Options<CreateIpGroupData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateIpGroupResponses, CreateIpGroupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/ip-groups",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Ip Group
+   * Delete an IP group (owners): its visitors lose what it opened. Answers with the groups left.
+   */
+  public static deleteIpGroup<ThrowOnError extends boolean = false>(options: Options<DeleteIpGroupData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteIpGroupResponses, DeleteIpGroupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/ip-groups/{gid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Ip Group
+   * Rename an IP group, change its ranges or what it opens (owners). Choosing recordings again after opening
+   * everything brings back the ones chosen before.
+   */
+  public static updateIpGroup<ThrowOnError extends boolean = false>(options: Options<UpdateIpGroupData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateIpGroupResponses, UpdateIpGroupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/ip-groups/{gid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Recordings {
@@ -966,6 +1041,50 @@ export class Recordings {
       ThrowOnError
     >({
       url: "/api/v1/recordings/{rid}/permissions/{account}",
+      ...options,
+    });
+  }
+
+  /**
+   * List Recording Ip Groups
+   * The namespace's IP groups (owners), each with whether visitors from its addresses see all of this recording.
+   */
+  public static listRecordingIpGroups<ThrowOnError extends boolean = false>(
+    options: Options<ListRecordingIpGroupsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<ListRecordingIpGroupsResponses, ListRecordingIpGroupsErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/ip-groups",
+      ...options,
+    });
+  }
+
+  /**
+   * Close Recording To Ip Group
+   * Close the recording to an IP group again (owners).
+   */
+  public static closeRecordingToIpGroup<ThrowOnError extends boolean = false>(
+    options: Options<CloseRecordingToIpGroupData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<
+      CloseRecordingToIpGroupResponses,
+      CloseRecordingToIpGroupErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/recordings/{rid}/ip-groups/{gid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Open Recording To Ip Group
+   * Open the recording to an IP group that opens chosen recordings (owners): visitors from its addresses see all of
+   * it. Answers with the namespace's groups.
+   */
+  public static openRecordingToIpGroup<ThrowOnError extends boolean = false>(
+    options: Options<OpenRecordingToIpGroupData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<OpenRecordingToIpGroupResponses, OpenRecordingToIpGroupErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/ip-groups/{gid}",
       ...options,
     });
   }
@@ -2666,8 +2785,8 @@ export class Public {
    * A recording's public page: what this visitor may see of it, and nothing more.
    *
    * Anyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title
-   * with a lock; people with a role in its namespace, or given permission on the recording, see all of it. Everything
-   * else answers 404, as a recording that doesn't exist would.
+   * with a lock; people with a role in its namespace, given permission on the recording, or on the network of an IP
+   * group that opens it, see all of it. Everything else answers 404, as a recording that doesn't exist would.
    */
   public static getPublicRecording<ThrowOnError extends boolean = false>(
     options: Options<GetPublicRecordingData, ThrowOnError>,

@@ -263,6 +263,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
         <>
           <F ctx={ctx} id="server.allowed_hosts" />
           <F ctx={ctx} id="server.embed_frame_ancestors" />
+          <F ctx={ctx} id="server.trusted_proxies" />
           <div className="grid items-end gap-3 sm:grid-cols-2">
             <F ctx={ctx} id="server.session_hours" />
             <div className="pb-2.5">

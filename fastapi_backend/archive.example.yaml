@@ -70,6 +70,10 @@ server:
   max_upload_mb: 50                 # largest file the Import dialog accepts
   session_hours: 168                # how long a sign-in lasts
   secure_cookies: false             # true behind HTTPS
+  # Proxies whose X-Forwarded-For names the visitor's address, for IP groups (docs/configuration.md): the web app's
+  # address, e.g. [127.0.0.1, "172.16.0.0/12"] for the web app in a Docker network. Put a reverse proxy in front of the
+  # web app that sets X-Forwarded-For (nginx, Caddy), or visitors can claim any address.
+  trusted_proxies: ["127.0.0.0/8", "::1/128"]
 
 workers:                            # background jobs; everything below can also be changed in the app
   inline: 1                         # workers inside the server (0 when separate `lens-archive worker` processes do the work)

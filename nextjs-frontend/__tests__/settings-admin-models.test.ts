@@ -154,6 +154,12 @@ describe("settings fields", () => {
       message: "Transcribe.engine must be one of: mlx-whisper, sensevoice, whisper",
     });
     expect(serverError("iiif", "iiif.viewers should be list").field).toBeNull();
+    expect(
+      serverError("server", "server.trusted_proxies: frontend isn't an address or a range like 10.0.0.0/8"),
+    ).toEqual({
+      field: "server.trusted_proxies",
+      message: "Server.trusted_proxies: frontend isn't an address or a range like 10.0.0.0/8",
+    });
   });
 
   it("summarises changes for the review dialog", () => {

@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from typing import NamedTuple
 
-from . import auth, store
+from . import auth, ipgroups, store
 
 R = store.R
 LEVELS = ("public", "restricted", "private")
@@ -91,15 +91,28 @@ def is_open(a, part):
 
 class Who(NamedTuple):
     """Who is asking, for the pages visitors see and IIIF: the namespaces they have a role in (admins have every role),
-    the recordings they were given permission on, and whether they're signed in."""
+    the recordings they were given permission on, whether they're signed in, and what their address opens (IP
+    groups)."""
 
     member_of: frozenset
     granted: frozenset
     signed_in: bool
+    network: ipgroups.Network = ipgroups.NOWHERE
 
     def permitted(self, rid, space):
-        """Permission on a recording: a role in its namespace, or permission given on the recording itself."""
-        return space in self.member_of or rid in self.granted
+        """Permission on a recording: a role in its namespace, permission given on the recording itself, or an IP group
+        the visitor's address is in."""
+        return space in self.member_of or rid in self.granted or self.network.opens(rid, space)
+
+    @property
+    def spaces(self):
+        """The namespaces they see all of: a role there, or an IP group that opens everything in it."""
+        return self.member_of | frozenset(self.network.spaces)
+
+    @property
+    def recordings(self):
+        """The recordings they see all of beyond those namespaces: given to them, or opened to their address."""
+        return self.granted | frozenset(self.network.recordings)
 
 
 def granted(db, account):
@@ -111,9 +124,10 @@ def has_permission(db, rid, account):
     return bool(account and db.one("SELECT id FROM $p", p=R("permission", f"{rid}-{account}")))
 
 
-def permitted(db, roles, account, rid, space):
-    """Permission on a recording (docs/access.md): a role in its namespace, or permission given on the recording."""
-    return auth.allows(roles, space) or has_permission(db, rid, account)
+def permitted(db, roles, account, rid, space, network=ipgroups.NOWHERE):
+    """Permission on a recording (docs/access.md): a role in its namespace, permission given on the recording, or an IP
+    group the visitor's address is in (network: ipgroups.of())."""
+    return auth.allows(roles, space) or network.opens(rid, space) or has_permission(db, rid, account)
 
 
 def people(db, rid):
@@ -249,9 +263,10 @@ def owners(db, space):
 def view(a, permitted, signed_in):
     """What someone sees of a recording, after Aviary's matrix (docs/access.md).
 
-    full: they have permission (a role in its namespace, or permission on the recording), so all of it. public: a public recording's page, description
-    and open parts. locked: a restricted recording, for someone signed in: listed with a lock, its page closed.
-    None: hidden (restricted ones from visitors who aren't signed in, private ones from everyone without permission).
+    full: they have permission (a role in its namespace, permission on the recording, an IP group), so all of it.
+    public: a public recording's page, description and open parts. locked: a restricted recording, for someone signed
+    in: listed with a lock, its page closed. None: hidden (restricted ones from visitors who aren't signed in, private
+    ones from everyone without permission).
     """
     if permitted:
         return "full"

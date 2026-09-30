@@ -7,8 +7,9 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { AccessFields } from "@/components/access/access-fields";
 import { useRecordingAccess, useSaveAccess } from "@/components/access/hooks";
-import { PeopleWithPermission, RequestsWaiting } from "@/components/access/people";
+import { RecordingIpGroups } from "@/components/access/ip-groups";
 import { ALL_PARTS, accessLabel, accessPatch, partsText, type AccessValue } from "@/components/access/model";
+import { PeopleWithPermission, RequestsWaiting } from "@/components/access/people";
 import { CopyButton } from "@/components/iiif/collections";
 import { publicPath } from "@/components/public/model";
 import { useRec } from "@/components/recording/context";
@@ -119,7 +120,7 @@ export function AccessDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       open={open}
       onOpenChange={onOpenChange}
       title="Who can see this recording"
-      description="Members of its namespace, and people it’s shared with, always see all of it."
+      description="Members of its namespace, people it’s shared with and visitors from its IP groups always see all of it."
       wide
     >
       {!value ? (
@@ -158,6 +159,7 @@ export function AccessDialog({ open, onOpenChange }: { open: boolean; onOpenChan
           )}
           {canPublish && <RequestsWaiting rid={id} />}
           {canPublish && ns && <PeopleWithPermission rid={id} ns={ns} />}
+          {canPublish && ns && <RecordingIpGroups rid={id} ns={ns} />}
           <div className="flex items-center justify-end gap-2">
             {!canPublish && (
               <span className="mr-auto text-[12.5px] text-fg-muted">

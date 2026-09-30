@@ -31,7 +31,7 @@ export const ACCESS: {
     value: "private",
     label: "Private",
     hint: "people with access",
-    anon: "Only people with access see it: this namespace’s members and anyone it’s shared with. Not published in IIIF.",
+    anon: "Only people with access see it: this namespace’s members, anyone it’s shared with and its IP groups. Not published in IIIF.",
   },
 ];
 
@@ -101,4 +101,25 @@ export function permissionLine(p: { by?: string | null; at?: string | null }): s
       ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
       : "";
   return ["Given", p.by ? `by ${p.by}` : "", when ? `on ${when}` : ""].filter(Boolean).join(" ");
+}
+
+/** IP groups (docs/access.md): addresses typed one per line (or separated by commas or spaces), without repeats. */
+export function rangesFromText(text: string): string[] {
+  const out: string[] = [];
+  for (const r of text.split(/[\s,;]+/)) if (r && !out.includes(r)) out.push(r);
+  return out;
+}
+
+/** A group's ranges in one line: "198.51.100.0/24, 2001:db8::/48 and 3 more". */
+export function rangesText(ranges: readonly string[], max = 2): string {
+  if (ranges.length <= max + 1) return ranges.join(", ");
+  return `${ranges.slice(0, max).join(", ")} and ${ranges.length - max} more`;
+}
+
+/** What an IP group opens: "Every recording in pods", "3 chosen recordings", or how to choose some. */
+export function ipGroupOpens(g: { everything: boolean; chosen?: number | null }, ns: string): string {
+  if (g.everything) return `Every recording in ${ns}`;
+  const n = g.chosen ?? 0;
+  if (!n) return "No recordings yet: choose them in a recording’s Access dialog";
+  return `${n} chosen recording${n === 1 ? "" : "s"}`;
 }

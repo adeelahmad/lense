@@ -55,7 +55,18 @@ GET    /api/v1/namespaces
 POST   /api/v1/namespaces
 PATCH  /api/v1/namespaces/{name}
 GET    /api/v1/namespaces/{name}/wordcloud.svg
+GET    /api/v1/namespaces/{name}/ip-groups
+POST   /api/v1/namespaces/{name}/ip-groups
+PATCH  /api/v1/namespaces/{name}/ip-groups/{gid}
+DELETE /api/v1/namespaces/{name}/ip-groups/{gid}
 ```
+
+`/namespaces/{name}/ip-groups` lists a namespace's IP groups ([Access](access.md#ip-groups), owners), with `address`:
+your address as the server sees it (`null` when it can't tell; see `server.trusted_proxies`), and on each group `here`
+(your address is in it) and `chosen` (how many recordings it opens when it doesn't open `everything`). `POST` with
+`{"name", "ranges", "everything"}` adds one: `ranges` are addresses or CIDR ranges, at most 100, none wider than `/8`
+(IPv4) or `/16` (IPv6); names are unique in the namespace. `PATCH` changes any of them and `DELETE` removes the group.
+All three answer with the list and are audited as `namespace.ip_group.create`, `.update` and `.delete`.
 
 ## recordings
 
@@ -71,6 +82,9 @@ DELETE /api/v1/recordings/{rid}/permissions/{account}
 GET    /api/v1/recordings/{rid}/requests
 POST   /api/v1/recordings/{rid}/requests/{account}/approve
 POST   /api/v1/recordings/{rid}/requests/{account}/decline
+GET    /api/v1/recordings/{rid}/ip-groups
+PUT    /api/v1/recordings/{rid}/ip-groups/{gid}
+DELETE /api/v1/recordings/{rid}/ip-groups/{gid}
 GET    /api/v1/recordings/{rid}/player
 GET    /api/v1/recordings/{rid}/embed-link
 GET    /api/v1/recordings/{rid}/audio
@@ -122,6 +136,11 @@ see all of it); `DELETE …/{account}` takes it away. Both answer with the list 
 `recording.permission.give` and `recording.permission.take`. `/recordings/{rid}/requests` lists the requests for access
 (owners); approving one gives permission, declining lets the person ask again (audited as
 `recording.request.approve` and `recording.request.decline`).
+
+`/recordings/{rid}/ip-groups` lists the namespace's IP groups with `opens`: whether visitors from their addresses see
+all of the recording (owners). `PUT …/{gid}` opens the recording to a group that opens chosen recordings (400 for one
+that opens `everything` already), `DELETE …/{gid}` closes it again (404 when it wasn't open). Both answer with the list
+and are audited as `recording.ip_group.open` and `recording.ip_group.close`.
 
 ## imports
 
@@ -303,7 +322,8 @@ GET    /api/v1/batches/{bid}/results.{fmt}
 
 ## public
 
-What visitors see ([Access](access.md)). No sign-in is needed; send a token and people with permission see more.
+What visitors see ([Access](access.md)). No sign-in is needed; send a token and people with permission see more, and
+so do visitors whose address is in an IP group.
 
 ```
 GET    /api/v1/public/home
@@ -315,7 +335,8 @@ GET    /api/v1/access-requests
 ```
 
 `GET /public/home` lists the featured public recordings (for everyone, members too) and the collections the caller
-sees anything in, with how many of their recordings they see. `GET /public/collections/{name}` is a collection's page:
+sees anything in, with how many of their recordings they see (`network` names the IP group that opens all of one to
+the caller's address). `GET /public/collections/{name}` is a collection's page:
 the namespace's description and the recordings the caller sees there, newest first (`limit`, `offset`, and `total` on
 all pages). Each recording is a card with the caller's `view` of it; `locked` cards carry the title only. A poster
 frame comes only with media the caller may play. A collection with nothing for the caller answers 404.
@@ -327,7 +348,9 @@ recordings and closed transcripts match on the title only.
 
 `GET /public/recordings/{rid}` is a recording's public page as the caller may see it. `view` says how:
 
-* `full`: the caller has a role in its namespace (admins have every role): all of it, and `member` is true.
+* `full`: the caller has permission, so all of it: a role in its namespace (admins have every role; `member` is
+  true), permission given on the recording (`granted`), or an address in an IP group that opens it (`network`, the
+  group's name).
 * `public`: a public recording, for everyone else: its description (the metadata IIIF publishes) and only its open
   parts: `media` (a signed link to the audio or video, with its waveform), `transcript` (speakers and lines, and the
   transcript files to download when the transcript is open to everyone) and `chapters` (the index).

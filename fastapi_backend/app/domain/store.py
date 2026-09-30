@@ -153,6 +153,8 @@ DEFAULTS = {
         "max_upload_mb": 50,
         "session_hours": 168,
         "secure_cookies": False,
+        # proxies whose X-Forwarded-For names the visitor's address, for IP groups (docs/configuration.md)
+        "trusted_proxies": ["127.0.0.0/8", "::1/128"],
     },
     "workers": {
         "inline": 1,
@@ -479,6 +481,9 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS access_request SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS access_request_recording ON access_request FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS access_request_status ON access_request FIELDS status",
+    # address ranges whose visitors see all of a namespace's recordings, or chosen ones (docs/access.md): ip_group:<n>
+    "DEFINE TABLE IF NOT EXISTS ip_group SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS ip_group_space ON ip_group FIELDS space",
     "DEFINE TABLE IF NOT EXISTS login_session SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS login_session_account ON login_session FIELDS account",
     "DEFINE INDEX IF NOT EXISTS login_session_sid ON login_session FIELDS sid",

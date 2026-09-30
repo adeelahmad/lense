@@ -142,7 +142,8 @@ export const SECTIONS: SectionSpec[] = [
     id: "access",
     label: "Access & embedding",
     backend: ["server"],
-    description: "Who can reach the server, which sites may embed the player, and how long sessions last.",
+    description:
+      "Who can reach the server, how it tells visitors’ addresses, which sites may embed the player, and how long sessions last.",
   },
   {
     id: "iiif",
@@ -711,6 +712,14 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "server",
+    key: "trusted_proxies",
+    label: "Trusted proxies",
+    kind: "lines",
+    mono: true,
+    hint: "The web app’s address (and other proxies in front of the server), one per line: their X-Forwarded-For names the visitor, for IP groups",
+  },
+  {
+    section: "server",
     key: "session_hours",
     label: "Session length (days)",
     kind: "days",
@@ -1001,6 +1010,7 @@ export function why(c: Change): string | null {
   const id = fieldId(c.field);
   if (id === "server.session_hours") return "Applies from each person’s next sign-in or session refresh.";
   if (id === "server.allowed_hosts") return "Requests to any other host name are refused.";
+  if (id === "server.trusted_proxies") return "IP groups match the address these proxies report for each visitor.";
   if (id === "server.embed_frame_ancestors") {
     const before = (c.before as string[]) ?? [];
     const after = (c.after as string[]) ?? [];

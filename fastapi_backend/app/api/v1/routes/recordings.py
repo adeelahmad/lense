@@ -17,7 +17,7 @@ from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_url, sign_urls
 from app.api.streaming import file_response, range_response
 from app.domain import access as acc
-from app.domain import analyze, auth, jobs, library, render, sources, store, video
+from app.domain import analyze, auth, ipgroups, jobs, library, render, sources, store, video
 from app.domain import metadata as md
 from app.domain.store import API, DB
 from app.schemas.common import AccessLevel, Ok
@@ -34,6 +34,7 @@ from app.schemas.recordings import (
     Recording,
     RecordingAccess,
     RecordingAccessUpdate,
+    RecordingIpGroup,
     RecordingSort,
     RecordingState,
     RecordingSummary,
@@ -220,6 +221,46 @@ def remove_recording_permission(rid: int, account: int, acl: Acl, user: Writer, 
     email = (auth.get_account(db, account) or {}).get("email")
     auth.audit(db, user.as_audit(), "recording.permission.take", f"recording:{rid}", {"email": email})
     return [Permission.model_validate(p) for p in acc.people(db, rid)]
+
+
+def _ip_groups(db: DB, rid: int, space: int) -> list[RecordingIpGroup]:
+    return [
+        RecordingIpGroup(id=g["id"], name=g["name"], ranges=g["ranges"], everything=bool(g.get("everything")), opens=g["opens"])
+        for g in ipgroups.for_recording(db, rid, space)
+    ]
+
+
+@router.get("/{rid}/ip-groups")
+def list_recording_ip_groups(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[RecordingIpGroup]:
+    """The namespace's IP groups (owners), each with whether visitors from its addresses see all of this recording."""
+    r = acl.recording(rid, "owner")
+    return _ip_groups(db, rid, r["space"])
+
+
+def _choose(rid: int, gid: int, on: bool, acl: Acl, user: Any, db: DB) -> list[RecordingIpGroup]:
+    r = acl.recording(rid, "owner")
+    with domain_errors():
+        changed = ipgroups.choose(db, gid, r["space"], rid, on)
+        name = ipgroups.get(db, gid)["name"]
+    if not on and not changed:
+        raise HTTPException(404, "that IP group doesn't open this recording")
+    if changed:
+        action = "recording.ip_group.open" if on else "recording.ip_group.close"
+        auth.audit(db, user.as_audit(), action, f"recording:{rid}", {"id": gid, "name": name})
+    return _ip_groups(db, rid, r["space"])
+
+
+@router.put("/{rid}/ip-groups/{gid}")
+def open_recording_to_ip_group(rid: int, gid: int, acl: Acl, user: Writer, db: Db) -> list[RecordingIpGroup]:
+    """Open the recording to an IP group that opens chosen recordings (owners): visitors from its addresses see all of
+    it. Answers with the namespace's groups."""
+    return _choose(rid, gid, True, acl, user, db)
+
+
+@router.delete("/{rid}/ip-groups/{gid}")
+def close_recording_to_ip_group(rid: int, gid: int, acl: Acl, user: Writer, db: Db) -> list[RecordingIpGroup]:
+    """Close the recording to an IP group again (owners)."""
+    return _choose(rid, gid, False, acl, user, db)
 
 
 @router.get("/{rid}/requests")

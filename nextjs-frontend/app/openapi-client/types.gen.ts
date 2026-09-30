@@ -2067,6 +2067,126 @@ export type ImportResult = {
 };
 
 /**
+ * IpGroup
+ * Address ranges whose visitors see all of some of the namespace's recordings without signing in (docs/access.md).
+ */
+export type IpGroup = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Ranges
+   * addresses and CIDR ranges
+   */
+  ranges: Array<string>;
+  /**
+   * Everything
+   * opens every recording in the namespace; else the ones chosen on each recording
+   */
+  everything: boolean;
+  /**
+   * Chosen
+   * how many recordings it opens when it doesn't open everything
+   */
+  chosen?: number;
+  /**
+   * Here
+   * the address you're asking from is in it
+   */
+  here?: boolean;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | Array<string>
+    | boolean
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * IpGroupCreate
+ */
+export type IpGroupCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Ranges
+   * addresses (203.0.113.7) or CIDR ranges (203.0.113.0/24)
+   */
+  ranges: Array<string>;
+  /**
+   * Everything
+   * open every recording in the namespace; else choose them on each recording
+   */
+  everything?: boolean;
+};
+
+/**
+ * IpGroupUpdate
+ */
+export type IpGroupUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Ranges
+   */
+  ranges?: Array<string> | null;
+  /**
+   * Everything
+   */
+  everything?: boolean | null;
+};
+
+/**
+ * IpGroups
+ */
+export type IpGroups = {
+  /**
+   * Address
+   * your address as the server sees it; null when it can't tell (see server.trusted_proxies)
+   */
+  address?: string | null;
+  /**
+   * Groups
+   */
+  groups: Array<IpGroup>;
+  [key: string]: unknown | string | null | Array<IpGroup> | undefined;
+};
+
+/**
  * Job
  */
 export type Job = {
@@ -3414,6 +3534,11 @@ export type PublicCollection = {
    */
   member: boolean;
   /**
+   * Network
+   * the IP group that opens all of its recordings to the visitor's address
+   */
+  network?: string | null;
+  /**
    * Total
    * how many recordings this visitor sees here, on all pages
    */
@@ -3436,6 +3561,8 @@ export type PublicCollection = {
       }
     | null
     | boolean
+    | string
+    | null
     | number
     | Array<PublicCard>
     | undefined;
@@ -3466,7 +3593,12 @@ export type PublicCollectionSummary = {
    * Member
    */
   member: boolean;
-  [key: string]: unknown | string | string | null | number | boolean | undefined;
+  /**
+   * Network
+   * the IP group that opens all of it to the visitor's address
+   */
+  network?: string | null;
+  [key: string]: unknown | string | string | null | number | boolean | string | null | undefined;
 };
 
 /**
@@ -3633,6 +3765,11 @@ export type PublicRecording = {
    */
   granted?: boolean;
   /**
+   * Network
+   * the IP group whose addresses see all of it, when that's why the visitor does
+   */
+  network?: string | null;
+  /**
    * Description
    * descriptive metadata, as IIIF publishes it
    */
@@ -3681,6 +3818,8 @@ export type PublicRecording = {
     | "private"
     | Array<"media" | "transcript" | "index">
     | boolean
+    | string
+    | null
     | {
         [key: string]: unknown;
       }
@@ -4081,6 +4220,36 @@ export type RecordingAccessUpdate = {
    * Featured
    */
   featured?: boolean | null;
+};
+
+/**
+ * RecordingIpGroup
+ * One of the namespace's IP groups, and whether it opens this recording (docs/access.md).
+ */
+export type RecordingIpGroup = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Ranges
+   */
+  ranges: Array<string>;
+  /**
+   * Everything
+   * it opens every recording in the namespace
+   */
+  everything: boolean;
+  /**
+   * Opens
+   * visitors from its addresses see all of this recording
+   */
+  opens: boolean;
+  [key: string]: unknown | number | string | Array<string> | boolean;
 };
 
 /**
@@ -6461,6 +6630,134 @@ export type GetNamespaceWordcloudResponses = {
 
 export type GetNamespaceWordcloudResponse = GetNamespaceWordcloudResponses[keyof GetNamespaceWordcloudResponses];
 
+export type ListIpGroupsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/ip-groups";
+};
+
+export type ListIpGroupsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListIpGroupsError = ListIpGroupsErrors[keyof ListIpGroupsErrors];
+
+export type ListIpGroupsResponses = {
+  /**
+   * Successful Response
+   */
+  200: IpGroups;
+};
+
+export type ListIpGroupsResponse = ListIpGroupsResponses[keyof ListIpGroupsResponses];
+
+export type CreateIpGroupData = {
+  body: IpGroupCreate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/ip-groups";
+};
+
+export type CreateIpGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateIpGroupError = CreateIpGroupErrors[keyof CreateIpGroupErrors];
+
+export type CreateIpGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: IpGroups;
+};
+
+export type CreateIpGroupResponse = CreateIpGroupResponses[keyof CreateIpGroupResponses];
+
+export type DeleteIpGroupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/ip-groups/{gid}";
+};
+
+export type DeleteIpGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteIpGroupError = DeleteIpGroupErrors[keyof DeleteIpGroupErrors];
+
+export type DeleteIpGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: IpGroups;
+};
+
+export type DeleteIpGroupResponse = DeleteIpGroupResponses[keyof DeleteIpGroupResponses];
+
+export type UpdateIpGroupData = {
+  body: IpGroupUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/ip-groups/{gid}";
+};
+
+export type UpdateIpGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateIpGroupError = UpdateIpGroupErrors[keyof UpdateIpGroupErrors];
+
+export type UpdateIpGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: IpGroups;
+};
+
+export type UpdateIpGroupResponse = UpdateIpGroupResponses[keyof UpdateIpGroupResponses];
+
 export type ListRecordingsData = {
   body?: never;
   path?: never;
@@ -6796,6 +7093,107 @@ export type RemoveRecordingPermissionResponses = {
 
 export type RemoveRecordingPermissionResponse =
   RemoveRecordingPermissionResponses[keyof RemoveRecordingPermissionResponses];
+
+export type ListRecordingIpGroupsData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/ip-groups";
+};
+
+export type ListRecordingIpGroupsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListRecordingIpGroupsError = ListRecordingIpGroupsErrors[keyof ListRecordingIpGroupsErrors];
+
+export type ListRecordingIpGroupsResponses = {
+  /**
+   * Response Recordings-List Recording Ip Groups
+   * Successful Response
+   */
+  200: Array<RecordingIpGroup>;
+};
+
+export type ListRecordingIpGroupsResponse = ListRecordingIpGroupsResponses[keyof ListRecordingIpGroupsResponses];
+
+export type CloseRecordingToIpGroupData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/ip-groups/{gid}";
+};
+
+export type CloseRecordingToIpGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CloseRecordingToIpGroupError = CloseRecordingToIpGroupErrors[keyof CloseRecordingToIpGroupErrors];
+
+export type CloseRecordingToIpGroupResponses = {
+  /**
+   * Response Recordings-Close Recording To Ip Group
+   * Successful Response
+   */
+  200: Array<RecordingIpGroup>;
+};
+
+export type CloseRecordingToIpGroupResponse = CloseRecordingToIpGroupResponses[keyof CloseRecordingToIpGroupResponses];
+
+export type OpenRecordingToIpGroupData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/ip-groups/{gid}";
+};
+
+export type OpenRecordingToIpGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type OpenRecordingToIpGroupError = OpenRecordingToIpGroupErrors[keyof OpenRecordingToIpGroupErrors];
+
+export type OpenRecordingToIpGroupResponses = {
+  /**
+   * Response Recordings-Open Recording To Ip Group
+   * Successful Response
+   */
+  200: Array<RecordingIpGroup>;
+};
+
+export type OpenRecordingToIpGroupResponse = OpenRecordingToIpGroupResponses[keyof OpenRecordingToIpGroupResponses];
 
 export type ListAccessRequestsData = {
   body?: never;

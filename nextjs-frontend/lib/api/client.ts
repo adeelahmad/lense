@@ -9,17 +9,16 @@ export function apiBaseUrl(): string {
 /**
  * A typed API client for server-side calls. Pass an access token to act as a
  * signed-in user; omit it for public endpoints (login, setup, password reset).
+ * Calls made for a visitor's page pass their X-Forwarded-For on, so the API
+ * sees their address for IP groups (docs/access.md).
  *
  * Use it with the generated SDK: `Auth.status({ client: createApiClient() })`.
  */
-export function createApiClient(accessToken?: string): Client {
-  return createClient(
-    createConfig<ClientOptions>({
-      baseUrl: apiBaseUrl(),
-      cache: "no-store",
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    }),
-  );
+export function createApiClient(accessToken?: string, forwardedFor?: string | null): Client {
+  const headers: Record<string, string> = {};
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  if (forwardedFor) headers["X-Forwarded-For"] = forwardedFor;
+  return createClient(createConfig<ClientOptions>({ baseUrl: apiBaseUrl(), cache: "no-store", headers }));
 }
 
 type ErrorBody = { detail?: unknown } | undefined | null;

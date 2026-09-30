@@ -23,6 +23,7 @@ import {
   findLines,
   lineAt,
   markParts,
+  networkNote,
   safeHref,
 } from "@/components/public/model";
 import { useSignInHref } from "@/components/public/public-shell";
@@ -136,6 +137,7 @@ function RecordingBody({ rec, signedIn, start }: { rec: Rec; signedIn: boolean; 
             {rec.access === "public" ? ", not only the parts open to everyone." : "."}
           </Banner>
         )}
+        {rec.network && <Banner>{networkNote(rec.network, "recording", rec.access)}</Banner>}
         {rec.can_request && <RequestAccess rec={rec} />}
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="flex min-w-0 flex-col gap-5">

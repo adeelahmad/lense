@@ -4,10 +4,6 @@ Lens follows the roles and permissions matrix of Aviary, the audio and video acc
 **public**, **restricted** or **private**, can be **featured**, and a public recording can keep some of its parts
 closed. Who may open what depends on who is asking.
 
-!!! note "Being built"
-    Recordings' access settings, permission on a recording, requests for access, the web app, IIIF and the pages for
-    visitors (home, collections, search and a recording's page) follow this model now. IP groups come next.
-
 ## A recording's access
 
 | Setting | Values | Default |
@@ -64,6 +60,21 @@ on Home under Needs attention. Approving gives the person permission; declining 
 them where their request stands. Asking again while a request waits only updates its message, and emails the owners
 at most once a day; answers are audited.
 
+## IP groups
+
+Owners give a network permission on their namespace's page (Admin → Namespaces), under **IP groups**: a name that
+visitors see (a reading room, a campus), its addresses (single addresses or CIDR ranges, none wider than `/8` for IPv4
+or `/16` for IPv6), and what the group opens: every recording in the namespace, now and later, or the recordings chosen
+in each one's Access dialog. A visitor whose address is in a group sees what it opens as if they had permission,
+without signing in: listed in its collection and in search, all of its page, and in IIIF (manifests, content,
+collections, and the Authorization Flow's probe). The page tells them why ("You're connecting from Reading room").
+Adding, changing and deleting groups, and opening or closing a recording to one, are audited.
+
+IP groups need the server to know the visitor's address. Behind the web app, that is what the web app and the proxies
+in front of it report in `X-Forwarded-For`, which the server believes only from `server.trusted_proxies` (see
+[Configuration](configuration.md#trusted-proxies)). An address the server can't vouch for opens nothing. The IP groups
+section shows your address as the server sees it and marks the groups that hold it, or says the server can't tell.
+
 ## Pages
 
 | Aviary page | Lens |
@@ -76,7 +87,8 @@ at most once a day; answers are audited.
 **The home page** shows the featured public recordings, to everyone, and the collections the visitor can see anything
 in. **A collection's page** has the namespace's label, summary, rights and provider (its IIIF metadata) and the
 recordings the visitor sees, newest first: public ones for everyone, restricted ones with a lock ("content locked" over
-the picture) for people who are signed in, and all of them for members. A collection with nothing for the visitor
+the picture) for people who are signed in, and all of them for members and for visitors from an IP group that opens
+the namespace. A collection with nothing for the visitor
 isn't there for them. The sign-in page links to the home page.
 
 **Search** finds the recordings the visitor sees by their title, and by the lines of the transcripts they may read,
@@ -97,7 +109,8 @@ never appear there, and grant holders see the recordings shared with them.
 ## What IIIF publishes
 
 IIIF follows the same setting. A public recording's manifest is open; its media and transcript are plain links when
-those parts are open, otherwise they sit behind the IIIF Authorization Flow, which admits people with permission.
+those parts are open, otherwise they sit behind the IIIF Authorization Flow, which admits people with permission
+(visitors from an IP group's addresses need no sign-in).
 Chapters appear as ranges when the index is open. Restricted and private recordings are not published: their
 manifests answer 404 unless the request carries permission, and they are left out of collections. Change Discovery
 announces a **Create** when a recording becomes public, an **Update** when a public one changes, and a **Delete**

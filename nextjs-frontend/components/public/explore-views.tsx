@@ -10,7 +10,7 @@ import { rightsFor } from "@/components/iiif/rights";
 import { CollectionCard, RecordingCard } from "@/components/public/cards";
 import { usePublicClient } from "@/components/public/hooks";
 import { PublicSearchForm } from "@/components/public/search-view";
-import { safeHref } from "@/components/public/model";
+import { networkNote, safeHref } from "@/components/public/model";
 import { LoadError, Unavailable } from "@/components/public/states";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -183,6 +183,7 @@ export function PublicCollectionView({ name }: { name: string }) {
           You’re a member of <b>{c.name}</b>, so you see all of its recordings. Visitors see the public ones.
         </Banner>
       )}
+      {c?.network && !c.member && <Banner>{networkNote(c.network, "collection")}</Banner>}
       {!c ? (
         <CardsSkeleton n={6} />
       ) : c.items.length ? (

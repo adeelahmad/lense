@@ -55,7 +55,28 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 
 Admins can change transcription, diarisation, voice-ID thresholds, analysis, LLM provider and key, graph, search,
 reports, workers, IIIF, the assistant, video, and server options (embed frame ancestors, upload limit, allowed hosts,
-session length). The API refuses an allowed-host list that leaves out the address you are using.
+trusted proxies, session length). The API refuses an allowed-host list that leaves out the address you are using.
+
+## Trusted proxies
+
+IP groups ([Access](access.md#ip-groups)) match the visitor's address. The server takes it from the connection or,
+when the connection comes from a trusted proxy, from the `X-Forwarded-For` header that proxy sends, reading from the
+right past other trusted proxies. `server.trusted_proxies` (in the app: Settings → Access & embedding) lists them, as
+addresses or CIDR ranges. The default trusts this machine (`127.0.0.0/8` and `::1`), which suits the web app and the
+API on one machine.
+
+* **List the web app.** The browser reaches the API through the web app, which passes on the `X-Forwarded-For` it
+  received. In Docker, list the compose network: `docker network inspect` shows its subnet, and `172.16.0.0/12` covers
+  Docker's default address pools.
+* **Put a reverse proxy in front of the web app that sets `X-Forwarded-For`**: nginx with
+  `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, or Caddy, which does by default. The web app can't
+  tell a header a visitor made up from one a proxy set; the reverse proxy adds the real address last, and the server
+  reads that one. Without it, a visitor can claim any address.
+* A request from an address that isn't trusted but carries `X-Forwarded-For` counts for no IP group, and neither does
+  one from a trusted proxy that forwards nothing (the web app asking on its own behalf). A namespace's IP groups show
+  your address as the server sees it, or say it can't tell.
+* The API server's own proxy handling (uvicorn's `FORWARDED_ALLOW_IPS`, `127.0.0.1` unless set) decides the address in
+  its logs; IP groups follow `server.trusted_proxies` either way.
 
 ## Security notes
 

@@ -3,8 +3,11 @@ import {
   accessLabel,
   accessPatch,
   accessSummary,
+  ipGroupOpens,
   partsText,
   permissionLine,
+  rangesFromText,
+  rangesText,
   togglePart,
   type AccessValue,
 } from "@/components/access/model";
@@ -74,5 +77,30 @@ describe("access", () => {
     );
     expect(permissionLine({ by: null, at: "2026-09-30T19:40:00Z" })).toBe("Given on 30 Sept 2026");
     expect(permissionLine({ by: "ana@example.org", at: "not a date" })).toBe("Given by ana@example.org");
+  });
+
+  it("reads IP group addresses typed one per line, or separated by commas or spaces", () => {
+    expect(rangesFromText(" 198.51.100.0/24\n\n2001:db8::/48, 198.51.100.7 ;198.51.100.0/24\t")).toEqual([
+      "198.51.100.0/24",
+      "2001:db8::/48",
+      "198.51.100.7",
+    ]);
+    expect(rangesFromText("  \n ")).toEqual([]);
+  });
+
+  it("shows an IP group's ranges in one line", () => {
+    expect(rangesText(["198.51.100.0/24"])).toBe("198.51.100.0/24");
+    expect(rangesText(["a", "b", "c"])).toBe("a, b, c");
+    expect(rangesText(["a", "b", "c", "d", "e"])).toBe("a, b and 3 more");
+    expect(rangesText([])).toBe("");
+  });
+
+  it("says what an IP group opens", () => {
+    expect(ipGroupOpens({ everything: true, chosen: 4 }, "pods")).toBe("Every recording in pods");
+    expect(ipGroupOpens({ everything: false, chosen: 1 }, "pods")).toBe("1 chosen recording");
+    expect(ipGroupOpens({ everything: false, chosen: 3 }, "pods")).toBe("3 chosen recordings");
+    expect(ipGroupOpens({ everything: false }, "pods")).toBe(
+      "No recordings yet: choose them in a recording’s Access dialog",
+    );
   });
 });

@@ -366,8 +366,9 @@ def annotation_page(db, cfg, rid, base, layer):
 
 
 def collection(db, cfg, sid, base, readable=None, granted=frozenset()):
-    """A namespace as a Collection: its public recordings, and the others the requester may read (a role in the
-    namespace, or permission given on the recording)."""
+    """A namespace as a Collection: its public recordings, and the others the requester may read: all of them in the
+    `readable` namespaces (a role there, or an IP group that opens everything), and the `granted` recordings (permission
+    given on them, or an IP group that opens them)."""
     ns = md.namespace(db, sid)
     meta = ns["meta"]
     items = []

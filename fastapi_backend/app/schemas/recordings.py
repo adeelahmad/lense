@@ -149,6 +149,16 @@ class AccessRequest(ResponseModel):
     decided_at: str | None = None
 
 
+class RecordingIpGroup(ResponseModel):
+    """One of the namespace's IP groups, and whether it opens this recording (docs/access.md)."""
+
+    id: int
+    name: str
+    ranges: list[str]
+    everything: bool = Field(description="it opens every recording in the namespace")
+    opens: bool = Field(description="visitors from its addresses see all of this recording")
+
+
 class PermissionAdd(RequestModel):
     email: str = Field(min_length=3, max_length=320, description="the address of an account in this archive")
 

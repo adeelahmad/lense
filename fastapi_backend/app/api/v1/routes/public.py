@@ -79,19 +79,21 @@ def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecordin
     """A recording's public page: what this visitor may see of it, and nothing more.
 
     Anyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title
-    with a lock; people with a role in its namespace, or given permission on the recording, see all of it. Everything
-    else answers 404, as a recording that doesn't exist would."""
+    with a lock; people with a role in its namespace, given permission on the recording, or on the network of an IP
+    group that opens it, see all of it. Everything else answers 404, as a recording that doesn't exist would."""
     rec = db.one("SELECT space FROM $r", r=R("recording", rid))
     if not rec:
         raise HTTPException(404, "not found")
     a = acc.of(db, rid)
     who = acl.who()
     member, granted = rec["space"] in who.member_of, rid in who.granted
-    seen = acc.view(a, member or granted, who.signed_in)
+    network = None if member or granted else who.network.name(rid, rec["space"])
+    permitted = member or granted or network is not None
+    seen = acc.view(a, permitted, who.signed_in)
     if seen is None:
         raise HTTPException(404, "not found")
-    d = public.recording(db, cfg, rid, seen, a, member, granted and not member)
-    if who.signed_in and not (member or granted):
+    d = public.recording(db, cfg, rid, seen, a, member, granted and not member, network)
+    if who.signed_in and not permitted:
         d["can_request"] = seen == "locked" or bool(d["closed"])
         d["request"] = acc.request_of(db, rid, acl.user.id if acl.user else None)
     if d["media"]:  # only the media this visitor may play is signed

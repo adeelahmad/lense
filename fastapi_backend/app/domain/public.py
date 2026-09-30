@@ -28,8 +28,9 @@ def _any(db, table, rid):
     return bool(db.values(f"SELECT VALUE record::id(id) FROM {table} WHERE recording = $r LIMIT 1", r=rid))
 
 
-def recording(db, cfg, rid, seen, a, member=False, granted=False):
+def recording(db, cfg, rid, seen, a, member=False, granted=False, network=None):
     """A recording's public page for someone who sees it as `seen` (access.view()), given its access (access.of()).
+    `network` names the IP group that opens it to the visitor's address, if that's why they see all of it.
 
     `closed` lists the parts the recording has that this visitor can't use; a locked recording closes all of them.
     """
@@ -55,6 +56,7 @@ def recording(db, cfg, rid, seen, a, member=False, granted=False):
         "featured": a["featured"],
         "member": member,
         "granted": granted,
+        "network": network,
         "description": None,
         "media": None,
         "transcript": None,
@@ -97,20 +99,20 @@ def recording(db, cfg, rid, seen, a, member=False, granted=False):
 CARD = "record::id(id) AS id, title, recorded_at, duration_ms, space, source, media, summary, meta_json, access, access_parts, featured"
 
 
-def _granted(who):
-    return [R("recording", i) for i in sorted(who.granted)]
+def _ids(rids):
+    return [R("recording", i) for i in sorted(rids)]
 
 
 def listed(db, sid, who):
     """The WHERE clause (and its parameters) for the recordings of one namespace that someone sees listed, i.e. whose
-    access.view() isn't None: all of them for members; else public ones, restricted ones when signed in, and the ones
-    they were given permission on."""
-    if sid in who.member_of:
+    access.view() isn't None: all of them for members and visitors whose IP group opens the namespace; else public
+    ones, restricted ones when signed in, and the ones they were given permission on or their IP group opens."""
+    if sid in who.spaces:
         return "space = $s", {"s": sid}
     levels = ["public", "restricted"] if who.signed_in else ["public"]
     default, _ = acc.namespace_defaults(db, [sid]).get(sid, ("private", None))
     follows = " OR access = NONE" if default in levels else ""  # recordings without their own setting follow the namespace
-    return f"space = $s AND (access IN $lv{follows} OR id IN $g)", {"s": sid, "lv": levels, "g": _granted(who)}
+    return f"space = $s AND (access IN $lv{follows} OR id IN $g)", {"s": sid, "lv": levels, "g": _ids(who.recordings)}
 
 
 def _count(db, cond, p):
@@ -170,8 +172,8 @@ def _collection_meta(db, sid):
 
 def home(db, who, featured_limit=12):
     """The public home page: featured public recordings (for everyone, members too), the recordings shared with this
-    visitor (permission given on them), and the collections they see anything in, with how many recordings they see
-    there."""
+    visitor (permission given to them), and the collections they see anything in, with how many recordings they see
+    there and whether they see all of it (a member, or an IP group that opens it)."""
     public_spaces = [sid for sid, (level, _) in acc.namespace_defaults(db).items() if level == "public"]
     rows = db.rows(
         f"SELECT {CARD} FROM recording WHERE featured = true AND (access = 'public' OR (access = NONE AND space IN $pub)) "
@@ -182,7 +184,7 @@ def home(db, who, featured_limit=12):
     shared = (
         db.rows(
             f"SELECT {CARD} FROM recording WHERE id IN $g AND space NOT IN $ms ORDER BY recorded_at DESC LIMIT 48",
-            g=_granted(who),
+            g=_ids(who.granted),
             ms=sorted(who.member_of),
         )
         if who.granted
@@ -195,7 +197,14 @@ def home(db, who, featured_limit=12):
         if n:
             c = _collection_meta(db, sid)
             collections.append(
-                {"name": name, "label": c["label"], "summary": c["summary"], "recordings": n, "member": sid in who.member_of}
+                {
+                    "name": name,
+                    "label": c["label"],
+                    "summary": c["summary"],
+                    "recordings": n,
+                    "member": sid in who.member_of,
+                    "network": who.network.spaces.get(sid),
+                }
             )
     return {"featured": cards(db, rows, who), "shared": cards(db, shared, who), "collections": collections}
 
@@ -209,7 +218,13 @@ def collection(db, sid, who, limit=48, offset=0):
     if not total and not member:
         raise KeyError(sid)
     rows = db.rows(f"SELECT {CARD} FROM recording WHERE {cond} ORDER BY recorded_at DESC LIMIT $n START $o", **p, n=limit, o=offset)
-    return {**_collection_meta(db, sid), "member": member, "total": total, "items": cards(db, rows, who)}
+    return {
+        **_collection_meta(db, sid),
+        "member": member,
+        "network": who.network.spaces.get(sid),
+        "total": total,
+        "items": cards(db, rows, who),
+    }
 
 
 # ---------- search ----------
@@ -221,23 +236,24 @@ def visible(db, who):
     levels = ["public", "restricted"] if who.signed_in else ["public"]
     follow = [sid for sid, (level, _) in acc.namespace_defaults(db).items() if level in levels]
     return "(space IN $ms OR access IN $lv OR (access = NONE AND space IN $follow) OR id IN $g)", {
-        "ms": sorted(who.member_of),
+        "ms": sorted(who.spaces),
         "lv": levels,
         "follow": follow,
-        "g": _granted(who),
+        "g": _ids(who.recordings),
     }
 
 
 def readable(db, who):
-    """The WHERE clause for the recordings whose transcript someone may read: all of them in their namespaces, the ones
-    they were given permission on, and public ones with the transcript open to everyone."""
+    """The WHERE clause for the recordings whose transcript someone may read: all of them in their namespaces (and
+    those their IP group opens), the ones they were given permission on or their IP group opens, and public ones with
+    the transcript open to everyone."""
     defaults = acc.namespace_defaults(db)
     return (
         "(space IN $ms OR id IN $g OR ((access = 'public' OR (access = NONE AND space IN $pub)) "
         "AND ($part IN access_parts OR (access_parts = NONE AND space IN $open))))",
         {
-            "ms": sorted(who.member_of),
-            "g": _granted(who),
+            "ms": sorted(who.spaces),
+            "g": _ids(who.recordings),
             "pub": [sid for sid, (level, _) in defaults.items() if level == "public"],
             "open": [sid for sid, (_, parts) in defaults.items() if "transcript" in parts],
             "part": "transcript",

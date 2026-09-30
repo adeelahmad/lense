@@ -17,7 +17,7 @@ import re
 import secrets
 import threading
 
-from . import store
+from . import ipgroups, store
 
 R = store.R
 EDITABLE = {
@@ -46,7 +46,7 @@ EDITABLE = {
         "face_review_threshold",
         "publish_faces",
     ),
-    "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies"),
+    "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
 }
 SECRETS = {"llm": ("api_key",)}
 ENUMS = {
@@ -190,6 +190,8 @@ def _check(section, key, value, default):
         ):
             raise ValueError("iiif.viewers is a list of {name, url} with an http(s) URL; the URL may use {manifest} and {content_state}")
         return value
+    if (section, key) == ("server", "trusted_proxies"):
+        return ipgroups.proxies(value)
     if default is None or value is None:
         return value
     if isinstance(default, bool):
