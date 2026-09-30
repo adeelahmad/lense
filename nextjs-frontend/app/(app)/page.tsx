@@ -1,14 +1,10 @@
 import type { Metadata } from "next";
 
-import { PageHeader } from "@/components/ui/states";
+import { HomeScreen } from "@/components/home/home-screen";
 
 export const metadata: Metadata = { title: "Home" };
 
-/** Home (HM1) — built by the Home & Reports screen set. */
+/** Home (HM1): what needs you, what just arrived, what's processing, and a quick way to import. */
 export default function HomePage() {
-  return (
-    <div className="p-6">
-      <PageHeader title="Home" />
-    </div>
-  );
+  return <HomeScreen />;
 }
