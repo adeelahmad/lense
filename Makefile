@@ -21,7 +21,7 @@ test-backend: ## Run the backend tests
 	cd $(BACKEND_DIR) && uv run pytest -n auto
 
 lint-backend: ## Lint, format check and type check the backend
-	cd $(BACKEND_DIR) && uv run ruff check . && uv run ruff format --check app/api app/core app/schemas tests && uv run mypy
+	cd $(BACKEND_DIR) && uv run ruff check . && uv run ruff format --check . && uv run mypy
 
 start-frontend: ## Start the web app with hot reload
 	cd $(FRONTEND_DIR) && ./start.sh

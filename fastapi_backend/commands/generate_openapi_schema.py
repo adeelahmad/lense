@@ -8,7 +8,7 @@ from app.main import app
 
 load_dotenv()
 
-OUTPUT_FILE = os.getenv("OPENAPI_OUTPUT_FILE")
+OUTPUT_FILE = os.getenv("OPENAPI_OUTPUT_FILE") or str(Path(__file__).resolve().parents[2] / "nextjs-frontend" / "openapi.json")
 
 
 def generate_openapi_schema(output_file):

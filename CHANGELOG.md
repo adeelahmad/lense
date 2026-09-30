@@ -30,6 +30,13 @@ Backend:
 - Fix: IIIF "Open in" viewer links can be saved in Settings (only http(s) URLs are accepted).
 - The job event stream opens immediately.
 
+Tooling:
+
+- CI reports coverage in each run's summary and keeps the reports as artifacts (Coveralls needs a paid plan for
+  private repositories). The pnpm version comes from the frontend's `package.json`.
+- pre-commit installs only the dev tools (the processing extras include macOS-only packages), and every hook passes:
+  the backend is formatted with Ruff throughout, the frontend with Prettier at 120 columns.
+
 ## 0.2.0 <small>September 30, 2026</small> {id="0.2.0"}
 
 Lens moves from a single-process prototype to a platform on the Next.js FastAPI template.
