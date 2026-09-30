@@ -192,3 +192,13 @@ export function useSpeakerChoices(nsList: string[]) {
     [key],
   );
 }
+
+/** The tags on the recordings in scope (one namespace, or all you can read), most used first. */
+export function useTagCounts(ns: string | null) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["recording-tags", ns],
+    queryFn: () => data(Recordings.listTags({ client, query: ns ? { ns } : {} })),
+    staleTime: 30_000,
+  });
+}

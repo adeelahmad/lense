@@ -45,6 +45,7 @@ class RecordingSummary(ResponseModel):
     access: AccessLevel = Field("private", description="its own access, or its namespace's default")
     open: list[AccessPart] = Field(default_factory=list, description="the parts anyone may use when it is public")
     featured: bool = False
+    tags: list[str] = Field(default_factory=list)
 
 
 class RecordingSpeaker(ResponseModel):
@@ -72,6 +73,7 @@ class Recording(ResponseModel):
     open: list[AccessPart] = Field(default_factory=list, description="the parts anyone may use when it is public")
     featured: bool = False
     access_inherited: bool = Field(True, description="the access comes from the namespace's default")
+    tags: list[str] = Field(default_factory=list)
 
 
 class Player(ResponseModel):
@@ -97,6 +99,22 @@ class RecordingUpdate(RequestModel):
     """The fields to change; the others stay as they are."""
 
     title: str | None = Field(None, min_length=1, max_length=200, description="whitespace is collapsed")
+    tags: list[str] | None = Field(None, max_length=20, description="replace its tags (at most 20, 40 characters each)")
+
+
+class RecordingsRetag(RequestModel):
+    recordings: list[int] = Field(min_length=1, max_length=1000)
+    add: list[str] = Field(default_factory=list, max_length=20)
+    remove: list[str] = Field(default_factory=list, max_length=100)
+
+
+class TagsChanged(Ok):
+    changed: int = Field(description="how many recordings' tags changed")
+
+
+class TagCount(ResponseModel):
+    tag: str
+    recordings: int
 
 
 class NamespaceAccess(ResponseModel):

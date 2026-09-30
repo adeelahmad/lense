@@ -4131,6 +4131,10 @@ export type Recording = {
    * the access comes from the namespace's default
    */
   access_inherited?: boolean;
+  /**
+   * Tags
+   */
+  tags?: Array<string>;
   [key: string]:
     | unknown
     | number
@@ -4163,6 +4167,7 @@ export type Recording = {
     | "private"
     | Array<"media" | "transcript" | "index">
     | boolean
+    | Array<string>
     | undefined;
 };
 
@@ -4475,6 +4480,10 @@ export type RecordingSummary = {
    * Featured
    */
   featured?: boolean;
+  /**
+   * Tags
+   */
+  tags?: Array<string>;
   [key: string]:
     | unknown
     | number
@@ -4505,6 +4514,7 @@ export type RecordingSummary = {
     | "private"
     | Array<"media" | "transcript" | "index">
     | boolean
+    | Array<string>
     | undefined;
 };
 
@@ -4518,6 +4528,29 @@ export type RecordingUpdate = {
    * whitespace is collapsed
    */
   title?: string | null;
+  /**
+   * Tags
+   * replace its tags (at most 20, 40 characters each)
+   */
+  tags?: Array<string> | null;
+};
+
+/**
+ * RecordingsRetag
+ */
+export type RecordingsRetag = {
+  /**
+   * Recordings
+   */
+  recordings: Array<number>;
+  /**
+   * Add
+   */
+  add?: Array<string>;
+  /**
+   * Remove
+   */
+  remove?: Array<string>;
 };
 
 /**
@@ -5263,6 +5296,37 @@ export type StepQueued = {
    */
   queued: number | string;
   [key: string]: unknown | boolean | number | string | undefined;
+};
+
+/**
+ * TagCount
+ */
+export type TagCount = {
+  /**
+   * Tag
+   */
+  tag: string;
+  /**
+   * Recordings
+   */
+  recordings: number;
+  [key: string]: unknown | string | number;
+};
+
+/**
+ * TagsChanged
+ */
+export type TagsChanged = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Changed
+   * how many recordings' tags changed
+   */
+  changed: number;
+  [key: string]: unknown | boolean | number | undefined;
 };
 
 /**
@@ -6878,6 +6942,11 @@ export type ListRecordingsData = {
      */
     featured?: boolean | null;
     /**
+     * Tag
+     * tags (ignoring case); repeat for several (any of them matches)
+     */
+    tag?: Array<string> | null;
+    /**
      * Sort
      * date, title, duration, speakers, status or importance; prefix - for descending
      */
@@ -6924,6 +6993,63 @@ export type ListRecordingsResponses = {
 };
 
 export type ListRecordingsResponse = ListRecordingsResponses[keyof ListRecordingsResponses];
+
+export type ListTagsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     * one namespace
+     */
+    ns?: string | null;
+  };
+  url: "/api/v1/recordings/tags";
+};
+
+export type ListTagsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListTagsError = ListTagsErrors[keyof ListTagsErrors];
+
+export type ListTagsResponses = {
+  /**
+   * Response Recordings-List Tags
+   * Successful Response
+   */
+  200: Array<TagCount>;
+};
+
+export type ListTagsResponse = ListTagsResponses[keyof ListTagsResponses];
+
+export type RetagRecordingsData = {
+  body: RecordingsRetag;
+  path?: never;
+  query?: never;
+  url: "/api/v1/recordings/tags";
+};
+
+export type RetagRecordingsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RetagRecordingsError = RetagRecordingsErrors[keyof RetagRecordingsErrors];
+
+export type RetagRecordingsResponses = {
+  /**
+   * Successful Response
+   */
+  200: TagsChanged;
+};
+
+export type RetagRecordingsResponse = RetagRecordingsResponses[keyof RetagRecordingsResponses];
 
 export type DeleteRecordingData = {
   body?: never;

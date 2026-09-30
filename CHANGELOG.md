@@ -21,6 +21,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - `speaker` takes speaker ids. Speakers belong to one namespace, so the web app's speaker filter lists everyone
       who speaks in the namespaces in scope by name and sends every id with that name.
     - The Needs attention and Processing tab counts come from the server too.
+- **Tags on recordings.** Editors tag recordings from the Library's bulk bar (add tags, or take off ones they have);
+  the Library filters by tags and shows them in a Tags column. `PATCH /api/v1/recordings/{rid}` takes `tags`,
+  `POST /api/v1/recordings/tags` changes several at once, `GET /api/v1/recordings/tags` lists the tags in use, and
+  `GET /api/v1/recordings?tag=` filters (any of the tags, ignoring case) (`docs/api.md`).
 - **Move recordings to another namespace.** Owners move recordings from the Library's bulk bar to a namespace they
   edit: `POST /api/v1/recordings/{rid}/move`, audited as `recording.move` (`docs/api.md`).
     - They keep their transcripts, media, outputs, permissions and share links; a checkbox stops the share links

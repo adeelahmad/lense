@@ -183,12 +183,14 @@ export const FilterInput = forwardRef<
   );
 });
 
-/** Library filters: namespace, status, speaker, date, duration and media, plus the ones the backend can't do yet. */
+/** Library filters: namespace, status, speaker, date, duration, media and tags, plus the ones the backend can't do yet. */
 export function FiltersBar({
   filters,
   onChange,
   speakers,
   speakersLoading,
+  tags,
+  tagsLoading,
   inputRef,
   compact,
 }: {
@@ -197,11 +199,16 @@ export function FiltersBar({
   /** Everyone who speaks in the namespaces in scope, by name, most recordings first. */
   speakers: SpeakerChoice[];
   speakersLoading?: boolean;
+  /** The tags in use in scope, most used first. */
+  tags: { tag: string; recordings: number }[];
+  tagsLoading?: boolean;
   inputRef: React.Ref<HTMLInputElement>;
   compact?: boolean;
 }) {
   const { namespaces, namespace, setNamespace } = useArchive();
   const [spkQuery, setSpkQuery] = useState("");
+  const [tagQuery, setTagQuery] = useState("");
+  const tagOn = (t: string) => filters.tags.some((x) => x.toLowerCase() === t.toLowerCase());
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
 
   const statusLabel =
@@ -362,7 +369,61 @@ export function FiltersBar({
           />
         )}
       </Chip>
-      <DisabledChip label="Tags" reason="Not available yet: recordings can’t be tagged." />
+      <Chip
+        label={
+          filters.tags.length === 1
+            ? `Tag: ${filters.tags[0]}`
+            : filters.tags.length
+              ? `${filters.tags.length} tags`
+              : "Tags"
+        }
+        active={filters.tags.length > 0}
+        onClear={() => set({ tags: [] })}
+        width={240}
+      >
+        {() => (
+          <div>
+            {tags.length > 8 && (
+              <input
+                value={tagQuery}
+                onChange={(e) => setTagQuery(e.target.value)}
+                placeholder="Find a tag"
+                aria-label="Find a tag"
+                className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-none focus:border-blue"
+              />
+            )}
+            <div role="menu" aria-label="Tags" className="max-h-64 overflow-y-auto">
+              {tags
+                .filter((t) => t.tag.toLowerCase().includes(tagQuery.trim().toLowerCase()))
+                .slice(0, 100)
+                .map((t) => (
+                  <Option
+                    key={t.tag}
+                    multi
+                    on={tagOn(t.tag)}
+                    onClick={() =>
+                      set({
+                        tags: tagOn(t.tag)
+                          ? filters.tags.filter((x) => x.toLowerCase() !== t.tag.toLowerCase())
+                          : [...filters.tags, t.tag],
+                      })
+                    }
+                  >
+                    <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                      <span className="truncate">{t.tag}</span>
+                      <span className="tabular text-[12px] font-normal text-fg-muted">{count(t.recordings)}</span>
+                    </span>
+                  </Option>
+                ))}
+              {!tags.length && (
+                <p className="px-2.5 py-3 text-[13px] text-fg-muted">
+                  {tagsLoading ? "Loading tags…" : "No tags yet. Select recordings and choose Tag."}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </Chip>
     </>
   );
 

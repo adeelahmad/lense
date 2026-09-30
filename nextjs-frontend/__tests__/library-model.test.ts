@@ -1,9 +1,12 @@
 import type { Job } from "@/app/openapi-client/types.gen";
 import {
   blockedBy,
+  cleanTag,
   deletedToast,
   moveTargets,
   movedToast,
+  tagsFromText,
+  tagsOn,
   NO_FILTERS,
   activeFilterCount,
   dateFrom,
@@ -193,6 +196,7 @@ describe("the list query", () => {
         date: "30d",
         duration: "medium",
         media: "transcript",
+        tags: ["board", "Q3"],
       },
       "all",
       { key: "duration", dir: "desc" },
@@ -208,6 +212,7 @@ describe("the list query", () => {
       min_duration: 600,
       max_duration: 1800,
       media: "transcript",
+      tag: ["board", "Q3"],
     });
   });
 
@@ -327,5 +332,24 @@ describe("moving from the Library", () => {
       tone: "red",
     });
     expect(movedToast(0, "calls", [same])).toMatchObject({ title: "Couldn’t move the recording" });
+  });
+});
+
+describe("tags", () => {
+  it("reads tags typed into one box", () => {
+    expect(cleanTag("  Q3   review ")).toBe("Q3 review");
+    expect(tagsFromText(" board, Q3  review,\nBoard ,, ")).toEqual(["board", "Q3 review"]);
+    expect(tagsFromText("")).toEqual([]);
+  });
+
+  it("counts the tags on selected recordings, ignoring case", () => {
+    expect(tagsOn([{ tags: ["board", "Q3"] }, { tags: ["Board"] }, { tags: null }, {}])).toEqual([
+      { tag: "board", count: 2 },
+      { tag: "Q3", count: 1 },
+    ]);
+  });
+
+  it("counts a tags filter once", () => {
+    expect(activeFilterCount({ ...NO_FILTERS, tags: ["a", "b"] })).toBe(1);
   });
 });

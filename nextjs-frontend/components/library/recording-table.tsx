@@ -14,6 +14,7 @@ import {
   MediaIcon,
   SpeakersCell,
   StatusCell,
+  TagsCell,
   TextBadge,
 } from "@/components/library/cells";
 import { statusView, type SortDir, type SortKey } from "@/components/library/model";
@@ -45,7 +46,7 @@ export function rowClick(e: MouseEvent, open: () => void) {
 }
 
 type Col = {
-  key: "date" | "duration" | "speakers" | "emotion" | "importance";
+  key: "date" | "duration" | "speakers" | "emotion" | "importance" | "tags";
   label: string;
   width: number;
   sort?: SortKey;
@@ -92,6 +93,13 @@ const COLUMNS: Col[] = [
     width: 150,
     sort: "importance",
     cell: (r) => <ImportanceCell importance={r.importance} sentiment={r.sentiment} />,
+    cls: "min-w-0",
+  },
+  {
+    key: "tags",
+    label: "Tags",
+    width: 150,
+    cell: (r) => <TagsCell tags={r.tags} />,
     cls: "min-w-0",
   },
 ];

@@ -7,7 +7,7 @@ import type { RecordingSummary } from "@/app/openapi-client/types.gen";
 import { rememberView } from "@/components/home/recently-viewed";
 import { isFileDrag, useSendToImport } from "@/components/import/pending";
 import { useRecordingActions } from "@/components/library/actions";
-import { BulkBar, DeleteDialog, MoveDialog, ReprocessDialog } from "@/components/library/bulk-bar";
+import { BulkBar, DeleteDialog, MoveDialog, ReprocessDialog, TagDialog } from "@/components/library/bulk-bar";
 import { FiltersBar } from "@/components/library/filters-bar";
 import { LibraryEmpty } from "@/components/library/library-empty";
 import { LibraryTabs } from "@/components/library/library-tabs";
@@ -34,6 +34,7 @@ import {
   useLibraryCounts,
   useReviewsByRecording,
   useSpeakerChoices,
+  useTagCounts,
   useWatchedSources,
 } from "@/components/library/use-library";
 import { useIsNarrow } from "@/components/library/use-media";
@@ -106,6 +107,8 @@ export function LibraryScreen() {
   const [reprocessOpen, setReprocessOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [tagOpen, setTagOpen] = useState(false);
+  const tagCounts = useTagCounts(namespace);
   const [dragging, setDragging] = useState(false);
   const lastIndex = useRef<number | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -420,6 +423,8 @@ export function LibraryScreen() {
               onChange={setFilters}
               speakers={speakers.choices}
               speakersLoading={speakers.loading}
+              tags={tagCounts.data ?? []}
+              tagsLoading={tagCounts.isPending}
               inputRef={filterRef}
               compact={narrow}
             />
@@ -527,6 +532,7 @@ export function LibraryScreen() {
           onReprocess={() => setReprocessOpen(true)}
           onExport={(fmt) => actions.exportMany([...selected], fmt)}
           onMove={() => setMoveOpen(true)}
+          onTag={() => setTagOpen(true)}
           onDelete={() => setDeleteOpen(true)}
           onClear={() => setSelected(new Set())}
         />
@@ -538,6 +544,13 @@ export function LibraryScreen() {
         n={selected.size}
         withoutAudio={selectedRows.filter((r) => r.media_kind === "transcript").length}
         onConfirm={(steps) => actions.reprocess([...selected], steps)}
+      />
+      <TagDialog
+        open={tagOpen}
+        onOpenChange={setTagOpen}
+        rows={selectedRows}
+        known={(tagCounts.data ?? []).map((t) => t.tag)}
+        onConfirm={(add, remove) => actions.retag([...selected], add, remove)}
       />
       <MoveDialog
         open={moveOpen}

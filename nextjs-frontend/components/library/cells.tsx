@@ -180,3 +180,22 @@ export function ImportanceCell({ importance, sentiment }: { importance: unknown;
     </span>
   );
 }
+
+/** A recording's tags as small chips; the rest as a count, all of them in the title. */
+export function TagsCell({ tags }: { tags: string[] | null | undefined }) {
+  const list = tags ?? [];
+  if (!list.length) return <span className="text-fg-muted">—</span>;
+  return (
+    <span className="flex min-w-0 items-center gap-1 overflow-hidden" title={list.join(", ")}>
+      {list.slice(0, 2).map((t) => (
+        <span
+          key={t}
+          className="max-w-[96px] shrink-0 truncate rounded-pill border border-border bg-surface-neutral px-2 py-px text-[11.5px] font-medium text-fg-secondary"
+        >
+          {t}
+        </span>
+      ))}
+      {list.length > 2 && <span className="shrink-0 text-[11.5px] text-fg-muted">+{list.length - 2}</span>}
+    </span>
+  );
+}

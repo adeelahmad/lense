@@ -218,5 +218,25 @@ export function useRecordingActions() {
     [client, qc, refresh, toast],
   );
 
-  return { retryJob, reprocess, exportMany, deleteMany, moveMany };
+  /** Add and remove tags on recordings (editors). */
+  const retag = useCallback(
+    async (recordings: number[], add: string[], remove: string[]) => {
+      try {
+        const { changed } = await data(Recordings.retagRecordings({ client, body: { recordings, add, remove } }));
+        toast({
+          title: changed ? `Tags changed on ${plural(changed, "recording")}` : "Their tags were already like that",
+          tone: "green",
+        });
+        refresh();
+        void qc.invalidateQueries({ queryKey: ["recording-tags"] });
+        return true;
+      } catch (e) {
+        toast({ title: "Couldn’t change the tags", body: (e as Error).message, tone: "red" });
+        return false;
+      }
+    },
+    [client, qc, refresh, toast],
+  );
+
+  return { retryJob, reprocess, exportMany, deleteMany, moveMany, retag };
 }

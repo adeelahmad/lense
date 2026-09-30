@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import os
 import pathlib
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from . import access as acc, metadata, render, store
 
@@ -23,8 +23,12 @@ SORTS = {
     "status": ("array::find_index($order, status ?? 'new') ?? 9", "false"),
     "importance": ("summary.importance", "summary.importance = NONE"),
 }
-FIELDS = "record::id(id) AS id, title, recorded_at, duration_ms, status, error, source, stats, summary, space, media, access, access_parts, featured"
+FIELDS = (
+    "record::id(id) AS id, title, recorded_at, duration_ms, status, error, source, stats, summary, space, media, access, "
+    "access_parts, featured, tags"
+)
 MAX_WORDS = 10
+TAG_MAX, TAGS_MAX = 40, 20  # characters in a tag, tags on a recording
 
 
 def recs(ids):
@@ -78,6 +82,7 @@ def where(
     media=None,
     access=None,
     featured=None,
+    tags=None,
 ):
     """The WHERE clause and its parameters for these filters. Filters combine with AND, the values of one filter with OR.
 
@@ -85,7 +90,7 @@ def where(
     (STATES). attention: errored, latest job failed, or a voice match to review. processing: a job queued or running.
     speakers: speaker ids. date_from/date_to: the recording date, inclusive. min/max_duration: seconds, max exclusive.
     access: levels (public, restricted, private), a namespace's default counting for recordings without their own.
-    featured: true or false.
+    featured: true or false. tags: any of these tags (ignoring case).
     """
     spaces = sorted(spaces)
     w, p = ["space IN $spaces"], {"spaces": spaces}
@@ -156,6 +161,10 @@ def where(
         w.append("(access IN $lv OR (access = NONE AND space IN $lv_spaces))")
     if featured is not None:
         w.append("featured = true" if featured else "featured != true")
+    keys = sorted({" ".join(t.split()).casefold() for t in tags or [] if t and t.strip()})
+    if keys:
+        p["tag_keys"] = keys
+        w.append("tag_keys CONTAINSANY $tag_keys")
     return " AND ".join(w), p
 
 
@@ -205,7 +214,7 @@ def summaries(db, rows):
         for k in ("_k", "_none", "access_parts"):
             r.pop(k, None)
         a = access[r["id"]]
-        r.update(access=a["access"], open=a["open"], featured=a["featured"])
+        r.update(access=a["access"], open=a["open"], featured=a["featured"], tags=r.get("tags") or [])
         st, sm = r.pop("stats", None) or {}, r.pop("summary", None) or {}
         r["media_kind"] = (r.pop("media", None) or {}).get("kind") or ("audio" if r.get("source") == "audio" else "transcript")
         r["poster"] = f"{store.API}/recordings/{r['id']}/frames/{posters[r['id']]}" if posters.get(r["id"]) else None
@@ -221,6 +230,66 @@ def summaries(db, rows):
             }
         )
     return out
+
+
+# ---------- tags ----------
+def clean_tags(values):
+    """Tags as people typed them: whitespace collapsed, without repeats (ignoring case), sorted; at most TAG_MAX
+    characters each and TAGS_MAX on a recording."""
+    if not isinstance(values, list):
+        raise ValueError("tags is a list of words")
+    out = {}
+    for v in values:
+        if not isinstance(v, str):
+            raise ValueError("a tag is text")
+        t = " ".join(v.split())
+        if len(t) > TAG_MAX:
+            raise ValueError(f"a tag has at most {TAG_MAX} characters")
+        if t:
+            out.setdefault(t.casefold(), t)
+    if len(out) > TAGS_MAX:
+        raise ValueError(f"a recording has at most {TAGS_MAX} tags")
+    return sorted(out.values(), key=str.casefold)
+
+
+def _save_tags(db, rid, tags):
+    # tag_keys (lowercase) is what the list filters on; tags keep how they were written
+    db.q("UPDATE $r SET tags = $t, tag_keys = $k", r=R("recording", rid), t=tags, k=[t.casefold() for t in tags])
+
+
+def set_tags(db, rid, tags):
+    """Replace a recording's tags. Returns (before, after)."""
+    rec = db.one("SELECT tags FROM $r", r=R("recording", rid))
+    if not rec:
+        raise KeyError(rid)
+    before, after = rec.get("tags") or [], clean_tags(tags)
+    if after != before:
+        _save_tags(db, rid, after)
+    return before, after
+
+
+def retag(db, rids, add=(), remove=()):
+    """Add and remove tags on several recordings (a tag both added and removed is added). Returns how many changed."""
+    add, gone = clean_tags(list(add)), {t.casefold() for t in clean_tags(list(remove))} - {t.casefold() for t in add}
+    changed = 0
+    for r in db.rows("SELECT record::id(id) AS id, tags FROM recording WHERE id IN $ids", ids=recs(rids)):
+        before = r.get("tags") or []
+        after = clean_tags([t for t in before if t.casefold() not in gone] + add)
+        if after != before:
+            _save_tags(db, r["id"], after)
+            changed += 1
+    return changed
+
+
+def tag_counts(db, spaces):
+    """The tags on these namespaces' recordings with how many recordings have each, most used first; each spelled as
+    most of its recordings spell it."""
+    counts, spellings = Counter(), defaultdict(Counter)
+    for tags in db.values("SELECT VALUE tags FROM recording WHERE space IN $s AND tags != NONE", s=sorted(spaces)) if spaces else []:
+        for t in tags or []:
+            counts[t.casefold()] += 1
+            spellings[t.casefold()][t] += 1
+    return [{"tag": spellings[k].most_common(1)[0][0], "recordings": n} for k, n in sorted(counts.items(), key=lambda x: (-x[1], x[0]))]
 
 
 def rename(db, cfg, rid, title):

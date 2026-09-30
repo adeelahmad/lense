@@ -218,6 +218,8 @@ export type Filters = {
   date: DateRange;
   duration: DurationRange;
   media: MediaFilter;
+  /** Any of these tags. */
+  tags: string[];
 };
 
 export const NO_FILTERS: Filters = {
@@ -227,6 +229,7 @@ export const NO_FILTERS: Filters = {
   date: "any",
   duration: "any",
   media: "any",
+  tags: [],
 };
 
 export const DATE_LABEL: Record<DateRange, string> = {
@@ -270,7 +273,8 @@ export function activeFilterCount(f: Filters): number {
     (f.speaker ? 1 : 0) +
     (f.date !== "any" ? 1 : 0) +
     (f.duration !== "any" ? 1 : 0) +
-    (f.media !== "any" ? 1 : 0)
+    (f.media !== "any" ? 1 : 0) +
+    (f.tags.length ? 1 : 0)
   );
 }
 
@@ -326,6 +330,7 @@ export function libraryQuery(
     if (max != null) q.max_duration = max;
   }
   if (f.media !== "any") q.media = f.media;
+  if (f.tags.length) q.tag = f.tags;
   if (view === "attention") q.attention = true;
   if (view === "processing") q.processing = true;
   return q;
@@ -410,4 +415,31 @@ export function movedToast(
     body: `${failed[0].title}: ${failed[0].message}${failed.length > 1 ? ` (and ${failed.length - 1} more)` : ""}`,
     tone: "red",
   };
+}
+
+// ---------- tags ----------
+
+/** One tag as the server keeps it: whitespace collapsed. */
+export function cleanTag(t: string): string {
+  return t.split(/\s+/).filter(Boolean).join(" ");
+}
+
+/** Tags typed into one box, separated by commas or new lines; without repeats, ignoring case. */
+export function tagsFromText(text: string): string[] {
+  const out = new Map<string, string>();
+  for (const t of text.split(/[,\n]/).map(cleanTag)) if (t && !out.has(t.toLowerCase())) out.set(t.toLowerCase(), t);
+  return [...out.values()];
+}
+
+/** The tags on selected recordings, with how many of them have each; most common first. */
+export function tagsOn(rows: readonly { tags?: string[] | null }[]): { tag: string; count: number }[] {
+  const by = new Map<string, { tag: string; count: number }>();
+  for (const r of rows)
+    for (const t of r.tags ?? []) {
+      const k = t.toLowerCase();
+      const cur = by.get(k);
+      if (cur) cur.count++;
+      else by.set(k, { tag: t, count: 1 });
+    }
+  return [...by.values()].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
 }

@@ -38,6 +38,7 @@ from app.schemas.recordings import (
     RecordingMove,
     RecordingMoved,
     RecordingSort,
+    RecordingsRetag,
     RecordingState,
     RecordingSummary,
     RecordingUpdate,
@@ -47,6 +48,8 @@ from app.schemas.recordings import (
     Share,
     ShareCreate,
     ShareLink,
+    TagCount,
+    TagsChanged,
 )
 
 router = APIRouter(prefix="/recordings", tags=["recordings"])
@@ -93,6 +96,7 @@ def list_recordings(
     media: MediaKind | None = Query(None, description="audio, video or transcript (no media)"),
     access: list[AccessLevel] | None = Query(None, description="public, restricted or private; repeat for several"),
     featured: bool | None = Query(None, description="only featured recordings (true) or only the others (false)"),
+    tag: list[str] | None = Query(None, description="tags (ignoring case); repeat for several (any of them matches)"),
     sort: RecordingSort = Query("-date", description="date, title, duration, speakers, status or importance; prefix - for descending"),
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
@@ -119,9 +123,25 @@ def list_recordings(
             media=media,
             access=access,
             featured=featured,
+            tags=tag,
         )
     response.headers["X-Total-Count"] = str(total)
     return [RecordingSummary.model_validate(x) for x in sign_urls(rows)]
+
+
+@router.get("/tags")
+def list_tags(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(None, description="one namespace")) -> list[TagCount]:
+    """The tags on the recordings you can read (or one namespace's), with how many recordings have each."""
+    return [TagCount.model_validate(t) for t in library.tag_counts(db, [acl.namespace(ns)] if ns else acl.spaces())]
+
+
+@router.post("/tags")
+def retag_recordings(body: RecordingsRetag, acl: Acl, user: Writer, db: Db) -> TagsChanged:
+    """Add and remove tags on several recordings at once (editors of each one's namespace)."""
+    for rid in dict.fromkeys(body.recordings):
+        acl.recording(rid, "editor")
+    with domain_errors():
+        return TagsChanged(changed=library.retag(db, body.recordings, body.add, body.remove))
 
 
 @router.get("/{rid}")
@@ -147,16 +167,19 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
 
 @router.patch("/{rid}")
 def update_recording(rid: int, body: RecordingUpdate, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Recording:
-    """Rename a recording (editors). Its report is rebuilt with the new title."""
+    """Rename a recording or replace its tags (editors). A renamed recording's report is rebuilt with the new title."""
     rec = acl.recording(rid, "editor")
-    if body.title is None:
-        raise HTTPException(400, "send a title")
+    if body.title is None and body.tags is None:
+        raise HTTPException(400, "send a title or tags")
     with domain_errors():
-        before, after = library.rename(db, cfg, rid, body.title)
-    if before != after:
-        auth.audit(db, user.as_audit(), "recording.rename", f"recording:{rid}", {"from": before, "to": after})
-        if rec.get("analyzed_at"):
-            jobs.enqueue(db, rid, ["report"], by=user.email)
+        if body.tags is not None:
+            library.set_tags(db, rid, body.tags)
+        if body.title is not None:
+            before, after = library.rename(db, cfg, rid, body.title)
+            if before != after:
+                auth.audit(db, user.as_audit(), "recording.rename", f"recording:{rid}", {"from": before, "to": after})
+                if rec.get("analyzed_at"):
+                    jobs.enqueue(db, rid, ["report"], by=user.email)
     return get_recording(rid, acl, db, cfg)
 
 

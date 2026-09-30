@@ -86,6 +86,12 @@ import type {
   ListRecordingsData,
   ListRecordingsResponses,
   ListRecordingsErrors,
+  ListTagsData,
+  ListTagsResponses,
+  ListTagsErrors,
+  RetagRecordingsData,
+  RetagRecordingsResponses,
+  RetagRecordingsErrors,
   DeleteRecordingData,
   DeleteRecordingResponses,
   DeleteRecordingErrors,
@@ -938,6 +944,34 @@ export class Recordings {
   }
 
   /**
+   * List Tags
+   * The tags on the recordings you can read (or one namespace's), with how many recordings have each.
+   */
+  public static listTags<ThrowOnError extends boolean = false>(options?: Options<ListTagsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListTagsResponses, ListTagsErrors, ThrowOnError>({
+      url: "/api/v1/recordings/tags",
+      ...options,
+    });
+  }
+
+  /**
+   * Retag Recordings
+   * Add and remove tags on several recordings at once (editors of each one's namespace).
+   */
+  public static retagRecordings<ThrowOnError extends boolean = false>(
+    options: Options<RetagRecordingsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<RetagRecordingsResponses, RetagRecordingsErrors, ThrowOnError>({
+      url: "/api/v1/recordings/tags",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Delete Recording
    * Delete a recording (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and
    * outputs, shares, permissions and requests for access. The media file stays where it is, and scans and watched
@@ -965,7 +999,7 @@ export class Recordings {
 
   /**
    * Update Recording
-   * Rename a recording (editors). Its report is rebuilt with the new title.
+   * Rename a recording or replace its tags (editors). A renamed recording's report is rebuilt with the new title.
    */
   public static updateRecording<ThrowOnError extends boolean = false>(
     options: Options<UpdateRecordingData, ThrowOnError>,

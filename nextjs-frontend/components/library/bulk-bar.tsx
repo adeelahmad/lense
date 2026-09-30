@@ -4,9 +4,10 @@ import { Download, FolderInput, RefreshCw, Tag, Trash2, X, type LucideIcon } fro
 import { useEffect, useState, type ReactNode } from "react";
 
 import { EXPORT_FORMATS, type ExportFormat } from "@/components/library/actions";
+import { tagsFromText, tagsOn } from "@/components/library/model";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Checkbox, Field, Select } from "@/components/ui/field";
+import { Checkbox, Field, Input, Select } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { count, plural } from "@/lib/format";
@@ -51,10 +52,7 @@ function BarButton({
   );
 }
 
-/**
- * Library L2: the floating bulk bar. Actions you can't take in one of the selected namespaces are disabled with a count;
- * Tag has no backend yet and says so.
- */
+/** Library L2: the floating bulk bar. Actions you can't take in one of the selected namespaces are disabled with a count. */
 export function BulkBar({
   selected,
   blocked,
@@ -63,6 +61,7 @@ export function BulkBar({
   onReprocess,
   onExport,
   onMove,
+  onTag,
   onDelete,
   onClear,
 }: {
@@ -76,6 +75,7 @@ export function BulkBar({
   onReprocess: () => void;
   onExport: (fmt: ExportFormat) => void;
   onMove: () => void;
+  onTag: () => void;
   onDelete: () => void;
   onClear: () => void;
 }) {
@@ -103,7 +103,7 @@ export function BulkBar({
         </span>
         <BarButton icon={RefreshCw} label="Reprocess" onClick={onReprocess} disabledReason={roleReason} />
         <BarButton icon={FolderInput} label="Move" onClick={onMove} disabledReason={moveReason} />
-        <BarButton icon={Tag} label="Tag" disabledReason="Not available yet: recordings can’t be tagged." />
+        <BarButton icon={Tag} label="Tag" onClick={onTag} disabledReason={roleReason} />
         <Menu>
           <MenuTrigger className={actionCls}>
             <Download aria-hidden />
@@ -438,6 +438,116 @@ export function MoveDialog({
           each recording. Analysis runs again in {to || "the new namespace"} to find their entities, and{" "}
           {from || "their namespace"}’s scans and watched folders won’t import them again.
         </p>
+      </div>
+    </Dialog>
+  );
+}
+
+/** Add tags to the selected recordings, and take off tags they have (editors). */
+export function TagDialog({
+  open,
+  onOpenChange,
+  rows,
+  known,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  rows: readonly { id: number; tags?: string[] | null }[];
+  /** Tags already in use, to suggest. */
+  known: readonly string[];
+  onConfirm: (add: string[], remove: string[]) => Promise<boolean>;
+}) {
+  const [text, setText] = useState("");
+  const [off, setOff] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (open) {
+      setText("");
+      setOff([]);
+      setBusy(false);
+    }
+  }, [open]);
+  const add = tagsFromText(text);
+  const have = tagsOn(rows);
+  const isOff = (t: string) => off.some((x) => x.toLowerCase() === t.toLowerCase());
+  const n = rows.length;
+  const nothing = !add.length && !off.length;
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => !busy && onOpenChange(o)}
+      title={`Tag ${plural(n, "recording")}`}
+      description="Tags help find recordings in the Library: filter by them, or see them in the Tags column."
+      actions={
+        <>
+          <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            disabled={busy || nothing}
+            disabledReason={nothing ? "Add a tag, or pick one to take off" : undefined}
+            onClick={async () => {
+              setBusy(true);
+              const ok = await onConfirm(add, off);
+              setBusy(false);
+              if (ok) onOpenChange(false);
+            }}
+          >
+            {busy ? "Saving…" : "Save tags"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <Field label="Add" hint="Separate tags with commas">
+          {(f) => (
+            <>
+              <Input
+                id={f.id}
+                aria-describedby={f.describedBy}
+                list={`${f.id}-known`}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="board, Q3 review"
+                autoComplete="off"
+              />
+              <datalist id={`${f.id}-known`}>
+                {known.slice(0, 50).map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
+            </>
+          )}
+        </Field>
+        {have.length > 0 && (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 text-[13px] font-bold text-fg-strong">Take off</legend>
+            <div className="flex flex-wrap gap-1.5">
+              {have.map((t) => (
+                <button
+                  key={t.tag}
+                  type="button"
+                  aria-pressed={isOff(t.tag)}
+                  onClick={() =>
+                    setOff(isOff(t.tag) ? off.filter((x) => x.toLowerCase() !== t.tag.toLowerCase()) : [...off, t.tag])
+                  }
+                  className={cn(
+                    "inline-flex h-7 items-center gap-1 rounded-pill border px-2.5 text-[12.5px] font-medium transition-colors duration-fast",
+                    isOff(t.tag)
+                      ? "border-red-border bg-red-surface text-red-dark line-through"
+                      : "border-border bg-surface-neutral text-fg-secondary hover:bg-surface",
+                  )}
+                >
+                  {t.tag}
+                  <span className="text-fg-muted">{n > 1 ? `${t.count}/${n}` : ""}</span>
+                  <X aria-hidden className="size-3" />
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
       </div>
     </Dialog>
   );

@@ -20,7 +20,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| Tags (column, filter, bulk) | per-recording tags, `tags` in the list, `?tag=` |
 | Saved views | `/views` (list, create, delete) |
 | "Edited by me" tab | `?edited_by=me` |
 | Source and language filters | `path`/`remote` and `language` in `RecordingSummary` |

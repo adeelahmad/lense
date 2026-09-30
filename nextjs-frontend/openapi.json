@@ -1441,6 +1441,27 @@
             "description": "only featured recordings (true) or only the others (false)"
           },
           {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "tags (ignoring case); repeat for several (any of them matches)",
+              "title": "Tag"
+            },
+            "description": "tags (ignoring case); repeat for several (any of them matches)"
+          },
+          {
             "name": "sort",
             "in": "query",
             "required": false,
@@ -1526,6 +1547,102 @@
         }
       }
     },
+    "/api/v1/recordings/tags": {
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "List Tags",
+        "description": "The tags on the recordings you can read (or one namespace's), with how many recordings have each.",
+        "operationId": "list_tags",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace",
+              "title": "Ns"
+            },
+            "description": "one namespace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TagCount"
+                  },
+                  "title": "Response Recordings-List Tags"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Retag Recordings",
+        "description": "Add and remove tags on several recordings at once (editors of each one's namespace).",
+        "operationId": "retag_recordings",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordingsRetag"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagsChanged"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/recordings/{rid}": {
       "get": {
         "tags": [
@@ -1572,7 +1689,7 @@
           "recordings"
         ],
         "summary": "Update Recording",
-        "description": "Rename a recording (editors). Its report is rebuilt with the new title.",
+        "description": "Rename a recording or replace its tags (editors). A renamed recording's report is rebuilt with the new title.",
         "operationId": "update_recording",
         "parameters": [
           {
@@ -14882,6 +14999,13 @@
             "title": "Access Inherited",
             "description": "the access comes from the namespace's default",
             "default": true
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
           }
         },
         "additionalProperties": true,
@@ -15362,6 +15486,13 @@
             "type": "boolean",
             "title": "Featured",
             "default": false
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
           }
         },
         "additionalProperties": true,
@@ -15388,12 +15519,63 @@
             ],
             "title": "Title",
             "description": "whitespace is collapsed"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "replace its tags (at most 20, 40 characters each)"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "RecordingUpdate",
         "description": "The fields to change; the others stay as they are."
+      },
+      "RecordingsRetag": {
+        "properties": {
+          "recordings": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Recordings"
+          },
+          "add": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Add"
+          },
+          "remove": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Remove"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recordings"
+        ],
+        "title": "RecordingsRetag"
       },
       "RefreshRequest": {
         "properties": {
@@ -16575,6 +16757,45 @@
           "queued"
         ],
         "title": "StepQueued"
+      },
+      "TagCount": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "title": "Tag"
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "tag",
+          "recordings"
+        ],
+        "title": "TagCount"
+      },
+      "TagsChanged": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed",
+            "description": "how many recordings' tags changed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "changed"
+        ],
+        "title": "TagsChanged"
       },
       "Template": {
         "properties": {

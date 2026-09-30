@@ -72,6 +72,8 @@ All three answer with the list and are audited as `namespace.ip_group.create`, `
 
 ```
 GET    /api/v1/recordings
+GET    /api/v1/recordings/tags
+POST   /api/v1/recordings/tags
 GET    /api/v1/recordings/{rid}
 PATCH  /api/v1/recordings/{rid}
 DELETE /api/v1/recordings/{rid}
@@ -117,10 +119,17 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 | `media` | `audio`, `video` or `transcript` (no media) |
 | `access` | `public`, `restricted` or `private`: the recording's own setting, else its namespace's default |
 | `featured` | `true`: only featured recordings; `false`: only the others |
+| `tag` | tags, ignoring case |
 | `sort` | `date`, `title`, `duration`, `speakers`, `status` or `importance`; `-` in front for descending (default `-date`). Recordings without the value come last either way |
 | `limit`, `offset` | one page (default 500 rows, at most 1000) |
 
 The body is the page's rows; the `X-Total-Count` header says how many recordings match on all pages.
+
+Recordings carry `tags`. `PATCH /recordings/{rid}` with `{"tags": [...]}` replaces a recording's tags (editors; at most
+20, 40 characters each; whitespace is collapsed and repeats are dropped, ignoring case). `POST /recordings/tags` with
+`{"recordings", "add", "remove"}` changes the tags of several at once (editors of each one's namespace) and says how
+many changed. `GET /recordings/tags` (`ns` for one namespace) lists the tags in use with how many recordings have each,
+most used first.
 
 `PATCH /recordings/{rid}` with `{"title": …}` renames a recording (editors; whitespace is collapsed, at most 200
 characters). It is audited as `recording.rename`; the recording's report page follows the new title and is rebuilt,
