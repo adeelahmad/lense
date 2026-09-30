@@ -5,9 +5,10 @@ import { Public } from "@/app/openapi-client";
 import { auth } from "@/auth";
 import { first, type Meta } from "@/components/iiif/metadata-model";
 import { PublicRecordingView } from "@/components/public/recording-view";
+import { parseStart } from "@/components/recording/model";
 import { createApiClient } from "@/lib/api/client";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ t?: string | string[] }> };
 
 function recordingId(id: string): number {
   const rid = Number(id);
@@ -34,7 +35,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-/** A recording's public page (docs/access.md). */
-export default async function PublicRecordingRoute({ params }: Props) {
-  return <PublicRecordingView id={recordingId((await params).id)} />;
+/** A recording's public page (docs/access.md). `?t=<seconds>` opens it at that moment. */
+export default async function PublicRecordingRoute({ params, searchParams }: Props) {
+  const { t } = await searchParams;
+  return <PublicRecordingView id={recordingId((await params).id)} start={parseStart(t)} />;
 }

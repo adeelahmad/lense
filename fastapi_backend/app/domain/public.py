@@ -9,6 +9,7 @@ title of a restricted one ("content locked"). The routes sign the media links, a
 from __future__ import annotations
 
 from . import access as acc, iiif, metadata as md, render, store
+from . import search as searchmod
 
 R = store.R
 INTERNAL = ("speaker", "entity")  # workspace ids in derived metadata
@@ -191,3 +192,75 @@ def collection(db, sid, member_of, signed_in, limit=48, offset=0):
         raise KeyError(sid)
     rows = db.rows(f"SELECT {CARD} FROM recording WHERE {cond} ORDER BY recorded_at DESC LIMIT $n START $o", **p, n=limit, o=offset)
     return {**_collection_meta(db, sid), "member": member, "total": total, "items": cards(db, rows, member_of, signed_in)}
+
+
+# ---------- search ----------
+HITS_PER_RECORDING = 3
+
+
+def visible(db, member_of, signed_in):
+    """The WHERE clause for every recording someone sees listed, in any namespace (as listed() does for one)."""
+    levels = ["public", "restricted"] if signed_in else ["public"]
+    follow = [sid for sid, (level, _) in acc.namespace_defaults(db).items() if level in levels]
+    return "(space IN $ms OR access IN $lv OR (access = NONE AND space IN $follow))", {
+        "ms": sorted(member_of),
+        "lv": levels,
+        "follow": follow,
+    }
+
+
+def readable(db, member_of):
+    """The WHERE clause for the recordings whose transcript someone may read: all of them in their namespaces, and
+    public ones with the transcript open to everyone."""
+    defaults = acc.namespace_defaults(db)
+    return (
+        "(space IN $ms OR ((access = 'public' OR (access = NONE AND space IN $pub)) "
+        "AND ($part IN access_parts OR (access_parts = NONE AND space IN $open))))",
+        {
+            "ms": sorted(member_of),
+            "pub": [sid for sid, (level, _) in defaults.items() if level == "public"],
+            "open": [sid for sid, (_, parts) in defaults.items() if "transcript" in parts],
+            "part": "transcript",
+        },
+    )
+
+
+def _title_match(groups):
+    """Every word and phrase of one of the query's alternatives in the title (ignoring case)."""
+    alts, p = [], {}
+    for k, g in enumerate(groups):
+        words = [w.lower() for w in g["words"] + g["phrases"]]
+        alts.append("(" + " AND ".join(f"string::contains(string::lowercase(title ?? ''), $t{k}_{j})" for j in range(len(words))) + ")")
+        p.update({f"t{k}_{j}": w for j, w in enumerate(words)})
+    return "(" + " OR ".join(alts) + ")", p
+
+
+def search(db, q, member_of, signed_in, limit=20, offset=0):
+    """Public search: the recordings this visitor sees whose title matches, and the lines of the transcripts they may
+    read. Title matches come first; a recording whose transcript they can't read (locked, or closed) matches on its
+    title only, so a search never tells what it says."""
+    groups = searchmod.parse_query(q)
+    if not groups:
+        return {"q": q, "total": 0, "capped": False, "items": []}
+    vis, vp = visible(db, member_of, signed_in)
+    tcond, tp = _title_match(groups)
+    titled = db.rows(f"SELECT record::id(id) AS id, recorded_at FROM recording WHERE {vis} AND {tcond}", **vp, **tp)
+    rcond, rp = readable(db, member_of)
+    ids = db.values(f"SELECT VALUE record::id(id) FROM recording WHERE {rcond}", **rp)
+    found = searchmod.search(db, q, recordings=ids, screen=False, limit=500)
+    hits: dict[int, list[dict]] = {}
+    for h in found["hits"]:  # best first
+        hits.setdefault(h["recording_id"], [])
+        if len(hits[h["recording_id"]]) < HITS_PER_RECORDING:
+            hits[h["recording_id"]].append({"t0": h["t0"], "snippet": h["snippet"]})
+    rank = {rid: i for i, rid in enumerate(hits)}
+    by_title = {r["id"] for r in titled}
+    newest = sorted(titled, key=lambda r: r.get("recorded_at") or "", reverse=True)
+    order = sorted(
+        [r["id"] for r in newest] + [rid for rid in hits if rid not in by_title],
+        key=lambda rid: (rid not in by_title, rank.get(rid, len(rank))),
+    )
+    page = order[offset : offset + limit]
+    rows = db.rows(f"SELECT {CARD} FROM recording WHERE id IN $ids", ids=[R("recording", i) for i in page]) if page else []
+    items = {c["id"]: {**c, "hits": hits.get(c["id"], []) if c["view"] != "locked" else []} for c in cards(db, rows, member_of, signed_in)}
+    return {"q": q, "total": len(order), "capped": found["capped"], "items": [items[i] for i in page if i in items]}

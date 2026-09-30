@@ -5,8 +5,8 @@ Lens follows the roles and permissions matrix of Aviary, the audio and video acc
 closed. Who may open what depends on who is asking.
 
 !!! note "Being built"
-    Recordings' access settings, the web app, IIIF and the pages for visitors (home, collections and a recording's
-    page) follow this model now. Public search, per-recording grants, access requests and IP groups come next.
+    Recordings' access settings, the web app, IIIF and the pages for visitors (home, collections, search and a
+    recording's page) follow this model now. Per-recording grants, access requests and IP groups come next.
 
 ## A recording's access
 
@@ -51,7 +51,7 @@ The home page shows featured public recordings only, to everyone, members includ
 |---|---|
 | Home, featured resources | the public home page, `/explore` |
 | Collection splash page, all resources | a namespace's public page, `/explore/collections/<name>` |
-| Search results page | public search |
+| Search results page | public search, `/explore/search?q=` |
 | Resource detail page | a recording's public page, `/explore/recordings/<id>` (members open it in the workspace too) |
 
 **The home page** shows the featured public recordings, to everyone, and the collections the visitor can see anything
@@ -60,11 +60,16 @@ recordings the visitor sees, newest first: public ones for everyone, restricted 
 the picture) for people who are signed in, and all of them for members. A collection with nothing for the visitor
 isn't there for them. The sign-in page links to the home page.
 
+**Search** finds the recordings the visitor sees by their title, and by the lines of the transcripts they may read,
+title matches first; each line links to its moment in the recording. A restricted recording (for signed-in people) and
+a public one whose transcript is closed match on their title only, so a search never reveals what they say.
+
 **A recording's public page** shows what the visitor may see: its title, date and description, and each open part:
 the player, the transcript (with find in the transcript, and its files to download) and the chapters. A closed part
 says who can open it and offers visitors to sign in; signing in comes back to the page. Signed-in people without
 permission see a restricted recording's title behind a lock ("content locked"); members see all of it, with a link to
-the workspace. Owners find the link to share in a public recording's Access dialog. The page is left out of search
+the workspace. `?t=<seconds>` opens it at a moment. Owners find the link to share in a public recording's Access
+dialog. The page is left out of search
 engines unless the recording is public.
 
 The workspace (Library, recording pages, Search, Chat and the rest) stays as it is: namespaces you have no role in

@@ -3375,6 +3375,23 @@ export type PublicDownload = {
 };
 
 /**
+ * PublicHit
+ */
+export type PublicHit = {
+  /**
+   * T0
+   * where the line starts, in ms
+   */
+  t0: number;
+  /**
+   * Snippet
+   * the line around the match, HTML-escaped, with <mark> around what was found
+   */
+  snippet: string;
+  [key: string]: unknown | number | string;
+};
+
+/**
  * PublicHome
  */
 export type PublicHome = {
@@ -3543,6 +3560,114 @@ export type PublicRecording = {
     | null
     | Array<"media" | "transcript" | "index">
     | undefined;
+};
+
+/**
+ * PublicResult
+ */
+export type PublicResult = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null;
+  /**
+   * Media Kind
+   */
+  media_kind: "audio" | "video" | "transcript";
+  /**
+   * View
+   */
+  view: "full" | "public" | "locked";
+  /**
+   * Access
+   */
+  access: "public" | "restricted" | "private";
+  /**
+   * Featured
+   */
+  featured: boolean;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Poster
+   * signed link to a video's first frame, when the visitor may play it
+   */
+  poster?: string | null;
+  /**
+   * Hits
+   * matching transcript lines, best first; none where the transcript is closed
+   */
+  hits?: Array<PublicHit>;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | number
+    | null
+    | "audio"
+    | "video"
+    | "transcript"
+    | "full"
+    | "public"
+    | "locked"
+    | "public"
+    | "restricted"
+    | "private"
+    | boolean
+    | string
+    | null
+    | string
+    | null
+    | Array<PublicHit>
+    | undefined;
+};
+
+/**
+ * PublicSearch
+ */
+export type PublicSearch = {
+  /**
+   * Q
+   */
+  q: string;
+  /**
+   * Total
+   * how many recordings match, on all pages
+   */
+  total: number;
+  /**
+   * Capped
+   * there were too many matching lines to rank them all
+   */
+  capped: boolean;
+  /**
+   * Items
+   */
+  items: Array<PublicResult>;
+  [key: string]: unknown | string | number | boolean | Array<PublicResult>;
 };
 
 /**
@@ -10126,6 +10251,45 @@ export type GetPublicCollectionResponses = {
 };
 
 export type GetPublicCollectionResponse = GetPublicCollectionResponses[keyof GetPublicCollectionResponses];
+
+export type SearchPublicData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Q
+     * words, "phrases", OR between alternatives
+     */
+    q?: string;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/public/search";
+};
+
+export type SearchPublicErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SearchPublicError = SearchPublicErrors[keyof SearchPublicErrors];
+
+export type SearchPublicResponses = {
+  /**
+   * Successful Response
+   */
+  200: PublicSearch;
+};
+
+export type SearchPublicResponse = SearchPublicResponses[keyof SearchPublicResponses];
 
 export type GetPublicRecordingData = {
   body?: never;

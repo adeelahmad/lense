@@ -114,3 +114,21 @@ class PublicCollection(ResponseModel):
     member: bool = Field(description="the visitor has a role in this namespace, so they see all of its recordings")
     total: int = Field(description="how many recordings this visitor sees here, on all pages")
     items: list[PublicCard]
+
+
+class PublicHit(ResponseModel):
+    t0: int = Field(description="where the line starts, in ms")
+    snippet: str = Field(description="the line around the match, HTML-escaped, with <mark> around what was found")
+
+
+class PublicResult(PublicCard):
+    hits: list[PublicHit] = Field(
+        default_factory=list, description="matching transcript lines, best first; none where the transcript is closed"
+    )
+
+
+class PublicSearch(ResponseModel):
+    q: str
+    total: int = Field(description="how many recordings match, on all pages")
+    capped: bool = Field(description="there were too many matching lines to rank them all")
+    items: list[PublicResult]

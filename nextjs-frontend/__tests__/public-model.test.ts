@@ -6,8 +6,10 @@ import {
   findLines,
   lineAt,
   markParts,
+  momentPath,
   publicPath,
   safeHref,
+  searchPath,
 } from "@/components/public/model";
 
 const lines = [
@@ -21,6 +23,10 @@ describe("public recording page", () => {
     expect(publicPath(12)).toBe("/explore/recordings/12");
     expect(collectionPath("podcasts")).toBe("/explore/collections/podcasts");
     expect(collectionPath("a b")).toBe("/explore/collections/a%20b");
+    expect(momentPath(12, 90_500)).toBe("/explore/recordings/12?t=90");
+    expect(momentPath(12, -5)).toBe("/explore/recordings/12?t=0");
+    expect(searchPath("  capsid results ")).toBe("/explore/search?q=capsid%20results");
+    expect(searchPath(" ")).toBe("/explore/search");
   });
 
   it("says when and what a card's recording is", () => {

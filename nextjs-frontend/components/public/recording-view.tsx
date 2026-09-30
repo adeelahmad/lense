@@ -44,7 +44,7 @@ const KIND: Record<Rec["media_kind"], string> = { audio: "Audio", video: "Video"
  * recording's page, description and the parts open to everyone, with a lock where the rest would be. A restricted
  * recording shows signed-in people its title behind a lock ("content locked").
  */
-export function PublicRecordingView({ id }: { id: number }) {
+export function PublicRecordingView({ id, start = null }: { id: number; start?: number | null }) {
   const client = useApiClient();
   const { status } = useSession();
   const signedIn = status === "authenticated";
@@ -66,7 +66,7 @@ export function PublicRecordingView({ id }: { id: number }) {
       <LoadError what="this recording" message={q.error.message} retry={() => q.refetch()} />
     );
   if (q.data.view === "locked") return <Locked rec={q.data} />;
-  return <RecordingBody rec={q.data} signedIn={signedIn} />;
+  return <RecordingBody rec={q.data} signedIn={signedIn} start={start} />;
 }
 
 /** A restricted recording, for someone signed in without permission: its title behind a lock. */
@@ -106,19 +106,32 @@ function PageSkeleton() {
   );
 }
 
-function RecordingBody({ rec, signedIn }: { rec: Rec; signedIn: boolean }) {
+/** Opens the page at a moment (?t=, in seconds), once. */
+function StartAt({ start }: { start: number | null }) {
+  const api = usePlayerApi();
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current || start == null) return;
+    done.current = true;
+    api.seek(start * 1000, { manual: true });
+  }, [api, start]);
+  return null;
+}
+
+function RecordingBody({ rec, signedIn, start }: { rec: Rec; signedIn: boolean; start: number | null }) {
   const meta = (rec.description ?? {}) as Meta;
   const segments = useMemo(() => rec.transcript?.segments ?? [], [rec.transcript]);
   const duration = rec.duration_ms || (segments.length ? segments[segments.length - 1].t1 : 0);
   return (
     <PlayerProvider hasMedia={Boolean(rec.media)} durationMs={duration} speech={segments}>
+      <StartAt start={start} />
       <article className="mx-auto flex w-full max-w-[1120px] flex-col gap-5 px-4 py-6 sm:px-6">
         <PageHead rec={rec} meta={meta} duration={duration} />
         {rec.member && <MemberNote rec={rec} />}
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="flex min-w-0 flex-col gap-5">
             <MediaCard rec={rec} duration={duration} signedIn={signedIn} />
-            <TranscriptCard rec={rec} signedIn={signedIn} />
+            <TranscriptCard rec={rec} signedIn={signedIn} start={start} />
           </div>
           <aside className="flex min-w-0 flex-col gap-5">
             <ChaptersCard rec={rec} signedIn={signedIn} />
@@ -293,7 +306,7 @@ function MediaCard({ rec, duration, signedIn }: { rec: Rec; duration: number; si
   );
 }
 
-function TranscriptCard({ rec, signedIn }: { rec: Rec; signedIn: boolean }) {
+function TranscriptCard({ rec, signedIn, start }: { rec: Rec; signedIn: boolean; start: number | null }) {
   const t = rec.transcript;
   if (!t) {
     return rec.closed.includes("transcript") ? (
@@ -302,10 +315,10 @@ function TranscriptCard({ rec, signedIn }: { rec: Rec; signedIn: boolean }) {
       </Card>
     ) : null;
   }
-  return <Transcript rec={rec} t={t} />;
+  return <Transcript rec={rec} t={t} start={start} />;
 }
 
-function Transcript({ rec, t }: { rec: Rec; t: NonNullable<Rec["transcript"]> }) {
+function Transcript({ rec, t, start }: { rec: Rec; t: NonNullable<Rec["transcript"]>; start: number | null }) {
   const api = usePlayerApi();
   const { time } = usePlayerState();
   const [query, setQuery] = useState("");
@@ -313,7 +326,12 @@ function Transcript({ rec, t }: { rec: Rec; t: NonNullable<Rec["transcript"]> })
   const lines = useRef<(HTMLLIElement | null)[]>([]);
   const hits = useMemo(() => findLines(t.segments, query), [t.segments, query]);
   const speakers = useMemo(() => new Map(t.speakers.map((s) => [s.key, s])), [t.speakers]);
-  const current = rec.media ? lineAt(t.segments, time) : -1;
+  // the line being played; without media, the line a link opened (?t=)
+  const current = rec.media || start != null ? lineAt(t.segments, time) : -1;
+  useEffect(() => {
+    if (start == null) return;
+    lines.current[lineAt(t.segments, start * 1000)]?.scrollIntoView({ block: "center" });
+  }, [start, t.segments]);
   const go = (n: number) => {
     if (!hits.length) return;
     const k = (n + hits.length) % hits.length;

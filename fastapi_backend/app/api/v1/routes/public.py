@@ -11,7 +11,7 @@ from app.api.media import sign_url
 from app.domain import access as acc
 from app.domain import public
 from app.domain.store import R
-from app.schemas.public import PublicCollection, PublicHome, PublicRecording
+from app.schemas.public import PublicCollection, PublicHome, PublicRecording, PublicSearch
 
 router = APIRouter(prefix="/public", tags=["public"])
 
@@ -46,6 +46,22 @@ def get_public_collection(
         d = public.collection(db, sid, set(acl.roles), acl.user is not None, limit, offset)
     _signed(d["items"])
     return PublicCollection.model_validate(d)
+
+
+@router.get("/search")
+def search_public(
+    acl: Acl,
+    db: Db,
+    q: str = Query("", description='words, "phrases", OR between alternatives'),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+) -> PublicSearch:
+    """Search what this visitor may see: titles of the recordings they see listed, and the lines of the transcripts
+    they may read. Title matches come first. Restricted recordings (for signed-in people) and public ones with the
+    transcript closed match on their title only."""
+    d = public.search(db, q, set(acl.roles), acl.user is not None, limit, offset)
+    _signed(d["items"])
+    return PublicSearch.model_validate(d)
 
 
 @router.get("/recordings/{rid}")

@@ -10,7 +10,7 @@ nextjs-frontend/
   app/
     (auth)/                 sign in, first-run setup, password reset
     (public)/explore/       pages for visitors, no sign-in needed (docs/access.md): the home page,
-                            collections/[ns], recordings/[id]
+                            collections/[ns], search, recordings/[id]
     (app)/                  every signed-in screen, inside the app shell
       page.tsx              Home
       library/ import/ reports/ recordings/[id]/

@@ -295,6 +295,7 @@ What visitors see ([Access](access.md)). No sign-in is needed; send a token and 
 ```
 GET    /api/v1/public/home
 GET    /api/v1/public/collections/{name}
+GET    /api/v1/public/search
 GET    /api/v1/public/recordings/{rid}
 ```
 
@@ -303,6 +304,11 @@ sees anything in, with how many of their recordings they see. `GET /public/colle
 the namespace's description and the recordings the caller sees there, newest first (`limit`, `offset`, and `total` on
 all pages). Each recording is a card with the caller's `view` of it; `locked` cards carry the title only. A poster
 frame comes only with media the caller may play. A collection with nothing for the caller answers 404.
+
+`GET /public/search?q=` (`limit`, `offset`) finds the recordings the caller sees by their title, and by the lines of
+the transcripts they may read (the same query syntax as `/search`: words, "phrases", OR). Title matches come first;
+each result is a card with up to three matching `hits` (`t0` and an HTML-escaped `snippet` with `<mark>`). Restricted
+recordings and closed transcripts match on the title only.
 
 `GET /public/recordings/{rid}` is a recording's public page as the caller may see it. `view` says how:
 

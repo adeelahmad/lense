@@ -59,10 +59,12 @@ def _mark_plain(text, words):
     return rx.sub(lambda m: M0 + m.group(0) + M1, text) if rx else text
 
 
-def search(db, q, ns=None, speaker=None, emotion=None, recording=None, limit=50, offset=0, spaces=None):
+def search(db, q, ns=None, speaker=None, emotion=None, recording=None, limit=50, offset=0, spaces=None, recordings=None, screen=True):
+    """Transcript lines (and, unless screen is false, text on screen in videos) matching q. spaces limits the search to
+    namespaces someone may read, recordings to a set of recordings (such as the transcripts a visitor may read)."""
     groups = parse_query(q)
     empty = {"q": q, "query": "", "total": 0, "capped": False, "hits": []}
-    if not groups:
+    if not groups or (recordings is not None and not recordings):
         return empty
     filt, params = [], {"m0": M0, "m1": M1}
     if ns:
@@ -74,6 +76,9 @@ def search(db, q, ns=None, speaker=None, emotion=None, recording=None, limit=50,
     if spaces is not None:  # only namespaces this person may read
         filt.append("space IN $allowed")
         params["allowed"] = sorted(spaces)
+    if recordings is not None:
+        filt.append("recording IN $recs")
+        params["recs"] = sorted(recordings)
     for cond, key, val in (("speaker = $spk", "spk", speaker), ("emotion = $emo", "emo", emotion), ("recording = $rec", "rec", recording)):
         if val not in (None, ""):
             filt.append(cond)
@@ -114,7 +119,7 @@ def search(db, q, ns=None, speaker=None, emotion=None, recording=None, limit=50,
         hits.append(r)
     for h in hits:
         h["source"] = "said"
-    if not speaker and not emotion:  # text shown on screen in videos has no speaker or emotion
+    if screen and not speaker and not emotion:  # text shown on screen in videos has no speaker or emotion
         hits += _screen(db, groups, space_filter(ns, spaces, recording, params), cap, params)
     hits.sort(key=lambda r: (-r["_score"], r["recording"], r.get("idx") or 0))
     page = hits[offset : offset + limit]

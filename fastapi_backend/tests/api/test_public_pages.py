@@ -182,3 +182,41 @@ def test_posters_come_with_media_the_visitor_may_play(client, new_client, env, d
     metadata.save(db, cfg, clip, {"open": ["transcript"]})
     assert anon.get("/api/v1/public/home").json()["featured"][0]["poster"] is None
     assert client.get("/api/v1/public/home", headers=env["hv"]).json()["featured"][0]["poster"]  # members may play it
+
+
+def test_search_finds_only_what_the_visitor_may_read(client, new_client, env, db, cfg):
+    clip, a, b, call = env["clip"], env["a"], env["b"], env["call"]
+    metadata.save(db, cfg, clip, {"access": "public"})  # every part open
+    metadata.save(db, cfg, a, {"access": "public", "open": ["media"]})  # its transcript is closed
+    metadata.save(db, cfg, call, {"access": "restricted"})  # b stays private
+    anon = new_client()
+
+    def search(q, headers=None, **params):
+        r = client.get("/api/v1/public/search", params={"q": q, **params}, headers=headers or {})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    def ids(d):
+        return [x["id"] for x in d["items"]]
+
+    # visitors: only transcripts open to everyone are searched; restricted and private recordings aren't there
+    d = search("capsid")
+    assert ids(d) == [clip] and d["total"] == 1
+    hit = d["items"][0]["hits"][0]
+    assert "<mark>capsid</mark>" in hit["snippet"] and hit["t0"] >= 0
+    # a closed transcript is found by its title only, without its lines
+    d = search("ep1")
+    assert ids(d) == [a] and d["items"][0]["hits"] == []
+    assert search("call")["total"] == 0 and anon.get("/api/v1/public/search", params={"q": "Dave"}).json()["total"] == 0
+    assert search("exploit")["total"] == 0 and ids(search("exploit", env["hv"])) == [b]  # b is private: members only
+    # signed in: a restricted recording matches on its title, locked; its transcript is never searched
+    d = search("call", env["hv"])
+    assert [(x["id"], x["view"], x["hits"]) for x in d["items"]] == [(call, "locked", [])]
+    assert set(ids(search("capsid", env["hv"]))) == {clip, a}  # a member of pods reads its closed transcripts too
+    assert set(ids(search("capsid", env["ho"]))) == {clip, call}  # a member of calls, not of pods
+    # title matches come first; pages of results; nothing to look for
+    db.q("UPDATE $r SET title = 'The capsid episode'", r=store.R("recording", a))
+    assert ids(search("capsid")) == [a, clip]
+    page = search("capsid", limit=1, offset=1)
+    assert (page["total"], ids(page)) == (2, [clip])
+    assert search("   ")["total"] == 0

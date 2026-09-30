@@ -440,6 +440,9 @@ import type {
   GetPublicCollectionData,
   GetPublicCollectionResponses,
   GetPublicCollectionErrors,
+  SearchPublicData,
+  SearchPublicResponses,
+  SearchPublicErrors,
   GetPublicRecordingData,
   GetPublicRecordingResponses,
   GetPublicRecordingErrors,
@@ -2525,6 +2528,19 @@ export class Public {
   ) {
     return (options.client ?? client).get<GetPublicCollectionResponses, GetPublicCollectionErrors, ThrowOnError>({
       url: "/api/v1/public/collections/{name}",
+      ...options,
+    });
+  }
+
+  /**
+   * Search Public
+   * Search what this visitor may see: titles of the recordings they see listed, and the lines of the transcripts
+   * they may read. Title matches come first. Restricted recordings (for signed-in people) and public ones with the
+   * transcript closed match on their title only.
+   */
+  public static searchPublic<ThrowOnError extends boolean = false>(options?: Options<SearchPublicData, ThrowOnError>) {
+    return (options?.client ?? client).get<SearchPublicResponses, SearchPublicErrors, ThrowOnError>({
+      url: "/api/v1/public/search",
       ...options,
     });
   }

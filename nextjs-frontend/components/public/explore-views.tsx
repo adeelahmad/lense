@@ -3,29 +3,24 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { FolderOpen, Star } from "lucide-react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { useState } from "react";
 
 import { Public } from "@/app/openapi-client";
 import { rightsFor } from "@/components/iiif/rights";
 import { CollectionCard, RecordingCard } from "@/components/public/cards";
+import { usePublicClient } from "@/components/public/hooks";
+import { PublicSearchForm } from "@/components/public/search-view";
 import { safeHref } from "@/components/public/model";
 import { LoadError, Unavailable } from "@/components/public/states";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
-import { ApiError, data, useApiClient } from "@/lib/api/browser";
+import { ApiError, data } from "@/lib/api/browser";
 import { count } from "@/lib/format";
 
 const PAGE = 48;
 const GRID = "grid gap-4 sm:grid-cols-2 lg:grid-cols-3";
-
-function usePublicQuery() {
-  const client = useApiClient();
-  const { status } = useSession();
-  return { client, signedIn: status === "authenticated", ready: status !== "loading" };
-}
 
 function CardsSkeleton({ n = 3 }: { n?: number }) {
   return (
@@ -39,7 +34,7 @@ function CardsSkeleton({ n = 3 }: { n?: number }) {
 
 /** The home page for visitors (Aviary's home): featured public recordings, then the collections they can browse. */
 export function PublicHomeView() {
-  const { client, signedIn, ready } = usePublicQuery();
+  const { client, signedIn, ready } = usePublicClient();
   const q = useQuery({
     queryKey: ["public", "home", signedIn],
     queryFn: () => data(Public.getPublicHome({ client })),
@@ -53,6 +48,7 @@ export function PublicHomeView() {
         <p className="max-w-[62ch] text-[15px] leading-[1.55] text-fg-secondary">
           Listen to and read the recordings their owners have made public.
         </p>
+        <PublicSearchForm className="mt-2 max-w-[560px]" />
       </header>
       <section aria-labelledby="featured-heading" className="flex flex-col gap-3">
         <h2 id="featured-heading" className="flex items-center gap-2 text-[18px] font-bold text-fg">
@@ -98,7 +94,7 @@ export function PublicHomeView() {
 
 /** A collection's page for visitors (Aviary's collection splash page): its description and the recordings they see. */
 export function PublicCollectionView({ name }: { name: string }) {
-  const { client, signedIn, ready } = usePublicQuery();
+  const { client, signedIn, ready } = usePublicClient();
   const [offset, setOffset] = useState(0);
   const q = useQuery({
     queryKey: ["public", "collection", name, offset, signedIn],

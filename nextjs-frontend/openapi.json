@@ -7576,6 +7576,75 @@
         }
       }
     },
+    "/api/v1/public/search": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Search Public",
+        "description": "Search what this visitor may see: titles of the recordings they see listed, and the lines of the transcripts\nthey may read. Title matches come first. Restricted recordings (for signed-in people) and public ones with the\ntranscript closed match on their title only.",
+        "operationId": "search_public",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "words, \"phrases\", OR between alternatives",
+              "default": "",
+              "title": "Q"
+            },
+            "description": "words, \"phrases\", OR between alternatives"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSearch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/public/recordings/{rid}": {
       "get": {
         "tags": [
@@ -12743,6 +12812,27 @@
         ],
         "title": "PublicDownload"
       },
+      "PublicHit": {
+        "properties": {
+          "t0": {
+            "type": "integer",
+            "title": "T0",
+            "description": "where the line starts, in ms"
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "description": "the line around the match, HTML-escaped, with <mark> around what was found"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "t0",
+          "snippet"
+        ],
+        "title": "PublicHit"
+      },
       "PublicHome": {
         "properties": {
           "featured": {
@@ -13016,6 +13106,164 @@
         ],
         "title": "PublicRecording",
         "description": "A recording as this visitor may see it: all of it with permission, else its page, description and open parts,\nor (restricted, signed in) its title only. Parts left out are null."
+      },
+      "PublicResult": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "media_kind": {
+            "type": "string",
+            "enum": [
+              "audio",
+              "video",
+              "transcript"
+            ],
+            "title": "Media Kind"
+          },
+          "view": {
+            "type": "string",
+            "enum": [
+              "full",
+              "public",
+              "locked"
+            ],
+            "title": "View"
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted",
+              "private"
+            ],
+            "title": "Access"
+          },
+          "featured": {
+            "type": "boolean",
+            "title": "Featured"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "poster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster",
+            "description": "signed link to a video's first frame, when the visitor may play it"
+          },
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/PublicHit"
+            },
+            "type": "array",
+            "title": "Hits",
+            "description": "matching transcript lines, best first; none where the transcript is closed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "media_kind",
+          "view",
+          "access",
+          "featured"
+        ],
+        "title": "PublicResult"
+      },
+      "PublicSearch": {
+        "properties": {
+          "q": {
+            "type": "string",
+            "title": "Q"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "how many recordings match, on all pages"
+          },
+          "capped": {
+            "type": "boolean",
+            "title": "Capped",
+            "description": "there were too many matching lines to rank them all"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublicResult"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "q",
+          "total",
+          "capped",
+          "items"
+        ],
+        "title": "PublicSearch"
       },
       "PublicSegment": {
         "properties": {

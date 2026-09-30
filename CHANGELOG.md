@@ -51,6 +51,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   its description and recordings: public ones for everyone, restricted ones behind a lock ("content locked") for
   signed-in people, all of them for members. The sign-in page links there. `GET /api/v1/public/home` and
   `GET /api/v1/public/collections/{name}`.
+- **Explore: search** (Aviary's search results page). `/explore/search` finds recordings by their title, and by what's
+  said in the transcripts the visitor may read, with the matching lines; each line opens the recording at that moment
+  (`?t=`). Restricted recordings (for signed-in people, locked) and closed transcripts match on the title only, so a
+  search never reveals what they say. A search box sits on the home page and in the header.
+  `GET /api/v1/public/search`; `search()` can be limited to a set of recordings.
 
 Tooling:
 

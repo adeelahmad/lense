@@ -12,6 +12,17 @@ export function publicPath(id: number): string {
   return `/explore/recordings/${id}`;
 }
 
+/** A recording's public page at a moment (whole seconds, like the workspace's ?t=). */
+export function momentPath(id: number, ms: number): string {
+  return `${publicPath(id)}?t=${Math.floor(Math.max(0, ms) / 1000)}`;
+}
+
+/** The search page for a query. */
+export function searchPath(q: string): string {
+  const t = q.trim();
+  return t ? `/explore/search?q=${encodeURIComponent(t)}` : "/explore/search";
+}
+
 /** A collection's page for visitors. */
 export function collectionPath(name: string): string {
   return `/explore/collections/${encodeURIComponent(name)}`;

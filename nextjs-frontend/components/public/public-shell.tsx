@@ -7,6 +7,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
 import { Brand } from "@/components/brand";
+import { PublicSearchForm } from "@/components/public/search-view";
 import { Button } from "@/components/ui/button";
 import { ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -53,12 +54,14 @@ export function PublicShell({
   children: ReactNode;
 }) {
   const signIn = useSignInHref();
+  const onSearch = usePathname().startsWith("/explore/search"); // the page has its own search box
   return (
     <div className="flex min-h-screen flex-col bg-surface">
       <header className="sticky top-0 z-20 border-b border-border bg-background">
         <div className="mx-auto flex h-14 w-full max-w-[1120px] items-center gap-3 px-4 sm:px-6">
           <Brand href="/explore" size={17} />
           <span className="flex-1" />
+          {!onSearch && <PublicSearchForm className="hidden w-[340px] md:flex" />}
           {signedIn ? (
             <>
               {name && <span className="hidden truncate text-[13px] text-fg-secondary sm:block">{name}</span>}
