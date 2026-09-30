@@ -1,7 +1,218 @@
-"""TODO: port from the legacy server."""
+"""Conversations with the archive, the assistant's approvals, and checking an answer against its sources.
+
+A question streams back server-sent events: ``step`` (a tool the assistant used), ``approval`` (work it proposed that
+waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error`` and ``done``.
+The assistant only ever sees, and cites, what the asker can read.
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+import json
+from collections.abc import Iterator
+from typing import Any
+
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
+
+from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
+from app.api.media import sign_urls
+from app.domain import ai_tools, auth, chat, llm, store
+from app.domain.store import DB
+from app.schemas.chats import (
+    AnswerCheck,
+    Approval,
+    ApprovalDecision,
+    ApprovalOutcome,
+    Chat,
+    ChatCreate,
+    ChatScope,
+    ChatSummary,
+    ChatUpdate,
+    MessageCreate,
+)
+from app.schemas.common import Created, Ok
 
 router = APIRouter(tags=["chats"])
+R = store.R
+SSE_HEADERS = {"Cache-Control": "no-store", "X-Accel-Buffering": "no"}
+
+
+def _scope(acl: Access, db: DB, scope: ChatScope | None) -> dict[str, Any]:
+    """The scope with only the keys that narrow it; namespaces and recordings must be ones the caller can read."""
+    s = scope.model_dump(by_alias=True, exclude_none=True) if scope else {}
+    names = {n for sid, n in store.space_names(db).items() if sid in acl.roles}
+    for n in s.get("namespaces") or []:
+        if n not in names:
+            raise HTTPException(404, f"no namespace {n!r}")
+    for rid in s.get("recordings") or []:
+        acl.recording(int(rid))
+    return {k: v for k, v in s.items() if v}
+
+
+def _own_chat(db: DB, cid: int, user: Principal) -> dict[str, Any]:
+    try:
+        return chat.get(db, cid, user.id)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+
+
+@router.get("/chats")
+def list_chats(user: CurrentUser, db: Db) -> list[ChatSummary]:
+    """Your conversations, most recent first."""
+    return db.rows(
+        "SELECT record::id(id) AS id, title, scope, created_at, updated_at FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
+        a=user.id,
+    )
+
+
+@router.post("/chats")
+def create_chat(user: Writer, acl: Acl, db: Db, body: ChatCreate | None = None) -> Created:
+    body = body or ChatCreate()
+    return Created(id=chat.create(db, user.id, body.title, _scope(acl, db, body.scope)))
+
+
+@router.get("/chats/{cid}")
+def get_chat(cid: int, user: CurrentUser, acl: Acl, db: Db) -> Chat:
+    """A conversation with its messages. Citations follow your current access: ones you can no longer read are left out."""
+    c = _own_chat(db, cid, user)
+    msgs, ok = chat.history(db, cid), set(acl.roles)
+    ids = {p["recording_id"] for m in msgs for p in m.get("passages") or []}
+    visible = (
+        {
+            r["id"]
+            for r in db.rows("SELECT record::id(id) AS id, space FROM recording WHERE id IN $ids", ids=[R("recording", i) for i in ids])
+            if r["space"] in ok
+        }
+        if ids
+        else set()
+    )
+    for m in msgs:
+        m["passages"] = [p for p in m.get("passages") or [] if p["recording_id"] in visible]
+    return Chat.model_validate(sign_urls({**c, "messages": msgs}))
+
+
+@router.patch("/chats/{cid}")
+def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db) -> Ok:
+    """Rename a conversation or change what it draws on."""
+    _own_chat(db, cid, user)
+    if body.title:
+        db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=body.title[:120])
+    if "scope" in body.model_fields_set:  # replaces the scope as a whole, so narrowing can also be removed
+        db.q("UPDATE $r SET scope = $s", r=R("chat", cid), s=_scope(acl, db, body.scope))
+    return Ok()
+
+
+@router.delete("/chats/{cid}")
+def delete_chat(cid: int, user: Writer, db: Db) -> Ok:
+    _own_chat(db, cid, user)
+    db.run(["DELETE chat_message WHERE chat = $c", "DELETE $r"], c=cid, r=R("chat", cid))
+    return Ok()
+
+
+def _ev(name: str, data: Any) -> str:
+    return f"event: {name}\ndata: {json.dumps(sign_urls(data), default=str)}\n\n"
+
+
+@router.post(
+    "/chats/{cid}/messages",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"text/event-stream": {}}, "description": "server-sent events"}},
+)
+async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> StreamingResponse:
+    """Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, done (the saved message id)."""
+    c = await run_in_threadpool(_own_chat, db, cid, user)
+    q = body.content.strip()[:4000]
+    if not q:
+        raise HTTPException(400, "ask something")
+    readable = set(acl.roles)
+
+    def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        past = chat.history(db, cid)
+        chat.add(db, cid, "user", q)
+        if not past and c["title"] == "New conversation":
+            db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
+        return past, chat.retrieve(db, q, readable, c.get("scope"))
+
+    past, passages = await run_in_threadpool(prepare)
+
+    def gen() -> Iterator[str]:
+        if llm.configured(cfg) and cfg["ai"].get("tools"):
+            box = ai_tools.Toolbox(db, cfg, user.as_audit(), readable, set(acl.editable()), c.get("scope"), cid)
+            try:
+                answer = ""
+                for kind, data in chat.tool_answer(cfg, box, q, past, cfg["ai"].get("max_steps") or 6):
+                    if kind == "step":
+                        yield _ev("step", data)
+                    else:
+                        answer = data
+                for appr in box.approvals:
+                    yield _ev("approval", appr)
+                cited = box.cited(answer)
+                yield _ev("passages", cited)
+                yield _ev("token", {"text": answer})
+                yield _ev("done", {"message": chat.add(db, cid, "assistant", answer or "(no answer)", cited)})
+                return
+            except llm.ToolsUnsupported:
+                yield _ev("notice", {"message": "This model can't use tools, so the answer comes from a search instead."})
+            except llm.LLMError as e:
+                yield _ev("error", {"message": str(e)})
+                yield _ev("done", {"message": chat.add(db, cid, "assistant", "(no answer)", [])})
+                return
+        yield _ev("passages", passages)
+        text = ""
+        try:
+            if llm.configured(cfg):
+                for piece in llm.stream_chat(cfg, chat.messages_for(q, passages, past)):
+                    text += piece
+                    yield _ev("token", {"text": piece})
+            else:
+                text = chat.fallback(passages)
+                yield _ev("token", {"text": text})
+        except llm.LLMError as e:
+            yield _ev("error", {"message": str(e)})
+        yield _ev("done", {"message": chat.add(db, cid, "assistant", text or "(no answer)", chat.cited(text, passages))})
+
+    # A sync generator: Starlette iterates it in the threadpool, so the domain calls inside don't block the loop.
+    return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+@router.post("/chats/{cid}/messages/{mid}/check")
+def check_message(cid: int, mid: int, user: Writer, db: Db, cfg: Cfg) -> AnswerCheck:
+    """Re-check each cited claim of an answer against the excerpts it cites; the verdict is saved on the message."""
+    _own_chat(db, cid, user)
+    m = db.one("SELECT chat, role, content, passages FROM $r", r=R("chat_message", mid))
+    if not m or m["chat"] != cid or m["role"] != "assistant":
+        raise HTTPException(404, "not found")
+    try:
+        out = chat.check_sources(cfg, m["content"], m.get("passages") or [])
+    except llm.LLMError as e:
+        raise HTTPException(400, str(e)) from None
+    db.q("UPDATE $r SET check = $c", r=R("chat_message", mid), c=out)
+    return out
+
+
+@router.get("/approvals")
+def list_approvals(user: CurrentUser, db: Db, chat_id: int | None = None) -> list[Approval]:
+    """Work the assistant proposed for you to approve (and what became of it), newest first."""
+    return db.rows(
+        "SELECT record::id(id) AS id, chat, tool, summary, estimate, status, created_at, result FROM approval WHERE account = $a"
+        + (" AND chat = $c" if chat_id else "")
+        + " ORDER BY created_at DESC LIMIT 100",
+        a=user.id,
+        c=chat_id,
+    )
+
+
+@router.post("/approvals/{aid}")
+def decide_approval(aid: int, body: ApprovalDecision, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> ApprovalOutcome:
+    """Approve (or run a sample of, or decline) something the assistant proposed. Each approval is decided once."""
+    a = db.one("SELECT account FROM $r", r=R("approval", aid))
+    if not a or a["account"] != user.id:
+        raise HTTPException(404, "not found")
+    try:
+        out = ai_tools.approve(db, cfg, aid, user.as_audit(), set(acl.editable()), body.decision)
+    except (ValueError, PermissionError) as e:
+        raise HTTPException(400, str(e)) from None
+    auth.audit(db, user.as_audit(), "assistant.approval", f"approval:{aid}", {"decision": body.decision, **out})
+    return out

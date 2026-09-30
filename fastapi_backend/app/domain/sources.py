@@ -240,8 +240,8 @@ def update(db, cfg, sid, name=None, params=None, secret_values=None):
             sealed.pop(k, None)
         elif isinstance(v, str):
             sealed[k] = settings.seal(cfg, v, f"source:{sid}:{k}")
-    db.q("UPDATE $r MERGE $d", r=R("storage_source", sid), d=store.clean({"name": name, "params": {**(src.get("params") or {}), **(params or {})} if params else None,
-                                                                          "sealed": sealed}))
+    db.q("UPDATE $r MERGE $d", r=R("storage_source", sid), d=store.clean({"name": name, "params": {**(src.get("params") or {}), **(params or {})} if params else None}))
+    db.q("UPDATE $r SET sealed = $s", r=R("storage_source", sid), s=sealed)  # SET, not MERGE: a MERGE can't drop a removed secret
 
 
 def remove(db, sid):
