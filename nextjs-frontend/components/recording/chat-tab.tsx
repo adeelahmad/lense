@@ -19,7 +19,7 @@ import {
 } from "@/components/recording/chat-model";
 import { useRec } from "@/components/recording/context";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/states";
+import { EmptyState, Skeleton } from "@/components/ui/states";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { SSEError, streamSSE } from "@/lib/api/sse";
 import { tc } from "@/lib/format";
@@ -29,7 +29,20 @@ import { cn } from "@/lib/utils";
  * Chat scoped to this recording: questions are answered from its transcript only, and each citation seeks the player.
  * The conversation is kept (it's this recording's chat in Chat too); the full chat UI lives on the Chat page.
  */
+/** The recording's chat, for people with a role in its namespace (the assistant answers from the namespace). */
 export function ChatTab() {
+  const { member, ns } = useRec();
+  if (!member)
+    return (
+      <EmptyState icon={<MessagesSquare />} title={`Chat needs a role in ${ns ?? "the namespace"}`} className="py-10">
+        You see this recording through a role on its collection. Asking the assistant about recordings needs a role in
+        the namespace: ask an owner of {ns ?? "it"}.
+      </EmptyState>
+    );
+  return <ChatPanel />;
+}
+
+function ChatPanel() {
   const { id, model, chatDraft, clearChatDraft } = useRec();
   const client = useApiClient();
   const qc = useQueryClient();

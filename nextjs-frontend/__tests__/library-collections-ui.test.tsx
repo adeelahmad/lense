@@ -14,6 +14,8 @@ jest.mock("@/app/openapi-client", () => ({
     createNamespaceCollection: jest.fn(),
     updateNamespaceCollection: jest.fn(),
     deleteNamespaceCollection: jest.fn(),
+    listCollectionMembers: jest.fn(),
+    setCollectionMember: jest.fn(),
   },
   Recordings: { placeRecordings: jest.fn() },
 }));
@@ -66,7 +68,10 @@ async function choose(row: string, item: RegExp | string) {
 
 beforeEach(() => {
   editor = true;
-  m(Namespaces.listNamespaceCollections).mockImplementation(() => ok(TREE));
+  // what each collection lets this person do, as the API says it: an editor of the namespace arranges them all
+  m(Namespaces.listNamespaceCollections).mockImplementation(() =>
+    ok(TREE.map((n) => ({ ...n, role: editor ? "editor" : "viewer", can_change: editor, can_grant: false }))),
+  );
 });
 
 describe("the collections dialog", () => {
@@ -158,6 +163,54 @@ describe("the collections dialog", () => {
     expect(screen.getByLabelText("New collection")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Add" })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getAllByText("Editors of pods can do this").length).toBeGreaterThan(0);
+  });
+});
+
+describe("people in a collection", () => {
+  it("gives, changes and takes away roles, and shows the ones from above", async () => {
+    // an admin of Talks (but no role in the namespace): arranges Talks and what's inside it, gives roles on them
+    editor = false;
+    m(Namespaces.listNamespaceCollections).mockImplementation(() =>
+      ok([
+        node(2, "Talks", null, 0, { role: "admin", can_change: true, can_grant: true, children: 1 }),
+        node(3, "2024", 2, 1, { role: "admin", can_change: true, can_grant: true }),
+      ]),
+    );
+    const people = [
+      { account: 7, email: "ann@x.io", name: "Ann", role: "viewer" },
+      { account: 8, email: "bo@x.io", role: "admin", inherited_from: { id: 2, name: "Talks" } },
+    ];
+    m(Namespaces.listCollectionMembers).mockImplementation(() => ok(people));
+    m(Namespaces.setCollectionMember).mockImplementation(() => ok(people));
+    wrap(<CollectionsDialog ns="pods" open onOpenChange={() => {}} />);
+    await screen.findByRole("list", { name: "Collections in pods" });
+    // the top is the namespace's editors', and says so
+    expect(screen.getByRole("button", { name: "Add" })).toHaveAttribute("aria-disabled", "true");
+    expect(
+      screen.getByText("You arrange the collections you’re an admin of, and the ones inside them."),
+    ).toBeInTheDocument();
+    await choose("2024", "People…");
+    const dialog = await screen.findByRole("dialog", { name: "People in 2024" });
+    const list = await within(dialog).findByRole("list", { name: "People in 2024" });
+    expect(within(list).getByText("Ann")).toBeInTheDocument();
+    expect(within(list).getByText(/Admin through “/)).toHaveTextContent("Admin through “Talks”");
+    fireEvent.change(within(dialog).getByLabelText("Email"), { target: { value: " cy@x.io " } });
+    fireEvent.change(within(dialog).getByLabelText("Role"), { target: { value: "editor" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Give" }));
+    await waitFor(() =>
+      expect(m(Namespaces.setCollectionMember).mock.calls[0][0]).toMatchObject({
+        path: { name: "pods", cid: 3 },
+        body: { email: "cy@x.io", role: "editor" },
+      }),
+    );
+    fireEvent.change(within(list).getByLabelText("Role of Ann"), { target: { value: "admin" } });
+    await waitFor(() =>
+      expect(m(Namespaces.setCollectionMember).mock.calls[1][0].body).toEqual({ account: 7, role: "admin" }),
+    );
+    fireEvent.click(within(list).getByRole("button", { name: "Take away Ann’s role" }));
+    await waitFor(() =>
+      expect(m(Namespaces.setCollectionMember).mock.calls[2][0].body).toEqual({ account: 7, role: null }),
+    );
   });
 });
 

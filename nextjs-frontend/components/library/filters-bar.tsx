@@ -225,7 +225,8 @@ export function FiltersBar({
   /** Open the dialog that arranges them. */
   onManageCollections?: () => void;
 }) {
-  const { namespaces, namespace, setNamespace } = useArchive();
+  const { namespaces: full, partialNamespaces, namespace, setNamespace, isPartial } = useArchive();
+  const namespaces = [...full, ...partialNamespaces].sort((a, b) => a.name.localeCompare(b.name));
   const [spkQuery, setSpkQuery] = useState("");
   const [tagQuery, setTagQuery] = useState("");
   const tagOn = (t: string) => filters.tags.some((x) => x.toLowerCase() === t.toLowerCase());
@@ -384,51 +385,55 @@ export function FiltersBar({
           </div>
         )}
       </Chip>
-      <Chip
-        label={filters.speaker ? `Speaker: ${filters.speaker.name}` : "Speaker"}
-        active={Boolean(filters.speaker)}
-        onClear={() => set({ speaker: null })}
-        width={260}
-      >
-        {(close) => (
-          <div>
-            <input
-              value={spkQuery}
-              onChange={(e) => setSpkQuery(e.target.value)}
-              placeholder="Find a speaker"
-              aria-label="Find a speaker"
-              className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-none focus:border-blue"
-            />
-            <div role="menu" className="max-h-64 overflow-y-auto">
-              {speakers
-                .filter((s) => s.name.toLowerCase().includes(spkQuery.trim().toLowerCase()))
-                .slice(0, 50)
-                .map((s) => (
-                  <Option
-                    key={s.name}
-                    on={filters.speaker?.name === s.name}
-                    onClick={() => {
-                      set({
-                        speaker: filters.speaker?.name === s.name ? null : { name: s.name, ids: s.ids },
-                      });
-                      close();
-                    }}
-                  >
-                    <span className="flex items-center justify-between gap-2">
-                      {s.name}
-                      <span className="tabular text-[12px] font-normal text-fg-muted">{count(s.recordings)}</span>
-                    </span>
-                  </Option>
-                ))}
-              {!speakers.length && (
-                <p className="px-2.5 py-3 text-[13px] text-fg-muted">
-                  {speakersLoading ? "Loading speakers…" : "No speakers yet."}
-                </p>
-              )}
+      {isPartial(namespace) ? (
+        <OffChip label="Speaker" reason={`Speakers are listed for people with a role in ${namespace}`} />
+      ) : (
+        <Chip
+          label={filters.speaker ? `Speaker: ${filters.speaker.name}` : "Speaker"}
+          active={Boolean(filters.speaker)}
+          onClear={() => set({ speaker: null })}
+          width={260}
+        >
+          {(close) => (
+            <div>
+              <input
+                value={spkQuery}
+                onChange={(e) => setSpkQuery(e.target.value)}
+                placeholder="Find a speaker"
+                aria-label="Find a speaker"
+                className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-none focus:border-blue"
+              />
+              <div role="menu" className="max-h-64 overflow-y-auto">
+                {speakers
+                  .filter((s) => s.name.toLowerCase().includes(spkQuery.trim().toLowerCase()))
+                  .slice(0, 50)
+                  .map((s) => (
+                    <Option
+                      key={s.name}
+                      on={filters.speaker?.name === s.name}
+                      onClick={() => {
+                        set({
+                          speaker: filters.speaker?.name === s.name ? null : { name: s.name, ids: s.ids },
+                        });
+                        close();
+                      }}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        {s.name}
+                        <span className="tabular text-[12px] font-normal text-fg-muted">{count(s.recordings)}</span>
+                      </span>
+                    </Option>
+                  ))}
+                {!speakers.length && (
+                  <p className="px-2.5 py-3 text-[13px] text-fg-muted">
+                    {speakersLoading ? "Loading speakers…" : "No speakers yet."}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </Chip>
+          )}
+        </Chip>
+      )}
       <Chip
         label={filters.date === "any" ? "Date" : `Date: ${DATE_LABEL[filters.date].toLowerCase()}`}
         active={filters.date !== "any"}

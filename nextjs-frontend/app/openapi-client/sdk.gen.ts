@@ -114,6 +114,12 @@ import type {
   UpdateNamespaceCollectionData,
   UpdateNamespaceCollectionResponses,
   UpdateNamespaceCollectionErrors,
+  ListCollectionMembersData,
+  ListCollectionMembersResponses,
+  ListCollectionMembersErrors,
+  SetCollectionMemberData,
+  SetCollectionMemberResponses,
+  SetCollectionMemberErrors,
   ListRecordingsData,
   ListRecordingsResponses,
   ListRecordingsErrors,
@@ -1013,6 +1019,8 @@ export class Admin {
 export class Namespaces {
   /**
    * List Namespaces
+   * The namespaces you have a role in, with their counts, and those you see only some collections of (`partial`,
+   * no `role`): counted over those collections, without the namespace-wide speakers and word cloud.
    */
   public static listNamespaces<ThrowOnError extends boolean = false>(
     options?: Options<ListNamespacesData, ThrowOnError>,
@@ -1139,8 +1147,9 @@ export class Namespaces {
 
   /**
    * List Namespace Collections
-   * The namespace's collections, depth first and by name, each with its place in the tree and how many recordings
-   * it holds (with and without the collections inside it).
+   * The namespace's collections, depth first and by name, each with its place in the tree, how many recordings it
+   * holds (with and without the collections inside it), and what you may do with it. Someone who sees only some
+   * collections of the namespace gets those, starting from the ones they were given.
    */
   public static listNamespaceCollections<ThrowOnError extends boolean = false>(
     options: Options<ListNamespaceCollectionsData, ThrowOnError>,
@@ -1157,8 +1166,9 @@ export class Namespaces {
 
   /**
    * Create Namespace Collection
-   * Make a collection (editors), at the top of the namespace or inside `parent`. Its name is unique among the
-   * collections next to it, ignoring case; collections go at most 8 deep. Audited as `collection.create`.
+   * Make a collection at the top of the namespace (its editors) or inside `parent` (them, or an admin of `parent`).
+   * Its name is unique among the collections next to it, ignoring case; collections go at most 8 deep. Audited as
+   * `collection.create`.
    */
   public static createNamespaceCollection<ThrowOnError extends boolean = false>(
     options: Options<CreateNamespaceCollectionData, ThrowOnError>,
@@ -1179,8 +1189,8 @@ export class Namespaces {
 
   /**
    * Delete Namespace Collection
-   * Delete an empty collection (editors): 409 while it holds recordings or collections, or is the namespace's
-   * default. Audited as `collection.delete`.
+   * Delete an empty collection (editors of the namespace, or an admin of it), with the roles given on it: 409 while
+   * it holds recordings or collections, or is the namespace's default. Audited as `collection.delete`.
    */
   public static deleteNamespaceCollection<ThrowOnError extends boolean = false>(
     options: Options<DeleteNamespaceCollectionData, ThrowOnError>,
@@ -1210,7 +1220,9 @@ export class Namespaces {
   /**
    * Update Namespace Collection
    * Rename it, describe it, move it inside another collection of the namespace (`parent`; null: to the top) or make
-   * it the default (editors). The recordings and collections inside it go with it. Audited as `collection.update`.
+   * it the default. Editors of the namespace may do all of that; an admin of the collection all but moving it to the
+   * top or making it the default, and only into a collection they're an admin of. The recordings and collections
+   * inside it go with it. Audited as `collection.update`.
    */
   public static updateNamespaceCollection<ThrowOnError extends boolean = false>(
     options: Options<UpdateNamespaceCollectionData, ThrowOnError>,
@@ -1228,13 +1240,48 @@ export class Namespaces {
       },
     });
   }
+
+  /**
+   * List Collection Members
+   * Who was given a role on the collection, then who has one through a collection it's inside (owners of the
+   * namespace, and admins of the collection). People with a role in the namespace aren't listed: theirs holds in
+   * every collection.
+   */
+  public static listCollectionMembers<ThrowOnError extends boolean = false>(
+    options: Options<ListCollectionMembersData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<ListCollectionMembersResponses, ListCollectionMembersErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/collections/{cid}/members",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Collection Member
+   * Give someone a role on the collection (and the collections inside it), change it, or (role null) take it away.
+   * They needn't have a role in the namespace: then they see just this collection. Owners of the namespace and admins
+   * of the collection. Answers with the members; audited as `collection.member`.
+   */
+  public static setCollectionMember<ThrowOnError extends boolean = false>(
+    options: Options<SetCollectionMemberData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<SetCollectionMemberResponses, SetCollectionMemberErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/collections/{cid}/members",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Recordings {
   /**
    * List Recordings
-   * Recordings you can read, newest first by default. Filters combine with AND; the ``X-Total-Count`` header says how many
-   * match in all, so pages can be counted.
+   * Recordings you can read, newest first by default: those of the namespaces you have a role in, and of the
+   * collections you were given a role on. Filters combine with AND; the ``X-Total-Count`` header says how many match in
+   * all, so pages can be counted. Each row has your `role` on it.
    */
   public static listRecordings<ThrowOnError extends boolean = false>(
     options?: Options<ListRecordingsData, ThrowOnError>,
@@ -1300,9 +1347,10 @@ export class Recordings {
 
   /**
    * Place Recordings
-   * Move recordings into a collection of their namespace (editors there). Recordings of another namespace are a
-   * 400: move them to that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update.
-   * Audited as `recording.collection`.
+   * Move recordings into a collection of their namespace: editors of each recording (through the namespace or the
+   * collection it's in) who are editors of the collection too. Recordings of another namespace are a 400: move them
+   * to that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update. Audited as
+   * `recording.collection`.
    */
   public static placeRecordings<ThrowOnError extends boolean = false>(
     options: Options<PlaceRecordingsData, ThrowOnError>,
@@ -1777,8 +1825,8 @@ export class Notes {
 
   /**
    * Delete Note
-   * Delete it: its writer, or for a shared note an owner of the recording's namespace. Deleting a shared note is
-   * audited (`note.delete`).
+   * Delete it: its writer, or for a shared note an owner of the recording (of its namespace, or an admin of its
+   * collection). Deleting a shared note is audited (`note.delete`).
    */
   public static deleteNote<ThrowOnError extends boolean = false>(options: Options<DeleteNoteData, ThrowOnError>) {
     return (options.client ?? client).delete<DeleteNoteResponses, DeleteNoteErrors, ThrowOnError>({
@@ -1947,7 +1995,8 @@ export class Uploads {
 export class Search {
   /**
    * Search Transcripts
-   * Moments where the words are said (or shown on screen in a video), best first, in the namespaces you can read.
+   * Moments where the words are said (or shown on screen in a video), best first, in the namespaces you can read and
+   * the collections you were given a role on.
    */
   public static searchTranscripts<ThrowOnError extends boolean = false>(
     options: Options<SearchTranscriptsData, ThrowOnError>,
@@ -1961,7 +2010,8 @@ export class Search {
   /**
    * Suggest Terms
    * Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search
-   * has no prefix search, so the web app offers these when someone types interp*.
+   * has no prefix search, so the web app offers these when someone types interp*. Words are counted per namespace, so
+   * collections you were given a role on don't add any.
    */
   public static suggestTerms<ThrowOnError extends boolean = false>(options: Options<SuggestTermsData, ThrowOnError>) {
     return (options.client ?? client).get<SuggestTermsResponses, SuggestTermsErrors, ThrowOnError>({
@@ -2168,6 +2218,8 @@ export class Entities {
   /**
    * List Entities
    * Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
+   * With `recording`, those said in it, also for someone who sees it through a role on its collection (then counted
+   * over the recordings they see).
    */
   public static listEntities<ThrowOnError extends boolean = false>(options?: Options<ListEntitiesData, ThrowOnError>) {
     return (options?.client ?? client).get<ListEntitiesResponses, ListEntitiesErrors, ThrowOnError>({
@@ -2478,6 +2530,8 @@ export class Metadata {
 
   /**
    * Get Namespace Metadata
+   * The namespace's description and metadata profile, for anyone who sees some of it (the profile says how its
+   * recordings are catalogued).
    */
   public static getNamespaceMetadata<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceMetadataData, ThrowOnError>,
@@ -2774,7 +2828,8 @@ export class Jobs {
   /**
    * List Jobs
    * Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of
-   * any status), plus the latest job's step and log (for the progress bar).
+   * any status), plus the latest job's step and log (for the progress bar). With `recording`, that recording's runs,
+   * also for someone who sees it through a role on its collection (then the counts are of those runs only).
    */
   public static listJobs<ThrowOnError extends boolean = false>(options?: Options<ListJobsData, ThrowOnError>) {
     return (options?.client ?? client).get<ListJobsResponses, ListJobsErrors, ThrowOnError>({

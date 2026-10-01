@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import threading
+from collections import Counter
 from collections.abc import AsyncIterator
 from typing import Any, Literal
 
@@ -44,12 +45,20 @@ def list_jobs(
     limit: int = Query(100, ge=1, le=2000),
 ) -> JobList:
     """Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of
-    any status), plus the latest job's step and log (for the progress bar)."""
-    sp = {acl.namespace(namespace)} if namespace else acl.readable()
-    rows = jobs.list_jobs(db, sp, status.split(",") if status else None, recording, limit, batch)
-    counts = jobs.counts(db, sp, batch)
-    names = store.space_names(db)
-    by_ns = {names[k]: n for k, n in jobs.per_space(db, acl.readable(), batch).items() if k in names}
+    any status), plus the latest job's step and log (for the progress bar). With `recording`, that recording's runs,
+    also for someone who sees it through a role on its collection (then the counts are of those runs only)."""
+    statuses = status.split(",") if status else None
+    rec = acl.recording(recording) if recording is not None and not namespace else None
+    if rec and not auth.allows(acl.roles, rec["space"]):
+        rows = jobs.list_jobs(db, {rec["space"]}, statuses, recording, limit, batch)
+        counts: dict[str, int] = dict(Counter(r["status"] for r in rows))
+        by_ns: dict[str, int] = {}
+    else:
+        sp = {acl.namespace(namespace)} if namespace else acl.readable()
+        rows = jobs.list_jobs(db, sp, statuses, recording, limit, batch)
+        counts = jobs.counts(db, sp, batch)
+        names = store.space_names(db)
+        by_ns = {names[k]: n for k, n in jobs.per_space(db, acl.readable(), batch).items() if k in names}
     latest = (jobs.get(db, rows[0]["id"]) if rows else None) or {}
     return JobList(
         jobs=rows,
@@ -63,10 +72,12 @@ def list_jobs(
 
 
 def _job(db: DB, acl: Access, jid: int, role: str = "viewer") -> dict[str, Any]:
+    """A run, for someone with this role on its recording (through the namespace, or the recording's collection)."""
     j = jobs.get(db, jid)
     if not j:
         raise HTTPException(404, "not found")
-    acl.need(j["space"], role)
+    rec = db.one("SELECT collection FROM $r", r=store.R("recording", j["recording"])) if j.get("recording") is not None else None
+    acl.need_in(j["space"], (rec or {}).get("collection"), role)
     return j
 
 
@@ -200,8 +211,15 @@ async def stream_events(
     spaces = None if user.admin else set(user.roles)
     if logs is not None:
         j = await run_in_threadpool(jobs.get, db, logs)
-        if not j or (spaces is not None and j["space"] not in spaces):
+        if not j:
             raise HTTPException(404, "not found")
+        if spaces is not None and j["space"] not in spaces:
+            # someone who sees the job's recording through a role on its collection follows just that job
+            rec = await run_in_threadpool(db.one, "SELECT collection FROM $r", r=store.R("recording", j.get("recording") or 0))
+            cid = (rec or {}).get("collection")
+            if cid is None or not user.collections.get(j["space"], {}).get(cid):
+                raise HTTPException(404, "not found")
+            spaces = {j["space"]}
 
     async def gen() -> AsyncIterator[str]:
         # A comment first, so clients (and proxies that hold headers until the first byte) see the stream open now

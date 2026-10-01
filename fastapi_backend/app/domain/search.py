@@ -63,11 +63,24 @@ def _mark_plain(text, words):
 
 
 def search(
-    db, q, ns=None, speaker=None, emotion=None, recording=None, limit=50, offset=0, spaces=None, recordings=None, screen=True, facets=False
+    db,
+    q,
+    ns=None,
+    speaker=None,
+    emotion=None,
+    recording=None,
+    limit=50,
+    offset=0,
+    spaces=None,
+    recordings=None,
+    screen=True,
+    facets=False,
+    also=None,
 ):
     """Transcript lines (and, unless screen is false, text on screen in videos) matching q. spaces limits the search to
-    namespaces someone may read, recordings to a set of recordings (such as the transcripts a visitor may read). With
-    facets, also how many of all the matching moments (up to FACET_CAP) are in each namespace, speaker, emotion and
+    namespaces someone may read, and `also` adds recordings they may read beyond those (in collections they were given
+    a role on); recordings limits it to a set of recordings (such as the transcripts a visitor may read). With facets,
+    also how many of all the matching moments (up to FACET_CAP) are in each namespace, speaker, emotion and
     recording."""
     groups = parse_query(q)
     empty = {"q": q, "query": "", "total": 0, "capped": False, "hits": []}
@@ -80,9 +93,11 @@ def search(
         except KeyError:
             return empty
         filt.append("space = $sp")
-    if spaces is not None:  # only namespaces this person may read
-        filt.append("space IN $allowed")
+    if spaces is not None:  # only namespaces this person may read, and the recordings they may read beyond them
+        filt.append("(space IN $allowed OR recording IN $also)" if also else "space IN $allowed")
         params["allowed"] = sorted(spaces)
+        if also:
+            params["also"] = sorted(also)
     if recordings is not None:
         filt.append("recording IN $recs")
         params["recs"] = sorted(recordings)
@@ -273,7 +288,7 @@ def space_filter(ns, spaces, recording, params):
     if "sp" in params:
         parts.append("space = $sp")
     if spaces is not None:
-        parts.append("space IN $allowed")
+        parts.append("(space IN $allowed OR recording IN $also)" if "also" in params else "space IN $allowed")
     if recording not in (None, ""):
         parts.append("recording = $rec")
     return (" AND " + " AND ".join(parts)) if parts else ""
@@ -281,7 +296,7 @@ def space_filter(ns, spaces, recording, params):
 
 def _screen(db, groups, where_f, cap, base):
     """Hits in text read off video frames (OCR), ranked alongside the transcript."""
-    params = {k: v for k, v in base.items() if k in ("m0", "m1", "sp", "allowed", "rec") or k.startswith("q")}
+    params = {k: v for k, v in base.items() if k in ("m0", "m1", "sp", "allowed", "also", "rec") or k.startswith("q")}
     rows = None
     if db.ready_fulltext():
         conds = [f"text @{k}@ $q{k}" for k in range(1, len(groups) + 1)]

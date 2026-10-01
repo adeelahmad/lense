@@ -93,7 +93,8 @@ def logout(body: RefreshRequest, db: Db) -> Ok:
 def me(user: CurrentUser, db: Db) -> Me:
     names = store.space_names(db)
     roles: dict[str, Any] = {names.get(k, str(k)): v for k, v in user.roles.items()}
-    return Me(user=UserPublic(**(auth.active_account(db, user.id) or {})), roles=roles, via=user.via, scope=user.scope)
+    partial = sorted(names.get(k, str(k)) for k in user.collections if k not in user.roles)
+    return Me(user=UserPublic(**(auth.active_account(db, user.id) or {})), roles=roles, partial=partial, via=user.via, scope=user.scope)
 
 
 @router.patch("/me")

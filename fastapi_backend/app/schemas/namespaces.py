@@ -18,7 +18,8 @@ class Namespace(ResponseModel):
     analyzed: int = 0
     errors: int = 0
     speakers: int = 0
-    role: Role
+    role: Role | None = Field(None, description="your role in it; null when you see only some of its collections")
+    partial: bool = Field(False, description="you see only the collections you were given a role on")
     wordcloud: str | None = Field(None, description="signed link to the namespace word cloud (SVG)")
 
 

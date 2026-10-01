@@ -53,6 +53,32 @@ publishes them. Permission doesn't open the workspace: that stays with the names
 
 In the matrix, view and edit permission open the same pages; Lens has one permission for both.
 
+## Collection roles
+
+Every recording lives in a collection of its namespace ([API](api.md#collections-of-a-namespace)), and people can be
+given a role on a collection: **viewer**, **editor** or **admin**. A role holds for the collections inside it too, and
+adds to a namespace role, never takes from it: a viewer of the namespace who is an editor of one collection edits its
+recordings and only reads the rest.
+
+| | Viewer | Editor | Admin |
+|---|---|---|---|
+| its recordings | see and search them, open their pages, write their own notes | and edit them: transcript, catalogue record, tags, collection, notes for everyone, reprocessing | and act as their owner: access and featured, permission, deleting |
+| the collection | — | — | rename, describe, move it within what they're an admin of, make and delete collections inside it, give roles on it |
+
+Owners of the namespace give roles on any of its collections, admins of a collection on it and the ones inside it
+(in the Library: Collection → Manage collections → People). Editors of the namespace still arrange all its
+collections; the top of the namespace and its default collection stay theirs. Giving, changing and taking away a role
+is audited as `collection.member`. Deleting a collection (only when it's empty) takes the roles given on it.
+
+Someone **without a role in the namespace** who has a role on some of its collections sees just those: their
+recordings in the Library (the namespace is marked "Some"), in search and on the recordings' pages, and the
+collections in the Library's Collection filter, starting from the ones they were given. The namespace's own pages
+(Home's numbers, Speakers, Graph, Reports, Chat, Activity, Batches) stay with the namespace's members, so nothing outside their
+collections shows: those pages say so when such a namespace is picked. On a recording, the entities it mentions are
+counted over the recordings they see; the namespace's lists of speakers and faces stay with its members, and renaming
+or merging speakers and faces (which are the namespace's) needs editor access to the namespace. For the pages
+visitors see and IIIF, a role on a collection is permission on its recordings.
+
 ## Asking for access
 
 Someone signed in without permission can ask a recording's owners for access: to the closed parts of a public

@@ -35,7 +35,8 @@ type NsFace = {
  * (boxes and screen time) or recognise (names matched across the namespace, suggestions to confirm, link to a voice).
  */
 export function PeopleTab({ noFaces }: { noFaces?: boolean }) {
-  const { model, ns, canEdit } = useRec();
+  const { model, ns, canEdit, canEditNamespace } = useRec();
+  // faces are the namespace's: only its members see its face registry and change names, links and merges
   const nsFaces = useNamespaceFaces(ns, model.facesMode === "recognize");
   const color = useFaceColors();
   const byId = new Map(((nsFaces.data?.faces ?? []) as NsFace[]).map((f) => [f.id, f]));
@@ -76,6 +77,7 @@ export function PeopleTab({ noFaces }: { noFaces?: boolean }) {
             face={f.face ? byId.get(f.face) : undefined}
             loading={nsFaces.isLoading && model.facesMode === "recognize"}
             canEdit={canEdit}
+            canEditNamespace={canEditNamespace}
             ns={ns}
           />
         ))}
@@ -172,7 +174,8 @@ function PersonRow({
   color,
   face,
   loading,
-  canEdit,
+  canEdit: canEditRecording,
+  canEditNamespace: canEdit,
   ns,
 }: {
   track: FaceTrack;
@@ -180,7 +183,10 @@ function PersonRow({
   color: string;
   face?: NsFace;
   loading: boolean;
+  /** May change this recording (remove a face track from it). */
   canEdit: boolean;
+  /** May change the namespace's faces (names, links to voices, merges). */
+  canEditNamespace: boolean;
   ns: string | null;
 }) {
   const { model } = useRec();
@@ -288,7 +294,7 @@ function PersonRow({
                   <MenuSeparator />
                 </>
               )}
-              <MenuItem danger icon={<UserRoundX />} disabled={!canEdit} onSelect={() => setConfirm(true)}>
+              <MenuItem danger icon={<UserRoundX />} disabled={!canEditRecording} onSelect={() => setConfirm(true)}>
                 Not a face
               </MenuItem>
             </MenuContent>

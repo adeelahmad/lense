@@ -54,6 +54,9 @@ class RecordingSummary(ResponseModel):
         None, description="where it came from: source:<id> (a connected source), upload, paste, iiif, folder or file"
     )
     origin_name: str | None = Field(None, description="what to call its origin: the source's name, or e.g. Uploaded")
+    role: Role | None = Field(
+        None, description="your role on it: through its namespace or its collection (an admin of the collection is an owner)"
+    )
 
 
 class OriginCount(ResponseModel):
@@ -84,7 +87,9 @@ class Recording(ResponseModel):
     namespace: str | None = None
     collection: int | None = Field(None, description="the collection it lives in")
     collection_path: list[CollectionStep] = Field(default_factory=list, description="its collection and the ones it's in, from the top")
-    role: Role | None = Field(None, description="your role in its namespace")
+    role: Role | None = Field(
+        None, description="your role on it: through its namespace or its collection (an admin of the collection is an owner)"
+    )
     summary: dict[str, Any] | None = None
     stats: dict[str, Any] | None = None
     report_url: str | None = Field(None, description="signed link to the built report page, if one exists")

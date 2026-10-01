@@ -7,6 +7,10 @@ else: lists of recordings from anywhere, personal or shared.
 
 Names are unique among a collection's siblings, ignoring case. A collection can only be deleted when it's empty and
 isn't its namespace's default, so deleting one never takes a recording with it.
+
+People can be given a role on a collection (viewer, editor or admin), which holds for the collections inside it too,
+on top of their namespace role: someone without a role in the namespace sees just those collections. An admin of a
+collection acts as an owner of its recordings and gives roles on it (docs/access.md#collection-roles).
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ from __future__ import annotations
 from . import store
 
 R = store.R
+ROLES = {"viewer": 1, "editor": 2, "admin": 3}  # on a collection; an admin acts as an owner of its recordings
 MAX_DEPTH = 8
 MAX_COLLECTIONS = 5000  # per namespace
 NAME_MAX = 120
@@ -82,12 +87,15 @@ def path(db, cid):
     return out[::-1]
 
 
-def tree(db, sid, counts=None):
+def tree(db, sid, counts=None, only=None):
     """The namespace's collections, depth first and by name: each with its `depth`, `path` (names from the top), how
     many recordings it holds (`recordings`) and holds with everything inside it (`total`), its sub-collections'
     count (`children`) and whether it's the namespace's `default`. `counts` (collection id → recordings) defaults to
-    every recording."""
+    every recording. `only` keeps to these collections (what someone sees): one whose parent isn't among them is at the
+    top, and paths and depths start there."""
     rows = of_space(db, sid)
+    if only is not None:
+        rows = [c for c in rows if c["id"] in only]
     if counts is None:
         counts = {
             r["collection"]: r["n"]
@@ -208,7 +216,8 @@ def make_default(db, cid):
 
 
 def delete(db, cid):
-    """Delete an empty collection. ValueError when it's the default, holds collections or holds recordings."""
+    """Delete an empty collection, and the roles given on it. ValueError when it's the default, holds collections or
+    holds recordings."""
     c = get(db, cid)
     if is_default(db, cid):
         raise ValueError("This is the namespace's default collection: make another one the default first.")
@@ -216,6 +225,7 @@ def delete(db, cid):
         raise ValueError("It holds other collections: move or delete them first.")
     if db.values("SELECT VALUE id FROM recording WHERE collection = $c LIMIT 1", c=c["id"]):
         raise ValueError("It holds recordings: move them to another collection first.")
+    db.q("DELETE collection_role WHERE collection = $c", c=c["id"])
     db.q("DELETE $r", r=R("collection", c["id"]))
     return c
 
@@ -243,3 +253,82 @@ def migrate_homes(db):
     for sid in db.values("SELECT VALUE record::id(id) FROM space"):
         cid = store.default_collection(db, sid)
         db.q("UPDATE recording SET collection = $c WHERE space = $s AND collection = NONE", c=cid, s=sid)
+
+
+# ---------- roles on collections ----------
+def roles_of(db, account):
+    """{space: {collection id: role}}: the collections someone was given a role on, and the ones inside them; where
+    two of their roles reach a collection, the higher one."""
+    grants = db.rows("SELECT collection, space, role FROM collection_role WHERE account = $a", a=account) if account else []
+    out = {}
+    for sid in sorted({g["space"] for g in grants}):
+        kids, seen = _children(of_space(db, sid)), out.setdefault(sid, {})
+        for g in sorted((g for g in grants if g["space"] == sid), key=lambda g: -ROLES.get(g["role"], 0)):
+            todo = [g["collection"]]
+            while todo:
+                c = todo.pop()
+                if ROLES.get(seen.get(c), 0) >= ROLES.get(g["role"], 0):
+                    continue  # it and everything inside it have this role or a higher one already
+                seen[c] = g["role"]
+                todo += [k["id"] for k in kids.get(c, [])]
+    return {sid: m for sid, m in out.items() if m}
+
+
+def recordings_in(db, collections):
+    """The recordings these collections hold (ids)."""
+    cols = sorted({int(c) for c in collections})
+    return set(db.values("SELECT VALUE record::id(id) FROM recording WHERE collection IN $c", c=cols)) if cols else set()
+
+
+def _people(db, accounts):
+    ids = sorted(set(accounts))
+    rows = (
+        db.rows("SELECT record::id(id) AS id, email, name FROM account WHERE id IN $ids", ids=[R("account", a) for a in ids]) if ids else []
+    )
+    return {r["id"]: r for r in rows}
+
+
+def members(db, cid):
+    """Who was given a role on this collection (`role`, by whom and when), then who has one through a collection it's
+    inside (`inherited_from`): [{account, email, name, role, by, at, inherited_from}]."""
+    steps = path(db, cid)
+    above = {s["id"]: s for s in steps[:-1]}
+    rows = db.rows(
+        "SELECT collection, account, role, by, at FROM collection_role WHERE collection IN $c",
+        c=[s["id"] for s in steps],
+    )
+    people = _people(db, [r["account"] for r in rows])
+    own = [r for r in rows if r["collection"] == int(cid)]
+    out = [{**r, "inherited_from": None} for r in sorted(own, key=lambda r: (-ROLES.get(r["role"], 0), r.get("at") or ""))]
+    for r in sorted((r for r in rows if r["collection"] in above), key=lambda r: -ROLES.get(r["role"], 0)):
+        out.append({**r, "inherited_from": above[r["collection"]]})
+    return [
+        store.clean(
+            {
+                "account": r["account"],
+                "email": people.get(r["account"], {}).get("email"),
+                "name": people.get(r["account"], {}).get("name"),
+                "role": r["role"],
+                "by": r.get("by"),
+                "at": r.get("at"),
+                "inherited_from": r["inherited_from"],
+            }
+        )
+        for r in out
+        if r["account"] in people
+    ]
+
+
+def give(db, cid, account, role, by=None):
+    """Give someone a role on a collection, change it, or (role None) take it away; the role they had before."""
+    c = get(db, cid)
+    rid = R("collection_role", f"{c['id']}-{int(account)}")
+    before = (db.one("SELECT role FROM $r", r=rid) or {}).get("role")
+    if role is None:
+        db.q("DELETE $r", r=rid)
+    elif role in ROLES:
+        doc = {"collection": c["id"], "space": c["space"], "account": int(account), "role": role, "by": by, "at": store.now()}
+        db.q("UPSERT $r CONTENT $d", r=rid, d=store.clean(doc))
+    else:
+        raise ValueError("A collection role is viewer, editor or admin.")
+    return before

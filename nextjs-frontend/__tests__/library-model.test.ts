@@ -24,6 +24,7 @@ import {
   statusView,
   totalDuration,
 } from "@/components/library/model";
+import { atLeast } from "@/lib/roles";
 
 const NOW = Date.parse("2026-09-30T12:00:00Z");
 
@@ -310,11 +311,27 @@ describe("durations", () => {
   });
 });
 
+describe("roles", () => {
+  it("compares them", () => {
+    expect(atLeast("owner", "editor")).toBe(true);
+    expect(atLeast("editor", "editor")).toBe(true);
+    expect(atLeast("viewer", "editor")).toBe(false);
+    expect(atLeast(undefined, "viewer")).toBe(false);
+    expect(atLeast("admin", "viewer")).toBe(false); // collection roles reach recordings as owner
+  });
+});
+
 describe("deleting from the Library", () => {
   it("says which selected recordings a role short blocks, and where", () => {
     const rows = [{ namespace: "pods" }, { namespace: "calls" }, { namespace: "calls" }, { namespace: null }];
-    expect(blockedBy(rows, (ns) => ns === "pods")).toEqual({ count: 3, namespaces: ["calls", "?"] });
+    expect(blockedBy(rows, (r) => r.namespace === "pods")).toEqual({ count: 3, namespaces: ["calls", "?"] });
     expect(blockedBy(rows, () => true)).toEqual({ count: 0, namespaces: [] });
+    // each recording's own role: an editor of its collection may change it in a namespace they only view
+    const mine = [
+      { namespace: "pods", role: "editor" },
+      { namespace: "pods", role: "viewer" },
+    ];
+    expect(blockedBy(mine, (r) => r.role === "editor")).toEqual({ count: 1, namespaces: ["pods"] });
   });
 
   it("sums up what went, and why the rest didn't", () => {

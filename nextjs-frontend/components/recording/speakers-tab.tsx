@@ -32,7 +32,8 @@ function methodLine(method: string | null | undefined, score: number | null | un
  * review card when the voice match wasn't sure who someone is.
  */
 export function SpeakersTab() {
-  const { rec, model, ns, canEdit, id } = useRec();
+  // speakers are the namespace's: renaming and merging them needs editor access to it
+  const { rec, model, ns, canEditNamespace: canEdit, id } = useRec();
   const api = usePlayerApi();
   const { hasMedia } = usePlayerState();
   const dir = useSpeakerDirectory(ns);

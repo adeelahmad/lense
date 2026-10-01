@@ -995,6 +995,7 @@
           "namespaces"
         ],
         "summary": "List Namespaces",
+        "description": "The namespaces you have a role in, with their counts, and those you see only some collections of (`partial`,\nno `role`): counted over those collections, without the namespace-wide speakers and word cloud.",
         "operationId": "list_namespaces",
         "responses": {
           "200": {
@@ -1452,7 +1453,7 @@
           "namespaces"
         ],
         "summary": "List Namespace Collections",
-        "description": "The namespace's collections, depth first and by name, each with its place in the tree and how many recordings\nit holds (with and without the collections inside it).",
+        "description": "The namespace's collections, depth first and by name, each with its place in the tree, how many recordings it\nholds (with and without the collections inside it), and what you may do with it. Someone who sees only some\ncollections of the namespace gets those, starting from the ones they were given.",
         "operationId": "list_namespace_collections",
         "parameters": [
           {
@@ -1497,7 +1498,7 @@
           "namespaces"
         ],
         "summary": "Create Namespace Collection",
-        "description": "Make a collection (editors), at the top of the namespace or inside `parent`. Its name is unique among the\ncollections next to it, ignoring case; collections go at most 8 deep. Audited as `collection.create`.",
+        "description": "Make a collection at the top of the namespace (its editors) or inside `parent` (them, or an admin of `parent`).\nIts name is unique among the collections next to it, ignoring case; collections go at most 8 deep. Audited as\n`collection.create`.",
         "operationId": "create_namespace_collection",
         "parameters": [
           {
@@ -1599,7 +1600,7 @@
           "namespaces"
         ],
         "summary": "Update Namespace Collection",
-        "description": "Rename it, describe it, move it inside another collection of the namespace (`parent`; null: to the top) or make\nit the default (editors). The recordings and collections inside it go with it. Audited as `collection.update`.",
+        "description": "Rename it, describe it, move it inside another collection of the namespace (`parent`; null: to the top) or make\nit the default. Editors of the namespace may do all of that; an admin of the collection all but moving it to the\ntop or making it the default, and only into a collection they're an admin of. The recordings and collections\ninside it go with it. Audited as `collection.update`.",
         "operationId": "update_namespace_collection",
         "parameters": [
           {
@@ -1659,7 +1660,7 @@
           "namespaces"
         ],
         "summary": "Delete Namespace Collection",
-        "description": "Delete an empty collection (editors): 409 while it holds recordings or collections, or is the namespace's\ndefault. Audited as `collection.delete`.",
+        "description": "Delete an empty collection (editors of the namespace, or an admin of it), with the roles given on it: 409 while\nit holds recordings or collections, or is the namespace's default. Audited as `collection.delete`.",
         "operationId": "delete_namespace_collection",
         "parameters": [
           {
@@ -1705,13 +1706,133 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/collections/{cid}/members": {
+      "get": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "List Collection Members",
+        "description": "Who was given a role on the collection, then who has one through a collection it's inside (owners of the\nnamespace, and admins of the collection). People with a role in the namespace aren't listed: theirs holds in\nevery collection.",
+        "operationId": "list_collection_members",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionMember"
+                  },
+                  "title": "Response Namespaces-List Collection Members"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Set Collection Member",
+        "description": "Give someone a role on the collection (and the collections inside it), change it, or (role null) take it away.\nThey needn't have a role in the namespace: then they see just this collection. Owners of the namespace and admins\nof the collection. Answers with the members; audited as `collection.member`.",
+        "operationId": "set_collection_member",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionMemberSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionMember"
+                  },
+                  "title": "Response Namespaces-Set Collection Member"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/recordings": {
       "get": {
         "tags": [
           "recordings"
         ],
         "summary": "List Recordings",
-        "description": "Recordings you can read, newest first by default. Filters combine with AND; the ``X-Total-Count`` header says how many\nmatch in all, so pages can be counted.",
+        "description": "Recordings you can read, newest first by default: those of the namespaces you have a role in, and of the\ncollections you were given a role on. Filters combine with AND; the ``X-Total-Count`` header says how many match in\nall, so pages can be counted. Each row has your `role` on it.",
         "operationId": "list_recordings",
         "parameters": [
           {
@@ -2369,7 +2490,7 @@
           "recordings"
         ],
         "summary": "Place Recordings",
-        "description": "Move recordings into a collection of their namespace (editors there). Recordings of another namespace are a\n400: move them to that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update.\nAudited as `recording.collection`.",
+        "description": "Move recordings into a collection of their namespace: editors of each recording (through the namespace or the\ncollection it's in) who are editors of the collection too. Recordings of another namespace are a 400: move them\nto that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update. Audited as\n`recording.collection`.",
         "operationId": "place_recordings",
         "requestBody": {
           "content": {
@@ -4117,7 +4238,7 @@
           "notes"
         ],
         "summary": "Delete Note",
-        "description": "Delete it: its writer, or for a shared note an owner of the recording's namespace. Deleting a shared note is\naudited (`note.delete`).",
+        "description": "Delete it: its writer, or for a shared note an owner of the recording (of its namespace, or an admin of its\ncollection). Deleting a shared note is audited (`note.delete`).",
         "operationId": "delete_note",
         "parameters": [
           {
@@ -4534,7 +4655,7 @@
           "search"
         ],
         "summary": "Search Transcripts",
-        "description": "Moments where the words are said (or shown on screen in a video), best first, in the namespaces you can read.",
+        "description": "Moments where the words are said (or shown on screen in a video), best first, in the namespaces you can read and\nthe collections you were given a role on.",
         "operationId": "search_transcripts",
         "parameters": [
           {
@@ -4678,7 +4799,7 @@
           "search"
         ],
         "summary": "Suggest Terms",
-        "description": "Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search\nhas no prefix search, so the web app offers these when someone types interp*.",
+        "description": "Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search\nhas no prefix search, so the web app offers these when someone types interp*. Words are counted per namespace, so\ncollections you were given a role on don't add any.",
         "operationId": "suggest_terms",
         "parameters": [
           {
@@ -5406,7 +5527,7 @@
           "entities"
         ],
         "summary": "List Entities",
-        "description": "Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.",
+        "description": "Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.\nWith `recording`, those said in it, also for someone who sees it through a role on its collection (then counted\nover the recordings they see).",
         "operationId": "list_entities",
         "parameters": [
           {
@@ -6753,6 +6874,7 @@
           "metadata"
         ],
         "summary": "Get Namespace Metadata",
+        "description": "The namespace's description and metadata profile, for anyone who sees some of it (the profile says how its\nrecordings are catalogued).",
         "operationId": "get_namespace_metadata",
         "parameters": [
           {
@@ -7758,7 +7880,7 @@
           "jobs"
         ],
         "summary": "List Jobs",
-        "description": "Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of\nany status), plus the latest job's step and log (for the progress bar).",
+        "description": "Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of\nany status), plus the latest job's step and log (for the progress bar). With `recording`, that recording's runs,\nalso for someone who sees it through a role on its collection (then the counts are of those runs only).",
         "operationId": "list_jobs",
         "parameters": [
           {
@@ -12852,6 +12974,132 @@
         ],
         "title": "CollectionDetail"
       },
+      "CollectionMember": {
+        "properties": {
+          "account": {
+            "type": "integer",
+            "title": "Account"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "admin"
+            ],
+            "title": "Role"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who gave it"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "inherited_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CollectionStep"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "given on this collection it's inside (null: on this one)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "account",
+          "role"
+        ],
+        "title": "CollectionMember"
+      },
+      "CollectionMemberSet": {
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "viewer",
+                  "editor",
+                  "admin"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CollectionMemberSet",
+        "description": "Who (by email, or by account id) and their role on the collection; a null role takes it away."
+      },
       "CollectionNode": {
         "properties": {
           "id": {
@@ -12955,6 +13203,35 @@
               }
             ],
             "title": "Updated At"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "viewer",
+                  "editor",
+                  "admin"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role",
+            "description": "your role on it: from your namespace role (an owner is an admin) or one given on it or above it"
+          },
+          "can_change": {
+            "type": "boolean",
+            "title": "Can Change",
+            "description": "you may rename, describe, move or delete it, and make collections inside it",
+            "default": false
+          },
+          "can_grant": {
+            "type": "boolean",
+            "title": "Can Grant",
+            "description": "you may give people roles on it",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -15429,6 +15706,14 @@
             "title": "Roles",
             "description": "namespace name -> role"
           },
+          "partial": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Partial",
+            "description": "namespaces you have no role in but see some collections of (roles on collections)"
+          },
           "via": {
             "type": "string",
             "enum": [
@@ -15973,13 +16258,27 @@
             "default": 0
           },
           "role": {
-            "type": "string",
-            "enum": [
-              "viewer",
-              "editor",
-              "owner"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "viewer",
+                  "editor",
+                  "owner"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Role"
+            "title": "Role",
+            "description": "your role in it; null when you see only some of its collections"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial",
+            "description": "you see only the collections you were given a role on",
+            "default": false
           },
           "wordcloud": {
             "anyOf": [
@@ -15998,8 +16297,7 @@
         "type": "object",
         "required": [
           "id",
-          "name",
-          "role"
+          "name"
         ],
         "title": "Namespace"
       },
@@ -18429,7 +18727,7 @@
               }
             ],
             "title": "Role",
-            "description": "your role in its namespace"
+            "description": "your role on it: through its namespace or its collection (an admin of the collection is an owner)"
           },
           "summary": {
             "anyOf": [
@@ -19124,6 +19422,23 @@
             ],
             "title": "Origin Name",
             "description": "what to call its origin: the source's name, or e.g. Uploaded"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "viewer",
+                  "editor",
+                  "owner"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role",
+            "description": "your role on it: through its namespace or its collection (an admin of the collection is an owner)"
           }
         },
         "additionalProperties": true,

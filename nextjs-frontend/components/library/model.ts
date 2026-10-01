@@ -386,11 +386,11 @@ export function rangeIds(ids: number[], from: number, to: number): number[] {
 }
 
 /** Selected rows in namespaces where this person lacks a role an action needs: how many, and where. */
-export function blockedBy(
-  rows: readonly { namespace?: string | null }[],
-  allowed: (ns: string | null | undefined) => boolean,
+export function blockedBy<T extends { namespace?: string | null }>(
+  rows: readonly T[],
+  allowed: (row: T) => boolean,
 ): { count: number; namespaces: string[] } {
-  const out = rows.filter((r) => !allowed(r.namespace));
+  const out = rows.filter((r) => !allowed(r));
   return { count: out.length, namespaces: [...new Set(out.map((r) => r.namespace ?? "?"))] };
 }
 

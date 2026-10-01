@@ -31,10 +31,13 @@ R = store.R
 
 
 @router.get("")
-def list_namespaces(user: CurrentUser, db: Db) -> list[Namespace]:
-    rm = user.roles
+def list_namespaces(acl: Acl, user: CurrentUser, db: Db) -> list[Namespace]:
+    """The namespaces you have a role in, with their counts, and those you see only some collections of (`partial`,
+    no `role`): counted over those collections, without the namespace-wide speakers and word cloud."""
+    rm, part = user.roles, acl.partial()
     agg: dict[int, dict[str, int]] = defaultdict(lambda: {"recordings": 0, "ms": 0, "analyzed": 0, "errors": 0})
-    for r in db.rows("SELECT space, status, duration_ms FROM recording WHERE space IN $s", s=sorted(rm)):
+    cond, p = library.in_scope(rm, part)
+    for r in db.rows(f"SELECT space, status, duration_ms FROM recording WHERE {cond}", **p):
         a = agg[r["space"]]
         a["recordings"] += 1
         a["ms"] += r.get("duration_ms") or 0
@@ -46,11 +49,12 @@ def list_namespaces(user: CurrentUser, db: Db) -> list[Namespace]:
             **s,
             **agg[s["id"]],
             "speakers": speakers_n.get(s["id"], 0),
-            "role": rm[s["id"]],
-            "wordcloud": f"{API}/namespaces/{s['name']}/wordcloud.svg",
+            "role": rm.get(s["id"]),
+            "partial": s["id"] not in rm,
+            "wordcloud": f"{API}/namespaces/{s['name']}/wordcloud.svg" if s["id"] in rm else None,
         }
         for s in db.rows("SELECT record::id(id) AS id, name, graph FROM space ORDER BY name")
-        if s["id"] in rm
+        if s["id"] in rm or s["id"] in part
     ]
     return [Namespace.model_validate(x) for x in sign_urls(out)]
 

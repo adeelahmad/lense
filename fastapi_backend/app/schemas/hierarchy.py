@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field
 
 from app.schemas.common import RequestModel, ResponseModel
+
+CollectionRole = Literal["viewer", "editor", "admin"]
 
 
 class CollectionNode(ResponseModel):
@@ -21,6 +25,11 @@ class CollectionNode(ResponseModel):
     created_at: str | None = None
     created_by: str | None = None
     updated_at: str | None = None
+    role: CollectionRole | None = Field(
+        None, description="your role on it: from your namespace role (an owner is an admin) or one given on it or above it"
+    )
+    can_change: bool = Field(False, description="you may rename, describe, move or delete it, and make collections inside it")
+    can_grant: bool = Field(False, description="you may give people roles on it")
 
 
 class CollectionNodeCreate(RequestModel):
@@ -41,3 +50,21 @@ class CollectionNodeUpdate(RequestModel):
 class CollectionStep(ResponseModel):
     id: int
     name: str
+
+
+class CollectionMember(ResponseModel):
+    account: int
+    email: str | None = None
+    name: str | None = None
+    role: CollectionRole
+    by: str | None = Field(None, description="who gave it")
+    at: str | None = None
+    inherited_from: CollectionStep | None = Field(None, description="given on this collection it's inside (null: on this one)")
+
+
+class CollectionMemberSet(RequestModel):
+    """Who (by email, or by account id) and their role on the collection; a null role takes it away."""
+
+    email: str | None = None
+    account: int | None = None
+    role: CollectionRole | None = None

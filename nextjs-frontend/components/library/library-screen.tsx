@@ -52,6 +52,7 @@ import { Segmented } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { count, plural } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
+import { atLeast } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 const VIEW_KEY = "lens.library.view";
@@ -89,7 +90,7 @@ function typing(t: EventTarget | null): boolean {
 /** The Library (L1–L6): every recording you can see, across namespaces, with live job progress in its row. `initial`
  * opens it on a namespace's collection (/library?namespace=…&collection=…, as a recording's breadcrumb links). */
 export function LibraryScreen({ initial }: { initial?: { namespace: string; collection: number | null } } = {}) {
-  const { namespace, namespaces, roleIn, can, me, setNamespace } = useArchive();
+  const { namespace, namespaces, isPartial, roleIn, can, me, setNamespace } = useArchive();
   const [layout, setLayout] = useState<"table" | "list">("table");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [view, setView] = useState<LibraryView>("all");
@@ -199,7 +200,11 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
   }, [held, showHeld]);
 
   const jobs = lib.jobsByRecording;
-  const reviewScope = useMemo(() => (namespace ? [namespace] : namespaces.map((n) => n.name)), [namespace, namespaces]);
+  // voice matches and speakers are namespace-wide: only where the person has a role
+  const reviewScope = useMemo(
+    () => (namespace ? (can("viewer", namespace) ? [namespace] : []) : namespaces.map((n) => n.name)),
+    [namespace, namespaces, can],
+  );
   const reviews = useReviewsByRecording(reviewScope);
   const speakers = useSpeakerChoices(reviewScope);
   // A saved view brings back its namespace, tab, filters and sort; its speaker by name, once that namespace's
@@ -279,9 +284,11 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
   );
   const toggleAll = (on: boolean) => setSelected(on ? new Set(shown.map((r) => r.id)) : new Set());
 
+  // a recording's own role counts its collection too (an editor of a collection edits its recordings)
+  const roleOf = useCallback((r: RecordingSummary) => r.role ?? roleIn(r.namespace), [roleIn]);
   const editReason = useCallback(
-    (ns: string | null | undefined) => (can("editor", ns) ? null : needRole("editor", ns)),
-    [can],
+    (r: RecordingSummary) => (atLeast(roleOf(r), "editor") ? null : needRole("editor", r.namespace)),
+    [roleOf],
   );
   const onRetry = useCallback(
     (rec: RecordingSummary, v: StatusView) => {
@@ -301,7 +308,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
   );
 
   const selectedRows = lib.rows.filter((r) => selected.has(r.id));
-  const blocked = blockedBy(selectedRows, (ns) => can("editor", ns));
+  const blocked = blockedBy(selectedRows, (r) => atLeast(roleOf(r), "editor"));
   const targets = moveTargets(
     namespaces.map((n) => n.name).filter((ns) => can("editor", ns)),
     selectedRows.map((r) => r.namespace),
@@ -433,6 +440,19 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
           )}
         </div>
 
+        {isPartial(namespace) && (
+          <div
+            role="note"
+            className="flex items-center gap-2.5 rounded-[10px] border border-border bg-surface-neutral px-3 py-[9px] text-[13px] leading-snug text-fg-strong"
+          >
+            <Eye className="size-[15px] shrink-0" aria-hidden />
+            <span className="flex-1">
+              You see the collections of <b className="font-bold">{namespace}</b> you were given access to: their
+              recordings, search and the recordings’ pages. Ask an owner of {namespace} for a role in it to see the
+              rest.
+            </span>
+          </div>
+        )}
         {(role === "viewer" || viewerEverywhere) && (
           <div
             role="note"
@@ -549,7 +569,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
           >
             {(lib.recordings.error as Error).message}
           </EmptyState>
-        ) : me && !me.user.admin && Object.keys(me.roles ?? {}).length === 0 ? (
+        ) : me && !me.user.admin && Object.keys(me.roles ?? {}).length === 0 && !(me.partial ?? []).length ? (
           <EmptyState className="border-t border-border" title="No namespaces yet">
             You don’t have a role in any namespace. Ask an admin to add you, and the recordings you can see will show up
             here.
@@ -608,7 +628,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
         <BulkBar
           selected={selected.size}
           blocked={blocked}
-          notOwner={blockedBy(selectedRows, (ns) => can("owner", ns))}
+          notOwner={blockedBy(selectedRows, (r) => atLeast(roleOf(r), "owner"))}
           moveTargets={targets}
           onReprocess={() => setReprocessOpen(true)}
           onExport={(fmt) => actions.exportMany([...selected], fmt)}

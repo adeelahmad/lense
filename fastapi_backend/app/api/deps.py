@@ -5,7 +5,9 @@ Who is calling comes from the ``Authorization: Bearer`` header, which carries ei
 created with the write scope. No cookies are involved, so there is nothing for CSRF to ride on.
 
 Access is per namespace. A namespace you have no role in behaves as if it didn't exist (404); one you can read but not
-change says so (403). Admins own every namespace.
+change says so (403). Admins own every namespace. A role on a collection adds to that for the recordings in it (and in
+the collections inside it): someone without a role in the namespace sees just those, and an admin of a collection
+acts as an owner of its recordings (docs/access.md#collection-roles).
 """
 
 from __future__ import annotations
@@ -20,7 +22,7 @@ from fastapi import Depends, HTTPException, Request
 
 from app.core import security
 from app.domain import access as acc
-from app.domain import auth, ipgroups, store
+from app.domain import auth, hierarchy, ipgroups, store
 from app.domain.store import DB
 
 Config = dict[str, Any]
@@ -48,6 +50,7 @@ class Principal:
     scope: Literal["read", "write"] = "write"
     sid: str | None = None
     roles: dict[int, str] = field(default_factory=dict)
+    collections: dict[int, dict[int, str]] = field(default_factory=dict)  # roles on collections: {space: {collection: role}}
 
     @property
     def can_write(self) -> bool:
@@ -76,6 +79,7 @@ def _principal(request: Request, db: DB) -> Principal | None:
             p = Principal(u["id"], u["email"], u.get("name"), bool(u.get("admin")), "access", "write", claims.sid)
     if p:
         p.roles = auth.roles(db, {"id": p.id, "admin": p.admin})
+        p.collections = {} if p.admin else hierarchy.roles_of(db, p.id)
     request.state.principal = p
     return p
 
@@ -145,6 +149,68 @@ class Access:
         if not auth.allows(self.roles, sid, role):
             raise HTTPException(403, f"needs {role} access to this namespace")
 
+    def collection_role(self, sid: int, cid: int | None) -> str | None:
+        """The role this person was given on a collection, or on one it's inside (viewer, editor, admin); None without."""
+        if not self.user or cid is None:
+            return None
+        return self.user.collections.get(sid, {}).get(cid)
+
+    def rank_in(self, sid: int, cid: int | None) -> int:
+        """What this person may do with a recording of collection `cid` in namespace `sid`: the higher of their
+        namespace role and their role on the collection, as auth.ROLES ranks (an admin of a collection counts as an
+        owner); 0 when they may not see it."""
+        return max(auth.ROLES.get(self.roles.get(sid, ""), 0), hierarchy.ROLES.get(self.collection_role(sid, cid) or "", 0))
+
+    def role_in(self, sid: int, cid: int | None) -> str | None:
+        """The same as a role name (viewer, editor or owner), or None."""
+        return {1: "viewer", 2: "editor", 3: "owner"}.get(self.rank_in(sid, cid))
+
+    def need_in(self, sid: int, cid: int | None, role: str = "viewer") -> None:
+        """Like need, for a recording of collection `cid`: a namespace role or a role on the collection will do."""
+        if not self.user:
+            raise HTTPException(401, "sign in first", headers={"WWW-Authenticate": "Bearer"})
+        have = self.rank_in(sid, cid)
+        if not have:
+            raise HTTPException(404, "not found")
+        if have < auth.ROLES[role]:
+            raise HTTPException(403, f"needs {role} access to this recording")
+
+    def partial(self) -> dict[int, list[int]]:
+        """The namespaces this person sees only some collections of (no role there, a role on collections in it):
+        {space: [collection ids, with the ones inside them]}."""
+        if not self.user:
+            return {}
+        return {sid: sorted(cols) for sid, cols in self.user.collections.items() if sid not in self.roles and cols}
+
+    def scope(self, ns: str | None = None) -> tuple[list[int], dict[int, list[int]]]:
+        """What a list of recordings may show: (the namespaces seen whole, {namespace: collections} for those seen in
+        part), or just namespace `ns` (404 when this person sees nothing of it)."""
+        if not ns:
+            return self.spaces(), self.partial()
+        sid = self.nsid(ns)
+        if not self.user:
+            raise HTTPException(401, "sign in first", headers={"WWW-Authenticate": "Bearer"})
+        if auth.allows(self.roles, sid):
+            return [sid], {}
+        part = self.partial().get(sid)
+        if not part:
+            raise HTTPException(404, "not found")
+        return [], {sid: part}
+
+    def visible(self, sid: int) -> set[int] | None:
+        """The collections of namespace `sid` this person sees: None for all of them (a role there), else those they
+        have a role on (and the ones inside them); 404 when none."""
+        if auth.allows(self.roles, sid):
+            return None
+        part = self.partial().get(sid)
+        if not part:
+            raise HTTPException(404, "not found")
+        return set(part)
+
+    def partial_recordings(self) -> set[int]:
+        """The recordings this person sees in namespaces they see only some collections of."""
+        return hierarchy.recordings_in(self.db, [c for cols in self.partial().values() for c in cols])
+
     def nsid(self, name: str) -> int:
         try:
             return store.ns_id(self.db, name, create=False)
@@ -157,13 +223,14 @@ class Access:
         return sid
 
     def recording(self, rid: int, role: str = "viewer", share: str | None = None) -> dict[str, Any]:
-        """The recording row, if this request may see it: a role in its namespace, a share link, or a signed link."""
+        """The recording row, if this request may see it: a role in its namespace or on its collection, a share link,
+        or a signed link."""
         rec = self.db.one("SELECT * FROM $r", r=store.R("recording", rid))
         if not rec:
             raise HTTPException(404, "not found")
         if role == "viewer" and (self.signed() or (share and auth.share_ok(self.db, share, rid))):
             return rec
-        self.need(rec["space"], role)
+        self.need_in(rec["space"], rec.get("collection"), role)
         return rec
 
     def permitted(self, rid: int, space: int) -> bool:

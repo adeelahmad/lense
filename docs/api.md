@@ -21,6 +21,9 @@ POST   /api/v1/auth/password/forgot
 POST   /api/v1/auth/password/reset
 ```
 
+`GET /auth/me` gives your account, your `roles` (namespace → role) and `partial`: the namespaces you have no role in
+but see some collections of ([Access](access.md#collection-roles)).
+
 ## tokens
 
 ```
@@ -75,7 +78,13 @@ POST   /api/v1/namespaces/{name}/collections
 GET    /api/v1/namespaces/{name}/collections/{cid}
 PATCH  /api/v1/namespaces/{name}/collections/{cid}
 DELETE /api/v1/namespaces/{name}/collections/{cid}
+GET    /api/v1/namespaces/{name}/collections/{cid}/members
+PUT    /api/v1/namespaces/{name}/collections/{cid}/members
 ```
+
+`GET /namespaces` lists the namespaces you have a role in, with their counts and your `role`, and those you see only
+some collections of: `partial: true`, no `role`, counted over those collections, without the namespace-wide word
+cloud and speakers.
 
 `/namespaces/{name}/stats?from=&to=&top=` gives the Reports overview its numbers (viewers of the namespace): the
 recordings made from `from` to `to` (days, `YYYY-MM-DD`, both included; leave either open), how many and how long
@@ -111,6 +120,18 @@ case and repeated spaces. `PATCH` renames it, describes it, moves it inside anot
 collection: 409 while it holds recordings or collections, or is the default, so deleting one never takes a
 recording with it. Audited as `collection.create`, `collection.update` (with what changed) and `collection.delete`.
 In IIIF each collection is a Collection inside its namespace's ([IIIF](iiif.md)).
+
+People can be given a role on a collection, which holds for the ones inside it too ([Access](access.md#collection-roles)).
+Each collection in the list says what you may do with it: your `role` on it (`viewer`, `editor` or `admin`; an owner
+of the namespace is an admin of every collection), `can_change` (rename, describe, move or delete it and make
+collections inside it: editors of the namespace, and admins of the collection) and `can_grant` (give roles on it:
+owners of the namespace, and admins of the collection). Someone who sees only some collections of a namespace gets
+those, starting from the ones they were given (their `path` and `depth` start there). An admin of a collection can't
+make collections at the top of the namespace, move one there or into a collection they aren't an admin of, or change
+the default. `GET …/{cid}/members` lists who was given a role on the collection and then who has one through a
+collection it's inside (`inherited_from`); `PUT …/{cid}/members {email | account, role}` gives, changes or (`role:
+null`) takes away a role, answers with the members, and is audited as `collection.member`. People with a role in the
+namespace aren't listed: theirs holds everywhere in it.
 
 ## recordings
 
@@ -153,7 +174,8 @@ GET    /api/v1/recordings/{rid}/edits
 GET    /api/v1/recordings/{rid}/outputs
 ```
 
-`GET /recordings` filters, sorts and pages on the server, over every recording you can read. Filters combine with AND;
+`GET /recordings` filters, sorts and pages on the server, over every recording you can read (in the namespaces you have
+a role in, and in the collections you were given a role on), each with your `role` on it. Filters combine with AND;
 repeat a parameter that takes several values (`?status=new&status=error`) to match any of them.
 
 | Parameter | |

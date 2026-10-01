@@ -9,6 +9,7 @@ import { isActive, normalizeJob, type JobInfo } from "@/components/recording/job
 import { normalizePlayer } from "@/components/recording/model";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
+import { useArchive } from "@/lib/hooks/session";
 
 /** Query keys: everything about one recording lives under ["recording", id] so one invalidation refreshes it all. */
 export const rk = {
@@ -151,12 +152,15 @@ export function useRecordingEntities(id: number, enabled = true) {
   });
 }
 
+/** The namespace's speakers (for pickers and renames): only for people with a role in it, as speakers are the
+ * namespace's and someone who sees just some of its collections isn't shown the rest. */
 export function useSpeakerDirectory(ns: string | null | undefined) {
   const client = useApiClient();
+  const { can } = useArchive();
   return useQuery({
     queryKey: ["speakers", ns],
     queryFn: () => data(Speakers.listSpeakers({ client, query: { ns: ns as string } })),
-    enabled: Boolean(ns),
+    enabled: Boolean(ns) && can("viewer", ns),
     staleTime: 30_000,
   });
 }
@@ -180,12 +184,14 @@ export function useTemplates(enabled = true) {
   });
 }
 
+/** The namespace's face registry: only for people with a role in it (see useSpeakerDirectory). */
 export function useNamespaceFaces(ns: string | null | undefined, enabled = true) {
   const client = useApiClient();
+  const { can } = useArchive();
   return useQuery({
     queryKey: ["faces", ns],
     queryFn: () => data(Video.getNamespaceFaces({ client, path: { name: ns as string } })),
-    enabled: Boolean(ns) && enabled,
+    enabled: Boolean(ns) && enabled && can("viewer", ns),
     staleTime: 30_000,
   });
 }

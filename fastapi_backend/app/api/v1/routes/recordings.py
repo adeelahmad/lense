@@ -120,19 +120,21 @@ def list_recordings(
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ) -> list[RecordingSummary]:
-    """Recordings you can read, newest first by default. Filters combine with AND; the ``X-Total-Count`` header says how many
-    match in all, so pages can be counted."""
-    spaces = [acl.namespace(ns)] if ns else acl.spaces()
+    """Recordings you can read, newest first by default: those of the namespaces you have a role in, and of the
+    collections you were given a role on. Filters combine with AND; the ``X-Total-Count`` header says how many match in
+    all, so pages can be counted. Each row has your `role` on it."""
+    spaces, within = acl.scope(ns)
     cols = None
     if collection is not None:
         c = db.one("SELECT space FROM $r", r=R("collection", collection))
-        if not c or c["space"] not in spaces:
+        if not c or (c["space"] not in spaces and collection not in within.get(c["space"], [])):
             raise HTTPException(404, "not found")
         cols = hierarchy.subtree(db, c["space"], collection)
     with domain_errors():
         rows, total = library.list_recordings(
             db,
             spaces,
+            within=within,
             sort=sort,
             limit=limit,
             offset=offset,
@@ -156,13 +158,16 @@ def list_recordings(
             cfg=cfg,
         )
     response.headers["X-Total-Count"] = str(total)
+    for r in rows:
+        r["role"] = acl.role_in(r["space"], r.get("collection"))
     return [RecordingSummary.model_validate(x) for x in sign_urls(rows)]
 
 
 @router.get("/tags")
 def list_tags(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(None, description="one namespace")) -> list[TagCount]:
     """The tags on the recordings you can read (or one namespace's), with how many recordings have each."""
-    return [TagCount.model_validate(t) for t in library.tag_counts(db, [acl.namespace(ns)] if ns else acl.spaces())]
+    spaces, within = acl.scope(ns)
+    return [TagCount.model_validate(t) for t in library.tag_counts(db, spaces, within)]
 
 
 @router.get("/origins")
@@ -171,28 +176,30 @@ def list_origins(
 ) -> list[OriginCount]:
     """Where the recordings you can read (or one namespace's) came from, with how many came from each: connected sources
     by name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files."""
-    spaces = [acl.namespace(ns)] if ns else acl.spaces()
-    return [OriginCount.model_validate(o) for o in library.Origins(db, cfg).counts(spaces)]
+    spaces, within = acl.scope(ns)
+    return [OriginCount.model_validate(o) for o in library.Origins(db, cfg).counts(spaces, within)]
 
 
 @router.get("/languages")
 def list_languages(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(None, description="one namespace")) -> list[LanguageCount]:
     """The languages of the recordings you can read (or one namespace's), with how many are in each; null: not known."""
-    return [LanguageCount.model_validate(x) for x in library.language_counts(db, [acl.namespace(ns)] if ns else acl.spaces())]
+    spaces, within = acl.scope(ns)
+    return [LanguageCount.model_validate(x) for x in library.language_counts(db, spaces, within)]
 
 
 @router.post("/collection")
 def place_recordings(body: RecordingsPlace, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Placed:
-    """Move recordings into a collection of their namespace (editors there). Recordings of another namespace are a
-    400: move them to that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update.
-    Audited as `recording.collection`."""
+    """Move recordings into a collection of their namespace: editors of each recording (through the namespace or the
+    collection it's in) who are editors of the collection too. Recordings of another namespace are a 400: move them
+    to that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update. Audited as
+    `recording.collection`."""
     for rid in dict.fromkeys(body.recordings):
         acl.recording(rid, "editor")
     try:
         c = hierarchy.get(db, body.collection)
     except KeyError:
         raise HTTPException(404, "not found") from None
-    acl.need(c["space"])
+    acl.need_in(c["space"], c["id"], "editor")
     with domain_errors():
         moved = hierarchy.place(db, body.recordings, body.collection)
     for rid in moved:
@@ -219,9 +226,15 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     a = acc.of(db, rid)
     d.update(access=a["access"], open=a["open"], featured=a["featured"], access_inherited=a["inherited"])
     d.update(
-        id=rid, namespace=space.get("name"), summary=r.get("summary"), stats=render.recording_stats(db, rid), role=acl.roles.get(r["space"])
+        id=rid,
+        namespace=space.get("name"),
+        summary=r.get("summary"),
+        stats=render.recording_stats(db, rid),
+        role=acl.role_in(r["space"], r.get("collection")),
     )
-    d["collection_path"] = hierarchy.path(db, r["collection"]) if r.get("collection") is not None else []
+    steps = hierarchy.path(db, r["collection"]) if r.get("collection") is not None else []
+    seen = acl.visible(r["space"]) if acl.user and acl.rank_in(r["space"], r.get("collection")) else None
+    d["collection_path"] = [s for s in steps if seen is None or s["id"] in seen]  # only the collections they see
     rep = pathlib.Path(cfg["data_dir"]) / "reports" / (space.get("name") or "_") / f"{render.slug(r.get('title'))}-{rid}.html"
     d["report_url"] = f"/reports/{space.get('name')}/{rep.name}" if rep.exists() else None
     apps = db.rows("SELECT speaker, method, score FROM appearance WHERE recording = $r", r=rid)

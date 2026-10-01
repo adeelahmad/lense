@@ -26,6 +26,18 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Roles on collections.** People can be given a role on a collection (viewer, editor or admin), which holds for
+  the collections inside it too and adds to their namespace role. Someone without a role in the namespace sees just
+  those collections: their recordings in the Library, search and the recordings' pages; the namespace's own pages
+  (Speakers, Graph, Reports, Chat, Activity) stay with its members and say so. An admin of a collection runs it like an
+  owner: its people, its sub-collections, and owner actions on its recordings. Decided with the project owner.
+    - In the Library: Collection → Manage collections → People… gives, changes and takes away roles; each collection
+      offers only what you may do with it. A namespace seen in part shows "Some" in the namespace picker.
+    - API: `GET/PUT /namespaces/{name}/collections/{cid}/members` (owners of the namespace, admins of the collection;
+      audited as `collection.member`); collections say your `role`, `can_change` and `can_grant`; recordings and
+      Library rows carry your `role` on each; `GET /namespaces` lists namespaces seen in part (`partial`) and
+      `GET /auth/me` names them; search, the recording's runs and entities, notes and IIIF follow (docs/access.md,
+      docs/api.md).
 - **Collections inside namespaces.** Every recording now lives in one collection of its namespace, and collections
   nest. Each namespace starts with "General", its default, which took every existing recording. The Library filters by
   collection (with the ones inside it) and its Manage collections dialog makes, renames, moves, describes and deletes

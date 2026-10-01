@@ -34,7 +34,8 @@ export type RowProps = {
   onToggleAll: (on: boolean) => void;
   onRetry: (rec: RecordingSummary, view: ReturnType<typeof statusView>) => void;
   /** Why this person can't retry or reprocess in the row's namespace, or null when they can. */
-  editReason: (ns: string | null | undefined) => string | null;
+  /** Why this person can't change a recording (its namespace's role and its collection's), or null when they can. */
+  editReason: (r: RecordingSummary) => string | null;
   onOpen?: (rec: RecordingSummary) => void;
 };
 
@@ -298,7 +299,7 @@ export function RecordingTable({
                   <StatusCell
                     view={view}
                     onRetry={() => onRetry(r, view)}
-                    retryDisabledReason={editReason(r.namespace) ?? undefined}
+                    retryDisabledReason={editReason(r) ?? undefined}
                   />
                 </td>
                 {afterStatus.map((c) => cell(c, r))}

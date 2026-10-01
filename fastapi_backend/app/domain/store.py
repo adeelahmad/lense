@@ -452,6 +452,10 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS collection_space ON collection FIELDS space",
     "DEFINE INDEX IF NOT EXISTS collection_parent ON collection FIELDS parent",
     "DEFINE INDEX IF NOT EXISTS collection_key ON collection FIELDS key UNIQUE",
+    # roles people were given on collections (hierarchy.give): id "<collection>-<account>"
+    "DEFINE TABLE IF NOT EXISTS collection_role SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS collection_role_account ON collection_role FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS collection_role_collection ON collection_role FIELDS collection",
     "DEFINE TABLE IF NOT EXISTS recording SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS recording_space ON recording FIELDS space",
     "DEFINE INDEX IF NOT EXISTS recording_collection ON recording FIELDS collection",

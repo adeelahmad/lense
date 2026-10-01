@@ -24,7 +24,8 @@ export function recordingsKey(query: LibraryQuery) {
 export function useLibrary(ns: string | null, query: LibraryQuery) {
   const client = useApiClient();
   const qc = useQueryClient();
-  const { namespaces } = useArchive();
+  const { namespaces: full, partialNamespaces } = useArchive();
+  const namespaces = [...full, ...partialNamespaces];
   const jobs = useJobs({ limit: 200 });
   const running = Boolean(jobs.data?.running);
 

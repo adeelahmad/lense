@@ -108,9 +108,10 @@ class Origins:
             return "folder"
         return "file"
 
-    def recordings(self, spaces):
-        """{recording id: origin} for the recordings of these namespaces."""
-        rows = self.db.rows("SELECT record::id(id) AS id, space, path, remote, engine FROM recording WHERE space IN $s", s=sorted(spaces))
+    def recordings(self, spaces, within=None):
+        """{recording id: origin} for the recordings of these namespaces (and of the collections in `within`)."""
+        cond, p = in_scope(spaces, within)
+        rows = self.db.rows(f"SELECT record::id(id) AS id, space, path, remote, engine FROM recording WHERE {cond}", **p)
         return {r["id"]: self.of(r) for r in rows}
 
     def names(self, keys):
@@ -128,9 +129,9 @@ class Origins:
         )
         return {k: ORIGINS.get(k) or srcs.get(int(k.split(":", 1)[1])) or "A removed source" for k in keys}
 
-    def counts(self, spaces):
+    def counts(self, spaces, within=None):
         """[{origin, name, recordings}], the most recordings first."""
-        n = Counter(self.recordings(spaces).values())
+        n = Counter(self.recordings(spaces, within).values())
         names = self.names(n)
         return sorted(
             ({"origin": k, "name": names[k], "recordings": c} for k, c in n.items()), key=lambda x: (-x["recordings"], x["name"].casefold())
@@ -144,12 +145,20 @@ def check_origins(origins):
             raise ValueError(f"origin is one of {', '.join(ORIGINS)} or source:<id>")
 
 
-def language_counts(db, spaces):
-    """[{language, recordings}] in these namespaces, the most recordings first; null is "not known"."""
-    n = Counter(
-        (str(v or "").strip().lower() or None)
-        for v in db.values("SELECT VALUE language FROM recording WHERE space IN $s", s=sorted(spaces))
-    )
+def in_scope(spaces, within=None):
+    """The WHERE clause, with its parameters, for the recordings of these namespaces and of the collections in
+    `within` ({namespace: collection ids}: namespaces someone sees only some collections of)."""
+    cols = sorted({int(c) for cs in (within or {}).values() for c in cs})
+    if cols:
+        return "(space IN $spaces OR collection IN $within)", {"spaces": sorted(spaces), "within": cols}
+    return "space IN $spaces", {"spaces": sorted(spaces)}
+
+
+def language_counts(db, spaces, within=None):
+    """[{language, recordings}] in these namespaces (and the collections in `within`), the most recordings first; null
+    is "not known"."""
+    cond, p = in_scope(spaces, within)
+    n = Counter((str(v or "").strip().lower() or None) for v in db.values(f"SELECT VALUE language FROM recording WHERE {cond}", **p))
     return sorted(({"language": k, "recordings": c} for k, c in n.items()), key=lambda x: (-x["recordings"], x["language"] or "~"))
 
 
@@ -182,6 +191,7 @@ def where(
     languages=None,
     edited=None,
     collections=None,
+    within=None,
     cfg=None,
 ):
     """The WHERE clause and its parameters for these filters. Filters combine with AND, the values of one filter with OR.
@@ -192,10 +202,12 @@ def where(
     access: levels (public, restricted, private), a namespace's default counting for recordings without their own.
     featured: true or false. tags: any of these tags (ignoring case). origins: where they came from (Origins; needs cfg).
     languages: language codes (ignoring case), "none" for recordings whose language isn't known. edited: recording ids
-    (edited_by). collections: collection ids (a collection and the ones inside it).
+    (edited_by). collections: collection ids (a collection and the ones inside it). within: {namespace: collection
+    ids} for namespaces someone sees only some collections of (in_scope).
     """
-    spaces = sorted(spaces)
-    w, p = ["space IN $spaces"], {"spaces": spaces}
+    base, p = in_scope(spaces, within)
+    w = [base]
+    spaces = sorted(set(spaces) | set(within or {}))  # what the filters below look at; `base` keeps to what may be seen
     words = (q or "").lower().split()[:MAX_WORDS]
     if words:
         names, people = store.space_names(db), _speakers(db, spaces)
@@ -299,7 +311,7 @@ def list_recordings(db, spaces, sort="-date", limit=500, offset=0, **filters):
     key, desc = sort.lstrip("-"), sort.startswith("-")
     if key not in SORTS:
         raise ValueError(f"sort by {', '.join(SORTS)} (prefix - for descending)")
-    if not spaces:
+    if not spaces and not filters.get("within"):
         return [], 0
     cond, p = where(db, spaces, **filters)
     expr, missing = SORTS[key]
@@ -417,11 +429,12 @@ def retag(db, rids, add=(), remove=()):
     return changed
 
 
-def tag_counts(db, spaces):
-    """The tags on these namespaces' recordings with how many recordings have each, most used first; each spelled as
-    most of its recordings spell it."""
+def tag_counts(db, spaces, within=None):
+    """The tags on these namespaces' recordings (and those of the collections in `within`) with how many recordings
+    have each, most used first; each spelled as most of its recordings spell it."""
     counts, spellings = Counter(), defaultdict(Counter)
-    for tags in db.values("SELECT VALUE tags FROM recording WHERE space IN $s AND tags != NONE", s=sorted(spaces)) if spaces else []:
+    cond, p = in_scope(spaces, within)
+    for tags in db.values(f"SELECT VALUE tags FROM recording WHERE {cond} AND tags != NONE", **p) if spaces or within else []:
         for t in tags or []:
             counts[t.casefold()] += 1
             spellings[t.casefold()][t] += 1

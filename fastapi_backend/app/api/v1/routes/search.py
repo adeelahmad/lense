@@ -30,10 +30,12 @@ def search_transcripts(
     offset: int = Query(0, ge=0),
     facets: bool = Query(False, description="also count all the matching moments by namespace, speaker, emotion and recording (`facets`)"),
 ) -> SearchResults:
-    """Moments where the words are said (or shown on screen in a video), best first, in the namespaces you can read."""
+    """Moments where the words are said (or shown on screen in a video), best first, in the namespaces you can read and
+    the collections you were given a role on."""
     if ns:
-        acl.need(acl.nsid(ns))
-    res = searchmod.search(db, q, ns, speaker, emotion, recording, limit, offset, spaces=set(acl.roles), facets=facets)
+        acl.scope(ns)  # 404 unless they see some of it
+    also = acl.partial_recordings()
+    res = searchmod.search(db, q, ns, speaker, emotion, recording, limit, offset, spaces=set(acl.roles), facets=facets, also=also)
     return sign_urls(res)
 
 
@@ -47,9 +49,10 @@ def suggest_terms(
     limit: int = Query(8, ge=1, le=20),
 ) -> list[TermSuggestion]:
     """Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search
-    has no prefix search, so the web app offers these when someone types interp*."""
+    has no prefix search, so the web app offers these when someone types interp*. Words are counted per namespace, so
+    collections you were given a role on don't add any."""
     if ns:
-        acl.need(acl.nsid(ns))
+        acl.scope(ns)
     return [TermSuggestion.model_validate(t) for t in searchmod.terms(db, prefix, set(acl.roles), ns, limit)]
 
 

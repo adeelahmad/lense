@@ -58,8 +58,12 @@ def aliases(db, eids):
     return out
 
 
-def _stats(db, spaces, speaker=None, recording=None):
+def _stats(db, spaces, speaker=None, recording=None, within=None):
+    """Per entity: its mentions, the recordings and speakers they're in, their days, and whether one is in `speaker`'s
+    lines or `recording`. `within` keeps to those recordings (what someone sees of a namespace)."""
     ms = db.rows("SELECT entity, recording, speaker FROM mentions WHERE space IN $s", s=sorted(spaces)) if spaces else []
+    if within is not None:
+        ms = [m for m in ms if m["recording"] in within]
     dates = (
         {
             r["id"]: _day(r.get("recorded_at"))
@@ -97,10 +101,13 @@ def list_entities(
     limit=50,
     offset=0,
     group=False,
+    within=None,
 ):
+    """Entities of these namespaces (filtered and sorted); `within` counts only those recordings' mentions (someone who
+    sees a namespace only through roles on some of its collections)."""
     names = store.space_names(db)
     sp = {s for s in spaces if not namespaces or names.get(s) in namespaces}
-    st = _stats(db, sp, speaker, recording)
+    st = _stats(db, sp, speaker, recording, within)
     ents = db.rows(f"SELECT {FIELDS} FROM entity WHERE space IN $s", s=sorted(sp)) if sp else []
     al = aliases(db, [e["id"] for e in ents])
     months, today = _months(), dt.date.today()

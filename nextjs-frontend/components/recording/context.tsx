@@ -33,8 +33,13 @@ export type RecordingCtx = {
   state: PageState;
   jobs: JobInfo[];
   ns: string | null;
+  /** Their role on the recording: through its namespace, or its collection (an admin of it is an owner). */
   role: Role | undefined;
   canEdit: boolean;
+  /** An editor of the namespace: speakers, faces and entities are the namespace's, so only they change those. */
+  canEditNamespace: boolean;
+  /** A role in the namespace (not only on the recording's collection): chat and the namespace's lists need one. */
+  member: boolean;
   /** No playable media: an imported transcript. */
   transcriptOnly: boolean;
   find: {

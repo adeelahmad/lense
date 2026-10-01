@@ -135,10 +135,12 @@ type InnerProps = {
 function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerProps) {
   const api = usePlayerApi();
   const { hasMedia } = usePlayerState();
-  const { roleIn, can } = useArchive();
+  const { roleIn, can, admin } = useArchive();
   const ns = rec.namespace ?? model.namespace;
   const role = rec.role ?? roleIn(ns);
   const canEdit = role === "editor" || role === "owner" || can("editor", ns);
+  const canEditNamespace = can("editor", ns);
+  const member = admin || roleIn(ns) !== undefined;
   const video = model.media.kind === "video";
   const compact = useMediaQuery("(max-width: 1023px)");
 
@@ -179,6 +181,8 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
       ns,
       role,
       canEdit,
+      canEditNamespace,
+      member,
       transcriptOnly: !model.audio,
       find: {
         open: findOpen,
@@ -224,6 +228,8 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
       ns,
       role,
       canEdit,
+      canEditNamespace,
+      member,
       findOpen,
       query,
       hits,

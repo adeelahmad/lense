@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Namespaces, Recordings } from "@/app/openapi-client";
-import type { CollectionNodeUpdate } from "@/app/openapi-client/types.gen";
+import type { CollectionMemberSet, CollectionNodeUpdate } from "@/app/openapi-client/types.gen";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
@@ -87,4 +87,44 @@ export function useCollectionActions(ns: string | null) {
     onError: fail("Couldn’t move the recordings"),
   });
   return { create, update, remove, place };
+}
+
+/** Who was given a role on a collection, and who has one through a collection it's inside (owners of the namespace
+ * and admins of the collection may look). */
+export function useCollectionMembers(ns: string, cid: number | null) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["collection-members", ns, cid],
+    queryFn: () => data(Namespaces.listCollectionMembers({ client, path: { name: ns, cid: cid as number } })),
+    enabled: cid != null,
+    staleTime: 0,
+  });
+}
+
+/** Give someone a role on a collection, change it, or take it away (role null). */
+export function useSetCollectionMember(ns: string, cid: number | null) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (body: CollectionMemberSet) =>
+      data(Namespaces.setCollectionMember({ client, path: { name: ns, cid: cid as number }, body })),
+    onSuccess: (members, body) => {
+      qc.setQueryData(["collection-members", ns, cid], members);
+      void qc.invalidateQueries({ queryKey: collectionsKey(ns) });
+      const who = body.email ?? members.find((m) => m.account === body.account)?.email ?? "They";
+      toast({
+        title: body.role
+          ? `${who} is ${body.role === "viewer" ? "a viewer" : body.role === "editor" ? "an editor" : "an admin"} here now`
+          : `Took away ${who}’s role`,
+        tone: "green",
+      });
+    },
+    onError: (e: unknown) =>
+      toast({
+        title: "Couldn’t change the role",
+        body: e instanceof ApiError ? e.message : "Please try again.",
+        tone: "red",
+      }),
+  });
 }

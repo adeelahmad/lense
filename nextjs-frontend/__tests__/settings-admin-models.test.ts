@@ -349,6 +349,10 @@ describe("account", () => {
       "Editor in podcasts · Viewer in customer-calls",
     );
     expect(rolesSummary(false, {})).toBe("No namespaces yet");
+    expect(rolesSummary(false, { podcasts: "viewer" }, ["research"])).toBe(
+      "Viewer in podcasts · Some collections of research",
+    );
+    expect(rolesSummary(false, {}, ["research"])).toBe("Some collections of research");
     expect(rolesSummary(true, {})).toMatch(/Platform admin/);
     expect(
       rolesSummary(false, {

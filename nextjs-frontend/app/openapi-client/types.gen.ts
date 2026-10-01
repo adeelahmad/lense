@@ -1281,6 +1281,77 @@ export type CollectionDetail = {
 };
 
 /**
+ * CollectionMember
+ */
+export type CollectionMember = {
+  /**
+   * Account
+   */
+  account: number;
+  /**
+   * Email
+   */
+  email?: string | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Role
+   */
+  role: "viewer" | "editor" | "admin";
+  /**
+   * By
+   * who gave it
+   */
+  by?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * given on this collection it's inside (null: on this one)
+   */
+  inherited_from?: CollectionStep | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | null
+    | string
+    | null
+    | "viewer"
+    | "editor"
+    | "admin"
+    | string
+    | null
+    | string
+    | null
+    | CollectionStep
+    | null
+    | undefined;
+};
+
+/**
+ * CollectionMemberSet
+ * Who (by email, or by account id) and their role on the collection; a null role takes it away.
+ */
+export type CollectionMemberSet = {
+  /**
+   * Email
+   */
+  email?: string | null;
+  /**
+   * Account
+   */
+  account?: number | null;
+  /**
+   * Role
+   */
+  role?: "viewer" | "editor" | "admin" | null;
+};
+
+/**
  * CollectionNode
  */
 export type CollectionNode = {
@@ -1343,6 +1414,21 @@ export type CollectionNode = {
    * Updated At
    */
   updated_at?: string | null;
+  /**
+   * Role
+   * your role on it: from your namespace role (an owner is an admin) or one given on it or above it
+   */
+  role?: "viewer" | "editor" | "admin" | null;
+  /**
+   * Can Change
+   * you may rename, describe, move or delete it, and make collections inside it
+   */
+  can_change?: boolean;
+  /**
+   * Can Grant
+   * you may give people roles on it
+   */
+  can_grant?: boolean;
   [key: string]:
     | unknown
     | number
@@ -1358,6 +1444,10 @@ export type CollectionNode = {
     | string
     | null
     | string
+    | null
+    | "viewer"
+    | "editor"
+    | "admin"
     | null
     | undefined;
 };
@@ -2970,6 +3060,11 @@ export type Me = {
     [key: string]: "viewer" | "editor" | "owner";
   };
   /**
+   * Partial
+   * namespaces you have no role in but see some collections of (roles on collections)
+   */
+  partial?: Array<string>;
+  /**
    * Via
    */
   via: "access" | "token";
@@ -2983,10 +3078,12 @@ export type Me = {
     | {
         [key: string]: "viewer" | "editor" | "owner";
       }
+    | Array<string>
     | "access"
     | "token"
     | "read"
-    | "write";
+    | "write"
+    | undefined;
 };
 
 /**
@@ -3317,14 +3414,33 @@ export type Namespace = {
   speakers?: number;
   /**
    * Role
+   * your role in it; null when you see only some of its collections
    */
-  role: "viewer" | "editor" | "owner";
+  role?: "viewer" | "editor" | "owner" | null;
+  /**
+   * Partial
+   * you see only the collections you were given a role on
+   */
+  partial?: boolean;
   /**
    * Wordcloud
    * signed link to the namespace word cloud (SVG)
    */
   wordcloud?: string | null;
-  [key: string]: unknown | number | string | string | null | "viewer" | "editor" | "owner" | string | null | undefined;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | "viewer"
+    | "editor"
+    | "owner"
+    | null
+    | boolean
+    | string
+    | null
+    | undefined;
 };
 
 /**
@@ -4917,7 +5033,7 @@ export type Recording = {
   collection_path?: Array<CollectionStep>;
   /**
    * Role
-   * your role in its namespace
+   * your role on it: through its namespace or its collection (an admin of the collection is an owner)
    */
   role?: "viewer" | "editor" | "owner" | null;
   /**
@@ -5376,6 +5492,11 @@ export type RecordingSummary = {
    * what to call its origin: the source's name, or e.g. Uploaded
    */
   origin_name?: string | null;
+  /**
+   * Role
+   * your role on it: through its namespace or its collection (an admin of the collection is an owner)
+   */
+  role?: "viewer" | "editor" | "owner" | null;
   [key: string]:
     | unknown
     | number
@@ -5416,6 +5537,10 @@ export type RecordingSummary = {
     | string
     | null
     | string
+    | null
+    | "viewer"
+    | "editor"
+    | "owner"
     | null
     | undefined;
 };
@@ -9226,6 +9351,76 @@ export type UpdateNamespaceCollectionResponses = {
 
 export type UpdateNamespaceCollectionResponse =
   UpdateNamespaceCollectionResponses[keyof UpdateNamespaceCollectionResponses];
+
+export type ListCollectionMembersData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/collections/{cid}/members";
+};
+
+export type ListCollectionMembersErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListCollectionMembersError = ListCollectionMembersErrors[keyof ListCollectionMembersErrors];
+
+export type ListCollectionMembersResponses = {
+  /**
+   * Response Namespaces-List Collection Members
+   * Successful Response
+   */
+  200: Array<CollectionMember>;
+};
+
+export type ListCollectionMembersResponse = ListCollectionMembersResponses[keyof ListCollectionMembersResponses];
+
+export type SetCollectionMemberData = {
+  body: CollectionMemberSet;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/collections/{cid}/members";
+};
+
+export type SetCollectionMemberErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetCollectionMemberError = SetCollectionMemberErrors[keyof SetCollectionMemberErrors];
+
+export type SetCollectionMemberResponses = {
+  /**
+   * Response Namespaces-Set Collection Member
+   * Successful Response
+   */
+  200: Array<CollectionMember>;
+};
+
+export type SetCollectionMemberResponse = SetCollectionMemberResponses[keyof SetCollectionMemberResponses];
 
 export type ListRecordingsData = {
   body?: never;

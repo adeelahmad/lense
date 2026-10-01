@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from typing import NamedTuple
 
-from . import auth, ipgroups, store
+from . import auth, hierarchy, ipgroups, store
 
 R = store.R
 LEVELS = ("public", "restricted", "private")
@@ -116,8 +116,22 @@ class Who(NamedTuple):
 
 
 def granted(db, account):
-    """The recordings someone was given permission on."""
-    return frozenset(db.values("SELECT VALUE recording FROM permission WHERE account = $a", a=account)) if account else frozenset()
+    """The recordings someone was given permission on, and those of the collections they were given a role on (and of
+    the collections inside them)."""
+    if not account:
+        return frozenset()
+    given = set(db.values("SELECT VALUE recording FROM permission WHERE account = $a", a=account))
+    return frozenset(given | hierarchy.recordings_in(db, [c for cols in hierarchy.roles_of(db, account).values() for c in cols]))
+
+
+def in_collection(db, rid, account):
+    """Whether someone was given a role on the recording's collection, or on a collection it's inside."""
+    if not account:
+        return False
+    rec = db.one("SELECT space, collection FROM $r", r=R("recording", int(rid)))
+    if not rec or rec.get("collection") is None:
+        return False
+    return bool(hierarchy.roles_of(db, account).get(rec["space"], {}).get(rec["collection"]))
 
 
 def has_permission(db, rid, account):
@@ -125,9 +139,9 @@ def has_permission(db, rid, account):
 
 
 def permitted(db, roles, account, rid, space, network=ipgroups.NOWHERE):
-    """Permission on a recording (docs/access.md): a role in its namespace, permission given on the recording, or an IP
-    group the visitor's address is in (network: ipgroups.of())."""
-    return auth.allows(roles, space) or network.opens(rid, space) or has_permission(db, rid, account)
+    """Permission on a recording (docs/access.md): a role in its namespace or on its collection, permission given on
+    the recording, or an IP group the visitor's address is in (network: ipgroups.of())."""
+    return auth.allows(roles, space) or network.opens(rid, space) or has_permission(db, rid, account) or in_collection(db, rid, account)
 
 
 def people(db, rid):

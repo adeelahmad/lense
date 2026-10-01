@@ -48,6 +48,9 @@ class TokenPair(ResponseModel):
 class Me(ResponseModel):
     user: UserPublic
     roles: dict[str, Role] = Field(description="namespace name -> role")
+    partial: list[str] = Field(
+        default_factory=list, description="namespaces you have no role in but see some collections of (roles on collections)"
+    )
     via: Literal["access", "token"]
     scope: Literal["read", "write"]
 

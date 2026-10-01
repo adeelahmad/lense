@@ -77,7 +77,10 @@ def revert_metadata_edit(eid: int, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> 
 
 @router.get("/namespaces/{name}/metadata")
 def get_namespace_metadata(name: str, user: CurrentUser, acl: Acl, db: Db) -> NamespaceMetadata:
-    return NamespaceMetadata.model_validate(md.namespace(db, acl.namespace(name)))
+    """The namespace's description and metadata profile, for anyone who sees some of it (the profile says how its
+    recordings are catalogued)."""
+    acl.scope(name)
+    return NamespaceMetadata.model_validate(md.namespace(db, acl.nsid(name)))
 
 
 @router.put("/namespaces/{name}/metadata")
