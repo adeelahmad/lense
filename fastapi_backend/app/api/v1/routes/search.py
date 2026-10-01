@@ -58,7 +58,7 @@ def search_transcripts(
         obj=object,
         described=True,
     )
-    return sign_urls(res)
+    return sign_urls(res, full=True)
 
 
 @router.get("/search/terms")

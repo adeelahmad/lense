@@ -2128,9 +2128,14 @@ export type FaceSpeaker = {
 export type FacesMode = {
   /**
    * Mode
-   * off, detect or recognize
+   * off, detect or recognize; left out, the mode stays as it is
    */
   mode?: string | null;
+  /**
+   * Pixelate
+   * pixelate the faces found in the pictures visitors see (public pages, embeds, share links, IIIF); members see them as they are. Needs faces detected
+   */
+  pixelate?: boolean | null;
   /**
    * Purpose
    * why faces are recognised (required for recognize)
@@ -3902,6 +3907,11 @@ export type NamespaceFaces = {
    */
   mode: string;
   /**
+   * Pixelate
+   * faces are pixelated in the pictures visitors see
+   */
+  pixelate?: boolean;
+  /**
    * Purpose
    */
   purpose?: string | null;
@@ -3928,6 +3938,7 @@ export type NamespaceFaces = {
   [key: string]:
     | unknown
     | string
+    | boolean
     | string
     | null
     | string
@@ -4901,6 +4912,16 @@ export type Player = {
    * videos, documents and images: what each shot or page shows, by a model that can see
    */
   descriptions?: Array<Description>;
+  /**
+   * Faces Mode
+   * the namespace's face mode: off, detect or recognize
+   */
+  faces_mode?: string;
+  /**
+   * Faces Pixelate
+   * the namespace pixelates faces in the pictures visitors see
+   */
+  faces_pixelate?: boolean;
   [key: string]:
     | unknown
     | number
@@ -4941,6 +4962,8 @@ export type Player = {
     | null
     | Array<ObjectTrack>
     | Array<Description>
+    | string
+    | boolean
     | undefined;
 };
 

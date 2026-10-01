@@ -121,7 +121,7 @@ def get_chat(cid: int, user: CurrentUser, acl: Acl, db: Db) -> Chat:
     )
     for m in msgs:
         m["passages"] = [p for p in m.get("passages") or [] if p["recording_id"] in visible]
-    return Chat.model_validate(sign_urls({**c, "messages": msgs}))
+    return Chat.model_validate(sign_urls({**c, "messages": msgs}, full=True))
 
 
 @router.patch("/chats/{cid}")
@@ -145,7 +145,7 @@ def delete_chat(cid: int, user: Writer, db: Db) -> Ok:
 
 
 def _ev(name: str, data: Any) -> str:
-    return f"event: {name}\ndata: {json.dumps(sign_urls(data), default=str)}\n\n"
+    return f"event: {name}\ndata: {json.dumps(sign_urls(data, full=True), default=str)}\n\n"
 
 
 @router.post(

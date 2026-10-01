@@ -222,6 +222,8 @@ class Player(ResponseModel):
     descriptions: list[Description] = Field(
         default_factory=list, description="videos, documents and images: what each shot or page shows, by a model that can see"
     )
+    faces_mode: str = Field("off", description="the namespace's face mode: off, detect or recognize")
+    faces_pixelate: bool = Field(False, description="the namespace pixelates faces in the pictures visitors see")
 
 
 class RecordingUpdate(RequestModel):

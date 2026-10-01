@@ -15,13 +15,13 @@ import { screenTime } from "@/components/recording/video/model";
 import { useFaceColors } from "@/components/recording/video/face-colors";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/field";
+import { Input, Switch } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { tc } from "@/lib/format";
-import { needRole } from "@/lib/hooks/session";
+import { needRole, useArchive } from "@/lib/hooks/session";
 
 type NsFace = {
   id: number;
@@ -37,7 +37,7 @@ type NsFace = {
  * On a document's or an image's pages (`onPage`), faces say which pages they're on and turn to them.
  */
 export function PeopleTab({ noFaces, onPage }: { noFaces?: boolean; onPage?: (page: number) => void }) {
-  const { model, ns, canEdit, canEditNamespace } = useRec();
+  const { id, model, ns, canEdit, canEditNamespace } = useRec();
   // faces are the namespace's: only its members see its face registry and change names, links and merges
   const nsFaces = useNamespaceFaces(ns, model.facesMode === "recognize");
   const color = useFaceColors();
@@ -50,24 +50,31 @@ export function PeopleTab({ noFaces, onPage }: { noFaces?: boolean; onPage?: (pa
         recording the purpose. Nothing here changes until they do.
       </Notice>
     );
+  const pixelate = <PixelateSwitch id={id} ns={ns} on={model.facesPixelate} />;
   if (!model.faces.length)
-    return onPage ? (
-      <EmptyState icon={<ScanFace />} title="No faces on its pages" className="py-10">
-        The Faces step looks for people on the pages once they’re drawn; it found none, or hasn’t run yet.
-      </EmptyState>
-    ) : noFaces ? (
-      <Notice title="No faces in this video">
-        The Faces step ran on the sampled frames and found none above the detection threshold — typical for slide-only
-        recordings.
-      </Notice>
-    ) : (
-      <EmptyState icon={<ScanFace />} title="No people on screen yet" className="py-10">
-        The Faces step finds people on screen after the shots are sampled.
-      </EmptyState>
+    return (
+      <>
+        {pixelate}
+        {onPage ? (
+          <EmptyState icon={<ScanFace />} title="No faces on its pages" className="py-10">
+            The Faces step looks for people on the pages once they’re drawn; it found none, or hasn’t run yet.
+          </EmptyState>
+        ) : noFaces ? (
+          <Notice title="No faces in this video">
+            The Faces step ran on the sampled frames and found none above the detection threshold — typical for
+            slide-only recordings.
+          </Notice>
+        ) : (
+          <EmptyState icon={<ScanFace />} title="No people on screen yet" className="py-10">
+            The Faces step finds people on screen after the shots are sampled.
+          </EmptyState>
+        )}
+      </>
     );
 
   return (
     <>
+      {pixelate}
       {model.facesMode === "detect" && (
         <Notice title="Faces are counted, not identified">
           This namespace is set to detect only: {onPage ? "boxes and pages" : "boxes and screen time"}, no names, no
@@ -399,6 +406,53 @@ function Suggestion({
       <Button size="xs" variant="ghost" disabled={Boolean(disabled)} disabledReason={disabled} onClick={onNo}>
         {no}
       </Button>
+    </div>
+  );
+}
+
+/**
+ * The namespace's choice to pixelate the faces found in the pictures visitors see (public pages, embeds, share links,
+ * IIIF); members see them as they are. Owners switch it; everyone else sees it with the reason they can't.
+ */
+function PixelateSwitch({ id, ns, on }: { id: number; ns: string | null; on: boolean }) {
+  const { can } = useArchive();
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const owner = can("owner", ns);
+  const change = useMutation({
+    mutationFn: (pixelate: boolean) =>
+      data(Video.setNamespaceFacesMode({ client, path: { name: ns as string }, body: { pixelate } })),
+    onSuccess: (_r, pixelate) => {
+      void qc.invalidateQueries({ queryKey: rk.player(id) });
+      void qc.invalidateQueries({ queryKey: ["faces", ns] });
+      toast({ title: pixelate ? "Visitors see faces pixelated" : "Visitors see faces as they are", tone: "green" });
+    },
+    onError: (e) =>
+      toast({
+        title: "Couldn’t change it",
+        body: e instanceof ApiError ? e.message : "Please try again.",
+        tone: "red",
+      }),
+  });
+  return (
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-md border border-border bg-surface px-3 py-2.5">
+      <div className="min-w-0 flex-1 basis-[240px]">
+        <div className="text-[13.5px] font-semibold text-fg">Pixelate faces for visitors</div>
+        <p className="text-[12.5px] leading-snug text-fg-muted">
+          On public pages, embeds, share links and IIIF, the faces found are made into blocks. Members of{" "}
+          {ns ?? "the namespace"} see the pictures as they are.
+        </p>
+      </div>
+      <div className="flex items-center gap-2.5">
+        {!owner && <span className="text-[12px] text-fg-muted">{needRole("owner", ns)}</span>}
+        <Switch
+          aria-label="Pixelate faces for visitors"
+          checked={on}
+          disabled={!owner || change.isPending}
+          onCheckedChange={(v) => change.mutate(v)}
+        />
+      </div>
     </div>
   );
 }

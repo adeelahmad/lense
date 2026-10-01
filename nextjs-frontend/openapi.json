@@ -8267,7 +8267,7 @@
           "video"
         ],
         "summary": "Get Frame",
-        "description": "A still (shot frame, text-on-screen frame or face crop).",
+        "description": "A still (shot frame, text-on-screen frame or face crop), or a document's or an image's page. Where the namespace\npixelates faces, a visitor (no role in the namespace, nor a link the API signed for a member) gets the faces found\non it pixelated.",
         "operationId": "get_frame",
         "parameters": [
           {
@@ -8523,7 +8523,7 @@
           "video"
         ],
         "summary": "Set Namespace Faces Mode",
-        "description": "off, detect or recognize (which needs a purpose). Owners only. `reprocess` queues the namespace's videos,\ndocuments and images (faces on their pages).",
+        "description": "off, detect or recognize (which needs a purpose), and whether faces are pixelated for visitors. Owners only.\n`reprocess` queues the namespace's videos, documents and images (faces on their pages).",
         "operationId": "set_namespace_faces_mode",
         "parameters": [
           {
@@ -15459,7 +15459,19 @@
               }
             ],
             "title": "Mode",
-            "description": "off, detect or recognize"
+            "description": "off, detect or recognize; left out, the mode stays as it is"
+          },
+          "pixelate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pixelate",
+            "description": "pixelate the faces found in the pictures visitors see (public pages, embeds, share links, IIIF); members see them as they are. Needs faces detected"
           },
           "purpose": {
             "anyOf": [
@@ -18290,6 +18302,12 @@
             "title": "Mode",
             "description": "off, detect or recognize"
           },
+          "pixelate": {
+            "type": "boolean",
+            "title": "Pixelate",
+            "description": "faces are pixelated in the pictures visitors see",
+            "default": false
+          },
           "purpose": {
             "anyOf": [
               {
@@ -19841,6 +19859,18 @@
             "type": "array",
             "title": "Descriptions",
             "description": "videos, documents and images: what each shot or page shows, by a model that can see"
+          },
+          "faces_mode": {
+            "type": "string",
+            "title": "Faces Mode",
+            "description": "the namespace's face mode: off, detect or recognize",
+            "default": "off"
+          },
+          "faces_pixelate": {
+            "type": "boolean",
+            "title": "Faces Pixelate",
+            "description": "the namespace pixelates faces in the pictures visitors see",
+            "default": false
           }
         },
         "additionalProperties": true,

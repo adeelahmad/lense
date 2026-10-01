@@ -4,10 +4,16 @@ identities matched across its recordings the way voices are (auto-match, review,
 Off by default. An owner can choose detect (boxes and screen time, no identities or face descriptors) or recognize
 (identities; the purpose is recorded). Turning recognition off deletes the namespace's face descriptors. Face data can
 be deleted per person or per namespace, and is never published through IIIF unless video.publish_faces is on.
+
+An owner can also have the faces found pixelated in the pictures visitors see (public pages, embeds, share links,
+IIIF): `pixelated` makes a frame, a page or a thumbnail with its faces in coarse blocks, for a request without a role
+in the namespace. Members see the pictures as they are.
 """
 
 from __future__ import annotations
 
+import io
+import re
 from collections import defaultdict
 
 import numpy as np
@@ -23,23 +29,97 @@ def mode(db, sid):
 
 
 def set_mode(db, sid, new, purpose=None, user=None, cfg=None):
-    """off, detect or recognize. Turning faces off deletes all face data (with cfg, the crops on disk too)."""
+    """off, detect or recognize. Turning faces off deletes all face data (with cfg, the crops on disk too), and stops
+    pixelating them for visitors: there are no faces left to pixelate."""
     if new not in MODES:
         raise ValueError(f"face mode is one of {', '.join(MODES)}")
     if new == "recognize" and not (purpose or "").strip():
         raise ValueError("say what face recognition is for in this namespace")
-    db.q(
-        "UPDATE $s MERGE $p",
-        s=R("space", sid),
-        p=store.clean(
-            {"faces_mode": new, "faces_purpose": (purpose or "").strip() or None, "faces_set_by": user, "faces_set_at": store.now()}
-        ),
-    )
+    patch = {"faces_mode": new, "faces_purpose": (purpose or "").strip() or None, "faces_set_by": user, "faces_set_at": store.now()}
+    if new == "off":
+        patch["faces_pixelate"] = False
+    db.q("UPDATE $s MERGE $p", s=R("space", sid), p=store.clean(patch))
     if new != "recognize":  # descriptors only exist while recognition is on
         db.q("UPDATE face SET embedding = NONE WHERE space = $s", s=sid)
         db.q("UPDATE face_track SET embedding = NONE WHERE space = $s", s=sid)
     if new == "off":
         delete_namespace(db, cfg, sid, keep_mode=True)
+
+
+def pixelates(db, sid):
+    """Whether the namespace pixelates the faces found in the pictures visitors see."""
+    return bool((db.one("SELECT faces_pixelate FROM $s", s=R("space", sid)) or {}).get("faces_pixelate"))
+
+
+def set_pixelate(db, sid, on):
+    """Pixelate faces for visitors, or not. Needs faces detected (mode detect or recognize): pixelating goes by the
+    faces found."""
+    if on and mode(db, sid) == "off":
+        raise ValueError("pixelating faces needs them detected first (face mode detect or recognize)")
+    db.q("UPDATE $s SET faces_pixelate = $on", s=R("space", sid), on=bool(on))
+
+
+CELLS = 10  # blocks across a pixelated face: too few to know anyone by
+MARGIN = 0.2  # of the face's size around it, pixelated too (faces move between the frames they were found on)
+SAMPLED = re.compile(r"s(\d{9})\.jpg")  # a sampled frame, named by its time in ms
+PAGED = re.compile(r"(page|thumb)-(\d{4})\.jpg")  # a page drawn, or its thumbnail, numbered from 1
+
+
+def boxes_on(db, rid, name):
+    """Where the faces found are on the picture `name` of recording `rid`: [[x, y, w, h], …] as fractions of it, or
+    None when nothing was found there. A face's own crop (face-N.jpg) is all face."""
+    if name.startswith("face-"):
+        return [[0.0, 0.0, 1.0, 1.0]]
+    tracks = db.rows("SELECT boxes, paged FROM face_track WHERE recording = $r", r=rid)
+    if not tracks:
+        return None
+    if m := PAGED.fullmatch(name):
+        at = {int(m.group(2)) - 1}
+        paged = True
+    else:
+        paged, at = False, None
+        if m := SAMPLED.fullmatch(name):
+            at = {int(m.group(1))}
+        else:  # a shot's keyframe: the faces found on the sampled frames either side of it
+            shot = db.one("SELECT t0, t1 FROM shot WHERE recording = $r AND frame = $n", r=rid, n=name)
+            step = (db.one("SELECT sample_ms FROM $r", r=R("recording", rid)) or {}).get("sample_ms") or 5000
+            if shot:
+                t = shot["t0"] + min(1000, (shot["t1"] - shot["t0"]) // 4)  # where video.step_shots takes it
+                at = {b[0] for tr in tracks if not tr.get("paged") for b in tr.get("boxes") or [] if abs(b[0] - t) <= step}
+    if at is None:
+        return None
+    boxes = [b[1:5] for tr in tracks if bool(tr.get("paged")) == paged for b in tr.get("boxes") or [] if b[0] in at]
+    return boxes or None
+
+
+def pixelate(img, boxes, cells=CELLS, margin=MARGIN):
+    """The PIL image with each box (fractions of it) made into `cells` blocks across, a margin around it too."""
+    from PIL import Image
+
+    W, H = img.size
+    for x, y, w, h in boxes:
+        x0, y0 = max(0, int((x - w * margin) * W)), max(0, int((y - h * margin) * H))
+        x1, y1 = min(W, int((x + w * (1 + margin)) * W) + 1), min(H, int((y + h * (1 + margin)) * H) + 1)
+        if x1 - x0 < 2 or y1 - y0 < 2:
+            continue
+        region = img.crop((x0, y0, x1, y1))
+        small = region.resize((cells, max(1, round(cells * (y1 - y0) / (x1 - x0)))), Image.NEAREST)
+        img.paste(small.resize(region.size, Image.NEAREST), (x0, y0))
+    return img
+
+
+def pixelated(db, path, rid, name):
+    """The picture at `path` (frame `name` of recording `rid`) as a visitor gets it, a JPEG with the faces found on it
+    pixelated; None when none were found on it (it's served as it is)."""
+    boxes = boxes_on(db, rid, name)
+    if not boxes:
+        return None
+    from PIL import Image
+
+    with Image.open(path) as img:
+        out = io.BytesIO()
+        pixelate(img.convert("RGB"), boxes).save(out, "JPEG", quality=85)
+    return out.getvalue()
 
 
 def _vec(v):

@@ -162,6 +162,8 @@ export type PlayerModel = {
   screenText: ScreenText[];
   faces: FaceTrack[];
   facesMode: FacesMode;
+  /** The namespace pixelates the faces found in the pictures visitors see. */
+  facesPixelate: boolean;
   objects: ObjectTrack[];
   descriptions: Description[];
   poster: string | null;
@@ -344,6 +346,7 @@ export function normalizePlayer(raw: Player): PlayerModel {
       };
     }),
     facesMode: mode && MODES.includes(mode) ? mode : "off",
+    facesPixelate: Boolean(r.faces_pixelate),
     objects: arr(r.objects).map((x) => {
       const o = rec(x);
       return {

@@ -15,6 +15,7 @@ class OcrFix(RequestModel):
 
 class NamespaceFaces(ResponseModel):
     mode: str = Field(description="off, detect or recognize")
+    pixelate: bool = Field(False, description="faces are pixelated in the pictures visitors see")
     purpose: str | None = None
     set_by: str | None = None
     set_at: str | None = None
@@ -23,7 +24,12 @@ class NamespaceFaces(ResponseModel):
 
 
 class FacesMode(RequestModel):
-    mode: str | None = Field(None, description="off, detect or recognize")
+    mode: str | None = Field(None, description="off, detect or recognize; left out, the mode stays as it is")
+    pixelate: bool | None = Field(
+        None,
+        description="pixelate the faces found in the pictures visitors see (public pages, embeds, share links, IIIF); "
+        "members see them as they are. Needs faces detected",
+    )
     purpose: str | None = Field(None, description="why faces are recognised (required for recognize)")
     reprocess: bool = Field(False, description="queue face detection for this namespace's videos, documents and images")
 

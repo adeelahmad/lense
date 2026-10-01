@@ -34,36 +34,39 @@ MEDIA_IN_HTML = re.compile(
 )
 
 
-def sign_url(url: str | None) -> str | None:
+def sign_url(url: str | None, full: bool = False) -> str | None:
+    """`full` for a link handed to a member of the recording's namespace: pictures as they are, where the namespace
+    pixelates faces for visitors (docs/video.md)."""
     if not url:
         return url
     path, _, query = url.partition("?")
     if not (MEDIA_RX.match(path) or NS_MEDIA_RX.match(path) or REPORT_RX.match(path)):
         return url
     params = dict(urllib.parse.parse_qsl(query))
-    params.pop("exp", None)
-    params.pop("sig", None)
-    return sign_path(path, **cast(dict[str, Any], params))
+    for k in ("exp", "sig", "full"):
+        params.pop(k, None)
+    return sign_path(path, full=full, **cast(dict[str, Any], params))
 
 
-def sign_urls[T](obj: T) -> T:
+def sign_urls[T](obj: T, full: bool = False) -> T:
     """Sign the media links in a JSON-like structure (in place for dicts and lists; returns it): the values of the
-    LINK_KEYS fields, at any depth. Other strings are left alone, however much they look like a link."""
+    LINK_KEYS fields, at any depth. Other strings are left alone, however much they look like a link. `full` as in
+    sign_url: for a response to someone with a role in every recording's namespace (the API's own responses are)."""
     if isinstance(obj, dict):
         for k, v in obj.items():
             if isinstance(v, str):
                 if k in LINK_KEYS:
-                    obj[k] = sign_url(v)
+                    obj[k] = sign_url(v, full)
             elif isinstance(v, (dict, list)):
-                sign_urls(v)
+                sign_urls(v, full)
     elif isinstance(obj, list):
         for v in obj:
             if isinstance(v, (dict, list)):
-                sign_urls(v)
+                sign_urls(v, full)
     return obj
 
 
-def sign_page_links(page: str, recordings: Container[int]) -> str:
+def sign_page_links(page: str, recordings: Container[int], full: bool = False) -> str:
     """Sign the media links (audio, video, frames, word clouds) of these recordings in a page, including inside its
     embedded JSON. Links to any other recording stay unsigned: the page's text may contain them."""
-    return MEDIA_IN_HTML.sub(lambda m: sign_path(m.group(0)) if int(m.group(1)) in recordings else m.group(0), page)
+    return MEDIA_IN_HTML.sub(lambda m: sign_path(m.group(0), full=full) if int(m.group(1)) in recordings else m.group(0), page)

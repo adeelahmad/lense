@@ -34,6 +34,12 @@ videos, documents and images.
 - Owners can delete one person's face data or a whole namespace's.
 - Every change is audited.
 - Face crops follow the recording's access rules, and faces never go into IIIF unless `video.publish_faces` is on.
+- An owner can have the faces found **pixelated for visitors** (`pixelate` on the same call): in the pictures a
+  request without a role in the namespace gets (public pages, embeds, share links, IIIF), each face found becomes a
+  few blocks, a margin around it too, on frames, keyframes, pages and thumbnails. Members see the pictures as they are,
+  signed in or through the links the API signs for them (marked `full=1`, signed with the rest). It goes by the
+  faces found, so it needs detection on; turning faces off turns it off too. Faces missed by the detector, and tracks
+  an editor marked as not a face, aren't pixelated.
 
 A published video recording becomes a IIIF Video on a Canvas with its width, height and duration. It gets a thumbnail,
 a "Text on screen" annotation layer targeting `#xywh=…&t=…`, and its shots as a Range.

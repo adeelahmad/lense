@@ -138,7 +138,7 @@ def report_file(ns: str, name: str, acl: Acl, db: Db, cfg: Cfg) -> HTMLResponse:
     if not REPORT_NAME.fullmatch(name) or not p.is_file():
         raise HTTPException(404, "not found")
     own = set(db.values("SELECT VALUE record::id(id) FROM recording WHERE space = $s", s=sid))  # the namespace's recordings
-    page = sign_page_links(p.read_text(encoding="utf-8"), own)
+    page = sign_page_links(p.read_text(encoding="utf-8"), own, full=True)
     page = REPORT_HREF.sub(lambda m: f'href="{html.escape(sign_path(f"/reports/{ns}/{m.group(1)}"))}"', page)
     return HTMLResponse(page, headers={"Cache-Control": "private, no-store"})
 

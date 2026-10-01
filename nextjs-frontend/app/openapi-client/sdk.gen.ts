@@ -2947,7 +2947,9 @@ export class Video {
 
   /**
    * Get Frame
-   * A still (shot frame, text-on-screen frame or face crop).
+   * A still (shot frame, text-on-screen frame or face crop), or a document's or an image's page. Where the namespace
+   * pixelates faces, a visitor (no role in the namespace, nor a link the API signed for a member) gets the faces found
+   * on it pixelated.
    */
   public static getFrame<ThrowOnError extends boolean = false>(options: Options<GetFrameData, ThrowOnError>) {
     return (options.client ?? client).get<GetFrameResponses, GetFrameErrors, ThrowOnError>({
@@ -3014,8 +3016,8 @@ export class Video {
 
   /**
    * Set Namespace Faces Mode
-   * off, detect or recognize (which needs a purpose). Owners only. `reprocess` queues the namespace's videos,
-   * documents and images (faces on their pages).
+   * off, detect or recognize (which needs a purpose), and whether faces are pixelated for visitors. Owners only.
+   * `reprocess` queues the namespace's videos, documents and images (faces on their pages).
    */
   public static setNamespaceFacesMode<ThrowOnError extends boolean = false>(
     options: Options<SetNamespaceFacesModeData, ThrowOnError>,

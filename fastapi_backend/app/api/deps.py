@@ -249,7 +249,15 @@ class Access:
 
     def signed(self) -> bool:
         q = self.request.query_params
-        return security.verify_path(self.request.url.path, q.get("exp"), q.get("sig"))
+        return security.verify_path(self.request.url.path, q.get("exp"), q.get("sig"), full=q.get("full") == "1")
+
+    def member(self, rec: dict[str, Any]) -> bool:
+        """Whether this request is a member's: a role in the recording's namespace or on its collection, or a link
+        the API signed for one (`full`). Visitors (anyone else: public pages, embeds, share links) aren't."""
+        if self.user and self.rank_in(rec["space"], rec.get("collection")):
+            return True
+        q = self.request.query_params
+        return q.get("full") == "1" and self.signed()
 
 
 def get_access(request: Request, db: Db, user: OptionalUser) -> Access:

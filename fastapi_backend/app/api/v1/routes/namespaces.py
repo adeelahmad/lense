@@ -56,7 +56,7 @@ def list_namespaces(acl: Acl, user: CurrentUser, db: Db) -> list[Namespace]:
         for s in db.rows("SELECT record::id(id) AS id, name, graph FROM space ORDER BY name")
         if s["id"] in rm or s["id"] in part
     ]
-    return [Namespace.model_validate(x) for x in sign_urls(out)]
+    return [Namespace.model_validate(x) for x in sign_urls(out, full=True)]
 
 
 @router.post("")

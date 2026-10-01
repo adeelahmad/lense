@@ -251,7 +251,11 @@ def _faces(db, rid, rec):
     mode = faces.mode(db, rec["space"])
     keep = ("id", "local", "face", "name", "spans", "screen_ms", "first_ms", "boxes", "score", "match")
     tracks = faces.tracks_for(db, rid) if mode != "off" else []
-    return {"faces_mode": mode, "faces": [{**{k: t.get(k) for k in keep}, "cover": frame_link(rid, t.get("cover"))} for t in tracks]}
+    return {
+        "faces_mode": mode,
+        "faces_pixelate": faces.pixelates(db, rec["space"]),
+        "faces": [{**{k: t.get(k) for k in keep}, "cover": frame_link(rid, t.get("cover"))} for t in tracks],
+    }
 
 
 def _objects(db, rid):

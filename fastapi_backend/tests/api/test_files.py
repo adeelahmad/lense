@@ -95,7 +95,7 @@ def test_add_list_download_and_read_lines(client, env, cfg):
     assert [f["role"] for f in seen["files"]] == ["captions", "translation", "index", "thumbnail", "attachment"]
     assert not any(f["public"] for f in seen["files"])  # a private recording
     link = next(f["download"] for f in seen["files"] if f["id"] == cap["id"])
-    assert re.search(r"/api/v1/recordings/\d+/files/\d+/download\?exp=\d+&sig=", link)
+    assert re.search(r"/api/v1/recordings/\d+/files/\d+/download\?full=1&exp=\d+&sig=", link)  # a member's link
 
     anon = TestClient(client.app, base_url="http://127.0.0.1")
     got = anon.get(link)  # a signed link works on its own

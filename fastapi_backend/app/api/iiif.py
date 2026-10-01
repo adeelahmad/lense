@@ -32,7 +32,7 @@ from app.api.deps import Cfg, Db, OptionalUser, Principal, client_ip, get_cfg, g
 from app.api.v1.routes.recordings import serve_audio
 from app.api.v1.routes.video import serve_document
 from app.domain import access as acc
-from app.domain import auth, convert, documents, iiif, iiif_auth, render, store, video
+from app.domain import auth, convert, documents, faces, iiif, iiif_auth, render, store, video
 from app.domain import files as filemod
 from app.domain import metadata as md
 from app.domain.store import DB, R
@@ -71,6 +71,23 @@ def _permitted(db: DB, user: Principal | None, rid: int, space: int) -> bool:
 def _account_permitted(db: DB, acct: dict[str, Any], rid: int, space: int) -> bool:
     """The same, for the account behind an IIIF access token or cookie."""
     return acc.permitted(db, auth.roles(db, acct), acct["id"], rid, space)
+
+
+def _member(request: Request, db: DB, user: Principal | None, space: int) -> bool:
+    """A role in the namespace: the requester's, or the IIIF access cookie's account's."""
+    if auth.allows(_roles(user), space):
+        return True
+    acct, _ = iiif_auth.cookie_account(db, request.cookies.get(iiif_auth.COOKIE))
+    return bool(acct and auth.allows(auth.roles(db, acct), space))
+
+
+def _picture(db: DB, rec: dict[str, Any], rid: int, name: str, path: pathlib.Path, member: bool) -> Response:
+    """A frame or a page: where the namespace pixelates faces, visitors get the faces found on it pixelated."""
+    if not member and faces.pixelates(db, rec["space"]):
+        data = faces.pixelated(db, path, rid, name)
+        if data is not None:
+            return Response(data, media_type="image/jpeg", headers={"Vary": "Authorization, Cookie"})
+    return FileResponse(path, media_type="image/jpeg")
 
 
 def _readable(request: Request, db: DB, user: Principal | None) -> set[int]:
@@ -441,7 +458,7 @@ def iiif_pdf(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -
 
 
 @router.get("/iiif/{rid}/pages/{name}", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})
-def iiif_page(rid: int, name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> FileResponse:
+def iiif_page(rid: int, name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
     """A document's or an image's page, drawn (`<n>.jpg`, from 1). It opens with the media part, or with the link the
     page's probe service signed."""
     m = re.fullmatch(r"(\d+)\.jpg", name)
@@ -454,7 +471,7 @@ def iiif_page(rid: int, name: str, request: Request, user: OptionalUser, db: Db,
         raise HTTPException(404, "not found")
     if not _content_ok(request, db, cfg, user, rec, rid, a, what):
         raise HTTPException(401, "sign in through the viewer to see this")
-    return FileResponse(path, media_type="image/jpeg")
+    return _picture(db, rec, rid, path.name, path, _member(request, db, user, rec["space"]))
 
 
 @router.get("/iiif/{rid}/media")
@@ -463,14 +480,15 @@ def iiif_media(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg)
 
 
 @router.get("/iiif/{rid}/frames/{name}")
-def iiif_frame(rid: int, name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> FileResponse:
+def iiif_frame(rid: int, name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
     rec, a = _rec(request, db, cfg, user, rid, "audio")
     p = video.frames_dir(cfg, rid) / name
     if not FRAME_RX.fullmatch(name) or not p.is_file() or not _content_ok(request, db, cfg, user, rec, rid, a, "audio"):
         raise HTTPException(404, "not found")
-    if name.startswith("face-") and not cfg["video"].get("publish_faces") and not auth.allows(_roles(user), rec["space"]):
+    member = _member(request, db, user, rec["space"])
+    if name.startswith("face-") and not cfg["video"].get("publish_faces") and not member:
         raise HTTPException(404, "not found")
-    return FileResponse(p, media_type="image/jpeg")
+    return _picture(db, rec, rid, name, p, member)
 
 
 @router.get("/iiif/{rid}/transcript.{fmt}")

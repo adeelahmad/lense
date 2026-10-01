@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, Response
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_urls
 from app.api.v1.routes.recordings import serve_audio
-from app.domain import auth, convert, documents, files, ingest, jobs, video
+from app.domain import auth, convert, documents, files, ingest, jobs, store, video
 from app.domain import faces as facemod
 from app.domain.store import API, DB, R
 from app.schemas.common import Ok
@@ -81,13 +81,24 @@ def get_pdf(rid: int, acl: Acl, cfg: Cfg, s: str = "") -> FileResponse:
 
 
 @router.get("/recordings/{rid}/frames/{name}", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})
-def get_frame(rid: int, name: str, acl: Acl, cfg: Cfg, s: str = "") -> FileResponse:
-    """A still (shot frame, text-on-screen frame or face crop)."""
-    acl.recording(rid, share=s)
+def get_frame(rid: int, name: str, acl: Acl, cfg: Cfg, db: Db, s: str = "") -> Response:
+    """A still (shot frame, text-on-screen frame or face crop), or a document's or an image's page. Where the namespace
+    pixelates faces, a visitor (no role in the namespace, nor a link the API signed for a member) gets the faces found
+    on it pixelated."""
+    rec = acl.recording(rid, share=s)
     p = video.frames_dir(cfg, rid) / name
     if not FRAME_RX.fullmatch(name) or not p.is_file():
         raise HTTPException(404, "not found")
-    return FileResponse(p, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
+    return _picture(db, rec, rid, name, p, acl.member(rec))
+
+
+def _picture(db: DB, rec: dict[str, Any], rid: int, name: str, path: pathlib.Path, member: bool) -> Response:
+    headers = {"Cache-Control": "private, max-age=3600"}
+    if not member and facemod.pixelates(db, rec["space"]):
+        data = facemod.pixelated(db, path, rid, name)
+        if data is not None:
+            return Response(data, media_type="image/jpeg", headers={**headers, "Vary": "Authorization"})
+    return FileResponse(path, media_type="image/jpeg", headers=headers)
 
 
 # ---------- corrections on one recording ----------
@@ -136,7 +147,7 @@ def get_namespace_faces(name: str, user: CurrentUser, acl: Acl, db: Db) -> Names
     Each face's `cover_url` is a signed link to its crop.
     """
     sid = acl.namespace(name)
-    sp = db.one("SELECT faces_mode, faces_purpose, faces_set_by, faces_set_at FROM $s", s=R("space", sid)) or {}
+    sp = db.one("SELECT faces_mode, faces_pixelate, faces_purpose, faces_set_by, faces_set_at FROM $s", s=R("space", sid)) or {}
     mode = sp.get("faces_mode") or "off"
     merges = db.rows(
         "SELECT record::id(id) AS id, src, dst, by, at, undone FROM face_merge WHERE space = $s ORDER BY at DESC LIMIT 30", s=sid
@@ -147,25 +158,33 @@ def get_namespace_faces(name: str, user: CurrentUser, acl: Acl, db: Db) -> Names
         f["cover_url"] = f"{API}/recordings/{c['recording']}/frames/{c['file']}" if c else None
     out = {
         "mode": mode,
+        "pixelate": bool(sp.get("faces_pixelate")),
         "purpose": sp.get("faces_purpose"),
         "set_by": sp.get("faces_set_by"),
         "set_at": sp.get("faces_set_at"),
         "faces": faces,
         "merges": merges,
     }
-    return NamespaceFaces.model_validate(sign_urls(out))
+    return NamespaceFaces.model_validate(sign_urls(out, full=True))
 
 
 @router.put("/namespaces/{name}/faces/mode")
 def set_namespace_faces_mode(name: str, body: FacesMode, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> FacesModeSet:
-    """off, detect or recognize (which needs a purpose). Owners only. `reprocess` queues the namespace's videos,
-    documents and images (faces on their pages)."""
+    """off, detect or recognize (which needs a purpose), and whether faces are pixelated for visitors. Owners only.
+    `reprocess` queues the namespace's videos, documents and images (faces on their pages)."""
     sid = acl.namespace(name, "owner")
+    if body.mode is None and body.pixelate is None:
+        raise HTTPException(400, "say the mode, or whether to pixelate faces")
     with domain_errors():
-        facemod.set_mode(db, sid, body.mode, body.purpose, user.email, cfg)
-    auth.audit(db, user.as_audit(), "faces.mode", name, {"mode": body.mode, "purpose": body.purpose})
+        if body.mode is not None:
+            facemod.set_mode(db, sid, body.mode, body.purpose, user.email, cfg)
+        if body.pixelate is not None:
+            facemod.set_pixelate(db, sid, body.pixelate)
+    auth.audit(
+        db, user.as_audit(), "faces.mode", name, store.clean({"mode": body.mode, "purpose": body.purpose, "pixelate": body.pixelate})
+    )
     queued = []
-    if body.reprocess and body.mode != "off":
+    if body.reprocess and body.mode and body.mode != "off":
         for r in db.rows("SELECT record::id(id) AS id, media FROM recording WHERE space = $s", s=sid):
             if (r.get("media") or {}).get("kind") in ("video", "document", "image"):
                 queued.append(jobs.enqueue(db, r["id"], ["faces"], by=user.email))

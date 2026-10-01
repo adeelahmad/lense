@@ -159,6 +159,22 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       model that can see in Settings; a scan's page says what it shows, and its picture says so too; a video of three
       scenes lists each shot beside what it shows; Search finds "yellow wall" in a shot and opens the video there; a
       viewer on a phone in dark mode reads the scan's description. No console errors.
+- **Faces pixelated for visitors.** A namespace's owner can have the faces found in its videos, documents and images
+  pixelated in the pictures visitors see: public pages, embeds, share links and IIIF. Decided with the project owner:
+  for anyone without a role in the namespace, members see the pictures as they are; switched on per namespace, next
+  to face detection.
+    - Each face found becomes a few blocks, a margin around it too, on frames, keyframes, pages, thumbnails and face
+      crops. It goes by the faces found, so it needs face detection on in the namespace, and turning faces off turns
+      it off too. `PUT /namespaces/{name}/faces/mode {pixelate}` (owners, audited); `GET /namespaces/{name}/faces` and
+      the player say whether it's on (docs/video.md, docs/api.md#video).
+    - Links the API signs for members now carry a `full=1` mark, signed with the rest, so that pictures fetched by
+      `<img>` tags (which can't send a bearer token) still come as they are for members; links on public pages,
+      embeds and share links don't carry it. Signed links from before this change work as before, as visitors'.
+    - Web app: the People tab has the switch, for owners; others see it with the reason they can't use it.
+    - Checked in the browser with OpenCV's YuNet finding the face in a photo: an admin switches pixelation on in the
+      photo's People tab; a visitor's public page shows the face in blocks while the admin's page shows it as it is
+      (the pictures differ, and only the member's link carries the signed mark, which can't be added to a visitor's);
+      a viewer on a phone in dark mode sees the switch and that owners can use it. No console errors.
 - **Word, text, web pages and emails as documents.** Any document now becomes a resource with pages, not only a PDF:
   Word, PowerPoint and spreadsheet files (and OpenDocument and RTF), text and Markdown, saved web pages and emails
   (`.eml`, and Outlook `.msg` with the `msg` extra) are made into PDFs and read like one. Decided with the project

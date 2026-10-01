@@ -83,7 +83,7 @@ def _out(db: DB, rows: list[dict[str, Any]], a: dict[str, Any]) -> list[Resource
 
 def _signed(out: Any) -> Any:
     """The response with its download links signed."""
-    return type(out).model_validate(sign_urls(out.model_dump()))
+    return type(out).model_validate(sign_urls(out.model_dump(), full=True))
 
 
 def _file(db: DB, rid: int, fid: int) -> dict[str, Any]:

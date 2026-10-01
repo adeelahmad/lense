@@ -639,6 +639,13 @@ POST   /api/v1/faces/{fid}/speaker
 POST   /api/v1/faces/{fid}/dismiss
 ```
 
+`PUT /namespaces/{name}/faces/mode {mode?, purpose?, pixelate?, reprocess?}` (owners) sets the namespace's face mode
+and whether the faces found are pixelated in the pictures visitors see (`pixelate`; needs faces detected; see
+[Video](video.md)). `GET /namespaces/{name}/faces` says both, and the player's `faces_mode` and `faces_pixelate`
+say them for a resource. `GET /resources/{rid}/frames/{name}` (frames, keyframes, face crops, a document's or an
+image's pages and thumbnails) serves a request without a role in the namespace the faces found on it pixelated, where
+the namespace says so; a role, or a link the API signed for a member (`full=1`), gets the picture as it is.
+
 ### Objects
 
 The `objects` step finds the people, vehicles, animals and everyday things (the 80 kinds of the COCO dataset) on a

@@ -38,25 +38,30 @@ def decode_access_token(token: str) -> AccessClaims | None:
         return None
 
 
-def _media_sig(path: str, exp: int) -> str:
-    mac = hmac.new(settings.ACCESS_SECRET_KEY.encode(), f"media|{path}|{exp}".encode(), hashlib.sha256).digest()
+def _media_sig(path: str, exp: int, full: bool = False) -> str:
+    what = f"media|{path}|{exp}" + ("|full" if full else "")
+    mac = hmac.new(settings.ACCESS_SECRET_KEY.encode(), what.encode(), hashlib.sha256).digest()
     return base64.urlsafe_b64encode(mac[:18]).decode().rstrip("=")
 
 
-def sign_path(path: str, ttl: int | None = None, **params: str | int | float | None) -> str:
+def sign_path(path: str, ttl: int | None = None, full: bool = False, **params: str | int | float | None) -> str:
     """``path?...&exp=..&sig=..``: grants read access to exactly this path until it expires.
 
-    Only hand these out to people who may read the resource. Extra query parameters are kept but not signed.
+    Only hand these out to people who may read the resource. `full` marks a link handed to a member of the
+    recording's namespace (``full=1``, signed with the rest): it opens pictures as they are where a namespace
+    pixelates faces for visitors. Extra query parameters are kept but not signed.
     """
     exp = int(time.time()) + (ttl or settings.MEDIA_URL_EXPIRE_SECONDS)
     query = {k: v for k, v in params.items() if v not in (None, "")}
-    query.update(exp=exp, sig=_media_sig(path, exp))
+    if full:
+        query["full"] = 1
+    query.update(exp=exp, sig=_media_sig(path, exp, full))
     return f"{path}?{urllib.parse.urlencode(query)}"
 
 
-def verify_path(path: str, exp: str | int | None, sig: str | None) -> bool:
+def verify_path(path: str, exp: str | int | None, sig: str | None, full: bool = False) -> bool:
     try:
         e = int(exp or 0)
     except (TypeError, ValueError):
         return False
-    return bool(sig) and e >= time.time() and hmac.compare_digest(_media_sig(path, e), str(sig))
+    return bool(sig) and e >= time.time() and hmac.compare_digest(_media_sig(path, e, full), str(sig))

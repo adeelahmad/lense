@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { useMemo, useState } from "react";
 
@@ -12,14 +12,19 @@ import { findInSegments, type PageInfo, type PlayerModel, type Segment } from "@
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const ok = (data: unknown) => Promise.resolve({ data, response: { ok: true, status: 200 } });
+const setFacesMode = jest.fn<Promise<unknown>, [unknown]>(() =>
+  Promise.resolve({ data: { ok: true, jobs: [] }, response: { ok: true, status: 200 } }),
+);
 jest.mock("@/app/openapi-client", () => ({
   Notes: { listNotes: jest.fn(() => Promise.resolve({ data: [], response: { ok: true, status: 200 } })) },
   Resources: { editSegment: jest.fn() },
+  Video: { setNamespaceFacesMode: (a: unknown) => setFacesMode(a) },
 }));
+let owner = true; // what useArchive says about owning the namespace
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 jest.mock("@/lib/hooks/session", () => ({
   ...jest.requireActual("@/lib/hooks/session"),
-  useArchive: () => ({ can: () => true, namespaces: [{ name: "pods" }] }),
+  useArchive: () => ({ can: (role: string) => (role === "owner" ? owner : true), namespaces: [{ name: "pods" }] }),
 }));
 const toast = jest.fn();
 jest.mock("@/components/ui/toast", () => ({ useToast: () => toast }));
@@ -364,6 +369,31 @@ describe("a document's page", () => {
     expect(container.querySelectorAll("[data-object='person']")).toHaveLength(2); // two people on p. 2
     fireEvent.click(within(list).getByRole("button", { name: "Person: stop showing its boxes" }));
     expect(container.querySelectorAll("[data-object]")).toHaveLength(0);
+  });
+
+  it("lets owners pixelate the faces for visitors, and tells others why they can't", async () => {
+    const model = { ...MODEL, facesMode: "detect", facesPixelate: false } as unknown as PlayerModel;
+    show({ model });
+    fireEvent.click(screen.getByRole("tab", { name: "People" }));
+    const sw = screen.getByRole("switch", { name: "Pixelate faces for visitors" });
+    expect(sw).not.toBeChecked();
+    fireEvent.click(sw);
+    await waitFor(() => expect(setFacesMode).toHaveBeenCalledTimes(1));
+    expect(setFacesMode.mock.calls[0][0]).toMatchObject({ path: { name: "pods" }, body: { pixelate: true } });
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Visitors see faces pixelated" }));
+
+    cleanup();
+    owner = false;
+    try {
+      show({ model: { ...model, facesPixelate: true } as PlayerModel });
+      fireEvent.click(screen.getByRole("tab", { name: "People" }));
+      const theirs = screen.getByRole("switch", { name: "Pixelate faces for visitors" });
+      expect(theirs).toBeChecked();
+      expect(theirs).toBeDisabled();
+      expect(screen.getByText("Owners of pods can do this")).toBeInTheDocument();
+    } finally {
+      owner = true;
+    }
   });
 
   it("says when no objects were found on its pages", () => {

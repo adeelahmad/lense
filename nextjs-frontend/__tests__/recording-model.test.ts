@@ -181,6 +181,8 @@ describe("normalizePlayer", () => {
       cover: "/c.jpg",
     });
     expect(m.facesMode).toBe("recognize");
+    expect(m.facesPixelate).toBe(false);
+    expect(normalizePlayer({ ...PLAYER, faces_pixelate: true } as Player).facesPixelate).toBe(true);
   });
 
   it("never throws on missing or odd fields", () => {

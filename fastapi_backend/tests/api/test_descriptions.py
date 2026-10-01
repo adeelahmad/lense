@@ -124,9 +124,9 @@ def test_describing_needs_a_model_that_can_see(client, people, db, cfg, llm, mon
     # a model that turns out not to see: the step fails, saying what the server said
     cfg["llm"]["vision_model"] = "fake-blind"
     monkeypatch.setattr(fake_llm.Handler, "blind", True)
-    jobs.enqueue(db, up["recording"], ["describe"], by="test")
+    jid = jobs.enqueue(db, up["recording"], ["describe"], by="test")
     drain(db, cfg)
-    job = db.one("SELECT status, error, created_at FROM job WHERE recording = $r ORDER BY created_at DESC LIMIT 1", r=up["recording"])
+    job = db.one("SELECT status, error FROM $j", j=R("job", jid))  # by id: both its jobs can share a second
     assert job["status"] == "failed" and "fake-blind couldn't describe its pages" in job["error"], job
     assert "does not support image input" in job["error"]
 

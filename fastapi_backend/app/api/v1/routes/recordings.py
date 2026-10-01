@@ -183,7 +183,7 @@ def list_recordings(
     response.headers["X-Total-Count"] = str(total)
     for r in rows:
         r["role"] = acl.role_in(r["space"], r.get("collection"))
-    return [RecordingSummary.model_validate(x) for x in sign_urls(rows)]
+    return [RecordingSummary.model_validate(x) for x in sign_urls(rows, full=True)]
 
 
 @router.get("/tags")
@@ -275,7 +275,7 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     ]
     d["jobs"] = jobs.list_jobs(db, recording=rid, limit=5)
     d["attached_to"] = _attached_to(acl, db, r.get("attached_to"))
-    return Recording.model_validate(sign_urls(d))
+    return Recording.model_validate(sign_urls(d, full=True))
 
 
 def _attached_to(acl: Access, db: DB, link: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -490,8 +490,8 @@ def decline_access_request(rid: int, account: int, acl: Acl, user: Writer, db: D
 @router.get("/{rid}/player")
 def get_player(rid: int, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Player:
     """Player data. Works with a share link (``?s=``) as well as signed in; media links in it are signed."""
-    acl.recording(rid, share=s)
-    return sign_urls(render.player_data(db, rid, audio_link(db, cfg, rid, s)))
+    rec = acl.recording(rid, share=s)
+    return sign_urls(render.player_data(db, rid, audio_link(db, cfg, rid, s)), full=acl.member(rec))
 
 
 @router.get("/{rid}/embed-link")
