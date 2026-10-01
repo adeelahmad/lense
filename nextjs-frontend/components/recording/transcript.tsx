@@ -20,6 +20,7 @@ import { currentStep } from "@/components/recording/jobs";
 import { segmentAt, textRange, wordAt, type Segment } from "@/components/recording/model";
 import { notesAt } from "@/components/recording/notes-model";
 import { SelectionToolbar } from "@/components/recording/selection-toolbar";
+import { HIGHLIGHT_NAME, installSpokenWordStyle } from "@/components/recording/spoken-word";
 import { TurnView, type Unsure } from "@/components/recording/turn";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
@@ -394,8 +395,9 @@ function useSpokenWord(box: React.RefObject<HTMLDivElement | null>, segments: Se
   useEffect(() => {
     if (typeof CSS === "undefined" || !CSS.highlights || typeof Highlight === "undefined") return;
     if (!segments.some((s) => s.words)) return;
+    installSpokenWordStyle();
     const hl = new Highlight();
-    CSS.highlights.set("lens-word", hl);
+    CSS.highlights.set(HIGHLIGHT_NAME, hl);
     let last = "";
     const paint = (ms: number) => {
       const i = segmentAt(segments, ms);
@@ -413,7 +415,7 @@ function useSpokenWord(box: React.RefObject<HTMLDivElement | null>, segments: Se
     const off = api.subscribe(paint);
     return () => {
       off();
-      CSS.highlights.delete("lens-word");
+      CSS.highlights.delete(HIGHLIGHT_NAME);
     };
   }, [api, box, segments]);
 }

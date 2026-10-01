@@ -26,13 +26,12 @@ recording.
 ## Quick start
 
 ```bash
-cp fastapi_backend/.env.example fastapi_backend/.env          # set ACCESS_SECRET_KEY
-cp nextjs-frontend/.env.example nextjs-frontend/.env.local    # set AUTH_SECRET
-docker compose up --build
+make run          # builds once and runs everything (Docker)
+make setup-code   # the first-admin setup code
 ```
 
-Open <http://localhost:3000> and create the first admin with the setup code from the backend log. The API docs are at
-<http://localhost:8000/docs>.
+Open <http://localhost:3000> and create the first admin with the setup code. For hot reload while working on the
+code, `make dev` (the API docs are then at <http://localhost:8000/docs>); see [Get started](docs/get-started.md).
 
 ## Documentation
 

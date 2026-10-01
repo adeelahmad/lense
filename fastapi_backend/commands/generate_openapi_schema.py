@@ -17,7 +17,12 @@ def generate_openapi_schema(output_file):
 
     updated_schema = remove_operation_id_tag(schema)
 
-    output_path.write_text(json.dumps(updated_schema, indent=2))
+    text = json.dumps(updated_schema, indent=2)
+    # Left alone when nothing changed: the frontend regenerates its client whenever this file is written.
+    if output_path.exists() and output_path.read_text() == text:
+        print(f"OpenAPI schema unchanged at {output_file}")
+        return
+    output_path.write_text(text)
     print(f"OpenAPI schema saved to {output_file}")
 
 

@@ -8,7 +8,9 @@ from threading import Timer
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
-# Changes to the app, its schemas or its routes regenerate the OpenAPI schema (and so the frontend client)
+# Changes to the app, its schemas or its routes regenerate the OpenAPI schema (and so the frontend client, when the
+# schema changed). Type checking isn't done here: it took longer than the reload, on every save; run `make
+# lint-backend` or let CI do it.
 WATCHER_REGEX_PATTERN = re.compile(r"(main\.py|schemas/.*\.py|api/.*\.py)$")
 APP_PATH = "app"
 
@@ -31,24 +33,7 @@ class MyHandler(FileSystemEventHandler):
 
     def execute_command(self, file_path):
         print(f"File {file_path} has been modified and saved.")
-        self.run_mypy_checks()
         self.run_openapi_schema_generation()
-
-    def run_mypy_checks(self):
-        """Run mypy type checks and print output."""
-        print("Running mypy type checks...")
-        result = subprocess.run(
-            [sys.executable, "-m", "mypy"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        print(result.stdout, result.stderr, sep="\n")
-        print(
-            "Type errors detected! We recommend checking the mypy output for more information on the issues."
-            if result.returncode
-            else "No type errors detected."
-        )
 
     def run_openapi_schema_generation(self):
         """Run the OpenAPI schema generation command."""

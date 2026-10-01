@@ -2,16 +2,31 @@
 
 ## With Docker (recommended)
 
-You need Docker with Compose.
+You need Docker with Compose, and `make`.
 
 ```bash
-cp fastapi_backend/.env.example fastapi_backend/.env          # set ACCESS_SECRET_KEY
-cp nextjs-frontend/.env.example nextjs-frontend/.env.local    # set AUTH_SECRET
-docker compose up --build
+make run          # build once, run everything: http://localhost:3000
+make setup-code   # the first-admin setup code, printed by the API on its first start
+```
+
+`make run` builds the images (the full backend image, which reads Office files, web pages and emails too; `make run
+LENS_TARGET=lean` for the smaller one), writes a `.env` with fresh secrets if there is none, and starts SurrealDB, the
+API, a job worker and the web app with `docker-compose.prod.yml`: the web app is built ahead of time, so every page is
+instant. `make stop` stops it; `make logs` follows it. The database and the archive live in Docker volumes and survive
+rebuilds.
+
+To work on the code, run the hot-reload stack instead:
+
+```bash
+make dev          # docker compose up --build
 ```
 
 This starts SurrealDB, the API with hot reload (<http://localhost:8000/docs>), a job worker, the web app
-(<http://localhost:3000>) and MailHog for password-reset emails (<http://localhost:8025>).
+(<http://localhost:3000>) and MailHog for password-reset emails (<http://localhost:8025>). Pages are compiled the
+first time they are visited, so the first visit to each takes a few seconds; both stacks share the same volumes, so
+`make run` and `make dev` see the same archive (stop one before starting the other). On a Mac the web app's dev server
+is much faster run natively than through Docker's file sharing: keep the rest in Docker and run `cd nextjs-frontend &&
+pnpm install && pnpm dev` with `API_BASE_URL=http://localhost:8000` in `.env.local`.
 
 On first start the API log prints a setup code:
 
@@ -32,13 +47,14 @@ screen in videos).
 **Backend**
 
 ```bash
-cd fastapi_backend
-uv sync
-cp .env.example .env              # set ACCESS_SECRET_KEY; unset SURREAL_URL to use the embedded database
-cp archive.example.yaml archive.yaml
-echo "RUN_BACKGROUND=true" >> .env  # embedded database: workers must run inside the API process
-./start.sh                        # API on :8000, and a watcher that regenerates the OpenAPI schema
+cd fastapi_backend && uv sync && cd ..
+make start-backend                # API on :8000, and a watcher that regenerates the OpenAPI schema
 ```
+
+`make start-backend` writes `fastapi_backend/.env` (the embedded database under `data_dir`, workers inside the API
+process, the secrets of the root `.env`) and `fastapi_backend/archive.yaml` (from `archive.example.yaml`) when they
+are missing; `.env.example` lists everything else you can set. To use the Docker stack's database instead, set
+`SURREAL_URL=ws://localhost:8001`.
 
 Transcription engines are optional extras: `uv sync --extra sensevoice --extra voices` (SenseVoice and voice IDs),
 `--extra whisper` (faster-whisper), `--extra mlx` (Apple Silicon), `--extra pyannote`.
@@ -46,11 +62,12 @@ Transcription engines are optional extras: `uv sync --extra sensevoice --extra v
 **Frontend**
 
 ```bash
-cd nextjs-frontend
-pnpm install
-cp .env.example .env.local        # API_BASE_URL=http://localhost:8000, AUTH_SECRET=...
-./start.sh                        # web app on :3000, regenerates the API client when openapi.json changes
+cd nextjs-frontend && pnpm install && cd ..
+make start-frontend               # web app on :3000, regenerates the API client when openapi.json changes
 ```
+
+`make start-frontend` writes `nextjs-frontend/.env.local` (`API_BASE_URL=http://localhost:8000`, the root `.env`'s
+`AUTH_SECRET`) when it is missing. `make env` writes every `.env` file at once; none is ever overwritten.
 
 ## The `lens` command
 
