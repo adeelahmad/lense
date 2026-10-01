@@ -29,6 +29,7 @@ from app.schemas.recordings import (
     LanguageCount,
     MediaKind,
     NamespaceAccess,
+    ObjectCount,
     OriginCount,
     Output,
     Permission,
@@ -113,6 +114,9 @@ def list_recordings(
     language: list[str] | None = Query(
         None, description="language codes (ignoring case), none for recordings whose language isn't known; repeat for several"
     ),
+    object: list[str] | None = Query(
+        None, description="kinds of object seen in it (person, car, dog …; ignoring case); repeat for several (any of them matches)"
+    ),
     edited_by: Literal["me"] | None = Query(
         None, description="me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)"
     ),
@@ -174,6 +178,7 @@ def list_recordings(
             collections=cols,
             cfg=cfg,
             field=by_field,
+            objects=object,
         )
     response.headers["X-Total-Count"] = str(total)
     for r in rows:
@@ -203,6 +208,14 @@ def list_languages(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(N
     """The languages of the recordings you can read (or one namespace's), with how many are in each; null: not known."""
     spaces, within = acl.scope(ns)
     return [LanguageCount.model_validate(x) for x in library.language_counts(db, spaces, within)]
+
+
+@router.get("/objects")
+def list_objects(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(None, description="one namespace")) -> list[ObjectCount]:
+    """The kinds of object seen in the recordings you can read (or one namespace's), with how many recordings each is
+    in, the most first (the objects step finds them)."""
+    spaces, within = acl.scope(ns)
+    return [ObjectCount.model_validate(x) for x in library.object_counts(db, spaces, within)]
 
 
 @router.post("/collection")

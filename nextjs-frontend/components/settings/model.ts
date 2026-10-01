@@ -21,6 +21,10 @@ export type SettingsView = Record<string, SectionView> & {
     local_roots?: string[];
     soffice?: string;
     chromium?: string;
+    /** Networks web pages may be captured from besides the public internet (documents.web_networks). */
+    web_networks?: string[];
+    /** The YOLOX model the objects step uses, or "not found". */
+    yolox_model?: string;
   } & Record<string, unknown>;
 };
 
@@ -133,9 +137,9 @@ export const SECTIONS: SectionSpec[] = [
   },
   {
     id: "video",
-    label: "Video, OCR and faces",
+    label: "Video, OCR, faces and objects",
     backend: ["video"],
-    description: "Shots and keyframes, text on screen, and faces in video recordings.",
+    description: "Shots and keyframes, text on screen, faces, and objects in videos, documents and images.",
   },
   {
     id: "workers",
@@ -194,6 +198,7 @@ export const WORKER_STEPS = [
   "shots",
   "ocr",
   "faces",
+  "objects",
   "analyze",
   "summarize",
   "llm",
@@ -709,6 +714,27 @@ export const FIELDS: FieldSpec[] = [
     label: "Publish faces in IIIF",
     kind: "switch",
     hint: "People on screen, for public video recordings only",
+  },
+  {
+    section: "video",
+    key: "object_engine",
+    label: "Object detector",
+    kind: "select",
+    options: [
+      { value: "yolox", label: "YOLOX on ONNX Runtime (Apache-2.0)" },
+      { value: "ultralytics", label: "Ultralytics YOLO (AGPL-3.0)" },
+      { value: "off", label: "Off" },
+    ],
+    hint: "Finds people, vehicles, animals and everyday things on frames and pages",
+  },
+  {
+    section: "video",
+    key: "object_min_score",
+    label: "Object confidence",
+    kind: "number",
+    min: 0.05,
+    max: 0.95,
+    hint: "Objects the detector is less sure of are left out",
   },
   // Workers
   {

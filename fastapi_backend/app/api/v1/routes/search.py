@@ -26,18 +26,36 @@ def search_transcripts(
     speaker: int | None = None,
     emotion: str | None = None,
     recording: int | None = None,
+    object: str | None = Query(None, max_length=60, description="only recordings this kind of object is seen in (person, car …)"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    facets: bool = Query(False, description="also count all the matching moments by namespace, speaker, emotion and recording (`facets`)"),
+    facets: bool = Query(
+        False,
+        description="also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object",
+    ),
 ) -> SearchResults:
     """Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
-    transcripts, captions, translations and indexes), best first, in the namespaces you can read and the collections
-    you were given a role on. A speaker or emotion filter keeps to what was said."""
+    transcripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),
+    best first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion
+    filter keeps to what was said."""
     if ns:
         acl.scope(ns)  # 404 unless they see some of it
     also = acl.partial_recordings()
     res = searchmod.search(
-        db, q, ns, speaker, emotion, recording, limit, offset, spaces=set(acl.roles), facets=facets, also=also, files=True
+        db,
+        q,
+        ns,
+        speaker,
+        emotion,
+        recording,
+        limit,
+        offset,
+        spaces=set(acl.roles),
+        facets=facets,
+        also=also,
+        files=True,
+        objects=True,
+        obj=object,
     )
     return sign_urls(res)
 

@@ -22,8 +22,10 @@ import {
   type Mark,
 } from "@/components/recording/document/model";
 import { Banners, HeaderActions, RecordingHeader } from "@/components/recording/header";
-import { useNotes, useRecordingActions } from "@/components/recording/hooks";
-import { segmentAt, splitRuns, type PageInfo } from "@/components/recording/model";
+import { useNotes, useRecordingActions, useVisualNotes } from "@/components/recording/hooks";
+import { segmentAt, splitRuns, type Box, type PageInfo } from "@/components/recording/model";
+import { boxesOnPage, objectName } from "@/components/recording/objects-model";
+import { ObjectsTab } from "@/components/recording/objects-tab";
 import { MORE_TABS, PanelBody, PanelScroll, PanelTabs, type TabDef } from "@/components/recording/side-panel";
 import { FindBar } from "@/components/recording/find-bar";
 import { useFaceColors } from "@/components/recording/video/face-colors";
@@ -114,17 +116,25 @@ const MARK: Record<Mark["kind"], string> = {
   "current-hit": "bg-hl-word mix-blend-multiply outline outline-[3px] outline-gold",
 };
 
-/** A page drawn, with the blocks to see marked on it, and its faces; a placeholder for a page that couldn't be drawn. */
+/**
+ * A page drawn, with the blocks to see marked on it, its faces and the kind of object chosen in the Objects tab; a
+ * placeholder for a page that couldn't be drawn.
+ */
 function PageImage({
   page,
   marks,
   faces = [],
+  things = [],
+  thing = "",
   zoom,
   name,
 }: {
   page: PageInfo;
   marks: Mark[];
   faces?: FaceMark[];
+  /** Where the chosen kind of object (`thing`) is on the page. */
+  things?: Box[];
+  thing?: string;
   zoom: number;
   name: string;
 }) {
@@ -164,6 +174,19 @@ function PageImage({
         />
       ))}
       {faces.length > 0 && <PageFaces faces={faces} />}
+      {things.map((b, i) => (
+        <span
+          key={`o${i}`}
+          data-object={thing}
+          title={objectName(thing)}
+          className="pointer-events-none absolute rounded-[4px] border-2 border-[var(--aladdin-green)]"
+          style={{ left: `${b[0] * 100}%`, top: `${b[1] * 100}%`, width: `${b[2] * 100}%`, height: `${b[3] * 100}%` }}
+        >
+          <span className="absolute -top-[20px] left-[-2px] whitespace-nowrap rounded-[3px] bg-[var(--aladdin-green)] px-1.5 py-px text-[11px] font-bold text-white">
+            {objectName(thing)}
+          </span>
+        </span>
+      ))}
     </div>
   );
 }
@@ -233,8 +256,8 @@ function PageField({ view, count }: { view: DocView; count: number }) {
   );
 }
 
-/** The page shown, with a toolbar to turn pages and zoom. */
-function PageStage({ view, compact }: { view: DocView; compact?: boolean }) {
+/** The page shown, with a toolbar to turn pages and zoom; `object` is the kind of object whose boxes to draw. */
+function PageStage({ view, compact, object = null }: { view: DocView; compact?: boolean; object?: string | null }) {
   const { model, state, find } = useRec();
   const count = model.pages.length;
   const p = model.pages[view.page];
@@ -246,6 +269,10 @@ function PageStage({ view, compact }: { view: DocView; compact?: boolean }) {
     () => (model.facesMode === "off" ? [] : facesOn(model.faces, view.page)),
     [model.faces, model.facesMode, view.page],
   );
+  const things = useMemo(() => {
+    const t = object ? model.objects.find((o) => o.label === object) : undefined;
+    return t ? boxesOnPage(t, view.page) : [];
+  }, [model.objects, object, view.page]);
   const name = `Page ${pageNumber(model.pages, view.page)}`;
   return (
     <section aria-label="Pages" className="flex min-h-0 min-w-0 flex-col bg-surface-neutral">
@@ -292,7 +319,15 @@ function PageStage({ view, compact }: { view: DocView; compact?: boolean }) {
       </div>
       <div className={cn("min-h-0 flex-1 overflow-auto p-4", compact && "max-h-[58dvh] min-h-[320px] p-3")}>
         {p ? (
-          <PageImage page={p} marks={marks} faces={faces} zoom={view.zoom} name={name} />
+          <PageImage
+            page={p}
+            marks={marks}
+            faces={faces}
+            things={things}
+            thing={object ?? ""}
+            zoom={view.zoom}
+            name={name}
+          />
         ) : state.phase === "processing" || state.phase === "analyzing" ? (
           <EmptyState icon={<Loader2 className="animate-spin" />} title="Drawing its pages" className="py-16">
             Its pages appear here as soon as they&apos;re drawn and read.
@@ -545,6 +580,8 @@ export function DocumentLayout({ compact }: { compact: boolean }) {
   const view = useDocView();
   const wide = useMediaQuery("(min-width: 1280px)");
   const notes = useNotes(r.id).data?.length ?? 0;
+  const visual = useVisualNotes(r.jobs);
+  const [object, setObject] = useState<string | null>(null);
   const tabs: TabDef[] = [
     { value: "pages", label: "Text", count: model.segments.length || undefined },
     { value: "summary", label: "Summary" },
@@ -555,6 +592,7 @@ export function DocumentLayout({ compact }: { compact: boolean }) {
     ...(model.facesMode === "off"
       ? []
       : [{ value: "people" as const, label: "People", count: model.faces.length || undefined }]),
+    { value: "objects", label: "Objects", count: model.objects.length || undefined },
     { value: "history", label: "History" },
   ];
   const current: PanelTab = [...tabs, ...MORE_TABS].some((t) => t.value === tab) ? tab : "pages";
@@ -564,6 +602,8 @@ export function DocumentLayout({ compact }: { compact: boolean }) {
       <PageText view={view} follow={!compact} />
     ) : current === "people" ? (
       <PeopleTab onPage={view.turn} />
+    ) : current === "objects" ? (
+      <ObjectsTab selected={object} onSelect={setObject} onPage={view.turn} why={visual.objectsWhy} />
     ) : (
       <PanelBody tab={current} />
     );
@@ -618,7 +658,7 @@ export function DocumentLayout({ compact }: { compact: boolean }) {
           <HeaderActions compact />
         </div>
         {state.phase !== "ready" && <Banners className="mx-3 mt-2" />}
-        <PageStage view={view} compact />
+        <PageStage view={view} compact object={object} />
         <div className="flex min-h-[320px] flex-col border-t border-border">
           <PanelTabs tabs={tabs} more={MORE_TABS} value={current} onChange={setTab} idBase="doc" className="px-3.5" />
           <PanelScroll id="doc" tab={current} className="overflow-visible">
@@ -640,7 +680,7 @@ export function DocumentLayout({ compact }: { compact: boolean }) {
         }}
       >
         {wide && <Thumbs view={view} />}
-        <PageStage view={view} />
+        <PageStage view={view} object={object} />
         <aside aria-label="Panels" className="flex min-h-0 min-w-0 flex-col border-l border-border bg-background">
           <PanelTabs tabs={tabs} more={MORE_TABS} value={current} onChange={setTab} idBase="doc" />
           <PanelScroll id="doc" tab={current}>

@@ -67,14 +67,14 @@ def list_searches(user: CurrentUser, acl: Acl, db: Db) -> list[SavedSearch]:
 
 @router.post("")
 def create_search(body: SearchCreate, user: Writer, acl: Acl, db: Db) -> SavedSearch:
-    """Save a search (its words, namespace, speaker, emotion and recording) under a name unique among yours. Sharing it
+    """Save a search (its words, namespace, speaker, emotion, recording and object) under a name unique among yours. Sharing it
     with its namespace needs editor access there."""
     sid = acl.namespace(body.namespace) if body.namespace else None
     if body.recording is not None:
         acl.recording(body.recording)
     if body.shared:
         check_share(acl, sid, "saved search")
-    state = body.model_dump(include={"q", "speaker", "emotion", "recording"})
+    state = body.model_dump(include={"q", "speaker", "emotion", "recording", "object"})
     with domain_errors():
         vid = views.create(db, user.id, body.name, sid, state, body.shared, kind="search")
     if body.shared:

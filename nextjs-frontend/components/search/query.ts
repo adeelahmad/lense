@@ -1,10 +1,10 @@
 /**
  * The search box: free words plus typed filters (`speaker:"Host B"`, `namespace:podcasts`, `emotion:surprise`,
- * `recording:"Episode 12"`). Typed filters become chips; the chip and the facet are one filter. The backend's rules:
+ * `recording:"Episode 12"`, `object:car`). Typed filters become chips; the chip and the facet are one filter. The backend's rules:
  * every word must appear (English stemming), "quoted phrases" as written, OR between alternatives, no prefix search.
  */
 
-export type FilterKey = "namespace" | "speaker" | "emotion" | "recording";
+export type FilterKey = "namespace" | "speaker" | "emotion" | "recording" | "object";
 
 /** Filters as the URL holds them: speaker and recording are ids, namespace a name, emotion a label. */
 export type SearchFilters = {
@@ -12,6 +12,8 @@ export type SearchFilters = {
   speaker?: number;
   emotion?: string;
   recording?: number;
+  /** A kind of object the recordings have (person, car …). */
+  object?: string;
 };
 
 /** Filters as typed in the box, by name, before they are matched to ids. */
@@ -23,8 +25,9 @@ const KEYS: Record<string, FilterKey> = {
   speaker: "speaker",
   emotion: "emotion",
   recording: "recording",
+  object: "object",
 };
-const FILTER_RX = /(?:^|\s)(namespace|ns|speaker|emotion|recording):(?:"([^"]*)"?|(\S+))/gi;
+const FILTER_RX = /(?:^|\s)(namespace|ns|speaker|emotion|recording|object):(?:"([^"]*)"?|(\S+))/gi;
 
 /** Split what was typed into the words to search for and the typed filters. */
 export function parseQuery(input: string): {
@@ -98,6 +101,7 @@ export function fromParams(p: URLSearchParams): {
       speaker: int(p.get("speaker")),
       emotion: p.get("emotion") || undefined,
       recording: int(p.get("recording")),
+      object: p.get("object") || undefined,
     },
   };
 }
@@ -110,11 +114,12 @@ export function toParams(q: string, f: SearchFilters): string {
   if (f.speaker != null) p.set("speaker", String(f.speaker));
   if (f.emotion) p.set("emotion", f.emotion);
   if (f.recording != null) p.set("recording", String(f.recording));
+  if (f.object) p.set("object", f.object);
   return p.toString();
 }
 
 export function activeFilterCount(f: SearchFilters): number {
-  return [f.namespace, f.speaker, f.emotion, f.recording].filter((v) => v != null && v !== "").length;
+  return [f.namespace, f.speaker, f.emotion, f.recording, f.object].filter((v) => v != null && v !== "").length;
 }
 
 type Saved = {
@@ -125,6 +130,7 @@ type Saved = {
   emotion?: string | null;
   recording?: number | null;
   recording_title?: string | null;
+  object?: string | null;
 };
 
 /** Where a saved search opens: the search page with its words and filters. */
@@ -134,6 +140,7 @@ export function savedSearchHref(s: Saved): string {
     speaker: s.speaker ?? undefined,
     emotion: s.emotion ?? undefined,
     recording: s.recording ?? undefined,
+    object: s.object ?? undefined,
   })}`;
 }
 
@@ -144,6 +151,7 @@ export function savedSearchFilters(s: Saved): string {
     s.speaker != null ? (s.speaker_name ?? `Speaker #${s.speaker}`) : null,
     s.emotion,
     s.recording != null ? (s.recording_title ?? `Recording #${s.recording}`) : null,
+    s.object ? `with ${s.object}` : null,
   ]
     .filter(Boolean)
     .join(" · ");

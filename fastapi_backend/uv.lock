@@ -1565,6 +1565,9 @@ mlx = [
 msg = [
     { name = "extract-msg" },
 ]
+objects = [
+    { name = "onnxruntime" },
+]
 pyannote = [
     { name = "pyannote-audio" },
 ]
@@ -1597,6 +1600,8 @@ dev = [
     { name = "jsonschema" },
     { name = "mkdocs-material", extra = ["imaging"] },
     { name = "mypy" },
+    { name = "onnx" },
+    { name = "onnxruntime" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -1624,6 +1629,7 @@ requires-dist = [
     { name = "modelscope", marker = "extra == 'sensevoice'" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "onnxruntime", marker = "extra == 'insightface'" },
+    { name = "onnxruntime", marker = "extra == 'objects'" },
     { name = "opencv-python-headless", marker = "extra == 'faces'" },
     { name = "pillow", specifier = ">=10" },
     { name = "pyannote-audio", marker = "extra == 'pyannote'" },
@@ -1641,7 +1647,7 @@ requires-dist = [
     { name = "torchaudio", marker = "extra == 'sensevoice'" },
     { name = "torchaudio", marker = "extra == 'voices'" },
 ]
-provides-extras = ["sensevoice", "whisper", "mlx", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "insightface", "validate", "msg"]
+provides-extras = ["sensevoice", "whisper", "mlx", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "insightface", "objects", "validate", "msg"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1652,6 +1658,8 @@ dev = [
     { name = "mkdocs-material", specifier = ">=9.6.9" },
     { name = "mkdocs-material", extras = ["imaging"], specifier = ">=9.6.9" },
     { name = "mypy", specifier = ">=1.13.0,<2" },
+    { name = "onnx", specifier = ">=1.16" },
+    { name = "onnxruntime", specifier = ">=1.18" },
     { name = "pre-commit", specifier = ">=3.4.0,<4" },
     { name = "pytest", specifier = ">=8.3.3,<9" },
     { name = "pytest-cov", specifier = ">=5,<8" },

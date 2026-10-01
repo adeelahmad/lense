@@ -216,6 +216,16 @@ export function useLanguages(ns: string | null) {
   });
 }
 
+/** The kinds of object seen in the recordings shown, with how many recordings each is in. */
+export function useObjectCounts(ns: string | null) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["recording-objects", ns],
+    queryFn: () => data(Resources.listObjects({ client, query: ns ? { ns } : {} })),
+    staleTime: 60_000,
+  });
+}
+
 export function useTagCounts(ns: string | null) {
   const client = useApiClient();
   return useQuery({

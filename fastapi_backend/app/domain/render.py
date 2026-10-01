@@ -213,7 +213,7 @@ def visual(db, rid, rec):
             {**p, "image": frame_link(rid, p.get("image")), "thumb": frame_link(rid, p.get("thumb"))} for p in documents.pages(db, rid)
         ]
         out["poster"] = out["pages"][0]["thumb"] if out["pages"] else None
-        return {**out, **_faces(db, rid, rec)}  # their spans and boxes count pages, from 0
+        return {**out, **_faces(db, rid, rec), **_objects(db, rid)}  # their spans and boxes count pages, from 0
     if media.get("kind") != "video":
         return out
 
@@ -237,6 +237,7 @@ def visual(db, rid, rec):
         )
     ]
     out.update(_faces(db, rid, rec))
+    out.update(_objects(db, rid))
     out["poster"] = out["shots"][0]["frame"] if out["shots"] else None
     return out
 
@@ -249,6 +250,13 @@ def _faces(db, rid, rec):
     keep = ("id", "local", "face", "name", "spans", "screen_ms", "first_ms", "boxes", "score", "match")
     tracks = faces.tracks_for(db, rid) if mode != "off" else []
     return {"faces_mode": mode, "faces": [{**{k: t.get(k) for k in keep}, "cover": frame_link(rid, t.get("cover"))} for t in tracks]}
+
+
+def _objects(db, rid):
+    """The kinds of object found in the recording, the most seen first, each with the frame it's best seen on."""
+    from . import objects
+
+    return {"objects": [{**t, "frame": frame_link(rid, t.get("frame"))} for t in objects.for_recording(db, rid)]}
 
 
 def has_audio(db, cfg, rid):

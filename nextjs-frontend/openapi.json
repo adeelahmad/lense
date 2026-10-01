@@ -2156,6 +2156,27 @@
             "description": "language codes (ignoring case), none for recordings whose language isn't known; repeat for several"
           },
           {
+            "name": "object",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "kinds of object seen in it (person, car, dog \u2026; ignoring case); repeat for several (any of them matches)",
+              "title": "Object"
+            },
+            "description": "kinds of object seen in it (person, car, dog \u2026; ignoring case); repeat for several (any of them matches)"
+          },
+          {
             "name": "edited_by",
             "in": "query",
             "required": false,
@@ -2506,6 +2527,62 @@
                     "$ref": "#/components/schemas/LanguageCount"
                   },
                   "title": "Response Recordings-List Languages"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/objects": {
+      "get": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "List Objects",
+        "description": "The kinds of object seen in the recordings you can read (or one namespace's), with how many recordings each is\nin, the most first (the objects step finds them).",
+        "operationId": "list_objects",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace",
+              "title": "Ns"
+            },
+            "description": "one namespace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ObjectCount"
+                  },
+                  "title": "Response Recordings-List Objects"
                 }
               }
             }
@@ -5712,7 +5789,7 @@
           "search"
         ],
         "summary": "Search Transcripts",
-        "description": "Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary\ntranscripts, captions, translations and indexes), best first, in the namespaces you can read and the collections\nyou were given a role on. A speaker or emotion filter keeps to what was said.",
+        "description": "Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary\ntranscripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),\nbest first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion\nfilter keeps to what was said.",
         "operationId": "search_transcripts",
         "parameters": [
           {
@@ -5791,6 +5868,25 @@
             }
           },
           {
+            "name": "object",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only recordings this kind of object is seen in (person, car \u2026)",
+              "title": "Object"
+            },
+            "description": "only recordings this kind of object is seen in (person, car \u2026)"
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -5819,11 +5915,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "also count all the matching moments by namespace, speaker, emotion and recording (`facets`)",
+              "description": "also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object",
               "default": false,
               "title": "Facets"
             },
-            "description": "also count all the matching moments by namespace, speaker, emotion and recording (`facets`)"
+            "description": "also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object"
           }
         ],
         "responses": {
@@ -6053,7 +6149,7 @@
           "searches"
         ],
         "summary": "Create Search",
-        "description": "Save a search (its words, namespace, speaker, emotion and recording) under a name unique among yours. Sharing it\nwith its namespace needs editor access there.",
+        "description": "Save a search (its words, namespace, speaker, emotion, recording and object) under a name unique among yours. Sharing it\nwith its namespace needs editor access there.",
         "operationId": "create_search",
         "requestBody": {
           "content": {
@@ -18612,6 +18708,161 @@
         "type": "object",
         "title": "NoteUpdate"
       },
+      "ObjectCount": {
+        "properties": {
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "description": "a kind of object (person, car, dog \u2026)"
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "object",
+          "recordings"
+        ],
+        "title": "ObjectCount"
+      },
+      "ObjectFacet": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "a kind of object (person, car \u2026)"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "how many of the recordings with matching moments it's seen in"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "count"
+        ],
+        "title": "ObjectFacet"
+      },
+      "ObjectTrack": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "what it is (person, car, dog \u2026: the COCO dataset's kinds, with the default engine)"
+          },
+          "spans": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Spans",
+            "description": "[from, to) where it's seen: ms, or page numbers from 0 when `paged`"
+          },
+          "screen_ms": {
+            "type": "integer",
+            "title": "Screen Ms",
+            "description": "how long it's seen (ms), or on how many pages when `paged`"
+          },
+          "first_ms": {
+            "type": "integer",
+            "title": "First Ms",
+            "description": "where it's first seen: ms, or a page number when `paged`"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "how many times it was found (on how many sampled frames or pages, and side by side)"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score",
+            "description": "how sure the detector was, on average (0-1)"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame",
+            "description": "signed link to the frame or page it's best seen on"
+          },
+          "box": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Box",
+            "description": "where it is on that frame or page: [x, y, w, h] as fractions"
+          },
+          "boxes": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Boxes",
+            "description": "each place it was found: [t (ms, or page), x, y, w, h, score] (at most 500)"
+          },
+          "paged": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paged",
+            "description": "true for a document's or an image's pages"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine",
+            "description": "the detector: yolox or ultralytics"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "label",
+          "spans",
+          "screen_ms",
+          "first_ms",
+          "count",
+          "score"
+        ],
+        "title": "ObjectTrack",
+        "description": "A kind of object seen in a recording, and where."
+      },
       "OcrFix": {
         "properties": {
           "text": {
@@ -19510,6 +19761,14 @@
             ],
             "title": "Pages",
             "description": "a document's or an image's pages, in order"
+          },
+          "objects": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectTrack"
+            },
+            "type": "array",
+            "title": "Objects",
+            "description": "videos, documents and images: the kinds of object seen in it, the most seen first"
           }
         },
         "additionalProperties": true,
@@ -22198,6 +22457,18 @@
             "title": "Recording Title",
             "description": "the recording's title, when you can read it"
           },
+          "object": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object",
+            "description": "a kind of object the recordings have"
+          },
           "created_by": {
             "anyOf": [
               {
@@ -22384,6 +22655,19 @@
             ],
             "title": "Recording"
           },
+          "object": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object",
+            "description": "a kind of object the recordings have (person, car \u2026)"
+          },
           "name": {
             "type": "string",
             "maxLength": 60,
@@ -22456,6 +22740,13 @@
             },
             "type": "array",
             "title": "Recordings"
+          },
+          "objects": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectFacet"
+            },
+            "type": "array",
+            "title": "Objects"
           }
         },
         "additionalProperties": true,
@@ -22465,7 +22756,7 @@
           "partial"
         ],
         "title": "SearchFacets",
-        "description": "How many of all the matching moments are in each namespace, speaker, emotion and recording (up to 50 of each,\nmost first). Text on screen has no speaker or emotion."
+        "description": "How many of all the matching moments are in each namespace, speaker, emotion and recording (up to 50 of each,\nmost first), and the kinds of object seen in the recordings they're in. Text on screen has no speaker or emotion."
       },
       "SearchHit": {
         "properties": {
@@ -22596,10 +22887,11 @@
               "said",
               "screen",
               "file",
-              "page"
+              "page",
+              "object"
             ],
             "title": "Source",
-            "description": "\"said\" (transcript), \"screen\" (text on screen in a video), \"file\" (a line of a supplementary file) or \"page\" (text on a page of a document or an image, whose times are only a reading pace)"
+            "description": "\"said\" (transcript), \"screen\" (text on screen in a video), \"file\" (a line of a supplementary file), \"page\" (text on a page of a document or an image, whose times are only a reading pace) or \"object\" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind)"
           },
           "frame": {
             "anyOf": [
@@ -22611,11 +22903,11 @@
               }
             ],
             "title": "Frame",
-            "description": "screen hits: signed link to the video frame"
+            "description": "screen and object hits: signed link to the video frame or the page"
           },
           "box": {
             "title": "Box",
-            "description": "screen and page hits: where the text is on the frame or the page ([x, y, w, h] fractions)"
+            "description": "screen, page and object hits: where it is on the frame or the page ([x, y, w, h] fractions)"
           },
           "page": {
             "anyOf": [
@@ -22627,7 +22919,7 @@
               }
             ],
             "title": "Page",
-            "description": "page hits: which page (from 0)"
+            "description": "page hits, and object hits on a document's pages: which page (from 0)"
           },
           "file": {
             "anyOf": [
@@ -25774,6 +26066,17 @@
             "maxItems": 20,
             "title": "Languages",
             "description": "language codes; none: not known"
+          },
+          "objects": {
+            "items": {
+              "type": "string",
+              "maxLength": 60,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Objects",
+            "description": "kinds of object seen in them (GET /recordings `object`): any of these"
           },
           "sort": {
             "type": "string",

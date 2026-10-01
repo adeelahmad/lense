@@ -50,6 +50,7 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 * `sources.rclone` and `sources.local_roots`: which binary is run for remote storage and which local folders may be
   watched. These are bootstrap-only on purpose, so the web app can't choose what runs or open up the server's disk.
 * `video.yunet_model` / `video.sface_model`: face model files.
+* `video.yolox_model` / `video.ultralytics_model`: the object detector's model ([Objects](#objects)).
 
 ## Settings in the app
 
@@ -121,6 +122,36 @@ Chromium runs with its sandbox where it can, and without it as root or where the
 needs. The pages are JPEGs in `data_dir/frames/<resource>/` (a page of about 300 KB at the default size) and the PDF
 made of a document is `data_dir/renditions/<resource>.pdf`; both go when the resource does. Workers listed in
 `workers.steps` run them as part of `transcribe`.
+
+## Objects
+
+The objects step finds the people, vehicles, animals and everyday things (the 80 kinds of the COCO dataset) on a
+video's sampled frames and on a document's or an image's pages ([API](api.md#objects)), with the engine of
+`video.object_engine`:
+
+* `yolox`, the default: YOLOX on ONNX Runtime, both Apache-2.0. It needs ONNX Runtime (`pip install -e ".[objects]"`)
+  and a YOLOX `.onnx` model as YOLOX's releases publish them. The `lens:full` image has YOLOX-s in `/opt/lens/models`,
+  where Lens finds it without being told ([Deployment](deployment.md)).
+* `ultralytics`: Ultralytics YOLO (`pip install ultralytics`). It's AGPL-3.0: a server that lets others use it must
+  offer them its source, so it's in no image and no extra.
+* `off`.
+
+Without one the step is skipped, and its job says why. Settings → Video:
+
+| Setting | Default | |
+|---|---|---|
+| `video.object_engine` | `yolox` | `yolox`, `ultralytics` or `off` |
+| `video.object_min_score` | 0.4 | how sure the detector must be to keep what it found, 0.05–0.95 |
+
+Set at startup only:
+
+| Setting | Default | |
+|---|---|---|
+| `video.yolox_model` | the first `yolox*.onnx` in `/opt/lens/models` | a YOLOX model: YOLOX-s (35 MB, the image's), or YOLOX-Nano and YOLOX-Tiny (smaller and faster, less sure) |
+| `video.ultralytics_model` | `yolov8n.pt` | Ultralytics weights, a file or a name Ultralytics downloads |
+
+On a CPU, YOLOX-s takes about a tenth of a second a frame. What's found is kept per kind and resource: where it's seen
+and its boxes on each frame or page (at most 500).
 
 ## API keys
 

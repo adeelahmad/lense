@@ -105,6 +105,7 @@ export function SearchPage() {
             speaker: filters.speaker,
             emotion: filters.emotion,
             recording: filters.recording,
+            object: filters.object,
             limit: PAGE,
             offset: pageParam,
             // without filters, the first page brings the facets too
@@ -138,6 +139,7 @@ export function SearchPage() {
     const out: Partial<Record<keyof SearchFilters, string>> = {};
     if (filters.namespace) out.namespace = filters.namespace;
     if (filters.emotion) out.emotion = filters.emotion;
+    if (filters.object) out.object = filters.object;
     if (filters.speaker != null) {
       const hit = [...(baseData?.hits ?? []), ...hits].find((h) => h.speaker_id === filters.speaker);
       out.speaker = hit?.speaker ?? `Speaker #${filters.speaker}`;
@@ -188,6 +190,7 @@ export function SearchPage() {
       else issues.push(`You have no namespace called “${typed.namespace}”.`);
     }
     if (typed.emotion) next.emotion = normalizeEmotion(typed.emotion);
+    if (typed.object) next.object = typed.object.trim().toLowerCase();
     if (typed.recording) {
       const want = typed.recording.toLowerCase();
       const all = index.data ?? [];
@@ -213,7 +216,7 @@ export function SearchPage() {
     setDraft(text);
   };
 
-  const chips: Chip[] = (["namespace", "speaker", "emotion", "recording"] as const)
+  const chips: Chip[] = (["namespace", "speaker", "emotion", "recording", "object"] as const)
     .filter((k) => filters[k] != null && filters[k] !== "")
     .map((k) => ({
       key: k,

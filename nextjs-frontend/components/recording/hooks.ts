@@ -1,12 +1,12 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { Entities, Files, Jobs, Notes, Pipelines, Resources, Speakers, Templates, Video } from "@/app/openapi-client";
 import type { FileUpdate, NoteCreate, Recording } from "@/app/openapi-client/types.gen";
 import type { FileRole } from "@/components/recording/files-model";
-import { isActive, normalizeJob, type JobInfo } from "@/components/recording/jobs";
+import { isActive, normalizeJob, skipReason, stepNotes, type JobInfo } from "@/components/recording/jobs";
 import { normalizePlayer } from "@/components/recording/model";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
@@ -502,4 +502,25 @@ export function slug(s: string): string {
       .replace(/^-+|-+$/g, "")
       .slice(0, 60) || "recording"
   );
+}
+
+/**
+ * What the last visual steps said: no OCR engine, no faces found, why objects weren't looked for (from the latest
+ * job log that ran them).
+ */
+export function useVisualNotes(jobs: JobInfo[]) {
+  const last = jobs.find((j) => j.steps.some((s) => s.type === "ocr" || s.type === "faces" || s.type === "objects"));
+  const detail = useJob(last?.id, isActive(last));
+  const j = detail.data ?? last;
+  return useMemo(() => {
+    if (!j) return { noEngine: false, noFaces: false, objectsWhy: null };
+    const notes = stepNotes(j);
+    const at = (type: string) => notes[j.steps.findIndex((s) => s.type === type)];
+    const note = (type: string) => at(type)?.notes.join(" ") ?? "";
+    return {
+      noEngine: /no OCR engine/i.test(note("ocr")),
+      noFaces: /no faces found/i.test(note("faces")),
+      objectsWhy: at("objects")?.skipped ? skipReason(note("objects")) : null,
+    };
+  }, [j]);
 }

@@ -41,6 +41,7 @@ import {
   useSpeakerChoices,
   useLanguages,
   useOrigins,
+  useObjectCounts,
   useTagCounts,
   useWatchedSources,
 } from "@/components/library/use-library";
@@ -123,6 +124,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const tree = useCollectionTree(namespace);
   const tagCounts = useTagCounts(namespace);
+  const objectCounts = useObjectCounts(namespace);
   const origins = useOrigins(namespace);
   const languages = useLanguages(namespace);
   const [dragging, setDragging] = useState(false);
@@ -524,6 +526,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
               speakers={speakers.choices}
               speakersLoading={speakers.loading}
               tags={tagCounts.data ?? []}
+              objects={objectCounts.data ?? []}
               tagsLoading={tagCounts.isPending}
               inputRef={filterRef}
               compact={narrow}

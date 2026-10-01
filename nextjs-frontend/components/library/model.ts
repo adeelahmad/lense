@@ -224,6 +224,8 @@ export type Filters = {
   origins: string[];
   /** Language codes; "none" for recordings whose language isn't known. */
   languages: string[];
+  /** Any of these kinds of object seen in them (person, car …; the objects step). */
+  objects: string[];
   /** A collection of the namespace shown: the recordings in it and in the collections inside it. */
   collection: number | null;
   /** A custom field of the namespace shown: the recordings with a value for it, or with this value. */
@@ -243,6 +245,7 @@ export const NO_FILTERS: Filters = {
   tags: [],
   origins: [],
   languages: [],
+  objects: [],
   collection: null,
   field: null,
 };
@@ -321,6 +324,7 @@ export function activeFilterCount(f: Filters): number {
     (f.tags.length ? 1 : 0) +
     (f.origins.length ? 1 : 0) +
     (f.languages.length ? 1 : 0) +
+    (f.objects.length ? 1 : 0) +
     (f.collection != null ? 1 : 0) +
     (f.field ? 1 : 0)
   );
@@ -381,6 +385,7 @@ export function libraryQuery(
   if (f.tags.length) q.tag = f.tags;
   if (f.origins.length) q.origin = f.origins;
   if (f.languages.length) q.language = f.languages;
+  if (f.objects.length) q.object = f.objects;
   if (f.collection != null) q.collection = f.collection;
   if (f.field) {
     q.field = f.field.id;

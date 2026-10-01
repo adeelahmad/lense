@@ -77,14 +77,21 @@ def search(
     facets=False,
     also=None,
     files=False,
+    objects=False,
+    obj=None,
 ):
     """Transcript lines (and, unless screen is false, text on screen in videos; with files, the lines of supplementary
-    transcripts, captions, translations and indexes) matching q. spaces limits the search to namespaces someone may
-    read, and `also` adds recordings they may read beyond those (in collections they were given a role on); recordings
-    limits it to a set of recordings (such as the transcripts a visitor may read). With facets, also how many of all the
-    matching moments (up to FACET_CAP) are in each namespace, speaker, emotion and recording."""
+    transcripts, captions, translations and indexes; with objects, the kinds of object seen in videos, documents and
+    images) matching q. spaces limits the search to namespaces someone may read, and `also` adds recordings they may
+    read beyond those (in collections they were given a role on); recordings limits it to a set of recordings (such as
+    the transcripts a visitor may read), and obj to those a kind of object is seen in. With facets, also how many of
+    all the matching moments (up to FACET_CAP) are in each namespace, speaker, emotion and recording, and which kinds
+    of object the recordings they're in have."""
     groups = parse_query(q)
     empty = {"q": q, "query": "", "total": 0, "capped": False, "hits": []}
+    if obj:
+        having = set(db.values("SELECT VALUE record::id(id) FROM recording WHERE objects CONTAINS $o", o=" ".join(obj.split()).casefold()))
+        recordings = having if recordings is None else set(recordings) & having
     if not groups or (recordings is not None and not recordings):
         return empty
     filt, params = [], {"m0": M0, "m1": M1}
@@ -147,6 +154,8 @@ def search(
         hits += _screen(db, groups, space_filter(ns, spaces, recording, params), cap, params)
     if files and not speaker and not emotion:  # nor do the lines of files (a speaker there is just a label)
         hits += _file_lines(db, groups, space_filter(ns, spaces, recording, params), cap, params)
+    if objects and not speaker and not emotion:  # nor do the objects seen
+        hits += _objects(db, groups, space_filter(ns, spaces, recording, params), cap, params)
     hits.sort(key=lambda r: (-r["_score"], r["recording"], r.get("idx") or 0))
     page = hits[offset : offset + limit]
     recs = (
@@ -200,9 +209,10 @@ def search(
             "source": h["source"],
             **(
                 {"frame": f"{store.API}/recordings/{h['recording']}/frames/{h['frame']}" if h.get("frame") else None, "box": h.get("box")}
-                if h["source"] == "screen"
+                if h["source"] in ("screen", "object")
                 else {}
             ),
+            **({"t0": None, "t1": None, "page": h["t0"]} if h["source"] == "object" and h.get("paged") else {}),
             **({"page": h["page"], "box": h.get("box")} if h["source"] == "page" else {}),
             **(_in_file(in_files.get(h["file"]) or {"id": h["file"]}, h.get("line")) if h["source"] == "file" else {}),
         }
@@ -211,7 +221,9 @@ def search(
     res = {"q": q, "query": describe(groups), "total": len(hits), "capped": len(rows) >= cap, "hits": out}
     if facets:
         alone = not speaker and not emotion
-        res["facets"] = _facets(db, groups, where_f, base_params, screen and alone, ns, spaces, recording, files and alone)
+        res["facets"] = _facets(
+            db, groups, where_f, base_params, screen and alone, ns, spaces, recording, files and alone, objects and alone
+        )
     return res
 
 
@@ -251,13 +263,15 @@ def _matches(db, groups, table, fields, where_f, base):
     return rows
 
 
-def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=False):
-    """How many matching moments are in each namespace, speaker, emotion and recording, most first."""
+def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=False, objects=False):
+    """How many matching moments are in each namespace, speaker, emotion and recording, most first; and the kinds of
+    object seen in the recordings they're in, with how many of those recordings each is in."""
     said = _matches(db, groups, "segment", "recording, space, speaker, emotion", where_f, base)
     seen = _matches(db, groups, "ocr_span", "recording, space", space_filter(ns, spaces, recording, base), base) if screen else []
     filed = _matches(db, groups, "file_line", "recording, space", space_filter(ns, spaces, recording, base), base) if files else []
-    rows = (said + seen + filed)[:FACET_CAP]
-    partial = len(said) + len(seen) + len(filed) > FACET_CAP
+    spotted = _matches(db, groups, "object_track", "recording, space", space_filter(ns, spaces, recording, base), base) if objects else []
+    rows = (said + seen + filed + spotted)[:FACET_CAP]
+    partial = len(said) + len(seen) + len(filed) + len(spotted) > FACET_CAP
     by_space, by_rec = Counter(r["space"] for r in rows), Counter(r["recording"] for r in rows)
     by_spk = Counter(r["speaker"] for r in rows if r.get("speaker"))
     by_emo = Counter(r["emotion"] for r in rows if r.get("emotion") and r["emotion"] != "Unknown")
@@ -296,8 +310,15 @@ def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=Fals
         for i, n in spk
     ]
     order = lambda xs, key: sorted(xs, key=lambda x: (-x["count"], str(x[key]).casefold()))  # noqa: E731
+    kinds: Counter[str] = Counter()
+    if by_rec:
+        for x in db.values(
+            "SELECT VALUE objects FROM recording WHERE id IN $ids AND objects != NONE", ids=[store.R("recording", i) for i in by_rec]
+        ):
+            kinds.update(set(x or []))
     return {
-        "moments": min(len(said) + len(seen) + len(filed), FACET_CAP),
+        "moments": min(len(said) + len(seen) + len(filed) + len(spotted), FACET_CAP),
+        "objects": order([{"name": k, "count": n} for k, n in top(kinds)], "name"),
         "partial": partial,
         "namespaces": order([{"name": space_names.get(k) or str(k), "count": n} for k, n in top(by_space)], "name"),
         "speakers": order(speakers, "name"),
@@ -325,6 +346,11 @@ def _screen(db, groups, where_f, cap, base):
 def _file_lines(db, groups, where_f, cap, base):
     """Hits in the lines of supplementary files, ranked alongside the transcript."""
     return _layer(db, groups, where_f, cap, base, "file_line", "file, idx AS line", "file")
+
+
+def _objects(db, groups, where_f, cap, base):
+    """Hits in the kinds of object seen in videos, documents and images (person, car …), at where each is first seen."""
+    return _layer(db, groups, where_f, cap, base, "object_track", "frame, box, paged", "object")
 
 
 def _layer(db, groups, where_f, cap, base, table, extra, source):

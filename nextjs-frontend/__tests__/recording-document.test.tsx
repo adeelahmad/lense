@@ -93,6 +93,7 @@ const MODEL = {
   speakers: [],
   faces: [],
   facesMode: "off",
+  objects: [],
 } as unknown as PlayerModel;
 
 function Harness({ model, canEdit, startPage }: { model: PlayerModel; canEdit: boolean; startPage: number | null }) {
@@ -296,6 +297,62 @@ describe("a document's page", () => {
     const box = container.querySelector<HTMLElement>("[data-face='1']");
     expect(box?.style.left).toBe("40%");
     expect(box).toHaveTextContent("Face 1");
+  });
+
+  it("lists the objects on its pages, turns to them and draws the chosen one's boxes", () => {
+    const thing = (label: string, spans: [number, number][], boxes: number[][]) => ({
+      label,
+      spans,
+      screenMs: spans.reduce((n, [a, b]) => n + b - a, 0),
+      firstMs: spans[0][0],
+      count: boxes.length,
+      score: 0.8,
+      frame: null,
+      box: null,
+      boxes,
+      paged: true,
+    });
+    const model = {
+      ...MODEL,
+      objects: [
+        thing(
+          "person",
+          [[0, 2]],
+          [
+            [0, 0.1, 0.1, 0.2, 0.4, 0.9],
+            [1, 0.2, 0.1, 0.2, 0.4, 0.8],
+            [1, 0.6, 0.1, 0.2, 0.4, 0.7],
+          ],
+        ),
+        thing("dog", [[2, 3]], [[2, 0.5, 0.6, 0.3, 0.3, 0.7]]),
+      ],
+    } as unknown as PlayerModel;
+    const { container } = show({ model });
+    expect(container.querySelectorAll("[data-object]")).toHaveLength(0); // none until one is chosen
+    fireEvent.click(screen.getByRole("tab", { name: "Objects" }));
+    const list = screen.getByRole("list", { name: "Objects" });
+    expect(within(list).getByText("p. 1–2")).toBeInTheDocument();
+    expect(within(list).getByText("on 2 pages · found 3 times")).toBeInTheDocument();
+    fireEvent.click(within(list).getByRole("button", { name: "Dog: show its boxes, first seen p. iii" }));
+    expect(shown()).toHaveAttribute("alt", "Page iii");
+    const dog = container.querySelectorAll<HTMLElement>("[data-object='dog']");
+    expect(dog).toHaveLength(1);
+    expect([dog[0].style.left, dog[0].style.top]).toEqual(["50%", "60%"]);
+    expect(dog[0]).toHaveTextContent("Dog");
+    fireEvent.click(within(list).getByRole("button", { name: "Person: show its boxes, first seen p. 1" }));
+    expect(shown()).toHaveAttribute("alt", "Page 1");
+    expect(container.querySelectorAll("[data-object='person']")).toHaveLength(1);
+    expect(container.querySelectorAll("[data-object='dog']")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(container.querySelectorAll("[data-object='person']")).toHaveLength(2); // two people on p. 2
+    fireEvent.click(within(list).getByRole("button", { name: "Person: stop showing its boxes" }));
+    expect(container.querySelectorAll("[data-object]")).toHaveLength(0);
+  });
+
+  it("says when no objects were found on its pages", () => {
+    show();
+    fireEvent.click(screen.getByRole("tab", { name: "Objects" }));
+    expect(screen.getByText("No objects on its pages")).toBeInTheDocument();
   });
 
   it("has no People tab where the namespace doesn't look for faces", () => {

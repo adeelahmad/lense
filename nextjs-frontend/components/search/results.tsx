@@ -47,14 +47,19 @@ function focusSibling(from: HTMLElement, step: 1 | -1) {
     )?.focus();
 }
 
+/** A hit on a page of a document or an image: its text, or an object seen there. */
+function onPage(hit: SearchHit): boolean {
+  return hit.source === "page" || (hit.source === "object" && hit.page != null);
+}
+
 function PlayButton({ hit, player, audio }: { hit: SearchHit; player: InlinePlayer; audio: boolean | undefined }) {
   const key = String(hit.id);
   const playing = player.isPlaying(key);
   const untimed = hit.t0 == null;
-  const paged = hit.source === "page";
+  const paged = onPage(hit);
   const none = untimed || paged || audio === false || player.noAudio.has(hit.recording_id);
   const label = paged
-    ? "Nothing to play: text on a page"
+    ? `Nothing to play: ${hit.source === "object" ? "seen on a page" : "text on a page"}`
     : untimed
       ? "No time: a line of a file without times"
       : none
@@ -122,7 +127,7 @@ function HitRow({
 }) {
   const router = useRouter();
   const href = hitHref(hit);
-  const paged = hit.source === "page";
+  const paged = onPage(hit);
   const untimed = hit.t0 == null || paged;
   const at = paged ? `Page ${(hit.page ?? 0) + 1}` : hit.t0 == null ? `Line ${(hit.line ?? 0) + 1}` : tc(hit.t0);
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -147,7 +152,13 @@ function HitRow({
     }
   };
   const where =
-    hit.source === "screen" ? ", on screen" : hit.source === "file" ? `, in ${hit.file_label ?? "a file"}` : "";
+    hit.source === "screen"
+      ? ", on screen"
+      : hit.source === "object"
+        ? ", an object seen"
+        : hit.source === "file"
+          ? `, in ${hit.file_label ?? "a file"}`
+          : "";
   const color = speakerTone(hit.speaker_id);
   return (
     <div
@@ -168,6 +179,8 @@ function HitRow({
       <span className="flex min-w-0 items-center gap-[5px] text-[12px] font-semibold" style={{ color }}>
         {hit.source === "screen" ? (
           <span className="text-fg-secondary">On screen</span>
+        ) : hit.source === "object" ? (
+          <span className="text-fg-secondary">{paged ? "Seen on the page" : "Seen on screen"}</span>
         ) : paged ? (
           <span className="text-fg-secondary">On the page</span>
         ) : hit.source === "file" ? (

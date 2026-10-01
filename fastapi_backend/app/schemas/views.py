@@ -32,6 +32,9 @@ class ViewState(RequestModel):
     languages: list[Annotated[str, Field(min_length=1, max_length=20)]] = Field(
         default_factory=list, max_length=20, description="language codes; none: not known"
     )
+    objects: list[Annotated[str, Field(min_length=1, max_length=60)]] = Field(
+        default_factory=list, max_length=20, description="kinds of object seen in them (GET /recordings `object`): any of these"
+    )
     sort: RecordingSort = "-date"
     collection: int | None = Field(None, description="a collection of the view's namespace (and the ones inside it)")
     field: int | None = Field(None, description="a custom field of the view's namespace: the recordings with a value for it")
@@ -73,6 +76,7 @@ class SearchState(RequestModel):
     speaker: int | None = None
     emotion: str | None = Field(None, max_length=40)
     recording: int | None = None
+    object: str | None = Field(None, max_length=60, description="a kind of object the recordings have (person, car …)")
 
 
 class SavedSearch(ResponseModel):
@@ -86,6 +90,7 @@ class SavedSearch(ResponseModel):
     emotion: str | None = None
     recording: int | None = None
     recording_title: str | None = Field(None, description="the recording's title, when you can read it")
+    object: str | None = Field(None, description="a kind of object the recordings have")
     created_by: str | None = Field(None, description="its maker's email")
     created_at: str | None = None
     updated_at: str | None = None

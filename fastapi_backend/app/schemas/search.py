@@ -20,13 +20,14 @@ class SearchHit(ResponseModel):
     recorded_at: str | None = None
     namespace: str | None = None
     snippet: str = Field(description="HTML: escaped text with <mark> around matches")
-    source: Literal["said", "screen", "file", "page"] = Field(
-        description='"said" (transcript), "screen" (text on screen in a video), "file" (a line of a supplementary file) '
-        'or "page" (text on a page of a document or an image, whose times are only a reading pace)'
+    source: Literal["said", "screen", "file", "page", "object"] = Field(
+        description='"said" (transcript), "screen" (text on screen in a video), "file" (a line of a supplementary file), '
+        '"page" (text on a page of a document or an image, whose times are only a reading pace) or "object" (a kind of '
+        "object seen in a video, a document or an image, where it's first seen; its snippet is the kind)"
     )
-    frame: str | None = Field(None, description="screen hits: signed link to the video frame")
-    box: Any = Field(None, description="screen and page hits: where the text is on the frame or the page ([x, y, w, h] fractions)")
-    page: int | None = Field(None, description="page hits: which page (from 0)")
+    frame: str | None = Field(None, description="screen and object hits: signed link to the video frame or the page")
+    box: Any = Field(None, description="screen, page and object hits: where it is on the frame or the page ([x, y, w, h] fractions)")
+    page: int | None = Field(None, description="page hits, and object hits on a document's pages: which page (from 0)")
     file: int | None = Field(None, description="file hits: the supplementary file the line is in")
     file_role: str | None = Field(None, description="file hits: its role (transcript, captions, translation or index)")
     file_label: str | None = Field(None, description="file hits: its label, or its name")
@@ -51,9 +52,14 @@ class RecordingFacet(ResponseModel):
     count: int = Field(description="matching moments")
 
 
+class ObjectFacet(ResponseModel):
+    name: str = Field(description="a kind of object (person, car …)")
+    count: int = Field(description="how many of the recordings with matching moments it's seen in")
+
+
 class SearchFacets(ResponseModel):
     """How many of all the matching moments are in each namespace, speaker, emotion and recording (up to 50 of each,
-    most first). Text on screen has no speaker or emotion."""
+    most first), and the kinds of object seen in the recordings they're in. Text on screen has no speaker or emotion."""
 
     moments: int = Field(description="the matching moments counted: all of them, unless `partial`")
     partial: bool = Field(description="more than 20,000 moments match; the counts cover 20,000 of them")
@@ -61,6 +67,7 @@ class SearchFacets(ResponseModel):
     speakers: list[SpeakerFacet] = Field(default_factory=list)
     emotions: list[FacetCount] = Field(default_factory=list)
     recordings: list[RecordingFacet] = Field(default_factory=list)
+    objects: list[ObjectFacet] = Field(default_factory=list)
 
 
 class SearchResults(ResponseModel):

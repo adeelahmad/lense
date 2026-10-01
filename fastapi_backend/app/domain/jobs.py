@@ -16,14 +16,14 @@ import time
 from . import analyze, ingest, pipelines, render, speakers as spk, store
 
 R = store.R
-PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "report"]
+PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "analyze", "summarize", "report"]
 AFTER_IMPORT = ["analyze", "summarize", "report"]
 ACTIVE = ["queued", "running"]
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
     "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total"
 )
-MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces"}  # they take longer the longer the recording
+MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces", "objects"}  # they take longer the longer the recording
 FILED = ("audio", "document", "image")  # sources with a file of their own for the steps to work on
 TIMINGS = 25  # recent timings kept per kind of step, for estimates
 
@@ -116,12 +116,19 @@ def _faces(db, cfg, rid, say, spec=None):
     video.step_faces(db, cfg, rid, say)
 
 
+def _objects(db, cfg, rid, say, spec=None):
+    from . import objects
+
+    objects.step_objects(db, cfg, rid, say)
+
+
 STEPS = {
     "transcribe": _transcribe,
     "diarize": _diarize,
     "shots": _shots,
     "ocr": _ocr,
     "faces": _faces,
+    "objects": _objects,
     "analyze": _analyze,
     "summarize": _summarize,
     "report": _report,
@@ -491,7 +498,7 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
                 finished(i, "done", note, t0, _outputs(before, _saved(db, rid)))
             _timed(db, rid, spec, runs[i]["seconds"], runs[i]["outcome"] == "skipped")
             i, t0 = i + 1, None
-    except Exception as e:  # noqa: BLE001 - recorded on the job
+    except (Exception, SystemExit) as e:  # noqa: BLE001 - recorded on the job; SystemExit too (a missing engine says so)
         err = f"{type(e).__name__}: {e}"[:500]
         failed = _spec(steps[i])["type"] if i < len(steps) else None
         say(f"{failed or 'finishing'} failed: {err}")

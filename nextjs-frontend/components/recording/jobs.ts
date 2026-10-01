@@ -153,6 +153,12 @@ const SKIP_RX = /skipped|nothing to transcribe|kept them|kept it/i;
  * log. There each step logs what it did, then "<step> done in 1.2s" (or "<step> skipped: why"); lines before that
  * marker belong to the step. Returns one entry per job step (null times for steps that haven't run).
  */
+/** Why a step was skipped, from its note ("objects skipped: no detector", or just "no detector"); null without one. */
+export function skipReason(note: string): string | null {
+  const t = note.replace(/^[\w-]+ skipped:\s*/i, "").trim();
+  return t || null;
+}
+
 export function stepNotes(j: JobInfo): StepNote[] {
   if (j.stepRuns)
     return j.steps.map((_, k) => {
@@ -262,7 +268,17 @@ export function readyBefore(j: JobInfo): string[] {
 
 // ---------- Reprocess: choose steps ----------
 
-export const STEP_ORDER = ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "report"] as const;
+export const STEP_ORDER = [
+  "transcribe",
+  "diarize",
+  "shots",
+  "ocr",
+  "faces",
+  "objects",
+  "analyze",
+  "summarize",
+  "report",
+] as const;
 export type StepKey = (typeof STEP_ORDER)[number];
 
 export const STEP_HELP: Record<StepKey, string> = {
@@ -271,6 +287,7 @@ export const STEP_HELP: Record<StepKey, string> = {
   shots: "Scene cuts, keyframes and sampled frames",
   ocr: "Read text on screen from the sampled frames",
   faces: "Detect people on screen (where the namespace allows it)",
+  objects: "Find objects (people, cars, animals …) on the sampled frames or pages",
   analyze: "Entities, chapters, keywords, talk-time stats",
   summarize: "Summary, topics and action items (needs an LLM)",
   report: "Recording report",
@@ -280,9 +297,10 @@ export const STEP_HELP: Record<StepKey, string> = {
 export const DEPENDENTS: Record<StepKey, StepKey[]> = {
   transcribe: ["diarize", "analyze", "summarize", "report"],
   diarize: ["analyze", "summarize", "report"],
-  shots: ["ocr", "faces"],
+  shots: ["ocr", "faces", "objects"],
   ocr: [],
   faces: [],
+  objects: [],
   analyze: ["report"],
   summarize: ["report"],
   report: [],
@@ -290,9 +308,13 @@ export const DEPENDENTS: Record<StepKey, StepKey[]> = {
 
 export type StepOption = { key: StepKey; disabled: string | null };
 
-/** The steps offered for a recording: video steps only for videos; transcribe/diarize need audio. */
-export function reprocessOptions(opts: { video: boolean; hasAudio: boolean }): StepOption[] {
-  return STEP_ORDER.filter((k) => opts.video || !["shots", "ocr", "faces"].includes(k)).map((key) => {
+/**
+ * The steps offered for a recording: video steps only for videos (faces and objects also for a document's or an
+ * image's pages); transcribe/diarize need audio.
+ */
+export function reprocessOptions(opts: { video: boolean; hasAudio: boolean; paged?: boolean }): StepOption[] {
+  const left = opts.video ? [] : opts.paged ? ["shots", "ocr"] : ["shots", "ocr", "faces", "objects"];
+  return STEP_ORDER.filter((k) => !left.includes(k)).map((key) => {
     let disabled: string | null = null;
     if (!opts.hasAudio && key === "transcribe")
       disabled = "This recording has no audio: its transcript was imported, so there's nothing to transcribe.";

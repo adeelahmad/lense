@@ -80,6 +80,25 @@ export type FaceTrack = {
   cover: string | null;
 };
 
+/** A kind of object seen in a recording (the objects step): a person, a car, a dog … */
+export type ObjectTrack = {
+  label: string;
+  /** [from, to): ms, or page numbers from 0 on a document's or an image's pages. */
+  spans: [number, number][];
+  /** How long it's seen (ms), or on how many pages. */
+  screenMs: number;
+  firstMs: number;
+  /** How many times it was found. */
+  count: number;
+  score: number;
+  /** Signed link to the frame or page it's best seen on, and where it is there. */
+  frame: string | null;
+  box: Box | null;
+  /** [t, x, y, w, h, score]: each place it was found. */
+  boxes: [number, number, number, number, number, number][];
+  paged: boolean;
+};
+
 /** A page of a document, or an image (a TIFF has one per frame). */
 export type PageInfo = {
   idx: number;
@@ -124,6 +143,7 @@ export type PlayerModel = {
   screenText: ScreenText[];
   faces: FaceTrack[];
   facesMode: FacesMode;
+  objects: ObjectTrack[];
   poster: string | null;
 };
 
@@ -304,6 +324,27 @@ export function normalizePlayer(raw: Player): PlayerModel {
       };
     }),
     facesMode: mode && MODES.includes(mode) ? mode : "off",
+    objects: arr(r.objects).map((x) => {
+      const o = rec(x);
+      return {
+        label: str(o.label) ?? "object",
+        spans: arr(o.spans)
+          .map((p) => arr(p).map((v) => num(v)))
+          .filter((p) => p.length >= 2)
+          .map((p) => [p[0], p[1]] as [number, number]),
+        screenMs: num(o.screen_ms),
+        firstMs: num(o.first_ms),
+        count: num(o.count),
+        score: num(o.score),
+        frame: str(o.frame),
+        box: box(o.box),
+        boxes: arr(o.boxes)
+          .map((b) => arr(b).map((v) => num(v)))
+          .filter((b) => b.length >= 6)
+          .map((b) => [b[0], b[1], b[2], b[3], b[4], b[5]] as [number, number, number, number, number, number]),
+        paged: Boolean(o.paged),
+      };
+    }),
     poster: str(r.poster),
   };
 }

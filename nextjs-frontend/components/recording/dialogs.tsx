@@ -253,6 +253,7 @@ export function ReprocessDialog({ open, onOpenChange }: { open: boolean; onOpenC
       reprocessOptions({
         video: model.media.kind === "video",
         hasAudio: !transcriptOnly,
+        paged: model.media.kind === "document" || model.media.kind === "image",
       }),
     [model.media.kind, transcriptOnly],
   );

@@ -22,6 +22,7 @@ export type PanelTab =
   | "shots"
   | "text"
   | "people"
+  | "objects"
   | "transcript"
   | "pages";
 

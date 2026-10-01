@@ -135,6 +135,9 @@ import type {
   ListLanguagesData,
   ListLanguagesResponses,
   ListLanguagesErrors,
+  ListObjectsData,
+  ListObjectsResponses,
+  ListObjectsErrors,
   PlaceRecordingsData,
   PlaceRecordingsResponses,
   PlaceRecordingsErrors,
@@ -1403,6 +1406,18 @@ export class Resources {
   }
 
   /**
+   * List Objects
+   * The kinds of object seen in the recordings you can read (or one namespace's), with how many recordings each is
+   * in, the most first (the objects step finds them).
+   */
+  public static listObjects<ThrowOnError extends boolean = false>(options?: Options<ListObjectsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListObjectsResponses, ListObjectsErrors, ThrowOnError>({
+      url: "/api/v1/resources/objects",
+      ...options,
+    });
+  }
+
+  /**
    * Place Recordings
    * Move recordings into a collection of their namespace: editors of each recording (through the namespace or the
    * collection it's in) who are editors of the collection too. Recordings of another namespace are a 400: move them
@@ -2318,8 +2333,9 @@ export class Search {
   /**
    * Search Transcripts
    * Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
-   * transcripts, captions, translations and indexes), best first, in the namespaces you can read and the collections
-   * you were given a role on. A speaker or emotion filter keeps to what was said.
+   * transcripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),
+   * best first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion
+   * filter keeps to what was said.
    */
   public static searchTranscripts<ThrowOnError extends boolean = false>(
     options: Options<SearchTranscriptsData, ThrowOnError>,
@@ -2379,7 +2395,7 @@ export class Searches {
 
   /**
    * Create Search
-   * Save a search (its words, namespace, speaker, emotion and recording) under a name unique among yours. Sharing it
+   * Save a search (its words, namespace, speaker, emotion, recording and object) under a name unique among yours. Sharing it
    * with its namespace needs editor access there.
    */
   public static createSearch<ThrowOnError extends boolean = false>(options: Options<CreateSearchData, ThrowOnError>) {

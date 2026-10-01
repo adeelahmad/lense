@@ -177,7 +177,12 @@ describe("facets and groups", () => {
       speakers: [],
       emotions: [],
       recordings: [],
+      objects: [],
     });
+    // kinds of object, counted in recordings, named as the resource page names them
+    expect(fromServer({ moments: 1, partial: false, objects: [{ name: "cell phone", count: 2 }] }).objects).toEqual([
+      { key: "cell phone", label: "Cell phone", count: 2 },
+    ]);
   });
 
   it("groups by recording in rank order with moments in time order", () => {
@@ -212,6 +217,21 @@ describe("saved searches", () => {
     expect(savedSearchFilters(saved)).toBe("podcasts · Alice · Happy · Episode 12");
     expect(savedSearchFilters({ q: "x", speaker: 7, recording: 3 })).toBe("Speaker #7 · Recording #3");
     expect(savedSearchFilters({ q: "x" })).toBe("");
+  });
+});
+
+describe("the object filter", () => {
+  it("is typed, kept in the address and saved", () => {
+    expect(parseQuery('harbour object:car speaker:"Host B"')).toEqual({
+      text: "harbour",
+      typed: { object: "car", speaker: "Host B" },
+    });
+    const p = toParams("harbour", { object: "cell phone" });
+    expect(p).toBe("q=harbour&object=cell+phone");
+    expect(fromParams(new URLSearchParams(p)).filters).toEqual({ object: "cell phone" });
+    expect(activeFilterCount({ object: "car", namespace: "pods" })).toBe(2);
+    expect(savedSearchHref({ q: "harbour", object: "car" })).toBe("/search?q=harbour&object=car");
+    expect(savedSearchFilters({ q: "harbour", namespace: "pods", object: "car" })).toBe("pods · with car");
   });
 });
 

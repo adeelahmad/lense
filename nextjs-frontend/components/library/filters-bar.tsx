@@ -20,6 +20,7 @@ import {
   type SpeakerChoice,
   type StatusFilter,
 } from "@/components/library/model";
+import { objectName } from "@/components/recording/objects-model";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/menu";
@@ -255,7 +256,10 @@ function FieldFilterForm({
   );
 }
 
-/** Library filters: namespace, collection, field, source, status, speaker, date, duration, language, media and tags. */
+/**
+ * Library filters: namespace, collection, field, source, status, speaker, date, duration, language, media, tags and
+ * the kinds of object seen (once any have been).
+ */
 export function FiltersBar({
   filters,
   onChange,
@@ -273,6 +277,7 @@ export function FiltersBar({
   onManageCollections,
   fields,
   fieldsLoading,
+  objects = [],
 }: {
   filters: Filters;
   onChange: (f: Filters) => void;
@@ -298,11 +303,14 @@ export function FiltersBar({
   /** The custom fields that describe the namespace's resources (none without a namespace). */
   fields?: FieldDef[];
   fieldsLoading?: boolean;
+  /** The kinds of object seen in the recordings in scope (GET /recordings/objects), most first. */
+  objects?: { object: string; recordings: number }[];
 }) {
   const { namespaces: full, partialNamespaces, namespace, setNamespace, isPartial } = useArchive();
   const namespaces = [...full, ...partialNamespaces].sort((a, b) => a.name.localeCompare(b.name));
   const [spkQuery, setSpkQuery] = useState("");
   const [tagQuery, setTagQuery] = useState("");
+  const [objectQuery, setObjectQuery] = useState("");
   const tagOn = (t: string) => filters.tags.some((x) => x.toLowerCase() === t.toLowerCase());
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
 
@@ -682,6 +690,60 @@ export function FiltersBar({
           </div>
         )}
       </Chip>
+      {(objects.length > 0 || filters.objects.length > 0) && (
+        <Chip
+          label={
+            filters.objects.length === 1
+              ? `Object: ${objectName(filters.objects[0])}`
+              : filters.objects.length
+                ? `${filters.objects.length} objects`
+                : "Objects"
+          }
+          active={filters.objects.length > 0}
+          onClear={() => set({ objects: [] })}
+          width={240}
+        >
+          {() => (
+            <div>
+              {objects.length > 8 && (
+                <input
+                  value={objectQuery}
+                  onChange={(e) => setObjectQuery(e.target.value)}
+                  placeholder="Find an object"
+                  aria-label="Find an object"
+                  className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-none focus:border-blue"
+                />
+              )}
+              <div role="menu" aria-label="Objects" className="max-h-64 overflow-y-auto">
+                {objects
+                  .filter((o) => o.object.includes(objectQuery.trim().toLowerCase()))
+                  .map((o) => {
+                    const on = filters.objects.includes(o.object);
+                    return (
+                      <Option
+                        key={o.object}
+                        multi
+                        on={on}
+                        onClick={() =>
+                          set({
+                            objects: on
+                              ? filters.objects.filter((x) => x !== o.object)
+                              : [...filters.objects, o.object],
+                          })
+                        }
+                      >
+                        <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                          <span className="truncate">{objectName(o.object)}</span>
+                          <span className="tabular text-[12px] font-normal text-fg-muted">{count(o.recordings)}</span>
+                        </span>
+                      </Option>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </Chip>
+      )}
     </>
   );
 

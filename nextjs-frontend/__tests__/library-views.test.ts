@@ -49,6 +49,7 @@ describe("saved views", () => {
       tags: ["Interview"],
       origins: [],
       languages: [],
+      objects: [],
       sort: "title",
       collection: null,
       field: null,
@@ -97,6 +98,15 @@ describe("saved views", () => {
     expect(describeView(s, (k) => (k === "upload" ? "Uploaded" : k))).toBe(
       "Edited by me · “capsid” · Analyzed, Job failed · Alice · Last 30 days · #Interview · Uploaded · German · by title",
     );
+  });
+
+  it("keeps the kinds of object they have", () => {
+    const s = viewState({ ...library, filters: { ...library.filters, objects: ["car", "dog"] } });
+    expect(s.objects).toEqual(["car", "dog"]);
+    expect(fromView(s).filters.objects).toEqual(["car", "dog"]);
+    expect(sameState(s, { ...s, objects: ["dog", "Car"] })).toBe(true);
+    expect(sameState(s, { ...s, objects: ["car"] })).toBe(false);
+    expect(describeView({ objects: ["car", "cell phone"] })).toBe("All recordings · with Car or Cell phone");
   });
 
   it("keeps the collection they show", () => {

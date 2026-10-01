@@ -188,7 +188,7 @@ DEFAULTS = {
         "poll_seconds": 2,
         "stale_minutes": 15,
         "max_attempts": 3,
-        "steps": ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "llm", "report", "export"],
+        "steps": ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "analyze", "summarize", "llm", "report", "export"],
     },
     # video: sampling, shot detection, OCR and faces. Model paths are bootstrap-only (the app can't point at arbitrary files).
     # the chat assistant's tools, and the double check before batch runs
@@ -217,6 +217,10 @@ DEFAULTS = {
         "face_match_threshold": 0.45,
         "face_review_threshold": 0.3,
         "publish_faces": False,
+        "object_engine": "yolox",
+        "yolox_model": None,
+        "ultralytics_model": None,
+        "object_min_score": 0.4,
     },
     # rclone and local_roots are bootstrap-only on purpose: the web app must not be able to pick an executable
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
@@ -617,6 +621,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS face_track_rec ON face_track FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS face_track_face ON face_track FIELDS face",
     "DEFINE TABLE IF NOT EXISTS face_suggestion SCHEMALESS",
+    # objects: one row per kind of object on a recording (app/domain/objects.py)
+    "DEFINE TABLE IF NOT EXISTS object_track SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS object_track_rec ON object_track FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS face_merge SCHEMALESS",
     # collections, batch runs, assistant approvals
     "DEFINE TABLE IF NOT EXISTS saved_collection SCHEMALESS",
@@ -658,7 +665,7 @@ def _analyzer(cfg):
 
 
 # the full-text indexes, each on the `text` of its table: transcripts, text on screen, and lines of supplementary files
-TEXT_INDEXES = (("segment_text", "segment"), ("ocr_text", "ocr_span"), ("file_text", "file_line"))
+TEXT_INDEXES = (("segment_text", "segment"), ("ocr_text", "ocr_span"), ("file_text", "file_line"), ("object_text", "object_track"))
 
 
 def _text_index(db):

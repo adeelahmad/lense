@@ -4175,6 +4175,117 @@ export type NoteUpdate = {
 };
 
 /**
+ * ObjectCount
+ */
+export type ObjectCount = {
+  /**
+   * Object
+   * a kind of object (person, car, dog …)
+   */
+  object: string;
+  /**
+   * Recordings
+   */
+  recordings: number;
+  [key: string]: unknown | string | number;
+};
+
+/**
+ * ObjectFacet
+ */
+export type ObjectFacet = {
+  /**
+   * Name
+   * a kind of object (person, car …)
+   */
+  name: string;
+  /**
+   * Count
+   * how many of the recordings with matching moments it's seen in
+   */
+  count: number;
+  [key: string]: unknown | string | number;
+};
+
+/**
+ * ObjectTrack
+ * A kind of object seen in a recording, and where.
+ */
+export type ObjectTrack = {
+  /**
+   * Label
+   * what it is (person, car, dog …: the COCO dataset's kinds, with the default engine)
+   */
+  label: string;
+  /**
+   * Spans
+   * [from, to) where it's seen: ms, or page numbers from 0 when `paged`
+   */
+  spans: Array<Array<number>>;
+  /**
+   * Screen Ms
+   * how long it's seen (ms), or on how many pages when `paged`
+   */
+  screen_ms: number;
+  /**
+   * First Ms
+   * where it's first seen: ms, or a page number when `paged`
+   */
+  first_ms: number;
+  /**
+   * Count
+   * how many times it was found (on how many sampled frames or pages, and side by side)
+   */
+  count: number;
+  /**
+   * Score
+   * how sure the detector was, on average (0-1)
+   */
+  score: number;
+  /**
+   * Frame
+   * signed link to the frame or page it's best seen on
+   */
+  frame?: string | null;
+  /**
+   * Box
+   * where it is on that frame or page: [x, y, w, h] as fractions
+   */
+  box?: Array<number> | null;
+  /**
+   * Boxes
+   * each place it was found: [t (ms, or page), x, y, w, h, score] (at most 500)
+   */
+  boxes?: Array<Array<number>>;
+  /**
+   * Paged
+   * true for a document's or an image's pages
+   */
+  paged?: boolean | null;
+  /**
+   * Engine
+   * the detector: yolox or ultralytics
+   */
+  engine?: string | null;
+  [key: string]:
+    | unknown
+    | string
+    | Array<Array<number>>
+    | number
+    | number
+    | string
+    | null
+    | Array<number>
+    | null
+    | Array<Array<number>>
+    | boolean
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
  * OcrFix
  */
 export type OcrFix = {
@@ -4737,6 +4848,11 @@ export type Player = {
    * a document's or an image's pages, in order
    */
   pages?: Array<Page> | null;
+  /**
+   * Objects
+   * videos, documents and images: the kinds of object seen in it, the most seen first
+   */
+  objects?: Array<ObjectTrack>;
   [key: string]:
     | unknown
     | number
@@ -4775,6 +4891,7 @@ export type Player = {
     | null
     | Array<Page>
     | null
+    | Array<ObjectTrack>
     | undefined;
 };
 
@@ -6525,6 +6642,11 @@ export type SavedSearch = {
    */
   recording_title?: string | null;
   /**
+   * Object
+   * a kind of object the recordings have
+   */
+  object?: string | null;
+  /**
    * Created By
    * its maker's email
    */
@@ -6561,6 +6683,8 @@ export type SavedSearch = {
     | string
     | null
     | number
+    | null
+    | string
     | null
     | string
     | null
@@ -6658,6 +6782,11 @@ export type SearchCreate = {
    */
   recording?: number | null;
   /**
+   * Object
+   * a kind of object the recordings have (person, car …)
+   */
+  object?: string | null;
+  /**
    * Name
    */
   name: string;
@@ -6676,7 +6805,7 @@ export type SearchCreate = {
 /**
  * SearchFacets
  * How many of all the matching moments are in each namespace, speaker, emotion and recording (up to 50 of each,
- * most first). Text on screen has no speaker or emotion.
+ * most first), and the kinds of object seen in the recordings they're in. Text on screen has no speaker or emotion.
  */
 export type SearchFacets = {
   /**
@@ -6705,6 +6834,10 @@ export type SearchFacets = {
    * Recordings
    */
   recordings?: Array<RecordingFacet>;
+  /**
+   * Objects
+   */
+  objects?: Array<ObjectFacet>;
   [key: string]:
     | unknown
     | number
@@ -6713,6 +6846,7 @@ export type SearchFacets = {
     | Array<SpeakerFacet>
     | Array<FacetCount>
     | Array<RecordingFacet>
+    | Array<ObjectFacet>
     | undefined;
 };
 
@@ -6773,22 +6907,22 @@ export type SearchHit = {
   snippet: string;
   /**
    * Source
-   * "said" (transcript), "screen" (text on screen in a video), "file" (a line of a supplementary file) or "page" (text on a page of a document or an image, whose times are only a reading pace)
+   * "said" (transcript), "screen" (text on screen in a video), "file" (a line of a supplementary file), "page" (text on a page of a document or an image, whose times are only a reading pace) or "object" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind)
    */
-  source: "said" | "screen" | "file" | "page";
+  source: "said" | "screen" | "file" | "page" | "object";
   /**
    * Frame
-   * screen hits: signed link to the video frame
+   * screen and object hits: signed link to the video frame or the page
    */
   frame?: string | null;
   /**
    * Box
-   * screen and page hits: where the text is on the frame or the page ([x, y, w, h] fractions)
+   * screen, page and object hits: where it is on the frame or the page ([x, y, w, h] fractions)
    */
   box?: unknown;
   /**
    * Page
-   * page hits: which page (from 0)
+   * page hits, and object hits on a document's pages: which page (from 0)
    */
   page?: number | null;
   /**
@@ -6839,6 +6973,7 @@ export type SearchHit = {
     | "screen"
     | "file"
     | "page"
+    | "object"
     | string
     | null
     | number
@@ -8767,6 +8902,11 @@ export type ViewState = {
    */
   languages?: Array<string>;
   /**
+   * Objects
+   * kinds of object seen in them (GET /recordings `object`): any of these
+   */
+  objects?: Array<string>;
+  /**
    * Sort
    */
   sort?:
@@ -10477,6 +10617,11 @@ export type ListRecordingsData = {
      */
     language?: Array<string> | null;
     /**
+     * Object
+     * kinds of object seen in it (person, car, dog …; ignoring case); repeat for several (any of them matches)
+     */
+    object?: Array<string> | null;
+    /**
      * Edited By
      * me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)
      */
@@ -10664,6 +10809,38 @@ export type ListLanguagesResponses = {
 };
 
 export type ListLanguagesResponse = ListLanguagesResponses[keyof ListLanguagesResponses];
+
+export type ListObjectsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     * one namespace
+     */
+    ns?: string | null;
+  };
+  url: "/api/v1/resources/objects";
+};
+
+export type ListObjectsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListObjectsError = ListObjectsErrors[keyof ListObjectsErrors];
+
+export type ListObjectsResponses = {
+  /**
+   * Response Recordings-List Objects
+   * Successful Response
+   */
+  200: Array<ObjectCount>;
+};
+
+export type ListObjectsResponse = ListObjectsResponses[keyof ListObjectsResponses];
 
 export type PlaceRecordingsData = {
   body: RecordingsPlace;
@@ -12665,6 +12842,11 @@ export type SearchTranscriptsData = {
      */
     recording?: number | null;
     /**
+     * Object
+     * only recordings this kind of object is seen in (person, car …)
+     */
+    object?: string | null;
+    /**
      * Limit
      */
     limit?: number;
@@ -12674,7 +12856,7 @@ export type SearchTranscriptsData = {
     offset?: number;
     /**
      * Facets
-     * also count all the matching moments by namespace, speaker, emotion and recording (`facets`)
+     * also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object
      */
     facets?: boolean;
   };

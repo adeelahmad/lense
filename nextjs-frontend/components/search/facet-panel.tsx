@@ -121,8 +121,9 @@ function SavedRow({ s, onDelete, deleting }: { s: SavedSearch; onDelete: () => v
 }
 
 /**
- * Facets for the current words: namespace, speaker, emotion and recording, with how many moments each has. Counts
- * come from the words alone, so they don't vanish when you pick one; each facet is one filter, shared with its chip.
+ * Facets for the current words: namespace, speaker, emotion and recording, with how many moments each has, and the
+ * kinds of object seen in the recordings (with how many recordings). Counts come from the words alone, so they don't
+ * vanish when you pick one; each facet is one filter, shared with its chip.
  */
 export function FacetPanel({
   facets,
@@ -157,6 +158,7 @@ export function FacetPanel({
         { key: "speaker", title: "Speaker", values: facets.speakers },
         { key: "emotion", title: "Emotion", values: facets.emotions },
         { key: "recording", title: "Recording", values: facets.recordings },
+        { key: "object", title: "Objects seen", values: facets.objects },
       ]
     : [];
   const current = (k: keyof SearchFilters) => (filters[k] == null ? undefined : String(filters[k]));

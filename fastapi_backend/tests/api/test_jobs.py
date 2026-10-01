@@ -243,6 +243,22 @@ def test_estimates(db, cfg, folder):
     assert jobs.eta(running, [5.0, 30.0, None], now) is None
 
 
+def test_a_missing_engine_fails_the_job_not_the_worker(db, cfg, folder, monkeypatch):
+    """A step that stops with SystemExit (no speech engine: "SenseVoice needs FunASR") fails its job, saying why; the
+    worker goes on to the next job instead of dying with this one running for ever."""
+    a, b = seed(db, cfg, folder)[:2]
+
+    def missing(db_, cfg_, rid, say, spec=None):
+        raise SystemExit("SenseVoice needs FunASR: uv sync --extra sensevoice")
+
+    monkeypatch.setitem(jobs.STEPS, "transcribe", missing)
+    broken, fine = jobs.enqueue(db, a, ["transcribe"]), jobs.enqueue(db, b, ["analyze"])
+    drain(db, cfg)
+    j = jobs.get(db, broken)
+    assert (j["status"], j["error"]) == ("failed", "SystemExit: SenseVoice needs FunASR: uv sync --extra sensevoice")
+    assert jobs.get(db, fine)["status"] == "succeeded"
+
+
 def test_a_silent_worker_fails_its_step(db, cfg, folder):
     a = seed(db, cfg, folder)[0]
     jid = jobs.enqueue(db, a, ["analyze"])

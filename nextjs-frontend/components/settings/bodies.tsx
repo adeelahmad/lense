@@ -233,6 +233,17 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <div className="border-t border-border py-3.5">
             <F ctx={ctx} id="video.publish_faces" />
           </div>
+          <Sub>Objects</Sub>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="video.object_engine" />
+            <F ctx={ctx} id="video.object_min_score" />
+          </div>
+          <p className="text-[12.5px] text-fg-muted">
+            YOLOX model:{" "}
+            <code className="break-all font-mono text-fg-secondary">{ctx.view.bootstrap?.yolox_model ?? "—"}</code>{" "}
+            (video.yolox_model, a startup setting; the lens:full image has one). Ultralytics is installed separately and
+            is AGPL-3.0: a server that lets others use it must offer them its source.
+          </p>
           <p className="text-[12.5px] text-fg-muted">
             Whether a namespace detects or recognises faces is set by its owner. How long face data is kept isn’t
             configurable yet.
@@ -641,6 +652,11 @@ function Startup({ view }: { view: SettingsView }) {
     ["rclone", b.rclone ?? "—"],
     ["LibreOffice", b.soffice ?? "—"],
     ["Chromium", b.chromium ?? "—"],
+    [
+      "Web capture",
+      b.web_networks?.length ? `public addresses and ${b.web_networks.join(" · ")}` : "public addresses only",
+    ],
+    ["YOLOX model", b.yolox_model ?? "—"],
     ["Watchable folders", b.local_roots?.length ? b.local_roots.join(" · ") : "none: local folders can’t be watched"],
   ];
   return (

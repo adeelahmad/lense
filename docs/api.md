@@ -147,6 +147,7 @@ GET    /api/v1/resources
 GET    /api/v1/resources/tags
 GET    /api/v1/resources/origins
 GET    /api/v1/resources/languages
+GET    /api/v1/resources/objects
 POST   /api/v1/resources/tags
 POST   /api/v1/resources/collection
 GET    /api/v1/resources/{rid}
@@ -202,6 +203,7 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 | `tag` | tags, ignoring case |
 | `origin` | where they came from: `source:<id>` (a connected source), `upload`, `paste`, `iiif`, `folder` (the archive's own folders) or `file` (another file imported by path) |
 | `language` | language codes, ignoring case; `none` for recordings whose language isn't known |
+| `object` | kinds of object seen in them (`person`, `car` …; [Objects](#objects)), ignoring case |
 | `edited_by` | `me`: recordings you edited (corrected a line of the transcript, changed the catalogue record, or renamed) |
 | `sort` | `date`, `title`, `duration`, `speakers`, `status` or `importance`; `-` in front for descending (default `-date`). Recordings without the value come last either way |
 | `limit`, `offset` | one page (default 500 rows, at most 1000) |
@@ -213,9 +215,10 @@ its `language` when known and the collection it lives in (`collection`, `collect
 adds `collection_path`: the collections from the top of the namespace down to its own, `[{id, name}]`.
 `POST /resources/collection {recordings, collection}` moves recordings into a collection of their namespace (editors
 of each); a recording of another namespace is a 400 (move it to that namespace first). It answers how many `moved`;
-their IIIF Manifests change (`partOf`), so harvesters see an Update. Audited as `recording.collection`. `GET /resources/origins` and `GET /resources/languages` (`ns` for one namespace) list
-the origins and languages of the recordings you can read with how many have each, most first, for the Library's
-Source and Language filters.
+their IIIF Manifests change (`partOf`), so harvesters see an Update. Audited as `recording.collection`.
+`GET /resources/origins`, `GET /resources/languages` and `GET /resources/objects` (`ns` for one namespace) list the
+origins, languages and kinds of object of the recordings you can read with how many have each, most first, for the
+Library's Source, Language and Objects filters.
 
 `PATCH /resources/{rid}/segments/{idx}` corrects a transcript line: its `text`, its `speaker` (an id in the
 namespace, or `null`), or both (editors). `POST …/segments/{idx}/split {at, t?, speaker?}` splits a line in two at
@@ -498,14 +501,17 @@ GET    /api/v1/mentions
 `GET /search?q=` finds the moments where the words are said (or shown on screen in a video, or written in a resource's
 supplementary transcripts, captions, translations and indexes) in the namespaces you can read, best first: every word
 (English stemming), "quoted phrases" as written, `OR` between alternatives; `ns`, `speaker`, `emotion` and `recording`
-narrow it, `limit`/`offset` page through it. `total` counts the moments ranked so far (`capped` when there may be more).
+narrow it, and `object` keeps to the recordings a kind of object is seen in ([Objects](#objects));
+`limit`/`offset` page through it. `total` counts the moments ranked so far (`capped` when there may be more).
 With `facets=true` it also counts all the matching moments, whatever the page, by namespace, speaker, emotion and
-recording (`facets`: up to 50 values each, most first, and `moments`); past 20,000 moments the counts cover 20,000 of
-them (`partial`).
+recording (`facets`: up to 50 values each, most first, and `moments`), and lists the kinds of object seen in the
+recordings they're in, with how many of those recordings each is in (`objects`); past 20,000 moments the counts cover
+20,000 of them (`partial`).
 
 Each hit's `source` says where it was found: `said` (the transcript), `screen` (text on screen), `page` (a document's or an
-image's text: its `page`, from 0, and its `box` on it) or `file` (a line of a supplementary file: its `file`, `file_role`
-and `file_label`, and which `line`). A file's lines have no `t0` when the
+image's text: its `page`, from 0, and its `box` on it), `object` (a kind of object, where it's first seen: its time, or
+on a document's pages its `page`, with the `frame` and the `box` it's best seen in) or `file` (a line of a supplementary
+file: its `file`, `file_role` and `file_label`, and which `line`). A file's lines have no `t0` when the
 file doesn't say when they are; the web app opens those in the resource's Files tab. A `speaker` or `emotion` filter
 keeps to what was said.
 
@@ -630,6 +636,19 @@ POST   /api/v1/faces/{fid}/merge
 POST   /api/v1/faces/{fid}/speaker
 POST   /api/v1/faces/{fid}/dismiss
 ```
+
+### Objects
+
+The `objects` step finds the people, vehicles, animals and everyday things (the 80 kinds of the COCO dataset) on a
+video's sampled frames and on a document's or an image's pages; it comes after `faces` in the standard pipeline. With
+no detector on the server it's skipped, and its job says why ([Configuration](configuration.md#objects)). Each kind
+found is kept once per resource, and the player's `objects` lists them, the most seen first:
+`{label, spans, screen_ms, first_ms, count, score, frame, box, boxes, paged, engine}`: where it's seen (`[from, to)`
+in ms, or on a document's pages page numbers from 0, with `paged`), how long or on how many pages, how often it was
+found, the detector's average confidence, a signed link to the frame or page it's best seen on and where it is there,
+and each place it was found (`[t, x, y, w, h, score]`, at most 500). The kinds a resource has are its `objects`, which
+`GET /resources?object=` filters on; search finds them by name (`source: object`), and its `object` filter and facet
+use them ([search](#search)). Moving or deleting a resource moves or deletes its objects.
 
 ## iiif
 

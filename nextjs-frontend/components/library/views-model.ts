@@ -5,6 +5,7 @@
  */
 import type { SavedView, ViewState } from "@/app/openapi-client/types.gen";
 import { fieldFilterLabel } from "@/components/fields/fields-model";
+import { objectName } from "@/components/recording/objects-model";
 import {
   DATE_LABEL,
   DURATION_LABEL,
@@ -34,6 +35,7 @@ export function viewState({ filters, view, sort }: LibraryState): ViewState {
     tags: [...filters.tags],
     origins: [...filters.origins],
     languages: [...filters.languages],
+    objects: [...filters.objects],
     sort: (sort.dir === "desc" ? `-${sort.key}` : sort.key) as Sort,
     collection: filters.collection,
     field: filters.field?.id ?? null,
@@ -56,6 +58,7 @@ export function fromView(s: ViewState | null | undefined): LibraryState & { spea
       tags: [...(s?.tags ?? [])],
       origins: [...(s?.origins ?? [])],
       languages: [...(s?.languages ?? [])],
+      objects: [...(s?.objects ?? [])],
       collection: s?.collection ?? null,
       field: s?.field != null ? { id: s.field, value: s.value ?? "" } : null,
     },
@@ -85,6 +88,7 @@ export function sameState(a: ViewState | null | undefined, b: ViewState | null |
     sameSet(x.filters.tags, y.filters.tags, true) &&
     sameSet(x.filters.origins, y.filters.origins) &&
     sameSet(x.filters.languages, y.filters.languages, true) &&
+    sameSet(x.filters.objects, y.filters.objects, true) &&
     x.filters.collection === y.filters.collection &&
     (x.filters.field?.id ?? null) === (y.filters.field?.id ?? null) &&
     (x.filters.field?.value.trim() ?? "") === (y.filters.field?.value.trim() ?? "") &&
@@ -136,6 +140,7 @@ export function describeView(
     f.tags.length ? f.tags.map((t) => `#${t}`).join(" ") : null,
     f.origins.length ? f.origins.map(origin).join(", ") : null,
     f.languages.length ? f.languages.map(languageName).join(", ") : null,
+    f.objects.length ? `with ${f.objects.map(objectName).join(" or ")}` : null,
     x.sort.key !== "date" || x.sort.dir !== "desc"
       ? `by ${SORT_LABEL[x.sort.key]}${x.sort.dir === "asc" && x.sort.key === "date" ? ", oldest first" : ""}`
       : null,

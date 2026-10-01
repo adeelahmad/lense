@@ -107,8 +107,8 @@ def match(db, cfg, sid, prints):
 PAGE_SECONDS = 5  # a face on a page weighs as much as five seconds on screen when it's matched to the namespace's faces
 
 
-def _spans(times, step, bridge=2):
-    """Spans [from, to) of the times a face was seen, bridging up to `bridge` steps where it wasn't."""
+def spans(times, step, bridge=2):
+    """Spans [from, to) of the times a face (or an object) was seen, bridging up to `bridge` steps where it wasn't."""
     out = []
     for t in sorted(times):
         if out and t - out[-1][1] <= step * bridge:
@@ -177,7 +177,7 @@ def store_tracks(db, cfg, rid, sid, dets, mode_, step, say, paged=False):
         groups[int(lab)].append(d)
     tracks = []
     for n, (lab, g) in enumerate(sorted(groups.items(), key=lambda kv: min(d["t"] for d in kv[1]))):
-        spans = _spans({d["t"] for d in g}, step, 0 if paged else 2)  # pages it isn't on aren't bridged
+        sp = spans({d["t"] for d in g}, step, 0 if paged else 2)  # pages it isn't on aren't bridged
         best = max(g, key=lambda d: d["score"] * d["box"][2] * d["box"][3])
         cen = None
         if mode_ == "recognize":
@@ -186,9 +186,9 @@ def store_tracks(db, cfg, rid, sid, dets, mode_, step, say, paged=False):
         tracks.append(
             {
                 "local": f"P{n + 1}",
-                "spans": spans,
-                "screen_ms": sum(b - a for a, b in spans),
-                "first_ms": spans[0][0],
+                "spans": sp,
+                "screen_ms": sum(b - a for a, b in sp),
+                "first_ms": sp[0][0],
                 "cover": _crop(cfg, rid, best, f"face-{n + 1}.jpg"),
                 "centroid": cen,
                 "boxes": [[d["t"]] + [round(x, 4) for x in d["box"]] for d in sorted(g, key=lambda d: d["t"])][:500],

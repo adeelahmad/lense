@@ -96,6 +96,33 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       it's titled by the page, its text includes the line the page's script wrote, the header links to the page,
       Details shows its address and that it was printed, and Files names its PDF `harbour-news.pdf`; a viewer on a
       phone in dark mode reads it and its details. No console errors besides the 400 of the refused address.
+- **Objects in videos, documents and images.** A new pipeline step, objects, finds what's in a video's frames and on
+  a document's or an image's pages (people, vehicles, animals and everyday things: COCO's 80 kinds) and keeps each
+  kind with where it's seen. Decided with the project owner: YOLOX on ONNX Runtime by default (both Apache-2.0),
+  Ultralytics as an option (AGPL-3.0); what's found can be filtered by and searched for.
+    - The step looks at the frames the shots step sampled and at every page. Each kind is kept once per resource with
+      when it's on screen (a frame it was missed in is bridged) or on which pages, how often, how sure, and its boxes.
+      Without a detector it's skipped, saying why (no model, ONNX Runtime not installed, turned off). New settings:
+      `video.object_engine` (yolox, ultralytics or off) and `video.object_min_score`, and at startup
+      `video.yolox_model` and `video.ultralytics_model` (docs/configuration.md#objects). It's in the standard
+      pipeline, and reprocessing, batches and watched folders can run it.
+    - Library: an Objects filter (`GET /resources?object=dog`; `GET /resources/objects` says what's been found and
+      in how many resources), kept by saved views. Search: a kind of object is a hit where it's first seen ("Seen on
+      screen", "Seen on the page"), a filter (`object=`, or `object:dog` typed) and the Objects seen facet, kept by
+      saved searches (docs/api.md#objects).
+    - Resource page: an Objects tab lists each kind with when or where it's seen; choosing one shows its boxes on the
+      frame or the page.
+    - Docker: `lens:full` adds ONNX Runtime (the new `objects` extra) and YOLOX-s, checked against its hash, at
+      `/opt/lens/models/yolox_s.onnx`, where Lens looks for it. Settings → Video, OCR, faces and objects says which
+      model is in use.
+    - Fix: a step that exits Python (as a speech engine does when a package it needs is missing) now fails its job.
+      It stopped the worker running inside the API instead, leaving the job "running" and the jobs after it waiting.
+    - Checked in the browser with YOLOX-s: an admin uploads a photo of a street and a video made of it; the photo's
+      Objects tab lists a bicycle, a car, a dog and a potted plant and shows the dog's box on it; the video's says
+      when each is on screen and shows the dog's box on the frame; the Library filtered by Dog has both; Search for
+      "dog" finds it seen on the page and on screen, and its Objects seen facet narrows to what has a bicycle;
+      Settings shows the detector and its model; a viewer on a phone in dark mode sees the photo's objects
+      and the dog's box. No console errors.
 - **Word, text, web pages and emails as documents.** Any document now becomes a resource with pages, not only a PDF:
   Word, PowerPoint and spreadsheet files (and OpenDocument and RTF), text and Markdown, saved web pages and emails
   (`.eml`, and Outlook `.msg` with the `msg` extra) are made into PDFs and read like one. Decided with the project

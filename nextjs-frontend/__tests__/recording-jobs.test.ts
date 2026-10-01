@@ -231,6 +231,17 @@ describe("reprocess picker (R9)", () => {
       "shots",
       "ocr",
       "faces",
+      "objects",
+      "analyze",
+      "summarize",
+      "report",
+    ]);
+    // a document's or an image's pages: faces and objects, not shots or text on screen
+    expect(reprocessOptions({ video: false, hasAudio: false, paged: true }).map((o) => o.key)).toEqual([
+      "transcribe",
+      "diarize",
+      "faces",
+      "objects",
       "analyze",
       "summarize",
       "report",

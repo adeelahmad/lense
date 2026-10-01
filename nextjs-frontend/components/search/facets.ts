@@ -1,4 +1,5 @@
 import type { SearchFacets, SearchHit } from "@/app/openapi-client/types.gen";
+import { objectName } from "@/components/recording/objects-model";
 
 /** One value of a facet with how many moments have it. */
 export type FacetValue = {
@@ -14,6 +15,8 @@ export type Facets = {
   speakers: FacetValue[];
   emotions: FacetValue[];
   recordings: FacetValue[];
+  /** Kinds of object seen in the recordings, counted in recordings rather than moments. */
+  objects: FacetValue[];
 };
 
 /**
@@ -39,6 +42,7 @@ export function fromServer(f: SearchFacets): Facets {
       label: r.title || `Recording ${r.id}`,
       count: r.count,
     })),
+    objects: (f.objects ?? []).map((o) => ({ key: o.name, label: objectName(o.name), count: o.count })),
   };
 }
 

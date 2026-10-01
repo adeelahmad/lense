@@ -71,6 +71,29 @@ class LanguageCount(ResponseModel):
     recordings: int
 
 
+class ObjectCount(ResponseModel):
+    object: str = Field(description="a kind of object (person, car, dog …)")
+    recordings: int
+
+
+class ObjectTrack(ResponseModel):
+    """A kind of object seen in a recording, and where."""
+
+    label: str = Field(description="what it is (person, car, dog …: the COCO dataset's kinds, with the default engine)")
+    spans: list[list[int]] = Field(description="[from, to) where it's seen: ms, or page numbers from 0 when `paged`")
+    screen_ms: int = Field(description="how long it's seen (ms), or on how many pages when `paged`")
+    first_ms: int = Field(description="where it's first seen: ms, or a page number when `paged`")
+    count: int = Field(description="how many times it was found (on how many sampled frames or pages, and side by side)")
+    score: float = Field(description="how sure the detector was, on average (0-1)")
+    frame: str | None = Field(None, description="signed link to the frame or page it's best seen on")
+    box: list[float] | None = Field(None, description="where it is on that frame or page: [x, y, w, h] as fractions")
+    boxes: list[list[float]] = Field(
+        default_factory=list, description="each place it was found: [t (ms, or page), x, y, w, h, score] (at most 500)"
+    )
+    paged: bool | None = Field(None, description="true for a document's or an image's pages")
+    engine: str | None = Field(None, description="the detector: yolox or ultralytics")
+
+
 class RecordingSpeaker(ResponseModel):
     id: int
     name: str
@@ -181,6 +204,9 @@ class Player(ResponseModel):
         None, description="kind: audio, video, document or image (audio for a transcript without media), and its size"
     )
     pages: list[Page] | None = Field(None, description="a document's or an image's pages, in order")
+    objects: list[ObjectTrack] = Field(
+        default_factory=list, description="videos, documents and images: the kinds of object seen in it, the most seen first"
+    )
 
 
 class RecordingUpdate(RequestModel):

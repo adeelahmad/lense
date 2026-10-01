@@ -12,6 +12,7 @@ import {
   GripVertical,
   ScanFace,
   ScanText,
+  Shapes,
   Sparkles,
   TextSearch,
   Webhook,
@@ -59,13 +60,26 @@ const ICON: Record<string, LucideIcon> = {
   shots: Clapperboard,
   ocr: ScanText,
   faces: ScanFace,
+  objects: Shapes,
   analyze: TextSearch,
   summarize: Sparkles,
   llm: Sparkles,
   report: FileText,
   export: FileOutput,
 };
-const LIB_ORDER = ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "llm", "report", "export"];
+const LIB_ORDER = [
+  "transcribe",
+  "diarize",
+  "shots",
+  "ocr",
+  "faces",
+  "objects",
+  "analyze",
+  "summarize",
+  "llm",
+  "report",
+  "export",
+];
 const TONE_BG: Record<string, string> = {
   intent: "bg-blue",
   red: "bg-red",

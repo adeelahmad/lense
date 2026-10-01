@@ -194,6 +194,7 @@ def where(
     within=None,
     cfg=None,
     field=None,
+    objects=None,
 ):
     """The WHERE clause and its parameters for these filters. Filters combine with AND, the values of one filter with OR.
 
@@ -205,7 +206,7 @@ def where(
     languages: language codes (ignoring case), "none" for recordings whose language isn't known. edited: recording ids
     (edited_by). collections: collection ids (a collection and the ones inside it). within: {namespace: collection
     ids} for namespaces someone sees only some collections of (in_scope). field: (condition, value) on a custom field,
-    from fields.filter_condition.
+    from fields.filter_condition. objects: any of these kinds of object seen in it (ignoring case; objects.py).
     """
     base, p = in_scope(spaces, within)
     w = [base]
@@ -294,6 +295,10 @@ def where(
     if langs:
         p["langs"] = [x for x in langs if x != "none"]
         w.append("(string::lowercase(language ?? '') IN $langs" + (" OR language = NONE OR language = ''" if "none" in langs else "") + ")")
+    kinds = sorted({" ".join(o.split()).casefold() for o in objects or [] if o and o.strip()})
+    if kinds:
+        p["kinds"] = kinds
+        w.append("objects CONTAINSANY $kinds")
     if edited is not None:
         p["edited"] = recs(sorted(edited))
         w.append("id IN $edited")
@@ -445,6 +450,16 @@ def retag(db, rids, add=(), remove=()):
             _save_tags(db, r["id"], after)
             changed += 1
     return changed
+
+
+def object_counts(db, spaces, within=None):
+    """The kinds of object seen in these namespaces' recordings (and those of the collections in `within`) with how
+    many recordings each is in: [{object, recordings}], the most first."""
+    cond, p = in_scope(spaces, within)
+    counts: Counter[str] = Counter()
+    for kinds in db.values(f"SELECT VALUE objects FROM recording WHERE {cond} AND objects != NONE", **p) if spaces or within else []:
+        counts.update(set(kinds or []))
+    return [{"object": k, "recordings": n} for k, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
 
 
 def tag_counts(db, spaces, within=None):

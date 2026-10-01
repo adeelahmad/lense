@@ -17,7 +17,7 @@ import re
 import secrets
 import threading
 
-from . import convert, ipgroups, store
+from . import convert, ipgroups, objects, store
 
 R = store.R
 EDITABLE = {
@@ -45,6 +45,9 @@ EDITABLE = {
         "face_match_threshold",
         "face_review_threshold",
         "publish_faces",
+        # the model files (yolox_model, ultralytics_model) are startup settings only, like yunet_model
+        "object_engine",
+        "object_min_score",
     ),
     "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
     "uploads": None,
@@ -64,6 +67,7 @@ ENUMS = {
     ("reports", "audio"): {"link", "embed", "none"},
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "none"},
+    ("video", "object_engine"): {"yolox", "ultralytics", "off"},
 }
 ENV_OVERRIDES = {("server", "allowed_hosts"): "ARCHIVE_ALLOWED_HOSTS"}
 # The types uploads.extensions may name: what the folder scans import, a few more that ffmpeg reads, and documents and
@@ -183,6 +187,7 @@ def view(db, base):
         "rclone": base["sources"].get("rclone") or "rclone on PATH",
         "local_roots": base["sources"].get("local_roots") or [],
         **convert.bootstrap(base),
+        "yolox_model": objects.yolox_model(base) or "not found",
     }
     return out
 
@@ -225,6 +230,10 @@ def _check(section, key, value, default):
         if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
             raise ValueError(f"documents.{key} is a whole number from {lo} to {hi}")
         return value
+    if (section, key) == ("video", "object_min_score"):
+        if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0.05 <= value <= 0.95):
+            raise ValueError("video.object_min_score is a number from 0.05 to 0.95")
+        return float(value)
     if section == "tokens" and key != "never_expire":
         lo, hi = TOKEN_DAYS
         if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):

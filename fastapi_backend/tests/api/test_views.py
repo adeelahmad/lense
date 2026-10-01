@@ -57,6 +57,7 @@ def test_personal_views(client, env, db):
         "media": "any",
         "origins": [],
         "languages": [],
+        "objects": [],
         "collection": None,
         "field": None,
         "value": None,

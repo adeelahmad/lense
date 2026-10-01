@@ -2,7 +2,7 @@
 
 import { ChevronLeft, Video as VideoIcon } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { homeText } from "@/components/library/collections-model";
 import type { PlayerAction } from "@/components/player/keys";
@@ -10,11 +10,12 @@ import { usePlayerApi } from "@/components/player/media";
 import { useRec, type PanelTab } from "@/components/recording/context";
 import { Banners, HeaderActions } from "@/components/recording/header";
 import { sourceLabel } from "@/components/recording/labels";
-import { useJob, useNotes } from "@/components/recording/hooks";
-import { currentStep, isActive, loopSteps, stepNotes, type JobInfo } from "@/components/recording/jobs";
+import { useNotes, useVisualNotes } from "@/components/recording/hooks";
+import { currentStep, isActive, loopSteps, type JobInfo } from "@/components/recording/jobs";
 import { MORE_TABS, PanelBody, PanelScroll, PanelTabs, type TabDef } from "@/components/recording/side-panel";
 import { Transcript } from "@/components/recording/transcript";
 import { adjacentShot, frameMs } from "@/components/recording/video/model";
+import { ObjectsTab } from "@/components/recording/objects-tab";
 import { PeopleTab } from "@/components/recording/video/people-tab";
 import { ScreenTextTab } from "@/components/recording/video/screen-text-tab";
 import { ShotsTab } from "@/components/recording/video/shots-tab";
@@ -29,22 +30,6 @@ import { cn } from "@/lib/utils";
 export type VideoCommand = Extract<PlayerAction, { type: "frame" | "shot" | "overlay" | "find" }>;
 
 const LAYOUT_KEY = "lens.video.layout";
-
-/** What the last visual steps said: no OCR engine, no faces found (from the latest job log that ran them). */
-function useVisualNotes(jobs: JobInfo[]) {
-  const last = jobs.find((j) => j.steps.some((s) => s.type === "ocr" || s.type === "faces"));
-  const detail = useJob(last?.id, isActive(last));
-  const j = detail.data ?? last;
-  return useMemo(() => {
-    if (!j) return { noEngine: false, noFaces: false };
-    const notes = stepNotes(j);
-    const note = (type: string) => notes[j.steps.findIndex((s) => s.type === type)]?.notes.join(" ") ?? "";
-    return {
-      noEngine: /no OCR engine/i.test(note("ocr")),
-      noFaces: /no faces found/i.test(note("faces")),
-    };
-  }, [j]);
-}
 
 /**
  * The video recording page (VR1–VR3): the player first with face, text and caption overlays; a zoomable timeline with
@@ -67,6 +52,7 @@ export function VideoLayout({
     text: true,
   });
   const [layout, setLayoutState] = useState<VideoLayoutMode>("side");
+  const [object, setObject] = useState<string | null>(null);
   const notes = useVisualNotes(jobs);
   const notesCount = useNotes(r.id).data?.length ?? 0;
   useEffect(() => {
@@ -110,6 +96,7 @@ export function VideoLayout({
       label: "People on screen",
       count: model.facesMode === "off" ? "off" : model.faces.length,
     },
+    { value: "objects", label: "Objects", count: model.objects.length },
     { value: "summary", label: "Summary" },
     { value: "iiif", label: "IIIF" },
   ];
@@ -147,6 +134,8 @@ export function VideoLayout({
         <ScreenTextTab noEngine={notes.noEngine} />
       ) : current === "people" ? (
         <PeopleTab noFaces={notes.noFaces} />
+      ) : current === "objects" ? (
+        <ObjectsTab selected={object} onSelect={setObject} why={notes.objectsWhy} />
       ) : (
         <PanelBody tab={current} />
       )}
@@ -208,6 +197,7 @@ export function VideoLayout({
           <div className={cn("flex flex-col gap-2.5", compact ? "px-0 pt-0" : "px-5 pt-3.5")}>
             <VideoStage
               overlays={mode === "theatre" ? { ...overlays, captions: true } : overlays}
+              object={object}
               maxHeight={mode === "theatre" ? "74vh" : compact ? "40vh" : "56vh"}
               className={compact ? "rounded-none" : undefined}
             />
@@ -253,12 +243,13 @@ function VisualProgress({ job, className }: { job: JobInfo; className?: string }
   const { model } = useRec();
   const steps = loopSteps(job);
   const cur = currentStep(job);
-  const rows = steps.filter((s) => ["shots", "transcribe", "ocr", "faces"].includes(s.key ?? ""));
+  const rows = steps.filter((s) => ["shots", "transcribe", "ocr", "faces", "objects"].includes(s.key ?? ""));
   if (!rows.length) return null;
   const count: Record<string, number> = {
     shots: model.shots.length,
     ocr: model.screenText.length,
     faces: model.faces.length,
+    objects: model.objects.length,
     transcribe: model.segments.length,
   };
   return (
