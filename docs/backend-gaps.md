@@ -19,7 +19,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | Feature | Needed |
 |---|---|
 | Bulk export as one file | `POST /recordings/export` returning a zip |
-| Split or merge turns; word highlighting | split/merge segment endpoints; word timings in the player |
 | Timestamps on summary items | times in the summary schema |
 | Details: codec, bitrate, loudness, checksum, size; remote source name | media probe fields; source name in the detail |
 | Template report links | signed output URLs |

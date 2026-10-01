@@ -26,6 +26,18 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Split and join transcript lines; the word being said lights up.** In Edit, a line splits at the cursor
+  (Shift+Enter, or Split here), optionally giving the rest to another speaker (Split, the rest is…), and joins the next
+  line (Join with next line, or Delete at its end; Backspace at its start joins the line above). Undo takes them back
+  like other corrections, and the change history lists them. When transcription timed the words, the one being said
+  is highlighted as the recording plays.
+    - `POST /api/v1/recordings/{rid}/segments/{idx}/split {at, t?, speaker?}` and `…/merge` (docs/api.md). The lines
+      after it are renumbered, and the edit history, entity corrections and chapters follow; the words keep their
+      timings; Analyze runs again, as after a correction. Audited as `transcript.split` and `transcript.merge`;
+      `GET …/edits` gives each change's `kind`, in the order made even within a second.
+    - Lines in `GET …/player` carry their timed words as `w` (character ranges of the text, with times), so a
+      corrected line keeps the timings of the words it still has. The highlight uses the browser's CSS Custom
+      Highlight API; browsers without it keep the line's tint.
 - **Notes on recordings.** Select words in the transcript and choose Add note, or write one in the new Notes tab about
   where the player is or about the whole recording. Notes are yours; editors can share theirs with everyone who can
   read the recording (decided with the project owner, like saved views). Turns with notes get a mark that opens the

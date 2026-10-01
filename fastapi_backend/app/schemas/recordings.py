@@ -102,7 +102,11 @@ class Player(ResponseModel):
     duration_ms: int | None = None
     audio: str | None = Field(None, description="signed audio link, or null when there is no audio")
     speakers: list[dict[str, Any]] = Field(default_factory=list)
-    segments: list[dict[str, Any]] = Field(default_factory=list)
+    segments: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="the lines: t0, t1 (ms), s (speaker key), text, e (emotion), v (event), and w, the timed words as "
+        "[c0, c1, t0, t1] (a character range of text, ms) when transcription gave them",
+    )
     sections: list[dict[str, Any]] = Field(default_factory=list)
     entities: list[dict[str, Any]] = Field(default_factory=list)
     keywords: list[Any] = Field(default_factory=list)
@@ -264,8 +268,19 @@ class SegmentUpdate(RequestModel):
     speaker: int | None = None
 
 
+class SegmentSplit(RequestModel):
+    """Where to split a line: `at`, a position in its text (the split goes at the start of the word it's in)."""
+
+    at: int = Field(ge=1, description="a character position in the line's text")
+    t: int | None = Field(None, ge=0, description="when the second part starts, in ms (default: when its first word was said)")
+    speaker: int | None = Field(
+        None, description="the second part's speaker (an id in the namespace, or null); leave out to keep the line's"
+    )
+
+
 class SegmentEdit(ResponseModel):
     idx: int
+    kind: Literal["split", "merge"] | None = Field(None, description="split or merge; null for a correction")
     before: dict[str, Any] | None = None
     after: dict[str, Any] | None = None
     by: str | None = None

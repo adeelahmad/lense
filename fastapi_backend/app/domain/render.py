@@ -15,7 +15,7 @@ from collections import Counter, defaultdict
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from . import analyze, graph as graphmod, speakers as spk, store
+from . import analyze, graph as graphmod, speakers as spk, store, transcript
 
 HERE = pathlib.Path(__file__).parent
 WEB_DIR = HERE / "web"
@@ -102,12 +102,27 @@ def recording_stats(db, rid):
     return st
 
 
+def _line(s):
+    """A transcript line for the player; `w` holds its timed words as [c0, c1, t0, t1] when transcription gave them."""
+    line = {
+        "t0": s["t0"],
+        "t1": s["t1"],
+        "s": f"s{s['speaker']}" if s.get("speaker") else None,
+        "text": s["text"],
+        "e": s.get("emotion"),
+        "v": s.get("event"),
+    }
+    w = transcript.align(s["text"], transcript.words(s))
+    return {**line, "w": w} if w else line
+
+
 def player_data(db, rid, audio=None):
     rec = db.one("SELECT * FROM $r", r=store.R("recording", rid))
     if not rec:
         raise KeyError(rid)
     segs = db.rows(
-        "SELECT record::id(id) AS id, idx, t0, t1, speaker, text, emotion, event FROM segment WHERE recording = $r ORDER BY idx", r=rid
+        "SELECT record::id(id) AS id, idx, t0, t1, speaker, text, emotion, event, words FROM segment WHERE recording = $r ORDER BY idx",
+        r=rid,
     )
     order = list(dict.fromkeys(s["speaker"] for s in segs if s.get("speaker")))
     names = speaker_names(db, order)
@@ -147,17 +162,7 @@ def player_data(db, rid, audio=None):
         "duration_ms": rec.get("duration_ms") or (segs[-1]["t1"] if segs else 0),
         "audio": audio,
         "speakers": [{"key": f"s{i}", "id": i, "name": names.get(i, f"Speaker {i}"), "color": color_of(i)} for i in order],
-        "segments": [
-            {
-                "t0": s["t0"],
-                "t1": s["t1"],
-                "s": f"s{s['speaker']}" if s.get("speaker") else None,
-                "text": s["text"],
-                "e": s.get("emotion"),
-                "v": s.get("event"),
-            }
-            for s in segs
-        ],
+        "segments": [_line(s) for s in segs],
         "sections": db.rows("SELECT idx, seg0, seg1, t0, t1, title FROM section WHERE recording = $r ORDER BY idx", r=rid),
         "entities": entities,
         "keywords": analyze.keywords(db, rid, 40) if rec.get("analyzed_at") else [],

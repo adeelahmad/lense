@@ -17,7 +17,7 @@ from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_url, sign_urls
 from app.api.streaming import file_response, range_response
 from app.domain import access as acc
-from app.domain import analyze, auth, deletion, ipgroups, jobs, library, moving, render, sources, store, video
+from app.domain import analyze, auth, deletion, ipgroups, jobs, library, moving, render, sources, store, transcript, video
 from app.domain import metadata as md
 from app.domain.store import API, DB
 from app.schemas.common import AccessLevel, Ok
@@ -46,6 +46,7 @@ from app.schemas.recordings import (
     RecordingUpdate,
     ReprocessRequest,
     SegmentEdit,
+    SegmentSplit,
     SegmentUpdate,
     Share,
     ShareCreate,
@@ -560,16 +561,61 @@ def edit_segment(rid: int, idx: int, body: SegmentUpdate, acl: Acl, user: Writer
     if not patch:
         raise HTTPException(400, "change the text or the speaker")
     db.q("UPDATE $s MERGE $p", s=sr, p=patch)
-    edit = {"recording": rid, "idx": idx, "before": seg, "after": patch, "by": user.email, "at": store.now()}
+    edit = {
+        "recording": rid,
+        "idx": idx,
+        "before": seg,
+        "after": patch,
+        "by": user.email,
+        "at": store.now(),
+        "n": db.next_id("segment_edit"),
+    }
     db.q("CREATE segment_edit CONTENT $d", d=store.clean(edit))
     auth.audit(db, user.as_audit(), "transcript.edit", f"recording:{rid}", {"segment": idx})
     return JobQueued(job=jobs.enqueue(db, rid, ["analyze", "report"], by=user.email))
 
 
+def _changed(db: DB, rid: int, idx: int, kind: str, done: dict[str, Any], user: Any) -> JobQueued:
+    """Keep a split or merge in the edit history and the audit log, and analyse the recording again."""
+    edit = {"recording": rid, "idx": idx, "kind": kind, **done, "by": user.email, "at": store.now(), "n": db.next_id("segment_edit")}
+    db.q("CREATE segment_edit CONTENT $d", d=store.clean(edit))
+    auth.audit(db, user.as_audit(), f"transcript.{kind}", f"recording:{rid}", {"segment": idx})
+    return JobQueued(job=jobs.enqueue(db, rid, ["analyze", "report"], by=user.email))
+
+
+@router.post("/{rid}/segments/{idx}/split")
+def split_segment(rid: int, idx: int, body: SegmentSplit, acl: Acl, user: Writer, db: Db) -> JobQueued:
+    """Split a transcript line in two (editors): at `at`, a position in its text, moved back to the start of the word
+    it's in. The second part starts at `t` (ms) when given, else when its first word was said (or as far into the
+    line's time as `at` is into its text); it keeps the line's speaker unless `speaker` is sent. The lines after it
+    move down one, with their corrections. Kept in the edit history; the recording is re-analysed afterwards."""
+    rec = acl.recording(rid, "editor")
+    if body.speaker is not None:
+        row = db.one("SELECT space FROM $s", s=R("speaker", body.speaker))
+        if not row or row["space"] != rec["space"]:
+            raise HTTPException(400, "that speaker isn't in this namespace")
+    with domain_errors():
+        done = transcript.split(db, rid, idx, body.at, body.t, body.speaker, "speaker" in body.model_fields_set)
+    return _changed(db, rid, idx, "split", done, user)
+
+
+@router.post("/{rid}/segments/{idx}/merge")
+def merge_segments(rid: int, idx: int, acl: Acl, user: Writer, db: Db) -> JobQueued:
+    """Merge a transcript line with the next one (editors): one line with both texts, from the first's start to the
+    second's end, with the first's speaker. The lines after it move up one, with their corrections. Kept in the edit
+    history (with where to split it again); the recording is re-analysed afterwards."""
+    acl.recording(rid, "editor")
+    with domain_errors():
+        done = transcript.merge(db, rid, idx)
+    return _changed(db, rid, idx, "merge", done, user)
+
+
 @router.get("/{rid}/edits")
 def list_segment_edits(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[SegmentEdit]:
+    """Corrections, splits and merges of the transcript, the latest first."""
     acl.recording(rid)
-    return db.rows("SELECT idx, before, after, by, at FROM segment_edit WHERE recording = $r ORDER BY at DESC", r=rid)
+    rows = db.rows("SELECT idx, kind, before, after, by, at, n FROM segment_edit WHERE recording = $r ORDER BY at DESC, n DESC", r=rid)
+    return [SegmentEdit(**{k: v for k, v in e.items() if k != "n"}) for e in rows]  # n: their order within a second
 
 
 @router.get("/{rid}/outputs")

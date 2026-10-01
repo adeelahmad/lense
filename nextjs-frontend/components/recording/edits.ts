@@ -2,6 +2,8 @@
 
 export type EditRecord = {
   idx: number;
+  /** "split" or "merge"; none for a correction. */
+  kind?: string | null;
   before?: Record<string, unknown> | null;
   after?: Record<string, unknown> | null;
   by?: string | null;
@@ -24,13 +26,22 @@ export function wordDiff(a: string, b: string): { removed: string; added: string
   };
 }
 
-/** "Fixed “Meridan” → “Meridian”", "Reassigned line to Host B", … */
+/** "Fixed “Meridan” → “Meridian”", "Reassigned line to Host B", "Split a line before “Today…”", … */
 export function describeEdit(
-  e: Pick<EditRecord, "before" | "after">,
+  e: Pick<EditRecord, "before" | "after" | "kind">,
   speakerName: (id: number | null) => string,
 ): string {
   const after = e.after ?? {};
   const before = e.before ?? {};
+  if (e.kind === "split") {
+    const text = String(before.text ?? "");
+    const at = Number(after.at);
+    const rest = Number.isFinite(at) ? text.slice(at).trim() : "";
+    const to =
+      "speaker" in after ? `, the rest to ${speakerName(after.speaker == null ? null : Number(after.speaker))}` : "";
+    return rest ? `Split a line before “${clip(rest, 20)}”${to}` : `Split a line${to}`;
+  }
+  if (e.kind === "merge") return "Merged two lines";
   const text = "text" in after;
   const spk = "speaker" in after;
   if (text && spk) return "Edited the text and the speaker";
@@ -48,10 +59,12 @@ export function describeEdit(
   return "Edited a line";
 }
 
-/** The PATCH body that puts a line back the way it was before this edit (only the fields the edit changed). */
+/** The PATCH body that puts a line back the way it was before this correction (only the fields it changed); null
+ * for a split or merge. */
 export function revertPatch(
-  e: Pick<EditRecord, "before" | "after">,
+  e: Pick<EditRecord, "before" | "after" | "kind">,
 ): { text?: string; speaker?: number | null } | null {
+  if (e.kind) return null; // a split or merge is undone in the session (Undo), not from the history
   const after = e.after ?? {};
   const before = e.before ?? {};
   const out: { text?: string; speaker?: number | null } = {};

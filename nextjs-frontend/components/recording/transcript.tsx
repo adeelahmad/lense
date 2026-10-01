@@ -20,7 +20,7 @@ import { EditProvider, EditToolbar, useEdit } from "@/components/recording/edit"
 import { transcriptOrigin } from "@/components/recording/labels";
 import { useNamespaceFaces, useNotes, useSpeakerDirectory } from "@/components/recording/hooks";
 import { currentStep } from "@/components/recording/jobs";
-import { segmentAt } from "@/components/recording/model";
+import { segmentAt, textRange, wordAt, type Segment } from "@/components/recording/model";
 import { draftFromSelection, notesAt } from "@/components/recording/notes-model";
 import { TurnView, type Unsure } from "@/components/recording/turn";
 import { ShareMoment } from "@/components/iiif/iiif-panel";
@@ -85,6 +85,7 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
     return m;
   }, [find.hits]);
   const currentHit = find.hits[find.index] ?? null;
+  useSpokenWord(box, model.segments);
   // Turns that notes are about get a mark that opens the Notes tab.
   const notes = useNotes(r.id).data;
   const noteCounts = useMemo(() => {
@@ -438,6 +439,39 @@ function FindBar() {
       </button>
     </div>
   );
+}
+
+/**
+ * The word being said gets a highlight, in lines whose words are timed (the CSS Custom Highlight API, so the text isn't
+ * re-rendered as the words go by; browsers without it keep the line's tint).
+ */
+function useSpokenWord(box: React.RefObject<HTMLDivElement | null>, segments: Segment[]) {
+  const api = usePlayerApi();
+  useEffect(() => {
+    if (typeof CSS === "undefined" || !CSS.highlights || typeof Highlight === "undefined") return;
+    if (!segments.some((s) => s.words)) return;
+    const hl = new Highlight();
+    CSS.highlights.set("lens-word", hl);
+    let last = "";
+    const paint = (ms: number) => {
+      const i = segmentAt(segments, ms);
+      const words = segments[i]?.words;
+      const w = words ? wordAt(words, ms) : -1;
+      const key = w < 0 ? "" : `${i}:${w}`;
+      if (key === last) return;
+      last = key;
+      hl.clear();
+      const el = words && w >= 0 ? box.current?.querySelector<HTMLElement>(`[data-seg="${i}"]`) : null;
+      const range = el && words ? textRange(el, words[w][0], words[w][1]) : null;
+      if (range) hl.add(range);
+    };
+    paint(api.now());
+    const off = api.subscribe(paint);
+    return () => {
+      off();
+      CSS.highlights.delete("lens-word");
+    };
+  }, [api, box, segments]);
 }
 
 /** The time of a character inside a line, spread evenly over the line's duration (there are no word timings). */

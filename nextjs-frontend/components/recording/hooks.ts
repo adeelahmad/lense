@@ -282,6 +282,34 @@ export function useRecordingActions(id: number) {
     },
     onError: fail("Couldn't save the change"),
   });
+  // Lines are numbered: the next split or join waits until the transcript has its new numbers.
+  const lineChanged = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: rk.player(id) }),
+      qc.invalidateQueries({ queryKey: rk.edits(id) }),
+      qc.invalidateQueries({ queryKey: rk.jobs(id) }),
+    ]);
+  const splitSegment = useMutation({
+    mutationFn: (v: { idx: number; at: number; t?: number; speaker?: number | null }) =>
+      data(
+        Recordings.splitSegment({
+          client,
+          path: { rid: id, idx: v.idx },
+          body: {
+            at: v.at,
+            ...(v.t !== undefined ? { t: v.t } : {}),
+            ...(v.speaker !== undefined ? { speaker: v.speaker } : {}),
+          },
+        }),
+      ),
+    onSuccess: lineChanged,
+    onError: fail("Couldn't split the line"),
+  });
+  const mergeSegments = useMutation({
+    mutationFn: (idx: number) => data(Recordings.mergeSegments({ client, path: { rid: id, idx } })),
+    onSuccess: lineChanged,
+    onError: fail("Couldn't merge the lines"),
+  });
   const rename = useMutation({
     mutationFn: (title: string) => data(Recordings.updateRecording({ client, path: { rid: id }, body: { title } })),
     onSuccess: (updated) => {
@@ -340,6 +368,8 @@ export function useRecordingActions(id: number) {
     reprocess,
     retry,
     editSegment,
+    splitSegment,
+    mergeSegments,
     rename,
     renameSpeaker,
     mergeSpeaker,

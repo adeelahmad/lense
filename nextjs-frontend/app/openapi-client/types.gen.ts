@@ -3906,6 +3906,7 @@ export type Player = {
   }>;
   /**
    * Segments
+   * the lines: t0, t1 (ms), s (speaker key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them
    */
   segments?: Array<{
     [key: string]: unknown;
@@ -5644,6 +5645,11 @@ export type SegmentEdit = {
    */
   idx: number;
   /**
+   * Kind
+   * split or merge; null for a correction
+   */
+  kind?: "split" | "merge" | null;
+  /**
    * Before
    */
   before?: {
@@ -5666,6 +5672,9 @@ export type SegmentEdit = {
   [key: string]:
     | unknown
     | number
+    | "split"
+    | "merge"
+    | null
     | {
         [key: string]: unknown;
       }
@@ -5679,6 +5688,28 @@ export type SegmentEdit = {
     | string
     | null
     | undefined;
+};
+
+/**
+ * SegmentSplit
+ * Where to split a line: `at`, a position in its text (the split goes at the start of the word it's in).
+ */
+export type SegmentSplit = {
+  /**
+   * At
+   * a character position in the line's text
+   */
+  at: number;
+  /**
+   * T
+   * when the second part starts, in ms (default: when its first word was said)
+   */
+  t?: number | null;
+  /**
+   * Speaker
+   * the second part's speaker (an id in the namespace, or null); leave out to keep the line's
+   */
+  speaker?: number | null;
 };
 
 /**
@@ -9764,6 +9795,74 @@ export type EditSegmentResponses = {
 };
 
 export type EditSegmentResponse = EditSegmentResponses[keyof EditSegmentResponses];
+
+export type SplitSegmentData = {
+  body: SegmentSplit;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Idx
+     */
+    idx: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/segments/{idx}/split";
+};
+
+export type SplitSegmentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SplitSegmentError = SplitSegmentErrors[keyof SplitSegmentErrors];
+
+export type SplitSegmentResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobQueued;
+};
+
+export type SplitSegmentResponse = SplitSegmentResponses[keyof SplitSegmentResponses];
+
+export type MergeSegmentsData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Idx
+     */
+    idx: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/segments/{idx}/merge";
+};
+
+export type MergeSegmentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MergeSegmentsError = MergeSegmentsErrors[keyof MergeSegmentsErrors];
+
+export type MergeSegmentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobQueued;
+};
+
+export type MergeSegmentsResponse = MergeSegmentsResponses[keyof MergeSegmentsResponses];
 
 export type ListSegmentEditsData = {
   body?: never;

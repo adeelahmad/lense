@@ -29,7 +29,11 @@ export type Segment = {
   text: string;
   emotion: string | null;
   event: string | null;
+  /** Timed words, when transcription gave them: [c0, c1, t0, t1], a character range of `text` and when it was said. */
+  words?: Word[];
 };
+
+export type Word = [c0: number, c1: number, t0: number, t1: number];
 
 export type Chapter = {
   idx: number;
@@ -163,6 +167,7 @@ export function normalizePlayer(raw: Player): PlayerModel {
       text: str(o.text) ?? "",
       emotion: str(o.e),
       event: str(o.v),
+      ...wordsOf(o.w, (str(o.text) ?? "").length),
     };
   });
   const lastEnd = segments.reduce((m, s) => Math.max(m, s.t1), 0);
@@ -317,6 +322,81 @@ export function indexAt<T extends { t0: number }>(items: T[], t: number): number
 }
 
 /** The segment being spoken at `t`, or the last one before it (so a pause keeps the line lit). */
+/** A line's timed words from the API, kept only when they fit its text: `{ words }`, or nothing. */
+function wordsOf(raw: unknown, len: number): { words?: Word[] } {
+  const words = arr(raw).filter(
+    (w): w is Word =>
+      Array.isArray(w) &&
+      w.length === 4 &&
+      w.every((x) => typeof x === "number" && Number.isFinite(x)) &&
+      w[0] >= 0 &&
+      w[0] < w[1] &&
+      w[1] <= len,
+  );
+  return words.length ? { words } : {};
+}
+
+/** The word being said at `ms`: the last one to have started (-1 before the first). */
+export function wordAt(words: Word[], ms: number): number {
+  let lo = 0;
+  let hi = words.length - 1;
+  let ans = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (words[mid][2] <= ms) {
+      ans = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  return ans;
+}
+
+/** Scripts written without spaces between words (a line splits between any two characters there). */
+const NO_SPACES = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff]/;
+
+/**
+ * Where a line splits for a caret at `pos` (as the API does it): the start of the word the caret is in. Null when one
+ * part would be empty. `rest` is the second part's start, to name it ("Split before “Today…”").
+ */
+export function splitPoint(text: string, pos: number): { at: number; rest: string } | null {
+  let at = Math.max(0, Math.min(Math.round(pos), text.length));
+  if (!NO_SPACES.test(text))
+    while (at > 0 && at < text.length && !/\s/.test(text[at - 1]) && !/\s/.test(text[at])) at--;
+  const head = text.slice(0, at).trim();
+  const rest = text.slice(at).trim();
+  return head && rest ? { at, rest } : null;
+}
+
+/** Where the second line's text starts once two lines are joined (as the API joins them: with a space, without one in
+ * scripts written without spaces). */
+export function joinedAt(a: string, b: string): number {
+  const x = a.trimEnd();
+  const y = b.trimStart();
+  if (!x || !y) return x.length;
+  return x.length + (NO_SPACES.test(x[x.length - 1]) || NO_SPACES.test(y[0]) ? 0 : 1);
+}
+
+/** A DOM range over characters c0..c1 of an element's text, or null when it doesn't have them. */
+export function textRange(el: HTMLElement, c0: number, c1: number): Range | null {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  let at = 0;
+  let started = false;
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const len = n.textContent?.length ?? 0;
+    if (!started && c0 < at + len) {
+      range.setStart(n, c0 - at);
+      started = true;
+    }
+    if (started && c1 <= at + len) {
+      range.setEnd(n, c1 - at);
+      return range;
+    }
+    at += len;
+  }
+  return null;
+}
+
 export function segmentAt(segments: Segment[], t: number): number {
   return indexAt(segments, t);
 }

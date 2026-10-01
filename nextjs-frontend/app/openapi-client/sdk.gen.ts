@@ -185,6 +185,12 @@ import type {
   EditSegmentData,
   EditSegmentResponses,
   EditSegmentErrors,
+  SplitSegmentData,
+  SplitSegmentResponses,
+  SplitSegmentErrors,
+  MergeSegmentsData,
+  MergeSegmentsResponses,
+  MergeSegmentsErrors,
   ListSegmentEditsData,
   ListSegmentEditsResponses,
   ListSegmentEditsErrors,
@@ -1508,7 +1514,39 @@ export class Recordings {
   }
 
   /**
+   * Split Segment
+   * Split a transcript line in two (editors): at `at`, a position in its text, moved back to the start of the word
+   * it's in. The second part starts at `t` (ms) when given, else when its first word was said (or as far into the
+   * line's time as `at` is into its text); it keeps the line's speaker unless `speaker` is sent. The lines after it
+   * move down one, with their corrections. Kept in the edit history; the recording is re-analysed afterwards.
+   */
+  public static splitSegment<ThrowOnError extends boolean = false>(options: Options<SplitSegmentData, ThrowOnError>) {
+    return (options.client ?? client).post<SplitSegmentResponses, SplitSegmentErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/segments/{idx}/split",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Merge Segments
+   * Merge a transcript line with the next one (editors): one line with both texts, from the first's start to the
+   * second's end, with the first's speaker. The lines after it move up one, with their corrections. Kept in the edit
+   * history (with where to split it again); the recording is re-analysed afterwards.
+   */
+  public static mergeSegments<ThrowOnError extends boolean = false>(options: Options<MergeSegmentsData, ThrowOnError>) {
+    return (options.client ?? client).post<MergeSegmentsResponses, MergeSegmentsErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/segments/{idx}/merge",
+      ...options,
+    });
+  }
+
+  /**
    * List Segment Edits
+   * Corrections, splits and merges of the transcript, the latest first.
    */
   public static listSegmentEdits<ThrowOnError extends boolean = false>(
     options: Options<ListSegmentEditsData, ThrowOnError>,

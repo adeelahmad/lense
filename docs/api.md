@@ -114,6 +114,8 @@ GET    /api/v1/recordings/{rid}/shares
 DELETE /api/v1/recordings/{rid}/shares/{id}
 GET    /api/v1/recordings/{rid}/export.{fmt}
 PATCH  /api/v1/recordings/{rid}/segments/{idx}
+POST   /api/v1/recordings/{rid}/segments/{idx}/split
+POST   /api/v1/recordings/{rid}/segments/{idx}/merge
 GET    /api/v1/recordings/{rid}/edits
 GET    /api/v1/recordings/{rid}/outputs
 ```
@@ -147,6 +149,22 @@ Rows also say where each recording came from (`origin`, and `origin_name`: the s
 and its `language` when known. `GET /recordings/origins` and `GET /recordings/languages` (`ns` for one namespace) list
 the origins and languages of the recordings you can read with how many have each, most first, for the Library's
 Source and Language filters.
+
+`PATCH /recordings/{rid}/segments/{idx}` corrects a transcript line: its `text`, its `speaker` (an id in the
+namespace, or `null`), or both (editors). `POST …/segments/{idx}/split {at, t?, speaker?}` splits a line in two at
+`at`, a position in its text moved back to the start of the word it's in. The second part starts at `t` (ms, inside
+the line) or else when its first timed word was said (or as far into the line's time as `at` is into its text), and
+keeps the line's speaker unless `speaker` is sent. `POST …/segments/{idx}/merge` joins a line with the next one: both
+texts (with a space between them, none in scripts written without spaces) and their words, from the first's start to
+the second's end, with the first's speaker. A split or merge renumbers the lines after it, and what points at line
+numbers follows: the edit history, people's entity corrections and the chapters. Each change re-analyses the
+recording (`job`), is audited (`transcript.edit`, `transcript.split`, `transcript.merge`) and is kept in `GET …/edits`,
+the latest first, with `kind` (`split`, `merge`, or null for a correction); a merge keeps where its second line
+started (`after.at`, `after.t`) to split it there again.
+
+In `GET …/player`, a line whose words have timings from transcription carries them as `w`: `[c0, c1, t0, t1]` for
+each word, a character range of its `text` and when it was said (ms). A corrected line keeps the timings of the words
+it still has.
 
 Recordings carry `tags`. `PATCH /recordings/{rid}` with `{"tags": [...]}` replaces a recording's tags (editors; at most
 20, 40 characters each; whitespace is collapsed and repeats are dropped, ignoring case). `POST /recordings/tags` with
