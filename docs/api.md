@@ -332,6 +332,14 @@ GET    /api/v1/workers
 GET    /api/v1/events
 ```
 
+Every job names its recording (`title`) and the pipeline it runs with the version it pinned (`pipeline`:
+`{id, version, name}`; `{name: "Standard"}` for the standard steps, null when the steps were chosen directly).
+`GET /jobs/{jid}` adds how each step went, `step_runs` (one per step, null until it runs): `started_at`, `finished_at`,
+`seconds`, `outcome` (`running`, `done`, `skipped`, `failed`), `note` (its last message, why it skipped, or its error),
+`worker`, `log_from`/`log_to` (its lines of the whole log) and `outputs` (`[{key, template, version, model}]`, saved as
+`outputs.<key>`). It also adds `estimates`, how long each step usually takes on this recording in seconds (from the
+last 25 runs of that step or template; null with none), and while the job is queued or running `eta_seconds`.
+
 A run keeps its whole log (up to 100,000 lines); the job itself carries its last 200 lines (`log`) and how many there
 are (`log_total`). `GET /jobs/{jid}/log?after=&limit=` pages through it: `{start, lines, total, more}`, up to 5,000
 lines a page (runs from before whole logs were kept have their last 200 lines).

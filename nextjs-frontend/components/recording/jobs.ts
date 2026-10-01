@@ -2,7 +2,7 @@
  * What the recording's jobs mean for the page: which state it is in (processing, analysing, failed, ready), the step
  * loop to draw, per-step notes and times from a job's log, and the Reprocess picker's step rules. Pure functions.
  */
-import type { Job } from "@/app/openapi-client/types.gen";
+import type { Job, JobPipeline, StepRun } from "@/app/openapi-client/types.gen";
 import type { LoopStep } from "@/components/ui/loop";
 import { STEP_LABEL, STEP_TONE } from "@/components/ui/loop";
 
@@ -30,6 +30,10 @@ export type JobInfo = {
   finishedAt: string | null;
   progress: number;
   log: string[];
+  /** How each step went, from the run's own records (null for runs from before those were kept). */
+  stepRuns: (StepRun | null)[] | null;
+  /** The pipeline (and version) it runs; null when its steps were chosen directly. */
+  pipeline: JobPipeline | null;
 };
 
 const ACTIVE = new Set(["queued", "running"]);
@@ -64,6 +68,8 @@ export function normalizeJob(j: Job): JobInfo {
     finishedAt: s("finished_at"),
     progress: typeof j.progress === "number" ? j.progress : 0,
     log: Array.isArray(j.log) ? j.log : [],
+    stepRuns: Array.isArray(j.step_runs) ? j.step_runs : null,
+    pipeline: j.pipeline ?? null,
   };
 }
 
@@ -98,13 +104,15 @@ export function loopSteps(j: JobInfo, notes?: StepNote[]): LoopStep[] {
       state = j.status === "failed" ? "failed" : j.status === "cancelled" ? "skipped" : "current";
     else if (j.status === "failed" || j.status === "cancelled") state = "skipped";
     const note = notes?.[i];
+    const skippedItself = state === "done" && Boolean(note?.skipped); // it had nothing to do (no LLM, not a video...)
+    if (skippedItself) state = "skipped";
     let sub: string | undefined;
     if (state === "current")
       sub = j.status === "queued" ? (i === 0 && !j.startedAt ? "queued" : "waiting for a worker") : "running";
     else if (state === "failed") sub = shortError(j.error) ?? "failed";
+    else if (skippedItself) sub = "skipped";
     else if (state === "skipped") sub = j.status === "cancelled" ? "cancelled" : "skipped";
-    else if (state === "done")
-      sub = note?.skipped ? "skipped" : note?.seconds != null ? duration(note.seconds) : undefined;
+    else if (state === "done") sub = note?.seconds != null ? duration(note.seconds) : undefined;
     else if (i === j.stepIndex + 1 && isActive(j)) sub = "waiting";
     return {
       key: spec.type,
@@ -141,10 +149,17 @@ const DONE_RX = /^(?:\d\d:\d\d:\d\d\s+)?(.+?) done in ([\d.]+)s$/;
 const SKIP_RX = /skipped|nothing to transcribe|kept them|kept it/i;
 
 /**
- * Per-step notes and times from a job's log. Each step logs what it did, then "<step> done in 1.2s"; lines before
- * that marker belong to the step. Returns one entry per job step (null times for steps that haven't run).
+ * Per-step notes and times: from the run's records of its steps, or, for runs from before those were kept, from its
+ * log. There each step logs what it did, then "<step> done in 1.2s" (or "<step> skipped: why"); lines before that
+ * marker belong to the step. Returns one entry per job step (null times for steps that haven't run).
  */
 export function stepNotes(j: JobInfo): StepNote[] {
+  if (j.stepRuns)
+    return j.steps.map((_, k) => {
+      const r = j.stepRuns?.[k];
+      if (!r || r.outcome === "running") return { seconds: null, notes: [], skipped: false };
+      return { seconds: r.seconds ?? null, notes: r.note ? [r.note] : [], skipped: r.outcome === "skipped" };
+    });
   const out: StepNote[] = j.steps.map(() => ({
     seconds: null,
     notes: [],
@@ -165,7 +180,7 @@ export function stepNotes(j: JobInfo): StepNote[] {
       pending = [];
       i++;
     } else if (/^handing .* to a worker|^cancelled$/.test(line)) continue;
-    else if (/ skipped: its condition isn't met$/.test(line) && i < out.length) {
+    else if (/^\w+ skipped: /.test(line) && i < out.length) {
       out[i] = { seconds: null, notes: [line], skipped: true };
       i++;
     } else pending.push(line);

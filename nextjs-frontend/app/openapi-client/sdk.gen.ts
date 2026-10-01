@@ -2305,6 +2305,8 @@ export class Jobs {
 
   /**
    * Get Job
+   * One run: its steps and how each went (`step_runs`), the pipeline it runs, its last log lines, and how long its
+   * steps usually take on this recording (`estimates`, `eta_seconds`).
    */
   public static getJob<ThrowOnError extends boolean = false>(options: Options<GetJobData, ThrowOnError>) {
     return (options.client ?? client).get<GetJobResponses, GetJobErrors, ThrowOnError>({

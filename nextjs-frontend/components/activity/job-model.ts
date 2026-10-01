@@ -1,23 +1,15 @@
 /**
  * Jobs as the Activity screens show them: step states, the one-line "what is happening" text, triggers, durations,
- * per-step logs parsed from the worker's log, worker health, and the list order that keeps the scroll still.
+ * how each step went (from the run's step records, or parsed from the log for older runs), pipelines, time left,
+ * worker health, and the list order that keeps the scroll still.
  * Pure functions only, so the page, the top-bar drawer and the tests share them.
  */
-import type { Job, WorkerInfo } from "@/app/openapi-client/types.gen";
+import type { Job, JobPipeline, StepOutput, WorkerInfo } from "@/app/openapi-client/types.gen";
+import { approxDuration } from "@/components/batches/format";
 import { STEP_LABEL } from "@/components/ui/loop";
 
-/** A job with the fields the backend sends beyond the typed ones (worker, attempts, times, batch...). */
-export type JobRecord = Job & {
-  worker?: string | null;
-  attempts?: number | null;
-  batch?: number | null;
-  created_by?: string | null;
-  created_at?: string | null;
-  started_at?: string | null;
-  finished_at?: string | null;
-  updated_at?: string | null;
-  cancel_requested?: boolean | null;
-};
+/** A run as the API sends it. */
+export type JobRecord = Job;
 
 export const ACTIVE = ["queued", "running", "paused"];
 export const isActive = (status: string | null | undefined) => ACTIVE.includes(status ?? "");
@@ -36,7 +28,7 @@ export function stepLabel(type: string, name?: string | null): string {
   return STEP_LABEL[type] ?? (type ? type[0].toUpperCase() + type.slice(1) : "Step");
 }
 
-/** Steps may be plain names or {type, name, ...} specs. */
+/** Steps may be plain names or {type, name, ...} specs; an unnamed LLM step goes by the output it saves ("Meeting notes"). */
 export function stepSpecs(steps: unknown[] | null | undefined): StepSpec[] {
   return (steps ?? []).map((s) => {
     const spec = (typeof s === "string" ? { type: s } : ((s as Record<string, unknown>) ?? {})) as Record<
@@ -45,7 +37,9 @@ export function stepSpecs(steps: unknown[] | null | undefined): StepSpec[] {
     >;
     const type = String(spec.type ?? "step");
     const name = typeof spec.name === "string" && spec.name ? spec.name : undefined;
-    return { type, name, label: stepLabel(type, name), spec };
+    const key = type === "llm" && typeof spec.key === "string" ? spec.key.replace(/[_-]+/g, " ").trim() : "";
+    const label = name ?? (key ? key[0].toUpperCase() + key.slice(1) : stepLabel(type));
+    return { type, name, label, spec };
   });
 }
 
@@ -173,11 +167,16 @@ export type LogTone = "out" | "ok" | "fail" | "gate" | "info";
 export type LogLine = { time?: string; text: string; tone: LogTone };
 export type StepLog = {
   lines: LogLine[];
-  /** From "<step> done in 12.3s". */
+  /** How long it took ("<step> done in 12.3s" in older logs). */
   seconds?: number;
   outcome?: "done" | "failed" | "skipped" | "handed-off";
-  /** The step's own last message ("analysed", "no LLM configured; skipped"...), or its error. */
+  /** The step's own last message ("analysed", "no LLM is configured"...), or its error. */
   note?: string;
+  /** From the run's record of the step (runs since those were kept). */
+  startedAt?: string;
+  finishedAt?: string;
+  worker?: string;
+  outputs?: StepOutput[];
 };
 
 export function lineTone(text: string): LogTone {
@@ -188,11 +187,6 @@ export function lineTone(text: string): LogTone {
 }
 
 /**
- * Split the worker's log into one part per step. The log only has events: messages from inside a step, then
- * "<step> done in 1.2s", "<step> failed: ...", "<step> skipped: ..." or "handing <step> to a worker that can run it".
- * Retries append to the same log, so a later "done" for a step overrides an earlier failure.
- */
-/**
  * New lines of a run's log arrive numbered (`start` is the number of the first one): add what's new. Null when they
  * leave a gap (lines were missed), so the caller fetches from where it got to.
  */
@@ -202,6 +196,11 @@ export function appendLog(lines: string[], start: number, more: string[]): strin
   return lines.slice(0, start).concat(more);
 }
 
+/**
+ * Split the worker's log into one part per step. The log only has events: messages from inside a step, then
+ * "<step> done in 1.2s", "<step> failed: ...", "<step> skipped: ..." or "handing <step> to a worker that can run it".
+ * Retries append to the same log, so a later "done" for a step overrides an earlier failure.
+ */
 export function parseJobLog(
   log: string[] | null | undefined,
   steps: unknown[] | null | undefined,
@@ -260,6 +259,96 @@ export function parseJobLog(
     if (k >= 0 && k < byStep.length) byStep[k].lines.push(line);
   }
   return { lines, byStep };
+}
+
+/**
+ * How each step of a run went. Runs keep a record of each step (its times, how it ended, its last message, its lines
+ * of the log and the outputs it saved); runs from before those were kept are read from the log. `log` holds the run's
+ * lines from number `start` on: the whole log, or its last lines while the rest loads.
+ */
+export function runSteps(
+  job: Pick<Job, "steps" | "step_runs">,
+  log: string[] | null | undefined,
+  start = 0,
+): { lines: LogLine[]; byStep: StepLog[] } {
+  const parsed = parseJobLog(log, job.steps);
+  if (!job.step_runs) return parsed;
+  const byStep = parsed.byStep.map((_, k): StepLog => {
+    const r = job.step_runs?.[k];
+    if (!r) return { lines: [] };
+    const from = r.log_from == null ? null : Math.max(0, r.log_from - start);
+    const to = r.log_to == null ? undefined : Math.max(0, r.log_to - start);
+    return {
+      lines: from == null ? [] : parsed.lines.slice(from, to),
+      seconds: r.seconds ?? undefined,
+      outcome: r.outcome === "running" ? undefined : (r.outcome ?? undefined),
+      note: r.note ?? undefined,
+      startedAt: r.started_at ?? undefined,
+      finishedAt: r.finished_at ?? undefined,
+      worker: r.worker ?? undefined,
+      outputs: r.outputs ?? [],
+    };
+  });
+  return { lines: parsed.lines, byStep };
+}
+
+/** "outputs.meeting_notes · Meeting notes v2 · model gpt-x": an output a step saved and what made it. */
+export function outputText(o: StepOutput, templateName?: (id: number) => string | undefined): string {
+  const made =
+    o.template != null
+      ? `${templateName?.(o.template) ?? `template #${o.template}`}${o.version != null ? ` v${o.version}` : ""}`
+      : null;
+  return [`outputs.${o.key}`, made, o.model ? `model ${o.model}` : null].filter(Boolean).join(" · ");
+}
+
+// ---------- pipelines and time left ----------
+
+/** "Notes v3", "Standard steps", or null when the run's steps were chosen directly (a batch, Reprocess). */
+export function pipelineLabel(p: JobPipeline | null | undefined): string | null {
+  if (!p) return null;
+  if (p.id == null) return "Standard steps";
+  return p.version != null ? `${p.name} v${p.version}` : p.name;
+}
+
+/** What the Pipeline filter matches a run on: "p3:2" (pipeline 3, version 2), "standard" or "chosen". */
+export function pipelineKey(p: JobPipeline | null | undefined): string {
+  if (!p) return "chosen";
+  return p.id == null ? "standard" : `p${p.id}:${p.version ?? ""}`;
+}
+
+/** The Pipeline filter's choices among these runs: each pipeline's versions (newest first), then the standard steps, then steps chosen directly. */
+export function pipelineOptions(jobs: Pick<Job, "pipeline">[]): { value: string; label: string }[] {
+  const named = new Map<string, JobPipeline>();
+  let standard = false;
+  let chosen = false;
+  for (const j of jobs) {
+    if (!j.pipeline) chosen = true;
+    else if (j.pipeline.id == null) standard = true;
+    else named.set(pipelineKey(j.pipeline), j.pipeline);
+  }
+  const out = [...named.entries()]
+    .sort(([, a], [, b]) => a.name.localeCompare(b.name) || (b.version ?? 0) - (a.version ?? 0))
+    .map(([value, p]) => ({ value, label: pipelineLabel(p) ?? p.name }));
+  if (standard) out.push({ value: "standard", label: "Standard steps" });
+  if (chosen) out.push({ value: "chosen", label: "Steps chosen directly" });
+  return out;
+}
+
+/** "about 4 min left" for an active run, from how long its steps usually take; null with nothing to go by. */
+export function timeLeft(job: Pick<Job, "status" | "eta_seconds">): string | null {
+  if (!isActive(job.status) || job.eta_seconds == null || !Number.isFinite(job.eta_seconds)) return null;
+  if (job.eta_seconds < 10) return "should finish shortly";
+  return `about ${approxDuration(job.eta_seconds).replace("~", "")} left`;
+}
+
+/** "~2 min", or "<1 s" for a step that's over in a moment. */
+export function approx(seconds: number): string {
+  return seconds < 1 ? "<1 s" : approxDuration(seconds);
+}
+
+/** "usually ~2 min" for a step, from recent runs (none for a step with nothing to go by, or over in a moment). */
+export function usually(estimate: number | null | undefined): string | null {
+  return estimate == null || estimate < 1 ? null : `usually ${approxDuration(estimate)}`;
 }
 
 // ---------- workers ----------

@@ -1,17 +1,26 @@
 import {
   appendLog,
   applyCount,
+  approx,
   applyJobEvent,
   batchPhase,
   dayTime,
   jobPhase,
+  outputText,
   parseJobLog,
+  pipelineKey,
+  pipelineLabel,
+  pipelineOptions,
   plainError,
   reconcileOrder,
+  runSteps,
   span,
+  stepSpecs,
   stepStates,
+  timeLeft,
   triggerOf,
   type JobRecord,
+  usually,
   waitingReason,
   workerState,
 } from "@/components/activity/job-model";
@@ -296,5 +305,120 @@ describe("a run's whole log, as it streams", () => {
     expect(appendLog(have, 1, ["b", "c", "d"])).toEqual(["a", "b", "c", "d"]); // overlaps what's here
     expect(appendLog(have, 0, ["a", "b"])).toBe(have); // nothing new
     expect(appendLog(have, 5, ["f"])).toBeNull(); // a gap: read from line 3
+  });
+});
+
+describe("how each step went", () => {
+  const log = [
+    "10:00:00 thinking",
+    "10:00:01 analysed",
+    "10:00:01 analyze done in 1.2s",
+    "10:00:01 summarize skipped: no LLM is configured",
+    "10:00:02 writing",
+  ];
+  const records = {
+    steps: ["analyze", "summarize", "report", "export"],
+    step_runs: [
+      {
+        outcome: "done" as const,
+        note: "analysed",
+        seconds: 1.2,
+        log_from: 0,
+        log_to: 3,
+        started_at: "2026-09-30T10:00:00+00:00",
+        finished_at: "2026-09-30T10:00:01+00:00",
+        worker: "w1",
+        outputs: [{ key: "notes", template: 7, version: 2, model: "m" }],
+      },
+      { outcome: "skipped" as const, note: "no LLM is configured", seconds: 0, log_from: 3, log_to: 4 },
+      { outcome: "running" as const, started_at: "2026-09-30T10:00:01+00:00", log_from: 4 },
+    ],
+  };
+  it("takes times, outcomes, notes, outputs and each step's lines from the run's records", () => {
+    const { lines, byStep } = runSteps(records, log);
+    expect(lines).toHaveLength(5);
+    expect(byStep[0]).toMatchObject({ outcome: "done", note: "analysed", seconds: 1.2, worker: "w1" });
+    expect(byStep[0].lines.map((l) => l.text)).toEqual(["thinking", "analysed", "analyze done in 1.2s"]);
+    expect(byStep[0].outputs).toEqual([{ key: "notes", template: 7, version: 2, model: "m" }]);
+    expect(byStep[1]).toMatchObject({ outcome: "skipped", note: "no LLM is configured" });
+    expect(byStep[2].outcome).toBeUndefined(); // still running: its lines so far
+    expect(byStep[2].lines.map((l) => l.text)).toEqual(["writing"]);
+    expect(byStep[3]).toEqual({ lines: [] }); // hasn't run
+    expect(stepStates({ status: "running", steps: records.steps, step_index: 2 }, byStep)).toEqual([
+      "done",
+      "skipped",
+      "running",
+      "waiting",
+    ]);
+  });
+  it("numbers lines from where the log it has starts", () => {
+    // only the last two lines have loaded: they are lines 3 and 4 of the run
+    const { byStep } = runSteps(records, log.slice(3), 3);
+    expect(byStep[0].lines).toEqual([]);
+    expect(byStep[1].lines.map((l) => l.text)).toEqual(["summarize skipped: no LLM is configured"]);
+    expect(byStep[2].lines.map((l) => l.text)).toEqual(["writing"]);
+  });
+  it("reads older runs from their log", () => {
+    const { byStep } = runSteps({ steps: records.steps }, log);
+    expect(byStep[0]).toMatchObject({ outcome: "done", seconds: 1.2, note: "analysed" });
+    expect(byStep[1]).toMatchObject({ outcome: "skipped", note: "no LLM is configured" });
+  });
+  it("says what made an output", () => {
+    const name = (id: number) => (id === 7 ? "Meeting notes" : undefined);
+    expect(outputText({ key: "notes", template: 7, version: 2, model: "m" }, name)).toBe(
+      "outputs.notes · Meeting notes v2 · model m",
+    );
+    expect(outputText({ key: "export_x", template: 9 })).toBe("outputs.export_x · template #9");
+    expect(outputText({ key: "k" })).toBe("outputs.k");
+  });
+});
+
+describe("pipelines and time left", () => {
+  it("names a run's pipeline and version", () => {
+    expect(pipelineLabel({ id: 3, version: 2, name: "Notes" })).toBe("Notes v2");
+    expect(pipelineLabel({ name: "Standard" })).toBe("Standard steps");
+    expect(pipelineLabel(null)).toBeNull();
+    expect([
+      pipelineKey({ id: 3, version: 2, name: "Notes" }),
+      pipelineKey({ name: "Standard" }),
+      pipelineKey(null),
+    ]).toEqual(["p3:2", "standard", "chosen"]);
+  });
+  it("offers each pipeline version among the runs, then the standard and chosen steps", () => {
+    const runs = [
+      { pipeline: { id: 3, version: 1, name: "Notes" } },
+      { pipeline: null },
+      { pipeline: { id: 3, version: 2, name: "Notes" } },
+      { pipeline: { name: "Standard" } },
+      { pipeline: { id: 1, version: 4, name: "Calls" } },
+      { pipeline: { id: 3, version: 2, name: "Notes" } },
+    ];
+    expect(pipelineOptions(runs)).toEqual([
+      { value: "p1:4", label: "Calls v4" },
+      { value: "p3:2", label: "Notes v2" },
+      { value: "p3:1", label: "Notes v1" },
+      { value: "standard", label: "Standard steps" },
+      { value: "chosen", label: "Steps chosen directly" },
+    ]);
+  });
+  it("says about how long an active run has left", () => {
+    expect(timeLeft({ status: "running", eta_seconds: 240 })).toBe("about 4 min left");
+    expect(timeLeft({ status: "queued", eta_seconds: 45 })).toBe("about 45 s left");
+    expect(timeLeft({ status: "running", eta_seconds: 3 })).toBe("should finish shortly");
+    expect(timeLeft({ status: "running", eta_seconds: null })).toBeNull();
+    expect(timeLeft({ status: "succeeded", eta_seconds: 10 })).toBeNull();
+    expect([usually(90), usually(0.4), usually(null)]).toEqual(["usually ~2 min", null, null]);
+    expect([approx(0.4), approx(42), approx(600)]).toEqual(["<1 s", "~42 s", "~10 min"]);
+  });
+});
+
+describe("step labels", () => {
+  it("names an unnamed LLM step after the output it saves", () => {
+    const specs = stepSpecs([
+      { type: "llm", key: "meeting_notes", template: 1 },
+      { type: "llm", key: "x", name: "Brief" },
+      "transcribe",
+    ]);
+    expect(specs.map((s) => s.label)).toEqual(["Meeting notes", "Brief", "Transcribe"]);
   });
 });

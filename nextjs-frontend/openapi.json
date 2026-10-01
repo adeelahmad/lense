@@ -6458,6 +6458,7 @@
           "jobs"
         ],
         "summary": "Get Job",
+        "description": "One run: its steps and how each went (`step_runs`), the pipeline it runs, its last log lines, and how long its\nsteps usually take on this recording (`estimates`, `eta_seconds`).",
         "operationId": "get_job",
         "parameters": [
           {
@@ -12488,6 +12489,28 @@
             ],
             "title": "Space"
           },
+          "batch": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobPipeline"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the pipeline it runs; null when its steps were chosen directly"
+          },
           "steps": {
             "items": {},
             "type": "array",
@@ -12539,7 +12562,8 @@
                 "type": "null"
               }
             ],
-            "title": "Title"
+            "title": "Title",
+            "description": "the recording's title"
           },
           "progress": {
             "anyOf": [
@@ -12551,6 +12575,94 @@
               }
             ],
             "title": "Progress"
+          },
+          "worker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker"
+          },
+          "attempts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempts"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "cancel_requested": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Requested"
           },
           "log": {
             "anyOf": [
@@ -12578,6 +12690,62 @@
             ],
             "title": "Log Total",
             "description": "how many lines the run has logged"
+          },
+          "step_runs": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/StepRun"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Runs",
+            "description": "GET /jobs/{jid}: one per step, in order: how its latest run went (null until it has run; runs from before these were kept have none)"
+          },
+          "estimates": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimates",
+            "description": "GET /jobs/{jid}: how long each step usually takes on this recording, in seconds, from recent runs (null for a step with none)"
+          },
+          "eta_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta Seconds",
+            "description": "GET /jobs/{jid}, while queued or running: about how long until it finishes, from `estimates`"
           }
         },
         "additionalProperties": true,
@@ -12673,6 +12841,44 @@
           "more"
         ],
         "title": "JobLog"
+      },
+      "JobPipeline": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "null for the standard steps"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "the version the run pinned when it was queued"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "JobPipeline"
       },
       "JobQueued": {
         "properties": {
@@ -17421,6 +17627,55 @@
         "title": "Started",
         "description": "Work that carries on after the response (202 Accepted)."
       },
+      "StepOutput": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "saved as outputs.<key> on the recording"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "the template version it was made with"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "title": "StepOutput"
+      },
       "StepQueued": {
         "properties": {
           "ok": {
@@ -17447,6 +17702,119 @@
           "queued"
         ],
         "title": "StepQueued"
+      },
+      "StepRun": {
+        "properties": {
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds",
+            "description": "how long it took"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "running",
+                  "done",
+                  "skipped",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "its last message, why it skipped, or its error"
+          },
+          "worker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker"
+          },
+          "log_from": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log From",
+            "description": "its first line in the run's log (GET /jobs/{jid}/log numbers lines from 0)"
+          },
+          "log_to": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log To",
+            "description": "the line after its last one"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/StepOutput"
+            },
+            "type": "array",
+            "title": "Outputs",
+            "description": "the outputs it saved"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "StepRun"
       },
       "TagCount": {
         "properties": {

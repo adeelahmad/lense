@@ -3,6 +3,7 @@
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 
+import { pipelineLabel } from "@/components/activity/job-model";
 import { useRec } from "@/components/recording/context";
 import { ChangeHistoryList } from "@/components/recording/edit";
 import { useJob } from "@/components/recording/hooks";
@@ -56,14 +57,15 @@ function RunCard({ job }: { job: JobInfo }) {
   const notes = stepNotes(j);
   const steps = loopSteps(j, notes);
   return (
-    <section className="overflow-hidden rounded-md border border-border" aria-label={`Run ${job.id}`}>
+    <section className="shrink-0 overflow-hidden rounded-md border border-border" aria-label={`Run ${job.id}`}>
       <div className="flex flex-col gap-1 border-b border-border bg-surface px-3.5 py-2.5">
         <div className="flex items-center gap-2">
           <span className="flex-1 text-[13px] font-bold leading-none text-fg">
             Run #{j.id}
             <span className="font-normal text-fg-secondary">
               {" "}
-              · {j.steps.length === 1 ? stepLabel(j.steps[0]) : `${j.steps.length} steps`}
+              · {pipelineLabel(j.pipeline) ? `${pipelineLabel(j.pipeline)} · ` : ""}
+              {j.steps.length === 1 ? stepLabel(j.steps[0]) : `${j.steps.length} steps`}
             </span>
           </span>
           <StatusChip status={j.status} />
@@ -97,11 +99,13 @@ function RunCard({ job }: { job: JobInfo }) {
                     ? j.status === "queued"
                       ? "waiting"
                       : "running"
-                    : n?.seconds != null
-                      ? duration(n.seconds)
-                      : s.state === "failed"
-                        ? "failed"
-                        : "—"}
+                    : n?.skipped
+                      ? "skipped"
+                      : n?.seconds != null
+                        ? duration(n.seconds)
+                        : s.state === "failed"
+                          ? "failed"
+                          : "—"}
                 </span>
               </div>
               {s.state === "current" && j.status === "running" && (

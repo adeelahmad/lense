@@ -20,9 +20,15 @@ PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summar
 AFTER_IMPORT = ["analyze", "summarize", "report"]
 ACTIVE = ["queued", "running"]
 FIELDS = (
-    "record::id(id) AS id, recording, space, batch, steps, step_index, next_step, status, worker, error, attempts, created_by, "
-    "created_at, started_at, finished_at, updated_at, cancel_requested, log_total"
+    "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
+    "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total"
 )
+MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces"}  # they take longer the longer the recording
+TIMINGS = 25  # recent timings kept per kind of step, for estimates
+
+
+class Skip(Exception):
+    """Raised by a step with nothing to do for this recording, with the reason; the run goes on to the next step."""
 
 
 def _source(db, rid):
@@ -36,19 +42,19 @@ def _spec(s):
 def _transcribe(db, cfg, rid, say, spec=None):
     rec = db.one("SELECT source, engine, status, envelope FROM $r", r=R("recording", rid)) or {}
     if rec.get("source") != "audio":
-        return say("imported transcript: nothing to transcribe")
+        raise Skip("an imported transcript has nothing to transcribe")
     if str(rec.get("engine") or "").startswith("import:") and rec.get("status") != "new" and not (spec or {}).get("force"):
         if not rec.get("envelope"):  # its audio was attached after the transcript was imported
             ingest.add_envelope(db, cfg, rid)
-            say("drew the waveform of the attached media")
-        return say("the transcript came with the media: kept it (force the step to transcribe again)")
+            return say("drew the waveform of the attached media; kept the transcript that came with it")
+        raise Skip("the transcript came with the media; kept it (force the step to transcribe again)")
     ingest.transcribe_one(db, cfg, rid, say)
 
 
 def _diarize(db, cfg, rid, say, spec=None):
     rec = db.one("SELECT source, diarizer FROM $r", r=R("recording", rid)) or {}
     if rec.get("source") != "audio" or (rec.get("diarizer") == "labels" and not (spec or {}).get("force")):
-        return say("speakers come from the transcript; kept them")
+        raise Skip("the speakers came with the transcript; kept them")
     spk.diarize_one(db, cfg, rid, say)
 
 
@@ -59,7 +65,7 @@ def _analyze(db, cfg, rid, say, spec=None):
 
 def _summarize(db, cfg, rid, say, spec=None):
     if not (cfg["llm"].get("base_url") and cfg["llm"].get("model")):
-        return say("no LLM configured; skipped")
+        raise Skip("no LLM is configured")
     analyze.summarize_recording(db, cfg, rid)
     say("summarised")
 
@@ -233,6 +239,11 @@ class RunLog:
                 self.pending.append(line)
         return line
 
+    def mark(self):
+        """The number the next line gets."""
+        with self.lock:
+            return self.total + len(self.pending)
+
     def flush(self):
         """Write the new lines; the parameters for the job's `log = $l, log_total = $n`."""
         with self.lock:
@@ -262,15 +273,138 @@ def log_lines(db, jid, after=0, limit=1000):
     return lines[:limit], last["start"] + last["n"]
 
 
+def _saved(db, rid):
+    """A recording's outputs, by key: the ones a step saves are those whose time changes while it runs."""
+    return {r["key"]: r for r in db.rows("SELECT key, created_at, origin FROM output WHERE recording = $r", r=rid)}
+
+
+def _outputs(before, after):
+    return [
+        store.clean({"key": k, **{f: (r.get("origin") or {}).get(f) for f in ("template", "version", "model")}})
+        for k, r in sorted(after.items())
+        if (before.get(k) or {}).get("created_at") != r.get("created_at")
+    ]
+
+
+def _kinds(spec):
+    """What a step's timings are kept under, most general first: its type, or for a step that runs a template
+    `<type>:template` (any template) and `<type>:<template id>` (one template's prompt can take far longer than another's,
+    and a report template is nothing like the namespace's report pages)."""
+    t = spec["type"]
+    return [t] if spec.get("template") is None else [f"{t}:template", f"{t}:{spec['template']}"]
+
+
+def _timed(db, rid, spec, seconds, skipped):
+    """Keep how long a step took, whether it skipped, and the recording's length for steps that work through its media.
+    Only estimates use these, so a failure to save them doesn't fail the run."""
+    try:
+        minutes = None
+        if spec["type"] in MEDIA_STEPS:
+            ms = (db.one("SELECT duration_ms FROM $r", r=R("recording", rid)) or {}).get("duration_ms")
+            minutes = round(ms / 60000, 3) if ms else None
+        for k in _kinds(spec):
+            db.q(
+                "UPSERT $s SET kind = $k, samples = array::slice(array::append(samples ?? [], $x), "
+                "math::max([0, array::len(samples ?? []) + 1 - $cap]))",
+                s=R("step_stat", k),
+                k=k,
+                x=[seconds, minutes, skipped],
+                cap=TIMINGS,
+            )
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _median(xs):
+    xs = sorted(xs)
+    n = len(xs)
+    return (xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) / 2) if n else None
+
+
+def estimates(db, job):
+    """How long each of a run's steps usually takes, in seconds (None with nothing to go by): the median of the last
+    TIMINGS times it ran (of its template, when that has run before), scaled to this recording's length for steps
+    that work through the media. Steps that only ever skipped count their skips; media steps skip on a recording
+    without media."""
+    specs = [_spec(s) for s in job.get("steps") or []]
+    kinds = sorted({k for s in specs for k in _kinds(s)})
+    stats = {r["kind"]: r.get("samples") or [] for r in db.rows("SELECT kind, samples FROM step_stat WHERE kind IN $k", k=kinds)}
+    rec = db.one("SELECT duration_ms, source FROM $r", r=R("recording", job.get("recording") or 0)) or {}
+    ms, media = rec.get("duration_ms"), rec.get("source") == "audio"
+    out = []
+    for s in specs:
+        samples = next((stats[k] for k in reversed(_kinds(s)) if stats.get(k)), [])
+        ran = [x for x in samples if not x[2]]
+        skips = [x[0] for x in samples if x[2]]
+        if s["type"] in MEDIA_STEPS and not media:
+            typical = _median(skips) or 0.0
+        elif not ran:
+            typical = _median(skips)
+        else:
+            per_minute = [sec / m for sec, m, _ in ran if m] if s["type"] in MEDIA_STEPS and ms else []
+            typical = _median(per_minute) * ms / 60000 if per_minute else _median([x[0] for x in ran])
+        out.append(None if typical is None else round(typical, 1))
+    return out
+
+
+def eta(job, est, now=None):
+    """About how many seconds until an active run finishes: what its later steps usually take, and what's left of the
+    current one's (nothing once it has run over). None when a step has nothing to go by."""
+    i = job.get("step_index") or 0
+    if job.get("status") not in ACTIVE or i >= len(est) or any(e is None for e in est[i:]):
+        return None
+    left = est[i]
+    cur = (job.get("step_runs") or [])[i : i + 1]
+    if job["status"] == "running" and cur and (cur[0] or {}).get("outcome") == "running":
+        started = dt.datetime.fromisoformat(cur[0]["started_at"])
+        left = max(0.0, left - ((now or dt.datetime.now(dt.timezone.utc)) - started).total_seconds())
+    return round(left + sum(est[i + 1 :]), 1)
+
+
 def run_job(db, cfg_fn, job, worker, can, log=None):
     jid, rid, jr = job["id"], job["recording"], R("job", job["id"])
     steps, i = job["steps"], job.get("step_index") or 0
     out = RunLog(db, jid, job.get("space"), job.get("log"), job.get("log_total"))
+    # one record per step, in step order: how its latest run went (when, how long, how it ended, its last message,
+    # its part of the log and the outputs it saved)
+    runs = list(job.get("step_runs") or [])
+    said = [None]  # the running step's last message
 
     def say(*a):
-        line = out.say(time.strftime("%H:%M:%S ") + " ".join(str(x) for x in a).strip())
+        said[0] = " ".join(str(x) for x in a).strip()
+        line = out.say(time.strftime("%H:%M:%S ") + said[0])
         if log:
             log(f"[job {jid}] {line}")
+
+    def save(sets, where="", **p):
+        """Update the job, with its new log lines and step records; [] when `where` didn't match."""
+        return db.rows(
+            f"UPDATE $j SET {sets}, updated_at = $t, log = $l, log_total = $n, step_runs = $sr {where} RETURN id",
+            j=jr,
+            t=store.now(),
+            sr=runs,
+            **out.flush(),
+            **p,
+        )
+
+    def started(k):
+        runs.extend([None] * (k + 1 - len(runs)))
+        runs[k] = {"started_at": store.now(), "outcome": "running", "worker": worker, "log_from": out.mark()}
+        said[0] = None
+        return time.time()
+
+    def finished(k, outcome, note, t0, outputs=None):
+        runs[k] = store.clean(
+            {
+                **runs[k],
+                "finished_at": store.now(),
+                "seconds": round(time.time() - t0, 1),
+                "outcome": outcome,
+                "note": note,
+                "log_to": out.mark(),
+                "outputs": outputs or None,
+            }
+        )
 
     stop = threading.Event()
 
@@ -293,17 +427,15 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
                 pass
 
     threading.Thread(target=beat, daemon=True).start()
+    t0 = None  # when the step in hand started
     try:
         while True:
             steps = (db.one("SELECT steps FROM $j", j=jr) or {}).get("steps") or steps  # with any added meanwhile (add_steps)
             if i >= len(steps):
-                if db.rows(
-                    "UPDATE $j SET status = 'succeeded', step_index = $i, next_step = NONE, error = NONE, finished_at = $t, "
-                    "updated_at = $t, log = $l, log_total = $n WHERE array::len(steps) <= $i RETURN AFTER",
-                    j=jr,
+                if save(
+                    "status = 'succeeded', step_index = $i, next_step = NONE, error = NONE, finished_at = $t",
+                    "WHERE array::len(steps) <= $i",
                     i=i,
-                    t=store.now(),
-                    **out.flush(),
                 ):
                     return "succeeded"
                 continue  # steps were added just now
@@ -312,53 +444,39 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
             gone = not db.one("SELECT id FROM $r", r=R("recording", rid))
             if gone or (db.one("SELECT cancel_requested FROM $j", j=jr) or {}).get("cancel_requested"):
                 say("the recording was deleted" if gone else "cancelled")
-                db.q(
-                    "UPDATE $j SET status = 'cancelled', worker = NONE, finished_at = $t, updated_at = $t, log = $l, log_total = $n",
-                    j=jr,
-                    t=store.now(),
-                    **out.flush(),
-                )
+                save("status = 'cancelled', worker = NONE, finished_at = $t")
                 return "cancelled"
             if step not in can:
                 say(f"handing {step} to a worker that can run it")
-                db.q(
-                    "UPDATE $j SET status = 'queued', step_index = $i, next_step = $s, worker = NONE, updated_at = $t, log = $l, log_total = $n",
-                    j=jr,
-                    i=i,
-                    s=step,
-                    t=store.now(),
-                    **out.flush(),
-                )
+                save("status = 'queued', step_index = $i, next_step = $s, worker = NONE", i=i, s=step)
                 return "handed-off"
-            db.q(
-                "UPDATE $j SET step_index = $i, next_step = $s, updated_at = $t, heartbeat_at = $t, log = $l, log_total = $n",
-                j=jr,
-                i=i,
-                s=step,
-                t=store.now(),
-                **out.flush(),
-            )
+            t0 = started(i)
+            save("step_index = $i, next_step = $s, heartbeat_at = $t", i=i, s=step)
             if spec.get("when") and not pipelines.condition_ok(db, rid, spec["when"]):
                 say(f"{step} skipped: its condition isn't met")
-                i += 1
+                finished(i, "skipped", "its condition isn't met", t0)
+                _timed(db, rid, spec, runs[i]["seconds"], True)
+                i, t0 = i + 1, None
                 continue
-            t0 = time.time()
-            STEPS[step](db, cfg_fn(), rid, say, spec)
-            say(f"{spec.get('name') or step} done in {time.time() - t0:.1f}s")
-            i += 1
+            before = _saved(db, rid)
+            try:
+                STEPS[step](db, cfg_fn(), rid, say, spec)
+            except Skip as e:
+                say(f"{step} skipped: {e}")
+                finished(i, "skipped", str(e), t0, _outputs(before, _saved(db, rid)))
+            else:
+                note = said[0]
+                say(f"{spec.get('name') or step} done in {time.time() - t0:.1f}s")
+                finished(i, "done", note, t0, _outputs(before, _saved(db, rid)))
+            _timed(db, rid, spec, runs[i]["seconds"], runs[i]["outcome"] == "skipped")
+            i, t0 = i + 1, None
     except Exception as e:  # noqa: BLE001 - recorded on the job
         err = f"{type(e).__name__}: {e}"[:500]
         failed = _spec(steps[i])["type"] if i < len(steps) else None
         say(f"{failed or 'finishing'} failed: {err}")
-        db.q(
-            "UPDATE $j SET status = 'failed', error = $e, step_index = $i, next_step = $s, finished_at = $t, updated_at = $t, log = $l, log_total = $n",
-            j=jr,
-            e=err,
-            i=i,
-            s=failed,
-            t=store.now(),
-            **out.flush(),
-        )
+        if t0 is not None:
+            finished(i, "failed", err, t0)
+        save("status = 'failed', error = $e, step_index = $i, next_step = $s, finished_at = $t", e=err, i=i, s=failed)
         if failed == "transcribe":
             db.q("UPDATE $r SET status = 'error', error = $e", r=R("recording", rid), e=err)
         return "failed"
@@ -367,7 +485,9 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
 
 
 def get(db, jid):
-    return db.one(f"SELECT {FIELDS}, log FROM $j", j=R("job", jid))
+    """One job, with its step records and its last log lines."""
+    j = db.one(f"SELECT {FIELDS}, step_runs, log FROM $j", j=R("job", jid))
+    return _decorate(db, [j])[0] if j else None
 
 
 def cancel(db, jid):
@@ -394,22 +514,28 @@ def retry(db, jid):
     i = min(j.get("step_index") or 0, len(j["steps"]) - 1)
     db.q(
         "UPDATE $j SET status = 'queued', next_step = $s, step_index = $i, error = NONE, cancel_requested = false, finished_at = NONE, "
-        "updated_at = $t",
+        "step_runs = $sr, updated_at = $t",
         j=R("job", jid),
         s=_spec(j["steps"][i])["type"],
         i=i,
+        sr=(j.get("step_runs") or [])[:i],  # the steps it runs again start over
         t=store.now(),
     )
 
 
 def reap(db, stale_minutes=15, max_attempts=3):
     cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=stale_minutes)).isoformat(timespec="seconds")
-    for j in db.rows("SELECT record::id(id) AS id, attempts FROM job WHERE status = 'running' AND heartbeat_at < $c", c=cutoff):
+    q = "SELECT record::id(id) AS id, attempts, step_index, step_runs FROM job WHERE status = 'running' AND heartbeat_at < $c"
+    for j in db.rows(q, c=cutoff):
         if (j.get("attempts") or 0) >= max_attempts:
+            runs, k, t = list(j.get("step_runs") or []), j.get("step_index") or 0, store.now()
+            if k < len(runs) and (runs[k] or {}).get("outcome") == "running":
+                runs[k] = {**runs[k], "outcome": "failed", "note": "the worker stopped responding", "finished_at": t}
             db.q(
-                "UPDATE $j SET status = 'failed', error = 'the worker stopped responding', updated_at = $t",
+                "UPDATE $j SET status = 'failed', error = 'the worker stopped responding', step_runs = $sr, finished_at = $t, updated_at = $t",
                 j=R("job", j["id"]),
-                t=store.now(),
+                sr=runs,
+                t=t,
             )
         else:
             db.q("UPDATE $j SET status = 'queued', worker = NONE, updated_at = $t", j=R("job", j["id"]), t=store.now())

@@ -76,8 +76,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| Pipeline and version per run; recording title on a job | fields on `/jobs` and `/jobs/{id}` |
-| Per-step progress, ETA, inputs/outputs and times | per-step data on jobs |
 | Filter jobs by namespace with counts | `/jobs?namespace=` |
 | Heartbeat during long steps (a busy worker can look silent) | heartbeat from inside long steps |
 | Pause, resume, drain a worker; worker load | `/workers/{name}/pause` etc. |

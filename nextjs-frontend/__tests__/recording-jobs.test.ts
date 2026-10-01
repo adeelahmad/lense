@@ -103,6 +103,38 @@ describe("step loop", () => {
     expect(notes[2].notes).toEqual(["analysed"]);
     const s = loopSteps(j, notes);
     expect(s.map((x) => x.sub)).toEqual(["skipped", "0.1 s", "38 s", "skipped", "5.1 s"]);
+    expect(s.map((x) => x.state)).toEqual(["skipped", "done", "done", "skipped", "done"]);
+  });
+  it("takes notes and times from the run's records of its steps", () => {
+    const j = job({
+      status: "running",
+      step_index: 2,
+      steps: ["transcribe", "diarize", "analyze"],
+      step_runs: [
+        { outcome: "skipped", note: "an imported transcript has nothing to transcribe", seconds: 0 },
+        { outcome: "done", note: "3 speakers", seconds: 4.5 },
+        { outcome: "running", started_at: "2026-09-30T10:00:05+00:00" },
+      ],
+      log: ["10:00:00 not used when the run has records"],
+    });
+    expect(stepNotes(j)).toEqual([
+      { seconds: 0, notes: ["an imported transcript has nothing to transcribe"], skipped: true },
+      { seconds: 4.5, notes: ["3 speakers"], skipped: false },
+      { seconds: null, notes: [], skipped: false },
+    ]);
+    expect(loopSteps(j, stepNotes(j)).map((x) => x.sub)).toEqual(["skipped", "4.5 s", "running"]);
+  });
+  it("reads any step's skip line in an older log", () => {
+    const j = job({
+      status: "succeeded",
+      step_index: 2,
+      steps: ["summarize", "report"],
+      log: ["10:00:00 summarize skipped: no LLM is configured", "10:00:01 wrote it", "10:00:01 report done in 0.4s"],
+    });
+    expect(stepNotes(j).map((n) => [n.skipped, n.seconds, n.notes])).toEqual([
+      [true, null, ["summarize skipped: no LLM is configured"]],
+      [false, 0.4, ["wrote it"]],
+    ]);
   });
   it("says a queued job is waiting for a worker", () => {
     expect(loopSteps(job({ status: "queued", step_index: 2, started_at: "x" }))[2].sub).toBe("waiting for a worker");

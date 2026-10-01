@@ -2228,6 +2228,14 @@ export type Job = {
    */
   space?: number | null;
   /**
+   * Batch
+   */
+  batch?: number | null;
+  /**
+   * the pipeline it runs; null when its steps were chosen directly
+   */
+  pipeline?: JobPipeline | null;
+  /**
    * Steps
    */
   steps?: Array<unknown>;
@@ -2249,12 +2257,45 @@ export type Job = {
   error?: string | null;
   /**
    * Title
+   * the recording's title
    */
   title?: string | null;
   /**
    * Progress
    */
   progress?: number | null;
+  /**
+   * Worker
+   */
+  worker?: string | null;
+  /**
+   * Attempts
+   */
+  attempts?: number | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Started At
+   */
+  started_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Cancel Requested
+   */
+  cancel_requested?: boolean | null;
   /**
    * Log
    * the last 200 lines; GET /jobs/{jid}/log has them all
@@ -2265,12 +2306,31 @@ export type Job = {
    * how many lines the run has logged
    */
   log_total?: number | null;
+  /**
+   * Step Runs
+   * GET /jobs/{jid}: one per step, in order: how its latest run went (null until it has run; runs from before these were kept have none)
+   */
+  step_runs?: Array<StepRun | null> | null;
+  /**
+   * Estimates
+   * GET /jobs/{jid}: how long each step usually takes on this recording, in seconds, from recent runs (null for a step with none)
+   */
+  estimates?: Array<number | null> | null;
+  /**
+   * Eta Seconds
+   * GET /jobs/{jid}, while queued or running: about how long until it finishes, from `estimates`
+   */
+  eta_seconds?: number | null;
   [key: string]:
     | unknown
     | number
     | number
     | null
     | number
+    | null
+    | number
+    | null
+    | JobPipeline
     | null
     | Array<unknown>
     | number
@@ -2284,7 +2344,29 @@ export type Job = {
     | null
     | number
     | null
+    | string
+    | null
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | boolean
+    | null
     | Array<string>
+    | null
+    | number
+    | null
+    | Array<StepRun | null>
+    | null
+    | Array<number | null>
     | null
     | number
     | null
@@ -2360,6 +2442,27 @@ export type JobLog = {
    */
   more: boolean;
   [key: string]: unknown | number | Array<string> | boolean;
+};
+
+/**
+ * JobPipeline
+ */
+export type JobPipeline = {
+  /**
+   * Id
+   * null for the standard steps
+   */
+  id?: number | null;
+  /**
+   * Version
+   * the version the run pinned when it was queued
+   */
+  version?: number | null;
+  /**
+   * Name
+   */
+  name: string;
+  [key: string]: unknown | number | null | number | null | string | undefined;
 };
 
 /**
@@ -5443,6 +5546,31 @@ export type Started = {
 };
 
 /**
+ * StepOutput
+ */
+export type StepOutput = {
+  /**
+   * Key
+   * saved as outputs.<key> on the recording
+   */
+  key: string;
+  /**
+   * Template
+   */
+  template?: number | null;
+  /**
+   * Version
+   * the template version it was made with
+   */
+  version?: number | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  [key: string]: unknown | string | number | null | number | null | string | null | undefined;
+};
+
+/**
  * StepQueued
  */
 export type StepQueued = {
@@ -5456,6 +5584,76 @@ export type StepQueued = {
    */
   queued: number | string;
   [key: string]: unknown | boolean | number | string | undefined;
+};
+
+/**
+ * StepRun
+ */
+export type StepRun = {
+  /**
+   * Started At
+   */
+  started_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Seconds
+   * how long it took
+   */
+  seconds?: number | null;
+  /**
+   * Outcome
+   */
+  outcome?: "running" | "done" | "skipped" | "failed" | null;
+  /**
+   * Note
+   * its last message, why it skipped, or its error
+   */
+  note?: string | null;
+  /**
+   * Worker
+   */
+  worker?: string | null;
+  /**
+   * Log From
+   * its first line in the run's log (GET /jobs/{jid}/log numbers lines from 0)
+   */
+  log_from?: number | null;
+  /**
+   * Log To
+   * the line after its last one
+   */
+  log_to?: number | null;
+  /**
+   * Outputs
+   * the outputs it saved
+   */
+  outputs?: Array<StepOutput>;
+  [key: string]:
+    | unknown
+    | string
+    | null
+    | string
+    | null
+    | number
+    | null
+    | "running"
+    | "done"
+    | "skipped"
+    | "failed"
+    | null
+    | string
+    | null
+    | string
+    | null
+    | number
+    | null
+    | number
+    | null
+    | Array<StepOutput>
+    | undefined;
 };
 
 /**

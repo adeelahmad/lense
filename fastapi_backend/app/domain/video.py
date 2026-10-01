@@ -18,7 +18,7 @@ import subprocess
 
 import numpy as np
 
-from . import ingest, store
+from . import ingest, jobs, store
 
 R = store.R
 VIDEO_TYPES = {
@@ -351,11 +351,11 @@ def _video(db, cfg, rid):
 def step_shots(db, cfg, rid, say):
     rec, path = _video(db, cfg, rid)
     if not path:
-        return say("no media file: skipped")
+        raise jobs.Skip("there is no media file")
     media = probe_media(path)
     if media["kind"] != "video":
         db.q("UPDATE $r SET media = $m", r=R("recording", rid), m=media)
-        return say("not a video: skipped")
+        raise jobs.Skip("it isn't a video")
     v, d = cfg["video"], frames_dir(cfg, rid)
     shutil.rmtree(d, ignore_errors=True)
     d.mkdir(parents=True, exist_ok=True)
@@ -393,10 +393,10 @@ def _norm(text):
 def step_ocr(db, cfg, rid, say):
     rec = db.one("SELECT space, media, samples, sample_ms FROM $r", r=R("recording", rid)) or {}
     if (rec.get("media") or {}).get("kind") != "video":
-        return say("not a video: skipped")
+        raise jobs.Skip("it isn't a video")
     engine = ocr_engine(cfg)
     if not engine:
-        return say("no OCR engine is available: skipped")
+        raise jobs.Skip("no OCR engine is available")
     d, step, min_conf = frames_dir(cfg, rid), rec.get("sample_ms") or 5000, cfg["video"]["ocr_min_confidence"]
     open_, done = {}, []
     for t, name in rec.get("samples") or []:
@@ -440,14 +440,14 @@ def step_faces(db, cfg, rid, say):
 
     rec = db.one("SELECT space, media, samples, sample_ms FROM $r", r=R("recording", rid)) or {}
     if (rec.get("media") or {}).get("kind") != "video":
-        return say("not a video: skipped")
+        raise jobs.Skip("it isn't a video")
     mode = faces.mode(db, rec["space"])
     if mode == "off":
         faces.clear_recording(db, cfg, rid)
-        return say("face detection is off for this namespace: skipped")
+        raise jobs.Skip("face detection is off for this namespace")
     engine = face_engine(cfg)
     if not engine:
-        return say("no face engine is configured: skipped")
+        raise jobs.Skip("no face engine is configured")
     d, dets = frames_dir(cfg, rid), []
     for t, name in rec.get("samples") or []:
         for f in engine.faces(d / name):

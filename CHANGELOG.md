@@ -26,6 +26,22 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **What each step of a run did.** A run's Activity page shows, for each step, when it started and finished, how long
+  it took, how it ended, its last message, which worker ran it, the outputs it saved (with the template version and
+  model that made them) and exactly its own lines of the log; while a run is active, how long each step usually takes
+  and about how long the run has left. Runs name their pipeline and the version they pinned, in the list too, and
+  Activity's Pipeline filter works. The recording's History reads the same records.
+    - Jobs carry `pipeline` and `title` everywhere; `GET /api/v1/jobs/{jid}` adds `step_runs`, `estimates` and
+      `eta_seconds` (docs/api.md). Runs from before this are read from their log, as before.
+    - A step with nothing to do now says it skipped, and why (`<step> skipped: no LLM is configured`), instead of
+      logging a skip as a success; transcribe, diarize, summarize and the video steps do.
+    - Estimates come from the last 25 times each kind of step ran, kept in a new `step_stat` table: per template for
+      template steps (the namespace's report pages and a report template are timed apart), and per minute of
+      recording for transcribe, diarize and the video steps.
+    - Retrying a run starts its step records over from the step it retries; a run that fails because its worker went
+      silent records that on the step, and now has a finish time.
+- **Fix: History squeezed its runs.** With several runs, the recording's History tab shrank each run's card until
+  its steps were hidden.
 - **Fix: opening a SurrealDB server database could fail.** Opening a connection to a server creates the database if
   it's new, and two processes doing that at once (workers starting together, or tests in parallel) could hit a write
   conflict and stop with "cannot open SurrealDB". Opening now retries a conflict, as queries already did.

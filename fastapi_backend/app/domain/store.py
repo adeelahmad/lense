@@ -522,6 +522,8 @@ SCHEMA = [
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",
+    # the last few times each kind of step took, for estimates (jobs.estimates): step_stat:<type> and :<type:template>
+    "DEFINE TABLE IF NOT EXISTS step_stat SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS worker SCHEMALESS",
     # storage
     "DEFINE TABLE IF NOT EXISTS storage_source SCHEMALESS",

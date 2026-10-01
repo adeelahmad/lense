@@ -145,3 +145,112 @@ def test_a_run_keeps_at_most_so_many_lines(db, cfg, folder, monkeypatch):
     lines, total = jobs.log_lines(db, jid, 0, 1000)
     assert total == 30 and lines[0].endswith("n0")
     assert "analyze done" in db.one("SELECT log FROM $j", j=store.R("job", jid))["log"][-1]  # the run's own tail goes on
+
+
+def test_a_run_records_each_step(client, db, cfg, folder, monkeypatch):
+    from app.domain import pipelines
+
+    a, b, _call = seed(db, cfg, folder)
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    hv = login(client, "vi@x.io", "viewer password 1")
+    he = login(client, "ed@x.io", "editor password 1")
+    analyze = jobs.STEPS["analyze"]
+
+    def noted(db_, cfg_, rid, say, spec=None):
+        say("thinking")
+        pipelines.save_output(db_, rid, "notes", {"text": "x"}, {"template": 7, "version": 2, "model": "m"})
+        analyze(db_, cfg_, rid, say, spec)
+
+    def broken(*_a, **_k):
+        raise RuntimeError("the disk is full")
+
+    monkeypatch.setitem(jobs.STEPS, "analyze", noted)
+    monkeypatch.setitem(jobs.STEPS, "report", broken)
+    # no LLM is configured, and a transcript has no media for shots: both skip
+    jid = jobs.enqueue(db, a, ["analyze", "summarize", "shots", "report"], by="ed@x.io")
+    drain(db, cfg)
+    job = client.get(f"/api/v1/jobs/{jid}", headers=hv).json()
+    assert (job["status"], job["title"], job["pipeline"]) == ("failed", "ep1", None)
+    done, llm, shots, report = job["step_runs"]
+    assert (done["outcome"], done["note"], done["worker"] is not None, done["seconds"] >= 0) == ("done", "analysed", True, True)
+    assert done["outputs"] == [{"key": "notes", "template": 7, "version": 2, "model": "m"}]
+    assert (llm["outcome"], llm["note"], llm["outputs"]) == ("skipped", "no LLM is configured", [])
+    assert (shots["outcome"], shots["note"]) == ("skipped", "there is no media file")
+    assert (report["outcome"], report["note"]) == ("failed", "RuntimeError: the disk is full")
+    # each step's part of the whole log
+    lines = [x.split(" ", 1)[1] for x in client.get(f"/api/v1/jobs/{jid}/log", headers=hv).json()["lines"]]
+    assert lines[done["log_from"] : done["log_to"]][0] == "thinking" and lines[done["log_to"] - 1].startswith("analyze done in")
+    assert lines[llm["log_from"] : llm["log_to"]] == ["summarize skipped: no LLM is configured"]
+    assert lines[report["log_from"] : report["log_to"]] == ["report failed: RuntimeError: the disk is full"]
+    # how long steps usually take: from the steps that finished (a failure doesn't count)
+    assert job["estimates"][:3] == [done["seconds"], llm["seconds"], shots["seconds"]] and job["estimates"][3] is None
+    assert job["eta_seconds"] is None  # finished
+
+    # retrying runs the failed step afresh; nothing to go by for it yet, so no time left either
+    assert client.post(f"/api/v1/jobs/{jid}/retry", headers=he).status_code == 200
+    job = client.get(f"/api/v1/jobs/{jid}", headers=hv).json()
+    assert (job["status"], len(job["step_runs"]), job["eta_seconds"]) == ("queued", 3, None)
+    monkeypatch.setitem(jobs.STEPS, "report", lambda db_, cfg_, rid, say, spec=None: say("wrote the report"))
+    drain(db, cfg)
+    job = client.get(f"/api/v1/jobs/{jid}", headers=hv).json()
+    assert job["status"] == "succeeded" and [r["outcome"] for r in job["step_runs"]] == ["done", "skipped", "skipped", "done"]
+    # the next run of the same steps has an estimate for each, and about as long to go as they add up to
+    nxt = jobs.enqueue(db, b, ["analyze", "summarize", "shots", "report"])
+    est = client.get(f"/api/v1/jobs/{nxt}", headers=hv).json()
+    assert None not in est["estimates"] and est["eta_seconds"] == round(sum(est["estimates"]), 1)
+
+
+def test_estimates(db, cfg, folder):
+    a = seed(db, cfg, folder)[0]
+    wav, tr = folder / "clip.wav", folder / "clip.txt"
+    write_wav(wav, seconds=3.0)
+    tr.write_text("[00:00] Alice: A short clip.\n[00:01] Bob: Indeed.\n[00:02] Alice: Bye.")
+    audio = ingest.import_transcript(db, cfg, "pods", tr, audio=wav, log=quiet)
+    t = [[60.0, 1.0, False], [120.0, 2.0, False], [30.0, 1.0, False], [1.0, 1.0, True]]
+    for kind, samples in {
+        "transcribe": t,
+        "shots": [[0.2, 1.0, True], [0.4, 1.0, True]],
+        "llm:template": [[4.0, None, False]],
+        "llm:9": [[10.0, None, False]],
+        "report:template": [[0.5, None, False]],
+    }.items():
+        db.q("UPSERT $s SET kind = $k, samples = $x", s=store.R("step_stat", kind), k=kind, x=samples)
+    steps = [
+        "transcribe",
+        "shots",
+        {"type": "llm", "template": 9},
+        {"type": "llm", "template": 3},
+        "report",
+        {"type": "report", "template": 4},
+    ]
+    # transcribing takes about a minute per minute of audio (3 s here); a template's own timings win over any
+    # template's; the namespace's report pages are nothing like a report template
+    assert jobs.estimates(db, {"steps": steps, "recording": audio}) == [3.0, 0.3, 10.0, 4.0, None, 0.5]
+    # media steps skip a recording without media
+    assert jobs.estimates(db, {"steps": steps[:2], "recording": a}) == [1.0, 0.3]
+
+    now = jobs.dt.datetime(2026, 1, 1, 12, 0, 10, tzinfo=jobs.dt.timezone.utc)
+    running = {
+        "status": "running",
+        "step_index": 1,
+        "step_runs": [{"outcome": "done"}, {"outcome": "running", "started_at": "2026-01-01T12:00:00+00:00"}],
+    }
+    assert jobs.eta(running, [5.0, 30.0, 20.0], now) == 40.0
+    assert jobs.eta(running, [5.0, 8.0, 20.0], now) == 20.0  # over its usual time: nothing left of it
+    assert jobs.eta({**running, "status": "queued"}, [5.0, 30.0, 20.0], now) == 50.0
+    assert jobs.eta(running, [5.0, 30.0, None], now) is None
+
+
+def test_a_silent_worker_fails_its_step(db, cfg, folder):
+    a = seed(db, cfg, folder)[0]
+    jid = jobs.enqueue(db, a, ["analyze"])
+    job = jobs.claim(db, "gone", {"analyze"})
+    db.q(
+        "UPDATE $j SET heartbeat_at = '2000-01-01T00:00:00+00:00', step_runs = [{outcome: 'running', started_at: '2000-01-01T00:00:00+00:00'}]",
+        j=store.R("job", job["id"]),
+    )
+    jobs.reap(db, stale_minutes=15, max_attempts=1)
+    j = jobs.get(db, jid)
+    assert (j["status"], j["finished_at"] is not None) == ("failed", True)
+    assert (j["step_runs"][0]["outcome"], j["step_runs"][0]["note"]) == ("failed", "the worker stopped responding")

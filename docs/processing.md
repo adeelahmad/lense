@@ -119,6 +119,15 @@ reads the job's steps again before each step, and only finishes a job whose step
 `GET /api/v1/events` streams job progress (server-sent events). A run's whole log is kept (up to 100,000 lines) and
 streams to its Activity page as it's written.
 
+A run keeps a record of each step: when it started and finished, how long it took, how it ended (done, skipped,
+failed), its last message (or why it skipped, or its error), which worker ran it, its lines of the log, and the outputs
+it saved (with the template version and model that made them). A step with nothing to do for a recording skips
+itself and says why: no LLM is configured, it isn't a video, the speakers came with the transcript. Retrying a run
+starts the records over from the step it retries. Each finished or skipped step also adds its time to the last 25 of
+its kind (template steps per template), and `GET /jobs/{jid}` turns these into how long each step usually takes on
+that recording (scaled to its length for transcribe, diarize and the video steps) and about how long an active run
+has left.
+
     lens worker --steps transcribe,diarize     # e.g. on the Mac, with SURREAL_URL pointing at the server
 
 ## Storage sources

@@ -66,7 +66,11 @@ def _job(db: DB, acl: Access, jid: int, role: str = "viewer") -> dict[str, Any]:
 
 @router.get("/jobs/{jid}")
 def get_job(jid: int, acl: Acl, user: CurrentUser, db: Db) -> Job:
-    return Job.model_validate(_job(db, acl, jid))
+    """One run: its steps and how each went (`step_runs`), the pipeline it runs, its last log lines, and how long its
+    steps usually take on this recording (`estimates`, `eta_seconds`)."""
+    j = _job(db, acl, jid)
+    est = jobs.estimates(db, j)
+    return Job.model_validate({**j, "estimates": est, "eta_seconds": jobs.eta(j, est)})
 
 
 @router.get("/jobs/{jid}/log")
