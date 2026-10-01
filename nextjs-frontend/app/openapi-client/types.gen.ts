@@ -1745,6 +1745,22 @@ export type FacesModeSet = {
 };
 
 /**
+ * FacetCount
+ */
+export type FacetCount = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Count
+   * matching moments
+   */
+  count: number;
+  [key: string]: unknown | string | number;
+};
+
+/**
  * ForgotPasswordRequest
  */
 export type ForgotPasswordRequest = {
@@ -4669,6 +4685,26 @@ export type RecordingAccessUpdate = {
 };
 
 /**
+ * RecordingFacet
+ */
+export type RecordingFacet = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Count
+   * matching moments
+   */
+  count: number;
+  [key: string]: unknown | number | string | null | undefined;
+};
+
+/**
  * RecordingIpGroup
  * One of the namespace's IP groups, and whether it opens this recording (docs/access.md).
  */
@@ -5123,6 +5159,49 @@ export type SavedView = {
 };
 
 /**
+ * SearchFacets
+ * How many of all the matching moments are in each namespace, speaker, emotion and recording (up to 50 of each,
+ * most first). Text on screen has no speaker or emotion.
+ */
+export type SearchFacets = {
+  /**
+   * Moments
+   * the matching moments counted: all of them, unless `partial`
+   */
+  moments: number;
+  /**
+   * Partial
+   * more than 20,000 moments match; the counts cover 20,000 of them
+   */
+  partial: boolean;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<FacetCount>;
+  /**
+   * Speakers
+   */
+  speakers?: Array<SpeakerFacet>;
+  /**
+   * Emotions
+   */
+  emotions?: Array<FacetCount>;
+  /**
+   * Recordings
+   */
+  recordings?: Array<RecordingFacet>;
+  [key: string]:
+    | unknown
+    | number
+    | boolean
+    | Array<FacetCount>
+    | Array<SpeakerFacet>
+    | Array<FacetCount>
+    | Array<RecordingFacet>
+    | undefined;
+};
+
+/**
  * SearchHit
  */
 export type SearchHit = {
@@ -5241,7 +5320,11 @@ export type SearchResults = {
    * Hits
    */
   hits: Array<SearchHit>;
-  [key: string]: unknown | string | number | boolean | Array<SearchHit>;
+  /**
+   * with `facets=true`: counts over all the matching moments
+   */
+  facets?: SearchFacets | null;
+  [key: string]: unknown | string | number | boolean | Array<SearchHit> | SearchFacets | null | undefined;
 };
 
 /**
@@ -5831,6 +5914,30 @@ export type SpeakerDirectory = {
     | Array<SpeakerLink>
     | Array<SpeakerCandidate>
     | undefined;
+};
+
+/**
+ * SpeakerFacet
+ */
+export type SpeakerFacet = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Count
+   * matching moments
+   */
+  count: number;
+  [key: string]: unknown | number | string | string | null | undefined;
 };
 
 /**
@@ -9668,6 +9775,11 @@ export type SearchTranscriptsData = {
      * Offset
      */
     offset?: number;
+    /**
+     * Facets
+     * also count all the matching moments by namespace, speaker, emotion and recording (`facets`)
+     */
+    facets?: boolean;
   };
   url: "/api/v1/search";
 };

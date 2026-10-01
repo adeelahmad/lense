@@ -37,7 +37,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| Facet counts over all results (today: the first 200 hits) | facets on `/search` |
 | Saved searches (today: saved as filter collections, which can't hold emotion or recording filters) | a saved-search store |
 | "Try …" prefix suggestions | a term-completion endpoint |
 | Scope a chat by collection (today: expanded to at most 200 recording ids) | collection ids in the chat scope |

@@ -3797,6 +3797,7 @@
           "search"
         ],
         "summary": "Search Transcripts",
+        "description": "Moments where the words are said (or shown on screen in a video), best first, in the namespaces you can read.",
         "operationId": "search_transcripts",
         "parameters": [
           {
@@ -3896,6 +3897,18 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "facets",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "also count all the matching moments by namespace, speaker, emotion and recording (`facets`)",
+              "default": false,
+              "title": "Facets"
+            },
+            "description": "also count all the matching moments by namespace, speaker, emotion and recording (`facets`)"
           }
         ],
         "responses": {
@@ -12506,6 +12519,26 @@
         "type": "object",
         "title": "FacesModeSet"
       },
+      "FacetCount": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "matching moments"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "count"
+        ],
+        "title": "FacetCount"
+      },
       "ForgotPasswordRequest": {
         "properties": {
           "email": {
@@ -17007,6 +17040,37 @@
         "title": "RecordingAccessUpdate",
         "description": "Send the settings to change. access or open set to null follow the namespace's default again."
       },
+      "RecordingFacet": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "matching moments"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "count"
+        ],
+        "title": "RecordingFacet"
+      },
       "RecordingIpGroup": {
         "properties": {
           "id": {
@@ -17660,6 +17724,56 @@
         ],
         "title": "SavedView"
       },
+      "SearchFacets": {
+        "properties": {
+          "moments": {
+            "type": "integer",
+            "title": "Moments",
+            "description": "the matching moments counted: all of them, unless `partial`"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial",
+            "description": "more than 20,000 moments match; the counts cover 20,000 of them"
+          },
+          "namespaces": {
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            },
+            "type": "array",
+            "title": "Namespaces"
+          },
+          "speakers": {
+            "items": {
+              "$ref": "#/components/schemas/SpeakerFacet"
+            },
+            "type": "array",
+            "title": "Speakers"
+          },
+          "emotions": {
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            },
+            "type": "array",
+            "title": "Emotions"
+          },
+          "recordings": {
+            "items": {
+              "$ref": "#/components/schemas/RecordingFacet"
+            },
+            "type": "array",
+            "title": "Recordings"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "moments",
+          "partial"
+        ],
+        "title": "SearchFacets",
+        "description": "How many of all the matching moments are in each namespace, speaker, emotion and recording (up to 50 of each,\nmost first). Text on screen has no speaker or emotion."
+      },
       "SearchHit": {
         "properties": {
           "id": {
@@ -17827,6 +17941,17 @@
             },
             "type": "array",
             "title": "Hits"
+          },
+          "facets": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchFacets"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "with `facets=true`: counts over all the matching moments"
           }
         },
         "additionalProperties": true,
@@ -18759,6 +18884,42 @@
           "links"
         ],
         "title": "SpeakerDirectory"
+      },
+      "SpeakerFacet": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "matching moments"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "count"
+        ],
+        "title": "SpeakerFacet"
       },
       "SpeakerLink": {
         "properties": {

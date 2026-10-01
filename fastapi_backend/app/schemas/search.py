@@ -25,12 +25,43 @@ class SearchHit(ResponseModel):
     box: Any = Field(None, description="screen hits: where the text is on the frame")
 
 
+class FacetCount(ResponseModel):
+    name: str
+    count: int = Field(description="matching moments")
+
+
+class SpeakerFacet(ResponseModel):
+    id: int
+    name: str
+    namespace: str | None = None
+    count: int = Field(description="matching moments")
+
+
+class RecordingFacet(ResponseModel):
+    id: int
+    title: str | None = None
+    count: int = Field(description="matching moments")
+
+
+class SearchFacets(ResponseModel):
+    """How many of all the matching moments are in each namespace, speaker, emotion and recording (up to 50 of each,
+    most first). Text on screen has no speaker or emotion."""
+
+    moments: int = Field(description="the matching moments counted: all of them, unless `partial`")
+    partial: bool = Field(description="more than 20,000 moments match; the counts cover 20,000 of them")
+    namespaces: list[FacetCount] = Field(default_factory=list)
+    speakers: list[SpeakerFacet] = Field(default_factory=list)
+    emotions: list[FacetCount] = Field(default_factory=list)
+    recordings: list[RecordingFacet] = Field(default_factory=list)
+
+
 class SearchResults(ResponseModel):
     q: str
     query: str = Field(description="how the query was understood")
     total: int
     capped: bool
     hits: list[SearchHit]
+    facets: SearchFacets | None = Field(None, description="with `facets=true`: counts over all the matching moments")
 
 
 class Graph(ResponseModel):

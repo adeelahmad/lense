@@ -28,10 +28,12 @@ def search_transcripts(
     recording: int | None = None,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    facets: bool = Query(False, description="also count all the matching moments by namespace, speaker, emotion and recording (`facets`)"),
 ) -> SearchResults:
+    """Moments where the words are said (or shown on screen in a video), best first, in the namespaces you can read."""
     if ns:
         acl.need(acl.nsid(ns))
-    res = searchmod.search(db, q, ns, speaker, emotion, recording, limit, offset, spaces=set(acl.roles))
+    res = searchmod.search(db, q, ns, speaker, emotion, recording, limit, offset, spaces=set(acl.roles), facets=facets)
     return sign_urls(res)
 
 

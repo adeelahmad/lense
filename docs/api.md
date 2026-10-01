@@ -276,6 +276,13 @@ GET    /api/v1/graph
 GET    /api/v1/mentions
 ```
 
+`GET /search?q=` finds the moments where the words are said (or shown on screen in a video) in the namespaces you can
+read, best first: every word (English stemming), "quoted phrases" as written, `OR` between alternatives; `ns`,
+`speaker`, `emotion` and `recording` narrow it, `limit`/`offset` page through it. `total` counts the moments ranked so
+far (`capped` when there may be more). With `facets=true` it also counts all the matching moments, whatever the page,
+by namespace, speaker, emotion and recording (`facets`: up to 50 values each, most first, and `moments`); past 20,000
+moments the counts cover 20,000 of them (`partial`).
+
 ## speakers
 
 ```

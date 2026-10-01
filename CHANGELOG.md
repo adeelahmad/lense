@@ -26,6 +26,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Search: filter counts over every match.** The Namespace, Speaker, Emotion and Recording counts next to the
+  results cover every moment the words match, not the first 200 the page had loaded.
+  `GET /api/v1/search?facets=true` returns them (`facets`, docs/api.md), counted on the server up to 20,000 moments;
+  past that the panel says the counts cover 20,000 of them.
 - **Library: Edited by me, and Source and Language filters.** The Edited by me tab lists the recordings you corrected
   (a line of the transcript), catalogued (the metadata record) or renamed, with a count like the other tabs. The
   Source filter picks where recordings came from: each connected source by name, Uploaded, Pasted text, IIIF imports,

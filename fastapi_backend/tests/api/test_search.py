@@ -57,3 +57,45 @@ def test_graph_cache_and_mentions(app, client, db, cfg, folder):
     assert client.get("/api/v1/mentions", params={"entities": "x,y"}, headers=hv).json() == []
     pods = store.ns_id(db, "pods")
     assert all(m["recording_id"] in db.values("SELECT VALUE record::id(id) FROM recording WHERE space = $s", s=pods) for m in mine)
+
+
+def test_facets_count_every_match(client, db, cfg, folder, monkeypatch):
+    from app.domain import search
+
+    seed(db, cfg, folder)
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    hv, hr = login(client, "vi@x.io", "viewer password 1"), login(client, "root@x.io", "root password 1")
+    lines = [s for s in db.rows("SELECT recording, space, speaker, emotion, text FROM segment") if "capsid" in s["text"].lower()]
+    names = {r["id"]: r["name"] for r in db.rows("SELECT record::id(id) AS id, name FROM speaker")}
+    pods = store.ns_id(db, "pods")
+
+    res = client.get("/api/v1/search", params={"q": "capsid", "facets": True, "limit": 1}, headers=hr).json()
+    f = res["facets"]
+    assert len(res["hits"]) == 1 and (f["moments"], f["partial"]) == (len(lines), False)  # all of them, not the page
+    assert {(n["name"], n["count"]) for n in f["namespaces"]} == {
+        ("pods", sum(s["space"] == pods for s in lines)),
+        ("calls", sum(s["space"] != pods for s in lines)),
+    }
+    assert {(x["id"], x["name"], x["count"]) for x in f["speakers"]} == {
+        (k, names[k], sum(s["speaker"] == k for s in lines)) for k in {s["speaker"] for s in lines}
+    }
+    assert [x["namespace"] for x in f["speakers"] if x["name"] == "Alice"].count("calls") == 1
+    assert {(e["name"], e["count"]) for e in f["emotions"]} == {
+        (e, sum(s.get("emotion") == e for s in lines)) for e in {s.get("emotion") for s in lines} if e and e != "Unknown"
+    }
+    assert sum(r["count"] for r in f["recordings"]) == len(lines) and all(r["title"] for r in f["recordings"])
+    assert f["recordings"] == sorted(f["recordings"], key=lambda r: -r["count"])
+    # only what you can read; filters narrow them; phrases as written
+    fv = client.get("/api/v1/search", params={"q": "capsid", "facets": True}, headers=hv).json()["facets"]
+    assert [n["name"] for n in fv["namespaces"]] == ["pods"] and fv["moments"] == sum(s["space"] == pods for s in lines)
+    alice = next(x["id"] for x in f["speakers"] if x["name"] == "Alice" and x["namespace"] == "pods")
+    fa = client.get("/api/v1/search", params={"q": "capsid", "facets": True, "speaker": alice}, headers=hr).json()["facets"]
+    assert [x["id"] for x in fa["speakers"]] == [alice] and fa["moments"] == sum(s["speaker"] == alice for s in lines)
+    phrase = search.search(db, '"capsid model"', facets=True)["facets"]
+    assert phrase["moments"] == sum("capsid model" in s["text"].lower() for s in lines) == 1
+    # without asking, no facets; with more matches than are counted, they say so
+    assert client.get("/api/v1/search", params={"q": "capsid"}, headers=hr).json()["facets"] is None
+    monkeypatch.setattr(search, "FACET_CAP", 2)
+    capped = search.search(db, "capsid", facets=True)["facets"]
+    assert (capped["moments"], capped["partial"]) == (2, True)

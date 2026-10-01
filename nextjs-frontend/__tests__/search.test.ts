@@ -1,5 +1,5 @@
 import type { SearchHit } from "@/app/openapi-client/types.gen";
-import { computeFacets, groupByRecording } from "@/components/search/facets";
+import { fromServer, groupByRecording } from "@/components/search/facets";
 import { recordingHref } from "@/components/search/links";
 import {
   activeFilterCount,
@@ -136,16 +136,45 @@ describe("facets and groups", () => {
     }),
   ];
 
-  it("counts values and tells same-named speakers apart", () => {
-    const f = computeFacets(hits);
+  it("shows the server's counts and tells same-named speakers apart", () => {
+    const f = fromServer({
+      moments: 3,
+      partial: false,
+      namespaces: [
+        { name: "podcasts", count: 2 },
+        { name: "customer-calls", count: 1 },
+      ],
+      speakers: [
+        { id: 2, name: "Alice", namespace: "podcasts", count: 1 },
+        { id: 1, name: "Bob", namespace: "podcasts", count: 1 },
+        { id: 5, name: "Alice", namespace: "customer-calls", count: 1 },
+      ],
+      emotions: [
+        { name: "Neutral", count: 1 },
+        { name: "Surprise", count: 1 },
+      ],
+      recordings: [
+        { id: 1, title: "Episode 12", count: 2 },
+        { id: 3, title: null, count: 1 },
+      ],
+    });
     expect(f.namespaces.map((x) => [x.key, x.count])).toEqual([
       ["podcasts", 2],
       ["customer-calls", 1],
     ]);
     expect(f.speakers.find((s) => s.key === "2")?.sub).toBe("podcasts");
     expect(f.speakers.find((s) => s.key === "1")?.sub).toBeUndefined();
-    expect(f.emotions.map((e) => e.key).sort()).toEqual(["Neutral", "Surprise"]);
-    expect(f.recordings[0]).toMatchObject({ key: "1", count: 2, id: 1 });
+    expect(f.emotions.map((e) => e.key)).toEqual(["Neutral", "Surprise"]);
+    expect(f.recordings).toEqual([
+      { key: "1", id: 1, label: "Episode 12", count: 2 },
+      { key: "3", id: 3, label: "Recording 3", count: 1 },
+    ]);
+    expect(fromServer({ moments: 0, partial: false })).toEqual({
+      namespaces: [],
+      speakers: [],
+      emotions: [],
+      recordings: [],
+    });
   });
 
   it("groups by recording in rank order with moments in time order", () => {

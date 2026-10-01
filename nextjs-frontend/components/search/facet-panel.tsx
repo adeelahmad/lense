@@ -83,7 +83,7 @@ export function FacetPanel({
   /** Names for the chosen filters (a speaker's name, a recording's title). */
   labels: Partial<Record<keyof SearchFilters, string>>;
   loading?: boolean;
-  /** True when the counts come from the first moments only. */
+  /** True when more moments match than the server counts (20,000). */
   partial?: boolean;
   onToggle: (key: keyof SearchFilters, value: string | number | undefined) => void;
   /** Saved searches (null while they load). */
@@ -150,7 +150,9 @@ export function FacetPanel({
         );
       })}
       {partial && (
-        <p className="m-0 px-1.5 text-[11.5px] leading-snug text-fg-muted">Counts cover the first 200 moments.</p>
+        <p className="m-0 px-1.5 text-[11.5px] leading-snug text-fg-muted">
+          So many moments match that the counts cover 20,000 of them.
+        </p>
       )}
       <section aria-labelledby="facet-saved" className="flex flex-col gap-1">
         <h3 id="facet-saved" className="px-1.5 pb-1.5 label-caps">

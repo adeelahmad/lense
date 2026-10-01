@@ -1648,6 +1648,7 @@ export class Uploads {
 export class Search {
   /**
    * Search Transcripts
+   * Moments where the words are said (or shown on screen in a video), best first, in the namespaces you can read.
    */
   public static searchTranscripts<ThrowOnError extends boolean = false>(
     options: Options<SearchTranscriptsData, ThrowOnError>,

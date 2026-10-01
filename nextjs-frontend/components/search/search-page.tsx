@@ -10,7 +10,7 @@ import { Collections, Search, Speakers } from "@/app/openapi-client";
 import type { SearchResults } from "@/app/openapi-client/types.gen";
 import { useRecordingIndex } from "@/components/search/data";
 import { FacetPanel } from "@/components/search/facet-panel";
-import { computeFacets, groupByRecording } from "@/components/search/facets";
+import { fromServer, groupByRecording } from "@/components/search/facets";
 import { hasMedia } from "@/components/search/links";
 import { NoResults } from "@/components/search/no-results";
 import { InlinePlayerBar, useInlinePlayer } from "@/components/search/player";
@@ -105,6 +105,8 @@ export function SearchPage() {
             recording: filters.recording,
             limit: PAGE,
             offset: pageParam,
+            // without filters, the first page brings the facets too
+            facets: nFilters === 0 && pageParam === 0,
           },
         }),
       ),
@@ -119,7 +121,7 @@ export function SearchPage() {
   // Facets and "without filters" counts come from the words alone.
   const base = useQuery({
     queryKey: ["search-base", q],
-    queryFn: () => data(Search.searchTranscripts({ client, query: { q, limit: PAGE } })),
+    queryFn: () => data(Search.searchTranscripts({ client, query: { q, limit: PAGE, facets: true } })),
     enabled: enabled && nFilters > 0,
     staleTime: 30_000,
   });
@@ -127,7 +129,7 @@ export function SearchPage() {
   const baseData = nFilters > 0 ? base.data : first;
   const hits = useMemo(() => results.data?.pages.flatMap((p) => p.hits) ?? [], [results.data]);
   const groups = useMemo(() => groupByRecording(hits), [hits]);
-  const facets = useMemo(() => (baseData ? computeFacets(baseData.hits) : null), [baseData]);
+  const facets = useMemo(() => (baseData?.facets ? fromServer(baseData.facets) : null), [baseData]);
   const total = first?.total ?? 0;
 
   const labels = useMemo(() => {
@@ -242,7 +244,7 @@ export function SearchPage() {
       filters={filters}
       labels={labels}
       loading={enabled && !facets && (results.isLoading || base.isLoading)}
-      partial={(baseData?.total ?? 0) > (baseData?.hits.length ?? 0)}
+      partial={Boolean(baseData?.facets?.partial)}
       onToggle={(k, v) => {
         setFilter(k, v);
         setFiltersOpen(false);
@@ -417,7 +419,7 @@ export function SearchPage() {
               q={q}
               filters={filters}
               labels={labels}
-              baseTotal={nFilters > 0 ? (base.data?.total ?? null) : 0}
+              baseTotal={nFilters > 0 ? (base.data?.facets?.moments ?? base.data?.total ?? null) : 0}
               nsRecordings={namespaces.find((n) => n.name === filters.namespace)?.recordings as number | undefined}
               onSearch={(nq) => go(nq, filters)}
               onClearFilter={clearFilter}

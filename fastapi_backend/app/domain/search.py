@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import html
 import re
+from collections import Counter
 
 from . import store
 
 M0, M1 = "\x02", "\x03"
+FACET_CAP = 20000  # moments counted for facets; more than this and the counts say they're partial
+FACET_VALUES = 50  # values listed per facet
 
 
 def parse_query(q):
@@ -59,9 +62,13 @@ def _mark_plain(text, words):
     return rx.sub(lambda m: M0 + m.group(0) + M1, text) if rx else text
 
 
-def search(db, q, ns=None, speaker=None, emotion=None, recording=None, limit=50, offset=0, spaces=None, recordings=None, screen=True):
+def search(
+    db, q, ns=None, speaker=None, emotion=None, recording=None, limit=50, offset=0, spaces=None, recordings=None, screen=True, facets=False
+):
     """Transcript lines (and, unless screen is false, text on screen in videos) matching q. spaces limits the search to
-    namespaces someone may read, recordings to a set of recordings (such as the transcripts a visitor may read)."""
+    namespaces someone may read, recordings to a set of recordings (such as the transcripts a visitor may read). With
+    facets, also how many of all the matching moments (up to FACET_CAP) are in each namespace, speaker, emotion and
+    recording."""
     groups = parse_query(q)
     empty = {"q": q, "query": "", "total": 0, "capped": False, "hits": []}
     if not groups or (recordings is not None and not recordings):
@@ -84,6 +91,7 @@ def search(db, q, ns=None, speaker=None, emotion=None, recording=None, limit=50,
             filt.append(cond)
             params[key] = int(val) if key in ("spk", "rec") else val
     where_f = (" AND " + " AND ".join(filt)) if filt else ""
+    base_params = dict(params)
     cap = min(1000, (offset + limit) * 3 + 50)
     fields = "record::id(id) AS id, recording, idx, t0, t1, emotion, speaker, space, text"
     rows = None
@@ -169,7 +177,95 @@ def search(db, q, ns=None, speaker=None, emotion=None, recording=None, limit=50,
         }
         for h in page
     ]
-    return {"q": q, "query": describe(groups), "total": len(hits), "capped": len(rows) >= cap, "hits": out}
+    res = {"q": q, "query": describe(groups), "total": len(hits), "capped": len(rows) >= cap, "hits": out}
+    if facets:
+        res["facets"] = _facets(db, groups, where_f, base_params, screen and not speaker and not emotion, ns, spaces, recording)
+    return res
+
+
+def _matches(db, groups, table, fields, where_f, base):
+    """Every row of `table` matching the groups (up to FACET_CAP + 1), with the phrases checked."""
+    params = dict(base)
+    phrased = any(g["phrases"] for g in groups)
+    cols = fields + (", text" if phrased else "")
+    rows = None
+    if db.ready_fulltext():
+        conds = []
+        for k, g in enumerate(groups, 1):
+            params[f"q{k}"] = " ".join(g["words"] + g["phrases"])
+            conds.append(f"text @{k}@ $q{k}")
+        try:
+            rows = db.rows(f"SELECT {cols} FROM {table} WHERE ({' OR '.join(conds)}){where_f} LIMIT {FACET_CAP + 1}", **params)
+        except Exception:  # noqa: BLE001 - fall back to a plain scan below
+            rows = None
+    if rows is None:
+        conds = []
+        for k, g in enumerate(groups, 1):
+            ws = g["words"] + g["phrases"]
+            conds.append("(" + " AND ".join(f"string::contains(string::lowercase(text), $w{k}_{j})" for j in range(len(ws))) + ")")
+            params.update({f"w{k}_{j}": w.lower() for j, w in enumerate(ws)})
+        rows = db.rows(f"SELECT {cols} FROM {table} WHERE ({' OR '.join(conds)}){where_f} LIMIT {FACET_CAP + 1}", **params)
+    if phrased:
+        rows = [
+            r
+            for r in rows
+            if any(all(re.search(r"\b" + re.escape(p.lower()) + r"\b", r["text"].lower()) for p in g["phrases"]) for g in groups)
+        ]
+    return rows
+
+
+def _facets(db, groups, where_f, base, screen, ns, spaces, recording):
+    """How many matching moments are in each namespace, speaker, emotion and recording, most first."""
+    said = _matches(db, groups, "segment", "recording, space, speaker, emotion", where_f, base)
+    seen = _matches(db, groups, "ocr_span", "recording, space", space_filter(ns, spaces, recording, base), base) if screen else []
+    rows = (said + seen)[:FACET_CAP]
+    partial = len(said) + len(seen) > FACET_CAP
+    by_space, by_rec = Counter(r["space"] for r in rows), Counter(r["recording"] for r in rows)
+    by_spk = Counter(r["speaker"] for r in rows if r.get("speaker"))
+    by_emo = Counter(r["emotion"] for r in rows if r.get("emotion") and r["emotion"] != "Unknown")
+    top = lambda c: c.most_common()[:FACET_VALUES]  # noqa: E731
+    space_names = store.space_names(db)
+    spk = top(by_spk)
+    people = {
+        x["id"]: x
+        for x in (
+            db.rows(
+                "SELECT record::id(id) AS id, name, label, space FROM speaker WHERE id IN $ids",
+                ids=[store.R("speaker", i) for i, _ in spk],
+            )
+            if spk
+            else []
+        )
+    }
+    recs = top(by_rec)
+    titles = (
+        {
+            x["id"]: x.get("title")
+            for x in db.rows(
+                "SELECT record::id(id) AS id, title FROM recording WHERE id IN $ids", ids=[store.R("recording", i) for i, _ in recs]
+            )
+        }
+        if recs
+        else {}
+    )
+    speakers = [
+        {
+            "id": i,
+            "name": (people.get(i) or {}).get("name") or (people.get(i) or {}).get("label") or f"Speaker {i}",
+            "namespace": space_names.get((people.get(i) or {}).get("space")),
+            "count": n,
+        }
+        for i, n in spk
+    ]
+    order = lambda xs, key: sorted(xs, key=lambda x: (-x["count"], str(x[key]).casefold()))  # noqa: E731
+    return {
+        "moments": min(len(said) + len(seen), FACET_CAP),
+        "partial": partial,
+        "namespaces": order([{"name": space_names.get(k) or str(k), "count": n} for k, n in top(by_space)], "name"),
+        "speakers": order(speakers, "name"),
+        "emotions": order([{"name": k, "count": n} for k, n in top(by_emo)], "name"),
+        "recordings": order([{"id": k, "title": titles.get(k), "count": n} for k, n in recs], "id"),
+    }
 
 
 def space_filter(ns, spaces, recording, params):
