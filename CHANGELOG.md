@@ -85,7 +85,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       intranet's networks.
     - Chromium runs without its own sandbox only where it can't have one (as root, or where the system doesn't allow
       it, as in most containers: see [Deployment](docs/deployment.md)), found once by printing an empty page, never
-      because of a page. This applies to documents made into PDFs too.
+      because of a page. Nothing it could wait on is left on (a keyring over D-Bus, the crash reporter, casting), and
+      when it can't print a page the error says what it last said and what the page asked for. This applies to
+      documents made into PDFs too.
     - The PDF is named after the link or the page's title (`harbour-news.pdf`), in `data_dir/web/<resource>/`.
     - Web app: Import → Web page (disabled with the reason where the server has no Chromium); a captured page says
       "Captured from <host>" and links to it, and Details shows its address, when it was captured and how.

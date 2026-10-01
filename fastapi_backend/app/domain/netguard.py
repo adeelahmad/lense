@@ -96,6 +96,7 @@ class _Handler(socketserver.StreamRequestHandler):
         request = head[0].decode("latin-1").strip() if head else ""
         method, _, rest = request.partition(" ")
         target = rest.rpartition(" ")[0] if " " in rest else rest
+        self.server.asked.append(f"{method} {target}"[:200])
         page = self.server.pages.get(target) if method == "GET" else None
         if page is None and self.server.forward:
             try:
@@ -158,6 +159,7 @@ class _Server(socketserver.ThreadingTCPServer):
     daemon_threads = True
     pages: dict[str, tuple[bytes, str]]
     refused: list[str]
+    asked: list[str]
     forward: bool
     allow: object
     budget: list[int]
@@ -169,6 +171,7 @@ class Guard:
     with Guard({DOCUMENT_URL: (html_bytes, "text/html; charset=utf-8")}) as g:
         run chromium with g.args() ... DOCUMENT_URL
     g.refused  # what the page asked for and didn't get
+    g.asked  # everything it asked for
 
     `forward` lets it reach the web, to public addresses (and `networks`, ip_network objects an admin allowed), with
     at most `max_bytes` coming back."""
@@ -176,12 +179,13 @@ class Guard:
     def __init__(self, pages=None, forward=False, networks=(), max_bytes=500 * 2**20):
         self.pages = dict(pages or {})
         self.refused: list[str] = []
+        self.asked: list[str] = []
         self.forward, self.networks, self.max_bytes = forward, tuple(networks), max_bytes
         self._server: _Server | None = None
 
     def __enter__(self):
         srv = _Server(("127.0.0.1", 0), _Handler)
-        srv.pages, srv.refused, srv.forward, srv.budget = self.pages, self.refused, self.forward, [self.max_bytes]
+        srv.pages, srv.refused, srv.asked, srv.forward, srv.budget = self.pages, self.refused, self.asked, self.forward, [self.max_bytes]
         networks = self.networks
         srv.allow = lambda ip: public_ip(ip, networks)
         threading.Thread(target=srv.serve_forever, name="netguard", daemon=True).start()

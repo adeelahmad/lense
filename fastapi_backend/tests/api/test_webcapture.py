@@ -80,7 +80,7 @@ def site(monkeypatch):
 def app(cfg, db):
     srv, url = fake_llm.start()
     cfg["llm"].update(base_url=url, model="fake")
-    cfg["documents"]["chromium"] = CHROME
+    cfg["documents"].update(chromium=CHROME, convert_seconds=60)
     from app.main import create_app
 
     yield create_app(cfg, db, background=False)
@@ -163,7 +163,7 @@ def test_a_page_cant_get_around_the_proxy(cfg, site, tmp_path):
     """A page's scripts run, but reach nothing except through the proxy: WebRTC sends nothing to an address itself."""
     from pypdf import PdfReader
 
-    cfg["documents"].update(chromium=CHROME, web_networks=["127.0.0.0/8"])
+    cfg["documents"].update(chromium=CHROME, web_networks=["127.0.0.0/8"], convert_seconds=60)
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
         udp.bind(("127.0.0.1", 0))
         udp.settimeout(1)

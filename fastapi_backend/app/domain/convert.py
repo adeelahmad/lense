@@ -158,11 +158,23 @@ def bootstrap(cfg):
     }
 
 
+def _last_said(text):
+    """The last thing a program said that's worth repeating: an error or a warning if it gave one, not D-Bus noise."""
+    if isinstance(text, bytes):
+        text = text.decode("utf-8", "replace")
+    lines = [x.strip() for x in (text or "").splitlines() if x.strip() and "dbus" not in x.lower()]
+    flagged = [x for x in lines if any(k in x for k in ("ERROR", "FATAL", "WARNING"))]
+    return ((flagged or lines)[-1] if lines else "")[-200:]
+
+
 def _run(argv, seconds, env=None, cwd=None):
     try:
         return subprocess.run(argv, capture_output=True, text=True, timeout=seconds, env=env, cwd=cwd)
-    except subprocess.TimeoutExpired:
-        raise ValueError(f"converting it took longer than {seconds} s (documents.convert_seconds)") from None
+    except subprocess.TimeoutExpired as e:
+        said = _last_said(e.stderr)
+        raise ValueError(
+            f"converting it took longer than {seconds} s (documents.convert_seconds){f'; it last said: {said}' if said else ''}"
+        ) from None
 
 
 def office_pdf(cfg, src, out):
@@ -219,14 +231,25 @@ def print_pdf(exe, guard, url, out, seconds, settle_ms=5000):
         # through the proxy, never UDP straight to an address
         base += [f"--host-resolver-rules={RESOLVE_NOTHING}", "--dns-prefetch-disable"]
         base += ["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"]
+        # nothing it could wait on: no keyring (over D-Bus, where there's one), crash reporter or casting
+        base += ["--password-store=basic", "--use-mock-keychain", "--disable-breakpad", "--disable-features=MediaRouter"]
+        base += ["--enable-logging=stderr"]  # what it says goes into the error when it fails
         tail = [f"--print-to-pdf={target}", "--no-pdf-header-footer", "--run-all-compositor-stages-before-draw"]
         tail += [f"--virtual-time-budget={settle_ms}", url]
-        r = _run([*base, *(["--no-sandbox"] if no_sandbox(exe) else []), *tail], seconds)
+        try:
+            r = _run([*base, *(["--no-sandbox"] if no_sandbox(exe) else []), *tail], seconds)
+        except ValueError as e:
+            raise ValueError(f"{e}{_asked(guard)}") from None
         if not target.is_file() or target.stat().st_size == 0:
-            said = [x for x in (r.stderr or "").splitlines() if ("ERROR" in x or "FATAL" in x) and "dbus" not in x]
-            raise ValueError(f"Chromium couldn't print it ({said[-1][-200:] if said else f'exit {r.returncode}'})")
+            said = _last_said(r.stderr) or f"exit {r.returncode}"
+            raise ValueError(f"Chromium couldn't print it ({said}){_asked(guard)}")
         out.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(target), out)
+
+
+def _asked(guard):
+    """What the page asked the proxy for, for an error saying why it couldn't be printed."""
+    return f"; it asked for {', '.join(guard.asked[-5:])}" if guard.asked else "; it asked for nothing"
 
 
 def _chromium_pdf(exe, page, out, seconds):

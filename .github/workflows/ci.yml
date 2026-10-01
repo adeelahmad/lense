@@ -16,11 +16,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # the packages are kept between runs: the mirror can be slow (LibreOffice is 170 MB)
+      - name: Restore system packages
+        id: apt-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/apt-archives
+          key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: apt-${{ runner.os }}-
       - name: System packages (ffmpeg, tesseract, poppler, LibreOffice Writer)
-        timeout-minutes: 15 # a stalled mirror fails the job instead of holding it for hours
+        timeout-minutes: 25 # a stalled mirror fails the job instead of holding it for hours
         run: |
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y --no-install-recommends ffmpeg tesseract-ocr poppler-utils libreoffice-writer-nogui
+          mkdir -p ~/apt-archives/partial
+          APT="-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Dir::Cache::Archives=$HOME/apt-archives -o APT::Keep-Downloaded-Packages=true"
+          sudo apt-get $APT update
+          sudo apt-get $APT install -y --no-install-recommends ffmpeg tesseract-ocr poppler-utils libreoffice-writer-nogui
+          sudo chown -R "$(id -u)" ~/apt-archives
+      - name: Keep system packages
+        if: steps.apt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/apt-archives
+          key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
 
       - uses: astral-sh/setup-uv@v5
         with:
@@ -28,6 +45,24 @@ jobs:
 
       - name: Install
         run: uv sync --frozen
+
+      - name: Chromium prints a page (diagnostic)
+        continue-on-error: true
+        timeout-minutes: 3
+        run: |
+          uv run python - <<'PY'
+          import pathlib, shutil, tempfile, time
+          from app.domain import convert
+          exe = next((shutil.which(n) for n in ("chromium", "chromium-browser", "google-chrome") if shutil.which(n)), None)
+          print("chromium:", exe, "| without its sandbox:", exe and convert.no_sandbox(exe))
+          out = pathlib.Path(tempfile.mkdtemp()) / "page.pdf"
+          t = time.time()
+          try:
+              print(convert.html_pdf({"documents": {"chromium": exe, "convert_seconds": 60}}, convert.text_page("High at noon.", "Tide notes"), out), out.stat().st_size, "bytes")
+          except Exception as e:
+              print("FAILED:", e)
+          print(f"took {time.time() - t:.1f} s")
+          PY
 
       - name: Lint
         run: uv run ruff check . && uv run ruff format --check .
@@ -41,6 +76,7 @@ jobs:
           diff -u ../nextjs-frontend/openapi.json /tmp/openapi.json
 
       - name: Tests
+        timeout-minutes: 30
         run: |
           set -o pipefail
           uv run pytest -n auto -p no:cacheprovider --cov=app --cov-report=xml:coverage.xml --cov-report=term | tee pytest.txt
@@ -67,16 +103,34 @@ jobs:
           # surrealkv, not memory: the memory engine loses concurrent writes (SurrealDB 3.2.4)
           docker run -d --name surreal -p 8000:8000 surrealdb/surrealdb:v3.2.4 start --user root --pass root surrealkv:/tmp/lens.db
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/health && break; sleep 1; done
+      # the packages are kept between runs: the mirror can be slow (LibreOffice is 170 MB)
+      - name: Restore system packages
+        id: apt-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/apt-archives
+          key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: apt-${{ runner.os }}-
       - name: System packages (ffmpeg, tesseract, poppler, LibreOffice Writer)
-        timeout-minutes: 15 # a stalled mirror fails the job instead of holding it for hours
+        timeout-minutes: 25 # a stalled mirror fails the job instead of holding it for hours
         run: |
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y --no-install-recommends ffmpeg tesseract-ocr poppler-utils libreoffice-writer-nogui
+          mkdir -p ~/apt-archives/partial
+          APT="-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Dir::Cache::Archives=$HOME/apt-archives -o APT::Keep-Downloaded-Packages=true"
+          sudo apt-get $APT update
+          sudo apt-get $APT install -y --no-install-recommends ffmpeg tesseract-ocr poppler-utils libreoffice-writer-nogui
+          sudo chown -R "$(id -u)" ~/apt-archives
+      - name: Keep system packages
+        if: steps.apt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/apt-archives
+          key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
       - run: uv sync --frozen
       - name: Tests against the server
+        timeout-minutes: 30
         run: uv run pytest -n 4
 
   frontend:
