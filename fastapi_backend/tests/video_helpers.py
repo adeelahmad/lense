@@ -26,7 +26,13 @@ def make_video(path):
     cmd += ["-f", "lavfi", "-i", "sine=frequency=440:duration=9"]
     cmd += ["-filter_complex", "[0:v][1:v][2:v]concat=n=3:v=1:a=0[v]", "-map", "[v]", "-map", "3:a"]
     cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(path)]
-    subprocess.run(cmd, check=True, capture_output=True)
+    for attempt in range(3):
+        done = subprocess.run(cmd, capture_output=True)
+        # ffmpeg itself has died by a signal (a heap corruption in lavfi's drawtext, seen on CI under a parallel
+        # run): the command isn't at fault, so it is given another go; a plain failure is reported at once.
+        if done.returncode >= 0 or attempt == 2:
+            done.check_returncode()
+            return
 
 
 class FakeFaces:
