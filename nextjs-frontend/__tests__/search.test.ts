@@ -10,6 +10,8 @@ import {
   parseQuery,
   phrases,
   prefixWords,
+  savedSearchFilters,
+  savedSearchHref,
   toParams,
 } from "@/components/search/query";
 import { decodeEntities, snippetText, splitSnippet } from "@/components/search/snippet";
@@ -186,5 +188,28 @@ describe("facets and groups", () => {
   it("links to the moment in whole seconds", () => {
     expect(recordingHref(12, 869_400)).toBe("/recordings/12?t=869");
     expect(recordingHref(12, 0)).toBe("/recordings/12");
+  });
+});
+
+describe("saved searches", () => {
+  const saved = {
+    q: '"capsid model" OR exploit',
+    namespace: "podcasts",
+    speaker: 2,
+    speaker_name: "Alice",
+    emotion: "Happy",
+    recording: 12,
+    recording_title: "Episode 12",
+  };
+  it("open the search page with every filter", () => {
+    expect(savedSearchHref(saved)).toBe(
+      "/search?q=%22capsid+model%22+OR+exploit&ns=podcasts&speaker=2&emotion=Happy&recording=12",
+    );
+    expect(savedSearchHref({ q: "capsid" })).toBe("/search?q=capsid");
+  });
+  it("say their filters by name", () => {
+    expect(savedSearchFilters(saved)).toBe("podcasts · Alice · Happy · Episode 12");
+    expect(savedSearchFilters({ q: "x", speaker: 7, recording: 3 })).toBe("Speaker #7 · Recording #3");
+    expect(savedSearchFilters({ q: "x" })).toBe("");
   });
 });

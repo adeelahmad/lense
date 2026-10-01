@@ -1,13 +1,16 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
-import type { Collection } from "@/app/openapi-client/types.gen";
+import type { SavedSearch } from "@/app/openapi-client/types.gen";
 import type { FacetValue, Facets } from "@/components/search/facets";
-import type { SearchFilters } from "@/components/search/query";
+import { savedSearchFilters, savedSearchHref, type SearchFilters } from "@/components/search/query";
 import { speakerTone } from "@/components/speakers/format";
 import { EMOJI } from "@/components/ui/badge";
+import { Button, IconButton } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/states";
 import { count } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -64,6 +67,59 @@ function FacetRow({
   );
 }
 
+/** One saved search: opens it; its maker (or an owner of its namespace, when shared) can delete it. */
+function SavedRow({ s, onDelete, deleting }: { s: SavedSearch; onDelete: () => void; deleting: boolean }) {
+  const [confirm, setConfirm] = useState(false);
+  const filters = savedSearchFilters(s);
+  const why = `Only ${s.created_by ?? "its maker"} or an owner of ${s.namespace ?? "its namespace"} can delete it`;
+  return (
+    <li className="flex flex-col">
+      <div className="flex items-start gap-1">
+        <Link
+          href={savedSearchHref(s)}
+          className="min-w-0 flex-1 rounded-[6px] px-1.5 py-1.5 text-[13px] font-medium leading-snug text-fg-accent hover:bg-surface-neutral"
+        >
+          {s.name}
+          {s.name !== s.q && <span className="font-normal text-fg-muted"> · {s.q}</span>}
+          {(filters || !s.mine) && (
+            <span className="block text-[11.5px] font-normal text-fg-muted">
+              {[filters, s.mine ? (s.shared ? "shared" : null) : `by ${s.created_by ?? "someone"}`]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          )}
+        </Link>
+        {s.can_delete ? (
+          <IconButton label={`Delete saved search ${s.name}`} size={28} onClick={() => setConfirm(true)}>
+            <Trash2 />
+          </IconButton>
+        ) : (
+          <Tooltip content={why}>
+            <span>
+              <IconButton label={`Delete saved search ${s.name}`} size={28} disabled>
+                <Trash2 />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
+      </div>
+      {confirm && (
+        <div className="flex flex-wrap items-center gap-1.5 px-1.5 pb-1.5" role="alert">
+          <span className="flex-1 text-[12px] text-fg-strong">
+            Delete it{s.shared ? ` for everyone in ${s.namespace}` : ""}?
+          </span>
+          <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>
+            Keep
+          </Button>
+          <Button size="sm" variant="danger" disabled={deleting} onClick={onDelete}>
+            Delete
+          </Button>
+        </div>
+      )}
+    </li>
+  );
+}
+
 /**
  * Facets for the current words: namespace, speaker, emotion and recording, with how many moments each has. Counts
  * come from the words alone, so they don't vanish when you pick one; each facet is one filter, shared with its chip.
@@ -76,6 +132,8 @@ export function FacetPanel({
   partial,
   onToggle,
   saved,
+  onDeleteSaved,
+  deletingSaved,
   className,
 }: {
   facets: Facets | null;
@@ -86,8 +144,11 @@ export function FacetPanel({
   /** True when more moments match than the server counts (20,000). */
   partial?: boolean;
   onToggle: (key: keyof SearchFilters, value: string | number | undefined) => void;
-  /** Saved searches (null while they load). */
-  saved: Collection[] | null;
+  /** Saved searches: yours, then the ones shared with you (null while they load). */
+  saved: SavedSearch[] | null;
+  onDeleteSaved?: (s: SavedSearch) => void;
+  /** The saved search being deleted. */
+  deletingSaved?: number | null;
   className?: string;
 }) {
   const groups: Group[] = facets
@@ -160,33 +221,16 @@ export function FacetPanel({
         </h3>
         {saved?.length === 0 && (
           <p className="m-0 px-1.5 text-[12.5px] leading-snug text-fg-muted">
-            Save a search to keep it here. It’s kept as a collection you can also chat with or run on.
+            Save a search to keep its words and filters here.
           </p>
         )}
-        {(saved ?? []).map((c) => {
-          const f = (c.filter ?? {}) as {
-            q?: string;
-            namespaces?: string[];
-            speakers?: number[];
-          };
-          const p = new URLSearchParams();
-          if (f.q) p.set("q", f.q);
-          if (f.namespaces?.length === 1) p.set("ns", f.namespaces[0]);
-          if (f.speakers?.length === 1) p.set("speaker", String(f.speakers[0]));
-          return (
-            <Link
-              key={c.id}
-              href={`/search?${p}`}
-              className="rounded-[6px] px-1.5 py-1.5 text-[13px] font-medium leading-snug text-fg-accent hover:bg-surface-neutral"
-            >
-              {c.name}
-              {f.q && c.name !== f.q && <span className="font-normal text-fg-muted"> · {f.q}</span>}
-            </Link>
-          );
-        })}
-        <Link href="/collections" className="px-1.5 pt-1 text-[12.5px] font-semibold text-fg-secondary hover:text-fg">
-          All collections →
-        </Link>
+        {saved && saved.length > 0 && (
+          <ul className="m-0 flex list-none flex-col p-0">
+            {saved.map((s) => (
+              <SavedRow key={s.id} s={s} deleting={deletingSaved === s.id} onDelete={() => onDeleteSaved?.(s)} />
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );

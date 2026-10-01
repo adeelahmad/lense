@@ -110,3 +110,35 @@ export function toParams(q: string, f: SearchFilters): string {
 export function activeFilterCount(f: SearchFilters): number {
   return [f.namespace, f.speaker, f.emotion, f.recording].filter((v) => v != null && v !== "").length;
 }
+
+type Saved = {
+  q: string;
+  namespace?: string | null;
+  speaker?: number | null;
+  speaker_name?: string | null;
+  emotion?: string | null;
+  recording?: number | null;
+  recording_title?: string | null;
+};
+
+/** Where a saved search opens: the search page with its words and filters. */
+export function savedSearchHref(s: Saved): string {
+  return `/search?${toParams(s.q, {
+    namespace: s.namespace ?? undefined,
+    speaker: s.speaker ?? undefined,
+    emotion: s.emotion ?? undefined,
+    recording: s.recording ?? undefined,
+  })}`;
+}
+
+/** "podcasts · Alice · Happy · Episode 12": a saved search's filters, by name where it has them. */
+export function savedSearchFilters(s: Saved): string {
+  return [
+    s.namespace,
+    s.speaker != null ? (s.speaker_name ?? `Speaker #${s.speaker}`) : null,
+    s.emotion,
+    s.recording != null ? (s.recording_title ?? `Recording #${s.recording}`) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}

@@ -37,7 +37,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| Saved searches (today: saved as filter collections, which can't hold emotion or recording filters) | a saved-search store |
 | "Try …" prefix suggestions | a term-completion endpoint |
 | Scope a chat by collection (today: expanded to at most 200 recording ids) | collection ids in the chat scope |
 

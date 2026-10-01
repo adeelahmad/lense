@@ -5096,6 +5096,103 @@ export type ResetPasswordRequest = {
 };
 
 /**
+ * SavedSearch
+ */
+export type SavedSearch = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Namespace
+   * the namespace it searches; null: every namespace you can read
+   */
+  namespace?: string | null;
+  /**
+   * Shared
+   * everyone with a role in its namespace sees it
+   */
+  shared?: boolean;
+  /**
+   * Q
+   */
+  q: string;
+  /**
+   * Speaker
+   */
+  speaker?: number | null;
+  /**
+   * Speaker Name
+   * the speaker's name, when you can read their namespace
+   */
+  speaker_name?: string | null;
+  /**
+   * Emotion
+   */
+  emotion?: string | null;
+  /**
+   * Recording
+   */
+  recording?: number | null;
+  /**
+   * Recording Title
+   * the recording's title, when you can read it
+   */
+  recording_title?: string | null;
+  /**
+   * Created By
+   * its maker's email
+   */
+  created_by?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Mine
+   * you made it: only you can change it
+   */
+  mine: boolean;
+  /**
+   * Can Delete
+   * you made it, or it's shared and you own its namespace
+   */
+  can_delete: boolean;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | boolean
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
  * SavedView
  */
 export type SavedView = {
@@ -5156,6 +5253,43 @@ export type SavedView = {
     | string
     | null
     | undefined;
+};
+
+/**
+ * SearchCreate
+ */
+export type SearchCreate = {
+  /**
+   * Q
+   * words, "phrases", OR between alternatives
+   */
+  q: string;
+  /**
+   * Speaker
+   */
+  speaker?: number | null;
+  /**
+   * Emotion
+   */
+  emotion?: string | null;
+  /**
+   * Recording
+   */
+  recording?: number | null;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Namespace
+   * search one namespace; null: every namespace you can read
+   */
+  namespace?: string | null;
+  /**
+   * Shared
+   * share it with its namespace (needs editor access there)
+   */
+  shared?: boolean;
 };
 
 /**
@@ -5325,6 +5459,22 @@ export type SearchResults = {
    */
   facets?: SearchFacets | null;
   [key: string]: unknown | string | number | boolean | Array<SearchHit> | SearchFacets | null | undefined;
+};
+
+/**
+ * SearchUpdate
+ * Only what you send changes.
+ */
+export type SearchUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Shared
+   * share it with its namespace (needs editor access there), or stop
+   */
+  shared?: boolean | null;
 };
 
 /**
@@ -9864,6 +10014,108 @@ export type ListMentionsResponses = {
 };
 
 export type ListMentionsResponse = ListMentionsResponses[keyof ListMentionsResponses];
+
+export type ListSearchesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/searches";
+};
+
+export type ListSearchesResponses = {
+  /**
+   * Response Searches-List Searches
+   * Successful Response
+   */
+  200: Array<SavedSearch>;
+};
+
+export type ListSearchesResponse = ListSearchesResponses[keyof ListSearchesResponses];
+
+export type CreateSearchData = {
+  body: SearchCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/searches";
+};
+
+export type CreateSearchErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateSearchError = CreateSearchErrors[keyof CreateSearchErrors];
+
+export type CreateSearchResponses = {
+  /**
+   * Successful Response
+   */
+  200: SavedSearch;
+};
+
+export type CreateSearchResponse = CreateSearchResponses[keyof CreateSearchResponses];
+
+export type DeleteSearchData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/searches/{sid}";
+};
+
+export type DeleteSearchErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteSearchError = DeleteSearchErrors[keyof DeleteSearchErrors];
+
+export type DeleteSearchResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteSearchResponse = DeleteSearchResponses[keyof DeleteSearchResponses];
+
+export type UpdateSearchData = {
+  body: SearchUpdate;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/searches/{sid}";
+};
+
+export type UpdateSearchErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateSearchError = UpdateSearchErrors[keyof UpdateSearchErrors];
+
+export type UpdateSearchResponses = {
+  /**
+   * Successful Response
+   */
+  200: SavedSearch;
+};
+
+export type UpdateSearchResponse = UpdateSearchResponses[keyof UpdateSearchResponses];
 
 export type ListSpeakersData = {
   body?: never;

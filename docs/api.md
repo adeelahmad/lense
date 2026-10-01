@@ -513,6 +513,23 @@ with `mine` and `can_delete`; a view of a namespace you can no longer read is le
 100 views each. Sharing, unsharing and deleting a shared view are audited (`view.share`, `view.unshare`,
 `view.delete`).
 
+## searches
+
+```
+GET    /api/v1/searches
+POST   /api/v1/searches
+PATCH  /api/v1/searches/{sid}
+DELETE /api/v1/searches/{sid}
+```
+
+Saved searches: `POST` with a `name` (unique among yours), the search's `q`, and any of `namespace`, `speaker`,
+`emotion` and `recording`, as `GET /search` takes them. They follow the rules of saved views (above): yours, or
+`shared` with the namespace they search (editors there; a search of every namespace can't be shared); only their maker
+renames or shares them (`PATCH` with `name` or `shared`); their maker, or an owner of the namespace for a shared one,
+deletes them. `GET` lists yours, then the shared ones, with `speaker_name` and `recording_title` where you can read
+them. Sharing, unsharing and deleting a shared one are audited (`search.share`, `search.unshare`, `search.delete`).
+Saved searches are not collections: to chat with a search or run things on it, keep it as a collection too.
+
 ## batches
 
 ```

@@ -4029,6 +4029,166 @@
         }
       }
     },
+    "/api/v1/searches": {
+      "get": {
+        "tags": [
+          "searches"
+        ],
+        "summary": "List Searches",
+        "description": "Your saved searches, then the ones shared with namespaces you can read; the latest changed first in each.",
+        "operationId": "list_searches",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SavedSearch"
+                  },
+                  "type": "array",
+                  "title": "Response Searches-List Searches"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "searches"
+        ],
+        "summary": "Create Search",
+        "description": "Save a search (its words, namespace, speaker, emotion and recording) under a name unique among yours. Sharing it\nwith its namespace needs editor access there.",
+        "operationId": "create_search",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedSearch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/searches/{sid}": {
+      "patch": {
+        "tags": [
+          "searches"
+        ],
+        "summary": "Update Search",
+        "description": "Rename it, or share or unshare it. Its maker only; sharing needs editor access to its namespace, and a search of\nevery namespace can't be shared.",
+        "operationId": "update_search",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedSearch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "searches"
+        ],
+        "summary": "Delete Search",
+        "description": "Delete it: its maker, or for a shared one an owner of its namespace. Deleting a shared one is audited.",
+        "operationId": "delete_search",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/speakers": {
       "get": {
         "tags": [
@@ -17637,6 +17797,151 @@
         ],
         "title": "ResetPasswordRequest"
       },
+      "SavedSearch": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "the namespace it searches; null: every namespace you can read"
+          },
+          "shared": {
+            "type": "boolean",
+            "title": "Shared",
+            "description": "everyone with a role in its namespace sees it",
+            "default": false
+          },
+          "q": {
+            "type": "string",
+            "title": "Q"
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker"
+          },
+          "speaker_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Name",
+            "description": "the speaker's name, when you can read their namespace"
+          },
+          "emotion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emotion"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording"
+          },
+          "recording_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording Title",
+            "description": "the recording's title, when you can read it"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By",
+            "description": "its maker's email"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "mine": {
+            "type": "boolean",
+            "title": "Mine",
+            "description": "you made it: only you can change it"
+          },
+          "can_delete": {
+            "type": "boolean",
+            "title": "Can Delete",
+            "description": "you made it, or it's shared and you own its namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "q",
+          "mine",
+          "can_delete"
+        ],
+        "title": "SavedSearch"
+      },
       "SavedView": {
         "properties": {
           "id": {
@@ -17723,6 +18028,82 @@
           "can_delete"
         ],
         "title": "SavedView"
+      },
+      "SearchCreate": {
+        "properties": {
+          "q": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Q",
+            "description": "words, \"phrases\", OR between alternatives"
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker"
+          },
+          "emotion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emotion"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "search one namespace; null: every namespace you can read"
+          },
+          "shared": {
+            "type": "boolean",
+            "title": "Shared",
+            "description": "share it with its namespace (needs editor access there)",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "q",
+          "name"
+        ],
+        "title": "SearchCreate"
       },
       "SearchFacets": {
         "properties": {
@@ -17964,6 +18345,39 @@
           "hits"
         ],
         "title": "SearchResults"
+      },
+      "SearchUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared",
+            "description": "share it with its namespace (needs editor access there), or stop"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SearchUpdate",
+        "description": "Only what you send changes."
       },
       "SecretFlag": {
         "properties": {

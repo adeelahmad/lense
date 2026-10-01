@@ -225,6 +225,17 @@ import type {
   ListMentionsData,
   ListMentionsResponses,
   ListMentionsErrors,
+  ListSearchesData,
+  ListSearchesResponses,
+  CreateSearchData,
+  CreateSearchResponses,
+  CreateSearchErrors,
+  DeleteSearchData,
+  DeleteSearchResponses,
+  DeleteSearchErrors,
+  UpdateSearchData,
+  UpdateSearchResponses,
+  UpdateSearchErrors,
   ListSpeakersData,
   ListSpeakersResponses,
   ListSpeakersErrors,
@@ -1677,6 +1688,62 @@ export class Search {
     return (options.client ?? client).get<ListMentionsResponses, ListMentionsErrors, ThrowOnError>({
       url: "/api/v1/mentions",
       ...options,
+    });
+  }
+}
+
+export class Searches {
+  /**
+   * List Searches
+   * Your saved searches, then the ones shared with namespaces you can read; the latest changed first in each.
+   */
+  public static listSearches<ThrowOnError extends boolean = false>(options?: Options<ListSearchesData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListSearchesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/searches",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Search
+   * Save a search (its words, namespace, speaker, emotion and recording) under a name unique among yours. Sharing it
+   * with its namespace needs editor access there.
+   */
+  public static createSearch<ThrowOnError extends boolean = false>(options: Options<CreateSearchData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateSearchResponses, CreateSearchErrors, ThrowOnError>({
+      url: "/api/v1/searches",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Search
+   * Delete it: its maker, or for a shared one an owner of its namespace. Deleting a shared one is audited.
+   */
+  public static deleteSearch<ThrowOnError extends boolean = false>(options: Options<DeleteSearchData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteSearchResponses, DeleteSearchErrors, ThrowOnError>({
+      url: "/api/v1/searches/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Search
+   * Rename it, or share or unshare it. Its maker only; sharing needs editor access to its namespace, and a search of
+   * every namespace can't be shared.
+   */
+  public static updateSearch<ThrowOnError extends boolean = false>(options: Options<UpdateSearchData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateSearchResponses, UpdateSearchErrors, ThrowOnError>({
+      url: "/api/v1/searches/{sid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
