@@ -21,7 +21,7 @@ import urllib.parse
 import urllib.request
 from collections import Counter
 
-from . import access as acc, deletion, ingest, metadata as md, pipelines, render, settings, speakers as spk, store
+from . import access as acc, deletion, hierarchy, ingest, metadata as md, pipelines, render, settings, speakers as spk, store
 
 R = store.R
 P3 = "http://iiif.io/api/presentation/3/context.json"
@@ -233,7 +233,7 @@ def manifest(db, cfg, rid, base):
                 "profile": "http://www.openarchives.org/OAI/2.0/oai_dc/",
             },
         ],
-        "partOf": [{"id": f"{base}/iiif/collection/{ns}", "type": "Collection"}],
+        "partOf": [{"id": collection_url(base, ns, rec.get("collection")), "type": "Collection"}],
         "service": None
         if text_locked
         else [{"id": f"{m}/search", "type": "SearchService2", "service": [{"id": f"{m}/autocomplete", "type": "AutoCompleteService2"}]}],
@@ -365,46 +365,94 @@ def annotation_page(db, cfg, rid, base, layer):
     return {"@context": P3, "id": f"{m}/annotations/{layer}", "type": "AnnotationPage", "label": lm(LAYERS[layer], "en"), "items": items}
 
 
-def collection(db, cfg, sid, base, readable=None, granted=frozenset()):
-    """A namespace as a Collection: its public recordings, and the others the requester may read: all of them in the
-    `readable` namespaces (a role there, or an IP group that opens everything), and the `granted` recordings (permission
-    given on them, or an IP group that opens them)."""
-    ns = md.namespace(db, sid)
-    meta = ns["meta"]
-    items = []
+def collection_url(base, ns, cid=None):
+    """A namespace's Collection, or one of its collections'."""
+    return f"{base}/iiif/collection/{ns}" + (f"/{cid}" if cid is not None else "")
+
+
+def _shown(db, sid, readable, granted):
+    """The namespace's recordings a requester sees in its Collections, oldest first: its public ones, and the others the
+    requester may read: all of them in the `readable` namespaces (a role there, or an IP group that opens everything),
+    and the `granted` recordings (permission given on them, or an IP group that opens them)."""
     rows = db.rows(
-        "SELECT record::id(id) AS id, space, title, recorded_at, access, access_parts, featured FROM recording WHERE space = $s "
-        "ORDER BY recorded_at",
+        "SELECT record::id(id) AS id, space, collection, title, recorded_at, access, access_parts, featured FROM recording "
+        "WHERE space = $s ORDER BY recorded_at",
         s=sid,
     )
     access = acc.many(db, rows)
-    for r in rows:
-        if acc.published(access[r["id"]]) or (readable is not None and sid in readable) or r["id"] in granted:
-            eff = md.effective(db, cfg, r["id"])
-            items.append(
-                _prune(
-                    {
-                        "id": f"{base}/iiif/{r['id']}/manifest",
-                        "type": "Manifest",
-                        "label": eff.get("label") or lm(r["title"]),
-                        "navDate": eff.get("navDate"),
-                    }
-                )
-            )
+    return [r for r in rows if acc.published(access[r["id"]]) or (readable is not None and sid in readable) or r["id"] in granted]
+
+
+def _branches(db, base, ns, sid, shown, parent):
+    """The collections directly inside `parent` (None: the namespace's top) holding something the requester sees."""
+    counts = Counter(r.get("collection") for r in shown)
+    return [
+        {"id": collection_url(base, ns, n["id"]), "type": "Collection", "label": lm(n["name"])}
+        for n in hierarchy.tree(db, sid, counts)
+        if n["total"] and (n["depth"] == 0 if parent is None else n.get("parent") == parent)
+    ]
+
+
+def _frame(meta, base, ns, id_, label, summary, part_of, items):
+    """A Collection with what it has from its namespace's description: rights, attribution and provider."""
     return _prune(
         {
             "@context": P3,
-            "id": f"{base}/iiif/collection/{ns['name']}",
+            "id": id_,
             "type": "Collection",
-            "label": meta.get("label") or lm(ns["name"]),
-            "summary": meta.get("summary"),
-            "metadata": meta.get("metadata"),
+            "label": label,
+            "summary": summary,
+            "metadata": meta.get("metadata") if id_ == collection_url(base, ns) else None,
             "rights": meta.get("rights"),
             "requiredStatement": {"label": lm("Attribution", "en"), "value": meta["attribution"]} if meta.get("attribution") else None,
             "provider": _provider(meta, base),
-            "partOf": [{"id": f"{base}/iiif/collection", "type": "Collection"}],
+            "partOf": [{"id": part_of, "type": "Collection"}],
             "items": items,
         }
+    )
+
+
+def collection(db, cfg, sid, base, readable=None, granted=frozenset()):
+    """A namespace as a Collection of its collections: those holding a recording the requester sees (see _shown)."""
+    ns = md.namespace(db, sid)
+    shown = _shown(db, sid, readable, granted)
+    items = _branches(db, base, ns["name"], sid, shown, None)
+    meta = ns["meta"]
+    url = collection_url(base, ns["name"])
+    return _frame(meta, base, ns["name"], url, meta.get("label") or lm(ns["name"]), meta.get("summary"), f"{base}/iiif/collection", items)
+
+
+def subcollection(db, cfg, sid, cid, base, readable=None, granted=frozenset()):
+    """One of a namespace's collections as a Collection: the collections inside it holding something the requester
+    sees, then its own recordings the requester sees, oldest first. KeyError for a collection of another namespace."""
+    c = hierarchy.get(db, cid)
+    if c["space"] != sid:
+        raise KeyError(cid)
+    ns = md.namespace(db, sid)
+    shown = _shown(db, sid, readable, granted)
+    items = _branches(db, base, ns["name"], sid, shown, c["id"])
+    for r in (r for r in shown if r.get("collection") == c["id"]):
+        eff = md.effective(db, cfg, r["id"])
+        items.append(
+            _prune(
+                {
+                    "id": f"{base}/iiif/{r['id']}/manifest",
+                    "type": "Manifest",
+                    "label": eff.get("label") or lm(r["title"]),
+                    "navDate": eff.get("navDate"),
+                }
+            )
+        )
+    part_of = collection_url(base, ns["name"], c.get("parent"))
+    return _frame(
+        ns["meta"],
+        base,
+        ns["name"],
+        collection_url(base, ns["name"], c["id"]),
+        lm(c["name"]),
+        lm(c["description"]) if c.get("description") else None,
+        part_of,
+        items,
     )
 
 
@@ -696,19 +744,63 @@ def parse_manifest(j):
     }
 
 
+NESTED_FETCHES = 50  # Collections inside a Collection read while looking for its Manifests
+MANIFESTS_MAX = 1000
+
+
+def manifests_in(j, limit=MANIFESTS_MAX, log=print):
+    """The Manifests a Collection holds, in its order, with those of the Collections inside it (Lens nests its own),
+    at most hierarchy.MAX_DEPTH deep and NESTED_FETCHES Collections read: ([{id, label, path}], how many Collections
+    were followed, whether it stopped early). `path` names the Collections a Manifest is in below this one."""
+    out, followed, cut = [], [0], [False]
+
+    def walk(c, depth, trail):
+        for x in c.get("items") or []:
+            if len(out) >= limit:
+                cut[0] = True
+                return
+            kind, xid = x.get("type"), x.get("id")
+            if kind == "Manifest" and xid:
+                out.append({"id": xid, "type": "Manifest", "label": _text(x.get("label")), "path": trail})
+            elif kind == "Collection" and xid:
+                if depth >= hierarchy.MAX_DEPTH or followed[0] >= NESTED_FETCHES:
+                    cut[0] = True
+                    continue
+                followed[0] += 1
+                try:
+                    sub = x if x.get("items") is not None else fetch_json(xid)
+                except (ValueError, OSError) as e:
+                    log(f"  {xid}: {e}")
+                    continue
+                walk(sub, depth + 1, [*trail, _text(x.get("label")) or _text(sub.get("label")) or xid])
+
+    walk(j, 0, [])
+    return out, followed[0], cut[0]
+
+
 def preview(url):
+    """What a Manifest (its canvases) or a Collection (its Manifests, also in the Collections inside it) holds."""
     j = fetch_json(url)
     if j.get("type") == "Collection" and _version(j) == 3:
-        items = [{"id": x.get("id"), "type": x.get("type"), "label": _text(x.get("label"))} for x in j.get("items") or []]
-        return {"type": "Collection", "id": j.get("id"), "label": _text(j.get("label")), "total": len(items), "items": items[:200]}
+        items, followed, cut = manifests_in(j)
+        return {
+            "type": "Collection",
+            "id": j.get("id"),
+            "label": _text(j.get("label")),
+            "total": len(items),
+            "collections": followed,
+            "more": cut,
+            "items": items[:200],
+        }
     if j.get("type") not in ("Manifest", "sc:Manifest") and j.get("@type") not in ("sc:Manifest",):
         raise ValueError("that isn't a IIIF Manifest or Collection")
     return parse_manifest(j)
 
 
-def import_manifest(db, cfg, url, ns, keep_transcripts=True, user=None, log=print):
+def import_manifest(db, cfg, url, ns, keep_transcripts=True, user=None, log=print, collection=None):
     p = parse_manifest(fetch_json(url))
     sid, rids = store.ns_id(db, ns), []
+    home = store.home(db, sid, collection)
     audio_ext = {
         "audio/mp4": ".m4a",
         "audio/mpeg": ".mp3",
@@ -752,6 +844,7 @@ def import_manifest(db, cfg, url, ns, keep_transcripts=True, user=None, log=prin
             d=store.clean(
                 {
                     "space": sid,
+                    "collection": home,
                     "fingerprint": fp,
                     "fp_key": f"{sid}:{fp}",
                     "title": title[:200],
@@ -807,15 +900,16 @@ def import_manifest(db, cfg, url, ns, keep_transcripts=True, user=None, log=prin
     return rids
 
 
-def import_url(db, cfg, url, ns, keep_transcripts=True, user=None, limit=50, log=print):
+def import_url(db, cfg, url, ns, keep_transcripts=True, user=None, limit=50, log=print, collection=None):
+    """A Manifest, or the first `limit` Manifests of a Collection (with those of the Collections inside it), into a
+    collection of the namespace (its default when None)."""
     j = fetch_json(url)
     if j.get("type") == "Collection":
         rids = []
-        for x in (j.get("items") or [])[:limit]:
-            if x.get("type") == "Manifest" and x.get("id"):
-                try:
-                    rids += import_manifest(db, cfg, x["id"], ns, keep_transcripts, user, log)
-                except (ValueError, OSError) as e:
-                    log(f"  {x['id']}: {e}")
+        for x in manifests_in(j, limit, log)[0]:
+            try:
+                rids += import_manifest(db, cfg, x["id"], ns, keep_transcripts, user, log, collection)
+            except (ValueError, OSError) as e:
+                log(f"  {x['id']}: {e}")
         return rids
-    return import_manifest(db, cfg, url, ns, keep_transcripts, user, log)
+    return import_manifest(db, cfg, url, ns, keep_transcripts, user, log, collection)

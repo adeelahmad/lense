@@ -8,6 +8,8 @@ import { rememberView } from "@/components/home/recently-viewed";
 import { isFileDrag, useSendToImport } from "@/components/import/pending";
 import { useRecordingActions } from "@/components/library/actions";
 import { BulkBar, DeleteDialog, MoveDialog, ReprocessDialog, TagDialog } from "@/components/library/bulk-bar";
+import { collectionName } from "@/components/library/collections-model";
+import { CollectionsDialog, PlaceDialog } from "@/components/library/collections-ui";
 import { FiltersBar } from "@/components/library/filters-bar";
 import { LibraryEmpty } from "@/components/library/library-empty";
 import { LibraryTabs } from "@/components/library/library-tabs";
@@ -40,6 +42,7 @@ import {
   useTagCounts,
   useWatchedSources,
 } from "@/components/library/use-library";
+import { useCollectionTree } from "@/components/library/use-collections";
 import { useIsNarrow } from "@/components/library/use-media";
 import { fromView, viewState } from "@/components/library/views-model";
 import { Banner } from "@/components/ui/banner";
@@ -83,8 +86,9 @@ function typing(t: EventTarget | null): boolean {
   return Boolean(el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable));
 }
 
-/** The Library (L1–L6): every recording you can see, across namespaces, with live job progress in its row. */
-export function LibraryScreen() {
+/** The Library (L1–L6): every recording you can see, across namespaces, with live job progress in its row. `initial`
+ * opens it on a namespace's collection (/library?namespace=…&collection=…, as a recording's breadcrumb links). */
+export function LibraryScreen({ initial }: { initial?: { namespace: string; collection: number | null } } = {}) {
   const { namespace, namespaces, roleIn, can, me, setNamespace } = useArchive();
   const [layout, setLayout] = useState<"table" | "list">("table");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
@@ -112,6 +116,9 @@ export function LibraryScreen() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [tagOpen, setTagOpen] = useState(false);
+  const [placeOpen, setPlaceOpen] = useState(false);
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
+  const tree = useCollectionTree(namespace);
   const tagCounts = useTagCounts(namespace);
   const origins = useOrigins(namespace);
   const languages = useLanguages(namespace);
@@ -137,9 +144,9 @@ export function LibraryScreen() {
     }
   };
 
-  // A new namespace is a new list: forget the speaker filter (speakers differ per namespace).
+  // A new namespace is a new list: forget the speaker and collection filters (each namespace has its own).
   useEffect(() => {
-    setFilters((f) => ({ ...f, speaker: null }));
+    setFilters((f) => ({ ...f, speaker: null, collection: null }));
   }, [namespace]);
   // Other filters, another tab or sort: a new list too, so the selection starts over.
   useEffect(() => {
@@ -198,14 +205,36 @@ export function LibraryScreen() {
   // A saved view brings back its namespace, tab, filters and sort; its speaker by name, once that namespace's
   // speakers are known (each namespace has its own ids).
   const [pendingSpeaker, setPendingSpeaker] = useState<{ name: string; ns: string | null } | null>(null);
+  // Its collection too, once that namespace's collections are known (it may have been deleted since).
+  const [pendingCollection, setPendingCollection] = useState<{ id: number; ns: string } | null>(null);
   const applyView = (v: SavedView) => {
     const s = fromView(v.state);
     if ((v.namespace ?? null) !== namespace) setNamespace(v.namespace ?? null);
-    setFilters(s.filters);
+    setFilters({ ...s.filters, collection: null });
     setView(s.view);
     setSort(s.sort);
     setPendingSpeaker(s.speaker ? { name: s.speaker, ns: v.namespace ?? null } : null);
+    setPendingCollection(
+      s.filters.collection != null && v.namespace ? { id: s.filters.collection, ns: v.namespace } : null,
+    );
   };
+  // A link to a collection (a recording's breadcrumb) opens its namespace on it.
+  useEffect(() => {
+    if (!initial?.namespace) return;
+    setNamespace(initial.namespace);
+    if (initial.collection != null) setPendingCollection({ id: initial.collection, ns: initial.namespace });
+  }, [initial?.namespace, initial?.collection, setNamespace]);
+  useEffect(() => {
+    if (!pendingCollection || pendingCollection.ns !== namespace || !tree.isSuccess) return;
+    const name = collectionName(tree.data, pendingCollection.id);
+    setFilters((f) => ({ ...f, collection: name != null ? pendingCollection.id : null }));
+    setPendingCollection(null);
+    if (name == null)
+      toast({
+        title: `That collection isn’t in ${namespace} now`,
+        body: "The Library shows the whole namespace instead.",
+      });
+  }, [pendingCollection, namespace, tree.isSuccess, tree.data, toast]);
   useEffect(() => {
     if (!pendingSpeaker || pendingSpeaker.ns !== namespace || speakers.loading) return;
     const choice = speakers.choices.find((c) => c.name === pendingSpeaker.name) ?? null;
@@ -277,6 +306,15 @@ export function LibraryScreen() {
     namespaces.map((n) => n.name).filter((ns) => can("editor", ns)),
     selectedRows.map((r) => r.namespace),
   );
+  // Collections belong to a namespace: the selection files into one only when it's all from the same one.
+  const selectedNs = [...new Set(selectedRows.map((r) => r.namespace).filter((n): n is string => Boolean(n)))];
+  const placeNs = selectedNs.length === 1 ? selectedNs[0] : null;
+  const placeReason =
+    selectedNs.length > 1
+      ? `Collections belong to one namespace: select recordings of one namespace (these are in ${selectedNs.join(", ")}).`
+      : undefined;
+  const sharedHome = new Set(selectedRows.map((r) => r.collection ?? null));
+  const placeCurrent = sharedHome.size === 1 ? [...sharedHome][0] : null;
 
   // Keyboard: J/K move between rows, X selects, Enter opens (the title link), / focuses the filter, Esc clears.
   useEffect(() => {
@@ -458,12 +496,16 @@ export function LibraryScreen() {
               compact={narrow}
               origins={origins.data ?? []}
               languages={languages.data ?? []}
+              collections={tree.data}
+              collectionsLoading={tree.isLoading}
+              onManageCollections={() => setCollectionsOpen(true)}
               trailing={
                 <SavedViews
                   state={shownState}
                   namespace={namespace}
                   onApply={applyView}
                   originName={(k) => origins.data?.find((o) => o.origin === k)?.name ?? k}
+                  collectionName={(id) => collectionName(tree.data, id)}
                 />
               }
             />
@@ -571,6 +613,8 @@ export function LibraryScreen() {
           onReprocess={() => setReprocessOpen(true)}
           onExport={(fmt) => actions.exportMany([...selected], fmt)}
           onMove={() => setMoveOpen(true)}
+          onPlace={() => setPlaceOpen(true)}
+          placeReason={placeReason}
           onTag={() => setTagOpen(true)}
           onDelete={() => setDeleteOpen(true)}
           onClear={() => setSelected(new Set())}
@@ -601,6 +645,29 @@ export function LibraryScreen() {
           setSelected((cur) => new Set([...cur].filter((id) => !moved.includes(id))));
         }}
       />
+      {placeNs && (
+        <PlaceDialog
+          ns={placeNs}
+          ids={selectedRows.map((r) => r.id)}
+          title={
+            selectedRows.length === 1
+              ? `“${selectedRows[0].title || "Untitled"}”`
+              : plural(selectedRows.length, "recording")
+          }
+          current={placeCurrent}
+          open={placeOpen}
+          onOpenChange={setPlaceOpen}
+          onDone={() => setSelected(new Set())}
+        />
+      )}
+      {namespace && (
+        <CollectionsDialog
+          ns={namespace}
+          open={collectionsOpen}
+          onOpenChange={setCollectionsOpen}
+          onPick={(id) => setFilters((f) => ({ ...f, collection: id }))}
+        />
+      )}
       <DeleteDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

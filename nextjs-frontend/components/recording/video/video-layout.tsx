@@ -4,6 +4,7 @@ import { ChevronLeft, Video as VideoIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { homeText } from "@/components/library/collections-model";
 import type { PlayerAction } from "@/components/player/keys";
 import { usePlayerApi } from "@/components/player/media";
 import { useRec, type PanelTab } from "@/components/recording/context";
@@ -124,7 +125,7 @@ export function VideoLayout({
   const current: PanelTab = all.some((t) => t.value === tab) ? tab : mode === "side" ? "text" : "transcript";
   const src = sourceLabel(rec);
   const meta = [
-    r.ns,
+    homeText(r.ns, rec.collection_path),
     rec.recorded_at ? shortDate(rec.recorded_at) : null,
     tc(model.durationMs),
     model.media.width && model.media.height ? `${model.media.width}×${model.media.height}` : null,
@@ -166,7 +167,7 @@ export function VideoLayout({
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[15px] font-bold leading-tight text-fg">{model.title}</h1>
             <p className="tabular truncate text-[12px] text-fg-muted">
-              {[r.ns, tc(model.durationMs), "video"].filter(Boolean).join(" · ")}
+              {[homeText(r.ns, rec.collection_path, true), tc(model.durationMs), "video"].filter(Boolean).join(" · ")}
             </p>
           </div>
           <HeaderActions compact />

@@ -8,7 +8,10 @@ can open them, and harvesters can follow them.
   - Chapters become the table of contents (Ranges).
   - Downloads (`rendering`): vtt, srt, txt, md and json.
   - A schema.org record and a Dublin Core record, linked with `seeAlso`.
-- **Collections:** `/iiif/collection` and `/iiif/collection/<namespace>`.
+- **Collections:** `/iiif/collection` lists the namespaces, `/iiif/collection/<namespace>` the namespace's top
+  collections, and `/iiif/collection/<namespace>/<id>` one collection: the collections inside it, then its recordings'
+  Manifests, oldest first. Each is a Collection with its parent as `partOf`, and a Manifest is `partOf` the collection
+  it lives in. Collections show only what the requester may see: one with nothing visible inside it is left out.
 - **Content Search 2.0:** `/iiif/<id>/search` and `/autocomplete`, plus `/iiif/collection/<namespace>/search`. Hits come
   with highlighting (TextQuoteSelector).
 - **Content State 1.0:** `GET /api/v1/recordings/<id>/content-state?t0=&t1=` gives a link to an exact moment, encoded the
@@ -21,7 +24,9 @@ can open them, and harvesters can follow them.
   - A successful probe returns a short-lived signed link, so playback doesn't depend on third-party cookies.
   - `/iiif/auth/logout` revokes the tokens.
 - **Import:** `POST /api/v1/import/iiif` (admins) takes a Presentation 3 Manifest or Collection from another server.
+  - A Collection's Manifests are found in the Collections inside it too (at most 8 deep and 50 Collections read).
   - It copies the audio, keeps WebVTT captions as the transcript (speakers included), and maps the metadata.
+  - The recordings go into the collection of the namespace you choose (its default unless you pick one).
   - It then queues the namespace's pipeline, skipping transcription.
 
 A recording's access decides what is published ([Access](access.md)). It's set per recording, with a default per

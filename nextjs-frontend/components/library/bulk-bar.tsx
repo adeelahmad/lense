@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FolderInput, RefreshCw, Tag, Trash2, X, type LucideIcon } from "lucide-react";
+import { Download, FolderInput, FolderTree, RefreshCw, Tag, Trash2, X, type LucideIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { EXPORT_FORMATS, type ExportFormat } from "@/components/library/actions";
@@ -61,6 +61,8 @@ export function BulkBar({
   onReprocess,
   onExport,
   onMove,
+  onPlace,
+  placeReason,
   onTag,
   onDelete,
   onClear,
@@ -75,6 +77,10 @@ export function BulkBar({
   onReprocess: () => void;
   onExport: (fmt: ExportFormat) => void;
   onMove: () => void;
+  /** File them in a collection of their namespace. */
+  onPlace?: () => void;
+  /** Why they can't be (besides roles): they're from several namespaces. */
+  placeReason?: string;
   onTag: () => void;
   onDelete: () => void;
   onClear: () => void;
@@ -103,6 +109,14 @@ export function BulkBar({
         </span>
         <BarButton icon={RefreshCw} label="Reprocess" onClick={onReprocess} disabledReason={roleReason} />
         <BarButton icon={FolderInput} label="Move" onClick={onMove} disabledReason={moveReason} />
+        {onPlace && (
+          <BarButton
+            icon={FolderTree}
+            label="Collection"
+            onClick={onPlace}
+            disabledReason={roleReason ?? placeReason}
+          />
+        )}
         <BarButton icon={Tag} label="Tag" onClick={onTag} disabledReason={roleReason} />
         <Menu>
           <MenuTrigger className={actionCls}>

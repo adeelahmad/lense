@@ -98,6 +98,8 @@ def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) ->
     ns = body.namespace.strip()
     if body.pipeline is not None and body.recording is not None:
         raise HTTPException(400, "attaching audio runs its own steps; a pipeline can't be chosen for it")
+    if body.collection is not None and body.recording is not None:
+        raise HTTPException(400, "the recording stays in its collection; a collection can't be chosen for it")
     check_pipeline(db, body.pipeline)
     if body.recording is not None:
         rec = acl.recording(body.recording, "editor")
@@ -111,9 +113,24 @@ def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) ->
         raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
     else:
         _may_add(acl, db, user, ns)
+    if body.collection is not None:
+        try:
+            store.home(db, store.ns_id(db, ns, create=False), body.collection)
+        except KeyError:
+            raise HTTPException(404, "there's no such collection in that namespace") from None
     with _errors():
         row = uploads.start(
-            db, cfg, ns, body.filename, body.size, user.as_audit(), body.title, body.modified, body.recording, body.pipeline
+            db,
+            cfg,
+            ns,
+            body.filename,
+            body.size,
+            user.as_audit(),
+            body.title,
+            body.modified,
+            body.recording,
+            body.pipeline,
+            body.collection,
         )
     return Upload(**uploads.view(cfg, row))
 

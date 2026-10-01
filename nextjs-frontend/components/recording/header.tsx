@@ -12,6 +12,7 @@ import {
   ExternalLink,
   FileText,
   Folder,
+  FolderTree,
   Globe,
   Keyboard,
   Link2,
@@ -24,9 +25,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { AccessBadge } from "@/components/access/access-fields";
+import { libraryHref } from "@/components/library/collections-model";
 import { usePlayerApi } from "@/components/player/media";
 import { useRec } from "@/components/recording/context";
 import { useExport, usePipelines, useRecordingActions } from "@/components/recording/hooks";
@@ -39,14 +41,13 @@ import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { absolute, shortDate, tc } from "@/lib/format";
 import { EXPORTS, failureImpact, sourceLabel } from "@/components/recording/labels";
-import { needRole, useArchive } from "@/lib/hooks/session";
+import { needRole } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 /** Header (R1): breadcrumb, title, actions, the meta line, and the running / failed banners. */
 export function RecordingHeader() {
   const r = useRec();
   const { rec, model, ns, transcriptOnly, canEdit, openRename, openAccess } = r;
-  const { setNamespace } = useArchive();
   const pipelines = usePipelines();
   const source = sourceLabel(rec);
   const pipeline = pipelines.data?.pipelines.find((p) => ns && p.namespaces?.includes(ns));
@@ -54,16 +55,15 @@ export function RecordingHeader() {
 
   return (
     <header className="flex flex-col gap-2 border-b border-border px-6 py-3.5">
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[12px] font-medium text-fg-muted">
-        <Link href="/library" className="text-fg-secondary hover:text-fg hover:underline">
+      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-fg-muted">
+        <Link href="/library" className="shrink-0 text-fg-secondary hover:text-fg hover:underline">
           Library
         </Link>
-        <ChevronRight aria-hidden className="size-3" />
+        <ChevronRight aria-hidden className="size-3 shrink-0" />
         {ns ? (
           <Link
-            href="/library"
-            onClick={() => setNamespace(ns)}
-            className="hover:text-fg hover:underline"
+            href={libraryHref(ns)}
+            className="shrink-0 hover:text-fg hover:underline"
             aria-label={`${ns} in the Library`}
           >
             {ns}
@@ -71,6 +71,19 @@ export function RecordingHeader() {
         ) : (
           <span>Recording</span>
         )}
+        {ns &&
+          (rec.collection_path ?? []).map((c) => (
+            <Fragment key={c.id}>
+              <ChevronRight aria-hidden className="size-3 shrink-0" />
+              <Link
+                href={libraryHref(ns, c.id)}
+                className="min-w-0 truncate hover:text-fg hover:underline"
+                aria-label={`The ${c.name} collection in the Library`}
+              >
+                {c.name}
+              </Link>
+            </Fragment>
+          ))}
       </nav>
       <div className="flex items-center gap-4">
         <h1 className="flex min-w-0 items-center gap-2 text-[24px] font-bold leading-[1.2] tracking-[-.015em] text-fg">
@@ -293,6 +306,9 @@ function MoreMenu({ compact }: { compact?: boolean }) {
         </MenuItem>
         <MenuItem icon={<Copy />} onSelect={() => void copy(true)}>
           Copy link at the current time
+        </MenuItem>
+        <MenuItem icon={<FolderTree />} disabled={!r.canEdit || !r.ns} onSelect={r.openCollection}>
+          Move to collection…
         </MenuItem>
         {compact && (
           <>

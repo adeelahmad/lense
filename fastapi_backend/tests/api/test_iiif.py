@@ -7,13 +7,14 @@ import json
 import re
 import shutil
 import threading
+import urllib.parse
 from unittest import mock
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.domain import analyze, iiif, iiif_auth, ingest, metadata
-from tests.helpers import drain, login, make_user, quiet, seed, write_wav
+from tests.helpers import drain, login, make_user, manifests, quiet, seed, write_wav
 
 BASE = "https://127.0.0.1"
 VIEWER = "https://viewer.example"
@@ -99,7 +100,12 @@ def test_manifests_collections_search_state_discovery(env):
     assert "structures" not in locked and "structures" in anon.get(f"/iiif/{env.pub}/manifest").json()
     coll = anon.get("/iiif/collection/pods").json()
     assert iiif.validate(coll) == []
-    assert {x["id"] for x in coll["items"]} == {f"{BASE}/iiif/{env.pub}/manifest", f"{BASE}/iiif/{env.clip}/manifest"}
+    # the namespace lists its collections (General holds them all); each lists its manifests
+    assert [(x["type"], x["label"]) for x in coll["items"]] == [("Collection", {"none": ["General"]})]
+    general = anon.get(urllib.parse.urlsplit(coll["items"][0]["id"]).path).json()
+    assert iiif.validate(general) == [] and general["partOf"][0]["id"] == f"{BASE}/iiif/collection/pods"
+    assert set(manifests(anon.get, "/iiif/collection/pods")) == {f"{BASE}/iiif/{env.pub}/manifest", f"{BASE}/iiif/{env.clip}/manifest"}
+    assert anon.get(f"/iiif/{env.pub}/manifest").json()["partOf"][0]["id"] == general["id"]
     assert f"{BASE}/iiif/collection/pods" in [x["id"] for x in anon.get("/iiif/collection").json()["items"]]
     assert len(anon.get(f"/iiif/{env.pub}/annotations/transcript").json()["items"]) == 6
     assert anon.get(f"/iiif/{env.call}/annotations/transcript").status_code == 404
@@ -266,5 +272,27 @@ def test_import_from_iiif(env):
         assert meta["related"][0]["id"] == f"{base}/manifest.json"
         again = c.post("/api/v1/import/iiif", headers=h, json={"url": f"{base}/manifest.json", "namespace": "oral", "wait": True})
         assert again.json()["recordings"] == []  # no duplicates
+        # a Collection's Manifests are found in the Collections inside it too (Lens nests its own), referenced or embedded
+        talks = {"@context": iiif.P3, "id": f"{base}/talks.json", "type": "Collection", "label": {"en": ["Talks"]}}
+        talks["items"] = [{"id": f"{base}/manifest.json", "type": "Manifest", "label": {"en": ["Oral history 7"]}}]
+        top = {"@context": iiif.P3, "id": f"{base}/top.json", "type": "Collection", "label": {"en": ["Everything"]}}
+        top["items"] = [
+            {"id": f"{base}/talks.json", "type": "Collection", "label": {"en": ["Talks"]}},
+            {"id": f"{base}/gone.json", "type": "Collection", "label": {"en": ["Gone"]}},  # can't be read: skipped
+            {"id": f"{base}/inline", "type": "Collection", "label": {"en": ["Inline"]}, "items": []},
+        ]
+        (site / "talks.json").write_text(json.dumps(talks))
+        (site / "top.json").write_text(json.dumps(top))
+        pv = c.post("/api/v1/import/iiif/preview", headers=h, json={"url": f"{base}/top.json"}).json()
+        assert (pv["total"], pv["collections"], pv["more"]) == (1, 3, False)
+        assert pv["items"] == [{"id": f"{base}/manifest.json", "type": "Manifest", "label": "Oral history 7", "path": ["Talks"]}]
+        assert c.post("/api/v1/namespaces", headers=h, json={"name": "oral2"}).status_code == 200
+        shelf = c.post("/api/v1/namespaces/oral2/collections", headers=h, json={"name": "From elsewhere"}).json()["id"]
+        wrong = {"url": f"{base}/top.json", "namespace": "oral", "collection": shelf, "wait": True}
+        assert c.post("/api/v1/import/iiif", headers=h, json=wrong).status_code == 404  # a collection of another namespace
+        r = c.post("/api/v1/import/iiif", headers=h, json={**wrong, "namespace": "oral2"})
+        assert r.status_code == 200, r.text
+        [rid2] = r.json()["recordings"]
+        assert c.get(f"/api/v1/recordings/{rid2}", headers=h).json()["collection"] == shelf
     finally:
         srv.shutdown()

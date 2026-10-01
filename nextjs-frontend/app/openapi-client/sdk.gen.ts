@@ -99,6 +99,21 @@ import type {
   UpdateIpGroupData,
   UpdateIpGroupResponses,
   UpdateIpGroupErrors,
+  ListNamespaceCollectionsData,
+  ListNamespaceCollectionsResponses,
+  ListNamespaceCollectionsErrors,
+  CreateNamespaceCollectionData,
+  CreateNamespaceCollectionResponses,
+  CreateNamespaceCollectionErrors,
+  DeleteNamespaceCollectionData,
+  DeleteNamespaceCollectionResponses,
+  DeleteNamespaceCollectionErrors,
+  GetNamespaceCollectionData,
+  GetNamespaceCollectionResponses,
+  GetNamespaceCollectionErrors,
+  UpdateNamespaceCollectionData,
+  UpdateNamespaceCollectionResponses,
+  UpdateNamespaceCollectionErrors,
   ListRecordingsData,
   ListRecordingsResponses,
   ListRecordingsErrors,
@@ -114,6 +129,9 @@ import type {
   ListLanguagesData,
   ListLanguagesResponses,
   ListLanguagesErrors,
+  PlaceRecordingsData,
+  PlaceRecordingsResponses,
+  PlaceRecordingsErrors,
   DeleteRecordingData,
   DeleteRecordingResponses,
   DeleteRecordingErrors,
@@ -1118,6 +1136,98 @@ export class Namespaces {
       },
     });
   }
+
+  /**
+   * List Namespace Collections
+   * The namespace's collections, depth first and by name, each with its place in the tree and how many recordings
+   * it holds (with and without the collections inside it).
+   */
+  public static listNamespaceCollections<ThrowOnError extends boolean = false>(
+    options: Options<ListNamespaceCollectionsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<
+      ListNamespaceCollectionsResponses,
+      ListNamespaceCollectionsErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/collections",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Namespace Collection
+   * Make a collection (editors), at the top of the namespace or inside `parent`. Its name is unique among the
+   * collections next to it, ignoring case; collections go at most 8 deep. Audited as `collection.create`.
+   */
+  public static createNamespaceCollection<ThrowOnError extends boolean = false>(
+    options: Options<CreateNamespaceCollectionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<
+      CreateNamespaceCollectionResponses,
+      CreateNamespaceCollectionErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/collections",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Namespace Collection
+   * Delete an empty collection (editors): 409 while it holds recordings or collections, or is the namespace's
+   * default. Audited as `collection.delete`.
+   */
+  public static deleteNamespaceCollection<ThrowOnError extends boolean = false>(
+    options: Options<DeleteNamespaceCollectionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<
+      DeleteNamespaceCollectionResponses,
+      DeleteNamespaceCollectionErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/collections/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Namespace Collection
+   */
+  public static getNamespaceCollection<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceCollectionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetNamespaceCollectionResponses, GetNamespaceCollectionErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/collections/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Namespace Collection
+   * Rename it, describe it, move it inside another collection of the namespace (`parent`; null: to the top) or make
+   * it the default (editors). The recordings and collections inside it go with it. Audited as `collection.update`.
+   */
+  public static updateNamespaceCollection<ThrowOnError extends boolean = false>(
+    options: Options<UpdateNamespaceCollectionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).patch<
+      UpdateNamespaceCollectionResponses,
+      UpdateNamespaceCollectionErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/collections/{cid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Recordings {
@@ -1185,6 +1295,25 @@ export class Recordings {
     return (options?.client ?? client).get<ListLanguagesResponses, ListLanguagesErrors, ThrowOnError>({
       url: "/api/v1/recordings/languages",
       ...options,
+    });
+  }
+
+  /**
+   * Place Recordings
+   * Move recordings into a collection of their namespace (editors there). Recordings of another namespace are a
+   * 400: move them to that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update.
+   * Audited as `recording.collection`.
+   */
+  public static placeRecordings<ThrowOnError extends boolean = false>(
+    options: Options<PlaceRecordingsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<PlaceRecordingsResponses, PlaceRecordingsErrors, ThrowOnError>({
+      url: "/api/v1/recordings/collection",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

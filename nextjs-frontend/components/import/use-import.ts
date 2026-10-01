@@ -243,7 +243,7 @@ export type QueueJob = {
   namespace: string;
 } & (
   | { kind: "file" | "paste"; body: () => Promise<ImportBody>; audio?: File }
-  | { kind: "media"; file: File; pipeline?: number | null }
+  | { kind: "media"; file: File; pipeline?: number | null; collection?: number | null }
 );
 
 /**
@@ -257,7 +257,17 @@ export function useImportQueue() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const uploading = queue.some((q) => q.state === "uploading");
   const media = useRef(
-    new Map<string, { file: File; namespace: string; title: string; attach?: number; pipeline?: number | null }>(),
+    new Map<
+      string,
+      {
+        file: File;
+        namespace: string;
+        title: string;
+        attach?: number;
+        pipeline?: number | null;
+        collection?: number | null;
+      }
+    >(),
   );
   const stops = useRef(new Map<string, AbortController>());
 
@@ -293,6 +303,7 @@ export function useImportQueue() {
           namespace: m.namespace,
           attach: m.attach,
           pipeline: m.pipeline,
+          collection: m.collection,
           title: m.title,
           pieceMb: limits.chunk_mb,
           signal: stop.signal,
@@ -336,7 +347,13 @@ export function useImportQueue() {
       ]);
       for (const j of jobs) {
         if (j.kind === "media") {
-          media.current.set(j.key, { file: j.file, namespace: j.namespace, title: j.title, pipeline: j.pipeline });
+          media.current.set(j.key, {
+            file: j.file,
+            namespace: j.namespace,
+            title: j.title,
+            pipeline: j.pipeline,
+            collection: j.collection,
+          });
           await upload(j.key);
           continue;
         }
@@ -370,12 +387,18 @@ export function useImportQueue() {
   return { queue, send, pause, resume, uploading, reset: () => setQueue([]) };
 }
 
-/** Build the import body for a file item. */
-export async function fileBody(it: Item, namespace: string, pipeline: number | null = null) {
+/** Build the import body for a file item (into `collection`, or the namespace's default when null). */
+export async function fileBody(
+  it: Item,
+  namespace: string,
+  pipeline: number | null = null,
+  collection: number | null = null,
+) {
   const labels = it.preview?.speakers ?? [];
   return {
     namespace,
     pipeline,
+    collection,
     title: it.title.trim() || null,
     speakers: mappingParam(parseMapping(it.mapping, labels)),
     filename: it.file.name,

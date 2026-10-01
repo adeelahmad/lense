@@ -25,6 +25,9 @@ class UploadStart(RequestModel):
     size: int = Field(gt=0, description="the file's size in bytes")
     title: str | None = Field(None, max_length=200, description="the recording's title (default: the file's name)")
     pipeline: int | None = Field(None, description="run this pipeline once it's here instead of the namespace's (not with `recording`)")
+    collection: int | None = Field(
+        None, description="a collection of the namespace to put the recording in (default: its default collection; not with `recording`)"
+    )
     modified: int | None = Field(
         None, ge=0, description="the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't"
     )

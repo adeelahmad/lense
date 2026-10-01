@@ -21,6 +21,7 @@ import {
   useUnfinishedUploads,
   type QueueJob,
 } from "@/components/import/use-import";
+import { CollectionField } from "@/components/library/collections-ui";
 import { LibraryTabs } from "@/components/library/library-tabs";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
@@ -141,6 +142,9 @@ export function ImportScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [over, setOver] = useState(false);
   const [pipelineId, setPipelineId] = useState<number | null>(null);
+  // null: the namespace's default collection (each namespace has its own)
+  const [collectionId, setCollectionId] = useState<number | null>(null);
+  useEffect(() => setCollectionId(null), [ns]);
 
   // Default namespace (once): the top bar's, if you can import there, else your busiest one.
   const defaulted = useRef(false);
@@ -201,7 +205,12 @@ export function ImportScreen() {
   const byId = new Map(items.map((i) => [i.id, i]));
   const twinOf = new Map([...pairs].map(([t, m]) => [m, byId.get(t)]));
 
-  const nsControl = <NamespaceField value={ns} onChange={setNs} options={editable} admin={admin} />;
+  const nsControl = (
+    <div className="flex flex-col gap-3">
+      <NamespaceField value={ns} onChange={setNs} options={editable} admin={admin} />
+      <CollectionField ns={ns || null} value={collectionId} onChange={setCollectionId} id="import-collection" />
+    </div>
+  );
   const pipelineControl = (
     <PipelineField
       value={pipelineId}
@@ -225,11 +234,11 @@ export function ImportScreen() {
           };
           const twin = pairs.get(it.id);
           return isMedia(it.kind)
-            ? { ...base, kind: "media", file: it.file, pipeline: pipelineId }
+            ? { ...base, kind: "media", file: it.file, pipeline: pipelineId, collection: collectionId }
             : {
                 ...base,
                 kind: "file",
-                body: () => fileBody(it, target, pipelineId),
+                body: () => fileBody(it, target, pipelineId, collectionId),
                 audio: twin ? byId.get(twin)?.file : undefined,
               };
         }),
@@ -311,6 +320,7 @@ export function ImportScreen() {
                       speakers: b.speakers,
                       format: "auto" as const,
                       pipeline: pipelineId,
+                      collection: collectionId,
                     }),
                     audio: b.audio ?? undefined,
                   },

@@ -23,6 +23,7 @@ class ImportRequest(ImportPreviewRequest):
     title: str | None = None
     speakers: str | None = Field(None, description='rename speakers on the way in: "S1=Alice,S2=Bob"')
     pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's (GET /pipelines)")
+    collection: int | None = Field(None, description="a collection of the namespace to put it in; default: its default collection")
 
 
 class ImportResult(ResponseModel):
@@ -51,6 +52,7 @@ class SourceImportRequest(RequestModel):
     paths: list[str] = Field(min_length=1, max_length=500, description="files of the source, as browsing it lists them")
     namespace: str
     pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's")
+    collection: int | None = Field(None, description="a collection of the namespace to put them in; default: its default collection")
 
 
 class SourceImportResult(ResponseModel):

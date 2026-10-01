@@ -447,8 +447,14 @@ SCHEMA = [
     # uniqueness is enforced on single "<space>:<value>" key fields instead.
     "DEFINE TABLE IF NOT EXISTS space SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS space_name ON space FIELDS name UNIQUE",
+    # a namespace's collections (domain/hierarchy.py): every recording lives in one; key is "<space>:<parent>:<name>"
+    "DEFINE TABLE IF NOT EXISTS collection SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS collection_space ON collection FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS collection_parent ON collection FIELDS parent",
+    "DEFINE INDEX IF NOT EXISTS collection_key ON collection FIELDS key UNIQUE",
     "DEFINE TABLE IF NOT EXISTS recording SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS recording_space ON recording FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS recording_collection ON recording FIELDS collection",
     "DEFINE INDEX IF NOT EXISTS recording_fp ON recording FIELDS fp_key UNIQUE",
     "DEFINE INDEX IF NOT EXISTS recording_path ON recording FIELDS path",
     "DEFINE INDEX IF NOT EXISTS recording_status ON recording FIELDS status",
@@ -636,9 +642,9 @@ def connect(cfg):
 
 
 def _migrations():
-    from . import access  # each step lives with the code it serves
+    from . import access, hierarchy  # each step lives with the code it serves
 
-    return [access.migrate_legacy]
+    return [access.migrate_legacy, hierarchy.migrate_homes]
 
 
 def migrate(db):
@@ -677,7 +683,51 @@ def ns_id(db, name, create=True):
         raise SystemExit(f"namespace names use lowercase letters, digits, - and _: {name!r}")
     sid = db.next_id("space")
     db.q("CREATE $r CONTENT $d", r=R("space", sid), d={"name": name, "graph": "shared"})
+    default_collection(db, sid)
     return sid
+
+
+DEFAULT_COLLECTION = "General"
+
+
+def collection_key(sid, parent, name):
+    """What makes a collection's name unique: its namespace, its parent and the name, ignoring case."""
+    return f"{sid}:{parent or 0}:{' '.join(str(name).split()).casefold()}"
+
+
+def default_collection(db, sid):
+    """The namespace's default collection, where recordings nobody placed go: made ("General") when it has none."""
+    row = db.one("SELECT default_collection FROM $r", r=R("space", sid)) or {}
+    cid = row.get("default_collection")
+    if cid is not None and db.one("SELECT record::id(id) AS id FROM $r", r=R("collection", cid)):
+        return cid
+    key = collection_key(sid, None, DEFAULT_COLLECTION)
+    found = db.one("SELECT record::id(id) AS id FROM collection WHERE key = $k LIMIT 1", k=key)
+    if found:
+        cid = found["id"]
+    else:
+        cid = db.next_id("collection")
+        try:
+            db.q(
+                "CREATE $r CONTENT $d",
+                r=R("collection", cid),
+                d={"space": sid, "name": DEFAULT_COLLECTION, "key": key, "created_at": now()},
+            )
+        except Exception:  # noqa: BLE001 - another process made it first
+            cid = db.one("SELECT record::id(id) AS id FROM collection WHERE key = $k LIMIT 1", k=key)["id"]
+    db.q("UPDATE $r SET default_collection = $c", r=R("space", sid), c=cid)
+    return cid
+
+
+def home(db, sid, collection=None):
+    """The collection a new recording in namespace `sid` goes into: `collection` (KeyError unless it's one of the
+    namespace's), else the namespace's default."""
+    if collection is None:
+        return default_collection(db, sid)
+    row = db.one("SELECT space FROM $r", r=R("collection", int(collection)))
+    if not row or row["space"] != sid:
+        raise KeyError(collection)
+    return int(collection)
 
 
 def space_names(db):

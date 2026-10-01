@@ -65,6 +65,8 @@ export type RecordingCtx = {
   openAccess: () => void;
   /** Attach audio to a transcript-only recording (editors). */
   openAttach: () => void;
+  /** Move it into another collection of its namespace (editors). */
+  openCollection: () => void;
 };
 
 const Ctx = createContext<RecordingCtx | null>(null);

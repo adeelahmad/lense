@@ -79,9 +79,14 @@ def import_iiif(body: IiifImport, user: AdminWriter, db: Db, cfg: Cfg) -> IiifIm
     url, ns = body.url, body.namespace.strip()
     if not store.NS_RX.match(ns):
         raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
+    if body.collection is not None:
+        try:
+            store.home(db, store.ns_id(db, ns, create=False), body.collection)
+        except KeyError:
+            raise HTTPException(404, "there's no such collection in that namespace") from None
 
     def run() -> list[int]:
-        return iiif.import_url(db, cfg, url, ns, body.keep_transcripts, user.email, body.limit)
+        return iiif.import_url(db, cfg, url, ns, body.keep_transcripts, user.email, body.limit, collection=body.collection)
 
     auth.audit(db, user.as_audit(), "import.iiif", url)
     if body.wait:

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { accessLabel } from "@/components/access/model";
+import { homeText } from "@/components/library/collections-model";
 import { usePlayerState } from "@/components/player/media";
 import { PlayButton, SkipButton, SpeedMenu } from "@/components/player/transport";
 import { Waveform } from "@/components/player/waveform";
@@ -71,7 +72,7 @@ export function MobileLayout() {
           <h1 className="truncate text-[15px] font-bold leading-tight text-fg">{model.title}</h1>
           <p className="tabular truncate text-[12px] leading-snug text-fg-muted">
             {[
-              r.ns,
+              homeText(r.ns, rec.collection_path, true),
               role ? role[0].toUpperCase() + role.slice(1) : null,
               tc(model.durationMs),
               word,

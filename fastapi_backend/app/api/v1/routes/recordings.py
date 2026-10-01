@@ -17,7 +17,7 @@ from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_url, sign_urls
 from app.api.streaming import file_response, range_response
 from app.domain import access as acc
-from app.domain import analyze, auth, deletion, ipgroups, jobs, library, moving, render, sources, store, transcript, video
+from app.domain import analyze, auth, deletion, hierarchy, ipgroups, jobs, library, moving, render, sources, store, transcript, video
 from app.domain import metadata as md
 from app.domain.store import API, DB
 from app.schemas.common import AccessLevel, Ok
@@ -32,6 +32,7 @@ from app.schemas.recordings import (
     Output,
     Permission,
     PermissionAdd,
+    Placed,
     Player,
     Recording,
     RecordingAccess,
@@ -40,6 +41,7 @@ from app.schemas.recordings import (
     RecordingMove,
     RecordingMoved,
     RecordingSort,
+    RecordingsPlace,
     RecordingsRetag,
     RecordingState,
     RecordingSummary,
@@ -113,6 +115,7 @@ def list_recordings(
     edited_by: Literal["me"] | None = Query(
         None, description="me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)"
     ),
+    collection: int | None = Query(None, description="a collection: the recordings in it and in the collections inside it"),
     sort: RecordingSort = Query("-date", description="date, title, duration, speakers, status or importance; prefix - for descending"),
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
@@ -120,6 +123,12 @@ def list_recordings(
     """Recordings you can read, newest first by default. Filters combine with AND; the ``X-Total-Count`` header says how many
     match in all, so pages can be counted."""
     spaces = [acl.namespace(ns)] if ns else acl.spaces()
+    cols = None
+    if collection is not None:
+        c = db.one("SELECT space FROM $r", r=R("collection", collection))
+        if not c or c["space"] not in spaces:
+            raise HTTPException(404, "not found")
+        cols = hierarchy.subtree(db, c["space"], collection)
     with domain_errors():
         rows, total = library.list_recordings(
             db,
@@ -143,6 +152,7 @@ def list_recordings(
             origins=origin,
             languages=language,
             edited=library.edited_by(db, user.email) if edited_by and user else None,
+            collections=cols,
             cfg=cfg,
         )
     response.headers["X-Total-Count"] = str(total)
@@ -171,6 +181,27 @@ def list_languages(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(N
     return [LanguageCount.model_validate(x) for x in library.language_counts(db, [acl.namespace(ns)] if ns else acl.spaces())]
 
 
+@router.post("/collection")
+def place_recordings(body: RecordingsPlace, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Placed:
+    """Move recordings into a collection of their namespace (editors there). Recordings of another namespace are a
+    400: move them to that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update.
+    Audited as `recording.collection`."""
+    for rid in dict.fromkeys(body.recordings):
+        acl.recording(rid, "editor")
+    try:
+        c = hierarchy.get(db, body.collection)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    acl.need(c["space"])
+    with domain_errors():
+        moved = hierarchy.place(db, body.recordings, body.collection)
+    for rid in moved:
+        md.touched(db, cfg, rid)
+    if moved:
+        auth.audit(db, user.as_audit(), "recording.collection", f"collection:{c['id']}", {"recordings": moved, "name": c["name"]})
+    return Placed(moved=len(moved))
+
+
 @router.post("/tags")
 def retag_recordings(body: RecordingsRetag, acl: Acl, user: Writer, db: Db) -> TagsChanged:
     """Add and remove tags on several recordings at once (editors of each one's namespace)."""
@@ -190,6 +221,7 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     d.update(
         id=rid, namespace=space.get("name"), summary=r.get("summary"), stats=render.recording_stats(db, rid), role=acl.roles.get(r["space"])
     )
+    d["collection_path"] = hierarchy.path(db, r["collection"]) if r.get("collection") is not None else []
     rep = pathlib.Path(cfg["data_dir"]) / "reports" / (space.get("name") or "_") / f"{render.slug(r.get('title'))}-{rid}.html"
     d["report_url"] = f"/reports/{space.get('name')}/{rep.name}" if rep.exists() else None
     apps = db.rows("SELECT speaker, method, score FROM appearance WHERE recording = $r", r=rid)
@@ -253,13 +285,15 @@ def move_recording(
     dst = acl.namespace(body.namespace.strip(), "editor")
     try:
         with domain_errors():
-            done = moving.move(db, cfg, rid, dst, body.rediarize, body.revoke_shares, user.email)
+            done = moving.move(db, cfg, rid, dst, body.rediarize, body.revoke_shares, user.email, body.collection)
     except (deletion.Running, moving.Conflict) as e:
         raise HTTPException(409, str(e)) from None
     auth.audit(db, user.as_audit(), "recording.move", f"recording:{rid}", {k: v for k, v in done.items() if k != "job"})
     request.app.state.graph_cache.clear()
     tasks.add_task(render.refresh_overview, db, cfg, done["from"])
-    return RecordingMoved(namespace=done["to"], job=done["job"], pinned=done["pinned"], shares_revoked=done["shares_revoked"])
+    return RecordingMoved(
+        namespace=done["to"], collection=done["collection"], job=done["job"], pinned=done["pinned"], shares_revoked=done["shares_revoked"]
+    )
 
 
 def _access(db: DB, rid: int) -> RecordingAccess:

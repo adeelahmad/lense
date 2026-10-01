@@ -26,6 +26,26 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Collections inside namespaces.** Every recording now lives in one collection of its namespace, and collections
+  nest. Each namespace starts with "General", its default, which took every existing recording. The Library filters by
+  collection (with the ones inside it) and its Manage collections dialog makes, renames, moves, describes and deletes
+  them and picks the default; the bulk bar's Collection moves recordings into one. A recording's breadcrumb shows where
+  it lives and its ⋯ menu moves it. Imports, uploads, source imports and IIIF imports choose a collection, and saved
+  views keep one. Decided with the project owner: one home per recording, nesting, saved collections stay as they are
+  (lists of recordings from anywhere).
+    - `GET/POST /api/v1/namespaces/{name}/collections`, `GET/PATCH/DELETE …/{cid}` (editors change them; audited as
+      `collection.create`, `.update`, `.delete`), `POST /api/v1/recordings/collection` (audited as
+      `recording.collection`), and `collection` on `GET /recordings`, recordings, imports, uploads and moves
+      (docs/api.md). A collection is deleted only when empty and not the default, so it never takes recordings with
+      it.
+    - **IIIF: a namespace's Collection now lists its collections**, not its Manifests: each collection is a
+      Collection at `/iiif/collection/<namespace>/<id>` holding the collections inside it and then its Manifests, and
+      a Manifest's `partOf` is its collection (docs/iiif.md). Harvesters that only read Manifests at the namespace's
+      level need to follow the Collections inside it. Importing from IIIF does: it now finds the Manifests of nested
+      Collections, so one Lens can still import another's namespace.
+- **Fix: Escape in a menu inside a dialog closed the dialog too.** Menus used an older copy of the layering that
+  dialogs use, so each thought it was on top; `@radix-ui/react-dropdown-menu` is now 2.1.24, which shares the
+  dialogs' copy, and Escape closes only the menu.
 - **Admins decide how long API keys last.** Settings → API keys sets how long a new key lasts (90 days unless
   changed), the most it may last (365) and whether keys may never expire (not by default; until now anyone could
   make one that never expires). The API tokens page offers what's allowed. The same section lists everyone's keys, and

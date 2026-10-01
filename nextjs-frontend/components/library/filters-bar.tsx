@@ -1,8 +1,10 @@
 "use client";
 
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { Check, ChevronDown, FolderTree, Search, X } from "lucide-react";
 import { forwardRef, useState, type ReactNode } from "react";
 
+import type { CollectionNode } from "@/app/openapi-client/types.gen";
+import { collectionName } from "@/components/library/collections-model";
 import {
   DATE_LABEL,
   DURATION_LABEL,
@@ -17,6 +19,7 @@ import {
   type StatusFilter,
 } from "@/components/library/model";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/menu";
+import { Tooltip } from "@/components/ui/tooltip";
 import { count } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
@@ -71,7 +74,24 @@ function Chip({
   );
 }
 
-/** A chip for a filter the backend can't answer yet: visible, disabled, and says why. */
+/** A chip that can't be used yet: visible, disabled, and says why. */
+function OffChip({ label, reason }: { label: string; reason: string }) {
+  return (
+    <Tooltip content={reason}>
+      <button
+        type="button"
+        aria-disabled
+        aria-label={`${label}: ${reason}`}
+        onClick={(e) => e.preventDefault()}
+        className={cn(chipBase, chipOff, "cursor-not-allowed gap-[5px] pl-[11px] pr-2 opacity-50 hover:bg-background")}
+      >
+        {label}
+        <ChevronDown className="size-[13px]" aria-hidden />
+      </button>
+    </Tooltip>
+  );
+}
+
 function Option({
   on,
   onClick,
@@ -166,7 +186,7 @@ export const FilterInput = forwardRef<
   );
 });
 
-/** Library filters: namespace, status, speaker, date, duration, media and tags, plus the ones the backend can't do yet. */
+/** Library filters: namespace, collection, source, status, speaker, date, duration, language, media and tags. */
 export function FiltersBar({
   filters,
   onChange,
@@ -179,6 +199,9 @@ export function FiltersBar({
   trailing,
   origins = [],
   languages = [],
+  collections,
+  collectionsLoading,
+  onManageCollections,
 }: {
   filters: Filters;
   onChange: (f: Filters) => void;
@@ -196,6 +219,11 @@ export function FiltersBar({
   origins?: { origin: string; name: string; recordings: number }[];
   /** Their languages (GET /recordings/languages), most first; null is "not known". */
   languages?: { language?: string | null; recordings: number }[];
+  /** The namespace's collections, depth first (none without a namespace). */
+  collections?: CollectionNode[];
+  collectionsLoading?: boolean;
+  /** Open the dialog that arranges them. */
+  onManageCollections?: () => void;
 }) {
   const { namespaces, namespace, setNamespace } = useArchive();
   const [spkQuery, setSpkQuery] = useState("");
@@ -235,6 +263,61 @@ export function FiltersBar({
           </div>
         )}
       </Chip>
+      {namespace ? (
+        <Chip
+          label={`Collection: ${collectionName(collections, filters.collection) ?? "all"}`}
+          active={filters.collection != null}
+          onClear={() => set({ collection: null })}
+          width={280}
+        >
+          {(close) => (
+            <div>
+              <div role="menu" aria-label="Collection" className="max-h-72 overflow-y-auto">
+                {[null, ...(collections ?? [])].map((c) => (
+                  <Option
+                    key={c?.id ?? "*"}
+                    on={(c?.id ?? null) === filters.collection}
+                    onClick={() => {
+                      set({ collection: c?.id ?? null });
+                      close();
+                    }}
+                  >
+                    <span
+                      className="flex items-center justify-between gap-2"
+                      style={{ paddingLeft: c ? Math.min(c.depth ?? 0, 6) * 14 : 0 }}
+                    >
+                      <span className="truncate">{c ? c.name : `All of ${namespace}`}</span>
+                      {c && (
+                        <span className="tabular text-[12px] font-normal text-fg-muted">{count(c.total ?? 0)}</span>
+                      )}
+                    </span>
+                  </Option>
+                ))}
+                {!collections?.length && (
+                  <p className="px-2.5 py-3 text-[13px] text-fg-muted">
+                    {collectionsLoading ? "Loading collections…" : "No collections yet."}
+                  </p>
+                )}
+              </div>
+              {onManageCollections && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    close();
+                    onManageCollections();
+                  }}
+                  className="mt-1 flex h-9 w-full items-center gap-2.5 rounded-sm border-t border-border px-2.5 text-left text-[13.5px] font-semibold text-fg-accent hover:bg-surface-neutral"
+                >
+                  <FolderTree className="size-4" aria-hidden />
+                  Manage collections…
+                </button>
+              )}
+            </div>
+          )}
+        </Chip>
+      ) : (
+        <OffChip label="Collection" reason="Pick a namespace first: each has its own collections." />
+      )}
       <Chip
         label={
           filters.origins.length === 1

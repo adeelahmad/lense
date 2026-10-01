@@ -50,6 +50,7 @@ class IiifImport(RequestModel):
     keep_transcripts: bool = True
     limit: int = 50
     wait: bool = Field(False, description="import before answering instead of in the background")
+    collection: int | None = Field(None, description="a collection of the namespace to put them in; default: its default collection")
 
 
 class IiifImported(Ok):

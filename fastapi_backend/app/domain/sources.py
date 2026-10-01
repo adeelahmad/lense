@@ -405,13 +405,15 @@ def _when(s):
     return t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
 
 
-def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None):
-    """One file of a source becomes a recording in namespace `space`, and its processing is queued: (id, job).
-    Audio and video stay on the source; a transcript is imported from it."""
+def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collection=None):
+    """One file of a source becomes a recording in namespace `space` (in `collection`, else the namespace's default),
+    and its processing is queued: (id, job). Audio and video stay on the source; a transcript is imported from it."""
     title, shown = pathlib.PurePosixPath(f["path"]).stem, f"{src['name']}:{f['path']}"
     if kind == "transcript":
         ns = (db.one("SELECT name FROM $s", s=R("space", space)) or {})["name"]
-        rid = ingest.import_transcript(db, cfg, ns, cached_copy(db, cfg, src["id"], f["path"]), title=title, log=lambda *a: None)
+        rid = ingest.import_transcript(
+            db, cfg, ns, cached_copy(db, cfg, src["id"], f["path"]), title=title, log=lambda *a: None, collection=collection
+        )
         db.q("UPDATE $r SET path = $p, remote = $m", r=R("recording", rid), p=shown, m={"source": src["id"], "path": f["path"]})
         return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
     fp = "rclone-" + hashlib.sha1(f"{src['id']}:{f['path']}:{f['size']}:{f['modified']}".encode()).hexdigest()[:24]
@@ -424,6 +426,7 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None):
         r=R("recording", rid),
         d={
             "space": space,
+            "collection": store.home(db, space, collection),
             "path": shown,
             "remote": {"source": src["id"], "path": f["path"]},
             "source": "audio",
@@ -521,9 +524,10 @@ def imported(db, sid, paths):
     return out
 
 
-def import_files(db, cfg, sid, paths, space, by, pipeline=None):
-    """Chosen files of a source, imported into namespace `space` now rather than watched: audio and video stay on the
-    source and run the pipeline (the namespace's, or `pipeline`); transcripts are imported. One result per path:
+def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None):
+    """Chosen files of a source, imported into namespace `space` (into `collection`, else its default) now rather than
+    watched: audio and video stay on the source and run the pipeline (the namespace's, or `pipeline`); transcripts are
+    imported. One result per path:
     queued (with the recording and job), already (it's a recording of the namespace from this source), skipped (not
     audio, video or a transcript; a folder) or error. Choosing a file on purpose brings back one deleted before."""
     src = get(db, sid)
@@ -553,7 +557,7 @@ def import_files(db, cfg, sid, paths, space, by, pipeline=None):
             else:
                 try:
                     deletion.forget(db, space, path=f"{src['name']}:{p}")  # chosen on purpose: it may come back
-                    rid, job = _ingest(db, cfg, src, f, kind, space, by, None, pipeline)
+                    rid, job = _ingest(db, cfg, src, f, kind, space, by, None, pipeline, collection)
                     results.append(store.clean({"path": p, "status": "queued", "recording": rid, "job": job}))
                 except Exception as e:  # noqa: BLE001 - one bad file must not stop the rest
                     results.append({"path": p, "status": "error", "detail": f"{type(e).__name__}: {e}"[:300]})

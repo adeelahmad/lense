@@ -1281,6 +1281,133 @@ export type CollectionDetail = {
 };
 
 /**
+ * CollectionNode
+ */
+export type CollectionNode = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Parent
+   * the collection it's in; null: the top of its namespace
+   */
+  parent?: number | null;
+  /**
+   * Depth
+   * 0 at the top
+   */
+  depth?: number;
+  /**
+   * Path
+   * names from the top of the namespace down to it
+   */
+  path?: Array<string>;
+  /**
+   * Recordings
+   * recordings it holds
+   */
+  recordings?: number;
+  /**
+   * Total
+   * recordings it and the collections inside it hold
+   */
+  total?: number;
+  /**
+   * Children
+   * collections directly inside it
+   */
+  children?: number;
+  /**
+   * Default
+   * new recordings go here when nobody says where
+   */
+  default?: boolean;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | number
+    | null
+    | Array<string>
+    | boolean
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * CollectionNodeCreate
+ */
+export type CollectionNodeCreate = {
+  /**
+   * Name
+   * unique among the collections next to it, ignoring case
+   */
+  name: string;
+  /**
+   * Parent
+   * the collection to put it in; null: the top of the namespace
+   */
+  parent?: number | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+};
+
+/**
+ * CollectionNodeUpdate
+ * Send what changes: `parent` null moves it to the top; `default: true` makes it the namespace's default.
+ */
+export type CollectionNodeUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Parent
+   * move it inside this collection; null: to the top
+   */
+  parent?: number | null;
+  /**
+   * Default
+   * true: new recordings go here when nobody says where
+   */
+  default?: boolean | null;
+};
+
+/**
  * CollectionRecording
  */
 export type CollectionRecording = {
@@ -1301,6 +1428,21 @@ export type CollectionRecording = {
    */
   duration_ms?: number | null;
   [key: string]: unknown | number | string | null | string | null | number | null | undefined;
+};
+
+/**
+ * CollectionStep
+ */
+export type CollectionStep = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  [key: string]: unknown | number | string;
 };
 
 /**
@@ -2035,6 +2177,11 @@ export type IiifImport = {
    * import before answering instead of in the background
    */
   wait?: boolean;
+  /**
+   * Collection
+   * a collection of the namespace to put them in; default: its default collection
+   */
+  collection?: number | null;
 };
 
 /**
@@ -2242,6 +2389,11 @@ export type ImportRequest = {
    * run this pipeline afterwards instead of the namespace's (GET /pipelines)
    */
   pipeline?: number | null;
+  /**
+   * Collection
+   * a collection of the namespace to put it in; default: its default collection
+   */
+  collection?: number | null;
 };
 
 /**
@@ -3925,6 +4077,22 @@ export type PipelineVersionInfo = {
 };
 
 /**
+ * Placed
+ */
+export type Placed = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Moved
+   * how many weren't in it already
+   */
+  moved: number;
+  [key: string]: unknown | boolean | number | undefined;
+};
+
+/**
  * Player
  * Everything the player shows: transcript, speakers, sections, entities and, for videos, shots and faces.
  */
@@ -4738,6 +4906,16 @@ export type Recording = {
    */
   namespace?: string | null;
   /**
+   * Collection
+   * the collection it lives in
+   */
+  collection?: number | null;
+  /**
+   * Collection Path
+   * its collection and the ones it's in, from the top
+   */
+  collection_path?: Array<CollectionStep>;
+  /**
    * Role
    * your role in its namespace
    */
@@ -4801,6 +4979,9 @@ export type Recording = {
     | null
     | string
     | null
+    | number
+    | null
+    | Array<CollectionStep>
     | "viewer"
     | "editor"
     | "owner"
@@ -5016,6 +5197,11 @@ export type RecordingMove = {
    * stop its share links working; otherwise they keep working
    */
   revoke_shares?: boolean;
+  /**
+   * Collection
+   * a collection of the new namespace to put it in; default: its default collection
+   */
+  collection?: number | null;
 };
 
 /**
@@ -5031,6 +5217,11 @@ export type RecordingMoved = {
    */
   namespace: string;
   /**
+   * Collection
+   * the collection it's in now
+   */
+  collection?: number | null;
+  /**
    * Job
    * the job that analyses it again in the new namespace
    */
@@ -5044,7 +5235,7 @@ export type RecordingMoved = {
    * Shares Revoked
    */
   shares_revoked?: number;
-  [key: string]: unknown | boolean | string | number | Array<string> | undefined;
+  [key: string]: unknown | boolean | string | number | null | number | Array<string> | undefined;
 };
 
 /**
@@ -5110,6 +5301,15 @@ export type RecordingSummary = {
    * Namespace
    */
   namespace?: string | null;
+  /**
+   * Collection
+   * the collection it lives in
+   */
+  collection?: number | null;
+  /**
+   * Collection Name
+   */
+  collection_name?: string | null;
   /**
    * Media Kind
    * audio, video or transcript
@@ -5193,6 +5393,10 @@ export type RecordingSummary = {
     | null
     | string
     | null
+    | number
+    | null
+    | string
+    | null
     | string
     | string
     | null
@@ -5231,6 +5435,21 @@ export type RecordingUpdate = {
    * replace its tags (at most 20, 40 characters each)
    */
   tags?: Array<string> | null;
+};
+
+/**
+ * RecordingsPlace
+ */
+export type RecordingsPlace = {
+  /**
+   * Recordings
+   */
+  recordings: Array<number>;
+  /**
+   * Collection
+   * a collection of their namespace
+   */
+  collection: number;
 };
 
 /**
@@ -6108,6 +6327,11 @@ export type SourceImportRequest = {
    * run this pipeline afterwards instead of the namespace's
    */
   pipeline?: number | null;
+  /**
+   * Collection
+   * a collection of the namespace to put them in; default: its default collection
+   */
+  collection?: number | null;
 };
 
 /**
@@ -7263,6 +7487,11 @@ export type UploadStart = {
    */
   pipeline?: number | null;
   /**
+   * Collection
+   * a collection of the namespace to put the recording in (default: its default collection; not with `recording`)
+   */
+  collection?: number | null;
+  /**
    * Modified
    * the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't
    */
@@ -7541,6 +7770,11 @@ export type ViewState = {
     | "-status"
     | "importance"
     | "-importance";
+  /**
+   * Collection
+   * a collection of the view's namespace (and the ones inside it)
+   */
+  collection?: number | null;
 };
 
 /**
@@ -8826,6 +9060,173 @@ export type UpdateIpGroupResponses = {
 
 export type UpdateIpGroupResponse = UpdateIpGroupResponses[keyof UpdateIpGroupResponses];
 
+export type ListNamespaceCollectionsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/collections";
+};
+
+export type ListNamespaceCollectionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListNamespaceCollectionsError = ListNamespaceCollectionsErrors[keyof ListNamespaceCollectionsErrors];
+
+export type ListNamespaceCollectionsResponses = {
+  /**
+   * Response Namespaces-List Namespace Collections
+   * Successful Response
+   */
+  200: Array<CollectionNode>;
+};
+
+export type ListNamespaceCollectionsResponse =
+  ListNamespaceCollectionsResponses[keyof ListNamespaceCollectionsResponses];
+
+export type CreateNamespaceCollectionData = {
+  body: CollectionNodeCreate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/collections";
+};
+
+export type CreateNamespaceCollectionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateNamespaceCollectionError = CreateNamespaceCollectionErrors[keyof CreateNamespaceCollectionErrors];
+
+export type CreateNamespaceCollectionResponses = {
+  /**
+   * Successful Response
+   */
+  200: CollectionNode;
+};
+
+export type CreateNamespaceCollectionResponse =
+  CreateNamespaceCollectionResponses[keyof CreateNamespaceCollectionResponses];
+
+export type DeleteNamespaceCollectionData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/collections/{cid}";
+};
+
+export type DeleteNamespaceCollectionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteNamespaceCollectionError = DeleteNamespaceCollectionErrors[keyof DeleteNamespaceCollectionErrors];
+
+export type DeleteNamespaceCollectionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteNamespaceCollectionResponse =
+  DeleteNamespaceCollectionResponses[keyof DeleteNamespaceCollectionResponses];
+
+export type GetNamespaceCollectionData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/collections/{cid}";
+};
+
+export type GetNamespaceCollectionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceCollectionError = GetNamespaceCollectionErrors[keyof GetNamespaceCollectionErrors];
+
+export type GetNamespaceCollectionResponses = {
+  /**
+   * Successful Response
+   */
+  200: CollectionNode;
+};
+
+export type GetNamespaceCollectionResponse = GetNamespaceCollectionResponses[keyof GetNamespaceCollectionResponses];
+
+export type UpdateNamespaceCollectionData = {
+  body: CollectionNodeUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/collections/{cid}";
+};
+
+export type UpdateNamespaceCollectionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateNamespaceCollectionError = UpdateNamespaceCollectionErrors[keyof UpdateNamespaceCollectionErrors];
+
+export type UpdateNamespaceCollectionResponses = {
+  /**
+   * Successful Response
+   */
+  200: CollectionNode;
+};
+
+export type UpdateNamespaceCollectionResponse =
+  UpdateNamespaceCollectionResponses[keyof UpdateNamespaceCollectionResponses];
+
 export type ListRecordingsData = {
   body?: never;
   path?: never;
@@ -8915,6 +9316,11 @@ export type ListRecordingsData = {
      * me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)
      */
     edited_by?: "me" | null;
+    /**
+     * Collection
+     * a collection: the recordings in it and in the collections inside it
+     */
+    collection?: number | null;
     /**
      * Sort
      * date, title, duration, speakers, status or importance; prefix - for descending
@@ -9083,6 +9489,31 @@ export type ListLanguagesResponses = {
 };
 
 export type ListLanguagesResponse = ListLanguagesResponses[keyof ListLanguagesResponses];
+
+export type PlaceRecordingsData = {
+  body: RecordingsPlace;
+  path?: never;
+  query?: never;
+  url: "/api/v1/recordings/collection";
+};
+
+export type PlaceRecordingsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PlaceRecordingsError = PlaceRecordingsErrors[keyof PlaceRecordingsErrors];
+
+export type PlaceRecordingsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Placed;
+};
+
+export type PlaceRecordingsResponse = PlaceRecordingsResponses[keyof PlaceRecordingsResponses];
 
 export type DeleteRecordingData = {
   body?: never;

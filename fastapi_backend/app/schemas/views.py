@@ -33,6 +33,7 @@ class ViewState(RequestModel):
         default_factory=list, max_length=20, description="language codes; none: not known"
     )
     sort: RecordingSort = "-date"
+    collection: int | None = Field(None, description="a collection of the view's namespace (and the ones inside it)")
 
 
 class SavedView(ResponseModel):

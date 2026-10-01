@@ -50,6 +50,7 @@ describe("saved views", () => {
       origins: [],
       languages: [],
       sort: "title",
+      collection: null,
     });
     expect(viewState({ filters: NO_FILTERS, view: "all", sort: { key: "date", dir: "desc" } }).sort).toBe("-date");
   });
@@ -94,6 +95,19 @@ describe("saved views", () => {
     expect(describeView(s, (k) => (k === "upload" ? "Uploaded" : k))).toBe(
       "Edited by me · “capsid” · Analyzed, Job failed · Alice · Last 30 days · #Interview · Uploaded · German · by title",
     );
+  });
+
+  it("keeps the collection they show", () => {
+    const s = viewState({ ...library, filters: { ...library.filters, collection: 7 } });
+    expect(s.collection).toBe(7);
+    expect(fromView(s).filters.collection).toBe(7);
+    expect(fromView({}).filters.collection).toBeNull();
+    expect(sameState(s, { ...s, collection: 8 })).toBe(false);
+    expect(sameState(s, { ...s })).toBe(true);
+    expect(describeView({ collection: 7 }, undefined, (id) => (id === 7 ? "Talks" : null))).toBe(
+      "All recordings · in Talks",
+    );
+    expect(describeView({ collection: 7 })).toBe("All recordings · in a collection");
   });
 
   it("describes them", () => {

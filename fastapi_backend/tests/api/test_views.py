@@ -51,9 +51,13 @@ def test_personal_views(client, env, db):
         True,
         "vi@x.io",
     )
-    assert v["state"] == {**STATE, "duration": "any", "media": "any", "origins": [], "languages": []}
+    assert v["state"] == {**STATE, "duration": "any", "media": "any", "origins": [], "languages": [], "collection": None}
     everything = client.post("/api/v1/views", headers=hv, json={"name": "Everything new", "state": {"statuses": ["new"], **MORE}}).json()
     assert {k: everything["state"][k] for k in MORE} == MORE
+    # a view can keep to one collection (and the ones inside it)
+    inside = client.post("/api/v1/views", headers=hv, json={"name": "General only", "namespace": "pods", "state": {"collection": 7}}).json()
+    assert inside["state"]["collection"] == 7
+    client.delete(f"/api/v1/views/{inside['id']}", headers=hv)
     assert everything["namespace"] is None and everything["state"]["sort"] == "-date"
     # only its maker sees a personal view
     assert set(_names(client, hv)) == {"Capsid talk", "Everything new"}

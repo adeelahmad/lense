@@ -31,12 +31,14 @@ function SaveViewDialog({
   state,
   namespace,
   originName,
+  collectionName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   state: ViewState;
   namespace: string | null;
   originName: (key: string) => string;
+  collectionName: (id: number) => string | null;
 }) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -71,7 +73,7 @@ function SaveViewDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Save view"
-      description={`${namespace ?? "All namespaces"} · ${describeView(state, originName)}`}
+      description={`${namespace ?? "All namespaces"} · ${describeView(state, originName, collectionName)}`}
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -122,6 +124,7 @@ function ViewRow({
   namespace,
   onApply,
   originName,
+  collectionName,
 }: {
   view: SavedView;
   showing: boolean;
@@ -129,6 +132,7 @@ function ViewRow({
   namespace: string | null;
   onApply: () => void;
   originName: (key: string) => string;
+  collectionName: (id: number) => string | null;
 }) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -180,7 +184,9 @@ function ViewRow({
           {v.shared && <Badge>Shared</Badge>}
         </span>
         <span className="text-[12px] text-fg-muted">{viewMeta(v)}</span>
-        <span className="text-[12px] text-fg-secondary">{describeView(v.state, originName)}</span>
+        <span className="text-[12px] text-fg-secondary">
+          {describeView(v.state, originName, (v.namespace ?? null) === namespace ? collectionName : undefined)}
+        </span>
       </button>
       {confirm ? (
         <div className="flex flex-wrap items-center gap-2" role="alert">
@@ -248,12 +254,15 @@ export function SavedViews({
   namespace,
   onApply,
   originName = (k) => k,
+  collectionName = () => null,
 }: {
   state: ViewState;
   namespace: string | null;
   onApply: (v: SavedView) => void;
   /** What to call where recordings came from ("source:4" → the source's name). */
   originName?: (key: string) => string;
+  /** What to call a collection of the namespace shown (null when it isn't one of its). */
+  collectionName?: (id: number) => string | null;
 }) {
   const views = useViews();
   const [listOpen, setListOpen] = useState(false);
@@ -284,6 +293,7 @@ export function SavedViews({
         state={state}
         namespace={namespace}
         originName={originName}
+        collectionName={collectionName}
       />
       <Dialog
         open={listOpen}
@@ -303,6 +313,7 @@ export function SavedViews({
                   current={state}
                   namespace={namespace}
                   originName={originName}
+                  collectionName={collectionName}
                   onApply={() => {
                     onApply(v);
                     setListOpen(false);

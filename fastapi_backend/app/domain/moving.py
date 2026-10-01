@@ -112,7 +112,7 @@ def _files(db, cfg, rec, rid, src_name, dst_name):
             (shutil.copy2 if shared else os.replace)(here, there)
 
 
-def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None):
+def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None, collection=None):
     """Move a recording to the namespace `dst` (see the module docstring). Returns what the audit log keeps.
 
     Raises KeyError (no such recording or namespace), ValueError (it's already there; identifying speakers again needs
@@ -124,6 +124,7 @@ def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None):
     src = rec["space"]
     if src == dst:
         raise ValueError(f"It's already in {names[dst]}.")
+    home = store.home(db, dst, collection)  # KeyError for a collection of another namespace
     if rediarize and rec.get("source") != "audio":
         raise ValueError("Only recordings with audio can have their speakers identified again.")
     fp = rec.get("fingerprint")
@@ -166,7 +167,7 @@ def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None):
             "DELETE entity_override WHERE recording = $r",
             "UPDATE ip_group SET recordings = array::complement(recordings, [$r]) WHERE space = $s AND recordings CONTAINS $r",
             "CREATE $g CONTENT $note",
-            "UPDATE $rec SET space = $d" + (", fp_key = $k" if fp else ""),
+            "UPDATE $rec SET space = $d, collection = $home" + (", fp_key = $k" if fp else ""),
         ],
         r=rid,
         s=src,
@@ -175,6 +176,7 @@ def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None):
         note=deletion.note(rec, rid, "moved", by, moved_to=dst),
         rec=R("recording", rid),
         k=f"{dst}:{fp}",
+        home=home,
     )
     deletion.forget(db, dst, fp, rec.get("path"))  # it's in the new namespace now: its scans may find it again
     revoked = auth.revoke_shares(db, rid, by) if revoke_shares else 0
@@ -186,6 +188,7 @@ def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None):
         "title": rec.get("title"),
         "from": names[src],
         "to": names[dst],
+        "collection": home,
         "pinned": sorted(pins),
         "rediarize": bool(rediarize),
         "shares_revoked": revoked,

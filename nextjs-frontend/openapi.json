@@ -1446,6 +1446,265 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/collections": {
+      "get": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "List Namespace Collections",
+        "description": "The namespace's collections, depth first and by name, each with its place in the tree and how many recordings\nit holds (with and without the collections inside it).",
+        "operationId": "list_namespace_collections",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionNode"
+                  },
+                  "title": "Response Namespaces-List Namespace Collections"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Create Namespace Collection",
+        "description": "Make a collection (editors), at the top of the namespace or inside `parent`. Its name is unique among the\ncollections next to it, ignoring case; collections go at most 8 deep. Audited as `collection.create`.",
+        "operationId": "create_namespace_collection",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionNodeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionNode"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/collections/{cid}": {
+      "get": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Get Namespace Collection",
+        "operationId": "get_namespace_collection",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionNode"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Update Namespace Collection",
+        "description": "Rename it, describe it, move it inside another collection of the namespace (`parent`; null: to the top) or make\nit the default (editors). The recordings and collections inside it go with it. Audited as `collection.update`.",
+        "operationId": "update_namespace_collection",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionNodeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionNode"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Delete Namespace Collection",
+        "description": "Delete an empty collection (editors): 409 while it holds recordings or collections, or is the namespace's\ndefault. Audited as `collection.delete`.",
+        "operationId": "delete_namespace_collection",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/recordings": {
       "get": {
         "tags": [
@@ -1793,6 +2052,24 @@
             "description": "me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)"
           },
           {
+            "name": "collection",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a collection: the recordings in it and in the collections inside it",
+              "title": "Collection"
+            },
+            "description": "a collection: the recordings in it and in the collections inside it"
+          },
+          {
             "name": "sort",
             "in": "query",
             "required": false,
@@ -2069,6 +2346,48 @@
                     "$ref": "#/components/schemas/LanguageCount"
                   },
                   "title": "Response Recordings-List Languages"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/collection": {
+      "post": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Place Recordings",
+        "description": "Move recordings into a collection of their namespace (editors there). Recordings of another namespace are a\n400: move them to that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update.\nAudited as `recording.collection`.",
+        "operationId": "place_recordings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordingsPlace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Placed"
                 }
               }
             }
@@ -12533,6 +12852,217 @@
         ],
         "title": "CollectionDetail"
       },
+      "CollectionNode": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the collection it's in; null: the top of its namespace"
+          },
+          "depth": {
+            "type": "integer",
+            "title": "Depth",
+            "description": "0 at the top",
+            "default": 0
+          },
+          "path": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Path",
+            "description": "names from the top of the namespace down to it"
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "description": "recordings it holds",
+            "default": 0
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "recordings it and the collections inside it hold",
+            "default": 0
+          },
+          "children": {
+            "type": "integer",
+            "title": "Children",
+            "description": "collections directly inside it",
+            "default": 0
+          },
+          "default": {
+            "type": "boolean",
+            "title": "Default",
+            "description": "new recordings go here when nobody says where",
+            "default": false
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CollectionNode"
+      },
+      "CollectionNodeCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "description": "unique among the collections next to it, ignoring case"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the collection to put it in; null: the top of the namespace"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CollectionNodeCreate"
+      },
+      "CollectionNodeUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "move it inside this collection; null: to the top"
+          },
+          "default": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default",
+            "description": "true: new recordings go here when nobody says where"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CollectionNodeUpdate",
+        "description": "Send what changes: `parent` null moves it to the top; `default: true` makes it the namespace's default."
+      },
       "CollectionRecording": {
         "properties": {
           "id": {
@@ -12579,6 +13109,25 @@
           "id"
         ],
         "title": "CollectionRecording"
+      },
+      "CollectionStep": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CollectionStep"
       },
       "CollectionUpdate": {
         "properties": {
@@ -13555,6 +14104,18 @@
             "title": "Wait",
             "description": "import before answering instead of in the background",
             "default": false
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a collection of the namespace to put them in; default: its default collection"
           }
         },
         "additionalProperties": false,
@@ -13912,6 +14473,18 @@
             ],
             "title": "Pipeline",
             "description": "run this pipeline afterwards instead of the namespace's (GET /pipelines)"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a collection of the namespace to put it in; default: its default collection"
           }
         },
         "additionalProperties": false,
@@ -16592,6 +17165,26 @@
         ],
         "title": "PipelineVersionInfo"
       },
+      "Placed": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "moved": {
+            "type": "integer",
+            "title": "Moved",
+            "description": "how many weren't in it already"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "moved"
+        ],
+        "title": "Placed"
+      },
       "Player": {
         "properties": {
           "id": {
@@ -17801,6 +18394,26 @@
             ],
             "title": "Namespace"
           },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "the collection it lives in"
+          },
+          "collection_path": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionStep"
+            },
+            "type": "array",
+            "title": "Collection Path",
+            "description": "its collection and the ones it's in, from the top"
+          },
           "role": {
             "anyOf": [
               {
@@ -18173,6 +18786,18 @@
             "title": "Revoke Shares",
             "description": "stop its share links working; otherwise they keep working",
             "default": false
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a collection of the new namespace to put it in; default: its default collection"
           }
         },
         "additionalProperties": false,
@@ -18192,6 +18817,18 @@
           "namespace": {
             "type": "string",
             "title": "Namespace"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "the collection it's in now"
           },
           "job": {
             "type": "integer",
@@ -18347,6 +18984,29 @@
               }
             ],
             "title": "Namespace"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "the collection it lives in"
+          },
+          "collection_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Name"
           },
           "media_kind": {
             "type": "string",
@@ -18512,6 +19172,31 @@
         "type": "object",
         "title": "RecordingUpdate",
         "description": "The fields to change; the others stay as they are."
+      },
+      "RecordingsPlace": {
+        "properties": {
+          "recordings": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Recordings"
+          },
+          "collection": {
+            "type": "integer",
+            "title": "Collection",
+            "description": "a collection of their namespace"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recordings",
+          "collection"
+        ],
+        "title": "RecordingsPlace"
       },
       "RecordingsRetag": {
         "properties": {
@@ -19869,6 +20554,18 @@
             ],
             "title": "Pipeline",
             "description": "run this pipeline afterwards instead of the namespace's"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a collection of the namespace to put them in; default: its default collection"
           }
         },
         "additionalProperties": false,
@@ -21701,6 +22398,18 @@
             "title": "Pipeline",
             "description": "run this pipeline once it's here instead of the namespace's (not with `recording`)"
           },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a collection of the namespace to put the recording in (default: its default collection; not with `recording`)"
+          },
           "modified": {
             "anyOf": [
               {
@@ -22185,6 +22894,18 @@
             ],
             "title": "Sort",
             "default": "-date"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a collection of the view's namespace (and the ones inside it)"
           }
         },
         "additionalProperties": false,

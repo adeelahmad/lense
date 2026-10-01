@@ -10,6 +10,7 @@ import type { BrowseEntry } from "@/app/openapi-client/types.gen";
 import { importable, kindOf, pipelineOptions, sourceImportSummary } from "@/components/import/files";
 import { fileIcon } from "@/components/import/upload-tab";
 import { useNamespacePipeline } from "@/components/import/use-import";
+import { CollectionField } from "@/components/library/collections-ui";
 import { sourceTypeLabel } from "@/components/library/source-labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -325,6 +326,7 @@ function ImportChosenDialog({
   const client = useApiClient();
   const [ns, setNs] = useState(defaultNs);
   const [pipelineId, setPipelineId] = useState<number | null>(null);
+  const [collectionId, setCollectionId] = useState<number | null>(null);
   const pipeline = useNamespacePipeline(ns || null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -334,6 +336,7 @@ function ImportChosenDialog({
       setError(null);
     }
   }, [open, defaultNs]);
+  useEffect(() => setCollectionId(null), [ns]);
   return (
     <Dialog
       open={open}
@@ -355,7 +358,7 @@ function ImportChosenDialog({
                 const r = await data(
                   Imports.importFromSource({
                     client,
-                    body: { source, paths, namespace: ns, pipeline: pipelineId },
+                    body: { source, paths, namespace: ns, pipeline: pipelineId, collection: collectionId },
                   }),
                 );
                 onOpenChange(false);
@@ -377,6 +380,12 @@ function ImportChosenDialog({
           <span className="text-[13px] font-bold text-fg-strong">Into namespace</span>
           <Select value={ns} onChange={(e) => setNs(e.target.value)} options={namespaces} />
         </label>
+        <CollectionField
+          ns={ns || null}
+          value={collectionId}
+          onChange={setCollectionId}
+          id="source-import-collection"
+        />
         <label className="flex flex-col gap-1.5">
           <span className="text-[13px] font-bold text-fg-strong">Then run</span>
           <Select

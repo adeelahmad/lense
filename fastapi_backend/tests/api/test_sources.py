@@ -273,3 +273,10 @@ def test_importing_chosen_files_of_a_source(client, new_client, db, cfg, folder,
     deletion.delete(db, cfg, call, {"email": "root@x.io"})
     back = client.post(url, json={**body, "paths": pick[:1]}, headers=h).json()["results"]
     assert back[0]["status"] == "queued" and back[0]["recording"] != call
+    # into a chosen collection of the namespace; one of another namespace is a 404, and makes no namespace
+    shelf = client.post("/api/v1/namespaces/pods/collections", json={"name": "From the inbox"}, headers=h).json()["id"]
+    assert client.post(url, json={**body, "namespace": "fresh", "collection": shelf}, headers=h).status_code == 404
+    assert db.values("SELECT VALUE id FROM space WHERE name = 'fresh'") == []
+    later = client.post(url, json={**body, "paths": [str(inbox / "later.txt")], "collection": shelf}, headers=h).json()["results"]
+    assert later[0]["status"] == "queued", later
+    assert db.one("SELECT collection FROM $r", r=R("recording", later[0]["recording"]))["collection"] == shelf

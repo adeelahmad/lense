@@ -289,3 +289,16 @@ def test_steps_added_while_a_job_runs_are_not_missed(db, cfg, folder, monkeypatc
     assert any("report done" in line for line in job["log"])
     # with nothing running, added steps are a job of their own
     assert jobs.add_steps(db, rid, ["report"]) != jid
+
+
+def test_an_upload_goes_into_a_collection(client, env, db, cfg):
+    data, he = env["data"], env["he"]
+    talks = client.post("/api/v1/namespaces/pods/collections", headers=he, json={"name": "Talks"}).json()["id"]
+    other = store.default_collection(db, store.ns_id(db, "calls"))
+    assert _start(client, he, len(data), collection=other).status_code == 404  # a collection of another namespace
+    up = _start(client, he, len(data), collection=talks).json()
+    done = _send(client, he, up["id"], 0, data).json()
+    assert db.one("SELECT collection FROM $r", r=R("recording", done["recording"]))["collection"] == talks
+    # attaching keeps the recording where it is
+    rid = ingest.import_text(db, cfg, "pods", "[00:00] Ann: Hello there.\n[00:02] Ben: Hi.\n[00:04] Ann: Bye.")
+    assert _attach(client, he, data, rid, collection=talks).status_code == 400

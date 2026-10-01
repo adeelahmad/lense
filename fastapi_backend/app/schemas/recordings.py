@@ -5,6 +5,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from app.schemas.common import AccessLevel, AccessPart, Ok, RequestModel, ResponseModel, Role
+from app.schemas.hierarchy import CollectionStep
 
 # Recording statuses, plus two job states: a job queued or running (processing), the latest job failed (failed).
 RecordingState = Literal["new", "transcribed", "diarized", "analyzed", "error", "processing", "failed"]
@@ -35,6 +36,8 @@ class RecordingSummary(ResponseModel):
     source: str | None = None
     space: int
     namespace: str | None = None
+    collection: int | None = Field(None, description="the collection it lives in")
+    collection_name: str | None = None
     media_kind: str = Field(description="audio, video or transcript")
     poster: str | None = Field(None, description="signed link to the first video frame")
     emotions: dict[str, Any] = Field(default_factory=dict)
@@ -79,6 +82,8 @@ class Recording(ResponseModel):
     status: str | None = None
     space: int
     namespace: str | None = None
+    collection: int | None = Field(None, description="the collection it lives in")
+    collection_path: list[CollectionStep] = Field(default_factory=list, description="its collection and the ones it's in, from the top")
     role: Role | None = Field(None, description="your role in its namespace")
     summary: dict[str, Any] | None = None
     stats: dict[str, Any] | None = None
@@ -203,10 +208,12 @@ class RecordingMove(RequestModel):
         False, description="identify its speakers again from their voices in the new namespace (audio only); else matched by name"
     )
     revoke_shares: bool = Field(False, description="stop its share links working; otherwise they keep working")
+    collection: int | None = Field(None, description="a collection of the new namespace to put it in; default: its default collection")
 
 
 class RecordingMoved(Ok):
     namespace: str
+    collection: int | None = Field(None, description="the collection it's in now")
     job: int = Field(description="the job that analyses it again in the new namespace")
     pinned: list[str] = Field(
         default_factory=list, description="what it had from its old namespace and keeps: access, open parts, metadata defaults"
@@ -266,6 +273,15 @@ class SegmentUpdate(RequestModel):
 
     text: str | None = None
     speaker: int | None = None
+
+
+class RecordingsPlace(RequestModel):
+    recordings: list[int] = Field(min_length=1, max_length=1000)
+    collection: int = Field(description="a collection of their namespace")
+
+
+class Placed(Ok):
+    moved: int = Field(description="how many weren't in it already")
 
 
 class SegmentSplit(RequestModel):

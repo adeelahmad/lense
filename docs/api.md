@@ -70,6 +70,11 @@ GET    /api/v1/namespaces/{name}/ip-groups
 POST   /api/v1/namespaces/{name}/ip-groups
 PATCH  /api/v1/namespaces/{name}/ip-groups/{gid}
 DELETE /api/v1/namespaces/{name}/ip-groups/{gid}
+GET    /api/v1/namespaces/{name}/collections
+POST   /api/v1/namespaces/{name}/collections
+GET    /api/v1/namespaces/{name}/collections/{cid}
+PATCH  /api/v1/namespaces/{name}/collections/{cid}
+DELETE /api/v1/namespaces/{name}/collections/{cid}
 ```
 
 `/namespaces/{name}/stats?from=&to=&top=` gives the Reports overview its numbers (viewers of the namespace): the
@@ -88,6 +93,25 @@ your address as the server sees it (`null` when it can't tell; see `server.trust
 (IPv4) or `/16` (IPv6); names are unique in the namespace. `PATCH` changes any of them and `DELETE` removes the group.
 All three answer with the list and are audited as `namespace.ip_group.create`, `.update` and `.delete`.
 
+### Collections of a namespace
+
+Every recording lives in exactly one collection of its namespace, and collections nest (at most 8 deep, 5000 per
+namespace). Each namespace has a default collection, "General" when it's made, where recordings go when nobody says
+where: imports, uploads, scans, watched folders and recordings moved in from another namespace. Existing recordings
+were put in their namespace's General when collections came in. (Saved collections, under
+[collections](#collections), are something else: lists of recordings from anywhere.)
+
+`GET /namespaces/{name}/collections` lists them depth first, by name (viewers): each with its `parent` (`null` at the
+top), `depth`, `path` (names from the top down), how many recordings it holds (`recordings`) and holds with the
+collections inside it (`total`), how many collections are directly inside it (`children`), and `default`.
+`POST {name, parent?, description?}` makes one (editors); a name is unique among the collections next to it, ignoring
+case and repeated spaces. `PATCH` renames it, describes it, moves it inside another collection of the namespace
+(`parent`; `null`: to the top; not inside itself), with the recordings and collections in it, or makes it the default
+(`default: true`; `false` on the default is a 400: make another one the default instead). `DELETE` removes an empty
+collection: 409 while it holds recordings or collections, or is the default, so deleting one never takes a
+recording with it. Audited as `collection.create`, `collection.update` (with what changed) and `collection.delete`.
+In IIIF each collection is a Collection inside its namespace's ([IIIF](iiif.md)).
+
 ## recordings
 
 ```
@@ -96,6 +120,7 @@ GET    /api/v1/recordings/tags
 GET    /api/v1/recordings/origins
 GET    /api/v1/recordings/languages
 POST   /api/v1/recordings/tags
+POST   /api/v1/recordings/collection
 GET    /api/v1/recordings/{rid}
 PATCH  /api/v1/recordings/{rid}
 DELETE /api/v1/recordings/{rid}
@@ -134,6 +159,7 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 | Parameter | |
 |---|---|
 | `ns` | one namespace (default: every namespace you can read) |
+| `collection` | a collection's id: the recordings in it and in the collections inside it |
 | `q` | words that must all appear in the title, the namespace's name or a speaker's name |
 | `status` | `new`, `transcribed`, `diarized`, `analyzed`, `error`, and two job states: `processing` (a job is queued or running) and `failed` (the latest job failed) |
 | `attention` | `true`: only recordings that need a person (errored, latest job failed, or a voice match waiting for review) |
@@ -153,8 +179,12 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 
 The body is the page's rows; the `X-Total-Count` header says how many recordings match on all pages.
 
-Rows also say where each recording came from (`origin`, and `origin_name`: the source's name, or e.g. "Uploaded")
-and its `language` when known. `GET /recordings/origins` and `GET /recordings/languages` (`ns` for one namespace) list
+Rows also say where each recording came from (`origin`, and `origin_name`: the source's name, or e.g. "Uploaded"),
+its `language` when known and the collection it lives in (`collection`, `collection_name`). `GET /recordings/{rid}`
+adds `collection_path`: the collections from the top of the namespace down to its own, `[{id, name}]`.
+`POST /recordings/collection {recordings, collection}` moves recordings into a collection of their namespace (editors
+of each); a recording of another namespace is a 400 (move it to that namespace first). It answers how many `moved`;
+their IIIF Manifests change (`partOf`), so harvesters see an Update. Audited as `recording.collection`. `GET /recordings/origins` and `GET /recordings/languages` (`ns` for one namespace) list
 the origins and languages of the recordings you can read with how many have each, most first, for the Library's
 Source and Language filters.
 
@@ -199,8 +229,9 @@ and watched folders skip the same remote file, even when it changes; importing i
 `lens import`, a IIIF manifest) brings it back. A public recording shows up as a Delete in the IIIF change feed. It is
 audited as `recording.delete` with its title, namespace and path.
 
-`POST /recordings/{rid}/move` with `{"namespace", "rediarize", "revoke_shares"}` moves a recording to another namespace
-(owners of its namespace, editors of the new one). It keeps its transcript, media, frames, outputs, the people given
+`POST /recordings/{rid}/move` with `{"namespace", "collection", "rediarize", "revoke_shares"}` moves a recording to
+another namespace (owners of its namespace, editors of the new one), into `collection` there (default: the new
+namespace's default collection; 404 for a collection of another namespace). It keeps its transcript, media, frames, outputs, the people given
 permission on it and its share links (`revoke_shares`: they stop working). Its IIIF manifest stays as it was: what it
 had from its old namespace (default access and open parts, the metadata profile's defaults) is pinned on it wherever
 the new namespace would change it, kept in its metadata history and listed in `pinned`. Speakers and faces are matched
@@ -269,9 +300,11 @@ POST   /api/v1/import/preview
 ```
 
 `POST /import` queues the namespace's pipeline after the import, or the saved pipeline named by `pipeline` (any of
-`GET /pipelines`; 400 for one that doesn't exist, before anything is saved).
+`GET /pipelines`; 400 for one that doesn't exist, before anything is saved). Every import takes a `collection` of the
+namespace to put the recordings in (default: its default collection; 404 for one of another namespace): `POST /import`,
+`POST /import/source`, `POST /uploads` and `POST /import/iiif`.
 
-`POST /api/v1/import/source {source, paths, namespace, pipeline?}` imports chosen files of a storage source now,
+`POST /api/v1/import/source {source, paths, namespace, pipeline?, collection?}` imports chosen files of a storage source now,
 rather than watching their folder (admins, like sources; up to 500 paths, as `GET /sources/{sid}/browse` lists them).
 Audio and video stay on the source and run the namespace's pipeline, or `pipeline`; transcripts are imported. Each
 path gets a result: `queued` (with `recording` and `job`), `already` (the namespace has it from this source),
@@ -295,11 +328,12 @@ DELETE /api/v1/uploads/{uid}
 (`uploads.max_mb`), the piece size the web app sends (`uploads.chunk_mb`) and the largest transcript file for
 `POST /import` (`server.max_upload_mb`).
 
-`POST /uploads {namespace, filename, size, title?, modified?, pipeline?, recording?}` starts one (editors of the namespace; admins
+`POST /uploads {namespace, filename, size, title?, modified?, pipeline?, collection?, recording?}` starts one (editors of the namespace; admins
 may name a new namespace, created when the upload finishes). With `recording`, a transcript-only recording, the file
 becomes that recording's audio instead of a recording of its own (editors of its namespace; `namespace` can then be left
 out; 409 when it has audio already). [Processing](processing.md#importing-transcripts) says what runs then. `pipeline`
-runs instead of the namespace's once a new recording is made (not with `recording`). The name loses any folders and its extension is lowercased; `modified`
+runs instead of the namespace's once a new recording is made, and `collection` is where it goes (neither with
+`recording`, which stays in its collection). The name loses any folders and its extension is lowercased; `modified`
 (the file's last-modified time in milliseconds) dates the recording when its name doesn't. 400 for a type not in
 `uploads.extensions`, 413 over `uploads.max_mb`, 507 when the server's disk can't hold it with 512 MB to spare.
 
@@ -424,6 +458,13 @@ POST   /api/v1/import/iiif/preview
 POST   /api/v1/import/iiif
 ```
 
+Importing from IIIF (admins) reads a Presentation 3 Manifest, or a Collection's Manifests, also those of the
+Collections inside it (at most 8 deep and 50 Collections read). The preview of a Collection lists its Manifests in
+order (`items`, the first 200, each with `path`: the Collections it's in below this one), how many it found
+(`total`), how many Collections it read (`collections`) and whether it stopped early (`more`). `POST /import/iiif
+{url, namespace, collection?, keep_transcripts, limit, wait}` imports the first `limit` Manifests, all into
+`collection` (default: the namespace's default collection).
+
 ## jobs
 
 ```
@@ -547,6 +588,9 @@ or checked.
 
 ## collections
 
+Saved collections: lists of recordings from anywhere, to chat with or run batches on. A namespace's own collections,
+which recordings live in, are under [namespaces](#collections-of-a-namespace).
+
 ```
 GET    /api/v1/collections
 POST   /api/v1/collections
@@ -567,7 +611,8 @@ DELETE /api/v1/views/{vid}
 Saved views of the Library: a `name` (unique among your views, ignoring case), the `namespace` it shows (`null`: every
 namespace you can read) and its `state`: the tab (`all`, `attention`, `processing`), the filter box `q`, `statuses`,
 a `speaker` by name (each namespace has its own speaker ids), the Library's `date` and `duration` ranges (kept as
-ranges, so `30d` stays the last 30 days), `media`, `tags` and `sort` (as `GET /recordings` takes it). A view is its
+ranges, so `30d` stays the last 30 days), `media`, `tags`, a `collection` of its namespace and `sort` (as
+`GET /recordings` takes it). A view is its
 maker's; `shared: true` shows it to everyone with a role in its namespace (sharing needs editor access there, and a
 view of every namespace can't be shared). `GET` lists yours, then the shared ones of namespaces you can read, each
 with `mine` and `can_delete`; a view of a namespace you can no longer read is left out. Only its maker changes a view

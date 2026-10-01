@@ -153,6 +153,17 @@ def iiif_collection_search(name: str, request: Request, user: OptionalUser, db: 
     return _ld(iiif.search(db, base, q, rids, url, page))
 
 
+@router.get("/iiif/collection/{name}/{cid}")
+def iiif_subcollection(name: str, cid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
+    """One of a namespace's collections: the collections inside it and its recordings the requester sees."""
+    sid = _nsid(db, name)
+    try:
+        doc = iiif.subcollection(db, cfg, sid, cid, base_url(request, cfg), _readable(request, db, user), _granted(request, db, user))
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    return _ld(doc)
+
+
 @router.get("/iiif/discovery/activity")
 def iiif_activity(request: Request, db: Db, cfg: Cfg) -> JSONResponse:
     return _ld(iiif.activity_stream(db, base_url(request, cfg)))
@@ -330,19 +341,23 @@ def _ns_name(db: DB, space: int) -> str | None:
 def iiif_record(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
     """schema.org AudioObject (or VideoObject) for search engines and harvesters."""
     _rec(request, db, cfg, user, rid)
-    base, row = base_url(request, cfg), db.one("SELECT duration_ms, space FROM $r", r=R("recording", rid))
+    base, row = base_url(request, cfg), db.one("SELECT duration_ms, space, collection FROM $r", r=R("recording", rid))
     ns = _ns_name(db, row["space"])
-    urls = {"manifest": f"{base}/iiif/{rid}/manifest", "collection": f"{base}/iiif/collection/{ns}", "page": f"{base}/#/rec/{rid}"}
+    urls = {
+        "manifest": f"{base}/iiif/{rid}/manifest",
+        "collection": iiif.collection_url(base, ns, row.get("collection")),
+        "page": f"{base}/#/rec/{rid}",
+    }
     return JSONResponse(md.schema_org(md.effective(db, cfg, rid), row, urls), media_type="application/ld+json")
 
 
 @router.get("/iiif/{rid}/dc.xml")
 def iiif_dublin_core(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
     _rec(request, db, cfg, user, rid)
-    base, row = base_url(request, cfg), db.one("SELECT space, path FROM $r", r=R("recording", rid))
+    base, row = base_url(request, cfg), db.one("SELECT space, path, collection FROM $r", r=R("recording", rid))
     ns = _ns_name(db, row["space"])
     fmt = render.AUDIO_TYPES.get(pathlib.Path(row.get("path") or "").suffix.lower())
-    urls = {"manifest": f"{base}/iiif/{rid}/manifest", "collection": f"{base}/iiif/collection/{ns}"}
+    urls = {"manifest": f"{base}/iiif/{rid}/manifest", "collection": iiif.collection_url(base, ns, row.get("collection"))}
     return Response(md.dublin_core(md.effective(db, cfg, rid), {"format": fmt}, urls), media_type="application/xml")
 
 

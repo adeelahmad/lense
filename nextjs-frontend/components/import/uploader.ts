@@ -15,6 +15,8 @@ export type SendOptions = {
   attach?: number | null;
   /** Run this pipeline once it's here instead of the namespace's (not when attaching). */
   pipeline?: number | null;
+  /** The collection of the namespace its recording goes into (its default when null; not when attaching). */
+  collection?: number | null;
   title?: string | null;
   pieceMb: number;
   signal: AbortSignal;
@@ -53,6 +55,7 @@ export async function sendFile(client: Client, file: File, o: SendOptions): Prom
           namespace: o.namespace,
           recording: o.attach ?? null,
           pipeline: o.attach != null ? null : (o.pipeline ?? null),
+          collection: o.attach != null ? null : (o.collection ?? null),
           filename: file.name,
           size: file.size,
           title: o.title || null,

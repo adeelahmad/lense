@@ -25,8 +25,8 @@ SORTS = {
     "importance": ("summary.importance", "summary.importance = NONE"),
 }
 FIELDS = (
-    "record::id(id) AS id, title, recorded_at, duration_ms, status, error, source, stats, summary, space, media, access, "
-    "access_parts, featured, tags, language, path, remote, engine"
+    "record::id(id) AS id, title, recorded_at, duration_ms, status, error, source, stats, summary, space, collection, media, "
+    "access, access_parts, featured, tags, language, path, remote, engine"
 )
 # where a recording came from (origin_of): a connected source (source:<id>), or one of these
 ORIGINS = {
@@ -181,6 +181,7 @@ def where(
     origins=None,
     languages=None,
     edited=None,
+    collections=None,
     cfg=None,
 ):
     """The WHERE clause and its parameters for these filters. Filters combine with AND, the values of one filter with OR.
@@ -191,7 +192,7 @@ def where(
     access: levels (public, restricted, private), a namespace's default counting for recordings without their own.
     featured: true or false. tags: any of these tags (ignoring case). origins: where they came from (Origins; needs cfg).
     languages: language codes (ignoring case), "none" for recordings whose language isn't known. edited: recording ids
-    (edited_by).
+    (edited_by). collections: collection ids (a collection and the ones inside it).
     """
     spaces = sorted(spaces)
     w, p = ["space IN $spaces"], {"spaces": spaces}
@@ -280,6 +281,9 @@ def where(
     if edited is not None:
         p["edited"] = recs(sorted(edited))
         w.append("id IN $edited")
+    if collections is not None:
+        p["cols"] = sorted(collections)
+        w.append("collection IN $cols")
     return " AND ".join(w), p
 
 
@@ -320,6 +324,14 @@ def summaries(db, rows, cfg=None):
     for a in db.rows("SELECT recording, speaker FROM appearance WHERE recording IN $r", r=ids) if rows else []:
         apps[a["recording"]].append(a["speaker"])
     names, spaces = render.speaker_names(db, [x for v in apps.values() for x in v]), store.space_names(db)
+    cols = (
+        {
+            c["id"]: c["name"]
+            for c in db.rows("SELECT record::id(id) AS id, name FROM collection WHERE space IN $s", s=sorted({r["space"] for r in rows}))
+        }
+        if rows
+        else {}
+    )
     access = acc.many(db, rows)
     posters = (
         {x["recording"]: x.get("frame") for x in db.rows("SELECT recording, frame FROM shot WHERE recording IN $r AND idx = 0", r=ids)}
@@ -345,6 +357,7 @@ def summaries(db, rows, cfg=None):
             {
                 **r,
                 "namespace": spaces.get(r["space"]),
+                "collection_name": cols.get(r.get("collection")),
                 "emotions": st.get("emotions", {}),
                 "words": st.get("words"),
                 "importance": sm.get("importance"),

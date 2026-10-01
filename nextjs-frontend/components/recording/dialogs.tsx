@@ -11,6 +11,7 @@ import { RecordingIpGroups } from "@/components/access/ip-groups";
 import { ALL_PARTS, accessLabel, accessPatch, partsText, type AccessValue } from "@/components/access/model";
 import { PeopleWithPermission, RequestsWaiting } from "@/components/access/people";
 import { CopyButton } from "@/components/iiif/collections";
+import { PlaceDialog } from "@/components/library/collections-ui";
 import { publicPath } from "@/components/public/model";
 import { AttachAudioDialog } from "@/components/recording/attach-audio";
 import { useRec } from "@/components/recording/context";
@@ -34,12 +35,24 @@ export type DialogState =
   | { kind: "rename" }
   | { kind: "access" }
   | { kind: "attach" }
+  | { kind: "collection" }
   | { kind: "share"; startMs?: number };
 
-/** The page's dialogs: Reprocess (R9), Rename, Access, Attach audio and Share / Embed. */
+/** The page's dialogs: Reprocess (R9), Rename, Access, Attach audio, Move to collection and Share / Embed. */
 export function RecordingDialogs({ state, onClose }: { state: DialogState; onClose: () => void }) {
+  const { id, ns, rec, model } = useRec();
   return (
     <>
+      {ns && (
+        <PlaceDialog
+          ns={ns}
+          ids={[id]}
+          title={`“${model.title}”`}
+          current={rec.collection ?? null}
+          open={state?.kind === "collection"}
+          onOpenChange={(o) => !o && onClose()}
+        />
+      )}
       <ReprocessDialog open={state?.kind === "reprocess"} onOpenChange={(o) => !o && onClose()} />
       <AttachAudioDialog open={state?.kind === "attach"} onOpenChange={(o) => !o && onClose()} />
       <RenameDialog open={state?.kind === "rename"} onOpenChange={(o) => !o && onClose()} />

@@ -36,6 +36,7 @@ function send(signal = new AbortController().signal) {
   const run = sendFile(client, file, {
     namespace: "pods",
     pipeline: 3,
+    collection: 12,
     title: "Episode",
     pieceMb: 1,
     signal,
@@ -65,6 +66,7 @@ describe("sending a file in pieces", () => {
       namespace: "pods",
       recording: null,
       pipeline: 3,
+      collection: 12,
       filename: "ep.M4A",
       size: SIZE,
       title: "Episode",
@@ -85,15 +87,17 @@ describe("sending a file in pieces", () => {
       namespace: "pods",
       attach: 5,
       pipeline: 3,
+      collection: 12,
       pieceMb: 1,
       signal: new AbortController().signal,
       onProgress: () => {},
     });
     // the unfinished upload of the same file was for a recording of its own, so this one starts afresh; attaching
-    // runs its own steps, so no pipeline goes with it
+    // runs its own steps and keeps the recording where it is, so no pipeline or collection goes with it
     expect(m(Uploads.startUpload).mock.calls[0][0].body).toMatchObject({
       recording: 5,
       pipeline: null,
+      collection: null,
       filename: "ep.m4a",
     });
     expect(offsets()).toEqual([0, MB, 2 * MB]);

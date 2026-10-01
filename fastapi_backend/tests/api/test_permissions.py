@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.domain import analyze, ingest
 from tests.api.test_iiif import BASE, CLIP, VIEWER, sign_in
-from tests.helpers import login, make_user, quiet, seed, write_wav
+from tests.helpers import login, make_user, manifests, quiet, seed, write_wav
 
 
 @pytest.fixture
@@ -99,8 +99,8 @@ def test_permission_opens_iiif(client, env):
     assert c.get(f"/iiif/{clip}/manifest", headers=env["hg"]).status_code == 200
     assert c.get(f"/iiif/{clip}/transcript.vtt", headers=env["hg"]).status_code == 200
     assert c.get(f"/iiif/{clip}/transcript.vtt").status_code == 404
-    items = c.get("/iiif/collection/pods", headers=env["hg"]).json()["items"]
-    assert [i["id"].rsplit("/", 2)[-2] for i in items] == [str(clip)]
+    items = manifests(lambda u: c.get(u, headers=env["hg"]), "/iiif/collection/pods")
+    assert [i.rsplit("/", 2)[-2] for i in items] == [str(clip)]
     # and through the IIIF Authorization Flow: signed in on the access page, a viewer's probe gets the media
     assert c.get(f"/iiif/{clip}/manifest").status_code == 404
     sign_in(c, "guest@x.io", "guest password 1", VIEWER)

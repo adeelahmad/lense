@@ -200,6 +200,7 @@ describe("the list query", () => {
         tags: ["board", "Q3"],
         origins: ["upload", "source:4"],
         languages: ["en", "none"],
+        collection: 12,
       },
       "all",
       { key: "duration", dir: "desc" },
@@ -218,6 +219,7 @@ describe("the list query", () => {
       tag: ["board", "Q3"],
       origin: ["upload", "source:4"],
       language: ["en", "none"],
+      collection: 12,
     });
   });
 
@@ -267,6 +269,7 @@ describe("the list query", () => {
   it("counts active filters", () => {
     expect(activeFilterCount(NO_FILTERS)).toBe(0);
     expect(activeFilterCount({ ...NO_FILTERS, q: " x ", media: "video", speaker: { name: "A", ids: [1] } })).toBe(3);
+    expect(activeFilterCount({ ...NO_FILTERS, collection: 3 })).toBe(1);
   });
 });
 

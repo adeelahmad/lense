@@ -34,6 +34,7 @@ export function viewState({ filters, view, sort }: LibraryState): ViewState {
     origins: [...filters.origins],
     languages: [...filters.languages],
     sort: (sort.dir === "desc" ? `-${sort.key}` : sort.key) as Sort,
+    collection: filters.collection,
   };
 }
 
@@ -52,6 +53,7 @@ export function fromView(s: ViewState | null | undefined): LibraryState & { spea
       tags: [...(s?.tags ?? [])],
       origins: [...(s?.origins ?? [])],
       languages: [...(s?.languages ?? [])],
+      collection: s?.collection ?? null,
     },
     view: s?.tab ?? "all",
     sort: { key: (desc ? sort.slice(1) : sort) as SortKey, dir: desc ? "desc" : "asc" },
@@ -79,6 +81,7 @@ export function sameState(a: ViewState | null | undefined, b: ViewState | null |
     sameSet(x.filters.tags, y.filters.tags, true) &&
     sameSet(x.filters.origins, y.filters.origins) &&
     sameSet(x.filters.languages, y.filters.languages, true) &&
+    x.filters.collection === y.filters.collection &&
     x.sort.key === y.sort.key &&
     x.sort.dir === y.sort.dir
   );
@@ -104,12 +107,18 @@ const SORT_LABEL: Record<SortKey, string> = {
   importance: "importance",
 };
 
-/** "Needs attention · “capsid” · Analyzed · Alice · Last 30 days · #Interview · by title"; `origin` names sources. */
-export function describeView(s: ViewState | null | undefined, origin: (key: string) => string = (k) => k): string {
+/** "Needs attention · in Talks · “capsid” · Analyzed · Alice · Last 30 days · #Interview · by title"; `origin` names
+ * sources and `collection` collections. */
+export function describeView(
+  s: ViewState | null | undefined,
+  origin: (key: string) => string = (k) => k,
+  collection: (id: number) => string | null = () => null,
+): string {
   const x = fromView(s);
   const f = x.filters;
   const parts = [
     TAB_LABEL[x.view],
+    f.collection != null ? `in ${collection(f.collection) ?? "a collection"}` : null,
     f.q ? `“${f.q}”` : null,
     f.statuses.length ? f.statuses.map((t) => STATUS_FILTER_LABEL[t]).join(", ") : null,
     x.speaker,

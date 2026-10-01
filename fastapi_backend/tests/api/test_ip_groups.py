@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.domain import analyze, ingest, ipgroups, metadata
 from tests.api.test_iiif import BASE, CLIP
-from tests.helpers import login, make_user, quiet, seed, write_wav
+from tests.helpers import login, make_user, manifests, quiet, seed, write_wav
 
 LAB = "198.51.100.7"  # in the reading room's range
 ELSEWHERE = "203.0.113.9"
@@ -250,8 +250,8 @@ def test_ip_group_opens_iiif(client, env):
     assert lab.get(f"/iiif/{clip}/manifest").status_code == 200
     assert lab.get(f"/iiif/{clip}/transcript.vtt").status_code == 200
     assert lab.get(f"/iiif/{clip}/audio", headers={"Range": "bytes=0-9"}).status_code == 206
-    items = lab.get("/iiif/collection/pods").json()["items"]
-    assert str(clip) in [i["id"].rsplit("/", 2)[-2] for i in items]
+    items = manifests(lab.get, "/iiif/collection/pods")
+    assert str(clip) in [i.rsplit("/", 2)[-2] for i in items]
     assert [c["label"] for c in lab.get("/iiif/collection").json()["items"]] and far.get("/iiif/collection").json().get("items", []) == []
     assert lab.get("/iiif/collection/pods/search", params={"q": "capsid"}).json()["items"]
     # a viewer's probe from the reading room gets a signed link, without signing in

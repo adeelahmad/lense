@@ -224,6 +224,8 @@ export type Filters = {
   origins: string[];
   /** Language codes; "none" for recordings whose language isn't known. */
   languages: string[];
+  /** A collection of the namespace shown: the recordings in it and in the collections inside it. */
+  collection: number | null;
 };
 
 export const NO_FILTERS: Filters = {
@@ -236,6 +238,7 @@ export const NO_FILTERS: Filters = {
   tags: [],
   origins: [],
   languages: [],
+  collection: null,
 };
 
 /** "en" → "English", "pt-BR" → "Brazilian Portuguese"; null (not known) → "Not known"; an odd code stays as it is. */
@@ -293,7 +296,8 @@ export function activeFilterCount(f: Filters): number {
     (f.media !== "any" ? 1 : 0) +
     (f.tags.length ? 1 : 0) +
     (f.origins.length ? 1 : 0) +
-    (f.languages.length ? 1 : 0)
+    (f.languages.length ? 1 : 0) +
+    (f.collection != null ? 1 : 0)
   );
 }
 
@@ -352,6 +356,7 @@ export function libraryQuery(
   if (f.tags.length) q.tag = f.tags;
   if (f.origins.length) q.origin = f.origins;
   if (f.languages.length) q.language = f.languages;
+  if (f.collection != null) q.collection = f.collection;
   if (view === "attention") q.attention = true;
   if (view === "processing") q.processing = true;
   if (view === "mine") q.edited_by = "me";

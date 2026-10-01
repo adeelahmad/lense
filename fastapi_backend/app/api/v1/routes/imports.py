@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Acl, AdminWriter, Cfg, Db, Writer, domain_errors
 from app.domain import auth, ingest, jobs, pipelines, sources, store
+from app.domain.store import DB
 from app.schemas.imports import (
     ImportPreview,
     ImportPreviewRequest,
@@ -69,6 +70,18 @@ def _unreadable() -> Iterator[None]:
         raise HTTPException(400, f"could not read that transcript: {e}") from None
 
 
+def check_collection(db: DB, sid: int | None, collection: int | None) -> None:
+    """A collection asked for at import has to be one of the namespace's (404 otherwise; a new namespace has none)."""
+    if collection is None:
+        return
+    try:
+        if sid is None:
+            raise KeyError(collection)
+        store.home(db, sid, collection)
+    except KeyError:
+        raise HTTPException(404, "there's no such collection in that namespace") from None
+
+
 @router.post("")
 def import_transcript(body: ImportRequest, request: Request, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> ImportResult:
     """Import a transcript into a namespace (editors; admins may name a new namespace). The namespace's pipeline, or
@@ -78,10 +91,13 @@ def import_transcript(body: ImportRequest, request: Request, acl: Acl, user: Wri
         raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
     check_pipeline(db, body.pipeline)
     try:
-        acl.need(store.ns_id(db, ns, create=False), "editor")
+        sid = store.ns_id(db, ns, create=False)
+        acl.need(sid, "editor")
     except KeyError:
         if not user.admin:
             raise HTTPException(403, "only admins can create namespaces") from None
+        sid = None
+    check_collection(db, sid, body.collection)
     names = dict(kv.strip().split("=", 1) for kv in str(body.speakers or "").split(",") if "=" in kv) or None
     title = (body.title or "").strip()[:200] or None
     with _unreadable():
@@ -91,10 +107,14 @@ def import_transcript(body: ImportRequest, request: Request, acl: Acl, user: Wri
             with tempfile.TemporaryDirectory() as d:
                 path = pathlib.Path(d) / name
                 path.write_bytes(raw)
-                rid = ingest.import_transcript(db, cfg, ns, path, title=title or path.stem, speaker_names=names, fmt=body.format)
+                rid = ingest.import_transcript(
+                    db, cfg, ns, path, title=title or path.stem, speaker_names=names, fmt=body.format, collection=body.collection
+                )
             db.q("UPDATE $r SET path = $p", r=store.R("recording", rid), p="upload:" + name)
         else:
-            rid = ingest.import_text(db, cfg, ns, body.text or "", title=title, fmt=body.format, speaker_names=names)
+            rid = ingest.import_text(
+                db, cfg, ns, body.text or "", title=title, fmt=body.format, speaker_names=names, collection=body.collection
+            )
     job = jobs.enqueue(db, rid, None, by=user.email, pipeline=body.pipeline)
     auth.audit(db, user.as_audit(), "import", f"recording:{rid}")
     request.app.state.graph_cache.clear()
@@ -142,8 +162,14 @@ def import_from_source(body: SourceImportRequest, request: Request, user: AdminW
         sources.get(db, body.source)
     except KeyError:
         raise HTTPException(400, "there's no such source") from None
+    try:
+        sid = store.ns_id(db, ns, create=False)
+    except KeyError:
+        sid = None
+    check_collection(db, sid, body.collection)  # before a new namespace is made
+    sid = sid if sid is not None else store.ns_id(db, ns)
     with domain_errors():
-        results = sources.import_files(db, cfg, body.source, body.paths, store.ns_id(db, ns), user.email, body.pipeline)
+        results = sources.import_files(db, cfg, body.source, body.paths, sid, user.email, body.pipeline, body.collection)
     queued = [r for r in results if r["status"] == "queued"]
     if queued:
         detail = {"namespace": ns, "files": len(queued), "recordings": [r["recording"] for r in queued]}

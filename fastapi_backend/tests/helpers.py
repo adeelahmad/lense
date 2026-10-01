@@ -78,6 +78,20 @@ def quiet(*_a, **_k):
     return None
 
 
+def manifests(get, url):
+    """The Manifests a IIIF Collection lists, with its collections' (`get` fetches a path, e.g. a client's get)."""
+    import urllib.parse
+
+    out, todo = [], [url]
+    while todo:
+        for x in get(todo.pop(0)).json().get("items", []):
+            if x["type"] == "Manifest":
+                out.append(x["id"])
+            elif x["type"] == "Collection":
+                todo.append(urllib.parse.urlsplit(x["id"]).path)
+    return out
+
+
 def seed(db, cfg, folder: pathlib.Path):
     """Three transcripts: two in 'pods' (shared graph), one in 'calls' (isolated). Returns their recording ids."""
     from app.domain import analyze, ingest

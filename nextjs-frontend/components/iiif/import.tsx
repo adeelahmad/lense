@@ -3,11 +3,12 @@
 import { useMutation } from "@tanstack/react-query";
 import { Download, FolderOpen } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Iiif } from "@/app/openapi-client";
 import { formatExt } from "@/components/iiif/iiif-model";
 import { rightsShort } from "@/components/iiif/rights";
+import { CollectionField } from "@/components/library/collections-ui";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select } from "@/components/ui/field";
@@ -15,7 +16,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { EmptyState, PageHeader } from "@/components/ui/states";
 import { Table, Td, Th, THead, Tr } from "@/components/ui/table";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
-import { count, tc } from "@/lib/format";
+import { count, plural, tc } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
@@ -43,8 +44,14 @@ type CollectionPreview = {
   type: "Collection";
   id: string;
   label?: string | null;
+  /** Manifests found, in the Collection and the Collections inside it. */
   total: number;
-  items: { id: string; type: string; label?: string | null }[];
+  /** How many Collections inside it were read. */
+  collections?: number;
+  /** It stopped looking (too deep, too many Collections or Manifests). */
+  more?: boolean;
+  /** Its Manifests in order (the first 200); `path` names the Collections each is in below this one. */
+  items: { id: string; type: string; label?: string | null; path?: string[] }[];
 };
 type Preview = ManifestPreview | CollectionPreview;
 
@@ -96,6 +103,8 @@ export function IiifImport() {
   const { admin, namespaces } = useArchive();
   const [url, setUrl] = useState("");
   const [ns, setNs] = useState("");
+  const [collectionId, setCollectionId] = useState<number | null>(null);
+  useEffect(() => setCollectionId(null), [ns]);
   const [keep, setKeep] = useState(true);
   const [limit, setLimit] = useState("50");
   const [confirming, setConfirming] = useState(false);
@@ -113,6 +122,7 @@ export function IiifImport() {
           body: {
             url: url.trim(),
             namespace: ns.trim(),
+            collection: collectionId,
             keep_transcripts: keep,
             limit: Number(limit) || 50,
             wait: false,
@@ -273,28 +283,35 @@ export function IiifImport() {
                     : collectionItems.slice(0, 200).map((it, i) => {
                         const ok = it.type === "Manifest" && manifests.indexOf(it) < (lim || 0);
                         return (
-                          <Tr key={it.id ?? i} className={cn("h-[38px]", !ok && "text-fg-muted")}>
+                          <Tr key={`${it.id}-${i}`} className={cn("h-[38px]", !ok && "text-fg-muted")}>
                             <Td>
                               <Checkbox checked={ok} disabled aria-label={ok ? "Imported" : "Not imported"} />
                             </Td>
                             <Td className="max-w-[420px] truncate font-semibold">
-                              {it.type === "Collection" ? `Sub-collection · ${it.label ?? it.id}` : (it.label ?? it.id)}
+                              {it.path?.length ? (
+                                <span className="font-normal text-fg-secondary">{it.path.join(" › ")} › </span>
+                              ) : null}
+                              {it.label ?? it.id}
                             </Td>
-                            <Td className="text-fg-secondary">
-                              {it.type === "Collection"
-                                ? "not imported (sub-collections are skipped)"
-                                : ok
-                                  ? "Manifest"
-                                  : "Manifest · over the limit"}
-                            </Td>
+                            <Td className="text-fg-secondary">{ok ? "Manifest" : "Manifest · over the limit"}</Td>
                           </Tr>
                         );
                       })}
                 </tbody>
               </Table>
-              {p.type === "Collection" && p.total > 200 && (
+              {p.type === "Collection" && (p.total > 200 || Boolean(p.collections) || p.more) && (
                 <p className="border-t border-border px-3 py-2 text-[12px] text-fg-secondary">
-                  Showing the first 200 of {count(p.total)} items.
+                  {[
+                    p.total > 200 ? `Showing the first 200 of ${count(p.total)} Manifests.` : null,
+                    p.collections
+                      ? `Found in it and ${plural(p.collections, "Collection")} inside it; they all go into the collection you choose.`
+                      : null,
+                    p.more
+                      ? "It holds more than Lens reads at once: import the Collections inside it one by one."
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                 </p>
               )}
             </div>
@@ -309,7 +326,7 @@ export function IiifImport() {
 
           {p && !noAudio && (
             <>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Field
                   label="Namespace"
                   hint={
@@ -340,6 +357,12 @@ export function IiifImport() {
                     </>
                   )}
                 </Field>
+                <CollectionField
+                  ns={ns.trim() && !nsError ? ns.trim() : null}
+                  value={collectionId}
+                  onChange={setCollectionId}
+                  id="iiif-collection"
+                />
                 <Field label="Audio" hint="Playing from the origin isn’t available yet">
                   {(f) => (
                     <Select

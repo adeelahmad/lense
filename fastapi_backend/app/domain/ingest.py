@@ -139,6 +139,7 @@ def scan(db, cfg, only=None, log=print):
         if only and name != only:
             continue
         nid = store.ns_id(db, name)
+        home = store.default_collection(db, nid)  # where new files go
         gone_paths, gone_fps = deletion.gone(db, nid)  # recordings someone deleted stay deleted
         for root in spec["paths"]:
             rootp = pathlib.Path(root)
@@ -193,6 +194,7 @@ def scan(db, cfg, only=None, log=print):
                     d=store.clean(
                         {
                             "space": nid,
+                            "collection": home,
                             "path": str(p),
                             "source": "audio",
                             "fingerprint": fp,
@@ -804,13 +806,14 @@ def read_transcript(path, fmt="auto"):
     return read_text_transcript(p.read_text(encoding="utf-8-sig", errors="replace"), fmt, p.name)
 
 
-def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engine):
+def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engine, collection=None):
     from . import deletion, speakers as spk
 
     segs = t["segments"]
     if not segs:
         raise SystemExit("no transcript text found")
     nid = store.ns_id(db, ns)
+    home = store.home(db, nid, collection)  # KeyError for a collection of another namespace
     deletion.forget(db, nid, fp, src)  # imported on purpose: a deleted recording may come back
     dur, ch, env = (None, None, None)
     if audio:
@@ -825,7 +828,7 @@ def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engi
         db.q(
             "CREATE $r CONTENT $d",
             r=store.R("recording", rid),
-            d={"space": nid, "fingerprint": fp, "fp_key": f"{nid}:{fp}", "status": "new", "created_at": store.now()},
+            d={"space": nid, "collection": home, "fingerprint": fp, "fp_key": f"{nid}:{fp}", "status": "new", "created_at": store.now()},
         )
     write_transcript(
         db,
@@ -855,8 +858,9 @@ def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engi
     return rid
 
 
-def import_transcript(db, cfg, ns, tpath, audio=None, title=None, speaker_names=None, fmt="auto", log=print):
-    """A transcript file (txt, md, mdx, docx, doc, pdf, json, jsonl, srt, vtt), optionally with its audio."""
+def import_transcript(db, cfg, ns, tpath, audio=None, title=None, speaker_names=None, fmt="auto", log=print, collection=None):
+    """A transcript file (txt, md, mdx, docx, doc, pdf, json, jsonl, srt, vtt), optionally with its audio, into a
+    collection of the namespace (default: its default collection)."""
     src = pathlib.Path(audio or tpath)
     t = read_transcript(tpath, fmt)
     st = src.stat()
@@ -872,11 +876,12 @@ def import_transcript(db, cfg, ns, tpath, audio=None, title=None, speaker_names=
         audio,
         speaker_names,
         "import:" + pathlib.Path(tpath).suffix.lstrip("."),
+        collection,
     )
 
 
-def import_text(db, cfg, ns, text, title=None, fmt="auto", speaker_names=None, name=None):
-    """Pasted text, or text piped in on the command line."""
+def import_text(db, cfg, ns, text, title=None, fmt="auto", speaker_names=None, name=None, collection=None):
+    """Pasted text, or text piped in on the command line, into a collection of the namespace (default: its default)."""
     if not (text or "").strip():
         raise SystemExit("nothing to import")
     t = read_text_transcript(text, fmt, name)
@@ -894,4 +899,5 @@ def import_text(db, cfg, ns, text, title=None, fmt="auto", speaker_names=None, n
         None,
         speaker_names,
         "import:paste",
+        collection,
     )
