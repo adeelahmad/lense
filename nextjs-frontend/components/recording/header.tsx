@@ -282,7 +282,7 @@ function MoreMenu({ compact }: { compact?: boolean }) {
   const latest = r.jobs[0];
   const copy = async (withTime: boolean) => {
     const t = Math.floor(api.now() / 1000);
-    const url = `${window.location.origin}/recordings/${r.id}${withTime && t > 0 ? `?t=${t}` : ""}`;
+    const url = `${window.location.origin}/resources/${r.id}${withTime && t > 0 ? `?t=${t}` : ""}`;
     try {
       await navigator.clipboard.writeText(url);
       toast({

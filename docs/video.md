@@ -10,7 +10,7 @@ soundtrack, and three more steps look at the picture. Each step skips itself for
   - Engines: Tesseract (installed in the Docker image), Apple Vision on a Mac (`pip install -e ".[mac-ocr]"`, run it
     in a worker on the Mac), or RapidOCR.
   - On-screen text is searchable (results say whether a hit was said or shown), cited by chat, and correctable
-    (`PATCH /api/v1/recordings/<id>/ocr/<span>`).
+    (`PATCH /api/v1/resources/<id>/ocr/<span>`).
 - `faces`: detects faces in the sampled frames.
   - Where a namespace allows it, faces are grouped per recording and matched against that namespace's people, the way
     voices are: auto-match, review, or new.

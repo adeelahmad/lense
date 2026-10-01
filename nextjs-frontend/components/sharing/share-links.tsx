@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { Recordings } from "@/app/openapi-client";
+import { Resources } from "@/app/openapi-client";
 import type { Share } from "@/app/openapi-client/types.gen";
 import {
   MAX_DAYS,
@@ -30,7 +30,7 @@ export function useShares(recordingId: number, enabled: boolean) {
   const client = useApiClient();
   return useQuery({
     queryKey: ["shares", recordingId],
-    queryFn: () => data(Recordings.listShares({ client, path: { rid: recordingId } })),
+    queryFn: () => data(Resources.listShares({ client, path: { rid: recordingId } })),
     enabled,
     staleTime: 0, // plays and embedding sites change while the dialog is closed
   });
@@ -44,7 +44,7 @@ export function useCreateShare(recordingId: number, onCreated: (l: CreatedLink) 
     mutationFn: async (days: number) => ({
       days,
       r: await data(
-        Recordings.createShare({
+        Resources.createShare({
           client,
           path: { rid: recordingId },
           body: { days },
@@ -170,7 +170,7 @@ export function ShareLinks({
   const shares = useShares(recordingId, canShare);
   const create = useCreateShare(recordingId, (l) => onCreated(l));
   const revoke = useMutation({
-    mutationFn: () => data(Recordings.revokeShares({ client, path: { rid: recordingId } })),
+    mutationFn: () => data(Resources.revokeShares({ client, path: { rid: recordingId } })),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["shares", recordingId] });
       setConfirm(false);
@@ -188,7 +188,7 @@ export function ShareLinks({
       }),
   });
   const revokeOne = useMutation({
-    mutationFn: (sid: string) => data(Recordings.revokeShare({ client, path: { rid: recordingId, sid } })),
+    mutationFn: (sid: string) => data(Resources.revokeShare({ client, path: { rid: recordingId, sid } })),
     onSuccess: (_r, sid) => {
       void qc.invalidateQueries({ queryKey: ["shares", recordingId] });
       if (created?.id === sid) onCreated(null);
@@ -317,8 +317,8 @@ export function ShareLinks({
     <div className="flex flex-col gap-3.5">
       <p className="text-[14px] leading-normal text-fg-secondary">
         People in {namespace ?? "its namespace"} can already open it at{" "}
-        <code className="font-mono text-[12.5px] text-fg">/recordings/{recordingId}</code>. A share link lets anyone
-        with it play and read this one recording — nothing else.
+        <code className="font-mono text-[12.5px] text-fg">/resources/{recordingId}</code>. A share link lets anyone with
+        it play and read this one recording — nothing else.
       </p>
       <Field
         label="Expires after (days)"

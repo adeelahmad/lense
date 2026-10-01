@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useCallback } from "react";
 
-import { Jobs, Recordings } from "@/app/openapi-client";
+import { Jobs, Resources } from "@/app/openapi-client";
 import { useToast } from "@/components/ui/toast";
 import { deletedToast, movedToast } from "@/components/library/model";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
@@ -96,7 +96,7 @@ export function useRecordingActions() {
                 jobs: [
                   (
                     await data(
-                      Recordings.reprocessRecording({
+                      Resources.reprocessRecording({
                         client,
                         path: { rid: recordings[0] },
                         body: steps?.length ? { steps } : undefined,
@@ -164,7 +164,7 @@ export function useRecordingActions() {
       const failed: { title: string; message: string }[] = [];
       for (const r of recs) {
         try {
-          await data(Recordings.deleteRecording({ client, path: { rid: r.id } }));
+          await data(Resources.deleteRecording({ client, path: { rid: r.id } }));
           gone.push(r.id);
           qc.removeQueries({ queryKey: ["recording", r.id] });
         } catch (e) {
@@ -193,7 +193,7 @@ export function useRecordingActions() {
       for (const r of recs) {
         try {
           await data(
-            Recordings.moveRecording({
+            Resources.moveRecording({
               client,
               path: { rid: r.id },
               body: {
@@ -222,7 +222,7 @@ export function useRecordingActions() {
   const retag = useCallback(
     async (recordings: number[], add: string[], remove: string[]) => {
       try {
-        const { changed } = await data(Recordings.retagRecordings({ client, body: { recordings, add, remove } }));
+        const { changed } = await data(Resources.retagRecordings({ client, body: { recordings, add, remove } }));
         toast({
           title: changed ? `Tags changed on ${plural(changed, "recording")}` : "Their tags were already like that",
           tone: "green",

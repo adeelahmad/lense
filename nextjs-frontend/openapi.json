@@ -1826,10 +1826,10 @@
         }
       }
     },
-    "/api/v1/recordings": {
+    "/api/v1/resources": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "List Recordings",
         "description": "Recordings you can read, newest first by default: those of the namespaces you have a role in, and of the\ncollections you were given a role on. Filters combine with AND; the ``X-Total-Count`` header says how many match in\nall, so pages can be counted. Each row has your `role` on it.",
@@ -2276,10 +2276,10 @@
         }
       }
     },
-    "/api/v1/recordings/tags": {
+    "/api/v1/resources/tags": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "List Tags",
         "description": "The tags on the recordings you can read (or one namespace's), with how many recordings have each.",
@@ -2333,7 +2333,7 @@
       },
       "post": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Retag Recordings",
         "description": "Add and remove tags on several recordings at once (editors of each one's namespace).",
@@ -2372,10 +2372,10 @@
         }
       }
     },
-    "/api/v1/recordings/origins": {
+    "/api/v1/resources/origins": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "List Origins",
         "description": "Where the recordings you can read (or one namespace's) came from, with how many came from each: connected sources\nby name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files.",
@@ -2428,10 +2428,10 @@
         }
       }
     },
-    "/api/v1/recordings/languages": {
+    "/api/v1/resources/languages": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "List Languages",
         "description": "The languages of the recordings you can read (or one namespace's), with how many are in each; null: not known.",
@@ -2484,10 +2484,10 @@
         }
       }
     },
-    "/api/v1/recordings/collection": {
+    "/api/v1/resources/collection": {
       "post": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Place Recordings",
         "description": "Move recordings into a collection of their namespace: editors of each recording (through the namespace or the\ncollection it's in) who are editors of the collection too. Recordings of another namespace are a 400: move them\nto that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update. Audited as\n`recording.collection`.",
@@ -2526,10 +2526,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}": {
+    "/api/v1/resources/{rid}": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Get Recording",
         "operationId": "get_recording",
@@ -2569,7 +2569,7 @@
       },
       "patch": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Update Recording",
         "description": "Rename a recording or replace its tags (editors). A renamed recording's report is rebuilt with the new title.",
@@ -2620,7 +2620,7 @@
       },
       "delete": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Delete Recording",
         "description": "Delete a recording (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and\noutputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched\nfolders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job\nis running on it, this answers 409. Audited as `recording.delete`.",
@@ -2660,10 +2660,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/move": {
+    "/api/v1/resources/{rid}/move": {
       "post": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Move Recording",
         "description": "Move a recording to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);\nits IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and\nfaces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and\nanalysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409\nwhen the new namespace has the same file or a job is running on it. Audited as `recording.move`.",
@@ -2713,10 +2713,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/access": {
+    "/api/v1/resources/{rid}/access": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Get Recording Access",
         "description": "Who may see the recording: public, restricted or private, the parts a public one opens, featured.",
@@ -2757,7 +2757,7 @@
       },
       "put": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Update Recording Access",
         "description": "Make a recording public, restricted or private, choose what a public one opens, feature it (owners).\n\naccess or open set to null follow the namespace's default again. The change is kept in the metadata history, and\nIIIF harvesters hear when the recording is published, changed or withdrawn.",
@@ -2807,10 +2807,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/permissions": {
+    "/api/v1/resources/{rid}/permissions": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "List Recording Permissions",
         "description": "The people given permission on the recording (owners), newest first.",
@@ -2855,7 +2855,7 @@
       },
       "post": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Add Recording Permission",
         "description": "Give someone with an account permission on the recording (owners): they see all of it on the pages visitors see\nand in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission.",
@@ -2909,10 +2909,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/permissions/{account}": {
+    "/api/v1/resources/{rid}/permissions/{account}": {
       "delete": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Remove Recording Permission",
         "description": "Take someone's permission on the recording away (owners). Answers with everyone who still has it.",
@@ -2965,10 +2965,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/ip-groups": {
+    "/api/v1/resources/{rid}/ip-groups": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "List Recording Ip Groups",
         "description": "The namespace's IP groups (owners), each with whether visitors from its addresses see all of this recording.",
@@ -3012,10 +3012,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/ip-groups/{gid}": {
+    "/api/v1/resources/{rid}/ip-groups/{gid}": {
       "put": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Open Recording To Ip Group",
         "description": "Open the recording to an IP group that opens chosen recordings (owners): visitors from its addresses see all of\nit. Answers with the namespace's groups.",
@@ -3069,7 +3069,7 @@
       },
       "delete": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Close Recording To Ip Group",
         "description": "Close the recording to an IP group again (owners).",
@@ -3122,10 +3122,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/requests": {
+    "/api/v1/resources/{rid}/requests": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "List Access Requests",
         "description": "Requests for access to the recording (owners), newest first; pending ones wait for an answer.",
@@ -3169,10 +3169,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/requests/{account}/approve": {
+    "/api/v1/resources/{rid}/requests/{account}/approve": {
       "post": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Approve Access Request",
         "description": "Approve a request (owners): the person gets permission on the recording.",
@@ -3225,10 +3225,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/requests/{account}/decline": {
+    "/api/v1/resources/{rid}/requests/{account}/decline": {
       "post": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Decline Access Request",
         "description": "Decline a request (owners). They can ask again.",
@@ -3281,10 +3281,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/player": {
+    "/api/v1/resources/{rid}/player": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Get Player",
         "description": "Player data. Works with a share link (``?s=``) as well as signed in; media links in it are signed.",
@@ -3334,10 +3334,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/embed-link": {
+    "/api/v1/resources/{rid}/embed-link": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Get Embed Link",
         "description": "A signed link to the embeddable player, for people who can see the recording (it expires; share links don't).",
@@ -3390,10 +3390,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/audio": {
+    "/api/v1/resources/{rid}/audio": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Get Audio",
         "description": "The audio, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link.",
@@ -3442,10 +3442,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/wordcloud.svg": {
+    "/api/v1/resources/{rid}/wordcloud.svg": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Get Recording Wordcloud",
         "operationId": "get_recording_wordcloud",
@@ -3490,10 +3490,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/reprocess": {
+    "/api/v1/resources/{rid}/reprocess": {
       "post": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Reprocess Recording",
         "operationId": "reprocess_recording",
@@ -3549,10 +3549,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/share": {
+    "/api/v1/resources/{rid}/share": {
       "post": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Create Share",
         "description": "A read-only link to this one recording, for people without an account, with a short ``/s/`` address too. Its\naddress is only shown now. Revoke it with DELETE /shares/{id}, or every link with DELETE /share.",
@@ -3610,7 +3610,7 @@
       },
       "delete": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Revoke Shares",
         "description": "Revoke every link that still works. Opening one shows a page saying the link isn't available.",
@@ -3650,10 +3650,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/shares/{sid}": {
+    "/api/v1/resources/{rid}/shares/{sid}": {
       "delete": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Revoke Share",
         "description": "Revoke one link. Opening it shows a page saying the link isn't available; the others keep working.",
@@ -3705,10 +3705,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/shares": {
+    "/api/v1/resources/{rid}/shares": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "List Shares",
         "description": "The recording's share links, newest first: whether each still works, how often it was played, and the sites\nwhose pages embed it.",
@@ -3752,10 +3752,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/export.{fmt}": {
+    "/api/v1/resources/{rid}/export.{fmt}": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Export Recording",
         "description": "The transcript as txt, md, srt, vtt or json (a download).",
@@ -3804,10 +3804,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/segments/{idx}": {
+    "/api/v1/resources/{rid}/segments/{idx}": {
       "patch": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Edit Segment",
         "description": "Correct a transcript line (text and/or speaker); the recording is re-analysed afterwards.",
@@ -3866,10 +3866,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/segments/{idx}/split": {
+    "/api/v1/resources/{rid}/segments/{idx}/split": {
       "post": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Split Segment",
         "description": "Split a transcript line in two (editors): at `at`, a position in its text, moved back to the start of the word\nit's in. The second part starts at `t` (ms) when given, else when its first word was said (or as far into the\nline's time as `at` is into its text); it keeps the line's speaker unless `speaker` is sent. The lines after it\nmove down one, with their corrections. Kept in the edit history; the recording is re-analysed afterwards.",
@@ -3928,10 +3928,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/segments/{idx}/merge": {
+    "/api/v1/resources/{rid}/segments/{idx}/merge": {
       "post": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "Merge Segments",
         "description": "Merge a transcript line with the next one (editors): one line with both texts, from the first's start to the\nsecond's end, with the first's speaker. The lines after it move up one, with their corrections. Kept in the edit\nhistory (with where to split it again); the recording is re-analysed afterwards.",
@@ -3980,10 +3980,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/edits": {
+    "/api/v1/resources/{rid}/edits": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "List Segment Edits",
         "description": "Corrections, splits and merges of the transcript, the latest first.",
@@ -4027,10 +4027,10 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/outputs": {
+    "/api/v1/resources/{rid}/outputs": {
       "get": {
         "tags": [
-          "recordings"
+          "resources"
         ],
         "summary": "List Outputs",
         "description": "Results of LLM pipeline steps for this recording.",
@@ -4074,7 +4074,7 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/notes": {
+    "/api/v1/resources/{rid}/notes": {
       "get": {
         "tags": [
           "notes"
@@ -4172,7 +4172,7 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/notes/{nid}": {
+    "/api/v1/resources/{rid}/notes/{nid}": {
       "patch": {
         "tags": [
           "notes"
@@ -6686,7 +6686,7 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/metadata": {
+    "/api/v1/resources/{rid}/metadata": {
       "get": {
         "tags": [
           "metadata"
@@ -6779,7 +6779,7 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/metadata/history": {
+    "/api/v1/resources/{rid}/metadata/history": {
       "get": {
         "tags": [
           "metadata"
@@ -7004,7 +7004,7 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/media": {
+    "/api/v1/resources/{rid}/media": {
       "get": {
         "tags": [
           "video"
@@ -7057,7 +7057,7 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/frames/{name}": {
+    "/api/v1/resources/{rid}/frames/{name}": {
       "get": {
         "tags": [
           "video"
@@ -7115,7 +7115,7 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/ocr/{span}": {
+    "/api/v1/resources/{rid}/ocr/{span}": {
       "patch": {
         "tags": [
           "video"
@@ -7177,7 +7177,7 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/faces/{track}": {
+    "/api/v1/resources/{rid}/faces/{track}": {
       "delete": {
         "tags": [
           "video"
@@ -7660,7 +7660,7 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/iiif": {
+    "/api/v1/resources/{rid}/iiif": {
       "get": {
         "tags": [
           "iiif"
@@ -7703,7 +7703,7 @@
         }
       }
     },
-    "/api/v1/recordings/{rid}/content-state": {
+    "/api/v1/resources/{rid}/content-state": {
       "get": {
         "tags": [
           "iiif"

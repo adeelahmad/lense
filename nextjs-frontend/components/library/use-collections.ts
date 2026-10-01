@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Namespaces, Recordings } from "@/app/openapi-client";
+import { Namespaces, Resources } from "@/app/openapi-client";
 import type { CollectionMemberSet, CollectionNodeUpdate } from "@/app/openapi-client/types.gen";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
@@ -76,7 +76,7 @@ export function useCollectionActions(ns: string | null) {
   });
   const place = useMutation({
     mutationFn: (v: { recordings: number[]; collection: number; name: string }) =>
-      data(Recordings.placeRecordings({ client, body: { recordings: v.recordings, collection: v.collection } })),
+      data(Resources.placeRecordings({ client, body: { recordings: v.recordings, collection: v.collection } })),
     onSuccess: (r, v) => {
       void refresh();
       toast({

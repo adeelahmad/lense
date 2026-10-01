@@ -252,7 +252,7 @@ export function RecordingTable({
             const sel = selected.has(r.id);
             const open = () => {
               onOpen?.(r);
-              router.push(`/recordings/${r.id}`);
+              router.push(`/resources/${r.id}`);
             };
             return (
               <tr
@@ -276,7 +276,7 @@ export function RecordingTable({
                   <span className="flex min-w-0 flex-col gap-[3px]">
                     <span className="flex min-w-0 items-center gap-2">
                       <Link
-                        href={`/recordings/${r.id}`}
+                        href={`/resources/${r.id}`}
                         data-row-link
                         onClick={() => onOpen?.(r)}
                         className="truncate text-[13.5px] font-semibold leading-tight text-fg hover:underline"

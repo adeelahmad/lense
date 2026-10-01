@@ -26,6 +26,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Resources: `/api/v1/resources` names what the archive holds.** The API's recordings are now its resources: every
+  `/api/v1/recordings/…` path is published as `/api/v1/resources/…`, the schema's tag and the generated client's
+  class are `resources`/`Resources`, and the web app's pages are at `/resources/<id>`. Decided with the project owner:
+  the old names stay as aliases. `/api/v1/recordings/…` reaches the same routes for existing clients and scripts, and
+  `/recordings/<id>` in the web app redirects (keeping `?t=`). Fields keep their names (`recording`, and the
+  `Recording…` types), and signed media links the server writes keep their form (docs/api.md#resources).
 - **Roles on collections.** People can be given a role on a collection (viewer, editor or admin), which holds for
   the collections inside it too and adds to their namespace role. Someone without a role in the namespace sees just
   those collections: their recordings in the Library, search and the recordings' pages; the namespace's own pages

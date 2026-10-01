@@ -1,22 +1,17 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-
-import { parseStart } from "@/components/recording/model";
-import { RecordingPage } from "@/components/recording/recording-page";
-
-// The recording's own title replaces this once it loads (client-side, so the page never waits on the API to render).
-export const metadata: Metadata = { title: "Recording" };
+import { notFound, permanentRedirect } from "next/navigation";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ t?: string | string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-/** A recording (R1–R9, VR1–VR3). `?t=<seconds>` opens it at that moment. */
-export default async function RecordingRoute({ params, searchParams }: Props) {
+/** /recordings/<id>, the address recordings had before they were resources: it moved to /resources/<id>, with its
+ * query (`?t=`) kept. */
+export default async function OldRecordingRoute({ params, searchParams }: Props) {
   const { id } = await params;
-  const rid = Number(id);
-  if (!Number.isInteger(rid) || rid <= 0) notFound();
-  const { t } = await searchParams;
-  return <RecordingPage id={rid} start={parseStart(t)} />;
+  if (!/^\d+$/.test(id)) notFound();
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(await searchParams))
+    for (const x of Array.isArray(v) ? v : v != null ? [v] : []) q.append(k, x);
+  permanentRedirect(`/resources/${id}${q.size ? `?${q}` : ""}`);
 }

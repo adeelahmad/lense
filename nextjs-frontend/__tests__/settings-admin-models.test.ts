@@ -234,7 +234,7 @@ describe("audit log", () => {
     expect(targetText("space:2", "member.set", look)).toBe("customer-calls");
     expect(targetText("recording:12", "share.revoke", look)).toBe("Recording 12");
     expect(targetHref("server", "settings.save", look)).toBe("/settings/access");
-    expect(targetHref("recording:12", "x", look)).toBe("/recordings/12");
+    expect(targetHref("recording:12", "x", look)).toBe("/resources/12");
     expect(detailText(entries[0], look)).toBe("Session length, Allowed hosts");
     expect(detailText(entries[3], look)).toBe("API key (changed), Timeout");
     expect(detailText(entries[1], look)).toBe("Sam Whitaker → viewer");

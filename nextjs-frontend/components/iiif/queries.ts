@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { Iiif, Metadata, Recordings } from "@/app/openapi-client";
+import { Iiif, Metadata, Resources } from "@/app/openapi-client";
 import type { AccessPart } from "@/components/access/model";
 import type { Meta, Problem } from "@/components/iiif/metadata-model";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -72,7 +72,7 @@ export function useRecordingBrief(rid: number) {
   const client = useApiClient();
   return useQuery({
     queryKey: keys.recording(rid),
-    queryFn: async () => (await data(Recordings.getRecording({ client, path: { rid } }))) as unknown as RecordingBrief,
+    queryFn: async () => (await data(Resources.getRecording({ client, path: { rid } }))) as unknown as RecordingBrief,
     staleTime: 60_000,
   });
 }

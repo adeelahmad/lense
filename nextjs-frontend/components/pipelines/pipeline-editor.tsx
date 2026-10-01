@@ -23,7 +23,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
-import { Jobs, Pipelines, Recordings } from "@/app/openapi-client";
+import { Jobs, Pipelines, Resources } from "@/app/openapi-client";
 import type { Pipeline, TemplateSummary } from "@/app/openapi-client/types.gen";
 import { isActive, parseJobLog, span, stepLabel, stepStates, type JobRecord } from "@/components/activity/job-model";
 import { useTemplateList } from "@/components/pipelines/catalog-header";
@@ -92,7 +92,7 @@ function RunDialog({
   const { can } = useArchive();
   const recs = useQuery({
     queryKey: ["recordings", "picker"],
-    queryFn: () => data(Recordings.listRecordings({ client, query: { limit: 500 } })),
+    queryFn: () => data(Resources.listRecordings({ client, query: { limit: 500 } })),
     enabled: open,
     staleTime: 60_000,
   });

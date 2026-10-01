@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
-import { Admin, Recordings } from "@/app/openapi-client";
+import { Admin, Resources } from "@/app/openapi-client";
 import { useCreateShare, type CreatedLink } from "@/components/sharing/share-links";
 import {
   SIZES,
@@ -103,7 +103,7 @@ export function EmbedBuilder({
   // Without a share token yet, the preview uses a signed link (it expires; fine for a preview).
   const signed = useQuery({
     queryKey: ["embed-link", recordingId],
-    queryFn: () => data(Recordings.getEmbedLink({ client, path: { rid: recordingId } })),
+    queryFn: () => data(Resources.getEmbedLink({ client, path: { rid: recordingId } })),
     enabled: !created,
     staleTime: 10 * 60_000,
   });

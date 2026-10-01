@@ -189,7 +189,7 @@ function MemberNote({ rec }: { rec: Rec }) {
     <Banner
       action={
         <Button asChild size="sm">
-          <Link href={`/recordings/${rec.id}`}>Open in the workspace</Link>
+          <Link href={`/resources/${rec.id}`}>Open in the workspace</Link>
         </Button>
       }
     >

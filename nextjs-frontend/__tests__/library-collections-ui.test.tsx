@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import "@testing-library/jest-dom";
 import type { ReactNode } from "react";
 
-import { Namespaces, Recordings } from "@/app/openapi-client";
+import { Namespaces, Resources } from "@/app/openapi-client";
 import type { CollectionNode } from "@/app/openapi-client/types.gen";
 import { CollectionField, CollectionsDialog, PlaceDialog } from "@/components/library/collections-ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,7 +17,7 @@ jest.mock("@/app/openapi-client", () => ({
     listCollectionMembers: jest.fn(),
     setCollectionMember: jest.fn(),
   },
-  Recordings: { placeRecordings: jest.fn() },
+  Resources: { placeRecordings: jest.fn() },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 const toast = jest.fn();
@@ -216,7 +216,7 @@ describe("people in a collection", () => {
 
 describe("moving recordings into a collection", () => {
   it("starts at the one they're in and moves them to another", async () => {
-    m(Recordings.placeRecordings).mockImplementation(() => ok({ moved: 2 }));
+    m(Resources.placeRecordings).mockImplementation(() => ok({ moved: 2 }));
     const onDone = jest.fn();
     const onOpenChange = jest.fn();
     wrap(
@@ -236,7 +236,7 @@ describe("moving recordings into a collection", () => {
     fireEvent.change(pick, { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "Move" }));
     await waitFor(() => expect(onDone).toHaveBeenCalled());
-    expect(m(Recordings.placeRecordings).mock.calls[0][0].body).toEqual({ recordings: [7, 8], collection: 3 });
+    expect(m(Resources.placeRecordings).mock.calls[0][0].body).toEqual({ recordings: [7, 8], collection: 3 });
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Moved 2 recordings to “2024”" }));
   });

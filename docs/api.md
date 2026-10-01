@@ -133,48 +133,55 @@ collection it's inside (`inherited_from`); `PUT …/{cid}/members {email | accou
 null`) takes away a role, answers with the members, and is audited as `collection.member`. People with a role in the
 namespace aren't listed: theirs holds everywhere in it.
 
-## recordings
+## resources
+
+A resource is what the archive holds: today a recording (audio, video, or a transcript without media). The API calls
+them resources: `/api/v1/resources/…` is the canonical path for everything below, and the schema and the generated
+client use it (the `Resources` class). `/api/v1/recordings/…`, their address before, keeps working for existing
+clients and reaches the same routes; links the server writes (signed media links, for one) may still use it. Fields
+keep their names (`recording`, `RecordingSummary`). The web app's pages moved too: `/resources/<id>`, with
+`/recordings/<id>` redirecting there.
 
 ```
-GET    /api/v1/recordings
-GET    /api/v1/recordings/tags
-GET    /api/v1/recordings/origins
-GET    /api/v1/recordings/languages
-POST   /api/v1/recordings/tags
-POST   /api/v1/recordings/collection
-GET    /api/v1/recordings/{rid}
-PATCH  /api/v1/recordings/{rid}
-DELETE /api/v1/recordings/{rid}
-POST   /api/v1/recordings/{rid}/move
-GET    /api/v1/recordings/{rid}/access
-PUT    /api/v1/recordings/{rid}/access
-GET    /api/v1/recordings/{rid}/permissions
-POST   /api/v1/recordings/{rid}/permissions
-DELETE /api/v1/recordings/{rid}/permissions/{account}
-GET    /api/v1/recordings/{rid}/requests
-POST   /api/v1/recordings/{rid}/requests/{account}/approve
-POST   /api/v1/recordings/{rid}/requests/{account}/decline
-GET    /api/v1/recordings/{rid}/ip-groups
-PUT    /api/v1/recordings/{rid}/ip-groups/{gid}
-DELETE /api/v1/recordings/{rid}/ip-groups/{gid}
-GET    /api/v1/recordings/{rid}/player
-GET    /api/v1/recordings/{rid}/embed-link
-GET    /api/v1/recordings/{rid}/audio
-GET    /api/v1/recordings/{rid}/wordcloud.svg
-POST   /api/v1/recordings/{rid}/reprocess
-POST   /api/v1/recordings/{rid}/share
-DELETE /api/v1/recordings/{rid}/share
-GET    /api/v1/recordings/{rid}/shares
-DELETE /api/v1/recordings/{rid}/shares/{id}
-GET    /api/v1/recordings/{rid}/export.{fmt}
-PATCH  /api/v1/recordings/{rid}/segments/{idx}
-POST   /api/v1/recordings/{rid}/segments/{idx}/split
-POST   /api/v1/recordings/{rid}/segments/{idx}/merge
-GET    /api/v1/recordings/{rid}/edits
-GET    /api/v1/recordings/{rid}/outputs
+GET    /api/v1/resources
+GET    /api/v1/resources/tags
+GET    /api/v1/resources/origins
+GET    /api/v1/resources/languages
+POST   /api/v1/resources/tags
+POST   /api/v1/resources/collection
+GET    /api/v1/resources/{rid}
+PATCH  /api/v1/resources/{rid}
+DELETE /api/v1/resources/{rid}
+POST   /api/v1/resources/{rid}/move
+GET    /api/v1/resources/{rid}/access
+PUT    /api/v1/resources/{rid}/access
+GET    /api/v1/resources/{rid}/permissions
+POST   /api/v1/resources/{rid}/permissions
+DELETE /api/v1/resources/{rid}/permissions/{account}
+GET    /api/v1/resources/{rid}/requests
+POST   /api/v1/resources/{rid}/requests/{account}/approve
+POST   /api/v1/resources/{rid}/requests/{account}/decline
+GET    /api/v1/resources/{rid}/ip-groups
+PUT    /api/v1/resources/{rid}/ip-groups/{gid}
+DELETE /api/v1/resources/{rid}/ip-groups/{gid}
+GET    /api/v1/resources/{rid}/player
+GET    /api/v1/resources/{rid}/embed-link
+GET    /api/v1/resources/{rid}/audio
+GET    /api/v1/resources/{rid}/wordcloud.svg
+POST   /api/v1/resources/{rid}/reprocess
+POST   /api/v1/resources/{rid}/share
+DELETE /api/v1/resources/{rid}/share
+GET    /api/v1/resources/{rid}/shares
+DELETE /api/v1/resources/{rid}/shares/{id}
+GET    /api/v1/resources/{rid}/export.{fmt}
+PATCH  /api/v1/resources/{rid}/segments/{idx}
+POST   /api/v1/resources/{rid}/segments/{idx}/split
+POST   /api/v1/resources/{rid}/segments/{idx}/merge
+GET    /api/v1/resources/{rid}/edits
+GET    /api/v1/resources/{rid}/outputs
 ```
 
-`GET /recordings` filters, sorts and pages on the server, over every recording you can read (in the namespaces you have
+`GET /resources` filters, sorts and pages on the server, over every recording you can read (in the namespaces you have
 a role in, and in the collections you were given a role on), each with your `role` on it. Filters combine with AND;
 repeat a parameter that takes several values (`?status=new&status=error`) to match any of them.
 
@@ -202,15 +209,15 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 The body is the page's rows; the `X-Total-Count` header says how many recordings match on all pages.
 
 Rows also say where each recording came from (`origin`, and `origin_name`: the source's name, or e.g. "Uploaded"),
-its `language` when known and the collection it lives in (`collection`, `collection_name`). `GET /recordings/{rid}`
+its `language` when known and the collection it lives in (`collection`, `collection_name`). `GET /resources/{rid}`
 adds `collection_path`: the collections from the top of the namespace down to its own, `[{id, name}]`.
-`POST /recordings/collection {recordings, collection}` moves recordings into a collection of their namespace (editors
+`POST /resources/collection {recordings, collection}` moves recordings into a collection of their namespace (editors
 of each); a recording of another namespace is a 400 (move it to that namespace first). It answers how many `moved`;
-their IIIF Manifests change (`partOf`), so harvesters see an Update. Audited as `recording.collection`. `GET /recordings/origins` and `GET /recordings/languages` (`ns` for one namespace) list
+their IIIF Manifests change (`partOf`), so harvesters see an Update. Audited as `recording.collection`. `GET /resources/origins` and `GET /resources/languages` (`ns` for one namespace) list
 the origins and languages of the recordings you can read with how many have each, most first, for the Library's
 Source and Language filters.
 
-`PATCH /recordings/{rid}/segments/{idx}` corrects a transcript line: its `text`, its `speaker` (an id in the
+`PATCH /resources/{rid}/segments/{idx}` corrects a transcript line: its `text`, its `speaker` (an id in the
 namespace, or `null`), or both (editors). `POST …/segments/{idx}/split {at, t?, speaker?}` splits a line in two at
 `at`, a position in its text moved back to the start of the word it's in. The second part starts at `t` (ms, inside
 the line) or else when its first timed word was said (or as far into the line's time as `at` is into its text), and
@@ -231,17 +238,17 @@ In `GET …/player`, a line whose words have timings from transcription carries 
 each word, a character range of its `text` and when it was said (ms). A corrected line keeps the timings of the words
 it still has.
 
-Recordings carry `tags`. `PATCH /recordings/{rid}` with `{"tags": [...]}` replaces a recording's tags (editors; at most
-20, 40 characters each; whitespace is collapsed and repeats are dropped, ignoring case). `POST /recordings/tags` with
+Recordings carry `tags`. `PATCH /resources/{rid}` with `{"tags": [...]}` replaces a recording's tags (editors; at most
+20, 40 characters each; whitespace is collapsed and repeats are dropped, ignoring case). `POST /resources/tags` with
 `{"recordings", "add", "remove"}` changes the tags of several at once (editors of each one's namespace) and says how
-many changed. `GET /recordings/tags` (`ns` for one namespace) lists the tags in use with how many recordings have each,
+many changed. `GET /resources/tags` (`ns` for one namespace) lists the tags in use with how many recordings have each,
 most used first.
 
-`PATCH /recordings/{rid}` with `{"title": …}` renames a recording (editors; whitespace is collapsed, at most 200
+`PATCH /resources/{rid}` with `{"title": …}` renames a recording (editors; whitespace is collapsed, at most 200
 characters). It is audited as `recording.rename`; the recording's report page follows the new title and is rebuilt,
 and a published recording shows up as an Update in the IIIF change feed.
 
-`DELETE /recordings/{rid}` deletes a recording (owners). Everything Lens made from it goes: its transcript and analysis
+`DELETE /resources/{rid}` deletes a recording (owners). Everything Lens made from it goes: its transcript and analysis
 (segments, speakers' turns, chapters, entity mentions, terms, edits), video shots, text on screen, face tracks and
 frames, outputs, reports and exports, shares, permissions, requests for access, and its place in IP groups, fixed
 collections, chat scopes and batch runs that haven't started it. Speakers and faces only it had are removed unless
@@ -251,7 +258,7 @@ and watched folders skip the same remote file, even when it changes; importing i
 `lens import`, a IIIF manifest) brings it back. A public recording shows up as a Delete in the IIIF change feed. It is
 audited as `recording.delete` with its title, namespace and path.
 
-`POST /recordings/{rid}/move` with `{"namespace", "collection", "rediarize", "revoke_shares"}` moves a recording to
+`POST /resources/{rid}/move` with `{"namespace", "collection", "rediarize", "revoke_shares"}` moves a recording to
 another namespace (owners of its namespace, editors of the new one), into `collection` there (default: the new
 namespace's default collection; 404 for a collection of another namespace). It keeps its transcript, media, frames, outputs, the people given
 permission on it and its share links (`revoke_shares`: they stop working). Its IIIF manifest stays as it was: what it
@@ -264,31 +271,31 @@ move to the new namespace's folders. The old namespace's scans and watched folde
 its IP groups no longer open the recording. 409 when the new namespace already has the same file or a job is running
 on it. Audited as `recording.move`.
 
-Share links (editors): `POST /recordings/{rid}/share` with `{"days"}` (1–3650, default 30) makes one and returns its
+Share links (editors): `POST /resources/{rid}/share` with `{"days"}` (1–3650, default 30) makes one and returns its
 `id`, `token`, `embed` (`/embed/<id>?s=<token>`) and `short` (`/s/<code>`, ten characters, the same player); only their
-hashes are kept, so the addresses are shown this once. `GET /recordings/{rid}/shares` lists the links, newest first:
+hashes are kept, so the addresses are shown this once. `GET /resources/{rid}/shares` lists the links, newest first:
 `active` (neither `revoked` nor expired), `revoked_by`/`revoked_at`, `short` (links from before short links have
 none), `plays` (times its player started playing, once per page load; previews in Lens itself don't count) with
 `played_at`, and `embedded_on`: the sites whose pages framed its player (`origin`, `opens`, `last_at`, most recent
-first, up to 50 per link), from the browser's Referer when it reports a frame. `DELETE /recordings/{rid}/shares/{id}`
-revokes one link (404 if the recording has no such link), `DELETE /recordings/{rid}/share` every one that still
+first, up to 50 per link), from the browser's Referer when it reports a frame. `DELETE /resources/{rid}/shares/{id}`
+revokes one link (404 if the recording has no such link), `DELETE /resources/{rid}/share` every one that still
 works; both are audited as `share.revoke`. A link that doesn't work (expired, revoked, mistyped, or its recording is
 gone) opens a neutral page with status 410 that says nothing about the recording.
 
-`GET /recordings/{rid}/access` says who may see a recording (members): `access` (`public`, `restricted` or
+`GET /resources/{rid}/access` says who may see a recording (members): `access` (`public`, `restricted` or
 `private`), `open` (the parts a public recording opens to everyone: `media`, `transcript`, `index`), `featured`,
 `inherited` (the access comes from the namespace) and the namespace's `default`. `PUT` changes any of them (owners);
 `null` follows the namespace again. Changes are audited as `recording.access`, kept in the metadata history, and
 announced in the IIIF change feed. [Access](access.md) explains what each level lets people do.
 
-`/recordings/{rid}/permissions` lists the people given permission on the recording (owners). `POST` with `{"email":
+`/resources/{rid}/permissions` lists the people given permission on the recording (owners). `POST` with `{"email":
 …}` gives it to the account with that address (404 when there is none, 400 for members of the namespace, who already
 see all of it); `DELETE …/{account}` takes it away. Both answer with the list and are audited as
-`recording.permission.give` and `recording.permission.take`. `/recordings/{rid}/requests` lists the requests for access
+`recording.permission.give` and `recording.permission.take`. `/resources/{rid}/requests` lists the requests for access
 (owners); approving one gives permission, declining lets the person ask again (audited as
 `recording.request.approve` and `recording.request.decline`).
 
-`/recordings/{rid}/ip-groups` lists the namespace's IP groups with `opens`: whether visitors from their addresses see
+`/resources/{rid}/ip-groups` lists the namespace's IP groups with `opens`: whether visitors from their addresses see
 all of the recording (owners). `PUT …/{gid}` opens the recording to a group that opens chosen recordings (400 for one
 that opens `everything` already), `DELETE …/{gid}` closes it again (404 when it wasn't open). Both answer with the list
 and are audited as `recording.ip_group.open` and `recording.ip_group.close`.
@@ -296,10 +303,10 @@ and are audited as `recording.ip_group.open` and `recording.ip_group.close`.
 ## notes
 
 ```
-GET    /api/v1/recordings/{rid}/notes
-POST   /api/v1/recordings/{rid}/notes
-PATCH  /api/v1/recordings/{rid}/notes/{nid}
-DELETE /api/v1/recordings/{rid}/notes/{nid}
+GET    /api/v1/resources/{rid}/notes
+POST   /api/v1/resources/{rid}/notes
+PATCH  /api/v1/resources/{rid}/notes/{nid}
+DELETE /api/v1/resources/{rid}/notes/{nid}
 ```
 
 Notes on a recording, for people with a role in its namespace (share links and signed links don't reach them). `POST`
@@ -444,9 +451,9 @@ GET    /api/v1/graph/path
 ## metadata
 
 ```
-GET    /api/v1/recordings/{rid}/metadata
-PUT    /api/v1/recordings/{rid}/metadata
-GET    /api/v1/recordings/{rid}/metadata/history
+GET    /api/v1/resources/{rid}/metadata
+PUT    /api/v1/resources/{rid}/metadata
+GET    /api/v1/resources/{rid}/metadata/history
 POST   /api/v1/metadata/edits/{eid}/revert
 GET    /api/v1/namespaces/{name}/metadata
 PUT    /api/v1/namespaces/{name}/metadata
@@ -456,10 +463,10 @@ POST   /api/v1/metadata/bulk
 ## video
 
 ```
-GET    /api/v1/recordings/{rid}/media
-GET    /api/v1/recordings/{rid}/frames/{name}
-PATCH  /api/v1/recordings/{rid}/ocr/{span}
-DELETE /api/v1/recordings/{rid}/faces/{track}
+GET    /api/v1/resources/{rid}/media
+GET    /api/v1/resources/{rid}/frames/{name}
+PATCH  /api/v1/resources/{rid}/ocr/{span}
+DELETE /api/v1/resources/{rid}/faces/{track}
 GET    /api/v1/namespaces/{name}/faces
 DELETE /api/v1/namespaces/{name}/faces
 PUT    /api/v1/namespaces/{name}/faces/mode
@@ -474,8 +481,8 @@ POST   /api/v1/faces/{fid}/dismiss
 ## iiif
 
 ```
-GET    /api/v1/recordings/{rid}/iiif
-GET    /api/v1/recordings/{rid}/content-state
+GET    /api/v1/resources/{rid}/iiif
+GET    /api/v1/resources/{rid}/content-state
 POST   /api/v1/import/iiif/preview
 POST   /api/v1/import/iiif
 ```
@@ -634,7 +641,7 @@ Saved views of the Library: a `name` (unique among your views, ignoring case), t
 namespace you can read) and its `state`: the tab (`all`, `attention`, `processing`), the filter box `q`, `statuses`,
 a `speaker` by name (each namespace has its own speaker ids), the Library's `date` and `duration` ranges (kept as
 ranges, so `30d` stays the last 30 days), `media`, `tags`, a `collection` of its namespace and `sort` (as
-`GET /recordings` takes it). A view is its
+`GET /resources` takes it). A view is its
 maker's; `shared: true` shows it to everyone with a role in its namespace (sharing needs editor access there, and a
 view of every namespace can't be shared). `GET` lists yours, then the shared ones of namespaces you can read, each
 with `mine` and `can_delete`; a view of a namespace you can no longer read is left out. Only its maker changes a view

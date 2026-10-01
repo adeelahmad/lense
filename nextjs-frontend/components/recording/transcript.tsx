@@ -558,7 +558,7 @@ function SelectionToolbar({ box }: { box: React.RefObject<HTMLDivElement | null>
   if (!sel) return momentDialog;
   const secs = Math.floor(sel.t / 1000);
   const copy = async () => {
-    const url = `${window.location.origin}/recordings/${id}?t=${secs}`;
+    const url = `${window.location.origin}/resources/${id}?t=${secs}`;
     try {
       await navigator.clipboard.writeText(url);
       toast({ title: `Link at ${tc(sel.t)} copied`, tone: "green" });

@@ -187,8 +187,8 @@ describe("facets and groups", () => {
   });
 
   it("links to the moment in whole seconds", () => {
-    expect(recordingHref(12, 869_400)).toBe("/recordings/12?t=869");
-    expect(recordingHref(12, 0)).toBe("/recordings/12");
+    expect(recordingHref(12, 869_400)).toBe("/resources/12?t=869");
+    expect(recordingHref(12, 0)).toBe("/resources/12");
   });
 });
 

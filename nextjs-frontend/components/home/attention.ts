@@ -157,7 +157,7 @@ export function buildAttention(input: {
       meta: [r.message ? `“${short(r.message, 70)}”` : null, r.at ? relative(r.at, now) : null, r.namespace]
         .filter(Boolean)
         .join(" · "),
-      action: { label: "Review", do: { type: "link", href: `/recordings/${r.recording}#access` } },
+      action: { label: "Review", do: { type: "link", href: `/resources/${r.recording}#access` } },
       namespace: r.namespace ?? null,
     });
   }

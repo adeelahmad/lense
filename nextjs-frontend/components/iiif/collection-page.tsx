@@ -297,7 +297,7 @@ export function CollectionPage({ ns }: { ns: string }) {
         {open && (
           <>
             <div className="flex gap-3 border-b border-border px-[18px] py-2.5 text-[12.5px]">
-              <Link href={`/recordings/${open.id}`} className="font-semibold text-fg-accent hover:underline">
+              <Link href={`/resources/${open.id}`} className="font-semibold text-fg-accent hover:underline">
                 Open recording
               </Link>
               <Link href={`/iiif/metadata/${open.id}`} className="font-semibold text-fg-accent hover:underline">

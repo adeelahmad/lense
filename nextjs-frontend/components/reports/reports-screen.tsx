@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChartNoAxesColumn } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { Recordings } from "@/app/openapi-client";
+import { Resources } from "@/app/openapi-client";
 import { NamespaceOverview } from "@/components/reports/namespace-overview";
 import { RecordingReport, ReportBack } from "@/components/reports/recording-report";
 import { EmptyState, PageHeader, Skeleton } from "@/components/ui/states";
@@ -42,7 +42,7 @@ export function ReportsScreen() {
 
   const rec = useQuery({
     queryKey: ["recording", recording],
-    queryFn: () => data(Recordings.getRecording({ client, path: { rid: recording as number } })),
+    queryFn: () => data(Resources.getRecording({ client, path: { rid: recording as number } })),
     enabled: recording != null,
   });
 

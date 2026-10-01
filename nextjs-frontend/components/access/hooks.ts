@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Namespaces, Recordings } from "@/app/openapi-client";
+import { Namespaces, Resources } from "@/app/openapi-client";
 import type {
   AccessRequest,
   IpGroup,
@@ -25,7 +25,7 @@ export function useRecordingAccess(rid: number, enabled = true) {
   const client = useApiClient();
   return useQuery({
     queryKey: accessKey(rid),
-    queryFn: () => data(Recordings.getRecordingAccess({ client, path: { rid } })),
+    queryFn: () => data(Resources.getRecordingAccess({ client, path: { rid } })),
     enabled,
   });
 }
@@ -36,8 +36,7 @@ export function useSaveAccess(rid: number) {
   const qc = useQueryClient();
   const toast = useToast();
   return useMutation({
-    mutationFn: (body: RecordingAccessUpdate) =>
-      data(Recordings.updateRecordingAccess({ client, path: { rid }, body })),
+    mutationFn: (body: RecordingAccessUpdate) => data(Resources.updateRecordingAccess({ client, path: { rid }, body })),
     onSuccess: (r: RecordingAccess) => {
       qc.setQueryData(accessKey(rid), r);
       void qc.invalidateQueries({ queryKey: ["recording", rid] });
@@ -58,7 +57,7 @@ export function usePermissions(rid: number, enabled = true) {
   const client = useApiClient();
   return useQuery({
     queryKey: permissionsKey(rid),
-    queryFn: () => data(Recordings.listRecordingPermissions({ client, path: { rid } })),
+    queryFn: () => data(Resources.listRecordingPermissions({ client, path: { rid } })),
     enabled,
   });
 }
@@ -70,7 +69,7 @@ export function useGivePermission(rid: number) {
   const toast = useToast();
   return useMutation({
     mutationFn: (email: string) =>
-      data(Recordings.addRecordingPermission({ client, path: { rid }, body: { email: email.trim() } })),
+      data(Resources.addRecordingPermission({ client, path: { rid }, body: { email: email.trim() } })),
     onSuccess: (list: Permission[], email) => {
       qc.setQueryData(permissionsKey(rid), list);
       toast({ title: "Permission given", body: `${email.trim()} sees all of it now.`, tone: "green" });
@@ -85,7 +84,7 @@ export function useTakePermission(rid: number) {
   const toast = useToast();
   return useMutation({
     mutationFn: (p: Permission) =>
-      data(Recordings.removeRecordingPermission({ client, path: { rid, account: p.account } })),
+      data(Resources.removeRecordingPermission({ client, path: { rid, account: p.account } })),
     onSuccess: (list: Permission[], p) => {
       qc.setQueryData(permissionsKey(rid), list);
       toast({ title: "Permission taken away", body: `${p.email} no longer sees what isn’t open to everyone.` });
@@ -101,7 +100,7 @@ export function useAccessRequests(rid: number, enabled = true) {
   const client = useApiClient();
   return useQuery({
     queryKey: requestsKey(rid),
-    queryFn: () => data(Recordings.listAccessRequests({ client, path: { rid } })),
+    queryFn: () => data(Resources.listAccessRequests({ client, path: { rid } })),
     enabled,
   });
 }
@@ -114,7 +113,7 @@ export function useDecideRequest(rid: number) {
   return useMutation({
     mutationFn: ({ req, approve }: { req: AccessRequest; approve: boolean }) =>
       data(
-        (approve ? Recordings.approveAccessRequest : Recordings.declineAccessRequest)({
+        (approve ? Resources.approveAccessRequest : Resources.declineAccessRequest)({
           client,
           path: { rid, account: req.account },
         }),
@@ -188,7 +187,7 @@ export function useRecordingIpGroups(rid: number, enabled = true) {
   const client = useApiClient();
   return useQuery({
     queryKey: recordingIpGroupsKey(rid),
-    queryFn: () => data(Recordings.listRecordingIpGroups({ client, path: { rid } })),
+    queryFn: () => data(Resources.listRecordingIpGroups({ client, path: { rid } })),
     enabled,
   });
 }
@@ -201,7 +200,7 @@ export function useChooseIpGroup(rid: number, ns: string) {
   return useMutation({
     mutationFn: ({ g, on }: { g: RecordingIpGroup; on: boolean }) =>
       data(
-        (on ? Recordings.openRecordingToIpGroup : Recordings.closeRecordingToIpGroup)({
+        (on ? Resources.openRecordingToIpGroup : Resources.closeRecordingToIpGroup)({
           client,
           path: { rid, gid: g.id },
         }),

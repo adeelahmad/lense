@@ -9542,7 +9542,7 @@ export type ListRecordingsData = {
      */
     offset?: number;
   };
-  url: "/api/v1/recordings";
+  url: "/api/v1/resources";
 };
 
 export type ListRecordingsErrors = {
@@ -9574,7 +9574,7 @@ export type ListTagsData = {
      */
     ns?: string | null;
   };
-  url: "/api/v1/recordings/tags";
+  url: "/api/v1/resources/tags";
 };
 
 export type ListTagsErrors = {
@@ -9600,7 +9600,7 @@ export type RetagRecordingsData = {
   body: RecordingsRetag;
   path?: never;
   query?: never;
-  url: "/api/v1/recordings/tags";
+  url: "/api/v1/resources/tags";
 };
 
 export type RetagRecordingsErrors = {
@@ -9631,7 +9631,7 @@ export type ListOriginsData = {
      */
     ns?: string | null;
   };
-  url: "/api/v1/recordings/origins";
+  url: "/api/v1/resources/origins";
 };
 
 export type ListOriginsErrors = {
@@ -9663,7 +9663,7 @@ export type ListLanguagesData = {
      */
     ns?: string | null;
   };
-  url: "/api/v1/recordings/languages";
+  url: "/api/v1/resources/languages";
 };
 
 export type ListLanguagesErrors = {
@@ -9689,7 +9689,7 @@ export type PlaceRecordingsData = {
   body: RecordingsPlace;
   path?: never;
   query?: never;
-  url: "/api/v1/recordings/collection";
+  url: "/api/v1/resources/collection";
 };
 
 export type PlaceRecordingsErrors = {
@@ -9719,7 +9719,7 @@ export type DeleteRecordingData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}";
+  url: "/api/v1/resources/{rid}";
 };
 
 export type DeleteRecordingErrors = {
@@ -9749,7 +9749,7 @@ export type GetRecordingData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}";
+  url: "/api/v1/resources/{rid}";
 };
 
 export type GetRecordingErrors = {
@@ -9779,7 +9779,7 @@ export type UpdateRecordingData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}";
+  url: "/api/v1/resources/{rid}";
 };
 
 export type UpdateRecordingErrors = {
@@ -9809,7 +9809,7 @@ export type MoveRecordingData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/move";
+  url: "/api/v1/resources/{rid}/move";
 };
 
 export type MoveRecordingErrors = {
@@ -9839,7 +9839,7 @@ export type GetRecordingAccessData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/access";
+  url: "/api/v1/resources/{rid}/access";
 };
 
 export type GetRecordingAccessErrors = {
@@ -9869,7 +9869,7 @@ export type UpdateRecordingAccessData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/access";
+  url: "/api/v1/resources/{rid}/access";
 };
 
 export type UpdateRecordingAccessErrors = {
@@ -9899,7 +9899,7 @@ export type ListRecordingPermissionsData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/permissions";
+  url: "/api/v1/resources/{rid}/permissions";
 };
 
 export type ListRecordingPermissionsErrors = {
@@ -9931,7 +9931,7 @@ export type AddRecordingPermissionData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/permissions";
+  url: "/api/v1/resources/{rid}/permissions";
 };
 
 export type AddRecordingPermissionErrors = {
@@ -9966,7 +9966,7 @@ export type RemoveRecordingPermissionData = {
     account: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/permissions/{account}";
+  url: "/api/v1/resources/{rid}/permissions/{account}";
 };
 
 export type RemoveRecordingPermissionErrors = {
@@ -9998,7 +9998,7 @@ export type ListRecordingIpGroupsData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/ip-groups";
+  url: "/api/v1/resources/{rid}/ip-groups";
 };
 
 export type ListRecordingIpGroupsErrors = {
@@ -10033,7 +10033,7 @@ export type CloseRecordingToIpGroupData = {
     gid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/ip-groups/{gid}";
+  url: "/api/v1/resources/{rid}/ip-groups/{gid}";
 };
 
 export type CloseRecordingToIpGroupErrors = {
@@ -10068,7 +10068,7 @@ export type OpenRecordingToIpGroupData = {
     gid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/ip-groups/{gid}";
+  url: "/api/v1/resources/{rid}/ip-groups/{gid}";
 };
 
 export type OpenRecordingToIpGroupErrors = {
@@ -10099,7 +10099,7 @@ export type ListAccessRequestsData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/requests";
+  url: "/api/v1/resources/{rid}/requests";
 };
 
 export type ListAccessRequestsErrors = {
@@ -10134,7 +10134,7 @@ export type ApproveAccessRequestData = {
     account: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/requests/{account}/approve";
+  url: "/api/v1/resources/{rid}/requests/{account}/approve";
 };
 
 export type ApproveAccessRequestErrors = {
@@ -10169,7 +10169,7 @@ export type DeclineAccessRequestData = {
     account: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/requests/{account}/decline";
+  url: "/api/v1/resources/{rid}/requests/{account}/decline";
 };
 
 export type DeclineAccessRequestErrors = {
@@ -10205,7 +10205,7 @@ export type GetPlayerData = {
      */
     s?: string;
   };
-  url: "/api/v1/recordings/{rid}/player";
+  url: "/api/v1/resources/{rid}/player";
 };
 
 export type GetPlayerErrors = {
@@ -10241,7 +10241,7 @@ export type GetEmbedLinkData = {
      */
     t?: number;
   };
-  url: "/api/v1/recordings/{rid}/embed-link";
+  url: "/api/v1/resources/{rid}/embed-link";
 };
 
 export type GetEmbedLinkErrors = {
@@ -10276,7 +10276,7 @@ export type GetAudioData = {
      */
     s?: string;
   };
-  url: "/api/v1/recordings/{rid}/audio";
+  url: "/api/v1/resources/{rid}/audio";
 };
 
 export type GetAudioErrors = {
@@ -10313,7 +10313,7 @@ export type GetRecordingWordcloudData = {
      */
     s?: string;
   };
-  url: "/api/v1/recordings/{rid}/wordcloud.svg";
+  url: "/api/v1/resources/{rid}/wordcloud.svg";
 };
 
 export type GetRecordingWordcloudErrors = {
@@ -10346,7 +10346,7 @@ export type ReprocessRecordingData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/reprocess";
+  url: "/api/v1/resources/{rid}/reprocess";
 };
 
 export type ReprocessRecordingErrors = {
@@ -10376,7 +10376,7 @@ export type RevokeSharesData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/share";
+  url: "/api/v1/resources/{rid}/share";
 };
 
 export type RevokeSharesErrors = {
@@ -10409,7 +10409,7 @@ export type CreateShareData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/share";
+  url: "/api/v1/resources/{rid}/share";
 };
 
 export type CreateShareErrors = {
@@ -10444,7 +10444,7 @@ export type RevokeShareData = {
     sid: string;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/shares/{sid}";
+  url: "/api/v1/resources/{rid}/shares/{sid}";
 };
 
 export type RevokeShareErrors = {
@@ -10474,7 +10474,7 @@ export type ListSharesData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/shares";
+  url: "/api/v1/resources/{rid}/shares";
 };
 
 export type ListSharesErrors = {
@@ -10509,7 +10509,7 @@ export type ExportRecordingData = {
     fmt: string;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/export.{fmt}";
+  url: "/api/v1/resources/{rid}/export.{fmt}";
 };
 
 export type ExportRecordingErrors = {
@@ -10541,7 +10541,7 @@ export type EditSegmentData = {
     idx: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/segments/{idx}";
+  url: "/api/v1/resources/{rid}/segments/{idx}";
 };
 
 export type EditSegmentErrors = {
@@ -10575,7 +10575,7 @@ export type SplitSegmentData = {
     idx: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/segments/{idx}/split";
+  url: "/api/v1/resources/{rid}/segments/{idx}/split";
 };
 
 export type SplitSegmentErrors = {
@@ -10609,7 +10609,7 @@ export type MergeSegmentsData = {
     idx: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/segments/{idx}/merge";
+  url: "/api/v1/resources/{rid}/segments/{idx}/merge";
 };
 
 export type MergeSegmentsErrors = {
@@ -10639,7 +10639,7 @@ export type ListSegmentEditsData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/edits";
+  url: "/api/v1/resources/{rid}/edits";
 };
 
 export type ListSegmentEditsErrors = {
@@ -10670,7 +10670,7 @@ export type ListOutputsData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/outputs";
+  url: "/api/v1/resources/{rid}/outputs";
 };
 
 export type ListOutputsErrors = {
@@ -10701,7 +10701,7 @@ export type ListNotesData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/notes";
+  url: "/api/v1/resources/{rid}/notes";
 };
 
 export type ListNotesErrors = {
@@ -10732,7 +10732,7 @@ export type CreateNoteData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/notes";
+  url: "/api/v1/resources/{rid}/notes";
 };
 
 export type CreateNoteErrors = {
@@ -10766,7 +10766,7 @@ export type DeleteNoteData = {
     nid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/notes/{nid}";
+  url: "/api/v1/resources/{rid}/notes/{nid}";
 };
 
 export type DeleteNoteErrors = {
@@ -10800,7 +10800,7 @@ export type UpdateNoteData = {
     nid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/notes/{nid}";
+  url: "/api/v1/resources/{rid}/notes/{nid}";
 };
 
 export type UpdateNoteErrors = {
@@ -12238,7 +12238,7 @@ export type GetRecordingMetadataData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/metadata";
+  url: "/api/v1/resources/{rid}/metadata";
 };
 
 export type GetRecordingMetadataErrors = {
@@ -12268,7 +12268,7 @@ export type UpdateRecordingMetadataData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/metadata";
+  url: "/api/v1/resources/{rid}/metadata";
 };
 
 export type UpdateRecordingMetadataErrors = {
@@ -12298,7 +12298,7 @@ export type ListRecordingMetadataHistoryData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/metadata/history";
+  url: "/api/v1/resources/{rid}/metadata/history";
 };
 
 export type ListRecordingMetadataHistoryErrors = {
@@ -12451,7 +12451,7 @@ export type GetMediaData = {
      */
     s?: string;
   };
-  url: "/api/v1/recordings/{rid}/media";
+  url: "/api/v1/resources/{rid}/media";
 };
 
 export type GetMediaErrors = {
@@ -12492,7 +12492,7 @@ export type GetFrameData = {
      */
     s?: string;
   };
-  url: "/api/v1/recordings/{rid}/frames/{name}";
+  url: "/api/v1/resources/{rid}/frames/{name}";
 };
 
 export type GetFrameErrors = {
@@ -12524,7 +12524,7 @@ export type FixScreenTextData = {
     span: string;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/ocr/{span}";
+  url: "/api/v1/resources/{rid}/ocr/{span}";
 };
 
 export type FixScreenTextErrors = {
@@ -12558,7 +12558,7 @@ export type DeleteFaceTrackData = {
     track: string;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/faces/{track}";
+  url: "/api/v1/resources/{rid}/faces/{track}";
 };
 
 export type DeleteFaceTrackErrors = {
@@ -12858,7 +12858,7 @@ export type GetRecordingIiifData = {
     rid: number;
   };
   query?: never;
-  url: "/api/v1/recordings/{rid}/iiif";
+  url: "/api/v1/resources/{rid}/iiif";
 };
 
 export type GetRecordingIiifErrors = {
@@ -12897,7 +12897,7 @@ export type GetContentStateData = {
      */
     t1?: number | null;
   };
-  url: "/api/v1/recordings/{rid}/content-state";
+  url: "/api/v1/resources/{rid}/content-state";
 };
 
 export type GetContentStateErrors = {

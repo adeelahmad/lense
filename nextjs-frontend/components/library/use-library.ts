@@ -3,7 +3,7 @@
 import { keepPreviousData, useInfiniteQuery, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 
-import { Recordings, Sources, Speakers } from "@/app/openapi-client";
+import { Resources, Sources, Speakers } from "@/app/openapi-client";
 import type { RecordingSummary } from "@/app/openapi-client/types.gen";
 import { isActiveJob, latestJobs, speakerChoices, type LibraryQuery } from "@/components/library/model";
 import { data, page, useApiClient } from "@/lib/api/browser";
@@ -33,7 +33,7 @@ export function useLibrary(ns: string | null, query: LibraryQuery) {
     queryKey: recordingsKey(query),
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
-      page(Recordings.listRecordings({ client, query: { ...query, limit: PAGE, offset: pageParam } })),
+      page(Resources.listRecordings({ client, query: { ...query, limit: PAGE, offset: pageParam } })),
     getNextPageParam: (last, pages) => {
       const loaded = pages.reduce((a, p) => a + p.items.length, 0);
       return last.items.length && loaded < last.total ? loaded : undefined;
@@ -165,7 +165,7 @@ export function useLibraryCounts(ns: string | null) {
   const count = (extra: Pick<LibraryQuery, "attention" | "processing" | "edited_by">) => ({
     queryKey: ["recordings", "count", ns ?? "*", extra] as const,
     queryFn: async () =>
-      (await page(Recordings.listRecordings({ client, query: { ns: ns ?? undefined, ...extra, limit: 1 } }))).total,
+      (await page(Resources.listRecordings({ client, query: { ns: ns ?? undefined, ...extra, limit: 1 } }))).total,
     refetchInterval: running ? 10_000 : 60_000,
   });
   const attention = useQuery(count({ attention: true }));
@@ -201,7 +201,7 @@ export function useOrigins(ns: string | null) {
   const client = useApiClient();
   return useQuery({
     queryKey: ["recording-origins", ns],
-    queryFn: () => data(Recordings.listOrigins({ client, query: ns ? { ns } : {} })),
+    queryFn: () => data(Resources.listOrigins({ client, query: ns ? { ns } : {} })),
     staleTime: 60_000,
   });
 }
@@ -211,7 +211,7 @@ export function useLanguages(ns: string | null) {
   const client = useApiClient();
   return useQuery({
     queryKey: ["recording-languages", ns],
-    queryFn: () => data(Recordings.listLanguages({ client, query: ns ? { ns } : {} })),
+    queryFn: () => data(Resources.listLanguages({ client, query: ns ? { ns } : {} })),
     staleTime: 60_000,
   });
 }
@@ -220,7 +220,7 @@ export function useTagCounts(ns: string | null) {
   const client = useApiClient();
   return useQuery({
     queryKey: ["recording-tags", ns],
-    queryFn: () => data(Recordings.listTags({ client, query: ns ? { ns } : {} })),
+    queryFn: () => data(Resources.listTags({ client, query: ns ? { ns } : {} })),
     staleTime: 30_000,
   });
 }

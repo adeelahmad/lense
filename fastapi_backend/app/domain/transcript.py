@@ -1,4 +1,4 @@
-"""Splitting and merging transcript lines, and the timings of their words (docs/api.md#recordings).
+"""Splitting and merging transcript lines, and the timings of their words (docs/api.md#resources).
 
 A line keeps its words' timings from transcription when the engine gave them (``words``, a JSON list of
 [word, t0, t1] in ms). The player gets them as character ranges of the line's current text (`align`), so a corrected

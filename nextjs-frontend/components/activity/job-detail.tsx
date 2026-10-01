@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 
-import { Jobs, Pipelines, Recordings, Templates } from "@/app/openapi-client";
+import { Jobs, Pipelines, Resources, Templates } from "@/app/openapi-client";
 import { CancelJobDialog } from "@/components/activity/cancel-dialog";
 import {
   approx,
@@ -201,7 +201,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
       const r =
         pid == null
           ? await data(
-              Recordings.reprocessRecording({
+              Resources.reprocessRecording({
                 client,
                 path: { rid: job.recording },
                 body: {},
@@ -451,7 +451,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
           {left && <span className="font-semibold text-fg">{left}</span>}
           {ns && <span>{ns}</span>}
           {job.recording != null && (
-            <Link href={`/recordings/${job.recording}`} className="font-semibold text-fg-accent hover:underline">
+            <Link href={`/resources/${job.recording}`} className="font-semibold text-fg-accent hover:underline">
               Open recording →
             </Link>
           )}
@@ -545,7 +545,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
                   [
                     "Recording",
                     job.recording != null ? (
-                      <Link href={`/recordings/${job.recording}`} className="hover:underline">
+                      <Link href={`/resources/${job.recording}`} className="hover:underline">
                         {title ?? `#${job.recording}`}
                         {ns ? ` · ${ns}` : ""}
                       </Link>
@@ -636,10 +636,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
                   Pick a step on the left to see its settings, how long it took and its part of the log. Outputs are
                   saved on the{" "}
                   {job.recording != null ? (
-                    <Link
-                      href={`/recordings/${job.recording}`}
-                      className="font-semibold text-fg-accent hover:underline"
-                    >
+                    <Link href={`/resources/${job.recording}`} className="font-semibold text-fg-accent hover:underline">
                       recording
                     </Link>
                   ) : (

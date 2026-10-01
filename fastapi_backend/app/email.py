@@ -54,7 +54,7 @@ async def send_access_request_email(
     owners: list[str], who: str, rid: int, title: str | None, namespace: str | None, message: str | None
 ) -> None:
     """Tell a namespace's owners that someone asked for access to one of its recordings."""
-    link = f"{settings.FRONTEND_URL}/recordings/{rid}#access"
+    link = f"{settings.FRONTEND_URL}/resources/{rid}#access"
     if not owners:
         return
     if not settings.mail_enabled:

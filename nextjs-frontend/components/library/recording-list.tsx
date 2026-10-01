@@ -39,7 +39,7 @@ export function RecordingList({ rows, jobs, reviews, selected, onToggle, onOpen 
         const spk = speakerList(r.speakers).slice(0, 3);
         const open = () => {
           onOpen?.(r);
-          router.push(`/recordings/${r.id}`);
+          router.push(`/resources/${r.id}`);
         };
         return (
           <li
@@ -78,7 +78,7 @@ export function RecordingList({ rows, jobs, reviews, selected, onToggle, onOpen 
             </span>
             <span className="flex min-w-0 items-baseline gap-2.5">
               <Link
-                href={`/recordings/${r.id}`}
+                href={`/resources/${r.id}`}
                 data-row-link
                 onClick={() => onOpen?.(r)}
                 className="truncate text-[13.5px] font-semibold leading-none text-fg hover:underline"
@@ -138,7 +138,7 @@ export function RecordingCards({ rows, jobs, reviews, selected, onOpen }: RowPro
         return (
           <li key={r.id} data-row-id={r.id} className={cn("border-b border-border", selected.has(r.id) && "bg-hl")}>
             <Link
-              href={`/recordings/${r.id}`}
+              href={`/resources/${r.id}`}
               data-row-link
               onClick={() => onOpen?.(r)}
               className="flex flex-col gap-[7px] px-4 py-3 active:bg-surface"

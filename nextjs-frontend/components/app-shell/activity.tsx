@@ -74,7 +74,7 @@ export function ActivityPill() {
         body: `${specs.length} ${specs.length === 1 ? "step" : "steps"}${took != null ? ` · ${span(took)}` : ""}`,
         action: {
           label: "Open",
-          onClick: () => router.push(`/recordings/${job.recording}`),
+          onClick: () => router.push(`/resources/${job.recording}`),
         },
       });
     else if (job.status === "failed")

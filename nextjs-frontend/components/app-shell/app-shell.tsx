@@ -21,7 +21,7 @@ import { useArchive } from "@/lib/hooks/session";
 
 const COLLAPSED = "lens.nav.collapsed";
 // The pages that show a namespace someone sees only some collections of: everything else covers whole namespaces.
-const PARTIAL_OK = ["/library", "/search", "/recordings", "/account"];
+const PARTIAL_OK = ["/library", "/search", "/resources", "/recordings", "/account"];
 
 /** In place of a page about whole namespaces, when the namespace picked is one the person sees only part of. */
 function PartialNamespace({ ns, onAll }: { ns: string; onAll: () => void }) {
@@ -92,7 +92,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
   }, []);
   useEffect(() => setMobileOpen(false), [pathname]);
   // Recording pages collapse the nav to icons to give the transcript room (Recording R1); the toggle still opens it.
-  const autoCollapse = pathname.startsWith("/recordings/");
+  const autoCollapse = pathname.startsWith("/resources/") || pathname.startsWith("/recordings/");
   const [peek, setPeek] = useState(false);
   useEffect(() => setPeek(false), [pathname]);
 

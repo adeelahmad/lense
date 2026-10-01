@@ -5,7 +5,7 @@ import { AudioLines, ChartNoAxesColumn, FileAudio, MessagesSquare } from "lucide
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { AccessRequests, Recordings, Sources, Speakers, Tokens } from "@/app/openapi-client";
+import { AccessRequests, Resources, Sources, Speakers, Tokens } from "@/app/openapi-client";
 import { buildAttention, greeting, type AttentionItem } from "@/components/home/attention";
 import { QuickImport } from "@/components/home/quick-import";
 import { rememberView, useRecentViews, type ViewedKind } from "@/components/home/recently-viewed";
@@ -99,7 +99,7 @@ export function HomeScreen() {
     queryKey: ["recordings", "home", namespace ?? "*"],
     queryFn: () =>
       data(
-        Recordings.listRecordings({
+        Resources.listRecordings({
           client,
           query: { ns: namespace ?? undefined, limit: 50 },
         }),
@@ -343,11 +343,11 @@ export function HomeScreen() {
                   >
                     <span className="flex min-w-0 flex-col gap-[3px]">
                       <Link
-                        href={`/recordings/${r.id}`}
+                        href={`/resources/${r.id}`}
                         onClick={() =>
                           rememberView({
                             kind: "recording",
-                            href: `/recordings/${r.id}`,
+                            href: `/resources/${r.id}`,
                             title: r.title || "Untitled",
                           })
                         }
@@ -407,7 +407,7 @@ export function HomeScreen() {
                   <li key={j.id} className="flex flex-col gap-[5px]">
                     <span className="flex justify-between gap-3 text-[13px] font-semibold leading-tight">
                       <Link
-                        href={j.recording ? `/recordings/${j.recording}` : "/activity"}
+                        href={j.recording ? `/resources/${j.recording}` : "/activity"}
                         className="truncate text-fg hover:underline"
                       >
                         {(j.title || "Recording").replace(/\s+—.*$/, "")} · {stepLabel(j.next_step)}

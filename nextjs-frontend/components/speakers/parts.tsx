@@ -5,7 +5,7 @@ import { Loader2, Pause, Play } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
-import { Recordings, Speakers } from "@/app/openapi-client";
+import { Resources, Speakers } from "@/app/openapi-client";
 import type { Speaker } from "@/app/openapi-client/types.gen";
 import { playerSegments, playerSpeakers, useRecordingIndex } from "@/components/search/data";
 import { hasMedia, recordingHref } from "@/components/search/links";
@@ -94,7 +94,7 @@ export function useSpeakerClips(sid: number | null | undefined, { recordings = 3
   const players = useQueries({
     queries: top.map((r) => ({
       queryKey: ["player", r.id],
-      queryFn: () => data(Recordings.getPlayer({ client, path: { rid: r.id } })),
+      queryFn: () => data(Resources.getPlayer({ client, path: { rid: r.id } })),
       staleTime: 5 * 60_000,
     })),
   });

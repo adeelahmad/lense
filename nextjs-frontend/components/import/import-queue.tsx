@@ -246,7 +246,7 @@ function QueueRow({
                 Retry
               </button>
             ) : (
-              <Link href={`/recordings/${q.recording}`} className="text-fg-accent hover:underline">
+              <Link href={`/resources/${q.recording}`} className="text-fg-accent hover:underline">
                 Open
               </Link>
             )

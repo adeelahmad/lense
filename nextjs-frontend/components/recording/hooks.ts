@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
-import { Entities, Jobs, Notes, Pipelines, Recordings, Speakers, Templates, Video } from "@/app/openapi-client";
+import { Entities, Jobs, Notes, Pipelines, Resources, Speakers, Templates, Video } from "@/app/openapi-client";
 import type { NoteCreate, Recording } from "@/app/openapi-client/types.gen";
 import { isActive, normalizeJob, type JobInfo } from "@/components/recording/jobs";
 import { normalizePlayer } from "@/components/recording/model";
@@ -57,7 +57,7 @@ export function useRecording(id: number) {
   const client = useApiClient();
   return useQuery({
     queryKey: rk.detail(id),
-    queryFn: () => data(Recordings.getRecording({ client, path: { rid: id } })) as Promise<RecordingDetail>,
+    queryFn: () => data(Resources.getRecording({ client, path: { rid: id } })) as Promise<RecordingDetail>,
   });
 }
 
@@ -65,7 +65,7 @@ export function usePlayer(id: number, poll: number | false = false) {
   const client = useApiClient();
   return useQuery({
     queryKey: rk.player(id),
-    queryFn: () => data(Recordings.getPlayer({ client, path: { rid: id } })),
+    queryFn: () => data(Resources.getPlayer({ client, path: { rid: id } })),
     select: normalizePlayer,
     refetchInterval: poll,
   });
@@ -130,7 +130,7 @@ export function useEdits(id: number) {
   const client = useApiClient();
   return useQuery({
     queryKey: rk.edits(id),
-    queryFn: () => data(Recordings.listSegmentEdits({ client, path: { rid: id } })),
+    queryFn: () => data(Resources.listSegmentEdits({ client, path: { rid: id } })),
   });
 }
 
@@ -138,7 +138,7 @@ export function useOutputs(id: number) {
   const client = useApiClient();
   return useQuery({
     queryKey: rk.outputs(id),
-    queryFn: () => data(Recordings.listOutputs({ client, path: { rid: id } })),
+    queryFn: () => data(Resources.listOutputs({ client, path: { rid: id } })),
   });
 }
 
@@ -258,7 +258,7 @@ export function useRecordingActions(id: number) {
 
   const reprocess = useMutation({
     mutationFn: (body: { steps?: (string | Record<string, unknown>)[]; pipeline?: number }) =>
-      data(Recordings.reprocessRecording({ client, path: { rid: id }, body })),
+      data(Resources.reprocessRecording({ client, path: { rid: id }, body })),
     onSuccess: () => void qc.invalidateQueries({ queryKey: rk.jobs(id) }),
     onError: fail("Couldn't start the job"),
   });
@@ -279,7 +279,7 @@ export function useRecordingActions(id: number) {
       const body: { text?: string; speaker?: number | null } = {};
       if (v.text !== undefined) body.text = v.text;
       if (v.speaker !== undefined) body.speaker = v.speaker;
-      return data(Recordings.editSegment({ client, path: { rid: id, idx: v.idx }, body }));
+      return data(Resources.editSegment({ client, path: { rid: id, idx: v.idx }, body }));
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: rk.player(id) });
@@ -298,7 +298,7 @@ export function useRecordingActions(id: number) {
   const splitSegment = useMutation({
     mutationFn: (v: { idx: number; at: number; t?: number; speaker?: number | null }) =>
       data(
-        Recordings.splitSegment({
+        Resources.splitSegment({
           client,
           path: { rid: id, idx: v.idx },
           body: {
@@ -312,12 +312,12 @@ export function useRecordingActions(id: number) {
     onError: fail("Couldn't split the line"),
   });
   const mergeSegments = useMutation({
-    mutationFn: (idx: number) => data(Recordings.mergeSegments({ client, path: { rid: id, idx } })),
+    mutationFn: (idx: number) => data(Resources.mergeSegments({ client, path: { rid: id, idx } })),
     onSuccess: lineChanged,
     onError: fail("Couldn't merge the lines"),
   });
   const rename = useMutation({
-    mutationFn: (title: string) => data(Recordings.updateRecording({ client, path: { rid: id }, body: { title } })),
+    mutationFn: (title: string) => data(Resources.updateRecording({ client, path: { rid: id }, body: { title } })),
     onSuccess: (updated) => {
       qc.setQueryData(rk.detail(id), (old: RecordingDetail | undefined) => (old ? { ...old, ...updated } : old));
       void refresh();
@@ -390,7 +390,7 @@ export function useExport(id: number) {
   return useMutation({
     mutationFn: async ({ fmt, title }: { fmt: string; title: string }) => {
       const blob = (await data(
-        Recordings.exportRecording({
+        Resources.exportRecording({
           client,
           path: { rid: id, fmt },
           parseAs: "blob",

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Admin, Jobs, Recordings, Templates } from "@/app/openapi-client";
+import { Admin, Jobs, Resources, Templates } from "@/app/openapi-client";
 import type { Player, Recording } from "@/app/openapi-client/types.gen";
 import {
   downloadHtml,
@@ -180,15 +180,15 @@ export function RecordingReport({ id }: { id: number }) {
 
   const rec = useQuery({
     queryKey: ["recording", id],
-    queryFn: () => data(Recordings.getRecording({ client, path: { rid: id } })),
+    queryFn: () => data(Resources.getRecording({ client, path: { rid: id } })),
   });
   const player = useQuery({
     queryKey: ["player", id],
-    queryFn: () => data(Recordings.getPlayer({ client, path: { rid: id } })),
+    queryFn: () => data(Resources.getPlayer({ client, path: { rid: id } })),
   });
   const outputs = useQuery({
     queryKey: ["outputs", id],
-    queryFn: () => data(Recordings.listOutputs({ client, path: { rid: id } })),
+    queryFn: () => data(Resources.listOutputs({ client, path: { rid: id } })),
   });
   const templates = useQuery({
     queryKey: ["templates"],
@@ -340,7 +340,7 @@ export function RecordingReport({ id }: { id: number }) {
   const rebuild = async () => {
     try {
       const res = await data(
-        Recordings.reprocessRecording({
+        Resources.reprocessRecording({
           client,
           path: { rid: id },
           body: {

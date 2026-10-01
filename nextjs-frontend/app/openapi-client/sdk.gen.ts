@@ -1276,7 +1276,7 @@ export class Namespaces {
   }
 }
 
-export class Recordings {
+export class Resources {
   /**
    * List Recordings
    * Recordings you can read, newest first by default: those of the namespaces you have a role in, and of the
@@ -1287,7 +1287,7 @@ export class Recordings {
     options?: Options<ListRecordingsData, ThrowOnError>,
   ) {
     return (options?.client ?? client).get<ListRecordingsResponses, ListRecordingsErrors, ThrowOnError>({
-      url: "/api/v1/recordings",
+      url: "/api/v1/resources",
       ...options,
     });
   }
@@ -1298,7 +1298,7 @@ export class Recordings {
    */
   public static listTags<ThrowOnError extends boolean = false>(options?: Options<ListTagsData, ThrowOnError>) {
     return (options?.client ?? client).get<ListTagsResponses, ListTagsErrors, ThrowOnError>({
-      url: "/api/v1/recordings/tags",
+      url: "/api/v1/resources/tags",
       ...options,
     });
   }
@@ -1311,7 +1311,7 @@ export class Recordings {
     options: Options<RetagRecordingsData, ThrowOnError>,
   ) {
     return (options.client ?? client).post<RetagRecordingsResponses, RetagRecordingsErrors, ThrowOnError>({
-      url: "/api/v1/recordings/tags",
+      url: "/api/v1/resources/tags",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1327,7 +1327,7 @@ export class Recordings {
    */
   public static listOrigins<ThrowOnError extends boolean = false>(options?: Options<ListOriginsData, ThrowOnError>) {
     return (options?.client ?? client).get<ListOriginsResponses, ListOriginsErrors, ThrowOnError>({
-      url: "/api/v1/recordings/origins",
+      url: "/api/v1/resources/origins",
       ...options,
     });
   }
@@ -1340,7 +1340,7 @@ export class Recordings {
     options?: Options<ListLanguagesData, ThrowOnError>,
   ) {
     return (options?.client ?? client).get<ListLanguagesResponses, ListLanguagesErrors, ThrowOnError>({
-      url: "/api/v1/recordings/languages",
+      url: "/api/v1/resources/languages",
       ...options,
     });
   }
@@ -1356,7 +1356,7 @@ export class Recordings {
     options: Options<PlaceRecordingsData, ThrowOnError>,
   ) {
     return (options.client ?? client).post<PlaceRecordingsResponses, PlaceRecordingsErrors, ThrowOnError>({
-      url: "/api/v1/recordings/collection",
+      url: "/api/v1/resources/collection",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1376,7 +1376,7 @@ export class Recordings {
     options: Options<DeleteRecordingData, ThrowOnError>,
   ) {
     return (options.client ?? client).delete<DeleteRecordingResponses, DeleteRecordingErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}",
+      url: "/api/v1/resources/{rid}",
       ...options,
     });
   }
@@ -1386,7 +1386,7 @@ export class Recordings {
    */
   public static getRecording<ThrowOnError extends boolean = false>(options: Options<GetRecordingData, ThrowOnError>) {
     return (options.client ?? client).get<GetRecordingResponses, GetRecordingErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}",
+      url: "/api/v1/resources/{rid}",
       ...options,
     });
   }
@@ -1399,7 +1399,7 @@ export class Recordings {
     options: Options<UpdateRecordingData, ThrowOnError>,
   ) {
     return (options.client ?? client).patch<UpdateRecordingResponses, UpdateRecordingErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}",
+      url: "/api/v1/resources/{rid}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1420,7 +1420,7 @@ export class Recordings {
    */
   public static moveRecording<ThrowOnError extends boolean = false>(options: Options<MoveRecordingData, ThrowOnError>) {
     return (options.client ?? client).post<MoveRecordingResponses, MoveRecordingErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/move",
+      url: "/api/v1/resources/{rid}/move",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1437,7 +1437,7 @@ export class Recordings {
     options: Options<GetRecordingAccessData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<GetRecordingAccessResponses, GetRecordingAccessErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/access",
+      url: "/api/v1/resources/{rid}/access",
       ...options,
     });
   }
@@ -1453,7 +1453,7 @@ export class Recordings {
     options: Options<UpdateRecordingAccessData, ThrowOnError>,
   ) {
     return (options.client ?? client).put<UpdateRecordingAccessResponses, UpdateRecordingAccessErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/access",
+      url: "/api/v1/resources/{rid}/access",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1474,7 +1474,7 @@ export class Recordings {
       ListRecordingPermissionsErrors,
       ThrowOnError
     >({
-      url: "/api/v1/recordings/{rid}/permissions",
+      url: "/api/v1/resources/{rid}/permissions",
       ...options,
     });
   }
@@ -1489,7 +1489,7 @@ export class Recordings {
   ) {
     return (options.client ?? client).post<AddRecordingPermissionResponses, AddRecordingPermissionErrors, ThrowOnError>(
       {
-        url: "/api/v1/recordings/{rid}/permissions",
+        url: "/api/v1/resources/{rid}/permissions",
         ...options,
         headers: {
           "Content-Type": "application/json",
@@ -1511,7 +1511,7 @@ export class Recordings {
       RemoveRecordingPermissionErrors,
       ThrowOnError
     >({
-      url: "/api/v1/recordings/{rid}/permissions/{account}",
+      url: "/api/v1/resources/{rid}/permissions/{account}",
       ...options,
     });
   }
@@ -1524,7 +1524,7 @@ export class Recordings {
     options: Options<ListRecordingIpGroupsData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<ListRecordingIpGroupsResponses, ListRecordingIpGroupsErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/ip-groups",
+      url: "/api/v1/resources/{rid}/ip-groups",
       ...options,
     });
   }
@@ -1541,7 +1541,7 @@ export class Recordings {
       CloseRecordingToIpGroupErrors,
       ThrowOnError
     >({
-      url: "/api/v1/recordings/{rid}/ip-groups/{gid}",
+      url: "/api/v1/resources/{rid}/ip-groups/{gid}",
       ...options,
     });
   }
@@ -1555,7 +1555,7 @@ export class Recordings {
     options: Options<OpenRecordingToIpGroupData, ThrowOnError>,
   ) {
     return (options.client ?? client).put<OpenRecordingToIpGroupResponses, OpenRecordingToIpGroupErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/ip-groups/{gid}",
+      url: "/api/v1/resources/{rid}/ip-groups/{gid}",
       ...options,
     });
   }
@@ -1568,7 +1568,7 @@ export class Recordings {
     options: Options<ListAccessRequestsData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<ListAccessRequestsResponses, ListAccessRequestsErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/requests",
+      url: "/api/v1/resources/{rid}/requests",
       ...options,
     });
   }
@@ -1581,7 +1581,7 @@ export class Recordings {
     options: Options<ApproveAccessRequestData, ThrowOnError>,
   ) {
     return (options.client ?? client).post<ApproveAccessRequestResponses, ApproveAccessRequestErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/requests/{account}/approve",
+      url: "/api/v1/resources/{rid}/requests/{account}/approve",
       ...options,
     });
   }
@@ -1594,7 +1594,7 @@ export class Recordings {
     options: Options<DeclineAccessRequestData, ThrowOnError>,
   ) {
     return (options.client ?? client).post<DeclineAccessRequestResponses, DeclineAccessRequestErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/requests/{account}/decline",
+      url: "/api/v1/resources/{rid}/requests/{account}/decline",
       ...options,
     });
   }
@@ -1605,7 +1605,7 @@ export class Recordings {
    */
   public static getPlayer<ThrowOnError extends boolean = false>(options: Options<GetPlayerData, ThrowOnError>) {
     return (options.client ?? client).get<GetPlayerResponses, GetPlayerErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/player",
+      url: "/api/v1/resources/{rid}/player",
       ...options,
     });
   }
@@ -1616,7 +1616,7 @@ export class Recordings {
    */
   public static getEmbedLink<ThrowOnError extends boolean = false>(options: Options<GetEmbedLinkData, ThrowOnError>) {
     return (options.client ?? client).get<GetEmbedLinkResponses, GetEmbedLinkErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/embed-link",
+      url: "/api/v1/resources/{rid}/embed-link",
       ...options,
     });
   }
@@ -1627,7 +1627,7 @@ export class Recordings {
    */
   public static getAudio<ThrowOnError extends boolean = false>(options: Options<GetAudioData, ThrowOnError>) {
     return (options.client ?? client).get<GetAudioResponses, GetAudioErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/audio",
+      url: "/api/v1/resources/{rid}/audio",
       ...options,
     });
   }
@@ -1639,7 +1639,7 @@ export class Recordings {
     options: Options<GetRecordingWordcloudData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<GetRecordingWordcloudResponses, GetRecordingWordcloudErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/wordcloud.svg",
+      url: "/api/v1/resources/{rid}/wordcloud.svg",
       ...options,
     });
   }
@@ -1651,7 +1651,7 @@ export class Recordings {
     options: Options<ReprocessRecordingData, ThrowOnError>,
   ) {
     return (options.client ?? client).post<ReprocessRecordingResponses, ReprocessRecordingErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/reprocess",
+      url: "/api/v1/resources/{rid}/reprocess",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1666,7 +1666,7 @@ export class Recordings {
    */
   public static revokeShares<ThrowOnError extends boolean = false>(options: Options<RevokeSharesData, ThrowOnError>) {
     return (options.client ?? client).delete<RevokeSharesResponses, RevokeSharesErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/share",
+      url: "/api/v1/resources/{rid}/share",
       ...options,
     });
   }
@@ -1678,7 +1678,7 @@ export class Recordings {
    */
   public static createShare<ThrowOnError extends boolean = false>(options: Options<CreateShareData, ThrowOnError>) {
     return (options.client ?? client).post<CreateShareResponses, CreateShareErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/share",
+      url: "/api/v1/resources/{rid}/share",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1693,7 +1693,7 @@ export class Recordings {
    */
   public static revokeShare<ThrowOnError extends boolean = false>(options: Options<RevokeShareData, ThrowOnError>) {
     return (options.client ?? client).delete<RevokeShareResponses, RevokeShareErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/shares/{sid}",
+      url: "/api/v1/resources/{rid}/shares/{sid}",
       ...options,
     });
   }
@@ -1705,7 +1705,7 @@ export class Recordings {
    */
   public static listShares<ThrowOnError extends boolean = false>(options: Options<ListSharesData, ThrowOnError>) {
     return (options.client ?? client).get<ListSharesResponses, ListSharesErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/shares",
+      url: "/api/v1/resources/{rid}/shares",
       ...options,
     });
   }
@@ -1718,7 +1718,7 @@ export class Recordings {
     options: Options<ExportRecordingData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<ExportRecordingResponses, ExportRecordingErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/export.{fmt}",
+      url: "/api/v1/resources/{rid}/export.{fmt}",
       ...options,
     });
   }
@@ -1729,7 +1729,7 @@ export class Recordings {
    */
   public static editSegment<ThrowOnError extends boolean = false>(options: Options<EditSegmentData, ThrowOnError>) {
     return (options.client ?? client).patch<EditSegmentResponses, EditSegmentErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/segments/{idx}",
+      url: "/api/v1/resources/{rid}/segments/{idx}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1747,7 +1747,7 @@ export class Recordings {
    */
   public static splitSegment<ThrowOnError extends boolean = false>(options: Options<SplitSegmentData, ThrowOnError>) {
     return (options.client ?? client).post<SplitSegmentResponses, SplitSegmentErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/segments/{idx}/split",
+      url: "/api/v1/resources/{rid}/segments/{idx}/split",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1764,7 +1764,7 @@ export class Recordings {
    */
   public static mergeSegments<ThrowOnError extends boolean = false>(options: Options<MergeSegmentsData, ThrowOnError>) {
     return (options.client ?? client).post<MergeSegmentsResponses, MergeSegmentsErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/segments/{idx}/merge",
+      url: "/api/v1/resources/{rid}/segments/{idx}/merge",
       ...options,
     });
   }
@@ -1777,7 +1777,7 @@ export class Recordings {
     options: Options<ListSegmentEditsData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<ListSegmentEditsResponses, ListSegmentEditsErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/edits",
+      url: "/api/v1/resources/{rid}/edits",
       ...options,
     });
   }
@@ -1788,7 +1788,7 @@ export class Recordings {
    */
   public static listOutputs<ThrowOnError extends boolean = false>(options: Options<ListOutputsData, ThrowOnError>) {
     return (options.client ?? client).get<ListOutputsResponses, ListOutputsErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/outputs",
+      url: "/api/v1/resources/{rid}/outputs",
       ...options,
     });
   }
@@ -1801,7 +1801,7 @@ export class Notes {
    */
   public static listNotes<ThrowOnError extends boolean = false>(options: Options<ListNotesData, ThrowOnError>) {
     return (options.client ?? client).get<ListNotesResponses, ListNotesErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/notes",
+      url: "/api/v1/resources/{rid}/notes",
       ...options,
     });
   }
@@ -1814,7 +1814,7 @@ export class Notes {
    */
   public static createNote<ThrowOnError extends boolean = false>(options: Options<CreateNoteData, ThrowOnError>) {
     return (options.client ?? client).post<CreateNoteResponses, CreateNoteErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/notes",
+      url: "/api/v1/resources/{rid}/notes",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1830,7 +1830,7 @@ export class Notes {
    */
   public static deleteNote<ThrowOnError extends boolean = false>(options: Options<DeleteNoteData, ThrowOnError>) {
     return (options.client ?? client).delete<DeleteNoteResponses, DeleteNoteErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/notes/{nid}",
+      url: "/api/v1/resources/{rid}/notes/{nid}",
       ...options,
     });
   }
@@ -1842,7 +1842,7 @@ export class Notes {
    */
   public static updateNote<ThrowOnError extends boolean = false>(options: Options<UpdateNoteData, ThrowOnError>) {
     return (options.client ?? client).patch<UpdateNoteResponses, UpdateNoteErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/notes/{nid}",
+      url: "/api/v1/resources/{rid}/notes/{nid}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -2473,7 +2473,7 @@ export class Metadata {
     options: Options<GetRecordingMetadataData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<GetRecordingMetadataResponses, GetRecordingMetadataErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/metadata",
+      url: "/api/v1/resources/{rid}/metadata",
       ...options,
     });
   }
@@ -2490,7 +2490,7 @@ export class Metadata {
       UpdateRecordingMetadataErrors,
       ThrowOnError
     >({
-      url: "/api/v1/recordings/{rid}/metadata",
+      url: "/api/v1/resources/{rid}/metadata",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -2510,7 +2510,7 @@ export class Metadata {
       ListRecordingMetadataHistoryErrors,
       ThrowOnError
     >({
-      url: "/api/v1/recordings/{rid}/metadata/history",
+      url: "/api/v1/resources/{rid}/metadata/history",
       ...options,
     });
   }
@@ -2588,7 +2588,7 @@ export class Video {
    */
   public static getMedia<ThrowOnError extends boolean = false>(options: Options<GetMediaData, ThrowOnError>) {
     return (options.client ?? client).get<GetMediaResponses, GetMediaErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/media",
+      url: "/api/v1/resources/{rid}/media",
       ...options,
     });
   }
@@ -2599,7 +2599,7 @@ export class Video {
    */
   public static getFrame<ThrowOnError extends boolean = false>(options: Options<GetFrameData, ThrowOnError>) {
     return (options.client ?? client).get<GetFrameResponses, GetFrameErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/frames/{name}",
+      url: "/api/v1/resources/{rid}/frames/{name}",
       ...options,
     });
   }
@@ -2610,7 +2610,7 @@ export class Video {
    */
   public static fixScreenText<ThrowOnError extends boolean = false>(options: Options<FixScreenTextData, ThrowOnError>) {
     return (options.client ?? client).patch<FixScreenTextResponses, FixScreenTextErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/ocr/{span}",
+      url: "/api/v1/resources/{rid}/ocr/{span}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -2627,7 +2627,7 @@ export class Video {
     options: Options<DeleteFaceTrackData, ThrowOnError>,
   ) {
     return (options.client ?? client).delete<DeleteFaceTrackResponses, DeleteFaceTrackErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/faces/{track}",
+      url: "/api/v1/resources/{rid}/faces/{track}",
       ...options,
     });
   }
@@ -2771,7 +2771,7 @@ export class Iiif {
     options: Options<GetRecordingIiifData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<GetRecordingIiifResponses, GetRecordingIiifErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/iiif",
+      url: "/api/v1/resources/{rid}/iiif",
       ...options,
     });
   }
@@ -2784,7 +2784,7 @@ export class Iiif {
     options: Options<GetContentStateData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<GetContentStateResponses, GetContentStateErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/content-state",
+      url: "/api/v1/resources/{rid}/content-state",
       ...options,
     });
   }

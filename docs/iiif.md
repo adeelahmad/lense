@@ -14,7 +14,7 @@ can open them, and harvesters can follow them.
   it lives in. Collections show only what the requester may see: one with nothing visible inside it is left out.
 - **Content Search 2.0:** `/iiif/<id>/search` and `/autocomplete`, plus `/iiif/collection/<namespace>/search`. Hits come
   with highlighting (TextQuoteSelector).
-- **Content State 1.0:** `GET /api/v1/recordings/<id>/content-state?t0=&t1=` gives a link to an exact moment, encoded the
+- **Content State 1.0:** `GET /api/v1/resources/<id>/content-state?t0=&t1=` gives a link to an exact moment, encoded the
   way the spec requires, that compatible viewers open.
 - **Change Discovery 1.0:** `/iiif/discovery/activity`, a feed of Create, Update and Delete events for published
   recordings.
@@ -51,7 +51,7 @@ to authorities such as Wikidata), identifiers and related links.
 - Every change is kept and can be reverted. Bulk edits report what would change before applying.
 
 Manifests are checked against IIIF's Presentation 3 JSON Schema, bundled from IIIF's presentation-validator. This needs
-`pip install jsonschema`. `GET /api/v1/recordings/<id>/iiif` returns the manifest link, the recording's access, open
+`pip install jsonschema`. `GET /api/v1/resources/<id>/iiif` returns the manifest link, the recording's access, open
 parts and whether it's published, the validation result and the viewer links.
 
 ## Embedding the player
@@ -60,7 +60,7 @@ parts and whether it's published, the validation result and the viewer links.
 <iframe src="https://lens.example.org/embed/12?s=<share token>&t=90" style="width:100%;height:560px;border:0"></iframe>
 ```
 
-The embed needs a share link (`?s=…`, from `POST /api/v1/recordings/<id>/share`, which can be revoked) or a signed link from `GET /api/v1/recordings/<id>/embed-link` (which expires). A share link's short address (`https://lens.example.org/s/<code>?t=90`) works as the `src` too. Only `/embed/<id>` and `/s/<code>` may be framed, and only by origins listed in `server.embed_frame_ancestors`. An expired or revoked link shows a neutral "This link isn't available" page in the frame (status 410). Share links count their plays and remember the sites that frame them (`GET /api/v1/recordings/<id>/shares`). A host page can drive it:
+The embed needs a share link (`?s=…`, from `POST /api/v1/resources/<id>/share`, which can be revoked) or a signed link from `GET /api/v1/resources/<id>/embed-link` (which expires). A share link's short address (`https://lens.example.org/s/<code>?t=90`) works as the `src` too. Only `/embed/<id>` and `/s/<code>` may be framed, and only by origins listed in `server.embed_frame_ancestors`. An expired or revoked link shows a neutral "This link isn't available" page in the frame (status 410). Share links count their plays and remember the sites that frame them (`GET /api/v1/resources/<id>/shares`). A host page can drive it:
 
 ```js
 frame.contentWindow.postMessage({ type: 'archive:seek', t: 90, play: true }, '*')

@@ -2,7 +2,7 @@
 
 import { useQueries, useQuery } from "@tanstack/react-query";
 
-import { Metadata, Recordings } from "@/app/openapi-client";
+import { Metadata, Resources } from "@/app/openapi-client";
 import { profileProblems, publishState, type PublishState } from "@/components/iiif/metadata-model";
 import { keys, type NamespaceProfile, type RecordingMeta } from "@/components/iiif/queries";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -36,7 +36,7 @@ export function useCollectionItems(ns: string, offset: number, profile: Namespac
   const list = useQuery({
     queryKey: ["iiif-collection-recordings", ns],
     queryFn: async () =>
-      (await data(Recordings.listRecordings({ client, query: { ns, limit: 1000 } }))) as unknown as RecordingRow[],
+      (await data(Resources.listRecordings({ client, query: { ns, limit: 1000 } }))) as unknown as RecordingRow[],
   });
   const rows = (list.data ?? []).slice().sort((a, b) => (b.recorded_at ?? "").localeCompare(a.recorded_at ?? ""));
   const page = rows.slice(offset, offset + PAGE);

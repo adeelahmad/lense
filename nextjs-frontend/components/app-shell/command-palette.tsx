@@ -6,7 +6,7 @@ import { CornerDownLeft, FileAudio, Search, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Recordings } from "@/app/openapi-client";
+import { Resources } from "@/app/openapi-client";
 import { navFor } from "@/components/app-shell/nav-config";
 import { data, useApiClient } from "@/lib/api/browser";
 import { tc } from "@/lib/format";
@@ -46,7 +46,7 @@ export function CommandPalette() {
     queryKey: ["palette-recordings", namespace],
     queryFn: () =>
       data(
-        Recordings.listRecordings({
+        Resources.listRecordings({
           client,
           query: { ns: namespace, limit: 1000 },
         }),
@@ -101,7 +101,7 @@ export function CommandPalette() {
             group: "Recordings",
             label: r.title ?? `Recording ${r.id}`,
             meta: [r.namespace, r.duration_ms ? tc(r.duration_ms) : null].filter(Boolean).join(" · "),
-            href: `/recordings/${r.id}`,
+            href: `/resources/${r.id}`,
             icon: <FileAudio className="size-4" />,
           }))
       : [];

@@ -50,19 +50,19 @@ For scripts and integrations: `POST /api/v1/tokens` (while signed in) returns `l
 (`/api/v1/admin/tokens`); both are audited as `token.revoke`.
 
 ```bash
-curl -H "Authorization: Bearer la_…" https://lens.example.org/api/v1/recordings
+curl -H "Authorization: Bearer la_…" https://lens.example.org/api/v1/resources
 ```
 
 ## Share links and signed links
 
 * **Share links** give read-only access to one recording's player and embed, and expire. Each has a short address
   too (`/s/<code>`). Editors see how often each was played and which sites embed it, and revoke one link or all of
-  them: `POST/DELETE /api/v1/recordings/<id>/share`, `GET /api/v1/recordings/<id>/shares`,
-  `DELETE /api/v1/recordings/<id>/shares/<link id>`. Only hashes of the token and the code are stored. A link that
+  them: `POST/DELETE /api/v1/resources/<id>/share`, `GET /api/v1/resources/<id>/shares`,
+  `DELETE /api/v1/resources/<id>/shares/<link id>`. Only hashes of the token and the code are stored. A link that
   no longer works opens a neutral "This link isn't available" page (status 410), the same whatever went wrong, so it
   never tells whether a recording exists.
 * **Signed links** are what the API puts in responses for media (`?exp=&sig=`); see [Architecture](architecture.md#media).
-  `GET /api/v1/recordings/<id>/embed-link` returns a signed `/embed/<id>` link for people who can read the recording.
+  `GET /api/v1/resources/<id>/embed-link` returns a signed `/embed/<id>` link for people who can read the recording.
 
 ## IIIF viewers
 

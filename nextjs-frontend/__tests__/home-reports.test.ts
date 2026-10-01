@@ -221,7 +221,7 @@ describe("needs attention", () => {
         kind: "gate",
         title: "Ana asked for access to Episode 13",
         meta: "“For my thesis on capsids.” · 1 hour ago · podcasts",
-        action: { label: "Review", do: { type: "link", href: "/recordings/12#access" } },
+        action: { label: "Review", do: { type: "link", href: "/resources/12#access" } },
         namespace: "podcasts",
       },
     ]);

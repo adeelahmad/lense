@@ -3,7 +3,7 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import { Recordings, Speakers } from "@/app/openapi-client";
+import { Resources, Speakers } from "@/app/openapi-client";
 import type { Player, Speaker } from "@/app/openapi-client/types.gen";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
@@ -16,7 +16,7 @@ export function useRecordingIndex(enabled = true) {
   const client = useApiClient();
   const q = useQuery({
     queryKey: ["recording-index"],
-    queryFn: () => data(Recordings.listRecordings({ client, query: { limit: 1000 } })),
+    queryFn: () => data(Resources.listRecordings({ client, query: { limit: 1000 } })),
     staleTime: 60_000,
     enabled,
   });

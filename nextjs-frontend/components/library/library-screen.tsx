@@ -301,7 +301,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
     (r: RecordingSummary) =>
       rememberView({
         kind: "recording",
-        href: `/recordings/${r.id}`,
+        href: `/resources/${r.id}`,
         title: r.title || "Untitled",
       }),
     [],

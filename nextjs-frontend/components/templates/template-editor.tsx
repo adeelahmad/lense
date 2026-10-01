@@ -5,7 +5,7 @@ import { FileText, Play } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Recordings, Templates } from "@/app/openapi-client";
+import { Resources, Templates } from "@/app/openapi-client";
 import type { Template, TemplatePreview } from "@/app/openapi-client/types.gen";
 import { CodeEditor, type CodeEditorHandle } from "@/components/templates/code-editor";
 import {
@@ -82,7 +82,7 @@ export function TemplateEditor({ id }: { id: number }) {
 
   const recs = useQuery({
     queryKey: ["recordings", "picker"],
-    queryFn: () => data(Recordings.listRecordings({ client, query: { limit: 500 } })),
+    queryFn: () => data(Resources.listRecordings({ client, query: { limit: 500 } })),
     staleTime: 60_000,
   });
   useEffect(() => {

@@ -62,7 +62,12 @@ export function navFor(admin: boolean): NavItem[] {
 export function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   if (href === "/library")
-    return pathname === "/library" || pathname.startsWith("/library/") || pathname.startsWith("/recordings/");
+    return (
+      pathname === "/library" ||
+      pathname.startsWith("/library/") ||
+      pathname.startsWith("/resources/") ||
+      pathname.startsWith("/recordings/")
+    );
   // Templates are the second tab of Pipelines.
   if (href === "/pipelines" && (pathname === "/templates" || pathname.startsWith("/templates/"))) return true;
   return pathname === href || pathname.startsWith(`${href}/`);

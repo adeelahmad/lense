@@ -29,7 +29,7 @@ export const fetchWithReauth: typeof fetch = async (input, init) => {
  * rewrites to the API, with the session's access token. Use with the generated SDK and React Query:
  *
  *   const client = useApiClient();
- *   useQuery({ queryKey: ["recordings"], queryFn: () => data(Recordings.listRecordings({ client })) });
+ *   useQuery({ queryKey: ["recordings"], queryFn: () => data(Resources.listRecordings({ client })) });
  */
 export function useApiClient(): Client {
   const { data: session } = useSession();

@@ -63,7 +63,7 @@ function OpenMoment({ token }: { token: string }) {
   const target = contentStateTarget(decodeContentState(token));
   useEffect(() => {
     if (target)
-      router.replace(`/recordings/${target.recording}${target.t0 != null ? `?t=${Math.floor(target.t0)}` : ""}`);
+      router.replace(`/resources/${target.recording}${target.t0 != null ? `?t=${Math.floor(target.t0)}` : ""}`);
   }, [target, router]);
   return target ? (
     <EmptyState icon={<LibraryBig />} title="Opening the moment…">

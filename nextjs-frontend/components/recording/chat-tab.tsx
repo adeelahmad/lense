@@ -330,7 +330,7 @@ function AnswerView({ text, passages, streaming }: { text: string; passages: Pas
         ) : (
           <Link
             key={i}
-            href={`/recordings/${ps.recording_id}?t=${Math.floor((ps.t0 ?? 0) / 1000)}`}
+            href={`/resources/${ps.recording_id}?t=${Math.floor((ps.t0 ?? 0) / 1000)}`}
             className={cls}
             title={ps.text}
           >

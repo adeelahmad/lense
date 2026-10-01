@@ -551,7 +551,7 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2.5 border-b border-border px-4 py-3.5 sm:px-6">
         <div className="flex min-w-0 flex-1 basis-full flex-col gap-1 sm:basis-auto">
           <span className="truncate text-[12px] font-medium text-fg-muted">
-            <Link href={`/recordings/${recordingId}`} className="hover:underline">
+            <Link href={`/resources/${recordingId}`} className="hover:underline">
               {rec.data?.title ?? `Recording ${recordingId}`}
             </Link>{" "}
             · Metadata

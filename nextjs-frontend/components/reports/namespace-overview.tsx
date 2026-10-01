@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 
-import { Entities, Namespaces, Recordings } from "@/app/openapi-client";
+import { Entities, Namespaces, Resources } from "@/app/openapi-client";
 import { statusView, totalDuration } from "@/components/library/model";
 import { MonthBars, SpeakerBars } from "@/components/reports/month-bars";
 import {
@@ -55,7 +55,7 @@ function useLatest(ns: string, days: Days | null) {
   const client = useApiClient();
   return useQuery({
     queryKey: ["recordings", "report", ns, days?.from ?? null, days?.to ?? null],
-    queryFn: () => data(Recordings.listRecordings({ client, query: { ns, ...days, sort: "-date", limit: 25 } })),
+    queryFn: () => data(Resources.listRecordings({ client, query: { ns, ...days, sort: "-date", limit: 25 } })),
     enabled: days !== null,
     staleTime: 60_000,
   });
