@@ -18,9 +18,7 @@ rebuilds.
 To work on the code, run the hot-reload stack instead:
 
 ```bash
-cp fastapi_backend/.env.example fastapi_backend/.env          # set ACCESS_SECRET_KEY
-cp nextjs-frontend/.env.example nextjs-frontend/.env.local    # set AUTH_SECRET
-make dev                                                      # docker compose up --build
+make dev          # docker compose up --build
 ```
 
 This starts SurrealDB, the API with hot reload (<http://localhost:8000/docs>), a job worker, the web app
@@ -49,13 +47,14 @@ screen in videos).
 **Backend**
 
 ```bash
-cd fastapi_backend
-uv sync
-cp .env.example .env              # set ACCESS_SECRET_KEY; unset SURREAL_URL to use the embedded database
-cp archive.example.yaml archive.yaml
-echo "RUN_BACKGROUND=true" >> .env  # embedded database: workers must run inside the API process
-./start.sh                        # API on :8000, and a watcher that regenerates the OpenAPI schema
+cd fastapi_backend && uv sync && cd ..
+make start-backend                # API on :8000, and a watcher that regenerates the OpenAPI schema
 ```
+
+`make start-backend` writes `fastapi_backend/.env` (the embedded database under `data_dir`, workers inside the API
+process, the secrets of the root `.env`) and `fastapi_backend/archive.yaml` (from `archive.example.yaml`) when they
+are missing; `.env.example` lists everything else you can set. To use the Docker stack's database instead, set
+`SURREAL_URL=ws://localhost:8001`.
 
 Transcription engines are optional extras: `uv sync --extra sensevoice --extra voices` (SenseVoice and voice IDs),
 `--extra whisper` (faster-whisper), `--extra mlx` (Apple Silicon), `--extra pyannote`.
@@ -63,11 +62,12 @@ Transcription engines are optional extras: `uv sync --extra sensevoice --extra v
 **Frontend**
 
 ```bash
-cd nextjs-frontend
-pnpm install
-cp .env.example .env.local        # API_BASE_URL=http://localhost:8000, AUTH_SECRET=...
-./start.sh                        # web app on :3000, regenerates the API client when openapi.json changes
+cd nextjs-frontend && pnpm install && cd ..
+make start-frontend               # web app on :3000, regenerates the API client when openapi.json changes
 ```
+
+`make start-frontend` writes `nextjs-frontend/.env.local` (`API_BASE_URL=http://localhost:8000`, the root `.env`'s
+`AUTH_SECRET`) when it is missing. `make env` writes every `.env` file at once; none is ever overwritten.
 
 ## The `lens` command
 

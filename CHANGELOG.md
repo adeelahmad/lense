@@ -8,6 +8,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   (`docker-compose.prod.yml`, with a `.env` of fresh secrets written on first use): the web app is built ahead of
   time, so every page opens at once instead of compiling on its first visit. `make dev` is the hot-reload stack;
   `make stop`, `make logs` and `make setup-code` go with both (docs/get-started.md).
+    - No `.env` files to copy: `make run`, `make dev`, `make start-backend` and `make start-frontend` write the
+      ones they need when missing (`make env` writes them all), with fresh secrets in the root `.env` that the
+      per-app files share, so Docker and native runs see the same sessions and stored credentials. Running without
+      Docker defaults to the embedded database with workers inside the API process. Nothing is overwritten.
     - The web app's dev server runs on Turbopack now (about twice as fast to compile a page as webpack here); the
       production build stays on webpack. The word-being-said highlight (`::highlight(lens-word)`) is registered from
       the transcript at run time rather than in `globals.css`, which Turbopack's CSS parser rejected; the webpack
