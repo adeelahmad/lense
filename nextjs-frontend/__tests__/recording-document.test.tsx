@@ -94,6 +94,7 @@ const MODEL = {
   faces: [],
   facesMode: "off",
   objects: [],
+  descriptions: [],
 } as unknown as PlayerModel;
 
 function Harness({ model, canEdit, startPage }: { model: PlayerModel; canEdit: boolean; startPage: number | null }) {
@@ -202,6 +203,22 @@ describe("a document's page", () => {
     // the other panels are a tab away
     fireEvent.click(screen.getByRole("tab", { name: "Summary" }));
     expect(screen.getByText("The summary panel")).toBeInTheDocument();
+  });
+
+  it("says what a page shows where it was described: to screen readers on the page, and above its text", () => {
+    const text = "A page of typed text with a drawing of a lighthouse.";
+    const model = {
+      ...MODEL,
+      descriptions: [{ idx: 1, t0: 1, t1: 2, text, model: "llava", frame: null, paged: true }],
+    } as PlayerModel;
+    show({ model });
+    expect(shown()).toHaveAttribute("alt", "Page 1"); // not described
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(shown()).toHaveAttribute("alt", `Page 2: ${text}`);
+    const second = screen.getByRole("region", { name: /^Page 2/ });
+    expect(within(second).getByText("What it shows")).toBeInTheDocument();
+    expect(within(second).getByText(text)).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: /^Page 1/ })).queryByText("What it shows")).toBeNull();
   });
 
   it("marks a chosen block on its page, and turns to each find match", async () => {

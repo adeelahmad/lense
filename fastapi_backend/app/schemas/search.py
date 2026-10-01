@@ -20,14 +20,15 @@ class SearchHit(ResponseModel):
     recorded_at: str | None = None
     namespace: str | None = None
     snippet: str = Field(description="HTML: escaped text with <mark> around matches")
-    source: Literal["said", "screen", "file", "page", "object"] = Field(
+    source: Literal["said", "screen", "file", "page", "object", "described"] = Field(
         description='"said" (transcript), "screen" (text on screen in a video), "file" (a line of a supplementary file), '
-        '"page" (text on a page of a document or an image, whose times are only a reading pace) or "object" (a kind of '
-        "object seen in a video, a document or an image, where it's first seen; its snippet is the kind)"
+        '"page" (text on a page of a document or an image, whose times are only a reading pace), "object" (a kind of '
+        "object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or "
+        '"described" (what a model that can see said a shot of a video, or a page, shows)'
     )
-    frame: str | None = Field(None, description="screen and object hits: signed link to the video frame or the page")
+    frame: str | None = Field(None, description="screen, object and described hits: signed link to the video frame or the page")
     box: Any = Field(None, description="screen, page and object hits: where it is on the frame or the page ([x, y, w, h] fractions)")
-    page: int | None = Field(None, description="page hits, and object hits on a document's pages: which page (from 0)")
+    page: int | None = Field(None, description="page hits, and object and described hits on pages: which page (from 0)")
     file: int | None = Field(None, description="file hits: the supplementary file the line is in")
     file_role: str | None = Field(None, description="file hits: its role (transcript, captions, translation or index)")
     file_label: str | None = Field(None, description="file hits: its label, or its name")

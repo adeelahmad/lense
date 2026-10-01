@@ -139,6 +139,24 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - Checked in the browser with docTR 1.1 and its own models: an admin chooses docTR in Settings; a scan uploaded
       then is read by it, its lines on its page; with an engine that isn't installed (RapidOCR), a video's Text on
       screen tab says so and how to install it; a viewer on a phone in dark mode reads the scan. No console errors.
+- **What pages and shots show.** A new pipeline step, describe, has a model that can see images say in a few sentences
+  what each page of a document or an image shows, and each shot of a video (from its keyframe): the setting, the
+  people (by what they do and wear, never who they might be), the things and any text in it. Decided with the project
+  owner: the model looks at the picture itself, and only a model an admin chose as able to see images is used.
+    - Settings → LLM provider: `llm.vision_model`, the model that describes (none until one is chosen: Lens can't tell
+      which models see), and `llm.describe_max`, how many pages or shots of a resource are described (50); each is a
+      request to the model (docs/configuration.md#descriptions). Without one the step is skipped, saying why; a model
+      that turns out not to see makes it fail with what the server said.
+    - The player's `descriptions` lists them; search finds them (`source: described`, docs/api.md#descriptions); they
+      move and go with their resource. The describe step is in the standard pipeline after objects, and reprocessing,
+      batches and watched folders can run it.
+    - Web app: a document's or an image's Text tab says above each page's text what it shows, and its picture says
+      so to screen readers; a video's Shots tab lists each shot beside what it shows (its keyframe's alternative
+      text too); search hits say "What the shot shows" or "What the page shows" and open there.
+    - Checked in the browser with the test suite's model server (it "sees" a picture's colours): an admin chooses the
+      model that can see in Settings; a scan's page says what it shows, and its picture says so too; a video of three
+      scenes lists each shot beside what it shows; Search finds "yellow wall" in a shot and opens the video there; a
+      viewer on a phone in dark mode reads the scan's description. No console errors.
 - **Word, text, web pages and emails as documents.** Any document now becomes a resource with pages, not only a PDF:
   Word, PowerPoint and spreadsheet files (and OpenDocument and RTF), text and Markdown, saved web pages and emails
   (`.eml`, and Outlook `.msg` with the `msg` extra) are made into PDFs and read like one. Decided with the project

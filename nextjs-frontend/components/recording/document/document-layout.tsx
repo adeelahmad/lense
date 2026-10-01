@@ -1,6 +1,17 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, FileText, ImageOff, Loader2, Minus, Pencil, Plus, ScanSearch } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  FileText,
+  ImageOff,
+  Loader2,
+  Minus,
+  Pencil,
+  Plus,
+  ScanSearch,
+} from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
@@ -23,7 +34,7 @@ import {
 } from "@/components/recording/document/model";
 import { Banners, HeaderActions, RecordingHeader } from "@/components/recording/header";
 import { useNotes, useRecordingActions, useVisualNotes } from "@/components/recording/hooks";
-import { segmentAt, splitRuns, type Box, type PageInfo } from "@/components/recording/model";
+import { descriptionOf, segmentAt, splitRuns, type Box, type PageInfo } from "@/components/recording/model";
 import { boxesOnPage, objectName } from "@/components/recording/objects-model";
 import { ObjectsTab } from "@/components/recording/objects-tab";
 import { MORE_TABS, PanelBody, PanelScroll, PanelTabs, type TabDef } from "@/components/recording/side-panel";
@@ -274,6 +285,7 @@ function PageStage({ view, compact, object = null }: { view: DocView; compact?: 
     return t ? boxesOnPage(t, view.page) : [];
   }, [model.objects, object, view.page]);
   const name = `Page ${pageNumber(model.pages, view.page)}`;
+  const shows = descriptionOf(model.descriptions, view.page, true); // what it shows, for screen readers
   return (
     <section aria-label="Pages" className="flex min-h-0 min-w-0 flex-col bg-surface-neutral">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-border bg-background px-3 py-2">
@@ -326,7 +338,7 @@ function PageStage({ view, compact, object = null }: { view: DocView; compact?: 
             things={things}
             thing={object ?? ""}
             zoom={view.zoom}
-            name={name}
+            name={shows ? `${name}: ${shows.text}` : name}
           />
         ) : state.phase === "processing" || state.phase === "analyzing" ? (
           <EmptyState icon={<Loader2 className="animate-spin" />} title="Drawing its pages" className="py-16">
@@ -482,6 +494,7 @@ export function PageText({ view, follow = true }: { view: DocView; follow?: bool
       {pages.map((p) => {
         const list = by.get(p.idx) ?? [];
         const on = p.idx === view.page;
+        const shows = descriptionOf(model.descriptions, p.idx, true);
         return (
           <section
             key={p.idx}
@@ -505,6 +518,15 @@ export function PageText({ view, follow = true }: { view: DocView; follow?: bool
                 {textNote(p)}
               </span>
             </h3>
+            {shows && (
+              <p className="rounded-md bg-surface-neutral px-2.5 py-2 text-[13px] leading-normal text-fg-secondary">
+                <span className="mr-1.5 inline-flex items-center gap-1 text-[11.5px] font-semibold text-fg-muted">
+                  <Eye className="size-3" aria-hidden />
+                  What it shows
+                </span>
+                {shows.text}
+              </p>
+            )}
             {list.length === 0 && <p className="text-[13px] text-fg-muted">No text on this page.</p>}
             {list.map((i) => {
               const s = model.segments[i];

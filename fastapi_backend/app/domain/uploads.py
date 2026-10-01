@@ -33,7 +33,7 @@ FIELDS = (
 )
 # What runs once media is attached to a transcript: its waveform (the transcript is kept), speakers by voice unless the
 # transcript named them, shots, text on screen and faces for video, then the analysis and report pages again.
-ATTACH_STEPS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "analyze", "report"]
+ATTACH_STEPS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "report"]
 TRANSCRIPT_EXT = frozenset({".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf"})  # documents imports read as text too
 
 

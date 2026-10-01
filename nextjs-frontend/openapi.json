@@ -14800,6 +14800,70 @@
         ],
         "title": "Created"
       },
+      "Description": {
+        "properties": {
+          "idx": {
+            "type": "integer",
+            "title": "Idx",
+            "description": "the page (from 0) or the shot it describes"
+          },
+          "t0": {
+            "type": "integer",
+            "title": "T0",
+            "description": "where it starts: ms, or the page (from 0) when `paged`"
+          },
+          "t1": {
+            "type": "integer",
+            "title": "T1",
+            "description": "where it ends (not included): ms, or the page after it when `paged`"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "the description: a few sentences"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "the model that wrote it (llm.vision_model)"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame",
+            "description": "signed link to the page's drawing or the shot's keyframe"
+          },
+          "paged": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paged",
+            "description": "true for a document's or an image's pages"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "idx",
+          "t0",
+          "t1",
+          "text",
+          "model"
+        ],
+        "title": "Description",
+        "description": "What a model that can see images said a page or a shot shows."
+      },
       "EmailInfo": {
         "properties": {
           "subject": {
@@ -19769,6 +19833,14 @@
             "type": "array",
             "title": "Objects",
             "description": "videos, documents and images: the kinds of object seen in it, the most seen first"
+          },
+          "descriptions": {
+            "items": {
+              "$ref": "#/components/schemas/Description"
+            },
+            "type": "array",
+            "title": "Descriptions",
+            "description": "videos, documents and images: what each shot or page shows, by a model that can see"
           }
         },
         "additionalProperties": true,
@@ -22888,10 +22960,11 @@
               "screen",
               "file",
               "page",
-              "object"
+              "object",
+              "described"
             ],
             "title": "Source",
-            "description": "\"said\" (transcript), \"screen\" (text on screen in a video), \"file\" (a line of a supplementary file), \"page\" (text on a page of a document or an image, whose times are only a reading pace) or \"object\" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind)"
+            "description": "\"said\" (transcript), \"screen\" (text on screen in a video), \"file\" (a line of a supplementary file), \"page\" (text on a page of a document or an image, whose times are only a reading pace), \"object\" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or \"described\" (what a model that can see said a shot of a video, or a page, shows)"
           },
           "frame": {
             "anyOf": [
@@ -22903,7 +22976,7 @@
               }
             ],
             "title": "Frame",
-            "description": "screen and object hits: signed link to the video frame or the page"
+            "description": "screen, object and described hits: signed link to the video frame or the page"
           },
           "box": {
             "title": "Box",
@@ -22919,7 +22992,7 @@
               }
             ],
             "title": "Page",
-            "description": "page hits, and object hits on a document's pages: which page (from 0)"
+            "description": "page hits, and object and described hits on pages: which page (from 0)"
           },
           "file": {
             "anyOf": [

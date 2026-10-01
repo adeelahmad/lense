@@ -79,10 +79,11 @@ def search(
     files=False,
     objects=False,
     obj=None,
+    described=False,
 ):
     """Transcript lines (and, unless screen is false, text on screen in videos; with files, the lines of supplementary
     transcripts, captions, translations and indexes; with objects, the kinds of object seen in videos, documents and
-    images) matching q. spaces limits the search to namespaces someone may read, and `also` adds recordings they may
+    images; with described, what a model that can see said their pages and shots show) matching q. spaces limits the search to namespaces someone may read, and `also` adds recordings they may
     read beyond those (in collections they were given a role on); recordings limits it to a set of recordings (such as
     the transcripts a visitor may read), and obj to those a kind of object is seen in. With facets, also how many of
     all the matching moments (up to FACET_CAP) are in each namespace, speaker, emotion and recording, and which kinds
@@ -156,6 +157,8 @@ def search(
         hits += _file_lines(db, groups, space_filter(ns, spaces, recording, params), cap, params)
     if objects and not speaker and not emotion:  # nor do the objects seen
         hits += _objects(db, groups, space_filter(ns, spaces, recording, params), cap, params)
+    if described and not speaker and not emotion:  # nor what pages and shots show
+        hits += _described(db, groups, space_filter(ns, spaces, recording, params), cap, params)
     hits.sort(key=lambda r: (-r["_score"], r["recording"], r.get("idx") or 0))
     page = hits[offset : offset + limit]
     recs = (
@@ -209,10 +212,10 @@ def search(
             "source": h["source"],
             **(
                 {"frame": f"{store.API}/recordings/{h['recording']}/frames/{h['frame']}" if h.get("frame") else None, "box": h.get("box")}
-                if h["source"] in ("screen", "object")
+                if h["source"] in ("screen", "object", "described")
                 else {}
             ),
-            **({"t0": None, "t1": None, "page": h["t0"]} if h["source"] == "object" and h.get("paged") else {}),
+            **({"t0": None, "t1": None, "page": h["t0"]} if h["source"] in ("object", "described") and h.get("paged") else {}),
             **({"page": h["page"], "box": h.get("box")} if h["source"] == "page" else {}),
             **(_in_file(in_files.get(h["file"]) or {"id": h["file"]}, h.get("line")) if h["source"] == "file" else {}),
         }
@@ -222,7 +225,17 @@ def search(
     if facets:
         alone = not speaker and not emotion
         res["facets"] = _facets(
-            db, groups, where_f, base_params, screen and alone, ns, spaces, recording, files and alone, objects and alone
+            db,
+            groups,
+            where_f,
+            base_params,
+            screen and alone,
+            ns,
+            spaces,
+            recording,
+            files and alone,
+            objects and alone,
+            described and alone,
         )
     return res
 
@@ -263,13 +276,15 @@ def _matches(db, groups, table, fields, where_f, base):
     return rows
 
 
-def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=False, objects=False):
+def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=False, objects=False, described=False):
     """How many matching moments are in each namespace, speaker, emotion and recording, most first; and the kinds of
     object seen in the recordings they're in, with how many of those recordings each is in."""
     said = _matches(db, groups, "segment", "recording, space, speaker, emotion", where_f, base)
     seen = _matches(db, groups, "ocr_span", "recording, space", space_filter(ns, spaces, recording, base), base) if screen else []
     filed = _matches(db, groups, "file_line", "recording, space", space_filter(ns, spaces, recording, base), base) if files else []
     spotted = _matches(db, groups, "object_track", "recording, space", space_filter(ns, spaces, recording, base), base) if objects else []
+    shown = _matches(db, groups, "description", "recording, space", space_filter(ns, spaces, recording, base), base) if described else []
+    spotted += shown
     rows = (said + seen + filed + spotted)[:FACET_CAP]
     partial = len(said) + len(seen) + len(filed) + len(spotted) > FACET_CAP
     by_space, by_rec = Counter(r["space"] for r in rows), Counter(r["recording"] for r in rows)
@@ -341,6 +356,11 @@ def space_filter(ns, spaces, recording, params):
 def _screen(db, groups, where_f, cap, base):
     """Hits in text read off video frames (OCR), ranked alongside the transcript."""
     return _layer(db, groups, where_f, cap, base, "ocr_span", "frame, box", "screen")
+
+
+def _described(db, groups, where_f, cap, base):
+    """Hits in what a model that can see said a page or a shot shows, at that page or shot."""
+    return _layer(db, groups, where_f, cap, base, "description", "frame, paged", "described")
 
 
 def _file_lines(db, groups, where_f, cap, base):

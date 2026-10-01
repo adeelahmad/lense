@@ -15,7 +15,18 @@ import { data, useApiClient } from "@/lib/api/browser";
 import { count } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 
-const WATCH_STEPS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "analyze", "summarize", "report"];
+const WATCH_STEPS = [
+  "transcribe",
+  "diarize",
+  "shots",
+  "ocr",
+  "faces",
+  "objects",
+  "describe",
+  "analyze",
+  "summarize",
+  "report",
+];
 const PICK = WATCH_KINDS.map(({ value, label }) => ({ value, label }));
 
 type Run = "default" | "pipeline" | "steps";

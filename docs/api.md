@@ -499,7 +499,8 @@ GET    /api/v1/mentions
 ```
 
 `GET /search?q=` finds the moments where the words are said (or shown on screen in a video, or written in a resource's
-supplementary transcripts, captions, translations and indexes) in the namespaces you can read, best first: every word
+supplementary transcripts, captions, translations and indexes, or in what a model said its shots and pages show) in the
+namespaces you can read, best first: every word
 (English stemming), "quoted phrases" as written, `OR` between alternatives; `ns`, `speaker`, `emotion` and `recording`
 narrow it, and `object` keeps to the recordings a kind of object is seen in ([Objects](#objects));
 `limit`/`offset` page through it. `total` counts the moments ranked so far (`capped` when there may be more).
@@ -510,8 +511,9 @@ recordings they're in, with how many of those recordings each is in (`objects`);
 
 Each hit's `source` says where it was found: `said` (the transcript), `screen` (text on screen), `page` (a document's or an
 image's text: its `page`, from 0, and its `box` on it), `object` (a kind of object, where it's first seen: its time, or
-on a document's pages its `page`, with the `frame` and the `box` it's best seen in) or `file` (a line of a supplementary
-file: its `file`, `file_role` and `file_label`, and which `line`). A file's lines have no `t0` when the
+on a document's pages its `page`, with the `frame` and the `box` it's best seen in), `described` (what a shot or a page
+shows, [Descriptions](#descriptions): the shot's time, or the `page`, and its `frame`) or `file` (a line of a
+supplementary file: its `file`, `file_role` and `file_label`, and which `line`). A file's lines have no `t0` when the
 file doesn't say when they are; the web app opens those in the resource's Files tab. A `speaker` or `emotion` filter
 keeps to what was said.
 
@@ -649,6 +651,19 @@ found, the detector's average confidence, a signed link to the frame or page it'
 and each place it was found (`[t, x, y, w, h, score]`, at most 500). The kinds a resource has are its `objects`, which
 `GET /resources?object=` filters on; search finds them by name (`source: object`), and its `object` filter and facet
 use them ([search](#search)). Moving or deleting a resource moves or deletes its objects.
+
+### Descriptions
+
+The `describe` step has a model that can see images, the one an admin chose as `llm.vision_model`, say in a few
+sentences what each page of a document or an image shows, and each shot of a video (from its keyframe): the setting,
+the people (by what they do and wear, never who they might be), the things and any text in it. It comes after
+`objects` in the standard pipeline, and describes at most `llm.describe_max` pages or shots of a resource. Without an
+LLM, or with no `llm.vision_model`, it's skipped, saying why; a model that can't see makes it fail with what the server
+said ([Configuration](configuration.md#descriptions)). The player's `descriptions` lists them in order:
+`{idx, t0, t1, text, model, frame, paged}`: the shot or page, where it starts and ends (ms; on pages, the page from 0
+and the next), what the model said, which model, and a signed link to the picture it was shown. Search finds them
+(`source: described`, [search](#search)). Moving or deleting a resource moves or deletes them; the step run again
+replaces them.
 
 ## iiif
 

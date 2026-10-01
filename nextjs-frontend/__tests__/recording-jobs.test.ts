@@ -260,6 +260,16 @@ describe("page state", () => {
 });
 
 describe("reprocess picker (R9)", () => {
+  it("offers describing to videos, documents and images, not to audio", () => {
+    const keys = (o: { video: boolean; hasAudio: boolean; paged?: boolean }) => reprocessOptions(o).map((x) => x.key);
+    expect(keys({ video: true, hasAudio: true })).toContain("describe");
+    expect(keys({ video: false, hasAudio: false, paged: true })).toContain("describe");
+    expect(keys({ video: false, hasAudio: true })).not.toContain("describe");
+    expect(toggleStep(new Set<StepKey>(), "shots", true, reprocessOptions({ video: true, hasAudio: true }))).toContain(
+      "describe",
+    ); // it reads the shots' keyframes
+  });
+
   const audio = reprocessOptions({ video: false, hasAudio: true });
   const transcript = reprocessOptions({ video: false, hasAudio: false });
   it("offers the backend's steps; video steps only for videos", () => {
@@ -271,16 +281,18 @@ describe("reprocess picker (R9)", () => {
       "ocr",
       "faces",
       "objects",
+      "describe",
       "analyze",
       "summarize",
       "report",
     ]);
-    // a document's or an image's pages: faces and objects, not shots or text on screen
+    // a document's or an image's pages: faces, objects and descriptions, not shots or text on screen
     expect(reprocessOptions({ video: false, hasAudio: false, paged: true }).map((o) => o.key)).toEqual([
       "transcribe",
       "diarize",
       "faces",
       "objects",
+      "describe",
       "analyze",
       "summarize",
       "report",

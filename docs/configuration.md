@@ -66,6 +66,20 @@ People can choose the model a conversation uses, and ask a question again with a
 offered and stays the default. Left empty, they may pick whatever the model server lists (`GET /models`, kept for a
 minute); on providers that list many models, or charge by model, list the ones you want offered.
 
+## Descriptions
+
+The describe step ([API](api.md#descriptions)) sends each page of a document or an image, and each shot's keyframe of
+a video (at most 1024 pixels on a side), to a model that can see images, and keeps what it says each shows, for
+search and for people who can't see them. It uses the LLM provider's server (Settings → LLM provider) with a model you
+choose there as one that can see images: OpenAI's, or a vision model on LM Studio, Ollama or vLLM (LLaVA, Qwen-VL,
+Llama 3.2 Vision, Gemma 3 …). Lens can't tell which models see, so none is chosen until you choose one. Each page or
+shot is a request, so a long document costs as many: `llm.describe_max` caps how many of a resource are described.
+
+| Setting | Default | |
+|---|---|---|
+| `llm.vision_model` | none | the model that describes pages and shots; none: the describe step is skipped |
+| `llm.describe_max` | 50 | pages or shots of a resource described at most, 1–1000 (in order: the rest aren't) |
+
 ## Uploads
 
 Audio, video, documents (PDF) and images uploaded in the web app (Import → Upload) go up in pieces

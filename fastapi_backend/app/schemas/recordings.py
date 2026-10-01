@@ -94,6 +94,18 @@ class ObjectTrack(ResponseModel):
     engine: str | None = Field(None, description="the detector: yolox or ultralytics")
 
 
+class Description(ResponseModel):
+    """What a model that can see images said a page or a shot shows."""
+
+    idx: int = Field(description="the page (from 0) or the shot it describes")
+    t0: int = Field(description="where it starts: ms, or the page (from 0) when `paged`")
+    t1: int = Field(description="where it ends (not included): ms, or the page after it when `paged`")
+    text: str = Field(description="the description: a few sentences")
+    model: str = Field(description="the model that wrote it (llm.vision_model)")
+    frame: str | None = Field(None, description="signed link to the page's drawing or the shot's keyframe")
+    paged: bool | None = Field(None, description="true for a document's or an image's pages")
+
+
 class RecordingSpeaker(ResponseModel):
     id: int
     name: str
@@ -206,6 +218,9 @@ class Player(ResponseModel):
     pages: list[Page] | None = Field(None, description="a document's or an image's pages, in order")
     objects: list[ObjectTrack] = Field(
         default_factory=list, description="videos, documents and images: the kinds of object seen in it, the most seen first"
+    )
+    descriptions: list[Description] = Field(
+        default_factory=list, description="videos, documents and images: what each shot or page shows, by a model that can see"
     )
 
 

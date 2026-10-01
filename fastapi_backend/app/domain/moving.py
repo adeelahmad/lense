@@ -30,6 +30,7 @@ SPACED = (
     "ocr_span",
     "face_track",
     "object_track",
+    "description",
     "job",
     "output",
     "share_link",

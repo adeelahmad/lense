@@ -213,7 +213,8 @@ def visual(db, rid, rec):
             {**p, "image": frame_link(rid, p.get("image")), "thumb": frame_link(rid, p.get("thumb"))} for p in documents.pages(db, rid)
         ]
         out["poster"] = out["pages"][0]["thumb"] if out["pages"] else None
-        return {**out, **_faces(db, rid, rec), **_objects(db, rid)}  # their spans and boxes count pages, from 0
+        # their spans and boxes count pages, from 0
+        return {**out, **_faces(db, rid, rec), **_objects(db, rid), **_descriptions(db, rid)}
     if media.get("kind") != "video":
         return out
 
@@ -238,6 +239,7 @@ def visual(db, rid, rec):
     ]
     out.update(_faces(db, rid, rec))
     out.update(_objects(db, rid))
+    out.update(_descriptions(db, rid))
     out["poster"] = out["shots"][0]["frame"] if out["shots"] else None
     return out
 
@@ -257,6 +259,13 @@ def _objects(db, rid):
     from . import objects
 
     return {"objects": [{**t, "frame": frame_link(rid, t.get("frame"))} for t in objects.for_recording(db, rid)]}
+
+
+def _descriptions(db, rid):
+    """What a model that can see images said each page or shot shows (t0 and t1 are a page's, from 0, on pages)."""
+    from . import descriptions
+
+    return {"descriptions": [{**d, "frame": frame_link(rid, d.get("frame"))} for d in descriptions.for_recording(db, rid)]}
 
 
 def has_audio(db, cfg, rid):

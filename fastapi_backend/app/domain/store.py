@@ -150,7 +150,17 @@ DEFAULTS = {
     },
     "analysis": {"entities": "rules", "spacy_model": "en_core_web_sm", "gazetteer": []},
     # chat_models: the models people may pick in Chat; empty: whatever the model server lists (docs/configuration.md)
-    "llm": {"base_url": None, "model": None, "api_key_env": None, "max_chars": 24000, "timeout": 300, "chat_models": []},
+    "llm": {
+        "base_url": None,
+        "model": None,
+        "api_key_env": None,
+        "max_chars": 24000,
+        "timeout": 300,
+        "chat_models": [],
+        # a model the admin knows can see images: it describes pages and shots (the describe step); none, none are
+        "vision_model": None,
+        "describe_max": 50,  # pages or shots of a resource described at most
+    },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {"stemming": "english"},
     "server": {
@@ -188,7 +198,20 @@ DEFAULTS = {
         "poll_seconds": 2,
         "stale_minutes": 15,
         "max_attempts": 3,
-        "steps": ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "analyze", "summarize", "llm", "report", "export"],
+        "steps": [
+            "transcribe",
+            "diarize",
+            "shots",
+            "ocr",
+            "faces",
+            "objects",
+            "describe",
+            "analyze",
+            "summarize",
+            "llm",
+            "report",
+            "export",
+        ],
     },
     # video: sampling, shot detection, OCR and faces. Model paths are bootstrap-only (the app can't point at arbitrary files).
     # the chat assistant's tools, and the double check before batch runs
@@ -624,6 +647,9 @@ SCHEMA = [
     # objects: one row per kind of object on a recording (app/domain/objects.py)
     "DEFINE TABLE IF NOT EXISTS object_track SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS object_track_rec ON object_track FIELDS recording",
+    # what a model that can see images says a page or a shot shows (descriptions.py)
+    "DEFINE TABLE IF NOT EXISTS description SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS description_rec ON description FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS face_merge SCHEMALESS",
     # collections, batch runs, assistant approvals
     "DEFINE TABLE IF NOT EXISTS saved_collection SCHEMALESS",
@@ -665,7 +691,13 @@ def _analyzer(cfg):
 
 
 # the full-text indexes, each on the `text` of its table: transcripts, text on screen, and lines of supplementary files
-TEXT_INDEXES = (("segment_text", "segment"), ("ocr_text", "ocr_span"), ("file_text", "file_line"), ("object_text", "object_track"))
+TEXT_INDEXES = (
+    ("segment_text", "segment"),
+    ("ocr_text", "ocr_span"),
+    ("file_text", "file_line"),
+    ("object_text", "object_track"),
+    ("description_text", "description"),
+)
 
 
 def _text_index(db):

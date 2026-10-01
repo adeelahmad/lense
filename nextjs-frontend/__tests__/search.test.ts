@@ -1,6 +1,6 @@
 import type { SearchHit } from "@/app/openapi-client/types.gen";
 import { fromServer, groupByRecording } from "@/components/search/facets";
-import { recordingHref } from "@/components/search/links";
+import { foundAs, onPage, recordingHref } from "@/components/search/links";
 import {
   activeFilterCount,
   filterToken,
@@ -194,6 +194,21 @@ describe("facets and groups", () => {
   it("links to the moment in whole seconds", () => {
     expect(recordingHref(12, 869_400)).toBe("/resources/12?t=869");
     expect(recordingHref(12, 0)).toBe("/resources/12");
+  });
+
+  it("says where what wasn't said was found: on screen, on a page, seen, or what a shot or page shows", () => {
+    expect(foundAs({ source: "said", page: null })).toBeNull();
+    expect(foundAs({ source: "screen", page: null })).toBe("On screen");
+    expect(foundAs({ source: "page", page: 2 })).toBe("On the page");
+    expect(foundAs({ source: "object", page: null })).toBe("Seen on screen");
+    expect(foundAs({ source: "object", page: 0 })).toBe("Seen on the page");
+    expect(foundAs({ source: "described", page: null })).toBe("What the shot shows");
+    expect(foundAs({ source: "described", page: 1 })).toBe("What the page shows");
+    expect(foundAs({ source: "file", page: null })).toBeNull();
+    expect([onPage({ source: "described", page: 1 }), onPage({ source: "described", page: null })]).toEqual([
+      true,
+      false,
+    ]);
   });
 });
 

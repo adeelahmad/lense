@@ -56,6 +56,7 @@ def search_transcripts(
         files=True,
         objects=True,
         obj=object,
+        described=True,
     )
     return sign_urls(res)
 

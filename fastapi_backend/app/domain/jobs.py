@@ -16,14 +16,14 @@ import time
 from . import analyze, ingest, pipelines, render, speakers as spk, store
 
 R = store.R
-PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "analyze", "summarize", "report"]
+PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "summarize", "report"]
 AFTER_IMPORT = ["analyze", "summarize", "report"]
 ACTIVE = ["queued", "running"]
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
     "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total"
 )
-MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces", "objects"}  # they take longer the longer the recording
+MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe"}  # they take longer the longer the recording
 FILED = ("audio", "document", "image")  # sources with a file of their own for the steps to work on
 TIMINGS = 25  # recent timings kept per kind of step, for estimates
 
@@ -122,6 +122,12 @@ def _objects(db, cfg, rid, say, spec=None):
     objects.step_objects(db, cfg, rid, say)
 
 
+def _describe(db, cfg, rid, say, spec=None):
+    from . import descriptions
+
+    descriptions.step_describe(db, cfg, rid, say)
+
+
 STEPS = {
     "transcribe": _transcribe,
     "diarize": _diarize,
@@ -129,6 +135,7 @@ STEPS = {
     "ocr": _ocr,
     "faces": _faces,
     "objects": _objects,
+    "describe": _describe,
     "analyze": _analyze,
     "summarize": _summarize,
     "report": _report,

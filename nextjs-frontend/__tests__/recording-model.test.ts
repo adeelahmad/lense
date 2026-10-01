@@ -6,6 +6,7 @@ import {
   axisTicks,
   chapterAt,
   cleanTitle,
+  descriptionOf,
   entityRanges,
   findInSegments,
   fold,
@@ -187,6 +188,25 @@ describe("normalizePlayer", () => {
     expect(m.title).toBe("Untitled recording");
     expect(m.segments).toEqual([]);
     expect(m.durationMs).toBe(0);
+  });
+
+  it("reads what each shot or page was described as showing", () => {
+    const m = normalizePlayer({
+      ...PLAYER,
+      descriptions: [
+        { idx: 0, t0: 0, t1: 3000, text: "A dark blue screen.", model: "llava", frame: "/f/0.jpg" },
+        { idx: 1, t0: 3000, t1: 6000, text: "", model: "llava" }, // nothing said: left out
+        { idx: 0, t0: 0, t1: 1, text: "A white page.", model: "llava", paged: true },
+      ],
+    } as Player);
+    expect(m.descriptions).toEqual([
+      { idx: 0, t0: 0, t1: 3000, text: "A dark blue screen.", model: "llava", frame: "/f/0.jpg", paged: false },
+      { idx: 0, t0: 0, t1: 1, text: "A white page.", model: "llava", frame: null, paged: true },
+    ]);
+    expect(descriptionOf(m.descriptions, 0, false)?.text).toBe("A dark blue screen.");
+    expect(descriptionOf(m.descriptions, 0, true)?.text).toBe("A white page.");
+    expect(descriptionOf(m.descriptions, 1, false)).toBeNull();
+    expect(normalizePlayer({ id: 5 } as Player).descriptions).toEqual([]);
   });
 
   it("stretches the duration to the last line when the stored one is short", () => {

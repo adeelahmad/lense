@@ -1659,6 +1659,49 @@ export type Created = {
 };
 
 /**
+ * Description
+ * What a model that can see images said a page or a shot shows.
+ */
+export type Description = {
+  /**
+   * Idx
+   * the page (from 0) or the shot it describes
+   */
+  idx: number;
+  /**
+   * T0
+   * where it starts: ms, or the page (from 0) when `paged`
+   */
+  t0: number;
+  /**
+   * T1
+   * where it ends (not included): ms, or the page after it when `paged`
+   */
+  t1: number;
+  /**
+   * Text
+   * the description: a few sentences
+   */
+  text: string;
+  /**
+   * Model
+   * the model that wrote it (llm.vision_model)
+   */
+  model: string;
+  /**
+   * Frame
+   * signed link to the page's drawing or the shot's keyframe
+   */
+  frame?: string | null;
+  /**
+   * Paged
+   * true for a document's or an image's pages
+   */
+  paged?: boolean | null;
+  [key: string]: unknown | number | string | string | null | boolean | null | undefined;
+};
+
+/**
  * EmailInfo
  * An email's own description, read when it was made into a PDF.
  */
@@ -4853,6 +4896,11 @@ export type Player = {
    * videos, documents and images: the kinds of object seen in it, the most seen first
    */
   objects?: Array<ObjectTrack>;
+  /**
+   * Descriptions
+   * videos, documents and images: what each shot or page shows, by a model that can see
+   */
+  descriptions?: Array<Description>;
   [key: string]:
     | unknown
     | number
@@ -4892,6 +4940,7 @@ export type Player = {
     | Array<Page>
     | null
     | Array<ObjectTrack>
+    | Array<Description>
     | undefined;
 };
 
@@ -6907,12 +6956,12 @@ export type SearchHit = {
   snippet: string;
   /**
    * Source
-   * "said" (transcript), "screen" (text on screen in a video), "file" (a line of a supplementary file), "page" (text on a page of a document or an image, whose times are only a reading pace) or "object" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind)
+   * "said" (transcript), "screen" (text on screen in a video), "file" (a line of a supplementary file), "page" (text on a page of a document or an image, whose times are only a reading pace), "object" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or "described" (what a model that can see said a shot of a video, or a page, shows)
    */
-  source: "said" | "screen" | "file" | "page" | "object";
+  source: "said" | "screen" | "file" | "page" | "object" | "described";
   /**
    * Frame
-   * screen and object hits: signed link to the video frame or the page
+   * screen, object and described hits: signed link to the video frame or the page
    */
   frame?: string | null;
   /**
@@ -6922,7 +6971,7 @@ export type SearchHit = {
   box?: unknown;
   /**
    * Page
-   * page hits, and object hits on a document's pages: which page (from 0)
+   * page hits, and object and described hits on pages: which page (from 0)
    */
   page?: number | null;
   /**
@@ -6974,6 +7023,7 @@ export type SearchHit = {
     | "file"
     | "page"
     | "object"
+    | "described"
     | string
     | null
     | number

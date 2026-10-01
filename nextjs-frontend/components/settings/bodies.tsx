@@ -350,6 +350,10 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="llm.base_url" />
       <F ctx={ctx} id="llm.model" />
       <F ctx={ctx} id="llm.chat_models" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="llm.vision_model" />
+        <F ctx={ctx} id="llm.describe_max" />
+      </div>
       <SecretSetting
         key={ctx.view.llm?.updated_at ?? "none"}
         label="API key"

@@ -8,7 +8,7 @@ import { forwardRef, type KeyboardEvent } from "react";
 import type { SearchHit } from "@/app/openapi-client/types.gen";
 import type { HitGroup } from "@/components/search/facets";
 import { ROLE_LABEL, hitHref, type FileRole } from "@/components/recording/files-model";
-import { recordingHref } from "@/components/search/links";
+import { foundAs, onPage, recordingHref } from "@/components/search/links";
 import type { InlinePlayer } from "@/components/search/player";
 import { splitSnippet } from "@/components/search/snippet";
 import { speakerTone } from "@/components/speakers/format";
@@ -47,11 +47,6 @@ function focusSibling(from: HTMLElement, step: 1 | -1) {
     )?.focus();
 }
 
-/** A hit on a page of a document or an image: its text, or an object seen there. */
-function onPage(hit: SearchHit): boolean {
-  return hit.source === "page" || (hit.source === "object" && hit.page != null);
-}
-
 function PlayButton({ hit, player, audio }: { hit: SearchHit; player: InlinePlayer; audio: boolean | undefined }) {
   const key = String(hit.id);
   const playing = player.isPlaying(key);
@@ -59,7 +54,7 @@ function PlayButton({ hit, player, audio }: { hit: SearchHit; player: InlinePlay
   const paged = onPage(hit);
   const none = untimed || paged || audio === false || player.noAudio.has(hit.recording_id);
   const label = paged
-    ? `Nothing to play: ${hit.source === "object" ? "seen on a page" : "text on a page"}`
+    ? `Nothing to play: ${(foundAs(hit) ?? "on a page").toLowerCase()}`
     : untimed
       ? "No time: a line of a file without times"
       : none
@@ -101,7 +96,7 @@ function PlayButton({ hit, player, audio }: { hit: SearchHit; player: InlinePlay
     <Tooltip
       content={
         paged
-          ? "Text on a page of a document or an image"
+          ? `${foundAs(hit) ?? "On the page"}, of a document or an image`
           : untimed
             ? "This line's file doesn't say when it is"
             : "No audio: this recording is a transcript"
@@ -151,14 +146,8 @@ function HitRow({
         });
     }
   };
-  const where =
-    hit.source === "screen"
-      ? ", on screen"
-      : hit.source === "object"
-        ? ", an object seen"
-        : hit.source === "file"
-          ? `, in ${hit.file_label ?? "a file"}`
-          : "";
+  const found = foundAs(hit);
+  const where = found ? `, ${found.toLowerCase()}` : hit.source === "file" ? `, in ${hit.file_label ?? "a file"}` : "";
   const color = speakerTone(hit.speaker_id);
   return (
     <div
@@ -177,12 +166,8 @@ function HitRow({
         {at}
       </Link>
       <span className="flex min-w-0 items-center gap-[5px] text-[12px] font-semibold" style={{ color }}>
-        {hit.source === "screen" ? (
-          <span className="text-fg-secondary">On screen</span>
-        ) : hit.source === "object" ? (
-          <span className="text-fg-secondary">{paged ? "Seen on the page" : "Seen on screen"}</span>
-        ) : paged ? (
-          <span className="text-fg-secondary">On the page</span>
+        {found ? (
+          <span className="text-fg-secondary">{found}</span>
         ) : hit.source === "file" ? (
           <span
             className="truncate text-fg-secondary"

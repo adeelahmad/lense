@@ -99,6 +99,25 @@ export type ObjectTrack = {
   paged: boolean;
 };
 
+/** What a model that can see images said a shot or a page shows (the describe step). */
+export type Description = {
+  /** The shot, or the page (from 0). */
+  idx: number;
+  /** Where it starts and ends: ms, or on pages the page and the next. */
+  t0: number;
+  t1: number;
+  text: string;
+  model: string | null;
+  /** Signed link to the keyframe or the page it was shown. */
+  frame: string | null;
+  paged: boolean;
+};
+
+/** What the shot (or, `paged`, the page) `idx` was described as showing, if it was. */
+export function descriptionOf(list: Description[], idx: number, paged: boolean): Description | null {
+  return list.find((d) => d.idx === idx && d.paged === paged) ?? null;
+}
+
 /** A page of a document, or an image (a TIFF has one per frame). */
 export type PageInfo = {
   idx: number;
@@ -144,6 +163,7 @@ export type PlayerModel = {
   faces: FaceTrack[];
   facesMode: FacesMode;
   objects: ObjectTrack[];
+  descriptions: Description[];
   poster: string | null;
 };
 
@@ -345,6 +365,20 @@ export function normalizePlayer(raw: Player): PlayerModel {
         paged: Boolean(o.paged),
       };
     }),
+    descriptions: arr(r.descriptions)
+      .map((x) => {
+        const o = rec(x);
+        return {
+          idx: num(o.idx),
+          t0: num(o.t0),
+          t1: num(o.t1),
+          text: str(o.text) ?? "",
+          model: str(o.model),
+          frame: str(o.frame),
+          paged: Boolean(o.paged),
+        };
+      })
+      .filter((d) => d.text),
     poster: str(r.poster),
   };
 }

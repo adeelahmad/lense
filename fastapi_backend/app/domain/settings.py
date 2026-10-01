@@ -214,6 +214,14 @@ def _check(section, key, value, default):
         return value
     if (section, key) == ("server", "trusted_proxies"):
         return ipgroups.proxies(value)
+    if (section, key) == ("llm", "vision_model"):
+        if value is not None and not (isinstance(value, str) and len(value.strip()) <= 200):
+            raise ValueError("llm.vision_model is a model's name")
+        return (value or "").strip() or None
+    if (section, key) == ("llm", "describe_max"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1000):
+            raise ValueError("llm.describe_max is a whole number from 1 to 1000")
+        return value
     if (section, key) == ("llm", "chat_models"):
         names = [v.strip() for v in value] if isinstance(value, list) and all(isinstance(v, str) for v in value) else None
         if names is None or not all(names) or len(names) > 50 or any(len(n) > 200 for n in names):
