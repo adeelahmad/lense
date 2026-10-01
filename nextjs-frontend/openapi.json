@@ -7978,6 +7978,28 @@
         }
       }
     },
+    "/api/v1/chats/capabilities": {
+      "get": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Chat Capabilities",
+        "description": "What the assistant can do, for anyone signed in: whether a language model is set up and which, whether it uses\ntools (and at most how many steps), and whether answers can be checked against their sources. Not the model\nserver's address or key.",
+        "operationId": "chat_capabilities",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCapabilities"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats/{cid}": {
       "get": {
         "tags": [
@@ -8118,7 +8140,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, done (the saved message id).",
+        "description": "Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -8146,6 +8168,49 @@
             "description": "server-sent events",
             "content": {
               "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chats/{cid}/stop": {
+      "post": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Stop Answer",
+        "description": "Stop the answer being written in a conversation: it ends after the piece or tool step it's on, keeps what came\nbefore (saved, marked stopped) and streams `stopped`, then `done`. Works whichever server process is answering.",
+        "operationId": "stop_answer",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StopResult"
+                }
+              }
             }
           },
           "422": {
@@ -10469,6 +10534,51 @@
         ],
         "title": "Chat"
       },
+      "ChatCapabilities": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured",
+            "description": "a language model is set up; without one, answers are the best-matching passages"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model answers come from"
+          },
+          "tools": {
+            "type": "boolean",
+            "title": "Tools",
+            "description": "the assistant looks things up with tools (and may propose work for approval)"
+          },
+          "max_steps": {
+            "type": "integer",
+            "title": "Max Steps",
+            "description": "the most tool calls it makes for one answer"
+          },
+          "check": {
+            "type": "boolean",
+            "title": "Check",
+            "description": "answers can be checked against their sources"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "configured",
+          "tools",
+          "max_steps",
+          "check"
+        ],
+        "title": "ChatCapabilities"
+      },
       "ChatCreate": {
         "properties": {
           "title": {
@@ -10539,6 +10649,12 @@
               }
             ],
             "title": "Created At"
+          },
+          "stopped": {
+            "type": "boolean",
+            "title": "Stopped",
+            "description": "the answer was stopped (POST /chats/{cid}/stop): `content` is what came before",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -17918,6 +18034,26 @@
         "additionalProperties": true,
         "type": "object",
         "title": "StepRun"
+      },
+      "StopResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "stopping": {
+            "type": "boolean",
+            "title": "Stopping",
+            "description": "an answer was being written, and stops after its current piece or step"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "stopping"
+        ],
+        "title": "StopResult"
       },
       "TagCount": {
         "properties": {

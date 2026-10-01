@@ -43,11 +43,9 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | Facet counts over all results (today: the first 200 hits) | facets on `/search` |
 | Saved searches (today: saved as filter collections, which can't hold emotion or recording filters) | a saved-search store |
 | "Try …" prefix suggestions | a term-completion endpoint |
-| Know whether a model is configured, and which, without being an admin | `GET /chats/capabilities` |
 | Model picker | provider model list and a per-chat model |
 | Scope a chat by collection (today: expanded to at most 200 recording ids) | collection ids in the chat scope |
 | Tool steps and source-check verdicts when reopening a chat | return them in `GET /chats/{id}` |
-| Stop an answer | a cancel endpoint |
 | Retry with another model | a model override on retry |
 
 ## Speakers and graph

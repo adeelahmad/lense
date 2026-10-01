@@ -9,8 +9,11 @@ Conversations belong to one person and can be scoped to namespaces, recordings, 
 - **Answers:** the model answers only from those excerpts and cites them as [n]. Each citation carries the recording
   and timestamp.
 - **Streaming:** answers arrive over server-sent events: `passages`, then `token`s, then `done`.
+- **Stopping:** Stop asks the server to end the answer after the piece or tool step it's on (whichever server process
+  is writing it); what came before is saved, marked stopped. A model call already under way finishes first.
 - **Changed access:** old citations are filtered by the person's current access when a conversation is reopened.
-- **No model configured:** chat returns the best-matching passages instead.
+- **No model configured:** chat returns the best-matching passages instead. Anyone signed in can see whether a model
+  is set up, and which (`GET /chats/capabilities`), so the app says so before the first question.
 
 Retrieval is keyword-based for now; vector search is not built yet.
 

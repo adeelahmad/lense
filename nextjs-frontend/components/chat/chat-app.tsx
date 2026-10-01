@@ -13,7 +13,7 @@ import { Answer } from "@/components/chat/answer";
 import { shortTitle } from "@/components/chat/cite";
 import { Composer, ScopeBar } from "@/components/chat/composer";
 import { ConversationList } from "@/components/chat/conversations";
-import { useApprovals, useChat, useChats, useLlmStatus } from "@/components/chat/data";
+import { useApprovals, useChat, useChats, useLlmStatus, useStopAnswer } from "@/components/chat/data";
 import { EmptyChat } from "@/components/chat/empty";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
@@ -241,7 +241,15 @@ export function ChatApp() {
     [activeId, client, draft, draftScope, qc, router, run, streaming, toast],
   );
 
-  const stop = () => abortRef.current?.abort();
+  const stopAnswer = useStopAnswer();
+  const [stopping, setStopping] = useState<number | null>(null); // the conversation whose answer is stopping
+  const stop = () => {
+    setStopping(live?.chatId ?? null);
+    stopAnswer(live?.chatId, abortRef.current);
+  };
+  useEffect(() => {
+    if (!live) setStopping(null);
+  }, [live]);
 
   const newConversation = () => {
     abortRef.current?.abort();
@@ -427,9 +435,9 @@ export function ChatApp() {
                       chatId={activeId}
                       messageId={it.a.id}
                       question={it.q?.content ?? ""}
-                      text={it.a.content}
+                      text={it.a.stopped && it.a.content === "(stopped)" ? "" : it.a.content}
                       passages={it.a.passages ?? []}
-                      status={ex?.error ? "error" : "done"}
+                      status={ex?.error ? "error" : it.a.stopped ? "stopped" : "done"}
                       error={ex?.error}
                       notice={ex?.notice}
                       steps={ex?.steps}
@@ -490,6 +498,7 @@ export function ChatApp() {
                   scope={scope}
                   model={model}
                   onStop={stop}
+                  stopping={stopping != null && stopping === live?.chatId}
                   onRetry={() => send(liveHere.question)}
                   onAddScope={addScope}
                   {...answerHandlers("live")}

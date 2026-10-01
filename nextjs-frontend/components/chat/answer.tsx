@@ -126,6 +126,8 @@ export type AnswerProps = {
   onHover: (n: number | null) => void;
   onPreview: (p: Passage) => void;
   onStop?: () => void;
+  /** Stop was pressed: the answer ends after the piece or step it's on. */
+  stopping?: boolean;
   onRetry?: () => void;
   onAddScope?: (ns: string) => void;
   onShowSources?: () => void;
@@ -280,8 +282,15 @@ export function Answer(p: AnswerProps) {
 
       <div className="flex flex-wrap items-center gap-1.5">
         {streaming && p.onStop && (
-          <Button size="sm" variant="ghost" icon={<Square className="!size-3" />} onClick={p.onStop}>
-            Stop
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<Square className="!size-3" />}
+            onClick={p.onStop}
+            disabled={p.stopping}
+            disabledReason="Stopping after the step it’s on"
+          >
+            {p.stopping ? "Stopping…" : "Stop"}
           </Button>
         )}
         {p.status === "done" && p.messageId != null && p.chatId != null && cites.length > 0 && !noModel && !result && (

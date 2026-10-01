@@ -409,15 +409,23 @@ POST   /api/v1/pipelines/{pid}/run
 
 ```
 GET    /api/v1/chats
+GET    /api/v1/chats/capabilities
 POST   /api/v1/chats
 GET    /api/v1/chats/{cid}
 PATCH  /api/v1/chats/{cid}
 DELETE /api/v1/chats/{cid}
 POST   /api/v1/chats/{cid}/messages
+POST   /api/v1/chats/{cid}/stop
 POST   /api/v1/chats/{cid}/messages/{mid}/check
 GET    /api/v1/approvals
 POST   /api/v1/approvals/{aid}
 ```
+
+`GET /chats/capabilities` tells anyone signed in whether a language model is set up (`configured`), which (`model`),
+whether it uses tools (`tools`, `max_steps`) and whether answers can be checked (`check`); never the model server's
+address or key. `POST /chats/{cid}/stop` stops the answer being written in your conversation after the piece or tool
+step it's on: the stream sends `stopped`, then `done` with the saved message, whose `stopped` is true and whose
+`content` is what came before (`(stopped)` when nothing had). `{stopping: false}` when nothing was being written.
 
 ## collections
 

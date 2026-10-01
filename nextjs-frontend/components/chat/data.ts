@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
 
-import { Admin, Chats } from "@/app/openapi-client";
+import { Chats } from "@/app/openapi-client";
 import { data, useApiClient } from "@/lib/api/browser";
-import { useArchive } from "@/lib/hooks/session";
 
 export function useChats() {
   const client = useApiClient();
@@ -42,29 +42,36 @@ export type LlmStatus = {
   tools: boolean;
 };
 
-/**
- * Whether chat has a model. Only admins can read Settings, so for everyone else this stays unknown until an answer
- * shows it (the backend then answers with the best passages instead).
- */
+/** Whether chat has a model, which, and whether it uses tools: anyone signed in can ask (GET /chats/capabilities). */
 export function useLlmStatus(): LlmStatus {
   const client = useApiClient();
-  const { admin } = useArchive();
   const q = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => data(Admin.getSettings({ client })),
-    enabled: admin,
+    queryKey: ["chat-capabilities"],
+    queryFn: () => data(Chats.chatCapabilities({ client })),
     staleTime: 60_000,
   });
-  const llm = ((q.data?.llm as { values?: Record<string, unknown> } | undefined)?.values ?? {}) as {
-    base_url?: string | null;
-    model?: string | null;
-  };
-  const ai = ((q.data?.ai as { values?: Record<string, unknown> } | undefined)?.values ?? {}) as { tools?: boolean };
   if (!q.data) return { known: false, configured: true, model: null, tools: true };
-  return {
-    known: true,
-    configured: Boolean(llm.base_url && llm.model),
-    model: llm.model ?? null,
-    tools: ai.tools !== false,
-  };
+  return { known: true, configured: q.data.configured, model: q.data.model ?? null, tools: q.data.tools };
+}
+
+/**
+ * Stop an answer. The server ends it after the piece or tool step it's on and saves what came, marked stopped, so the
+ * stream closes by itself. When nothing was answering there, the server can't be reached, or it takes longer than
+ * `wait` (a model call can't be cut short), stop reading it here instead.
+ */
+export function useStopAnswer(wait = 15_000) {
+  const client = useApiClient();
+  return useCallback(
+    (cid: number | null | undefined, reading: AbortController | null) => {
+      if (!reading) return;
+      if (cid == null) return reading.abort();
+      window.setTimeout(() => reading.abort(), wait);
+      data(Chats.stopAnswer({ client, path: { cid } }))
+        .then((r) => {
+          if (!r.stopping) reading.abort();
+        })
+        .catch(() => reading.abort());
+    },
+    [client, wait],
+  );
 }

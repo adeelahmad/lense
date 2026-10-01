@@ -822,6 +822,38 @@ export type Chat = {
 };
 
 /**
+ * ChatCapabilities
+ */
+export type ChatCapabilities = {
+  /**
+   * Configured
+   * a language model is set up; without one, answers are the best-matching passages
+   */
+  configured: boolean;
+  /**
+   * Model
+   * the model answers come from
+   */
+  model?: string | null;
+  /**
+   * Tools
+   * the assistant looks things up with tools (and may propose work for approval)
+   */
+  tools: boolean;
+  /**
+   * Max Steps
+   * the most tool calls it makes for one answer
+   */
+  max_steps: number;
+  /**
+   * Check
+   * answers can be checked against their sources
+   */
+  check: boolean;
+  [key: string]: unknown | boolean | string | null | number | undefined;
+};
+
+/**
  * ChatCreate
  */
 export type ChatCreate = {
@@ -856,7 +888,23 @@ export type ChatMessage = {
    * Created At
    */
   created_at?: string | null;
-  [key: string]: unknown | number | "user" | "assistant" | string | Array<Passage> | null | string | null | undefined;
+  /**
+   * Stopped
+   * the answer was stopped (POST /chats/{cid}/stop): `content` is what came before
+   */
+  stopped?: boolean;
+  [key: string]:
+    | unknown
+    | number
+    | "user"
+    | "assistant"
+    | string
+    | Array<Passage>
+    | null
+    | string
+    | null
+    | boolean
+    | undefined;
 };
 
 /**
@@ -5665,6 +5713,22 @@ export type StepRun = {
     | null
     | Array<StepOutput>
     | undefined;
+};
+
+/**
+ * StopResult
+ */
+export type StopResult = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Stopping
+   * an answer was being written, and stops after its current piece or step
+   */
+  stopping: boolean;
+  [key: string]: unknown | boolean | undefined;
 };
 
 /**
@@ -11521,6 +11585,22 @@ export type CreateChatResponses = {
 
 export type CreateChatResponse = CreateChatResponses[keyof CreateChatResponses];
 
+export type ChatCapabilitiesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/chats/capabilities";
+};
+
+export type ChatCapabilitiesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatCapabilities;
+};
+
+export type ChatCapabilitiesResponse = ChatCapabilitiesResponses[keyof ChatCapabilitiesResponses];
+
 export type DeleteChatData = {
   body?: never;
   path: {
@@ -11638,6 +11718,36 @@ export type SendMessageResponses = {
    */
   200: unknown;
 };
+
+export type StopAnswerData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/stop";
+};
+
+export type StopAnswerErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type StopAnswerError = StopAnswerErrors[keyof StopAnswerErrors];
+
+export type StopAnswerResponses = {
+  /**
+   * Successful Response
+   */
+  200: StopResult;
+};
+
+export type StopAnswerResponse = StopAnswerResponses[keyof StopAnswerResponses];
 
 export type CheckMessageData = {
   body?: never;

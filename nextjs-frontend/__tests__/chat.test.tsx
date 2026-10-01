@@ -121,6 +121,14 @@ describe("the answer stream", () => {
       notice: "This model can't use tools",
     });
   });
+
+  it("keeps what came before Stop, saved", () => {
+    let s = newTurn("q");
+    s = applyEvent(s, { event: "token", data: '{"text":"The shipment "}' });
+    s = applyEvent(s, { event: "stopped", data: '{"message":"Stopped"}' });
+    s = applyEvent(s, { event: "done", data: '{"message":12}' });
+    expect(s).toMatchObject({ status: "stopped", text: "The shipment ", messageId: 12 });
+  });
 });
 
 describe("rich text", () => {

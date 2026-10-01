@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 
 import { Chats } from "@/app/openapi-client";
+import { useStopAnswer } from "@/components/chat/data";
 import { usePlayerApi } from "@/components/player/media";
 import {
   applyChatEvent,
@@ -37,7 +38,9 @@ export function ChatTab() {
   const [fresh, setFresh] = useState(false);
   const [input, setInput] = useState("");
   const [answer, setAnswer] = useState<Answer | null>(null);
+  const [stopping, setStopping] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  const stopAnswer = useStopAnswer();
   const box = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
 
@@ -72,6 +75,7 @@ export function ChatTab() {
     if (!q || answer?.status === "streaming") return;
     setInput("");
     setAnswer(newAnswer(q));
+    setStopping(false);
     const ctl = new AbortController();
     abort.current = ctl;
     try {
@@ -101,7 +105,7 @@ export function ChatTab() {
       }
       setAnswer((a) => (a && a.status === "streaming" ? { ...a, status: "done" } : a));
       await qc.invalidateQueries({ queryKey: ["chat", target] });
-      setAnswer((a) => (a?.status === "done" ? null : a));
+      setAnswer((a) => (a?.status === "done" || a?.saved ? null : a)); // a saved one shows in the conversation now
     } catch (e) {
       if (ctl.signal.aborted) setAnswer((a) => (a ? { ...a, status: "stopped" } : a));
       else {
@@ -164,7 +168,13 @@ export function ChatTab() {
           m.role === "user" ? (
             <Question key={m.id} text={m.content} />
           ) : (
-            <AnswerView key={m.id} text={m.content} passages={(m.passages ?? []) as Passage[]} />
+            <div key={m.id} className="flex flex-col gap-1.5">
+              <AnswerView
+                text={m.content === "(stopped)" ? "" : m.content}
+                passages={(m.passages ?? []) as Passage[]}
+              />
+              {m.stopped && <p className="text-[12.5px] text-fg-muted">Stopped.</p>}
+            </div>
           ),
         )}
         {answer && (
@@ -222,10 +232,15 @@ export function ChatTab() {
             variant="secondary"
             size="md"
             icon={<Square />}
-            onClick={() => abort.current?.abort()}
+            onClick={() => {
+              setStopping(true);
+              stopAnswer(chatId, abort.current);
+            }}
+            disabled={stopping}
+            disabledReason="Stopping after the step it’s on"
             aria-label="Stop the answer"
           >
-            Stop
+            {stopping ? "Stopping…" : "Stop"}
           </Button>
         ) : (
           <Button

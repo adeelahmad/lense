@@ -459,6 +459,8 @@ import type {
   CreateChatData,
   CreateChatResponses,
   CreateChatErrors,
+  ChatCapabilitiesData,
+  ChatCapabilitiesResponses,
   DeleteChatData,
   DeleteChatResponses,
   DeleteChatErrors,
@@ -471,6 +473,9 @@ import type {
   SendMessageData,
   SendMessageResponses,
   SendMessageErrors,
+  StopAnswerData,
+  StopAnswerResponses,
+  StopAnswerErrors,
   CheckMessageData,
   CheckMessageResponses,
   CheckMessageErrors,
@@ -2753,6 +2758,21 @@ export class Chats {
   }
 
   /**
+   * Chat Capabilities
+   * What the assistant can do, for anyone signed in: whether a language model is set up and which, whether it uses
+   * tools (and at most how many steps), and whether answers can be checked against their sources. Not the model
+   * server's address or key.
+   */
+  public static chatCapabilities<ThrowOnError extends boolean = false>(
+    options?: Options<ChatCapabilitiesData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ChatCapabilitiesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/chats/capabilities",
+      ...options,
+    });
+  }
+
+  /**
    * Delete Chat
    */
   public static deleteChat<ThrowOnError extends boolean = false>(options: Options<DeleteChatData, ThrowOnError>) {
@@ -2790,7 +2810,8 @@ export class Chats {
 
   /**
    * Send Message
-   * Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, done (the saved message id).
+   * Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
+   * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
    */
   public static sendMessage<ThrowOnError extends boolean = false>(options: Options<SendMessageData, ThrowOnError>) {
     return (options.client ?? client).sse.post<SendMessageResponses, SendMessageErrors, ThrowOnError>({
@@ -2800,6 +2821,18 @@ export class Chats {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Stop Answer
+   * Stop the answer being written in a conversation: it ends after the piece or tool step it's on, keeps what came
+   * before (saved, marked stopped) and streams `stopped`, then `done`. Works whichever server process is answering.
+   */
+  public static stopAnswer<ThrowOnError extends boolean = false>(options: Options<StopAnswerData, ThrowOnError>) {
+    return (options.client ?? client).post<StopAnswerResponses, StopAnswerErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/stop",
+      ...options,
     });
   }
 

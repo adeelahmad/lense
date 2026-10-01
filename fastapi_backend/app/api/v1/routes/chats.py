@@ -25,11 +25,13 @@ from app.schemas.chats import (
     ApprovalDecision,
     ApprovalOutcome,
     Chat,
+    ChatCapabilities,
     ChatCreate,
     ChatScope,
     ChatSummary,
     ChatUpdate,
     MessageCreate,
+    StopResult,
 )
 from app.schemas.common import Created, Ok
 
@@ -63,6 +65,21 @@ def list_chats(user: CurrentUser, db: Db) -> list[ChatSummary]:
     return db.rows(
         "SELECT record::id(id) AS id, title, scope, created_at, updated_at FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
         a=user.id,
+    )
+
+
+@router.get("/chats/capabilities")
+def chat_capabilities(user: CurrentUser, cfg: Cfg) -> ChatCapabilities:
+    """What the assistant can do, for anyone signed in: whether a language model is set up and which, whether it uses
+    tools (and at most how many steps), and whether answers can be checked against their sources. Not the model
+    server's address or key."""
+    on = llm.configured(cfg)
+    return ChatCapabilities(
+        configured=on,
+        model=cfg["llm"].get("model") if on else None,
+        tools=on and bool(cfg["ai"].get("tools")),
+        max_steps=int(cfg["ai"].get("max_steps") or 6),
+        check=on,
     )
 
 
@@ -120,7 +137,8 @@ def _ev(name: str, data: Any) -> str:
     responses={200: {"content": {"text/event-stream": {}}, "description": "server-sent events"}},
 )
 async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> StreamingResponse:
-    """Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, done (the saved message id)."""
+    """Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
+    /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id)."""
     c = await run_in_threadpool(_own_chat, db, cid, user)
     q = body.content.strip()[:4000]
     if not q:
@@ -136,7 +154,11 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
 
     past, passages = await run_in_threadpool(prepare)
 
-    def gen() -> Iterator[str]:
+    def stopped(text: str, cited: list[dict[str, Any]]) -> Iterator[str]:
+        yield _ev("stopped", {"message": "Stopped"})
+        yield _ev("done", {"message": chat.add(db, cid, "assistant", text or "(stopped)", cited, stopped=True)})
+
+    def answer(on: chat.Answering) -> Iterator[str]:
         if llm.configured(cfg) and cfg["ai"].get("tools"):
             box = ai_tools.Toolbox(db, cfg, user.as_audit(), readable, set(acl.editable()), c.get("scope"), cid)
             try:
@@ -144,6 +166,11 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 for kind, data in chat.tool_answer(cfg, box, q, past, cfg["ai"].get("max_steps") or 6):
                     if kind == "step":
                         yield _ev("step", data)
+                        if on.stop_requested(force=True):  # between steps: the model is called again after each
+                            for appr in box.approvals:
+                                yield _ev("approval", appr)
+                            yield from stopped("", [])
+                            return
                     else:
                         answer = data
                 for appr in box.approvals:
@@ -166,6 +193,9 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 for piece in llm.stream_chat(cfg, chat.messages_for(q, passages, past)):
                     text += piece
                     yield _ev("token", {"text": piece})
+                    if on.stop_requested():
+                        yield from stopped(text, chat.cited(text, passages))
+                        return
             else:
                 text = chat.fallback(passages)
                 yield _ev("token", {"text": text})
@@ -173,8 +203,23 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             yield _ev("error", {"message": str(e)})
         yield _ev("done", {"message": chat.add(db, cid, "assistant", text or "(no answer)", chat.cited(text, passages))})
 
+    def gen() -> Iterator[str]:
+        on = chat.Answering(db, cid)
+        try:
+            yield from answer(on)
+        finally:
+            on.end()
+
     # A sync generator: Starlette iterates it in the threadpool, so the domain calls inside don't block the loop.
     return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+@router.post("/chats/{cid}/stop")
+def stop_answer(cid: int, user: Writer, db: Db) -> StopResult:
+    """Stop the answer being written in a conversation: it ends after the piece or tool step it's on, keeps what came
+    before (saved, marked stopped) and streams `stopped`, then `done`. Works whichever server process is answering."""
+    _own_chat(db, cid, user)
+    return StopResult(stopping=chat.request_stop(db, cid))
 
 
 @router.post("/chats/{cid}/messages/{mid}/check")

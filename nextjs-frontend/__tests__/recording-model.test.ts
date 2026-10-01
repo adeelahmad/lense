@@ -491,6 +491,12 @@ describe("recording chat", () => {
     expect(a.text).toBe("They were surprised [1].");
     expect(a.passages[0].t0).toBe(6795);
   });
+  it("keeps what came before Stop, and knows it was saved", () => {
+    let a = applyChatEvent(newAnswer("q"), { event: "token", data: JSON.stringify({ text: "Friday " }) });
+    a = applyChatEvent(a, { event: "stopped", data: "{}" });
+    a = applyChatEvent(a, { event: "done", data: JSON.stringify({ message: 4 }) });
+    expect([a.status, a.text, a.saved]).toEqual(["stopped", "Friday ", true]);
+  });
   it("keeps errors", () => {
     const a = applyChatEvent(
       applyChatEvent(newAnswer("q"), {

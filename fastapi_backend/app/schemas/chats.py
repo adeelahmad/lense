@@ -58,6 +58,20 @@ class ChatMessage(ResponseModel):
     content: str
     passages: list[Passage] | None = None
     created_at: str | None = None
+    stopped: bool = Field(False, description="the answer was stopped (POST /chats/{cid}/stop): `content` is what came before")
+
+
+class ChatCapabilities(ResponseModel):
+    configured: bool = Field(description="a language model is set up; without one, answers are the best-matching passages")
+    model: str | None = Field(None, description="the model answers come from")
+    tools: bool = Field(description="the assistant looks things up with tools (and may propose work for approval)")
+    max_steps: int = Field(description="the most tool calls it makes for one answer")
+    check: bool = Field(description="answers can be checked against their sources")
+
+
+class StopResult(ResponseModel):
+    ok: bool = True
+    stopping: bool = Field(description="an answer was being written, and stops after its current piece or step")
 
 
 class Chat(ChatSummary):

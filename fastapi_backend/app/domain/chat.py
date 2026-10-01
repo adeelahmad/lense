@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from collections import Counter, defaultdict
 
 from . import llm, render, store
@@ -235,18 +236,49 @@ def get(db, cid, account):
 
 
 def history(db, cid):
-    return db.rows("SELECT record::id(id) AS id, role, content, passages, created_at FROM chat_message WHERE chat = $c ORDER BY id", c=cid)
+    return db.rows(
+        "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped FROM chat_message "
+        "WHERE chat = $c ORDER BY id",
+        c=cid,
+    )
 
 
-def add(db, cid, role, content, passages=None):
+def add(db, cid, role, content, passages=None, stopped=False):
     mid = db.next_id("chat_message")
     db.q(
         "CREATE $r CONTENT $d",
         r=R("chat_message", mid),
-        d=store.clean({"chat": cid, "role": role, "content": content, "passages": passages, "created_at": store.now()}),
+        d=store.clean(
+            {"chat": cid, "role": role, "content": content, "passages": passages, "created_at": store.now(), "stopped": stopped or None}
+        ),
     )
     db.q("UPDATE $r SET updated_at = $t", r=R("chat", cid), t=store.now())
     return mid
+
+
+class Answering:
+    """An answer being written in a conversation. Stopping it (POST /chats/{cid}/stop, from any server process) sets a
+    flag on the conversation, which the answer looks at between pieces and tool steps, at most every half second."""
+
+    EVERY = 0.5
+
+    def __init__(self, db, cid):
+        self.db, self.r, self.last, self.stopped = db, R("chat", cid), 0.0, False
+        db.q("UPDATE $r SET answering = true, stop_requested = false", r=self.r)
+
+    def stop_requested(self, force=False):
+        if not self.stopped and (force or time.monotonic() - self.last >= self.EVERY):
+            self.last = time.monotonic()
+            self.stopped = bool((self.db.one("SELECT stop_requested FROM $r", r=self.r) or {}).get("stop_requested"))
+        return self.stopped
+
+    def end(self):
+        self.db.q("UPDATE $r SET answering = false, stop_requested = false", r=self.r)
+
+
+def request_stop(db, cid):
+    """Ask the answer being written in a conversation to stop; False when none is."""
+    return bool(db.rows("UPDATE $r SET stop_requested = true WHERE answering = true RETURN id", r=R("chat", cid)))
 
 
 TOOL_SYSTEM = (

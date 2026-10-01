@@ -6,7 +6,8 @@ import json
 
 import pytest
 
-from app.domain import ai_tools, auth, store
+from app.domain import ai_tools, auth, chat, store
+from app.domain import llm as llm_mod
 from tests import fake_llm
 from tests.api._assist import Assist, sse, start_llm
 from tests.helpers import drain, login, make_user, seed
@@ -145,3 +146,69 @@ def test_tools_approvals_and_checking(app, db, cfg, folder, new_client, llm):
     ev = sse(cv.post(f"/api/v1/chats/{vid}/messages", headers=hv, json={"content": "capsid"}).text)
     assert "notice" in ev  # fell back to search-and-answer
     assert ev["passages"][0]
+
+
+def test_capabilities_for_everyone(client, new_client, db, cfg, folder, llm):
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    hv = login(client, "vi@x.io", "viewer password 1")
+    caps = client.get("/api/v1/chats/capabilities", headers=hv).json()
+    assert caps == {"configured": True, "model": "fake", "tools": True, "max_steps": 6, "check": True}
+    assert "base_url" not in json.dumps(caps) and new_client().get("/api/v1/chats/capabilities").status_code == 401
+    admin = new_client()
+    assert (
+        admin.put("/api/v1/settings/llm", headers=login(admin, "root@x.io", "root password 1"), json={"base_url": None}).status_code == 200
+    )
+    caps = client.get("/api/v1/chats/capabilities", headers=hv).json()
+    assert (caps["configured"], caps["model"], caps["tools"], caps["check"]) == (False, None, False, False)
+
+
+def test_stopping_an_answer(plain, client, new_client, db, cfg, folder, llm, monkeypatch):
+    seed(db, cfg, folder)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor", "calls": "editor"})
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    h = login(client, "ed@x.io", "editor password 1")
+    other = new_client()
+    hv = login(other, "vi@x.io", "viewer password 1")
+    cid = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    assert client.post(f"/api/v1/chats/{cid}/stop", headers=h).json() == {"ok": True, "stopping": False}  # nothing to stop
+    assert other.post(f"/api/v1/chats/{cid}/stop", headers=hv).status_code == 404  # someone else's
+    monkeypatch.setattr(chat.Answering, "EVERY", 0)
+
+    def stream(*_a, **_k):  # the person presses Stop after the first piece
+        yield "The shipment "
+        assert chat.request_stop(db, cid)
+        yield "leaves on Friday [1]."
+        yield " And more."
+
+    monkeypatch.setattr(llm_mod, "stream_chat", stream)
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does the shipment leave?"}).text)
+    assert "".join(e["text"] for e in ev["token"]) == "The shipment leaves on Friday [1]." and "stopped" in ev
+    saved = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]
+    assert (saved["id"], saved["content"], saved["stopped"]) == (ev["done"][0]["message"], "The shipment leaves on Friday [1].", True)
+    assert saved["passages"] and client.post(f"/api/v1/chats/{cid}/stop", headers=h).json()["stopping"] is False
+
+    # a later question isn't stopped by the earlier request
+    monkeypatch.setattr(llm_mod, "stream_chat", lambda *a, **k: iter(["Friday [1]."]))
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Again?"}).text)
+    assert "stopped" not in ev and client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]["stopped"] is False
+
+
+def test_stopping_between_tool_steps(client, db, cfg, folder, llm, monkeypatch):
+    seed(db, cfg, folder)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    h = login(client, "ed@x.io", "editor password 1")
+    cid = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
+
+    def tool_loop(*_a, **_k):  # Stop is pressed while the second tool runs: the model isn't asked again
+        yield "step", {"tool": "search_transcripts", "args": {"query": "shipment"}, "summary": "Searched"}
+        chat.request_stop(db, cid)
+        yield "step", {"tool": "get_recording", "args": {"id": 1}, "summary": "Opened"}
+        raise AssertionError("asked the model again after Stop")
+
+    monkeypatch.setattr(chat, "tool_answer", tool_loop)
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "And the samples?"}).text)
+    # the step that was running finishes and is shown; then it stops
+    assert [s["tool"] for s in ev["step"]] == ["search_transcripts", "get_recording"] and "token" not in ev and "stopped" in ev
+    saved = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]
+    assert (saved["content"], saved["stopped"], ev["done"][0]["message"]) == ("(stopped)", True, saved["id"])

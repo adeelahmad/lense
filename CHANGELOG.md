@@ -26,6 +26,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Stop an answer, and know the model, without being an admin.** Stop in Chat (and in a recording's Chat tab) now
+  asks the server to end the answer after the piece or tool step it's on, and keeps what came before in the
+  conversation, marked stopped; it used to stop reading, leaving the question without an answer and the model
+  working. Everyone sees whether a language model is set up, and which, before asking; only admins could.
+    - `GET /api/v1/chats/capabilities` (anyone signed in: `configured`, `model`, `tools`, `max_steps`, `check`; not
+      the server's address or key) and `POST /api/v1/chats/{cid}/stop` (`{stopping}`); the answer stream sends
+      `stopped` before `done`, and saved messages carry `stopped` (docs/api.md).
+    - The stop is a flag on the conversation that the answer checks between pieces (every half second at most) and
+      tool steps, so it works whichever server process is answering. A model call already under way finishes first;
+      the web app stops reading after 15 s if the server hasn't ended the answer by then.
 - **Runs of one namespace or one batch, from the server.** Activity's namespace filter asks the server, so the status
   counts and the 200 rows shown are that namespace's (they were the newest 200 of every namespace, filtered in the
   browser), and its menu says how many runs each namespace has. A batch run's page lists all of its jobs; it showed
