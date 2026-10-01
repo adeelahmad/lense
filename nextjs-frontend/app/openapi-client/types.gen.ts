@@ -791,6 +791,11 @@ export type Chat = {
     [key: string]: unknown;
   };
   /**
+   * Model
+   * the model chosen for this conversation; null: the configured one
+   */
+  model?: string | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -813,6 +818,8 @@ export type Chat = {
     | {
         [key: string]: unknown;
       }
+    | string
+    | null
     | string
     | null
     | string
@@ -850,7 +857,12 @@ export type ChatCapabilities = {
    * answers can be checked against their sources
    */
   check: boolean;
-  [key: string]: unknown | boolean | string | null | number | undefined;
+  /**
+   * Models
+   * the models people may pick, the configured one first (llm.chat_models, else the server's list)
+   */
+  models?: Array<string>;
+  [key: string]: unknown | boolean | string | null | number | Array<string> | undefined;
 };
 
 /**
@@ -862,6 +874,11 @@ export type ChatCreate = {
    */
   title?: string | null;
   scope?: ChatScope | null;
+  /**
+   * Model
+   * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
+   */
+  model?: string | null;
 };
 
 /**
@@ -912,6 +929,11 @@ export type ChatMessage = {
    * its latest source check (POST .../messages/{mid}/check)
    */
   check?: AnswerCheck | null;
+  /**
+   * Model
+   * the model that wrote the answer
+   */
+  model?: string | null;
   [key: string]:
     | unknown
     | number
@@ -929,6 +951,8 @@ export type ChatMessage = {
     | string
     | null
     | AnswerCheck
+    | null
+    | string
     | null
     | undefined;
 };
@@ -981,6 +1005,11 @@ export type ChatSummary = {
     [key: string]: unknown;
   };
   /**
+   * Model
+   * the model chosen for this conversation; null: the configured one
+   */
+  model?: string | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -999,6 +1028,8 @@ export type ChatSummary = {
     | null
     | string
     | null
+    | string
+    | null
     | undefined;
 };
 
@@ -1011,6 +1042,11 @@ export type ChatUpdate = {
    */
   title?: string | null;
   scope?: ChatScope | null;
+  /**
+   * Model
+   * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
+   */
+  model?: string | null;
 };
 
 /**
@@ -2867,6 +2903,11 @@ export type MessageCreate = {
    * the question (up to 4000 characters)
    */
   content: string;
+  /**
+   * Model
+   * answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry
+   */
+  model?: string | null;
 };
 
 /**

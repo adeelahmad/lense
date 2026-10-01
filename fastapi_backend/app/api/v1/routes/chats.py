@@ -63,7 +63,8 @@ def _own_chat(db: DB, cid: int, user: Principal) -> dict[str, Any]:
 def list_chats(user: CurrentUser, db: Db) -> list[ChatSummary]:
     """Your conversations, most recent first."""
     return db.rows(
-        "SELECT record::id(id) AS id, title, scope, created_at, updated_at FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
+        "SELECT record::id(id) AS id, title, scope, model, created_at, updated_at FROM chat WHERE account = $a "
+        "ORDER BY updated_at DESC LIMIT 200",
         a=user.id,
     )
 
@@ -80,13 +81,21 @@ def chat_capabilities(user: CurrentUser, cfg: Cfg) -> ChatCapabilities:
         tools=on and bool(cfg["ai"].get("tools")),
         max_steps=int(cfg["ai"].get("max_steps") or 6),
         check=on,
+        models=chat.model_choices(cfg),
     )
 
 
+def _model(cfg: dict[str, Any], model: str | None) -> str | None:
+    try:
+        return chat.check_model(cfg, model)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+
+
 @router.post("/chats")
-def create_chat(user: Writer, acl: Acl, db: Db, body: ChatCreate | None = None) -> Created:
+def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, body: ChatCreate | None = None) -> Created:
     body = body or ChatCreate()
-    return Created(id=chat.create(db, user.id, body.title, _scope(acl, db, body.scope)))
+    return Created(id=chat.create(db, user.id, body.title, _scope(acl, db, body.scope), _model(cfg, body.model)))
 
 
 @router.get("/chats/{cid}")
@@ -110,9 +119,11 @@ def get_chat(cid: int, user: CurrentUser, acl: Acl, db: Db) -> Chat:
 
 
 @router.patch("/chats/{cid}")
-def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db) -> Ok:
-    """Rename a conversation or change what it draws on."""
+def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Ok:
+    """Rename a conversation, change what it draws on, or the model that answers in it (null: the configured one)."""
     _own_chat(db, cid, user)
+    if "model" in body.model_fields_set:
+        db.q("UPDATE $r SET model = $m", r=R("chat", cid), m=_model(cfg, body.model))
     if body.title:
         db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=body.title[:120])
     if "scope" in body.model_fields_set:  # replaces the scope as a whole, so narrowing can also be removed
@@ -143,6 +154,10 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     q = body.content.strip()[:4000]
     if not q:
         raise HTTPException(400, "ask something")
+    # this answer's model: the one asked for (400 if it isn't offered), else the conversation's while it's still offered
+    model = await run_in_threadpool(_model, cfg, body.model) if body.model else c.get("model")
+    if model and not body.model and model not in await run_in_threadpool(chat.model_choices, cfg):
+        model = None
     readable = set(acl.roles)
 
     def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -158,7 +173,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     notice: str | None = None
 
     def save(text: str, cited: list[dict[str, Any]], **kw: Any) -> int:
-        return int(chat.add(db, cid, "assistant", text, cited, steps=steps, notice=notice, **kw))
+        wrote = (model or cfg["llm"].get("model")) if llm.configured(cfg) else None
+        return int(chat.add(db, cid, "assistant", text, cited, steps=steps, notice=notice, model=wrote, **kw))
 
     def stopped(text: str, cited: list[dict[str, Any]]) -> Iterator[str]:
         yield _ev("stopped", {"message": "Stopped"})
@@ -170,7 +186,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             box = ai_tools.Toolbox(db, cfg, user.as_audit(), readable, set(acl.editable()), c.get("scope"), cid)
             try:
                 answer = ""
-                for kind, data in chat.tool_answer(cfg, box, q, past, cfg["ai"].get("max_steps") or 6):
+                for kind, data in chat.tool_answer(cfg, box, q, past, cfg["ai"].get("max_steps") or 6, model):
                     if kind == "step":
                         steps.append(data)
                         yield _ev("step", data)
@@ -199,7 +215,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         text, error = "", None
         try:
             if llm.configured(cfg):
-                for piece in llm.stream_chat(cfg, chat.messages_for(q, passages, past)):
+                for piece in llm.stream_chat(cfg, chat.messages_for(q, passages, past), model=model):
                     text += piece
                     yield _ev("token", {"text": piece})
                     if on.stop_requested():

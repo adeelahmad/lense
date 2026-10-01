@@ -210,7 +210,7 @@ def cited(text, passages):
 
 
 # ---------- conversations ----------
-def create(db, account, title=None, scope=None):
+def create(db, account, title=None, scope=None, model=None):
     cid = db.next_id("chat")
     db.q(
         "CREATE $r CONTENT $d",
@@ -220,6 +220,7 @@ def create(db, account, title=None, scope=None):
                 "account": account,
                 "title": (title or "New conversation")[:120],
                 "scope": scope or {},
+                "model": model,
                 "created_at": store.now(),
                 "updated_at": store.now(),
             }
@@ -229,7 +230,7 @@ def create(db, account, title=None, scope=None):
 
 
 def get(db, cid, account):
-    c = db.one("SELECT record::id(id) AS id, account, title, scope, created_at, updated_at FROM $r", r=R("chat", cid))
+    c = db.one("SELECT record::id(id) AS id, account, title, scope, model, created_at, updated_at FROM $r", r=R("chat", cid))
     if not c or c["account"] != account:
         raise KeyError(cid)
     return c
@@ -238,12 +239,12 @@ def get(db, cid, account):
 def history(db, cid):
     return db.rows(
         "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped, steps ?? [] AS steps, "
-        "notice, error, check FROM chat_message WHERE chat = $c ORDER BY id",
+        "notice, error, check, model FROM chat_message WHERE chat = $c ORDER BY id",
         c=cid,
     )
 
 
-def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None):
+def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None, model=None):
     """Save a message; an answer keeps the tool steps it took, any notice (e.g. the model can't use tools) and error."""
     mid = db.next_id("chat_message")
     db.q(
@@ -260,11 +261,35 @@ def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice
                 "steps": steps or None,
                 "notice": notice,
                 "error": error,
+                "model": model,
             }
         ),
     )
     db.q("UPDATE $r SET updated_at = $t", r=R("chat", cid), t=store.now())
     return mid
+
+
+def model_choices(cfg):
+    """The models people may pick: the configured one first, then llm.chat_models, or (when that's empty) whatever
+    the model server lists. Just the configured one when the server's list can't be had."""
+    if not llm.configured(cfg):
+        return []
+    listed = list(cfg["llm"].get("chat_models") or [])
+    if not listed:
+        try:
+            listed = llm.list_models(cfg)
+        except llm.LLMError:
+            listed = []
+    return list(dict.fromkeys([cfg["llm"]["model"], *listed]))
+
+
+def check_model(cfg, model):
+    """A model someone picked, if it's one they may (ValueError otherwise); None for the configured one."""
+    if model is None or model == cfg["llm"].get("model"):
+        return None
+    if model not in model_choices(cfg):
+        raise ValueError(f"{model} isn't one of the models you can pick here")
+    return model
 
 
 class Answering:
@@ -298,12 +323,12 @@ TOOL_SYSTEM = (
 )
 
 
-def tool_answer(cfg, toolbox, question, history=(), max_steps=6):
+def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None):
     """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text). Raises llm.ToolsUnsupported."""
     msgs = [{"role": "system", "content": TOOL_SYSTEM}] + [{"role": m["role"], "content": m["content"]} for m in list(history)[-6:]]
     msgs.append({"role": "user", "content": question})
     for _ in range(max_steps):
-        msg = llm.chat_message(cfg, msgs, tools=toolbox.specs())
+        msg = llm.chat_message(cfg, msgs, tools=toolbox.specs(), model=model)
         if not msg["tool_calls"]:
             yield "answer", msg["content"]
             return

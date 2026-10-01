@@ -89,6 +89,7 @@ export function ChatApp() {
 
   const linkScope = useMemo(() => scopeFromParams(new URLSearchParams(search.toString())), [search]);
   const [draftScope, setDraftScope] = useState<Scope>(() => linkScope);
+  const [draftModel, setDraftModel] = useState<string | null>(null); // for the conversation that isn't started yet
   const [draft, setDraft] = useState(() => search.get("q") ?? "");
   const [composing, setComposing] = useState(() =>
     Boolean(search.get("q") || search.get("ns") || search.get("recording") || search.get("speaker")),
@@ -163,7 +164,7 @@ export function ChatApp() {
   );
 
   const run = useCallback(
-    async (cid: number, question: string) => {
+    async (cid: number, question: string, model?: string) => {
       const ac = new AbortController();
       abortRef.current = ac;
       let turn = newTurn(question);
@@ -172,7 +173,7 @@ export function ChatApp() {
       try {
         for await (const msg of streamSSE(`/api/v1/chats/${cid}/messages`, {
           method: "POST",
-          body: { content: question },
+          body: { content: question, model },
           accessToken: session?.accessToken,
           signal: ac.signal,
         })) {
@@ -209,7 +210,7 @@ export function ChatApp() {
   );
 
   const send = useCallback(
-    async (text?: string) => {
+    async (text?: string, model?: string) => {
       const question = (text ?? draft).trim();
       if (!question || streaming) return;
       setDraft("");
@@ -219,7 +220,7 @@ export function ChatApp() {
           const created = await data(
             Chats.createChat({
               client,
-              body: { scope: toApiScope(draftScope) },
+              body: { scope: toApiScope(draftScope), model: draftModel ?? undefined },
             }),
           );
           cid = created.id;
@@ -236,9 +237,9 @@ export function ChatApp() {
           return;
         }
       }
-      void run(cid, question);
+      void run(cid, question, model);
     },
-    [activeId, client, draft, draftScope, qc, router, run, streaming, toast],
+    [activeId, client, draft, draftScope, draftModel, qc, router, run, streaming, toast],
   );
 
   const stopAnswer = useStopAnswer();
@@ -324,7 +325,20 @@ export function ChatApp() {
     return out;
   }, [dir.speakers, index.data, scope.namespaces]);
 
-  const model = llm.known && llm.configured ? llm.model : null;
+  // the model that answers here: the conversation's choice (or the one picked before it started), else the configured one
+  const chosen = activeId != null ? (chat.data?.model ?? null) : draftModel;
+  const model = llm.known && llm.configured ? (chosen ?? llm.model) : null;
+  const pickModel = async (m: string) => {
+    const next = m === llm.model ? null : m;
+    if (activeId == null) return setDraftModel(next);
+    try {
+      await data(Chats.updateChat({ client, path: { cid: activeId }, body: { model: next } }));
+      await qc.invalidateQueries({ queryKey: ["chat", activeId] });
+      void qc.invalidateQueries({ queryKey: ["chats"] });
+    } catch (e) {
+      toast({ title: "Couldn’t change the model", body: e instanceof Error ? e.message : undefined, tone: "red" });
+    }
+  };
   const noProvider = llm.known && !llm.configured;
   const showThread = activeId != null || liveHere != null;
   const title = chat.data?.title ?? (activeId == null ? "New conversation" : "Conversation");
@@ -448,8 +462,10 @@ export function ChatApp() {
                           estimate: a.estimate as Estimate | null,
                         }))}
                       scope={scope}
-                      model={model}
+                      model={it.a.model ?? model}
                       onRetry={it.q ? () => send(it.q!.content) : undefined}
+                      models={llm.models}
+                      onRetryWith={it.q ? (m) => send(it.q!.content, m) : undefined}
                       onAddScope={addScope}
                       check={checks[it.a.id] ?? it.a.check}
                       onChecked={(c) => setChecks((x) => ({ ...x, [it.a!.id]: c }))}
@@ -468,6 +484,8 @@ export function ChatApp() {
                       scope={scope}
                       model={model}
                       onRetry={() => send(partial.question)}
+                      models={llm.models}
+                      onRetryWith={(m) => send(partial.question, m)}
                       {...answerHandlers(aKey)}
                     />
                   ) : (
@@ -525,6 +543,8 @@ export function ChatApp() {
               onChange={setScope}
               model={model}
               tools={llm.known ? llm.tools : null}
+              models={llm.models}
+              onModel={(m) => void pickModel(m)}
               openTick={scopeOpenTick}
             />
             <Composer

@@ -61,6 +61,9 @@ describe("settings fields", () => {
       error: "Use 1 or less",
     });
     expect(parse(spec("llm.base_url"), "  ")).toEqual({ value: null });
+    // the models people may pick in Chat: one per line (empty: whatever the server lists)
+    expect(parse(spec("llm.chat_models"), "gpt-x\n\n  claude-y  \n")).toEqual({ value: ["gpt-x", "claude-y"] });
+    expect(parse(spec("llm.chat_models"), "")).toEqual({ value: [] });
     expect(parse(spec("video.frame_width"), "480")).toEqual({ value: 480 });
   });
 

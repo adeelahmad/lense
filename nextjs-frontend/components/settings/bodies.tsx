@@ -308,6 +308,7 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
     <>
       <F ctx={ctx} id="llm.base_url" />
       <F ctx={ctx} id="llm.model" />
+      <F ctx={ctx} id="llm.chat_models" />
       <SecretSetting
         key={ctx.view.llm?.updated_at ?? "none"}
         label="API key"

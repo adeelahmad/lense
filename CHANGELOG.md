@@ -26,6 +26,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Choose the model in Chat, and try another.** The model chip under the question box becomes a menu when there's a
+  choice: the conversation then answers with the model you pick. Each answer offers Try another model, which asks
+  the same question again with a different one, and says which model wrote it.
+    - Which models: a new setting, `llm.chat_models` (Settings → LLM provider), lists them; left empty, whatever the
+      model server lists (`GET /models`, kept a minute). The configured model is always offered and stays the
+      default (docs/configuration.md).
+    - `GET /api/v1/chats/capabilities` adds `models`; conversations take and return `model` (`POST /chats`,
+      `PATCH /chats/{cid}`, null for the configured one); `POST /chats/{cid}/messages` takes `model` for one answer;
+      messages carry the `model` that wrote them. A model that isn't offered is a 400; a conversation whose model is no
+      longer offered answers with the configured one (docs/api.md).
 - **Reopened conversations keep how answers were made.** An answer now keeps the tools the assistant used, any
   notice, the error when there was no answer, and its source check; reopening a conversation (or reloading) showed
   only the text. `GET /api/v1/chats/{cid}` returns `steps`, `notice`, `error` and `check` on each message

@@ -448,6 +448,14 @@ export const FIELDS: FieldSpec[] = [
     mono: true,
     nullable: true,
   },
+  {
+    section: "llm",
+    key: "chat_models",
+    label: "Models people can pick in Chat",
+    kind: "lines",
+    mono: true,
+    hint: "One per line. Empty: whatever the server lists. The model above is always offered",
+  },
   { section: "llm", key: "api_key", label: "API key", kind: "secret" },
   {
     section: "llm",

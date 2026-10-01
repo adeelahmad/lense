@@ -52,6 +52,7 @@ analysis:
 llm:                                # optional summaries; any OpenAI-compatible server
   base_url: null                    # e.g. http://localhost:1234/v1 (LM Studio) or http://localhost:11434/v1 (Ollama)
   model: null
+  chat_models: []                   # the models people may pick in Chat (besides `model`); empty: whatever the server lists
   api_key_env: null
   max_chars: 24000
 

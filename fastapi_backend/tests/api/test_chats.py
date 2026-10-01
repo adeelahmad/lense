@@ -158,7 +158,7 @@ def test_capabilities_for_everyone(client, new_client, db, cfg, folder, llm):
     make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
     hv = login(client, "vi@x.io", "viewer password 1")
     caps = client.get("/api/v1/chats/capabilities", headers=hv).json()
-    assert caps == {"configured": True, "model": "fake", "tools": True, "max_steps": 6, "check": True}
+    assert caps == {"configured": True, "model": "fake", "tools": True, "max_steps": 6, "check": True, "models": ["fake", "fake-large"]}
     assert "base_url" not in json.dumps(caps) and new_client().get("/api/v1/chats/capabilities").status_code == 401
     admin = new_client()
     assert (
@@ -231,3 +231,39 @@ def test_stopping_between_tool_steps(client, db, cfg, folder, llm, monkeypatch):
     assert [s["tool"] for s in ev["step"]] == ["search_transcripts", "get_recording"] and "token" not in ev and "stopped" in ev
     saved = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]
     assert (saved["content"], saved["stopped"], ev["done"][0]["message"]) == ("(stopped)", True, saved["id"])
+
+
+def test_choosing_the_model(plain, client, new_client, db, cfg, folder, llm):
+    llm_mod._MODELS.clear()
+    seed(db, cfg, folder)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor", "calls": "editor"})
+    h = login(client, "ed@x.io", "editor password 1")
+    admin = new_client()
+    ha = login(admin, "root@x.io", "root password 1")
+    assert client.post("/api/v1/chats", headers=h, json={"model": "nope"}).status_code == 400
+    cid = client.post("/api/v1/chats", headers=h, json={"model": "fake-large"}).json()["id"]
+    assert client.get("/api/v1/chats", headers=h).json()[0]["model"] == "fake-large"
+
+    # the conversation's model answers in it; one question can ask another (Retry with another model)
+    llm.seen.clear()
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does the shipment leave?"}).text)
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does the shipment leave?", "model": "fake"}).text)
+    assert [b["model"] for b in llm.seen] == ["fake-large", "fake"]
+    msgs = client.get(f"/api/v1/chats/{cid}", headers=h).json()
+    assert ([m["model"] for m in msgs["messages"] if m["role"] == "assistant"], msgs["model"]) == (["fake-large", "fake"], "fake-large")
+    bad = client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Again?", "model": "gpt-9"})
+    assert bad.status_code == 400 and "isn't one of the models" in bad.json()["detail"]
+    assert client.patch(f"/api/v1/chats/{cid}", headers=h, json={"model": None}).status_code == 200
+    assert client.get(f"/api/v1/chats/{cid}", headers=h).json()["model"] is None
+
+    # admins can narrow (or widen) the choice; a conversation whose model was taken away falls back to the configured one
+    assert admin.put("/api/v1/settings/llm", headers=ha, json={"chat_models": "fake-large"}).status_code == 400
+    assert admin.put("/api/v1/settings/llm", headers=ha, json={"chat_models": [" "]}).status_code == 400
+    assert admin.put("/api/v1/settings/llm", headers=ha, json={"chat_models": ["fake-mini", "fake-mini"]}).status_code == 200
+    assert client.get("/api/v1/chats/capabilities", headers=h).json()["models"] == ["fake", "fake-mini"]
+    assert client.patch(f"/api/v1/chats/{cid}", headers=h, json={"model": "fake-large"}).status_code == 400
+    db.q("UPDATE $c SET model = 'fake-large'", c=store.R("chat", cid))
+    llm.seen.clear()
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "And now?"}).text)
+    assert [b["model"] for b in llm.seen] == ["fake"]

@@ -5,6 +5,8 @@ import {
   ArrowUp,
   AudioLines,
   CalendarRange,
+  Check,
+  ChevronDown,
   FolderClosed,
   FolderSearch,
   Plus,
@@ -20,7 +22,16 @@ import { useRecordingIndex, useSpeakerDirectory } from "@/components/search/data
 import { talkTime } from "@/components/speakers/format";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Input, SearchInput } from "@/components/ui/field";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/menu";
+import {
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuLabel,
+  MenuTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/menu";
 import { Segmented } from "@/components/ui/tabs";
 import { data, useApiClient } from "@/lib/api/browser";
 import { count } from "@/lib/format";
@@ -275,18 +286,23 @@ function CollectionOption({
   );
 }
 
-/** Scope chips (each shows its size), "+ Scope", and which model answers. */
+/** Scope chips (each shows its size), "+ Scope", and which model answers (a menu, when there's a choice). */
 export function ScopeBar({
   scope,
   onChange,
   model,
   tools,
+  models = [],
+  onModel,
   className,
 }: {
   scope: Scope;
   onChange: (s: Scope) => void;
   model: string | null;
   tools: boolean | null;
+  /** The models people may pick (GET /chats/capabilities). */
+  models?: string[];
+  onModel?: (m: string) => void;
   className?: string;
 }) {
   const { namespaces } = useArchive();
@@ -353,15 +369,46 @@ export function ScopeBar({
         </PopoverContent>
       </Popover>
       <span className="flex-1" />
-      {model && (
-        <span
-          className="hidden items-center gap-1.5 text-[12px] font-semibold text-fg-secondary sm:flex"
-          title="The model is set in Settings → LLM provider"
-        >
-          {tools ? <Wrench className="size-[13px]" aria-hidden /> : <Sparkles className="size-[13px]" aria-hidden />}
-          {tools ? `tools on · ${model}` : model}
-        </span>
-      )}
+      {model &&
+        (models.length > 1 && onModel ? (
+          <Menu>
+            <MenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Model: ${model}. Choose another for this conversation`}
+                className="flex h-7 items-center gap-1.5 rounded-pill px-2 text-[12px] font-semibold text-fg-secondary hover:bg-surface-neutral hover:text-fg"
+              >
+                {tools ? (
+                  <Wrench className="size-[13px]" aria-hidden />
+                ) : (
+                  <Sparkles className="size-[13px]" aria-hidden />
+                )}
+                {tools ? `tools on · ${model}` : model}
+                <ChevronDown className="size-3.5" aria-hidden />
+              </button>
+            </MenuTrigger>
+            <MenuContent align="end" className="max-h-[320px] min-w-[220px] overflow-y-auto">
+              <MenuLabel>Model for this conversation</MenuLabel>
+              {models.map((m) => (
+                <MenuItem
+                  key={m}
+                  onSelect={() => onModel(m)}
+                  shortcut={m === model ? <Check aria-label="chosen" /> : undefined}
+                >
+                  <span className="font-mono text-[12.5px]">{m}</span>
+                </MenuItem>
+              ))}
+            </MenuContent>
+          </Menu>
+        ) : (
+          <span
+            className="hidden items-center gap-1.5 text-[12px] font-semibold text-fg-secondary sm:flex"
+            title="The model is set in Settings → LLM provider"
+          >
+            {tools ? <Wrench className="size-[13px]" aria-hidden /> : <Sparkles className="size-[13px]" aria-hidden />}
+            {tools ? `tools on · ${model}` : model}
+          </span>
+        ))}
     </div>
   );
 }

@@ -14,6 +14,9 @@ Conversations belong to one person and can be scoped to namespaces, recordings, 
 - **Reopening:** a conversation's answers keep the tools the assistant used (and with what), any notice (the model
   couldn't use tools), the error when there was no answer, and their latest source check.
 - **Changed access:** old citations are filtered by the person's current access when a conversation is reopened.
+- **Choosing the model:** a conversation can use any model an admin offers (`llm.chat_models`, else whatever the model
+  server lists); Try another model asks a question again with a different one. Each answer records the model that
+  wrote it.
 - **No model configured:** chat returns the best-matching passages instead. Anyone signed in can see whether a model
   is set up, and which (`GET /chats/capabilities`), so the app says so before the first question.
 

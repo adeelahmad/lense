@@ -2795,7 +2795,7 @@ export class Chats {
 
   /**
    * Update Chat
-   * Rename a conversation or change what it draws on.
+   * Rename a conversation, change what it draws on, or the model that answers in it (null: the configured one).
    */
   public static updateChat<ThrowOnError extends boolean = false>(options: Options<UpdateChatData, ThrowOnError>) {
     return (options.client ?? client).patch<UpdateChatResponses, UpdateChatErrors, ThrowOnError>({

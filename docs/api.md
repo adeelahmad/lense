@@ -422,8 +422,11 @@ POST   /api/v1/approvals/{aid}
 ```
 
 `GET /chats/capabilities` tells anyone signed in whether a language model is set up (`configured`), which (`model`),
-whether it uses tools (`tools`, `max_steps`) and whether answers can be checked (`check`); never the model server's
-address or key. `POST /chats/{cid}/stop` stops the answer being written in your conversation after the piece or tool
+whether it uses tools (`tools`, `max_steps`), whether answers can be checked (`check`) and the `models` people may pick
+(the configured one first; `llm.chat_models`, else the server's list); never the model server's address or key. A
+conversation's `model` (`POST /chats`, `PATCH /chats/{cid}`; null for the configured one) answers in it, and a
+question can name another (`POST /chats/{cid}/messages {content, model}`, e.g. to retry); a model that isn't offered is
+a 400. Each answer records the `model` that wrote it. `POST /chats/{cid}/stop` stops the answer being written in your conversation after the piece or tool
 step it's on: the stream sends `stopped`, then `done` with the saved message, whose `stopped` is true and whose
 `content` is what came before (`(stopped)` when nothing had). `{stopping: false}` when nothing was being written.
 

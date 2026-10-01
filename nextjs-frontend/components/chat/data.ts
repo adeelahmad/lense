@@ -40,6 +40,8 @@ export type LlmStatus = {
   configured: boolean;
   model: string | null;
   tools: boolean;
+  /** The models people may pick, the configured one first. */
+  models: string[];
 };
 
 /** Whether chat has a model, which, and whether it uses tools: anyone signed in can ask (GET /chats/capabilities). */
@@ -50,8 +52,14 @@ export function useLlmStatus(): LlmStatus {
     queryFn: () => data(Chats.chatCapabilities({ client })),
     staleTime: 60_000,
   });
-  if (!q.data) return { known: false, configured: true, model: null, tools: true };
-  return { known: true, configured: q.data.configured, model: q.data.model ?? null, tools: q.data.tools };
+  if (!q.data) return { known: false, configured: true, model: null, tools: true, models: [] };
+  return {
+    known: true,
+    configured: q.data.configured,
+    model: q.data.model ?? null,
+    tools: q.data.tools,
+    models: q.data.models ?? [],
+  };
 }
 
 /**

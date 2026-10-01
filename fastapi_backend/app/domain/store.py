@@ -141,7 +141,8 @@ DEFAULTS = {
         "cross_namespace": "suggest",
     },
     "analysis": {"entities": "rules", "spacy_model": "en_core_web_sm", "gazetteer": []},
-    "llm": {"base_url": None, "model": None, "api_key_env": None, "max_chars": 24000, "timeout": 300},
+    # chat_models: the models people may pick in Chat; empty: whatever the model server lists (docs/configuration.md)
+    "llm": {"base_url": None, "model": None, "api_key_env": None, "max_chars": 24000, "timeout": 300, "chat_models": []},
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {"stemming": "english"},
     "server": {

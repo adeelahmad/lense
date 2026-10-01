@@ -196,6 +196,11 @@ def _check(section, key, value, default):
         return value
     if (section, key) == ("server", "trusted_proxies"):
         return ipgroups.proxies(value)
+    if (section, key) == ("llm", "chat_models"):
+        names = [v.strip() for v in value] if isinstance(value, list) and all(isinstance(v, str) for v in value) else None
+        if names is None or not all(names) or len(names) > 50 or any(len(n) > 200 for n in names):
+            raise ValueError("llm.chat_models is a list of up to 50 model names")
+        return list(dict.fromkeys(names))
     if section == "uploads":
         return _upload_setting(key, value)
     if default is None or value is None:

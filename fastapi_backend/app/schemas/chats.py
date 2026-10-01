@@ -24,17 +24,24 @@ class ChatScope(RequestModel):
 class ChatCreate(RequestModel):
     title: str | None = None
     scope: ChatScope | None = None
+    model: str | None = Field(
+        None, description="the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one"
+    )
 
 
 class ChatUpdate(RequestModel):
     title: str | None = None
     scope: ChatScope | None = None
+    model: str | None = Field(
+        None, description="the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one"
+    )
 
 
 class ChatSummary(ResponseModel):
     id: int
     title: str
     scope: dict[str, Any] = {}
+    model: str | None = Field(None, description="the model chosen for this conversation; null: the configured one")
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -76,6 +83,7 @@ class ChatMessage(ResponseModel):
     notice: str | None = Field(None, description="e.g. the model can't use tools, so the answer came from a search")
     error: str | None = Field(None, description="why there's no answer")
     check: AnswerCheck | None = Field(None, description="its latest source check (POST .../messages/{mid}/check)")
+    model: str | None = Field(None, description="the model that wrote the answer")
 
 
 class ChatCapabilities(ResponseModel):
@@ -84,6 +92,9 @@ class ChatCapabilities(ResponseModel):
     tools: bool = Field(description="the assistant looks things up with tools (and may propose work for approval)")
     max_steps: int = Field(description="the most tool calls it makes for one answer")
     check: bool = Field(description="answers can be checked against their sources")
+    models: list[str] = Field(
+        default_factory=list, description="the models people may pick, the configured one first (llm.chat_models, else the server's list)"
+    )
 
 
 class StopResult(ResponseModel):
@@ -98,6 +109,9 @@ class Chat(ChatSummary):
 
 class MessageCreate(RequestModel):
     content: str = Field(description="the question (up to 4000 characters)")
+    model: str | None = Field(
+        None, description="answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry"
+    )
 
 
 class Approval(ResponseModel):

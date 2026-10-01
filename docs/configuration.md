@@ -58,6 +58,13 @@ reports, workers, IIIF, the assistant, video, uploads, and server options (embed
 limit, allowed hosts, trusted proxies, session length). The API refuses an allowed-host list that leaves out the address
 you are using.
 
+## Chat models
+
+People can choose the model a conversation uses, and ask a question again with another (Retry with another model).
+`llm.chat_models` (Settings → LLM provider) lists the models they may pick, besides `llm.model`, which is always
+offered and stays the default. Left empty, they may pick whatever the model server lists (`GET /models`, kept for a
+minute); on providers that list many models, or charge by model, list the ones you want offered.
+
 ## Uploads
 
 Audio and video uploaded in the web app (Import → Upload) go up in pieces ([API](api.md#uploads)). Settings → Uploads:

@@ -7,6 +7,7 @@ import threading
 
 class Handler(http.server.BaseHTTPRequestHandler):
     seen = []
+    models = ["fake", "fake-large"]  # what GET /models lists
     tool_script = []  # assistant messages to return, in order, when a request offers tools
     reject_tools = False  # behave like a server whose model can't call tools
 
@@ -17,6 +18,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def do_GET(self):  # GET /models
+        return self._json({"object": "list", "data": [{"id": m, "object": "model"} for m in Handler.models]})
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))

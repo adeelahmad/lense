@@ -8047,7 +8047,7 @@
           "chats"
         ],
         "summary": "Update Chat",
-        "description": "Rename a conversation or change what it draws on.",
+        "description": "Rename a conversation, change what it draws on, or the model that answers in it (null: the configured one).",
         "operationId": "update_chat",
         "parameters": [
           {
@@ -10490,6 +10490,18 @@
             "title": "Scope",
             "default": {}
           },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model chosen for this conversation; null: the configured one"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -10567,6 +10579,14 @@
             "type": "boolean",
             "title": "Check",
             "description": "answers can be checked against their sources"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models",
+            "description": "the models people may pick, the configured one first (llm.chat_models, else the server's list)"
           }
         },
         "additionalProperties": true,
@@ -10601,6 +10621,18 @@
                 "type": "null"
               }
             ]
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one"
           }
         },
         "additionalProperties": false,
@@ -10698,6 +10730,18 @@
               }
             ],
             "description": "its latest source check (POST .../messages/{mid}/check)"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model that wrote the answer"
           }
         },
         "additionalProperties": true,
@@ -10799,6 +10843,18 @@
             "title": "Scope",
             "default": {}
           },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model chosen for this conversation; null: the configured one"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -10852,6 +10908,18 @@
                 "type": "null"
               }
             ]
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one"
           }
         },
         "additionalProperties": false,
@@ -13688,6 +13756,18 @@
             "type": "string",
             "title": "Content",
             "description": "the question (up to 4000 characters)"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry"
           }
         },
         "additionalProperties": false,
