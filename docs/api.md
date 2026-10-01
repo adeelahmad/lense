@@ -253,7 +253,17 @@ POST   /api/v1/speakers/{sid}
 POST   /api/v1/speakers/{sid}/merge
 POST   /api/v1/merges/{mid}/undo
 POST   /api/v1/speakers/{sid}/link
+POST   /api/v1/speakers/{sid}/unlink
+POST   /api/v1/speakers/{sid}/not-same
 ```
+
+`GET /speakers?ns=` lists the namespace's speakers (each with its suggested merges), its last merges (with `by`, the
+`recordings` and `segments` that moved, and `undone_by`/`undone_at`), its links to other namespaces, and `cross`:
+voices in other shared namespaces you can read that are likely the same person (`score`, best first). `not-same
+{with}` says two speakers aren't the same person (one namespace or two): the suggestion goes and isn't made again.
+`unlink {with}` removes a link (404 when there's none). Linking, unlinking, "not the same" and undoing a merge need
+editor access to both speakers' namespaces and are audited (`speaker.link`, `speaker.unlink`, `speaker.not_same`,
+`speaker.merge.undo`).
 
 ## entities
 

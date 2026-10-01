@@ -57,7 +57,11 @@ Each voice gets a voiceprint (SpeechBrain ECAPA, up to `sample_seconds` of that 
 - Between `review_threshold` and `match_threshold`, it creates a new speaker plus a suggested merge for you to confirm.
 - Below that, it creates a new speaker.
 
-You can rename and merge speakers in the web app or the CLI (`lens speakers …`), and every merge can be undone. Speakers in different namespaces are never merged. You can link them as the same person, and with `speakers.cross_namespace: suggest` the graph shows likely voice matches as dashed edges.
+You can rename and merge speakers in the web app or the CLI (`lens speakers …`), and every merge can be undone; merges
+keep who made them and how many recordings moved. Speakers in different namespaces are never merged. You can link them
+as the same person (and unlink them), and with `speakers.cross_namespace: suggest` the graph shows likely voice matches
+as dashed edges and Speakers lists them with how alike the voices are. Saying a suggested pair is "not the same", in one
+namespace or across two, removes the suggestion for good.
 
 ## Knowledge graph
 

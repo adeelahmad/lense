@@ -3697,7 +3697,7 @@
           "speakers"
         ],
         "summary": "List Speakers",
-        "description": "A namespace's speakers, its recent merges (undoable) and links to speakers in other namespaces.",
+        "description": "A namespace's speakers, its recent merges (undoable; who merged and how many recordings moved), links to speakers\nin other namespaces, and voices in other shared namespaces that are likely the same person (`cross`).",
         "operationId": "list_speakers",
         "parameters": [
           {
@@ -3952,6 +3952,112 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SpeakerLinkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/speakers/{sid}/unlink": {
+      "post": {
+        "tags": [
+          "speakers"
+        ],
+        "summary": "Unlink Speaker",
+        "description": "They aren't the same person after all: remove the link (editor access to both). 404 when they aren't linked.\nAudited as speaker.unlink.",
+        "operationId": "unlink_speaker",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakerPair"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/speakers/{sid}/not-same": {
+      "post": {
+        "tags": [
+          "speakers"
+        ],
+        "summary": "Not Same Speaker",
+        "description": "These two aren't the same person: drop the suggestion to merge them (one namespace) or link them (two), and\nnever suggest it again. Editor access to both namespaces. Audited as speaker.not_same.",
+        "operationId": "not_same_speaker",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakerPair"
               }
             }
           }
@@ -17650,6 +17756,77 @@
         ],
         "title": "Speaker"
       },
+      "SpeakerCandidate": {
+        "properties": {
+          "a": {
+            "type": "integer",
+            "title": "A",
+            "description": "this namespace's speaker"
+          },
+          "b": {
+            "type": "integer",
+            "title": "B",
+            "description": "the speaker in another namespace"
+          },
+          "a_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A Name"
+          },
+          "b_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "B Name"
+          },
+          "a_ns": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A Ns"
+          },
+          "b_ns": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "B Ns"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score",
+            "description": "how alike the two voices are (cosine similarity, at least speakers.match_threshold)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "a",
+          "b",
+          "score"
+        ],
+        "title": "SpeakerCandidate"
+      },
       "SpeakerDirectory": {
         "properties": {
           "speakers": {
@@ -17672,6 +17849,14 @@
             },
             "type": "array",
             "title": "Links"
+          },
+          "cross": {
+            "items": {
+              "$ref": "#/components/schemas/SpeakerCandidate"
+            },
+            "type": "array",
+            "title": "Cross",
+            "description": "likely the same voice in another shared namespace you can read (speakers.cross_namespace: suggest), best first; not linked, and not said to be different"
           }
         },
         "additionalProperties": true,
@@ -17821,6 +18006,64 @@
               }
             ],
             "title": "Into Name"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who merged them"
+          },
+          "recordings": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recordings",
+            "description": "how many recordings' lines moved to the remaining speaker"
+          },
+          "segments": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segments",
+            "description": "how many lines moved"
+          },
+          "undone_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undone By"
+          },
+          "undone_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undone At"
           }
         },
         "additionalProperties": true,
@@ -17865,6 +18108,21 @@
           "merge_id"
         ],
         "title": "SpeakerMerged"
+      },
+      "SpeakerPair": {
+        "properties": {
+          "with": {
+            "type": "integer",
+            "title": "With",
+            "description": "the other speaker"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "with"
+        ],
+        "title": "SpeakerPair"
       },
       "SpeakerRecording": {
         "properties": {

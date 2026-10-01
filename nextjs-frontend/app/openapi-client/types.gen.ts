@@ -5473,6 +5473,44 @@ export type Speaker = {
 };
 
 /**
+ * SpeakerCandidate
+ */
+export type SpeakerCandidate = {
+  /**
+   * A
+   * this namespace's speaker
+   */
+  a: number;
+  /**
+   * B
+   * the speaker in another namespace
+   */
+  b: number;
+  /**
+   * A Name
+   */
+  a_name?: string | null;
+  /**
+   * B Name
+   */
+  b_name?: string | null;
+  /**
+   * A Ns
+   */
+  a_ns?: string | null;
+  /**
+   * B Ns
+   */
+  b_ns?: string | null;
+  /**
+   * Score
+   * how alike the two voices are (cosine similarity, at least speakers.match_threshold)
+   */
+  score: number;
+  [key: string]: unknown | number | string | null | string | null | string | null | string | null | number | undefined;
+};
+
+/**
  * SpeakerDirectory
  */
 export type SpeakerDirectory = {
@@ -5488,7 +5526,18 @@ export type SpeakerDirectory = {
    * Links
    */
   links: Array<SpeakerLink>;
-  [key: string]: unknown | Array<Speaker> | Array<SpeakerMerge> | Array<SpeakerLink>;
+  /**
+   * Cross
+   * likely the same voice in another shared namespace you can read (speakers.cross_namespace: suggest), best first; not linked, and not said to be different
+   */
+  cross?: Array<SpeakerCandidate>;
+  [key: string]:
+    | unknown
+    | Array<Speaker>
+    | Array<SpeakerMerge>
+    | Array<SpeakerLink>
+    | Array<SpeakerCandidate>
+    | undefined;
 };
 
 /**
@@ -5569,7 +5618,51 @@ export type SpeakerMerge = {
    * Into Name
    */
   into_name?: string | null;
-  [key: string]: unknown | number | string | null | string | null | string | null | string | null | undefined;
+  /**
+   * By
+   * who merged them
+   */
+  by?: string | null;
+  /**
+   * Recordings
+   * how many recordings' lines moved to the remaining speaker
+   */
+  recordings?: number | null;
+  /**
+   * Segments
+   * how many lines moved
+   */
+  segments?: number | null;
+  /**
+   * Undone By
+   */
+  undone_by?: string | null;
+  /**
+   * Undone At
+   */
+  undone_at?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | number
+    | null
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
 };
 
 /**
@@ -5596,6 +5689,17 @@ export type SpeakerMerged = {
    */
   merge_id: number;
   [key: string]: unknown | boolean | number | undefined;
+};
+
+/**
+ * SpeakerPair
+ */
+export type SpeakerPair = {
+  /**
+   * With
+   * the other speaker
+   */
+  with: number;
 };
 
 /**
@@ -9241,6 +9345,66 @@ export type LinkSpeakerResponses = {
 };
 
 export type LinkSpeakerResponse = LinkSpeakerResponses[keyof LinkSpeakerResponses];
+
+export type UnlinkSpeakerData = {
+  body: SpeakerPair;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/speakers/{sid}/unlink";
+};
+
+export type UnlinkSpeakerErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UnlinkSpeakerError = UnlinkSpeakerErrors[keyof UnlinkSpeakerErrors];
+
+export type UnlinkSpeakerResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UnlinkSpeakerResponse = UnlinkSpeakerResponses[keyof UnlinkSpeakerResponses];
+
+export type NotSameSpeakerData = {
+  body: SpeakerPair;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/speakers/{sid}/not-same";
+};
+
+export type NotSameSpeakerErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NotSameSpeakerError = NotSameSpeakerErrors[keyof NotSameSpeakerErrors];
+
+export type NotSameSpeakerResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type NotSameSpeakerResponse = NotSameSpeakerResponses[keyof NotSameSpeakerResponses];
 
 export type ListEntitiesData = {
   body?: never;

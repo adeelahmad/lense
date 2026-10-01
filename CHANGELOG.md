@@ -26,6 +26,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Speakers: "not the same", unlink, and who merged.** The review queue's Not the same works: the pair is dropped
+  and never suggested again. Other namespaces lists likely matching voices with how alike they are (it read them
+  off the graph, without a score), each with Not the same and Link, and linked speakers can be unlinked. Merge
+  history says who merged, how many recordings moved, and who undid it.
+    - `POST /api/v1/speakers/{sid}/not-same {with}` and `POST /api/v1/speakers/{sid}/unlink {with}`; `GET
+      /api/v1/speakers` adds `cross` (`score`) and merge `by`, `recordings`, `segments`, `undone_by`, `undone_at`
+      (docs/api.md). Pairs said to be different are kept in a new `not_same` table and left out of suggestions and
+      of the graph's "maybe the same voice" edges.
+    - Linking, unlinking, "not the same" and undoing a merge are audited (`speaker.link`, `speaker.unlink`,
+      `speaker.not_same`, `speaker.merge.undo`).
 - **Choose the model in Chat, and try another.** The model chip under the question box becomes a menu when there's a
   choice: the conversation then answers with the model you pick. Each answer offers Try another model, which asks
   the same question again with a different one, and says which model wrote it.

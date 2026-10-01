@@ -231,6 +231,12 @@ import type {
   LinkSpeakerData,
   LinkSpeakerResponses,
   LinkSpeakerErrors,
+  UnlinkSpeakerData,
+  UnlinkSpeakerResponses,
+  UnlinkSpeakerErrors,
+  NotSameSpeakerData,
+  NotSameSpeakerResponses,
+  NotSameSpeakerErrors,
   ListEntitiesData,
   ListEntitiesResponses,
   ListEntitiesErrors,
@@ -1600,7 +1606,8 @@ export class Search {
 export class Speakers {
   /**
    * List Speakers
-   * A namespace's speakers, its recent merges (undoable) and links to speakers in other namespaces.
+   * A namespace's speakers, its recent merges (undoable; who merged and how many recordings moved), links to speakers
+   * in other namespaces, and voices in other shared namespaces that are likely the same person (`cross`).
    */
   public static listSpeakers<ThrowOnError extends boolean = false>(options: Options<ListSpeakersData, ThrowOnError>) {
     return (options.client ?? client).get<ListSpeakersResponses, ListSpeakersErrors, ThrowOnError>({
@@ -1669,6 +1676,40 @@ export class Speakers {
   public static linkSpeaker<ThrowOnError extends boolean = false>(options: Options<LinkSpeakerData, ThrowOnError>) {
     return (options.client ?? client).post<LinkSpeakerResponses, LinkSpeakerErrors, ThrowOnError>({
       url: "/api/v1/speakers/{sid}/link",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Unlink Speaker
+   * They aren't the same person after all: remove the link (editor access to both). 404 when they aren't linked.
+   * Audited as speaker.unlink.
+   */
+  public static unlinkSpeaker<ThrowOnError extends boolean = false>(options: Options<UnlinkSpeakerData, ThrowOnError>) {
+    return (options.client ?? client).post<UnlinkSpeakerResponses, UnlinkSpeakerErrors, ThrowOnError>({
+      url: "/api/v1/speakers/{sid}/unlink",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Not Same Speaker
+   * These two aren't the same person: drop the suggestion to merge them (one namespace) or link them (two), and
+   * never suggest it again. Editor access to both namespaces. Audited as speaker.not_same.
+   */
+  public static notSameSpeaker<ThrowOnError extends boolean = false>(
+    options: Options<NotSameSpeakerData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<NotSameSpeakerResponses, NotSameSpeakerErrors, ThrowOnError>({
+      url: "/api/v1/speakers/{sid}/not-same",
       ...options,
       headers: {
         "Content-Type": "application/json",

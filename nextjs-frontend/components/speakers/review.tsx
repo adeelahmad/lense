@@ -83,6 +83,19 @@ export function ReviewQueue({ pairs, ns }: { pairs: ReviewPair[]; ns: string }) 
     },
   });
 
+  const notSame = useMutation({
+    mutationFn: (p: ReviewPair) =>
+      data(Speakers.notSameSpeaker({ client, path: { sid: p.a.id }, body: { with: p.b.id } })),
+    onSuccess: (_r, p) => {
+      qc.invalidateQueries({ queryKey: ["speakers"] });
+      qc.invalidateQueries({ queryKey: ["speaker-reviews"] });
+      toast({
+        title: `${p.a.display} and ${p.b.display} aren’t the same person`,
+        body: "This pair won’t be suggested again.",
+      });
+    },
+  });
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
@@ -136,6 +149,7 @@ export function ReviewQueue({ pairs, ns }: { pairs: ReviewPair[]; ns: string }) 
       </div>
       <InlinePlayerBar player={player} />
       {merge.isError && <Banner tone="error">{merge.error.message}</Banner>}
+      {notSame.isError && <Banner tone="error">{notSame.error.message}</Banner>}
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
         <span className="min-w-[240px] flex-1 text-[13px] leading-[1.45] text-fg-secondary">
           Merging moves {pair.a.display}’s {plural(pair.a.recordings ?? 0, "recording")} and voice samples into{" "}
@@ -152,8 +166,9 @@ export function ReviewQueue({ pairs, ns }: { pairs: ReviewPair[]; ns: string }) 
           </Button>
           <Button
             variant="secondary"
-            disabled
-            disabledReason="Not available yet: the archive can’t record “not the same” for speakers"
+            disabled={!canMerge || notSame.isPending}
+            disabledReason={canMerge ? undefined : needRole("editor", ns)}
+            onClick={() => notSame.mutate(pair)}
           >
             Not the same
           </Button>

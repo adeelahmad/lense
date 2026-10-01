@@ -49,10 +49,7 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| "Not the same" for a suggested pair; dismiss cross-namespace suggestions | `POST /speakers/{id}/not-same`; a score and dismiss for cross-namespace matches |
-| Unlink speakers | an unlink endpoint |
 | Voiceprint length, words per minute, shared topics in review; last heard | speaker profile fields |
-| Who merged and how many recordings moved | merge history fields |
 | Node total before the cap | a count on `/graph` |
 
 ## Batch runs and collections

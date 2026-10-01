@@ -463,6 +463,8 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS appearance_spk ON appearance FIELDS speaker",
     "DEFINE TABLE IF NOT EXISTS same_as TYPE RELATION IN speaker OUT speaker",
     "DEFINE TABLE IF NOT EXISTS suggestion SCHEMALESS",
+    # pairs of speakers someone said aren't the same person: never suggested again (not_same:⟨a-b⟩, a < b)
+    "DEFINE TABLE IF NOT EXISTS not_same SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS merge SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS section SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS section_rec ON section FIELDS recording",

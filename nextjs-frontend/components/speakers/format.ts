@@ -39,6 +39,23 @@ export function similarityWord(score: number, match = 0.75): "likely" | "unsure"
   return score >= match ? "likely" : "unsure";
 }
 
+/**
+ * "14 Sep · by ann@x.io · 3 recordings moved" (and "· undone by bob@x.io, 15 Sep"): what a merge did, for the history.
+ * Merges from before these were kept have only their time.
+ */
+export function mergeDetail(
+  m: { by?: string | null; recordings?: number | null; undone?: unknown; undone_by?: string | null },
+  when: string,
+  undoneWhen?: string | null,
+): string {
+  const moved =
+    m.recordings == null ? null : `${m.recordings} ${m.recordings === 1 ? "recording" : "recordings"} moved`;
+  const undone = m.undone
+    ? `undone${m.undone_by ? ` by ${m.undone_by}` : ""}${undoneWhen ? `, ${undoneWhen}` : ""}`
+    : null;
+  return [when, m.by ? `by ${m.by}` : null, moved, undone].filter(Boolean).join(" · ");
+}
+
 /** Talk time per month from a speaker's recordings: [{month: "2026-09", ms}], oldest first, last `n` months. */
 export function talkByMonth(
   rows: { recorded_at?: string | null; talk_ms?: number | null }[],
