@@ -261,8 +261,8 @@ def _pdf_text(pdftotext, path, first, last):
         return {i: [] for i in range(first, last + 1)}
 
 
-def read_pdf(path, d, opts, engine, say):
-    """Draw a PDF's pages into d and read their text: (pages, blocks by page, notes)."""
+def read_pdf(path, d, opts, engine, say, why="no OCR engine is available"):
+    """Draw a PDF's pages into d and read their text: (pages, blocks by page, notes). `why` there's no OCR engine."""
     n = page_count(path)
     total, n = n, min(n, opts["max_pages"])
     pdftoppm, pdftotext = _poppler()
@@ -304,7 +304,7 @@ def read_pdf(path, d, opts, engine, say):
             say(f"read {last + 1} of {n} pages")
     scanned = sum(1 for p in pages if p.get("chars", 0) < opts["ocr_below_chars"])
     if scanned and not engine:
-        notes.append(f"{scanned} page(s) without text weren't read: no OCR engine is available")
+        notes.append(f"{scanned} page(s) without text weren't read: {why}")
     if total > n:
         notes.append(f"only the first {n} of its {total} pages were read (documents.max_pages)")
     return pages, blocks, notes, ocred
@@ -338,8 +338,9 @@ def _flat(img):
     return img.convert("RGB")
 
 
-def read_image(path, d, opts, engine, say):
-    """An image as pages (a TIFF's frames) in d, read by OCR: (pages, blocks by page, notes)."""
+def read_image(path, d, opts, engine, say, why="no OCR engine is available"):
+    """An image as pages (a TIFF's frames) in d, read by OCR: (pages, blocks by page, notes). `why` there's no OCR
+    engine."""
     from PIL import Image
 
     old, Image.MAX_IMAGE_PIXELS = Image.MAX_IMAGE_PIXELS, MAX_PIXELS
@@ -379,7 +380,7 @@ def read_image(path, d, opts, engine, say):
     finally:
         Image.MAX_IMAGE_PIXELS = old
     if not engine:
-        notes.append("its text wasn't read: no OCR engine is available")
+        notes.append(f"its text wasn't read: {why}")
     return pages, blocks, notes, len(pages) if engine else 0
 
 
@@ -427,7 +428,7 @@ def transcribe(db, cfg, rid, say):
         path = ingest.audio_path(db, cfg, rec)
     if not path or not os.path.exists(path):
         raise FileNotFoundError(f"its file isn't there ({rec.get('path')})")
-    opts, engine = cfg["documents"], video.ocr_engine(cfg)
+    opts, (engine, why) = cfg["documents"], video.ocr_engine_why(cfg)
     learnt, pdf = {}, path
     if rec["source"] == "document" and convert.needs(path):
         pdf = convert.rendition_path(cfg, rid)
@@ -440,7 +441,7 @@ def transcribe(db, cfg, rid, say):
     d.mkdir(parents=True, exist_ok=True)
     _clear(d)
     read = read_image if rec["source"] == "image" else read_pdf
-    pages, blocks, notes, ocred = read(pdf, d, opts, engine, say)
+    pages, blocks, notes, ocred = read(pdf, d, opts, engine, say, why)
     segs = segments_of(blocks)
     rows = [{**p, "id": R("page", f"{rid}-{p['idx']}"), "recording": rid, "space": rec["space"]} for p in pages]
     db.run(

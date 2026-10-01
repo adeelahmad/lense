@@ -176,7 +176,7 @@ def test_scans_and_images_are_read_by_ocr(client, env, db, cfg, folder):
 def test_without_poppler_or_an_ocr_engine(client, env, db, cfg, monkeypatch):
     """Without poppler a PDF is read by pypdf, with no pages to look at; without an OCR engine an image has no text."""
     monkeypatch.setattr(documents, "_poppler", lambda: (None, None))
-    monkeypatch.setattr(video, "ocr_engine", lambda _cfg: None)
+    cfg["video"]["ocr_engine"] = "none"
     he = env["he"]
     doc = _upload(client, he, text_pdf(HARBOUR), "harbour.pdf")
     img = _upload(client, he, _png(scan(["Unread words"])), "photo.png")
@@ -195,7 +195,7 @@ def test_without_poppler_or_an_ocr_engine(client, env, db, cfg, monkeypatch):
     assert runs["transcribe"] == ("done", "1 page(s), 0 block(s) of text")
     assert runs["summarize"] == ("skipped", "there's no text to summarise")
     log = client.get(f"/api/v1/jobs/{img['job']}/log", headers=he).json()["lines"]
-    assert any("its text wasn't read: no OCR engine is available" in x for x in log)
+    assert any("its text wasn't read: OCR is off (video.ocr_engine)" in x for x in log)
 
 
 @POPPLER

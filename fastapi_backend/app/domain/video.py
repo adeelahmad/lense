@@ -1,7 +1,7 @@
 """Video: shots and keyframes, text on screen (OCR) and faces, alongside the transcript of the soundtrack.
 
 ffmpeg finds scene changes and samples frames. An OCR engine reads text from the frames: Tesseract (anywhere), Apple
-Vision (on a Mac, through pyobjc) or RapidOCR (onnxruntime). A face engine detects faces and, where a namespace allows
+Vision (on a Mac, through pyobjc), RapidOCR (onnxruntime) or docTR (PyTorch). A face engine detects faces and, where a namespace allows
 it, describes them for the per-namespace registry in faces.py: OpenCV's YuNet + SFace (Apache-2.0/MIT models from the
 OpenCV Zoo; set video.yunet_model and video.sface_model) or InsightFace (its pretrained models are licensed for
 non-commercial research only). Frames and face crops live in data_dir/frames/<recording>/.
@@ -9,12 +9,14 @@ non-commercial research only). Frames and face crops live in data_dir/frames/<re
 
 from __future__ import annotations
 
+import functools
 import json
 import pathlib
 import platform
 import re
 import shutil
 import subprocess
+import threading
 
 import numpy as np
 
@@ -160,7 +162,7 @@ class TesseractOCR:
     def __init__(self, cfg):
         self.bin = shutil.which("tesseract")
         if not self.bin:
-            raise RuntimeError("tesseract isn't installed")
+            raise RuntimeError("Tesseract isn't installed")
         self.langs = "+".join(cfg["video"].get("ocr_languages") or ["eng"])
 
     def _words(self, path):
@@ -214,9 +216,11 @@ class AppleVisionOCR:
     name = "apple-vision"
 
     def __init__(self, cfg):
-        import Vision  # noqa: F401
-        from Foundation import NSURL  # noqa: F401
-
+        try:
+            import Vision  # noqa: F401
+            from Foundation import NSURL  # noqa: F401
+        except ImportError:
+            raise RuntimeError('Apple Vision needs a Mac worker with pyobjc-framework-Vision (pip install "lens[mac-ocr]")') from None
         self.langs = cfg["video"].get("ocr_languages") or ["eng"]
 
     def lines(self, path):
@@ -250,8 +254,10 @@ class RapidOCRengine:
     name = "rapidocr"
 
     def __init__(self, cfg):
-        from rapidocr_onnxruntime import RapidOCR
-
+        try:
+            from rapidocr_onnxruntime import RapidOCR
+        except ImportError:
+            raise RuntimeError('RapidOCR isn\'t installed (pip install "lens[rapidocr]")') from None
         self.engine = RapidOCR()
 
     def lines(self, path):
@@ -277,15 +283,91 @@ class RapidOCRengine:
         return out
 
 
-def ocr_engine(cfg):
+@functools.lru_cache(maxsize=2)
+def _doctr_predictor(detector, recognizer):
+    """docTR's two models, loaded once per worker (they're fetched the first time, into DOCTR_CACHE_DIR or
+    ~/.cache/doctr), and a lock: one page at a time through them."""
+    from doctr.models import ocr_predictor
+
+    return ocr_predictor(det_arch=detector, reco_arch=recognizer, pretrained=True), threading.Lock()
+
+
+class DocTROCR:
+    """docTR (Apache-2.0) on PyTorch: pip install "lens[doctr]". Good on scans and photos of text; it reads the Latin
+    alphabet (video.ocr_languages is Tesseract's)."""
+
+    name = "doctr"
+    DETECTOR, RECOGNIZER = "fast_base", "crnn_vgg16_bn"  # docTR's own defaults
+
+    def __init__(self, cfg):
+        try:
+            import doctr.io  # noqa: F401
+            import doctr.models  # noqa: F401
+        except ModuleNotFoundError as e:
+            if (e.name or "").split(".")[0] != "doctr":
+                raise RuntimeError(f"docTR can't be loaded ({e})") from None
+            raise RuntimeError('docTR isn\'t installed (pip install "lens[doctr]"; it brings PyTorch)') from None
+        except ImportError as e:  # installed, but something it needs isn't there (OpenCV's libGL, say)
+            raise RuntimeError(f"docTR can't be loaded ({e})") from None
+        try:
+            self.model, self.lock = _doctr_predictor(self.DETECTOR, self.RECOGNIZER)
+        except Exception as e:  # its models couldn't be fetched or loaded: say so, and the step goes on without OCR
+            raise RuntimeError(f"docTR couldn't load its models ({str(e)[:200]})") from None
+
+    def _blocks(self, path):
+        from doctr.io import DocumentFile
+
+        with self.lock:
+            pages = self.model(DocumentFile.from_images([str(path)])).pages
+        return [b for page in pages for b in page.blocks]
+
+    @staticmethod
+    def _found(lines):
+        """docTR's lines (their words, each with its confidence 0-1, and boxes as fractions of the page) as one
+        finding: their text a line each, how sure it was of their words on average, and the box around them."""
+        words = [w for ln in lines for w in ln.words]
+        if not words:
+            return None
+        pts = [pt for ln in lines for pt in ln.geometry]
+        x0, y0 = min(p[0] for p in pts), min(p[1] for p in pts)
+        x1, y1 = max(p[0] for p in pts), max(p[1] for p in pts)
+        return {
+            "text": "\n".join(" ".join(w.value for w in ln.words) for ln in lines if ln.words),
+            "conf": 100 * sum(float(w.confidence) for w in words) / len(words),
+            "box": [round(float(x0), 4), round(float(y0), 4), round(float(x1 - x0), 4), round(float(y1 - y0), 4)],
+        }
+
+    def lines(self, path):
+        return [f for b in self._blocks(path) for ln in b.lines if (f := self._found([ln]))]
+
+    def paragraphs(self, path):
+        """Its blocks as docTR laid them out, lines separated by newlines."""
+        return [f for b in self._blocks(path) if (f := self._found(b.lines))]
+
+
+OCR_ENGINES = {"tesseract": TesseractOCR, "apple-vision": AppleVisionOCR, "rapidocr": RapidOCRengine, "doctr": DocTROCR}
+
+
+def ocr_engine_why(cfg):
+    """The OCR engine of video.ocr_engine, and None; or None, and why there's none. "auto" is Apple Vision on a Mac,
+    else Tesseract, else RapidOCR; docTR only when it's chosen."""
     name = cfg["video"].get("ocr_engine") or "auto"
-    order = {"auto": (["apple-vision"] if platform.system() == "Darwin" else []) + ["tesseract", "rapidocr"]}.get(name, [name])
+    if name == "none":
+        return None, "OCR is off (video.ocr_engine)"
+    if name != "auto" and name not in OCR_ENGINES:
+        return None, f"there's no OCR engine called {name}"
+    order = (["apple-vision"] if platform.system() == "Darwin" else []) + ["tesseract", "rapidocr"] if name == "auto" else [name]
+    why = None
     for n in order:
         try:
-            return {"tesseract": TesseractOCR, "apple-vision": AppleVisionOCR, "rapidocr": RapidOCRengine}[n](cfg)
-        except (ImportError, RuntimeError, KeyError):
-            continue
-    return None
+            return OCR_ENGINES[n](cfg), None
+        except (ImportError, RuntimeError) as e:
+            why = why or str(e)
+    return None, (why if name != "auto" else "no OCR engine is available: install Tesseract (video.ocr_engine)")
+
+
+def ocr_engine(cfg):
+    return ocr_engine_why(cfg)[0]
 
 
 # ---------- face engines: faces(path) -> [{"box": [x, y, w, h] fractions, "score", "embedding": unit vector}] ----------
@@ -412,9 +494,9 @@ def step_ocr(db, cfg, rid, say):
         raise jobs.Skip("its pages were read when it was transcribed")
     if (rec.get("media") or {}).get("kind") != "video":
         raise jobs.Skip("it isn't a video")
-    engine = ocr_engine(cfg)
+    engine, why = ocr_engine_why(cfg)
     if not engine:
-        raise jobs.Skip("no OCR engine is available")
+        raise jobs.Skip(why)
     d, step, min_conf = frames_dir(cfg, rid), rec.get("sample_ms") or 5000, cfg["video"]["ocr_min_confidence"]
     open_, done = {}, []
     for t, name in rec.get("samples") or []:

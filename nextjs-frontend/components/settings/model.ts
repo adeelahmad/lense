@@ -659,6 +659,7 @@ export const FIELDS: FieldSpec[] = [
         hint: "Mac workers only",
       },
       { value: "rapidocr", label: "RapidOCR", hint: "CPU or CUDA · slides" },
+      { value: "doctr", label: "docTR", hint: "PyTorch · scans and photos" },
       { value: "none", label: "Off", hint: "no text on screen" },
     ],
   },
@@ -677,7 +678,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 0,
     max: 100,
-    hint: "Lines below are kept but flagged",
+    hint: "Lines on frames read with less confidence are left out",
   },
   {
     section: "video",

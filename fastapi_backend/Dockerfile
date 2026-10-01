@@ -22,10 +22,13 @@ COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-# Optional processing extras baked into the image, e.g. --build-arg EXTRAS="sensevoice voices" (CPU torch)
+# Optional processing extras baked into the image, e.g. --build-arg EXTRAS="sensevoice voices" or "doctr" (PyTorch)
 ARG EXTRAS=""
 # Development images also get the dev tools (tests, linters, the OpenAPI watcher)
 ARG DEV=false
+# docTR's OpenCV (opencv-python, not the headless build) needs libGL and GLib
+RUN case " $EXTRAS " in *" doctr "*) apt-get update \
+      && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*;; esac
 
 COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-install-project \

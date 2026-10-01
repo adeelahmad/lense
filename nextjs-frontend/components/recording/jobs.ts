@@ -159,6 +159,24 @@ export function skipReason(note: string): string | null {
   return t || null;
 }
 
+/** What a run's visual steps said: why text on screen or objects weren't read (their step's skip note), whether faces
+ * found none. */
+export function visualNotes(j: JobInfo | null | undefined): {
+  ocrWhy: string | null;
+  noFaces: boolean;
+  objectsWhy: string | null;
+} {
+  if (!j) return { ocrWhy: null, noFaces: false, objectsWhy: null };
+  const notes = stepNotes(j);
+  const at = (type: string) => notes[j.steps.findIndex((s) => s.type === type)];
+  const note = (type: string) => at(type)?.notes.join(" ") ?? "";
+  return {
+    ocrWhy: at("ocr")?.skipped ? skipReason(note("ocr")) : null,
+    noFaces: /no faces found/i.test(note("faces")),
+    objectsWhy: at("objects")?.skipped ? skipReason(note("objects")) : null,
+  };
+}
+
 export function stepNotes(j: JobInfo): StepNote[] {
   if (j.stepRuns)
     return j.steps.map((_, k) => {

@@ -12,6 +12,7 @@ import {
   stepLabel,
   stepNotes,
   toggleStep,
+  visualNotes,
   type JobInfo,
   type StepKey,
 } from "@/components/recording/jobs";
@@ -135,6 +136,44 @@ describe("step loop", () => {
       [true, null, ["summarize skipped: no LLM is configured"]],
       [false, 0.4, ["wrote it"]],
     ]);
+  });
+  it("says why text on screen or objects weren't read, and when faces found none", () => {
+    const j = job({
+      status: "succeeded",
+      step_index: 3,
+      steps: ["shots", "ocr", "faces", "objects"],
+      step_runs: [
+        { outcome: "done", note: "3 shot(s), 3 sampled frame(s)", seconds: 0.5 },
+        {
+          outcome: "skipped",
+          note: 'docTR isn\'t installed (pip install "lens[doctr]"; it brings PyTorch)',
+          seconds: 0,
+        },
+        { outcome: "done", note: "no faces found", seconds: 0.2 },
+        { outcome: "skipped", note: "object detection is off (video.object_engine)", seconds: 0 },
+      ],
+    });
+    expect(visualNotes(j)).toEqual({
+      ocrWhy: 'docTR isn\'t installed (pip install "lens[doctr]"; it brings PyTorch)',
+      noFaces: true,
+      objectsWhy: "object detection is off (video.object_engine)",
+    });
+    // from an older log's skip lines; read text needs no note
+    const old = job({
+      status: "succeeded",
+      step_index: 1,
+      steps: ["ocr"],
+      log: ["10:00:00 ocr skipped: OCR is off (video.ocr_engine)"],
+    });
+    expect(visualNotes(old).ocrWhy).toBe("OCR is off (video.ocr_engine)");
+    const read = job({
+      status: "succeeded",
+      step_index: 1,
+      steps: ["ocr"],
+      step_runs: [{ outcome: "done", note: "12 line(s)" }],
+    });
+    expect(visualNotes(read)).toEqual({ ocrWhy: null, noFaces: false, objectsWhy: null });
+    expect(visualNotes(undefined)).toEqual({ ocrWhy: null, noFaces: false, objectsWhy: null });
   });
   it("says a queued job is waiting for a worker", () => {
     expect(loopSteps(job({ status: "queued", step_index: 2, started_at: "x" }))[2].sub).toBe("waiting for a worker");

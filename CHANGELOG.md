@@ -125,6 +125,20 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       "dog" finds it seen on the page and on screen, and its Objects seen facet narrows to what has a bicycle;
       Settings shows the detector and its model; a viewer on a phone in dark mode sees the photo's objects
       and the dog's box. No console errors.
+- **docTR reads text too.** docTR (Apache-2.0) is an OCR engine for text on screen, scans and images, beside Tesseract,
+  Apple Vision and RapidOCR. Decided with the project owner: docTR as an engine to choose; Tesseract stays the default
+  (`auto` still picks it first).
+    - `video.ocr_engine: doctr`. It runs on PyTorch: `pip install -e ".[doctr]"`, or `EXTRAS="doctr"` for a Docker
+      image, which then also gets the libGL its OpenCV needs. Its models are fetched the first time it reads
+      (docs/configuration.md#text-on-screen-and-scans-ocr, a new section on all the OCR engines).
+    - Where there's no OCR, the step and a document's unread scans say why: it's off, the engine chosen isn't
+      installed (and how to install it), or its models couldn't be loaded. They said "no OCR engine is available"
+      whatever the reason. A video's Text on screen tab says it too.
+    - Settings → Video, OCR, faces and objects offers docTR; its minimum confidence now says what it does (lines read
+      less surely are left out, not kept and flagged).
+    - Checked in the browser with docTR 1.1 and its own models: an admin chooses docTR in Settings; a scan uploaded
+      then is read by it, its lines on its page; with an engine that isn't installed (RapidOCR), a video's Text on
+      screen tab says so and how to install it; a viewer on a phone in dark mode reads the scan. No console errors.
 - **Word, text, web pages and emails as documents.** Any document now becomes a resource with pages, not only a PDF:
   Word, PowerPoint and spreadsheet files (and OpenDocument and RTF), text and Markdown, saved web pages and emails
   (`.eml`, and Outlook `.msg` with the `msg` extra) are made into PDFs and read like one. Decided with the project

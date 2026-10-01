@@ -65,7 +65,7 @@ ENUMS = {
     ("analysis", "entities"): {"rules", "spacy"},
     ("search", "stemming"): {"english", "none"},
     ("reports", "audio"): {"link", "embed", "none"},
-    ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "none"},
+    ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "off"},
 }

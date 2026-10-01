@@ -123,6 +123,30 @@ needs; it's given no D-Bus to reach (it would wait on the services it asks there
 made of a document is `data_dir/renditions/<resource>.pdf`; both go when the resource does. Workers listed in
 `workers.steps` run them as part of `transcribe`.
 
+## Text on screen and scans (OCR)
+
+The OCR engine of `video.ocr_engine` reads text on a video's sampled frames (the ocr step) and on a document's pages
+without text and on images (when they're transcribed, [above](#documents-and-images)):
+
+* `auto`, the default: Apple Vision on a Mac worker, else Tesseract, else RapidOCR, whichever is there first.
+* `tesseract`: Tesseract (in the Docker images), in the languages of `video.ocr_languages`.
+* `apple-vision`: macOS's own (`pip install -e ".[mac-ocr]"`), for workers on a Mac.
+* `rapidocr`: RapidOCR on ONNX Runtime (`pip install -e ".[rapidocr]"`).
+* `doctr`: docTR (Apache-2.0), good on scans and photos of text; it reads the Latin alphabet. It runs on PyTorch:
+  `pip install -e ".[doctr]"`, or `--build-arg EXTRAS="doctr"` for a Docker image (several GB). Its two models
+  (`fast_base` and `crnn_vgg16_bn`, about 130 MB) are fetched the first time it reads, into `DOCTR_CACHE_DIR`
+  (`~/.cache/doctr`); where the server can't fetch them, put them there from docTR's GitHub releases.
+* `none`: nothing is read.
+
+Without an engine (one that isn't installed, or models that can't be loaded) the ocr step is skipped and a document's
+scans aren't read; the job says why, and so does a video's Text on screen tab. Settings → Video, OCR, faces and objects:
+
+| Setting | Default | |
+|---|---|---|
+| `video.ocr_engine` | `auto` | `auto`, `tesseract`, `apple-vision`, `rapidocr`, `doctr` or `none` |
+| `video.ocr_languages` | `eng` | Tesseract's language codes, one per line |
+| `video.ocr_min_confidence` | 60 | lines on frames read with less confidence (0–100) are left out |
+
 ## Objects
 
 The objects step finds the people, vehicles, animals and everyday things (the 80 kinds of the COCO dataset) on a

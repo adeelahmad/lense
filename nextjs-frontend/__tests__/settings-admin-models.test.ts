@@ -67,6 +67,17 @@ describe("settings fields", () => {
     expect(parse(spec("video.frame_width"), "480")).toEqual({ value: 480 });
   });
 
+  it("offers every OCR engine the server takes, docTR among them", () => {
+    expect(spec("video.ocr_engine").options?.map((o) => o.value)).toEqual([
+      "auto",
+      "tesseract",
+      "apple-vision",
+      "rapidocr",
+      "doctr",
+      "none",
+    ]);
+  });
+
   it("checks rules across fields", () => {
     expect(
       crossErrors({

@@ -131,7 +131,7 @@ export function VideoLayout({
       ) : current === "shots" ? (
         <ShotsTab />
       ) : current === "text" ? (
-        <ScreenTextTab noEngine={notes.noEngine} />
+        <ScreenTextTab why={notes.ocrWhy} />
       ) : current === "people" ? (
         <PeopleTab noFaces={notes.noFaces} />
       ) : current === "objects" ? (
