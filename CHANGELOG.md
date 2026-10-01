@@ -26,6 +26,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Reports: a namespace's numbers come from the server, for the range you pick.** The overview's recordings, hours,
+  speakers, months and top speakers come from a new `GET /api/v1/namespaces/{name}/stats?from=&to=` (docs/api.md);
+  the page used to load every recording of the namespace (up to 10,000) and count in the browser. Top speakers are
+  now the range's, by talk time in its recordings; they were all-time. The table of recording reports asks for the
+  range's latest 25.
+    - `from`/`to` are days, both included, like the Library's date filter; months run from the range's start (or the
+      first recording) to its end (or this month), empty ones included.
+    - Recordings without a date count only in All time, and in no month; the page says so when there are some.
 - **Share links: revoke one, see plays and where it's embedded, short addresses, and a page for dead links.** The
   Share dialog lists each link with how often its player was played and the sites that embed it, and revokes one
   link (Revoke…) as well as all of them. A new link comes with a short address, `/s/<code>`, which opens the same

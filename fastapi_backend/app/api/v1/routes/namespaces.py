@@ -3,17 +3,27 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from datetime import date
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 
 from app.api.deps import Acl, AdminWriter, CurrentUser, Db, Writer, domain_errors, visitor_address
 from app.api.media import sign_urls
-from app.domain import analyze, auth, ipgroups, pipelines, render, store
+from app.domain import analyze, auth, ipgroups, library, pipelines, render, store
 from app.domain.store import API, DB
 from app.schemas.common import Created, Ok
-from app.schemas.namespaces import IpGroup, IpGroupCreate, IpGroups, IpGroupUpdate, Namespace, NamespaceCreate, NamespaceUpdate
+from app.schemas.namespaces import (
+    IpGroup,
+    IpGroupCreate,
+    IpGroups,
+    IpGroupUpdate,
+    Namespace,
+    NamespaceCreate,
+    NamespaceStats,
+    NamespaceUpdate,
+)
 
 router = APIRouter(prefix="/namespaces", tags=["namespaces"])
 
@@ -85,6 +95,23 @@ def get_namespace_wordcloud(name: str, acl: Acl, db: Db) -> Response:
     else:
         sid = acl.namespace(name)
     return Response(render.wordcloud_svg(analyze.ns_keywords(db, sid, 80), label=f"Word cloud for {name}"), media_type="image/svg+xml")
+
+
+@router.get("/{name}/stats")
+def get_namespace_stats(
+    name: str,
+    acl: Acl,
+    user: CurrentUser,
+    db: Db,
+    date_from: date | None = Query(None, alias="from", description="recorded on or after this day"),
+    date_to: date | None = Query(None, alias="to", description="recorded on or before this day"),
+    top: int = Query(5, ge=1, le=50, description="how many speakers in `top_speakers`"),
+) -> NamespaceStats:
+    """The namespace's numbers for the recordings made in a range of days (the Reports overview): how many and how long,
+    who was heard and for how long, and the same per month. Without a range, every recording."""
+    sid = acl.namespace(name)
+    with domain_errors():
+        return NamespaceStats(**library.namespace_stats(db, sid, date_from, date_to, top))
 
 
 # ---------- IP groups (docs/access.md) ----------

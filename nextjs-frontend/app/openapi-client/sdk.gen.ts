@@ -77,6 +77,9 @@ import type {
   GetNamespaceWordcloudData,
   GetNamespaceWordcloudResponses,
   GetNamespaceWordcloudErrors,
+  GetNamespaceStatsData,
+  GetNamespaceStatsResponses,
+  GetNamespaceStatsErrors,
   ListIpGroupsData,
   ListIpGroupsResponses,
   ListIpGroupsErrors,
@@ -947,6 +950,20 @@ export class Namespaces {
   ) {
     return (options.client ?? client).get<GetNamespaceWordcloudResponses, GetNamespaceWordcloudErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/wordcloud.svg",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Namespace Stats
+   * The namespace's numbers for the recordings made in a range of days (the Reports overview): how many and how long,
+   * who was heard and for how long, and the same per month. Without a range, every recording.
+   */
+  public static getNamespaceStats<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceStatsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetNamespaceStatsResponses, GetNamespaceStatsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/stats",
       ...options,
     });
   }

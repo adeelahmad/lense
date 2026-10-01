@@ -79,7 +79,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | Dry run; run a specific version; triggers and schedules; Webhook/Notify steps | pipeline run options and step types |
 | How many recordings use a template | a usage count |
 | Namespace report link; per-report audio mode; share a namespace report | signed `report_url` on `/namespaces`; report options; report share links |
-| Report stats for a date range (today: computed in the browser, top speakers all-time) | `/namespaces/{name}/stats?from&to` |
 
 ## Sharing and embeds
 

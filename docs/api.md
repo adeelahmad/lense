@@ -57,11 +57,21 @@ GET    /api/v1/namespaces
 POST   /api/v1/namespaces
 PATCH  /api/v1/namespaces/{name}
 GET    /api/v1/namespaces/{name}/wordcloud.svg
+GET    /api/v1/namespaces/{name}/stats
 GET    /api/v1/namespaces/{name}/ip-groups
 POST   /api/v1/namespaces/{name}/ip-groups
 PATCH  /api/v1/namespaces/{name}/ip-groups/{gid}
 DELETE /api/v1/namespaces/{name}/ip-groups/{gid}
 ```
+
+`/namespaces/{name}/stats?from=&to=&top=` gives the Reports overview its numbers (viewers of the namespace): the
+recordings made from `from` to `to` (days, `YYYY-MM-DD`, both included; leave either open), how many and how long
+(`recordings`, `ms`), how many speakers are heard in them and the `top` ones by talk time in them (`top_speakers`,
+default 5, at most 50, each with `talk_ms` and `recordings`), the days of the `first` and `last`, and `months`: every
+calendar month from `from` (else the first recording) to `to` (else the later of today and the last recording),
+empty ones included, at most the latest 240. Without a range it counts every recording; `undated` says how many
+have no date, and those are never in a month or a range. Months and days are the recording dates as stored (the
+time where it was recorded). 400 when `to` comes before `from`.
 
 `/namespaces/{name}/ip-groups` lists a namespace's IP groups ([Access](access.md#ip-groups), owners), with `address`:
 your address as the server sees it (`null` when it can't tell; see `server.trusted_proxies`), and on each group `here`

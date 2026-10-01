@@ -1052,6 +1052,101 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/stats": {
+      "get": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Get Namespace Stats",
+        "description": "The namespace's numbers for the recordings made in a range of days (the Reports overview): how many and how long,\nwho was heard and for how long, and the same per month. Without a range, every recording.",
+        "operationId": "get_namespace_stats",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "recorded on or after this day",
+              "title": "From"
+            },
+            "description": "recorded on or after this day"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "recorded on or before this day",
+              "title": "To"
+            },
+            "description": "recorded on or before this day"
+          },
+          {
+            "name": "top",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "how many speakers in `top_speakers`",
+              "default": 5,
+              "title": "Top"
+            },
+            "description": "how many speakers in `top_speakers`"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamespaceStats"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/ip-groups": {
       "get": {
         "tags": [
@@ -14084,6 +14179,32 @@
         ],
         "title": "MetadataEdit"
       },
+      "MonthStats": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month",
+            "description": "YYYY-MM"
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "default": 0
+          },
+          "ms": {
+            "type": "integer",
+            "title": "Ms",
+            "description": "how long they are together",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "month"
+        ],
+        "title": "MonthStats"
+      },
       "Namespace": {
         "properties": {
           "id": {
@@ -14346,6 +14467,103 @@
         "additionalProperties": false,
         "type": "object",
         "title": "NamespaceMetadataUpdate"
+      },
+      "NamespaceStats": {
+        "properties": {
+          "from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From",
+            "description": "the first day of the range (YYYY-MM-DD); null when open"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "the last day of the range; null when open"
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "description": "recordings made in the range (without a range: all of them, dated or not)"
+          },
+          "ms": {
+            "type": "integer",
+            "title": "Ms",
+            "description": "how long they are together"
+          },
+          "speakers": {
+            "type": "integer",
+            "title": "Speakers",
+            "description": "speakers heard in them"
+          },
+          "undated": {
+            "type": "integer",
+            "title": "Undated",
+            "description": "the namespace's recordings without a date: counted only when there's no range",
+            "default": 0
+          },
+          "first": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First",
+            "description": "the day of the earliest dated recording in the range"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last",
+            "description": "the day of the latest dated recording in the range"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/MonthStats"
+            },
+            "type": "array",
+            "title": "Months",
+            "description": "each calendar month from `from` (else the first recording) to `to` (else the later of today and the last recording), empty ones included; at most the latest 240"
+          },
+          "top_speakers": {
+            "items": {
+              "$ref": "#/components/schemas/SpeakerStats"
+            },
+            "type": "array",
+            "title": "Top Speakers",
+            "description": "by talk time in the range, most first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recordings",
+          "ms",
+          "speakers"
+        ],
+        "title": "NamespaceStats"
       },
       "NamespaceUpdate": {
         "properties": {
@@ -18349,6 +18567,43 @@
         "additionalProperties": false,
         "type": "object",
         "title": "SpeakerRename"
+      },
+      "SpeakerStats": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "talk_ms": {
+            "type": "integer",
+            "title": "Talk Ms",
+            "description": "how long they talk in the range's recordings",
+            "default": 0
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "description": "how many of the range's recordings they talk in",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "SpeakerStats"
       },
       "SpeakerSuggestion": {
         "properties": {

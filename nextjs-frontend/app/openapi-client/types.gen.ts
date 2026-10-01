@@ -3013,6 +3013,27 @@ export type MetadataEdit = {
 };
 
 /**
+ * MonthStats
+ */
+export type MonthStats = {
+  /**
+   * Month
+   * YYYY-MM
+   */
+  month: string;
+  /**
+   * Recordings
+   */
+  recordings?: number;
+  /**
+   * Ms
+   * how long they are together
+   */
+  ms?: number;
+  [key: string]: unknown | string | number | undefined;
+};
+
+/**
  * Namespace
  */
 export type Namespace = {
@@ -3191,6 +3212,76 @@ export type NamespaceMetadataUpdate = {
   profile?: {
     [key: string]: unknown;
   } | null;
+};
+
+/**
+ * NamespaceStats
+ */
+export type NamespaceStats = {
+  /**
+   * From
+   * the first day of the range (YYYY-MM-DD); null when open
+   */
+  from?: string | null;
+  /**
+   * To
+   * the last day of the range; null when open
+   */
+  to?: string | null;
+  /**
+   * Recordings
+   * recordings made in the range (without a range: all of them, dated or not)
+   */
+  recordings: number;
+  /**
+   * Ms
+   * how long they are together
+   */
+  ms: number;
+  /**
+   * Speakers
+   * speakers heard in them
+   */
+  speakers: number;
+  /**
+   * Undated
+   * the namespace's recordings without a date: counted only when there's no range
+   */
+  undated?: number;
+  /**
+   * First
+   * the day of the earliest dated recording in the range
+   */
+  first?: string | null;
+  /**
+   * Last
+   * the day of the latest dated recording in the range
+   */
+  last?: string | null;
+  /**
+   * Months
+   * each calendar month from `from` (else the first recording) to `to` (else the later of today and the last recording), empty ones included; at most the latest 240
+   */
+  months?: Array<MonthStats>;
+  /**
+   * Top Speakers
+   * by talk time in the range, most first
+   */
+  top_speakers?: Array<SpeakerStats>;
+  [key: string]:
+    | unknown
+    | string
+    | null
+    | string
+    | null
+    | number
+    | string
+    | null
+    | string
+    | null
+    | Array<MonthStats>
+    | Array<SpeakerStats>
+    | undefined;
 };
 
 /**
@@ -5823,6 +5914,31 @@ export type SpeakerRename = {
 };
 
 /**
+ * SpeakerStats
+ */
+export type SpeakerStats = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Talk Ms
+   * how long they talk in the range's recordings
+   */
+  talk_ms?: number;
+  /**
+   * Recordings
+   * how many of the range's recordings they talk in
+   */
+  recordings?: number;
+  [key: string]: unknown | number | string | null | undefined;
+};
+
+/**
  * SpeakerSuggestion
  */
 export type SpeakerSuggestion = {
@@ -7713,6 +7829,52 @@ export type GetNamespaceWordcloudResponses = {
 };
 
 export type GetNamespaceWordcloudResponse = GetNamespaceWordcloudResponses[keyof GetNamespaceWordcloudResponses];
+
+export type GetNamespaceStatsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * From
+     * recorded on or after this day
+     */
+    from?: string | null;
+    /**
+     * To
+     * recorded on or before this day
+     */
+    to?: string | null;
+    /**
+     * Top
+     * how many speakers in `top_speakers`
+     */
+    top?: number;
+  };
+  url: "/api/v1/namespaces/{name}/stats";
+};
+
+export type GetNamespaceStatsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceStatsError = GetNamespaceStatsErrors[keyof GetNamespaceStatsErrors];
+
+export type GetNamespaceStatsResponses = {
+  /**
+   * Successful Response
+   */
+  200: NamespaceStats;
+};
+
+export type GetNamespaceStatsResponse = GetNamespaceStatsResponses[keyof GetNamespaceStatsResponses];
 
 export type ListIpGroupsData = {
   body?: never;

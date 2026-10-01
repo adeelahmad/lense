@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import os
 import pathlib
+import re
 from collections import Counter, defaultdict
 
 from . import access as acc, metadata, render, store
@@ -29,6 +30,8 @@ FIELDS = (
 )
 MAX_WORDS = 10
 TAG_MAX, TAGS_MAX = 40, 20  # characters in a tag, tags on a recording
+MONTHS_MAX = 240  # months in a namespace's stats: the latest twenty years
+DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def recs(ids):
@@ -312,3 +315,73 @@ def rename(db, cfg, rid, title):
         os.replace(old, new)
     metadata.touched(db, cfg, rid)  # IIIF harvesters see an Update for a published recording
     return rec.get("title"), title
+
+
+# ---------- a namespace's numbers for a range of days (the report overview) ----------
+def _month(day):
+    return int(day[:4]), int(day[5:7])
+
+
+def _months(first, last):
+    """Every calendar month from `first` to `last` ((year, month) pairs), the latest MONTHS_MAX of them."""
+    a, b = first[0] * 12 + first[1] - 1, last[0] * 12 + last[1] - 1
+    return [f"{i // 12:04d}-{i % 12 + 1:02d}" for i in range(max(a, b - MONTHS_MAX + 1), b + 1)]
+
+
+def namespace_stats(db, sid, date_from=None, date_to=None, top=5, today=None):
+    """What a namespace's report shows for the recordings made from `date_from` to `date_to` (days, both included;
+    either may be left open): how many and how long, who was heard and for how long (in those recordings), and the
+    same per calendar month. Recordings without a date count only when there's no range; months never include them.
+    Raises ValueError when the range ends before it starts."""
+    lo = _day(date_from).isoformat() if date_from else None
+    hi = (_day(date_to) + dt.timedelta(days=1)).isoformat() if date_to else None
+    if lo and hi and lo >= hi:
+        raise ValueError("the range ends before it starts")
+    picked, undated = [], 0
+    for r in db.rows("SELECT record::id(id) AS id, recorded_at, duration_ms FROM recording WHERE space = $s", s=sid):
+        at = str(r["recorded_at"]) if r.get("recorded_at") else ""
+        if not at:
+            undated += 1
+        if (lo or hi) and (not at or (lo and at < lo) or (hi and at >= hi)):
+            continue
+        picked.append((r["id"], at[:10] if DAY.match(at) else "", r.get("duration_ms") or 0))  # a day, else no month
+    ids = {i for i, _, _ in picked}
+    days = sorted(d for _, d, _ in picked if d)
+
+    months = {}
+    if lo or days:
+        day = (today or dt.date.today()).isoformat()
+        end = _day(date_to).isoformat() if date_to else max(day, days[-1] if days else day)
+        months = {m: {"month": m, "recordings": 0, "ms": 0} for m in _months(_month(lo or days[0]), _month(end))}
+        for _, d, ms in picked:
+            if d and d[:7] in months:
+                months[d[:7]]["recordings"] += 1
+                months[d[:7]]["ms"] += ms
+
+    talk, heard = Counter(), defaultdict(set)
+    groups = "SELECT speaker, recording, math::sum(dur) AS ms FROM segment WHERE space = $s AND speaker > 0 GROUP BY speaker, recording"
+    for g in db.rows(groups, s=sid) if ids else []:
+        if g["recording"] in ids:
+            talk[g["speaker"]] += g.get("ms") or 0
+            heard[g["speaker"]].add(g["recording"])
+    best = sorted(heard, key=lambda k: (-talk[k], k))[:top]
+    names = {
+        r["id"]: r.get("name") or r.get("label")
+        for r in (
+            db.rows("SELECT record::id(id) AS id, name, label FROM speaker WHERE id IN $ids", ids=[R("speaker", k) for k in best])
+            if best
+            else []
+        )
+    }
+    return {
+        "from": _day(date_from).isoformat() if date_from else None,
+        "to": _day(date_to).isoformat() if date_to else None,
+        "recordings": len(picked),
+        "ms": sum(ms for _, _, ms in picked),
+        "speakers": len(heard),
+        "undated": undated,
+        "first": days[0] if days else None,
+        "last": days[-1] if days else None,
+        "months": list(months.values()),
+        "top_speakers": [{"id": k, "name": names.get(k), "talk_ms": talk[k], "recordings": len(heard[k])} for k in best],
+    }

@@ -22,6 +22,36 @@ class Namespace(ResponseModel):
     wordcloud: str | None = Field(None, description="signed link to the namespace word cloud (SVG)")
 
 
+class MonthStats(ResponseModel):
+    month: str = Field(description="YYYY-MM")
+    recordings: int = 0
+    ms: int = Field(0, description="how long they are together")
+
+
+class SpeakerStats(ResponseModel):
+    id: int
+    name: str | None = None
+    talk_ms: int = Field(0, description="how long they talk in the range's recordings")
+    recordings: int = Field(0, description="how many of the range's recordings they talk in")
+
+
+class NamespaceStats(ResponseModel):
+    from_: str | None = Field(None, alias="from", description="the first day of the range (YYYY-MM-DD); null when open")
+    to: str | None = Field(None, description="the last day of the range; null when open")
+    recordings: int = Field(description="recordings made in the range (without a range: all of them, dated or not)")
+    ms: int = Field(description="how long they are together")
+    speakers: int = Field(description="speakers heard in them")
+    undated: int = Field(0, description="the namespace's recordings without a date: counted only when there's no range")
+    first: str | None = Field(None, description="the day of the earliest dated recording in the range")
+    last: str | None = Field(None, description="the day of the latest dated recording in the range")
+    months: list[MonthStats] = Field(
+        default_factory=list,
+        description="each calendar month from `from` (else the first recording) to `to` (else the later of today and "
+        "the last recording), empty ones included; at most the latest 240",
+    )
+    top_speakers: list[SpeakerStats] = Field(default_factory=list, description="by talk time in the range, most first")
+
+
 class NamespaceCreate(RequestModel):
     name: str = Field(description="lowercase letters, digits, - and _")
     graph: GraphMode = "shared"
