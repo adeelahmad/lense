@@ -114,7 +114,11 @@ Imports, pipeline runs and folder scans return at once and run as jobs stored in
 `workers.inline` workers itself; more can run anywhere that reaches the database, each limited to the steps it can do.
 A job whose next step a worker can't run goes back on the queue for one that can, so a Mac can transcribe with mlx while
 the container does the rest. Jobs can be cancelled and retried from the failed step; a job whose worker stops
-responding is retried. Steps added to a job while it runs (attaching audio does) run after its other steps: a worker
+responding is retried. Workers heartbeat every 30 s, and every 15 s while they run a job however long its step takes,
+with their machine's load. In Activity → Workers an admin can pause a worker (it takes no new jobs; the one it has
+carries on to the end), drain it (it also hands that job back to the queue after the step it's on, so another worker
+carries on, and stays paused) or resume it. `lens worker --name mac-mini` keeps its pause across restarts; the
+server's own workers are named after its process, so they start afresh. Steps added to a job while it runs (attaching audio does) run after its other steps: a worker
 reads the job's steps again before each step, and only finishes a job whose steps are all done.
 `GET /api/v1/events` streams job progress (server-sent events). A run's whole log is kept (up to 100,000 lines) and
 streams to its Activity page as it's written.

@@ -26,6 +26,17 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Pause, drain and resume workers.** Activity → Workers lets admins pause a worker (it takes no new runs; the one
+  it has carries on to the end), drain it (it also hands that run back to the queue after the step it's on, so another
+  worker carries on, and stays paused) and resume it. Each card shows the machine's CPU load and the steps the worker
+  finished in the last hour. A run waiting only on paused workers says so.
+    - `POST /api/v1/workers/{name}/pause|drain|resume` (admins, audited as `worker.<action>`); `GET /api/v1/workers`
+      adds `paused`, `draining`, `paused_by`, `paused_at`, `load`, `cpus` and `steps_last_hour` (docs/api.md).
+    - A pause lives on the worker's record, so `lens worker --name …` stays paused across restarts; the server's own
+      workers are named after its process and start afresh.
+    - Draining an idle worker just pauses it; a drain that arrives as its run ends doesn't outlive the run.
+- **Fix: a busy worker looked silent.** Workers only heartbeat between runs, so one on a long step (a long
+  transcription) showed as silent. They now heartbeat every 15 s while they run, whatever the step.
 - **What each step of a run did.** A run's Activity page shows, for each step, when it started and finished, how long
   it took, how it ended, its last message, which worker ran it, the outputs it saved (with the template version and
   model that made them) and exactly its own lines of the log; while a run is active, how long each step usually takes

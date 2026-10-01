@@ -381,6 +381,9 @@ import type {
   RetryJobErrors,
   ListWorkersData,
   ListWorkersResponses,
+  ControlWorkerData,
+  ControlWorkerResponses,
+  ControlWorkerErrors,
   StreamEventsData,
   StreamEventsResponses,
   StreamEventsErrors,
@@ -2361,10 +2364,24 @@ export class Jobs {
 
   /**
    * List Workers
+   * Every worker that has checked in: the steps it runs, its heartbeat and load, and whether it's paused.
    */
   public static listWorkers<ThrowOnError extends boolean = false>(options?: Options<ListWorkersData, ThrowOnError>) {
     return (options?.client ?? client).get<ListWorkersResponses, unknown, ThrowOnError>({
       url: "/api/v1/workers",
+      ...options,
+    });
+  }
+
+  /**
+   * Control Worker
+   * ``pause``: the worker takes no new runs; the one it has carries on to the end. ``drain``: it also hands that run
+   * back to the queue after the step it's on, so another worker carries on, and stays paused. ``resume``: it takes runs
+   * again. A paused worker stays paused when it restarts under the same name. Audited as ``worker.<action>``.
+   */
+  public static controlWorker<ThrowOnError extends boolean = false>(options: Options<ControlWorkerData, ThrowOnError>) {
+    return (options.client ?? client).post<ControlWorkerResponses, ControlWorkerErrors, ThrowOnError>({
+      url: "/api/v1/workers/{name}/{action}",
       ...options,
     });
   }

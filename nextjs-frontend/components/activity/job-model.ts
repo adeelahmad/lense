@@ -353,13 +353,17 @@ export function usually(estimate: number | null | undefined): string | null {
 
 // ---------- workers ----------
 
-export type WorkerState = "busy" | "idle" | "silent";
+export type WorkerState = "busy" | "idle" | "paused" | "silent";
 
-/** Idle workers heartbeat about every 30 s; one quiet for 2 min is silent, unless it is busy with a running job. */
+/**
+ * Workers heartbeat about every 30 s, and every 15 s while they run something; one quiet for 2 min is silent (unless
+ * its job is still running: workers from before busy heartbeats only beat between jobs). A paused worker that has
+ * finished its run is "paused"; while it finishes it, it's still busy.
+ */
 export const SILENT_AFTER_MS = 2 * 60_000;
 
 export function workerState(
-  w: Pick<WorkerInfo, "heartbeat_at" | "current">,
+  w: Pick<WorkerInfo, "heartbeat_at" | "current" | "paused">,
   now = Date.now(),
   currentRunning = false,
 ): WorkerState {
@@ -367,7 +371,27 @@ export function workerState(
   const busy = w.current != null && w.current !== "";
   if (busy && currentRunning) return "busy";
   if (Number.isNaN(beat) || now - beat > SILENT_AFTER_MS) return "silent";
-  return busy ? "busy" : "idle";
+  return busy ? "busy" : w.paused ? "paused" : "idle";
+}
+
+/** "CPU 42% · 12 steps in the last hour": a worker's machine load (from its heartbeat) and its recent work. */
+export function workerLoad(w: Pick<WorkerInfo, "load" | "cpus" | "steps_last_hour">): string {
+  const cpu =
+    w.load == null
+      ? null
+      : `CPU ${Math.round(w.load * 100)}%${w.cpus ? ` of ${w.cpus} ${w.cpus === 1 ? "core" : "cores"}` : ""}`;
+  const n = w.steps_last_hour ?? 0;
+  return [cpu, `${n} ${n === 1 ? "step" : "steps"} in the last hour`].filter(Boolean).join(" · ");
+}
+
+/** What pausing or draining means for a worker right now; null when it's taking runs as usual. */
+export function pauseNote(w: Pick<WorkerInfo, "paused" | "draining" | "current" | "paused_by">): string | null {
+  if (!w.paused) return null;
+  const by = w.paused_by ? ` by ${w.paused_by}` : "";
+  if (w.current == null || w.current === "") return `Paused${by}: takes no new runs until resumed.`;
+  return w.draining
+    ? `Draining${by}: hands its run back to the queue after the step it’s on.`
+    : `Paused${by}: finishes this run, then takes no new ones.`;
 }
 
 /**
@@ -380,11 +404,12 @@ export function waitingReason(
   states: Record<string, WorkerState>,
 ): { stuck: boolean; text: string } {
   const label = stepLabel(step).toLowerCase();
-  const live = workers.filter((w) => (w.steps ?? []).includes(step) && states[w.name] !== "silent");
+  const live = workers.filter((w) => (w.steps ?? []).includes(step) && states[w.name] !== "silent" && !w.paused);
   const parts = workers.map((w) => {
     const st = states[w.name];
     if (!(w.steps ?? []).includes(step)) return `${w.name} doesn’t run ${label}`;
     if (st === "silent") return `${w.name} is silent`;
+    if (w.paused) return `${w.name} is paused`;
     return st === "busy" ? `${w.name} is busy` : `${w.name} is free`;
   });
   return {

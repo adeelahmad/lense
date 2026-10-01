@@ -69,8 +69,9 @@ you have no role in behaves as if it didn't exist: its recordings, search hits, 
 
 Imports, pipeline runs and folder scans return at once and queue jobs in SurrealDB. `lens worker` processes claim jobs
 atomically, heartbeat while running and hand a job back to the queue when its next step is one they can't run. A job
-whose worker stops responding is retried up to `workers.max_attempts`. `GET /api/v1/events` streams job progress as
-server-sent events.
+whose worker stops responding is retried up to `workers.max_attempts`. Admins can pause a worker (it takes no new
+jobs), drain it (it also hands its job back after the step it's on) and resume it; the flag lives on the worker's
+record, so it holds across restarts. `GET /api/v1/events` streams job progress as server-sent events.
 
 In development the API can run workers in-process (`RUN_BACKGROUND=true` or `workers.inline > 0`); the Docker setups
 run a separate `worker` service.

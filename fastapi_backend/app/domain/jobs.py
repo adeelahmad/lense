@@ -362,7 +362,7 @@ def eta(job, est, now=None):
 
 
 def run_job(db, cfg_fn, job, worker, can, log=None):
-    jid, rid, jr = job["id"], job["recording"], R("job", job["id"])
+    jid, rid, jr, wr = job["id"], job["recording"], R("job", job["id"]), R("worker", worker)
     steps, i = job["steps"], job.get("step_index") or 0
     out = RunLog(db, jid, job.get("space"), job.get("log"), job.get("log_total"))
     # one record per step, in step order: how its latest run went (when, how long, how it ended, its last message,
@@ -409,9 +409,16 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
     stop = threading.Event()
 
     def beat():
-        # new lines go out every couple of seconds (the event feed sends them on); a heartbeat at least every 20
-        last = time.monotonic()
+        # new lines go out every couple of seconds (the event feed sends them on); a heartbeat at least every 20, for the
+        # job and for its worker, however long the step it's on takes
+        last = worker_beat = time.monotonic()
         while not stop.wait(2):
+            if time.monotonic() - worker_beat >= WORKER_BEAT:
+                worker_beat = time.monotonic()
+                try:
+                    db.q("UPDATE $w SET heartbeat_at = $t, load = $l", w=wr, t=store.now(), l=machine_load())
+                except Exception:  # noqa: BLE001
+                    pass
             if not out.pending and time.monotonic() - last < 20:
                 continue
             last = time.monotonic()
@@ -446,6 +453,11 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
                 say("the recording was deleted" if gone else "cancelled")
                 save("status = 'cancelled', worker = NONE, finished_at = $t")
                 return "cancelled"
+            if (db.one("SELECT drain FROM $w", w=wr) or {}).get("drain"):
+                say(f"{worker} is draining: handing {step} to another worker")
+                save("status = 'queued', step_index = $i, next_step = $s, worker = NONE", i=i, s=step)
+                db.q("UPDATE $w SET drain = false", w=wr)  # it stays paused
+                return "drained"
             if step not in can:
                 say(f"handing {step} to a worker that can run it")
                 save("status = 'queued', step_index = $i, next_step = $s, worker = NONE", i=i, s=step)
@@ -590,20 +602,80 @@ def counts(db, spaces=None):
     return {r["status"]: r["n"] for r in db.rows(q, sp=sorted(spaces or []))}
 
 
+def machine_load():
+    """The machine's 1-minute load average per CPU (1.0: every CPU busy), or None where the system doesn't say."""
+    try:
+        return round(os.getloadavg()[0] / (os.cpu_count() or 1), 2)
+    except (AttributeError, OSError):
+        return None
+
+
+WORKER_BEAT = 15  # seconds between a busy worker's heartbeats
+WORKER_FIELDS = "record::id(id) AS name, steps, host, heartbeat_at, current, paused, drain, paused_by, paused_at, load, cpus"
+
+
+def workers(db, now=None):
+    """Every worker that has checked in, with how many steps each finished (done or skipped) in the last hour."""
+    since = ((now or dt.datetime.now(dt.timezone.utc)) - dt.timedelta(hours=1)).isoformat(timespec="seconds")
+    done = {}
+    for j in db.rows("SELECT step_runs FROM job WHERE updated_at > $s", s=since):
+        for r in j.get("step_runs") or []:
+            if r and r.get("worker") and r.get("outcome") in ("done", "skipped") and (r.get("finished_at") or "") > since:
+                done[r["worker"]] = done.get(r["worker"], 0) + 1
+    rows = db.rows(f"SELECT {WORKER_FIELDS} FROM worker ORDER BY name")
+    return [{**w, "steps_last_hour": done.get(w["name"], 0)} for w in rows]
+
+
+def control(db, name, action, by=None):
+    """Pause a worker (it takes no new runs; the one it has carries on to the end), drain it (also hand that run back
+    to the queue after the step it's on, for another worker to carry on; it stays paused) or resume it."""
+    w = R("worker", name)
+    row = db.one("SELECT current FROM $w", w=w)
+    if not row:
+        raise KeyError(name)
+    if action == "resume":
+        db.q("UPDATE $w SET paused = false, drain = false, paused_by = NONE, paused_at = NONE", w=w)
+    elif action in ("pause", "drain"):
+        drain = action == "drain" and row.get("current") is not None  # an idle worker has nothing to hand back
+        db.q("UPDATE $w SET paused = true, drain = $d, paused_by = $by, paused_at = $t", w=w, d=drain, by=by, t=store.now())
+    else:
+        raise ValueError("pause, drain or resume")
+    return next(x for x in workers(db) if x["name"] == name)
+
+
 class Worker:
     def __init__(self, db, cfg_fn, name=None, steps=None, log=None):
         self.db, self.cfg_fn, self.log = db, cfg_fn, log
         self.name = name or f"{socket.gethostname()}-{os.getpid()}"
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
+        self.was_paused = False
 
     def register(self, current=None):
+        # SET, not CONTENT: being paused (from the app) outlasts restarts
         self.db.q(
-            "UPSERT $w CONTENT $d",
+            "UPSERT $w SET steps = $s, host = $h, heartbeat_at = $t, current = $c, load = $l, cpus = $n",
             w=R("worker", self.name),
-            d=store.clean({"steps": sorted(self.can), "host": socket.gethostname(), "heartbeat_at": store.now(), "current": current}),
+            s=sorted(self.can),
+            h=socket.gethostname(),
+            t=store.now(),
+            c=current,
+            l=machine_load(),
+            n=os.cpu_count(),
         )
 
+    def paused(self):
+        w = self.db.one("SELECT paused, drain FROM $w", w=R("worker", self.name)) or {}
+        if w.get("drain"):  # asked to drain as its run ended: between runs there's nothing to hand back
+            self.db.q("UPDATE $w SET drain = false", w=R("worker", self.name))
+        p = bool(w.get("paused"))
+        if p != self.was_paused and self.log:
+            self.log(f"worker {self.name}: {'paused from the app; waiting to be resumed' if p else 'resumed'}")
+        self.was_paused = p
+        return p
+
     def run_once(self):
+        if self.paused():
+            return False
         job = claim(self.db, self.name, self.can)
         if not job:
             return False
@@ -613,6 +685,7 @@ class Worker:
         return True
 
     def drain(self, max_jobs=100000):
+        """Run queued jobs until there are none it can run (tests, `lens worker --once`)."""
         n = 0
         while n < max_jobs and self.run_once():
             n += 1

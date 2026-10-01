@@ -105,5 +105,12 @@ class WorkerInfo(ResponseModel):
     name: str
     steps: list[str] = Field(default_factory=list)
     host: str | None = None
-    heartbeat_at: str | None = None
-    current: Any = None
+    heartbeat_at: str | None = Field(None, description="its last heartbeat: every 30 s when idle, every 15 s during a run")
+    current: Any = Field(None, description="the job it's running")
+    paused: bool = Field(False, description="it takes no new runs (POST /workers/{name}/pause)")
+    draining: bool = Field(False, description="it hands the run it has back to the queue after the step it's on")
+    paused_by: str | None = None
+    paused_at: str | None = None
+    load: float | None = Field(None, description="its machine's 1-minute load average per CPU (1.0: every CPU busy)")
+    cpus: int | None = None
+    steps_last_hour: int = Field(0, description="steps it finished (done or skipped) in the last hour")

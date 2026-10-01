@@ -7,14 +7,14 @@ import json
 import logging
 import threading
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import Access, Acl, AdminReader, Cfg, CurrentUser, Db, Writer, domain_errors
-from app.domain import ingest, jobs, store
+from app.api.deps import Access, Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors
+from app.domain import auth, ingest, jobs, store
 from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.jobs import Job, JobList, JobLog, JobsCreate, JobsQueued, StepQueued, WorkerInfo
@@ -146,9 +146,26 @@ def create_jobs(body: JobsCreate, acl: Acl, user: Writer, db: Db) -> JobsQueued:
     return JobsQueued(jobs=out)
 
 
+def _worker(w: dict[str, Any]) -> WorkerInfo:
+    draining = bool(w.get("drain")) and w.get("current") is not None  # only while it has a run to hand back
+    return WorkerInfo(**{**w, "paused": bool(w.get("paused")), "draining": draining})
+
+
 @router.get("/workers")
 def list_workers(user: AdminReader, db: Db) -> list[WorkerInfo]:
-    return db.rows("SELECT record::id(id) AS name, steps, host, heartbeat_at, current FROM worker")
+    """Every worker that has checked in: the steps it runs, its heartbeat and load, and whether it's paused."""
+    return [_worker(w) for w in jobs.workers(db)]
+
+
+@router.post("/workers/{name}/{action}")
+def control_worker(name: str, action: Literal["pause", "drain", "resume"], user: AdminWriter, db: Db) -> WorkerInfo:
+    """``pause``: the worker takes no new runs; the one it has carries on to the end. ``drain``: it also hands that run
+    back to the queue after the step it's on, so another worker carries on, and stays paused. ``resume``: it takes runs
+    again. A paused worker stays paused when it restarts under the same name. Audited as ``worker.<action>``."""
+    with domain_errors():
+        w = jobs.control(db, name, action, user.email)
+    auth.audit(db, user.as_audit(), f"worker.{action}", f"worker:{name}", None)
+    return _worker(w)
 
 
 @router.get(

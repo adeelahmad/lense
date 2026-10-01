@@ -6696,6 +6696,7 @@
           "jobs"
         ],
         "summary": "List Workers",
+        "description": "Every worker that has checked in: the steps it runs, its heartbeat and load, and whether it's paused.",
         "operationId": "list_workers",
         "responses": {
           "200": {
@@ -6708,6 +6709,63 @@
                   },
                   "type": "array",
                   "title": "Response Jobs-List Workers"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workers/{name}/{action}": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Control Worker",
+        "description": "``pause``: the worker takes no new runs; the one it has carries on to the end. ``drain``: it also hands that run\nback to the queue after the step it's on, so another worker carries on, and stays paused. ``resume``: it takes runs\nagain. A paused worker stays paused when it restarts under the same name. Audited as ``worker.<action>``.",
+        "operationId": "control_worker",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "pause",
+                "drain",
+                "resume"
+              ],
+              "type": "string",
+              "title": "Action"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -19527,10 +19585,75 @@
                 "type": "null"
               }
             ],
-            "title": "Heartbeat At"
+            "title": "Heartbeat At",
+            "description": "its last heartbeat: every 30 s when idle, every 15 s during a run"
           },
           "current": {
-            "title": "Current"
+            "title": "Current",
+            "description": "the job it's running"
+          },
+          "paused": {
+            "type": "boolean",
+            "title": "Paused",
+            "description": "it takes no new runs (POST /workers/{name}/pause)",
+            "default": false
+          },
+          "draining": {
+            "type": "boolean",
+            "title": "Draining",
+            "description": "it hands the run it has back to the queue after the step it's on",
+            "default": false
+          },
+          "paused_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused By"
+          },
+          "paused_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused At"
+          },
+          "load": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load",
+            "description": "its machine's 1-minute load average per CPU (1.0: every CPU busy)"
+          },
+          "cpus": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpus"
+          },
+          "steps_last_hour": {
+            "type": "integer",
+            "title": "Steps Last Hour",
+            "description": "steps it finished (done or skipped) in the last hour",
+            "default": 0
           }
         },
         "additionalProperties": true,

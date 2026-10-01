@@ -6626,13 +6626,65 @@ export type WorkerInfo = {
   host?: string | null;
   /**
    * Heartbeat At
+   * its last heartbeat: every 30 s when idle, every 15 s during a run
    */
   heartbeat_at?: string | null;
   /**
    * Current
+   * the job it's running
    */
   current?: unknown;
-  [key: string]: unknown | string | Array<string> | string | null | string | null | undefined;
+  /**
+   * Paused
+   * it takes no new runs (POST /workers/{name}/pause)
+   */
+  paused?: boolean;
+  /**
+   * Draining
+   * it hands the run it has back to the queue after the step it's on
+   */
+  draining?: boolean;
+  /**
+   * Paused By
+   */
+  paused_by?: string | null;
+  /**
+   * Paused At
+   */
+  paused_at?: string | null;
+  /**
+   * Load
+   * its machine's 1-minute load average per CPU (1.0: every CPU busy)
+   */
+  load?: number | null;
+  /**
+   * Cpus
+   */
+  cpus?: number | null;
+  /**
+   * Steps Last Hour
+   * steps it finished (done or skipped) in the last hour
+   */
+  steps_last_hour?: number;
+  [key: string]:
+    | unknown
+    | string
+    | Array<string>
+    | string
+    | null
+    | string
+    | null
+    | boolean
+    | string
+    | null
+    | string
+    | null
+    | number
+    | null
+    | number
+    | null
+    | number
+    | undefined;
 };
 
 export type StatusData = {
@@ -10680,6 +10732,40 @@ export type ListWorkersResponses = {
 };
 
 export type ListWorkersResponse = ListWorkersResponses[keyof ListWorkersResponses];
+
+export type ControlWorkerData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Action
+     */
+    action: "pause" | "drain" | "resume";
+  };
+  query?: never;
+  url: "/api/v1/workers/{name}/{action}";
+};
+
+export type ControlWorkerErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ControlWorkerError = ControlWorkerErrors[keyof ControlWorkerErrors];
+
+export type ControlWorkerResponses = {
+  /**
+   * Successful Response
+   */
+  200: WorkerInfo;
+};
+
+export type ControlWorkerResponse = ControlWorkerResponses[keyof ControlWorkerResponses];
 
 export type StreamEventsData = {
   body?: never;

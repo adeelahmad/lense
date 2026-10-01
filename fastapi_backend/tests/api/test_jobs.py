@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import time
 
 from app.domain import ingest, jobs, store
 from tests.helpers import drain, login, make_user, quiet, seed, write_docx, write_wav
@@ -254,3 +255,70 @@ def test_a_silent_worker_fails_its_step(db, cfg, folder):
     j = jobs.get(db, jid)
     assert (j["status"], j["finished_at"] is not None) == ("failed", True)
     assert (j["step_runs"][0]["outcome"], j["step_runs"][0]["note"]) == ("failed", "the worker stopped responding")
+
+
+def test_pausing_draining_and_resuming_workers(client, db, cfg, folder, monkeypatch):
+    a, b, _call = seed(db, cfg, folder)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    hr = login(client, "root@x.io", "root password 1")
+    he = login(client, "ed@x.io", "editor password 1")
+    mac = jobs.Worker(db, lambda: cfg, name="mac", steps=["analyze", "report"])
+    gpu = jobs.Worker(db, lambda: cfg, name="gpu", steps=["analyze", "report"])
+    mac.register()
+    gpu.register()
+    assert client.post("/api/v1/workers/mac/pause", headers=he).status_code == 403  # admins only
+    assert client.post("/api/v1/workers/nobody/pause", headers=hr).status_code == 404
+    assert client.post("/api/v1/workers/mac/juggle", headers=hr).status_code == 422
+
+    # paused: it takes no new runs, and stays paused when it checks in again (as after a restart)
+    w = client.post("/api/v1/workers/mac/pause", headers=hr).json()
+    assert (w["paused"], w["draining"], w["paused_by"]) == (True, False, "root@x.io")
+    mac.register()
+    jid = jobs.enqueue(db, a, ["analyze"])
+    assert mac.drain() == 0 and jobs.get(db, jid)["status"] == "queued"
+    assert client.post("/api/v1/workers/mac/resume", headers=hr).json()["paused"] is False
+    assert mac.drain() == 1 and jobs.get(db, jid)["status"] == "succeeded"
+    audit = db.values("SELECT VALUE action FROM audit_log WHERE string::starts_with(action, 'worker.')")
+    assert sorted(audit) == ["worker.pause", "worker.resume"]
+
+    # draining: the run it has goes back on the queue after the step it's on, for another worker; it stays paused
+    def admin_drains(db_, cfg_, rid, say, spec=None):
+        client.post("/api/v1/workers/mac/drain", headers=hr)
+        say("analysed")
+
+    monkeypatch.setitem(jobs.STEPS, "analyze", admin_drains)
+    jid = jobs.enqueue(db, b, ["analyze", "report"])
+    assert mac.drain() == 1
+    j = jobs.get(db, jid)
+    assert (j["status"], j["step_index"], j["next_step"], j.get("worker")) == ("queued", 1, "report", None)
+    assert "mac is draining: handing report to another worker" in " ".join(j["log"])
+    w = next(x for x in client.get("/api/v1/workers", headers=hr).json() if x["name"] == "mac")
+    assert (w["paused"], w["draining"], w["current"]) == (True, False, None)
+    assert gpu.drain() == 1 and jobs.get(db, jid)["status"] == "succeeded"
+    # an idle worker has nothing to hand back: draining it just pauses it
+    assert client.post("/api/v1/workers/gpu/drain", headers=hr).json()["draining"] is False
+    # asked to drain just as its run ended: the flag doesn't outlive the run
+    db.q("UPDATE worker:gpu SET drain = true")
+    assert gpu.drain() == 0 and not db.one("SELECT drain FROM worker:gpu")["drain"]
+
+    # load: the machine's, with each heartbeat, and the steps each finished in the last hour
+    listed = {x["name"]: x for x in client.get("/api/v1/workers", headers=hr).json()}
+    assert listed["mac"]["steps_last_hour"] == 2 and listed["gpu"]["steps_last_hour"] == 1
+    assert listed["mac"]["cpus"] >= 1 and (listed["mac"]["load"] is None or listed["mac"]["load"] >= 0)
+
+
+def test_a_busy_worker_keeps_its_heartbeat(db, cfg, folder, monkeypatch):
+    a = seed(db, cfg, folder)[0]
+    monkeypatch.setattr(jobs, "WORKER_BEAT", 0)
+    seen = []
+
+    def slow(db_, cfg_, rid, say, spec=None):
+        db_.q("UPDATE worker:slow SET heartbeat_at = '2000-01-01T00:00:00+00:00'")
+        time.sleep(2.5)  # longer than the heartbeat thread's tick
+        seen.append(db_.one("SELECT heartbeat_at FROM worker:slow")["heartbeat_at"])
+
+    monkeypatch.setitem(jobs.STEPS, "analyze", slow)
+    jobs.enqueue(db, a, ["analyze"])
+    assert jobs.Worker(db, lambda: cfg, name="slow", steps=["analyze"]).drain() == 1
+    assert seen[0] > "2000-01-01T00:00:00+00:00"  # it beat during the step

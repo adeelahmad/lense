@@ -8,6 +8,7 @@ import {
   jobPhase,
   outputText,
   parseJobLog,
+  pauseNote,
   pipelineKey,
   pipelineLabel,
   pipelineOptions,
@@ -22,6 +23,7 @@ import {
   type JobRecord,
   usually,
   waitingReason,
+  workerLoad,
   workerState,
 } from "@/components/activity/job-model";
 import { cancelSummary } from "@/components/activity/cancel-dialog";
@@ -201,6 +203,24 @@ describe("workers", () => {
     expect(workerState({ heartbeat_at: "2026-09-30T11:48:00Z", current: null }, now)).toBe("silent");
     // A long job doesn't refresh the worker's own heartbeat: still busy while its job runs.
     expect(workerState({ heartbeat_at: "2026-09-30T11:30:00Z", current: 4 }, now, true)).toBe("busy");
+    // paused: once it has finished its run; silence still wins
+    expect(workerState({ heartbeat_at: "2026-09-30T11:59:40Z", current: null, paused: true }, now)).toBe("paused");
+    expect(workerState({ heartbeat_at: "2026-09-30T11:59:40Z", current: 4, paused: true }, now)).toBe("busy");
+    expect(workerState({ heartbeat_at: "2026-09-30T11:48:00Z", current: null, paused: true }, now)).toBe("silent");
+  });
+  it("says what pausing and draining mean right now, and the load", () => {
+    expect(pauseNote({ paused: false, current: 4 })).toBeNull();
+    expect(pauseNote({ paused: true, current: null, paused_by: "ann@x.io" })).toBe(
+      "Paused by ann@x.io: takes no new runs until resumed.",
+    );
+    expect(pauseNote({ paused: true, current: 4 })).toBe("Paused: finishes this run, then takes no new ones.");
+    expect(pauseNote({ paused: true, draining: true, current: 4 })).toBe(
+      "Draining: hands its run back to the queue after the step it’s on.",
+    );
+    expect(workerLoad({ load: 0.42, cpus: 8, steps_last_hour: 12 })).toBe(
+      "CPU 42% of 8 cores · 12 steps in the last hour",
+    );
+    expect(workerLoad({ load: null, steps_last_hour: 1 })).toBe("1 step in the last hour");
   });
   it("explains why a job waits", () => {
     const workers = [
@@ -215,6 +235,11 @@ describe("workers", () => {
     });
     expect(r.stuck).toBe(false);
     expect(r.text).toBe("mac is busy, gpu is silent, server doesn’t run transcribe.");
+    const paused = waitingReason("transcribe", [{ ...workers[0], paused: true }, workers[2]], {
+      mac: "paused",
+      server: "idle",
+    });
+    expect(paused).toEqual({ stuck: true, text: "mac is paused, server doesn’t run transcribe." });
     expect(
       waitingReason("transcribe", workers, {
         mac: "silent",

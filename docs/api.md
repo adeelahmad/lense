@@ -329,8 +329,17 @@ POST   /api/v1/jobs/steps/{step}
 POST   /api/v1/jobs/{jid}/cancel
 POST   /api/v1/jobs/{jid}/retry
 GET    /api/v1/workers
+POST   /api/v1/workers/{name}/pause
+POST   /api/v1/workers/{name}/drain
+POST   /api/v1/workers/{name}/resume
 GET    /api/v1/events
 ```
+
+`GET /workers` (admins) lists every worker that has checked in: the steps it runs, its `heartbeat_at` (every 30 s,
+every 15 s while it runs a job), `current` job, `paused`/`draining` (with `paused_by`, `paused_at`), its machine's
+`load` (1-minute load average per CPU) and `cpus`, and `steps_last_hour` (steps it finished, done or skipped). `pause`
+stops it taking new jobs; `drain` also hands the job it has back to the queue after the step it's on (it stays paused);
+`resume` undoes either. Each returns the worker, is for admins, and is audited as `worker.<action>`.
 
 Every job names its recording (`title`) and the pipeline it runs with the version it pinned (`pipeline`:
 `{id, version, name}`; `{name: "Standard"}` for the standard steps, null when the steps were chosen directly).

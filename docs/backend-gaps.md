@@ -77,8 +77,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | Feature | Needed |
 |---|---|
 | Filter jobs by namespace with counts | `/jobs?namespace=` |
-| Heartbeat during long steps (a busy worker can look silent) | heartbeat from inside long steps |
-| Pause, resume, drain a worker; worker load | `/workers/{name}/pause` etc. |
 | Test a source in stages (reach, sign-in, list); OAuth token expiry | staged test results; `expires_at` on sources |
 | Per-file scan errors | `/watches/{id}/files?status=error` |
 | Which local folders may be watched | list `sources.local_roots` for admins |
