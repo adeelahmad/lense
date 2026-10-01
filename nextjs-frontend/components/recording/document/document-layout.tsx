@@ -11,12 +11,14 @@ import { useRec, type PanelTab } from "@/components/recording/context";
 import {
   blocksByPage,
   clampPage,
+  facesOn,
   marksOn,
   pageNumber,
   pagesSummary,
   pageStart,
   textNote,
   zoomStep,
+  type FaceMark,
   type Mark,
 } from "@/components/recording/document/model";
 import { Banners, HeaderActions, RecordingHeader } from "@/components/recording/header";
@@ -24,6 +26,8 @@ import { useNotes, useRecordingActions } from "@/components/recording/hooks";
 import { segmentAt, splitRuns, type PageInfo } from "@/components/recording/model";
 import { MORE_TABS, PanelBody, PanelScroll, PanelTabs, type TabDef } from "@/components/recording/side-panel";
 import { FindBar } from "@/components/recording/find-bar";
+import { useFaceColors } from "@/components/recording/video/face-colors";
+import { PeopleTab } from "@/components/recording/video/people-tab";
 import { Button, IconButton } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/states";
@@ -110,8 +114,20 @@ const MARK: Record<Mark["kind"], string> = {
   "current-hit": "bg-hl-word mix-blend-multiply outline outline-[3px] outline-gold",
 };
 
-/** A page drawn, with the blocks to see marked on it; a placeholder for a page that couldn't be drawn. */
-function PageImage({ page, marks, zoom, name }: { page: PageInfo; marks: Mark[]; zoom: number; name: string }) {
+/** A page drawn, with the blocks to see marked on it, and its faces; a placeholder for a page that couldn't be drawn. */
+function PageImage({
+  page,
+  marks,
+  faces = [],
+  zoom,
+  name,
+}: {
+  page: PageInfo;
+  marks: Mark[];
+  faces?: FaceMark[];
+  zoom: number;
+  name: string;
+}) {
   if (!page.image)
     return (
       <div className="mx-auto flex aspect-[3/4] w-full max-w-[560px] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-background p-6 text-center text-[13px] leading-snug text-fg-muted">
@@ -147,8 +163,41 @@ function PageImage({ page, marks, zoom, name }: { page: PageInfo; marks: Mark[];
           }}
         />
       ))}
+      {faces.length > 0 && <PageFaces faces={faces} />}
     </div>
   );
+}
+
+/** The faces on a page: a box in each one's colour, named as the People tab names it. */
+function PageFaces({ faces }: { faces: FaceMark[] }) {
+  const { model } = useRec();
+  const color = useFaceColors();
+  return faces.map((f, i) => {
+    const t = model.faces[f.track];
+    const label = model.facesMode === "recognize" && t?.name ? t.name : `Face ${f.track + 1}`;
+    return (
+      <span
+        key={i}
+        data-face={f.track + 1}
+        title={label}
+        className="pointer-events-none absolute rounded-[4px] border-2"
+        style={{
+          left: `${f.box[0] * 100}%`,
+          top: `${f.box[1] * 100}%`,
+          width: `${f.box[2] * 100}%`,
+          height: `${f.box[3] * 100}%`,
+          borderColor: color(f.track),
+        }}
+      >
+        <span
+          className="absolute -top-[20px] left-[-2px] whitespace-nowrap rounded-[3px] px-1.5 py-px text-[11px] font-bold text-white"
+          style={{ background: color(f.track) }}
+        >
+          {label}
+        </span>
+      </span>
+    );
+  });
 }
 
 /** "Page [3] of 12": type a page and press Enter to turn to it. */
@@ -192,6 +241,10 @@ function PageStage({ view, compact }: { view: DocView; compact?: boolean }) {
   const marks = useMemo(
     () => marksOn(model.segments, view.page, view.selected, find.hits, find.index),
     [model.segments, view.page, view.selected, find.hits, find.index],
+  );
+  const faces = useMemo(
+    () => (model.facesMode === "off" ? [] : facesOn(model.faces, view.page)),
+    [model.faces, model.facesMode, view.page],
   );
   const name = `Page ${pageNumber(model.pages, view.page)}`;
   return (
@@ -239,7 +292,7 @@ function PageStage({ view, compact }: { view: DocView; compact?: boolean }) {
       </div>
       <div className={cn("min-h-0 flex-1 overflow-auto p-4", compact && "max-h-[58dvh] min-h-[320px] p-3")}>
         {p ? (
-          <PageImage page={p} marks={marks} zoom={view.zoom} name={name} />
+          <PageImage page={p} marks={marks} faces={faces} zoom={view.zoom} name={name} />
         ) : state.phase === "processing" || state.phase === "analyzing" ? (
           <EmptyState icon={<Loader2 className="animate-spin" />} title="Drawing its pages" className="py-16">
             Its pages appear here as soon as they&apos;re drawn and read.
@@ -498,11 +551,22 @@ export function DocumentLayout({ compact }: { compact: boolean }) {
     { value: "entities", label: "Entities" },
     { value: "chat", label: "Chat" },
     { value: "notes", label: "Notes", count: notes || undefined },
+    // people on its pages, where the namespace looks for faces
+    ...(model.facesMode === "off"
+      ? []
+      : [{ value: "people" as const, label: "People", count: model.faces.length || undefined }]),
     { value: "history", label: "History" },
   ];
   const current: PanelTab = [...tabs, ...MORE_TABS].some((t) => t.value === tab) ? tab : "pages";
   // on a phone the text is under the page: turning pages doesn't scroll the screen away from it
-  const body = current === "pages" ? <PageText view={view} follow={!compact} /> : <PanelBody tab={current} />;
+  const body =
+    current === "pages" ? (
+      <PageText view={view} follow={!compact} />
+    ) : current === "people" ? (
+      <PeopleTab onPage={view.turn} />
+    ) : (
+      <PanelBody tab={current} />
+    );
 
   // ←/→ and Page Up/Down turn pages, + and − zoom, / finds in the text (not while typing, or in a menu or dialog)
   const { turn, setZoom, page, zoom } = view;

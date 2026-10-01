@@ -1,15 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, ChevronDown, ChevronUp, Clock3, Download, Lock } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronUp, Clock3, Download, FileText, Lock } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Public } from "@/app/openapi-client";
 import type { PublicRecording } from "@/app/openapi-client/types.gen";
 import { AccessBadge } from "@/components/access/access-fields";
-import type { AccessPart } from "@/components/access/model";
 import { first, type Meta } from "@/components/iiif/metadata-model";
 import { PlayerProvider, usePlayerApi, usePlayerState } from "@/components/player/media";
 import { PlayButton, SkipButton, SpeedMenu, TimeReadout, VolumeControl } from "@/components/player/transport";
@@ -19,7 +18,6 @@ import { languageName } from "@/components/library/model";
 import { ROLE_LABEL, type FileRole } from "@/components/recording/files-model";
 import type { Segment } from "@/components/recording/model";
 import {
-  closedNote,
   collectionPath,
   descriptionRows,
   findLines,
@@ -29,7 +27,8 @@ import {
   networkNote,
   safeHref,
 } from "@/components/public/model";
-import { useSignInHref } from "@/components/public/public-shell";
+import { DocumentBody } from "@/components/public/document-view";
+import { Card, ClosedNote } from "@/components/public/parts";
 import { RequestAccess } from "@/components/public/request-access";
 import { Centered, LoadError, Unavailable } from "@/components/public/states";
 import { Banner } from "@/components/ui/banner";
@@ -41,13 +40,23 @@ import { bytes, plural, shortDate, tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Rec = PublicRecording;
+const PAGED = new Set(["document", "image"]);
 
 /**
  * A recording's public page (docs/access.md): all of it for people with permission; for everyone else a public
  * recording's page, description and the parts open to everyone, with a lock where the rest would be. A restricted
  * recording shows signed-in people its title behind a lock ("content locked").
  */
-export function PublicRecordingView({ id, start = null }: { id: number; start?: number | null }) {
+export function PublicRecordingView({
+  id,
+  start = null,
+  page = null,
+}: {
+  id: number;
+  start?: number | null;
+  /** ?page=, a document's page to open (from 1). */
+  page?: number | null;
+}) {
   const client = useApiClient();
   const { status } = useSession();
   const signedIn = status === "authenticated";
@@ -69,7 +78,7 @@ export function PublicRecordingView({ id, start = null }: { id: number; start?: 
       <LoadError what="this recording" message={q.error.message} retry={() => q.refetch()} />
     );
   if (q.data.view === "locked") return <Locked rec={q.data} />;
-  return <RecordingBody rec={q.data} signedIn={signedIn} start={start} />;
+  return <RecordingBody rec={q.data} signedIn={signedIn} start={start} page={page} />;
 }
 
 /** A restricted recording, for someone signed in without permission: its title behind a lock. */
@@ -122,24 +131,49 @@ function StartAt({ start }: { start: number | null }) {
   return null;
 }
 
-function RecordingBody({ rec, signedIn, start }: { rec: Rec; signedIn: boolean; start: number | null }) {
+function RecordingBody({
+  rec,
+  signedIn,
+  start,
+  page,
+}: {
+  rec: Rec;
+  signedIn: boolean;
+  start: number | null;
+  page: number | null;
+}) {
   const meta = (rec.description ?? {}) as Meta;
   const segments = useMemo(() => rec.transcript?.segments ?? [], [rec.transcript]);
-  const duration = rec.duration_ms || (segments.length ? segments[segments.length - 1].t1 : 0);
+  const paged = PAGED.has(rec.media_kind);
+  // a document's text has a reading pace, not a length
+  const duration = paged ? 0 : rec.duration_ms || (segments.length ? segments[segments.length - 1].t1 : 0);
+  const head = (
+    <>
+      <PageHead rec={rec} meta={meta} duration={duration} />
+      {rec.member && <MemberNote rec={rec} />}
+      {rec.granted && (
+        <Banner>
+          You were given permission on this {paged ? "resource" : "recording"}, so you see all of it
+          {rec.access === "public" ? ", not only the parts open to everyone." : "."}
+        </Banner>
+      )}
+      {rec.network && <Banner>{networkNote(rec.network, "recording", rec.access)}</Banner>}
+      {rec.can_request && <RequestAccess rec={rec} />}
+    </>
+  );
+  const aside = (
+    <>
+      <DescriptionCard meta={meta} />
+      <DownloadsCard rec={rec} />
+      <FilesCard rec={rec} />
+    </>
+  );
+  if (paged) return <DocumentBody rec={rec} signedIn={signedIn} start={start} page={page} head={head} aside={aside} />;
   return (
     <PlayerProvider hasMedia={Boolean(rec.media)} durationMs={duration} speech={segments}>
       <StartAt start={start} />
       <article className="mx-auto flex w-full max-w-[1120px] flex-col gap-5 px-4 py-6 sm:px-6">
-        <PageHead rec={rec} meta={meta} duration={duration} />
-        {rec.member && <MemberNote rec={rec} />}
-        {rec.granted && (
-          <Banner>
-            You were given permission on this recording, so you see all of it
-            {rec.access === "public" ? ", not only the parts open to everyone." : "."}
-          </Banner>
-        )}
-        {rec.network && <Banner>{networkNote(rec.network, "recording", rec.access)}</Banner>}
-        {rec.can_request && <RequestAccess rec={rec} />}
+        {head}
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="flex min-w-0 flex-col gap-5">
             <MediaCard rec={rec} duration={duration} signedIn={signedIn} />
@@ -147,9 +181,7 @@ function RecordingBody({ rec, signedIn, start }: { rec: Rec; signedIn: boolean; 
           </div>
           <aside className="flex min-w-0 flex-col gap-5">
             <ChaptersCard rec={rec} signedIn={signedIn} />
-            <DescriptionCard meta={meta} />
-            <DownloadsCard rec={rec} />
-            <FilesCard rec={rec} />
+            {aside}
           </aside>
         </div>
       </article>
@@ -178,6 +210,12 @@ function PageHead({ rec, meta, duration }: { rec: Rec; meta: Meta; duration: num
             {tc(duration)}
           </span>
         )}
+        {(rec.media?.pages?.length ?? 0) > 1 && (
+          <span className="flex items-center gap-[5px]">
+            <FileText aria-hidden className="size-3.5" />
+            {plural(rec.media?.pages?.length ?? 0, "page")}
+          </span>
+        )}
         <span>{KIND_WORD[rec.media_kind]}</span>
         <AccessBadge value={rec} />
       </div>
@@ -200,51 +238,6 @@ function MemberNote({ rec }: { rec: Rec }) {
         ? " Visitors see the parts open to everyone."
         : ` It’s ${rec.access}: visitors don’t see this page.`}
     </Banner>
-  );
-}
-
-function Card({
-  title,
-  extra,
-  children,
-  className,
-}: {
-  title: string;
-  extra?: ReactNode;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <section
-      className={cn("flex flex-col gap-3 rounded-md border border-border bg-background p-4", className)}
-      aria-label={title}
-    >
-      <div className="flex items-center gap-2">
-        <h2 className="text-[14px] font-bold text-fg">{title}</h2>
-        <span className="flex-1" />
-        {extra}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function ClosedNote({ part, rec, signedIn }: { part: AccessPart; rec: Rec; signedIn: boolean }) {
-  const signIn = useSignInHref();
-  const note = closedNote(part, { ns: rec.namespace, signedIn, kind: rec.media_kind });
-  return (
-    <div className="flex items-start gap-3 rounded-md bg-surface px-3.5 py-3">
-      <Lock aria-hidden className="mt-0.5 size-4 shrink-0 text-fg-muted" />
-      <div className="flex min-w-0 flex-col gap-1">
-        <b className="text-[13.5px] font-semibold text-fg">{note.title}</b>
-        <span className="text-[13px] leading-[1.45] text-fg-secondary">{note.body}</span>
-        {!signedIn && (
-          <Link href={signIn} className="w-fit text-[13px] font-semibold text-fg-accent hover:underline">
-            Sign in
-          </Link>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -520,7 +513,7 @@ function DownloadsCard({ rec }: { rec: Rec }) {
   const files = rec.transcript?.downloads ?? [];
   if (!files.length) return null;
   return (
-    <Card title="Download the transcript">
+    <Card title={PAGED.has(rec.media_kind) ? "Download the text" : "Download the transcript"}>
       <ul className="flex flex-wrap gap-2">
         {files.map((f) => (
           <li key={f.format}>

@@ -5389,7 +5389,7 @@
           "imports"
         ],
         "summary": "Import From Source",
-        "description": "Import chosen files of a storage source into a namespace now, rather than watching their folder (admins, like\nsources; a new namespace is created). Audio and video stay on the source and run the namespace's pipeline, or\n`pipeline`; transcripts are imported. Each file gets a result: queued, already (the namespace has it from this\nsource), skipped (not audio, video or a transcript) or error. Audited as `import.source`.",
+        "description": "Import chosen files of a storage source into a namespace now, rather than watching their folder (admins, like\nsources; a new namespace is created). Audio, video, documents (PDFs) and images stay on the source and run the\nnamespace's pipeline, or `pipeline`; transcripts are imported, and PDFs too with `pdf_as: transcript`. Each file\ngets a result: queued, already (the namespace has it from this source), skipped (not audio, video, a document, an\nimage or a transcript) or error. Audited as `import.source`.",
         "operationId": "import_from_source",
         "requestBody": {
           "content": {
@@ -8336,7 +8336,7 @@
           "video"
         ],
         "summary": "Set Namespace Faces Mode",
-        "description": "off, detect or recognize (which needs a purpose). Owners only. `reprocess` queues the namespace's videos.",
+        "description": "off, detect or recognize (which needs a purpose). Owners only. `reprocess` queues the namespace's videos,\ndocuments and images (faces on their pages).",
         "operationId": "set_namespace_faces_mode",
         "parameters": [
           {
@@ -15089,7 +15089,7 @@
           "reprocess": {
             "type": "boolean",
             "title": "Reprocess",
-            "description": "queue face detection for this namespace's videos",
+            "description": "queue face detection for this namespace's videos, documents and images",
             "default": false
           }
         },
@@ -19793,6 +19793,18 @@
             "type": "string",
             "title": "Snippet",
             "description": "the line around the match, HTML-escaped, with <mark> around what was found"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "a document's or an image's text: the page it's on (from 0)"
           }
         },
         "additionalProperties": true,
@@ -19843,13 +19855,15 @@
           "url": {
             "type": "string",
             "title": "Url",
-            "description": "signed link to the audio or video"
+            "description": "signed link to the audio or video; to a document's or an image's file, to save"
           },
           "kind": {
             "type": "string",
             "enum": [
               "audio",
-              "video"
+              "video",
+              "document",
+              "image"
             ],
             "title": "Kind"
           },
@@ -19885,7 +19899,7 @@
               }
             ],
             "title": "Poster",
-            "description": "signed link to a video's first frame"
+            "description": "signed link to a video's first frame, or a document's first page"
           },
           "envelope": {
             "anyOf": [
@@ -19899,6 +19913,21 @@
             ],
             "title": "Envelope",
             "description": "loudness over time, for drawing the waveform"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PublicPage"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages",
+            "description": "a document's or an image's pages"
           }
         },
         "additionalProperties": true,
@@ -19908,6 +19937,80 @@
           "kind"
         ],
         "title": "PublicMedia"
+      },
+      "PublicPage": {
+        "properties": {
+          "idx": {
+            "type": "integer",
+            "title": "Idx",
+            "description": "from 0"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image",
+            "description": "signed link to it, drawn; none when it couldn't be"
+          },
+          "thumb": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumb",
+            "description": "signed link to it, small"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "the PDF's own name for it, when it isn't its number"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "idx"
+        ],
+        "title": "PublicPage",
+        "description": "A page of a document, or an image, drawn."
       },
       "PublicRecording": {
         "properties": {
@@ -20374,7 +20477,7 @@
           "t0": {
             "type": "integer",
             "title": "T0",
-            "description": "start, in ms"
+            "description": "start, in ms (for a document's text, only a reading pace)"
           },
           "t1": {
             "type": "integer",
@@ -20396,6 +20499,18 @@
           "text": {
             "type": "string",
             "title": "Text"
+          },
+          "p": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P",
+            "description": "a document's or an image's text: the page it's on (from 0)"
           }
         },
         "additionalProperties": true,
@@ -22990,6 +23105,16 @@
             ],
             "title": "Collection",
             "description": "a collection of the namespace to put them in; default: its default collection"
+          },
+          "pdf_as": {
+            "type": "string",
+            "enum": [
+              "document",
+              "transcript"
+            ],
+            "title": "Pdf As",
+            "description": "PDFs become documents (their pages kept and read), or transcripts (their text only)",
+            "default": "document"
           }
         },
         "additionalProperties": false,
@@ -25474,7 +25599,9 @@
                 "enum": [
                   "audio",
                   "transcripts",
-                  "both"
+                  "both",
+                  "documents",
+                  "all"
                 ]
               },
               {
@@ -25634,14 +25761,17 @@
                 "enum": [
                   "audio",
                   "transcripts",
-                  "both"
+                  "both",
+                  "documents",
+                  "all"
                 ]
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Kinds"
+            "title": "Kinds",
+            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)"
           },
           "poll_minutes": {
             "anyOf": [
@@ -25773,11 +25903,22 @@
           },
           "audio": {
             "type": "integer",
-            "title": "Audio"
+            "title": "Audio",
+            "description": "audio and video"
           },
           "transcripts": {
             "type": "integer",
             "title": "Transcripts"
+          },
+          "documents": {
+            "type": "integer",
+            "title": "Documents",
+            "default": 0
+          },
+          "images": {
+            "type": "integer",
+            "title": "Images",
+            "default": 0
           }
         },
         "additionalProperties": true,
@@ -25807,14 +25948,17 @@
                 "enum": [
                   "audio",
                   "transcripts",
-                  "both"
+                  "both",
+                  "documents",
+                  "all"
                 ]
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Kinds"
+            "title": "Kinds",
+            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)"
           },
           "include": {
             "anyOf": [
@@ -25861,14 +26005,17 @@
                 "enum": [
                   "audio",
                   "transcripts",
-                  "both"
+                  "both",
+                  "documents",
+                  "all"
                 ]
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Kinds"
+            "title": "Kinds",
+            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)"
           },
           "poll_minutes": {
             "anyOf": [

@@ -9,7 +9,7 @@ closed. Who may open what depends on who is asking.
 | Setting | Values | Default |
 |---|---|---|
 | `access` | `public`, `restricted` or `private` | the namespace's default access, else `private` |
-| `open` | the parts of a public recording anyone may use: `media` (audio or video, frames), `transcript` (the text with who said what, its search and downloads) and `index` (chapters) | the namespace's default parts, else all three |
+| `open` | the parts of a public recording anyone may use: `media` (audio or video, frames; a document's or an image's pages and its file), `transcript` (the text with who said what, its search and downloads) and `index` (chapters, or a document's sections) | the namespace's default parts, else all three |
 | `featured` | shown on the home page when public | no |
 
 A recording's **description** (its descriptive metadata: title, date, summary, speakers, subjects, rights) is never a

@@ -25,7 +25,7 @@ class NamespaceFaces(ResponseModel):
 class FacesMode(RequestModel):
     mode: str | None = Field(None, description="off, detect or recognize")
     purpose: str | None = Field(None, description="why faces are recognised (required for recognize)")
-    reprocess: bool = Field(False, description="queue face detection for this namespace's videos")
+    reprocess: bool = Field(False, description="queue face detection for this namespace's videos, documents and images")
 
 
 class FacesModeSet(Ok):

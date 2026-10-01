@@ -112,7 +112,7 @@ def test_watch_preview_counts_files(client, db, folder):
     h = login(client, "root@x.io", "root password 1")
     sid = client.post("/api/v1/sources", json={"name": "inbox", "type": "local"}, headers=h).json()["id"]
     r = client.post("/api/v1/watches/preview", json={"source": sid, "path": str(inbox)}, headers=h)
-    assert r.json() == {"files": 2, "audio": 0, "transcripts": 2}
+    assert r.json() == {"files": 2, "audio": 0, "transcripts": 2, "documents": 0, "images": 0}
     r = client.post("/api/v1/watches/preview", json={"source": sid, "path": str(inbox), "exclude": ["*.srt"]}, headers=h)
     assert r.json()["transcripts"] == 1
 
@@ -176,7 +176,7 @@ def test_sources_and_watches_without_rclone(client, new_client, db, cfg, folder)
     assert client.post("/api/v1/watches", json={**body, "kinds": "video"}, headers=h).status_code == 422
     assert client.post("/api/v1/watches", json={**body, "steps": ["juggle"]}, headers=h).status_code == 400
     w = client.get("/api/v1/watches", headers=h).json()
-    assert [(x["id"], x["namespace"], x["source_name"], x["stable_seconds"], x["kinds"]) for x in w] == [(wid, "calls", "inbox", 0, "both")]
+    assert [(x["id"], x["namespace"], x["source_name"], x["stable_seconds"], x["kinds"]) for x in w] == [(wid, "calls", "inbox", 0, "all")]
     assert [x["id"] for x in client.get("/api/v1/watches", headers=ho).json()] == [wid]  # owners of the namespace see it
     assert client.get("/api/v1/watches", headers=he).json() == []  # others don't
     assert client.patch(f"/api/v1/watches/{wid}", json={"poll_minutes": 30, "enabled": False}, headers=h).status_code == 200

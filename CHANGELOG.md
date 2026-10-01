@@ -47,7 +47,30 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       its segments, search hits with `source: "page"`, `page` on summary items and chat sources, `GET
       /resources/{rid}/media` as the file to save (docs/api.md#documents-and-images). Answers "OCR for scanned PDFs"
       (docs/backend-gaps.md).
-    - Next: documents and images on public pages and in IIIF, faces on their pages, and from storage sources.
+- **Documents and images: published, from storage sources, and their faces.** Documents and images go everywhere
+  recordings go.
+    - IIIF: a document's Manifest has a Canvas per page with its page drawn (`/iiif/<id>/pages/<n>.jpg`) and its text
+      as annotations on the page where each block is; search hits target their block; downloads are its text and the
+      file itself. With the media closed, each page has its own Authorization Flow probe. schema.org and Dublin Core
+      call it a document or an image (docs/iiif.md).
+    - Public pages: visitors see a document's pages (turning them, thumbnails), its text page by page with find, its
+      sections by page and its file to save, in the parts open to them; an image shows as one picture. Public search
+      hits say their page ("p. 2") and open there (`?page=2`). `GET /public/recordings/{rid}` gives `media.pages` and
+      the text's pages; hits have `page` (docs/api.md#public).
+    - Storage sources: a source's PDFs are documents and its images images, staying on the source like audio. Import →
+      From a source lists them, can import them, and asks whether PDFs are documents or transcripts
+      (`pdf_as`, default document). Watched folders get two more `kinds`: `documents` and `all`, which is now the
+      default. Existing watched folders keep what they picked up (`audio`, `transcripts` or `both`, which read PDFs as
+      transcripts). Previews count documents and images.
+    - Faces: where a namespace looks for faces, the faces step looks at a document's pages too. The People tab says
+      which pages someone is on ("On p. 1–2") and turns to them, and their boxes show on the page. Pages a face isn't
+      on aren't bridged, and the namespace's faces don't count pages as time on screen. Turning faces on with
+      reprocessing queues documents and images too.
+    - Checked in the browser: an admin imports a PDF and a scanned letter from a local source (the PDF as a document),
+      the Sources page counts them and a new watched folder picks up everything; a face on the document's pages shows
+      on the page and in People; a visitor reads the public page, finds "lighthouse" on page 2 and follows a public
+      search hit there; on a phone in dark mode a visitor reads the document and the image, and a viewer sees the
+      people on its pages. No console errors.
 - **Custom fields.** Editors define their own metadata fields on a namespace or on a collection, for the resources,
   the collections or the files inside it: text, long text, number, date, yes/no, one or several of a list, or a link.
   Decided with the project owner: fields live where they're defined and apply to everything inside; each is published

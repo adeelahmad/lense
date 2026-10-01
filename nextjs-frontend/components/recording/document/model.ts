@@ -3,7 +3,14 @@
  * call a page ("p. 3", or the PDF's own "iv"), the page in the address (?page=3), zoom steps and the boxes to mark on
  * a page. Pure, tested in __tests__/document-model.test.ts.
  */
-import { segmentAt, type Box, type FindHit, type PageInfo, type Segment } from "@/components/recording/model";
+import {
+  segmentAt,
+  type Box,
+  type FaceTrack,
+  type FindHit,
+  type PageInfo,
+  type Segment,
+} from "@/components/recording/model";
 
 /** Zoom, as a share of the width that fits the page in the viewer. */
 export const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
@@ -97,4 +104,23 @@ export function pagesSummary(pages: PageInfo[], kind: "document" | "image"): str
   const ocr = pages.filter((p) => p.text === "ocr").length;
   const head = kind === "image" && n <= 1 ? "Image" : `${n} page${n === 1 ? "" : "s"}`;
   return ocr && (kind === "document" || n > 1) ? `${head} · ${ocr} read by OCR` : head;
+}
+
+/** The pages a face is on, from its track's spans over pages ([from, to), counting from 0): "p. 1, 3–4". */
+export function facePages(pages: PageInfo[], spans: [number, number][]): string {
+  const parts = spans.map(([a, b]) =>
+    b - a > 1 ? `${pageNumber(pages, a)}–${pageNumber(pages, b - 1)}` : pageNumber(pages, a),
+  );
+  return parts.length ? `p. ${parts.join(", ")}` : "";
+}
+
+export type FaceMark = { box: Box; track: number };
+
+/** The faces on a page: each track's box there, with the track's place in the list (its colour and name). */
+export function facesOn(faces: FaceTrack[], page: number): FaceMark[] {
+  const out: FaceMark[] = [];
+  faces.forEach((f, track) => {
+    for (const [t, x, y, w, h] of f.boxes) if (t === page) out.push({ box: [x, y, w, h], track });
+  });
+  return out;
 }

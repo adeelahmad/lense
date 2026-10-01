@@ -326,10 +326,9 @@ export function pipelineOptions(
   ];
 }
 
-/** Files of a source that can be imported: transcripts (PDFs among them), audio and video (not folders or other files). */
+/** Files of a source that can be imported: audio, video, documents, images and transcripts (not folders or others). */
 export function importable(entry: { name: string; dir: boolean }): boolean {
-  const kind = kindOf(entry.name);
-  return !entry.dir && !entry.name.startsWith(".") && kind !== "unsupported" && kind !== "image";
+  return !entry.dir && !entry.name.startsWith(".") && kindOf(entry.name) !== "unsupported";
 }
 
 /** What importing chosen files of a source did, in one line: "2 imported · 1 already here · 1 skipped". */

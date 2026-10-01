@@ -9,7 +9,11 @@ from pydantic import Field
 from app.schemas.common import Created, Ok, RequestModel, ResponseModel
 
 SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local"]
-WatchKinds = Literal["audio", "transcripts", "both"]
+WatchKinds = Literal["audio", "transcripts", "both", "documents", "all"]
+KINDS_HELP = (
+    "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and "
+    "images), or all of them (PDFs as documents; the default)"
+)
 
 
 class Backend(ResponseModel):
@@ -80,7 +84,7 @@ class BrowseEntry(ResponseModel):
 
 
 class WatchOptions(RequestModel):
-    kinds: WatchKinds | None = None
+    kinds: WatchKinds | None = Field(default=None, description=KINDS_HELP)
     poll_minutes: int | None = Field(default=None, ge=1)
     stable_seconds: int | None = Field(default=None, ge=0)
     backfill: bool | None = Field(default=None, description="also import files already there")
@@ -104,15 +108,17 @@ class WatchUpdate(WatchOptions):
 class WatchPreviewRequest(RequestModel):
     source: int
     path: str = ""
-    kinds: WatchKinds | None = None
+    kinds: WatchKinds | None = Field(default=None, description=KINDS_HELP)
     include: list[str] | None = None
     exclude: list[str] | None = None
 
 
 class WatchPreview(ResponseModel):
     files: int
-    audio: int
+    audio: int = Field(description="audio and video")
     transcripts: int
+    documents: int = 0
+    images: int = 0
 
 
 class Watch(ResponseModel):

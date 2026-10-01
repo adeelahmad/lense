@@ -454,10 +454,13 @@ def step_ocr(db, cfg, rid, say):
 
 
 def step_faces(db, cfg, rid, say):
+    """Faces in a video's sampled frames, or on a document's or an image's pages (where `t` counts pages, from 0, so a
+    face on pages 3 to 5 has one track over them)."""
     from . import faces
 
-    rec = db.one("SELECT space, media, samples, sample_ms FROM $r", r=R("recording", rid)) or {}
-    if (rec.get("media") or {}).get("kind") != "video":
+    rec = db.one("SELECT space, source, media, samples, sample_ms FROM $r", r=R("recording", rid)) or {}
+    paged = rec.get("source") in ("document", "image")
+    if not paged and (rec.get("media") or {}).get("kind") != "video":
         raise jobs.Skip("it isn't a video")
     mode = faces.mode(db, rec["space"])
     if mode == "off":
@@ -466,8 +469,16 @@ def step_faces(db, cfg, rid, say):
     engine = face_engine(cfg)
     if not engine:
         raise jobs.Skip("no face engine is configured")
+    if paged:
+        from . import documents
+
+        frames, step = [[p["idx"], p["image"]] for p in documents.pages(db, rid) if p.get("image")], 1
+        if not frames:
+            raise jobs.Skip("its pages weren't drawn")
+    else:
+        frames, step = rec.get("samples") or [], rec.get("sample_ms") or 5000
     d, dets = frames_dir(cfg, rid), []
-    for t, name in rec.get("samples") or []:
+    for t, name in frames:
         for f in engine.faces(d / name):
             dets.append({"t": t, "frame": name, **f})
-    faces.store_tracks(db, cfg, rid, rec["space"], dets, mode, rec.get("sample_ms") or 5000, say)
+    faces.store_tracks(db, cfg, rid, rec["space"], dets, mode, step, say, paged)

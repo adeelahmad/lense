@@ -104,10 +104,14 @@ def match(db, cfg, sid, prints):
     return out
 
 
-def _spans(times, step):
+PAGE_SECONDS = 5  # a face on a page weighs as much as five seconds on screen when it's matched to the namespace's faces
+
+
+def _spans(times, step, bridge=2):
+    """Spans [from, to) of the times a face was seen, bridging up to `bridge` steps where it wasn't."""
     out = []
     for t in sorted(times):
-        if out and t - out[-1][1] <= step * 2:
+        if out and t - out[-1][1] <= step * bridge:
             out[-1][1] = t + step
         else:
             out.append([t, t + step])
@@ -149,7 +153,9 @@ def clear_recording(db, cfg, rid):
         f.unlink(missing_ok=True)
 
 
-def store_tracks(db, cfg, rid, sid, dets, mode_, step, say):
+def store_tracks(db, cfg, rid, sid, dets, mode_, step, say, paged=False):
+    """Keep a recording's faces as tracks: detections followed from one frame to the next (or, recognising, grouped by
+    who they are). On a document's pages `t` counts pages, and the track says pages, not time on screen."""
     clear_recording(db, cfg, rid)
     if not dets:
         return say("no faces found")
@@ -171,7 +177,7 @@ def store_tracks(db, cfg, rid, sid, dets, mode_, step, say):
         groups[int(lab)].append(d)
     tracks = []
     for n, (lab, g) in enumerate(sorted(groups.items(), key=lambda kv: min(d["t"] for d in kv[1]))):
-        spans = _spans({d["t"] for d in g}, step)
+        spans = _spans({d["t"] for d in g}, step, 0 if paged else 2)  # pages it isn't on aren't bridged
         best = max(g, key=lambda d: d["score"] * d["box"][2] * d["box"][3])
         cen = None
         if mode_ == "recognize":
@@ -189,7 +195,8 @@ def store_tracks(db, cfg, rid, sid, dets, mode_, step, say):
                 "score": round(float(np.mean([d["score"] for d in g])), 3),
             }
         )
-    ids = match(db, cfg, sid, {t["local"]: (t["centroid"], t["screen_ms"] / 1000) for t in tracks}) if mode_ == "recognize" else {}
+    weight = (lambda t: t["screen_ms"] * PAGE_SECONDS) if paged else (lambda t: t["screen_ms"] / 1000)
+    ids = match(db, cfg, sid, {t["local"]: (t["centroid"], weight(t)) for t in tracks}) if mode_ == "recognize" else {}
     rows = [
         store.clean(
             {
@@ -204,6 +211,7 @@ def store_tracks(db, cfg, rid, sid, dets, mode_, step, say):
                 "boxes": t["boxes"],
                 "score": t["score"],
                 "method": mode_,
+                "paged": paged or None,  # its spans count pages
                 "match": ids.get(t["local"], (None, None, None))[2],
                 "embedding": _vec(t["centroid"]) if t["centroid"] is not None else None,
             }
@@ -211,11 +219,10 @@ def store_tracks(db, cfg, rid, sid, dets, mode_, step, say):
         for t in tracks
     ]
     db.q("INSERT INTO face_track $rows", rows=rows)
-    if ids:
+    if ids and not paged:  # a document has no voices
         _suggest_speakers(db, rid, sid)
-    say(
-        f"{len(tracks)} face(s) on screen" + (f", {sum(1 for x in ids.values() if x[2] == 'face')} recognised" if ids else " (detect only)")
-    )
+    where = "on its pages" if paged else "on screen"
+    say(f"{len(tracks)} face(s) {where}" + (f", {sum(1 for x in ids.values() if x[2] == 'face')} recognised" if ids else " (detect only)"))
 
 
 def _suggest_speakers(db, rid, sid):
@@ -246,9 +253,9 @@ def list_faces(db, sid):
         "SELECT record::id(id) AS id, label, name, speaker, embedding != NONE AS has_print, created_at FROM face WHERE space = $s", s=sid
     )
     stats = defaultdict(lambda: {"screen_ms": 0, "recordings": set(), "cover": None})
-    for t in db.rows("SELECT face, recording, screen_ms, cover FROM face_track WHERE space = $s AND face > 0", s=sid):
+    for t in db.rows("SELECT face, recording, screen_ms, paged, cover FROM face_track WHERE space = $s AND face > 0", s=sid):
         x = stats[t["face"]]
-        x["screen_ms"] += t.get("screen_ms") or 0
+        x["screen_ms"] += 0 if t.get("paged") else t.get("screen_ms") or 0  # a document's tracks count pages
         x["recordings"].add(t["recording"])
         x["cover"] = x["cover"] or ({"recording": t["recording"], "file": t["cover"]} if t.get("cover") else None)
     names = {r["id"]: r.get("name") or r["label"] for r in rows}

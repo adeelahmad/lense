@@ -9,9 +9,10 @@ import { Video } from "@/app/openapi-client";
 import { usePlayerApi } from "@/components/player/media";
 import { useRec } from "@/components/recording/context";
 import { rk, useNamespaceFaces } from "@/components/recording/hooks";
+import { facePages, pageRef } from "@/components/recording/document/model";
 import type { FaceTrack } from "@/components/recording/model";
 import { screenTime } from "@/components/recording/video/model";
-import { useFaceColors } from "@/components/recording/video/stage";
+import { useFaceColors } from "@/components/recording/video/face-colors";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/field";
@@ -33,8 +34,9 @@ type NsFace = {
 /**
  * People on screen (VR1/VR2, VP1): per the namespace's face setting — off (nothing detected or stored), detect only
  * (boxes and screen time) or recognise (names matched across the namespace, suggestions to confirm, link to a voice).
+ * On a document's or an image's pages (`onPage`), faces say which pages they're on and turn to them.
  */
-export function PeopleTab({ noFaces }: { noFaces?: boolean }) {
+export function PeopleTab({ noFaces, onPage }: { noFaces?: boolean; onPage?: (page: number) => void }) {
   const { model, ns, canEdit, canEditNamespace } = useRec();
   // faces are the namespace's: only its members see its face registry and change names, links and merges
   const nsFaces = useNamespaceFaces(ns, model.facesMode === "recognize");
@@ -49,7 +51,11 @@ export function PeopleTab({ noFaces }: { noFaces?: boolean }) {
       </Notice>
     );
   if (!model.faces.length)
-    return noFaces ? (
+    return onPage ? (
+      <EmptyState icon={<ScanFace />} title="No faces on its pages" className="py-10">
+        The Faces step looks for people on the pages once they’re drawn; it found none, or hasn’t run yet.
+      </EmptyState>
+    ) : noFaces ? (
       <Notice title="No faces in this video">
         The Faces step ran on the sampled frames and found none above the detection threshold — typical for slide-only
         recordings.
@@ -64,10 +70,11 @@ export function PeopleTab({ noFaces }: { noFaces?: boolean }) {
     <>
       {model.facesMode === "detect" && (
         <Notice title="Faces are counted, not identified">
-          This namespace is set to detect only: boxes and screen time, no names, no matching, no face registry.
+          This namespace is set to detect only: {onPage ? "boxes and pages" : "boxes and screen time"}, no names, no
+          matching, no face registry.
         </Notice>
       )}
-      <ul className="m-0 flex list-none flex-col p-0" aria-label="People on screen">
+      <ul className="m-0 flex list-none flex-col p-0" aria-label={onPage ? "People on its pages" : "People on screen"}>
         {model.faces.map((f, i) => (
           <PersonRow
             key={f.id}
@@ -79,6 +86,7 @@ export function PeopleTab({ noFaces }: { noFaces?: boolean }) {
             canEdit={canEdit}
             canEditNamespace={canEditNamespace}
             ns={ns}
+            onPage={onPage}
           />
         ))}
       </ul>
@@ -177,6 +185,7 @@ function PersonRow({
   canEdit: canEditRecording,
   canEditNamespace: canEdit,
   ns,
+  onPage,
 }: {
   track: FaceTrack;
   index: number;
@@ -188,6 +197,8 @@ function PersonRow({
   /** May change the namespace's faces (names, links to voices, merges). */
   canEditNamespace: boolean;
   ns: string | null;
+  /** On a document's pages: turn to one (spans and boxes count pages, from 0). */
+  onPage?: (page: number) => void;
 }) {
   const { model } = useRec();
   const api = usePlayerApi();
@@ -210,8 +221,12 @@ function PersonRow({
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => api.seek(track.firstMs, { manual: true })}
-          aria-label={`Go to ${label}'s first appearance, ${tc(track.firstMs)}`}
+          onClick={() => (onPage ? onPage(track.firstMs) : api.seek(track.firstMs, { manual: true }))}
+          aria-label={
+            onPage
+              ? `Turn to ${label}'s first page, ${pageRef(model.pages, track.firstMs)}`
+              : `Go to ${label}'s first appearance, ${tc(track.firstMs)}`
+          }
           className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-[10px] border-2 bg-surface-neutral text-[10px] text-fg-muted"
           style={{ borderColor: color }}
         >
@@ -243,7 +258,9 @@ function PersonRow({
           <div className="min-w-0 flex-1">
             <div className="truncate text-[14px] font-bold leading-tight text-fg">{label}</div>
             <div className="text-[12.5px] leading-snug text-fg-secondary">
-              {screenTime(track.screenMs)} on screen · first at {tc(track.firstMs)}
+              {onPage
+                ? `On ${facePages(model.pages, track.spans)}`
+                : `${screenTime(track.screenMs)} on screen · first at ${tc(track.firstMs)}`}
               {face?.speaker_name && (
                 <>
                   {" "}
@@ -333,7 +350,7 @@ function PersonRow({
         open={confirm}
         onOpenChange={setConfirm}
         title="Not a face?"
-        description={`Removes ${label}'s boxes and crop from this recording. It can't be undone; running the Faces step again may find it again.`}
+        description={`Removes ${label}'s boxes and crop from this ${onPage ? "resource" : "recording"}. It can't be undone; running the Faces step again may find it again.`}
         actions={
           <>
             <Button variant="ghost" onClick={() => setConfirm(false)}>

@@ -8,7 +8,7 @@ title of a restricted one ("content locked"). The routes sign the media links, a
 
 from __future__ import annotations
 
-from . import access as acc, fields as fieldmod, files as filemod, iiif, metadata as md, render, store
+from . import access as acc, documents, fields as fieldmod, files as filemod, iiif, metadata as md, render, store
 from . import search as searchmod
 
 R = store.R
@@ -38,8 +38,12 @@ def recording(db, cfg, rid, seen, a, member=False, granted=False, network=None):
     if not rec:
         raise KeyError(rid)
     meta = md.effective(db, cfg, rid)
+    paged = rec.get("source") in documents.KINDS  # a document's or an image's media: its pages, and its file
+    pages = documents.pages(db, rid) if paged else []
     has = {
-        "media": rec.get("source") == "audio" and bool(rec.get("remote") or render.has_audio(db, cfg, rid)),
+        "media": any(p.get("image") for p in pages)
+        if paged
+        else rec.get("source") == "audio" and bool(rec.get("remote") or render.has_audio(db, cfg, rid)),
         "transcript": _any(db, "segment", rid),
         "index": _any(db, "section", rid),
     }
@@ -96,19 +100,30 @@ def recording(db, cfg, rid, seen, a, member=False, granted=False, network=None):
     if use["media"]:
         m = d.get("media") or {}
         out["media"] = {
-            "url": f"{store.API}/recordings/{rid}/audio",
+            "url": f"{store.API}/recordings/{rid}/{'media' if paged else 'audio'}",
             "kind": m.get("kind") or "audio",
             "width": m.get("width"),
             "height": m.get("height"),
             "poster": d.get("poster"),
-            "envelope": d.get("envelope"),
+            "envelope": None if paged else d.get("envelope"),
         }
+        if paged:
+            out["media"]["pages"] = [
+                {k: p.get(k) for k in ("idx", "width", "height", "image", "thumb", "label")} for p in d.get("pages") or []
+            ]
     if use["transcript"]:
         out["transcript"] = {
             "speakers": [{"key": s["key"], "name": s["name"], "color": s["color"]} for s in d["speakers"]],
-            "segments": [{"t0": s["t0"], "t1": s["t1"], "s": s["s"], "text": s["text"]} for s in d["segments"]],
-            # IIIF serves the downloads, to anyone when the transcript is open to everyone
-            "downloads": [{"format": k, "label": v[1], "url": f"/iiif/{rid}/transcript.{k}"} for k, v in iiif.DOWNLOADS.items()]
+            "segments": [
+                store.clean({"t0": s["t0"], "t1": s["t1"], "s": s["s"], "text": s["text"], "p": s.get("p")}) for s in d["segments"]
+            ],
+            # IIIF serves the downloads, to anyone when the transcript is open to everyone (a document's text has no
+            # times for subtitles)
+            "downloads": [
+                {"format": k, "label": v[1].replace("Transcript", "Text") if paged else v[1], "url": f"/iiif/{rid}/transcript.{k}"}
+                for k, v in iiif.DOWNLOADS.items()
+                if not (paged and k in ("vtt", "srt"))
+            ]
             if acc.is_open(a, "transcript")
             else [],
         }
@@ -152,6 +167,14 @@ def cards(db, rows, who):
         if rows
         else {}
     )
+    paged = [r["id"] for r in rows if r.get("source") in documents.KINDS]
+    if paged:  # a document's or an image's first page stands for it
+        posters.update(
+            {
+                x["recording"]: x.get("thumb")
+                for x in db.rows("SELECT recording, thumb FROM page WHERE recording IN $r AND idx = 0", r=paged)
+            }
+        )
     out = []
     for r in rows:
         a = access[r["id"]]
@@ -310,7 +333,7 @@ def search(db, q, who, limit=20, offset=0):
     for h in found["hits"]:  # best first
         hits.setdefault(h["recording_id"], [])
         if len(hits[h["recording_id"]]) < HITS_PER_RECORDING:
-            hits[h["recording_id"]].append({"t0": h["t0"], "snippet": h["snippet"]})
+            hits[h["recording_id"]].append(store.clean({"t0": h["t0"], "snippet": h["snippet"], "page": h.get("page")}))
     rank = {rid: i for i, rid in enumerate(hits)}
     by_title = {r["id"] for r in titled}
     newest = sorted(titled, key=lambda r: r.get("recorded_at") or "", reverse=True)

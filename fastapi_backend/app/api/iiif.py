@@ -24,14 +24,15 @@ import urllib.parse
 from html import escape as html_escape
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import Cfg, Db, OptionalUser, Principal, client_ip, get_cfg, get_db, network
 from app.api.v1.routes.recordings import serve_audio
+from app.api.v1.routes.video import serve_document
 from app.domain import access as acc
-from app.domain import auth, iiif, iiif_auth, render, store, video
+from app.domain import auth, documents, iiif, iiif_auth, render, store, video
 from app.domain import files as filemod
 from app.domain import metadata as md
 from app.domain.store import DB, R
@@ -84,6 +85,7 @@ def _granted(request: Request, db: DB, user: Principal | None) -> frozenset[int]
 
 PART = {"audio": "media", "transcript": "transcript"}  # what the probe and content routes call each part
 FILE_WHAT = re.compile(r"(file|vtt)(\d+)")  # a supplementary file (file<id>), or one read as WebVTT (vtt<id>)
+PAGE_WHAT = re.compile(r"page(\d+)")  # a document's or an image's page (page<n>, from 1): opens with the media
 
 
 def _part(db: DB, rid: int, what: str) -> str | None:
@@ -91,6 +93,8 @@ def _part(db: DB, rid: int, what: str) -> str | None:
     role; None for attachments, which never are). KeyError for anything else."""
     if what in PART:
         return PART[what]
+    if PAGE_WHAT.fullmatch(what):
+        return "media"
     m = FILE_WHAT.fullmatch(what)
     f = db.one("SELECT role, recording FROM $r", r=R("resource_file", int(m.group(2)))) if m else None
     if not f or f.get("recording") != rid:
@@ -242,8 +246,20 @@ def iiif_probe(rid: int, what: str, request: Request, db: Db, cfg: Cfg) -> JSONR
     acct = iiif_auth.token_account(db, h[7:].strip() if h.lower().startswith("bearer ") else "")
     if (acct and _account_permitted(db, acct, rid, rec["space"])) or network(request, db).opens(rid, rec["space"]):
         base = base_url(request, cfg)
-        if what == "audio":
-            ext = pathlib.PurePosixPath((rec.get("remote") or {}).get("path") or rec.get("path") or "").suffix.lower()
+        name = pathlib.PurePosixPath((rec.get("remote") or {}).get("path") or rec.get("path") or "").name
+        if PAGE_WHAT.fullmatch(what):
+            sig = iiif.sign(cfg, rid, what)
+            loc = {"id": f"{base}/iiif/{rid}/pages/{what[4:]}.jpg?{sig}", "type": "Image", "format": "image/jpeg"}
+        elif what == "audio" and rec.get("source") in documents.KINDS:  # the document or image itself
+            sig = iiif.sign(cfg, rid, "audio")
+            kind = "Image" if rec["source"] == "image" else "Text"
+            loc = {
+                "id": f"{base}/iiif/{rid}/media?{sig}",
+                "type": kind,
+                "format": documents.content_type(name) or "application/octet-stream",
+            }
+        elif what == "audio":
+            ext = pathlib.PurePosixPath(name).suffix.lower()
             sig = iiif.sign(cfg, rid, "audio")
             loc = {"id": f"{base}/iiif/{rid}/audio?{sig}", "type": "Sound", "format": render.AUDIO_TYPES.get(ext, "audio/mpeg")}
             if (rec.get("media") or {}).get("kind") == "video":
@@ -353,11 +369,19 @@ def iiif_manifest(rid: int, request: Request, user: OptionalUser, db: Db, cfg: C
 
 
 @router.get("/iiif/{rid}/annotations/{layer}")
-def iiif_annotations(rid: int, layer: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
+def iiif_annotations(
+    rid: int,
+    layer: str,
+    request: Request,
+    user: OptionalUser,
+    db: Db,
+    cfg: Cfg,
+    page: int | None = Query(None, ge=1, description="a document's page (from 1): only the annotations on it"),
+) -> JSONResponse:
     rec, a = _rec(request, db, cfg, user, rid, "transcript")
     if layer not in iiif.LAYERS or not _content_ok(request, db, cfg, user, rec, rid, a, "transcript"):
         raise HTTPException(404, "not found")
-    return _ld(iiif.annotation_page(db, cfg, rid, base_url(request, cfg), layer))
+    return _ld(iiif.annotation_page(db, cfg, rid, base_url(request, cfg), layer, page))
 
 
 def _ns_name(db: DB, space: int) -> str | None:
@@ -366,9 +390,10 @@ def _ns_name(db: DB, space: int) -> str | None:
 
 @router.get("/iiif/{rid}/record.json")
 def iiif_record(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
-    """schema.org AudioObject (or VideoObject) for search engines and harvesters."""
+    """schema.org AudioObject (VideoObject, DigitalDocument, ImageObject) for search engines and harvesters."""
     _rec(request, db, cfg, user, rid)
-    base, row = base_url(request, cfg), db.one("SELECT duration_ms, space, collection FROM $r", r=R("recording", rid))
+    base, row = base_url(request, cfg), db.one("SELECT duration_ms, space, collection, source, media FROM $r", r=R("recording", rid))
+    row["kind"] = render.kind(row)
     ns = _ns_name(db, row["space"])
     urls = {
         "manifest": f"{base}/iiif/{rid}/manifest",
@@ -381,11 +406,13 @@ def iiif_record(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg
 @router.get("/iiif/{rid}/dc.xml")
 def iiif_dublin_core(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
     _rec(request, db, cfg, user, rid)
-    base, row = base_url(request, cfg), db.one("SELECT space, path, collection FROM $r", r=R("recording", rid))
+    base, row = base_url(request, cfg), db.one("SELECT space, path, collection, source, media FROM $r", r=R("recording", rid))
     ns = _ns_name(db, row["space"])
-    fmt = render.AUDIO_TYPES.get(pathlib.Path(row.get("path") or "").suffix.lower())
+    kind = render.kind(row)
+    path = row.get("path") or ""
+    fmt = documents.content_type(path) if kind in documents.KINDS else render.AUDIO_TYPES.get(pathlib.Path(path).suffix.lower())
     urls = {"manifest": f"{base}/iiif/{rid}/manifest", "collection": iiif.collection_url(base, ns, row.get("collection"))}
-    return Response(md.dublin_core(md.effective(db, cfg, rid), {"format": fmt}, urls), media_type="application/xml")
+    return Response(md.dublin_core(md.effective(db, cfg, rid), {"format": fmt, "kind": kind}, urls), media_type="application/xml")
 
 
 @router.get("/iiif/{rid}/audio")
@@ -393,7 +420,27 @@ def iiif_audio(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg)
     rec, a = _rec(request, db, cfg, user, rid, "audio")
     if not _content_ok(request, db, cfg, user, rec, rid, a, "audio"):
         raise HTTPException(401, "sign in through the viewer to play this recording")
-    return serve_audio(db, cfg, db.one("SELECT * FROM $r", r=R("recording", rid)), rid, request)
+    full = db.one("SELECT * FROM $r", r=R("recording", rid))
+    if full.get("source") in documents.KINDS:  # a document or an image: its file, to save
+        return serve_document(db, cfg, full)
+    return serve_audio(db, cfg, full, rid, request)
+
+
+@router.get("/iiif/{rid}/pages/{name}", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})
+def iiif_page(rid: int, name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> FileResponse:
+    """A document's or an image's page, drawn (`<n>.jpg`, from 1). It opens with the media part, or with the link the
+    page's probe service signed."""
+    m = re.fullmatch(r"(\d+)\.jpg", name)
+    if not m or int(m.group(1)) < 1:
+        raise HTTPException(404, "not found")
+    what = f"page{int(m.group(1))}"
+    rec, a = _rec(request, db, cfg, user, rid, what)
+    path = video.frames_dir(cfg, rid) / documents.page_name(int(m.group(1)) - 1)
+    if not path.is_file():
+        raise HTTPException(404, "not found")
+    if not _content_ok(request, db, cfg, user, rec, rid, a, what):
+        raise HTTPException(401, "sign in through the viewer to see this")
+    return FileResponse(path, media_type="image/jpeg")
 
 
 @router.get("/iiif/{rid}/media")

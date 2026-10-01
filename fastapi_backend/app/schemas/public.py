@@ -26,13 +26,25 @@ class PublicRequestCreate(RequestModel):
     message: str | None = Field(None, max_length=1000, description="why they'd like access, for the owners")
 
 
-class PublicMedia(ResponseModel):
-    url: str = Field(description="signed link to the audio or video")
-    kind: Literal["audio", "video"]
+class PublicPage(ResponseModel):
+    """A page of a document, or an image, drawn."""
+
+    idx: int = Field(description="from 0")
     width: int | None = None
     height: int | None = None
-    poster: str | None = Field(None, description="signed link to a video's first frame")
+    image: str | None = Field(None, description="signed link to it, drawn; none when it couldn't be")
+    thumb: str | None = Field(None, description="signed link to it, small")
+    label: str | None = Field(None, description="the PDF's own name for it, when it isn't its number")
+
+
+class PublicMedia(ResponseModel):
+    url: str = Field(description="signed link to the audio or video; to a document's or an image's file, to save")
+    kind: Literal["audio", "video", "document", "image"]
+    width: int | None = None
+    height: int | None = None
+    poster: str | None = Field(None, description="signed link to a video's first frame, or a document's first page")
     envelope: list[Any] | None = Field(None, description="loudness over time, for drawing the waveform")
+    pages: list[PublicPage] | None = Field(None, description="a document's or an image's pages")
 
 
 class PublicSpeaker(ResponseModel):
@@ -42,10 +54,11 @@ class PublicSpeaker(ResponseModel):
 
 
 class PublicSegment(ResponseModel):
-    t0: int = Field(description="start, in ms")
+    t0: int = Field(description="start, in ms (for a document's text, only a reading pace)")
     t1: int = Field(description="end, in ms")
     s: str | None = Field(None, description="the speaker's key")
     text: str
+    p: int | None = Field(None, description="a document's or an image's text: the page it's on (from 0)")
 
 
 class PublicDownload(ResponseModel):
@@ -158,6 +171,7 @@ class PublicCollection(ResponseModel):
 class PublicHit(ResponseModel):
     t0: int = Field(description="where the line starts, in ms")
     snippet: str = Field(description="the line around the match, HTML-escaped, with <mark> around what was found")
+    page: int | None = Field(None, description="a document's or an image's text: the page it's on (from 0)")
 
 
 class PublicResult(PublicCard):

@@ -4,10 +4,16 @@ import {
   collectionPath,
   descriptionRows,
   findLines,
+  firstPage,
+  hitWhere,
   lineAt,
+  linesByPage,
   markParts,
   momentPath,
   networkNote,
+  pageName,
+  pagePath,
+  parsePageParam,
   publicPath,
   requestLine,
   safeHref,
@@ -153,5 +159,46 @@ describe("networkNote", () => {
     expect(networkNote("Campus", "collection")).toBe(
       "You’re connecting from Campus, so you see all of its recordings. Visitors elsewhere see the public ones.",
     );
+  });
+});
+
+describe("a document's public page", () => {
+  const segs = [
+    { t0: 0, text: "a", p: 0 },
+    { t0: 1000, text: "b", p: 0 },
+    { t0: 2000, text: "c", p: 2 },
+  ];
+  it("links to its pages, and says where a search hit is", () => {
+    expect(pagePath(9, 2)).toBe("/explore/recordings/9?page=3");
+    expect(hitWhere(9, { t0: 4000, page: 1 })).toEqual({ label: "p. 2", href: "/explore/recordings/9?page=2" });
+    expect(hitWhere(9, { t0: 65000 })).toEqual({ label: "1:05", href: "/explore/recordings/9?t=65" });
+    expect([parsePageParam("3"), parsePageParam(["2", "5"]), parsePageParam("0"), parsePageParam("x")]).toEqual([
+      3,
+      2,
+      null,
+      null,
+    ]);
+  });
+  it("names pages, groups the text by page and knows where to open", () => {
+    expect([pageName([{ label: null }, { label: "ii" }], 1), pageName(null, 4)]).toEqual(["ii", "5"]);
+    expect(linesByPage(segs)).toEqual([
+      { page: 0, lines: [0, 1] },
+      { page: 2, lines: [2] },
+    ]);
+    expect(firstPage(3, segs, 2, null)).toBe(1); // ?page=2
+    expect(firstPage(3, segs, 9, null)).toBe(2); // within the document
+    expect(firstPage(3, segs, null, 2500)).toBe(2); // the page of the line at ?t=
+    expect(firstPage(3, segs, null, null)).toBe(0);
+  });
+  it("says what's closed in a document's or an image's words", () => {
+    expect(closedNote("media", { signedIn: true, kind: "document" })).toEqual({
+      title: "The pages aren’t open to everyone",
+      body: "Only members of its namespace, and people it’s shared with, can see them.",
+    });
+    expect(closedNote("media", { signedIn: true, kind: "image" }).title).toBe("The image isn’t open to everyone");
+    expect(closedNote("transcript", { signedIn: true, kind: "document" }).title).toBe(
+      "The text isn’t open to everyone",
+    );
+    expect(closedNote("index", { signedIn: true, kind: "image" }).title).toBe("The sections aren’t open to everyone");
   });
 });

@@ -12,10 +12,12 @@ import { fileIcon } from "@/components/import/upload-tab";
 import { useNamespacePipeline } from "@/components/import/use-import";
 import { CollectionField } from "@/components/library/collections-ui";
 import { sourceTypeLabel } from "@/components/library/source-labels";
+import { pickupText } from "@/components/sources/source-model";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Select } from "@/components/ui/field";
+import { Segmented } from "@/components/ui/tabs";
 import { EmptyState, SkeletonRows } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -25,6 +27,8 @@ const KIND_NOTE: Record<string, string> = {
   transcript: "Transcript",
   audio: "Audio",
   video: "Video",
+  document: "Document",
+  image: "Image",
   unsupported: "",
 };
 
@@ -242,7 +246,7 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
             : path === ""
               ? "Open a folder to import files from it or to watch it."
               : counts.data
-                ? `${plural(counts.data.files, "file")} to pick up here and below: ${counts.data.audio} audio, ${counts.data.transcripts} transcripts. Choose files to import them now, or watch the folder.`
+                ? `To pick up here and below: ${pickupText(counts.data)}. Choose files to import them now, or watch the folder.`
                 : counts.isError
                   ? (counts.error as Error).message
                   : "Counting files…"}
@@ -327,12 +331,15 @@ function ImportChosenDialog({
   const [ns, setNs] = useState(defaultNs);
   const [pipelineId, setPipelineId] = useState<number | null>(null);
   const [collectionId, setCollectionId] = useState<number | null>(null);
+  const [pdfAs, setPdfAs] = useState<"document" | "transcript">("document");
+  const pdfs = paths.filter((p) => kindOf(p) === "document").length;
   const pipeline = useNamespacePipeline(ns || null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (open) {
       setNs(defaultNs);
+      setPdfAs("document");
       setError(null);
     }
   }, [open, defaultNs]);
@@ -342,7 +349,7 @@ function ImportChosenDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={`Import ${plural(paths.length, "file")}?`}
-      description="Audio and video stay on the source: they’re copied for processing and played from there. Transcripts are imported. Files a namespace has from this source already are left as they are."
+      description="Audio, video, documents and images stay on the source: they’re copied for processing and shown from there. Transcripts are imported. Files a namespace has from this source already are left as they are."
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -358,7 +365,14 @@ function ImportChosenDialog({
                 const r = await data(
                   Imports.importFromSource({
                     client,
-                    body: { source, paths, namespace: ns, pipeline: pipelineId, collection: collectionId },
+                    body: {
+                      source,
+                      paths,
+                      namespace: ns,
+                      pipeline: pipelineId,
+                      collection: collectionId,
+                      pdf_as: pdfAs,
+                    },
                   }),
                 );
                 onOpenChange(false);
@@ -386,6 +400,27 @@ function ImportChosenDialog({
           onChange={setCollectionId}
           id="source-import-collection"
         />
+        {pdfs > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-bold text-fg-strong">
+              Import {pdfs === 1 ? "the PDF" : `the ${pdfs} PDFs`} as
+            </span>
+            <Segmented
+              label={`Import ${pdfs === 1 ? "the PDF" : "the PDFs"} as`}
+              items={[
+                { value: "document", label: "Documents" },
+                { value: "transcript", label: "Transcripts" },
+              ]}
+              value={pdfAs}
+              onChange={(v) => setPdfAs(v as "document" | "transcript")}
+            />
+            <span className="text-[12.5px] text-fg-muted">
+              {pdfAs === "document"
+                ? "Their pages, to look at and search; scans are read by OCR."
+                : "Only their text, as transcripts without media."}
+            </span>
+          </div>
+        )}
         <label className="flex flex-col gap-1.5">
           <span className="text-[13px] font-bold text-fg-strong">Then run</span>
           <Select

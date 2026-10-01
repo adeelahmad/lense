@@ -7,7 +7,7 @@ import { usePlayerApi, usePlayerState, usePlayerTick } from "@/components/player
 import { useRec } from "@/components/recording/context";
 import { ariaTimeText, chapterAt, segmentAt } from "@/components/recording/model";
 import { blocks, faceLanes, initialZoom, shotAt, timelineWindow, voiceSpans } from "@/components/recording/video/model";
-import { useFaceColors } from "@/components/recording/video/stage";
+import { useFaceColors } from "@/components/recording/video/face-colors";
 import { tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
 

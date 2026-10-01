@@ -465,6 +465,11 @@ def _iso_duration(ms):
     return f"PT{s // 3600}H{s % 3600 // 60}M{s % 60}S"
 
 
+# what schema.org and Dublin Core call each kind of resource (audio, and a transcript without it, are sound)
+SCHEMA_TYPES = {"video": "VideoObject", "document": "DigitalDocument", "image": "ImageObject"}
+DC_TYPES = {"video": "MovingImage", "document": "Text", "image": "StillImage"}
+
+
 def schema_org(meta, rec, urls):
     people = lambda xs: [
         store.clean({"@type": "Person", "name": p["name"], "sameAs": p.get("uri"), "roleName": p.get("role")}) for p in xs or []
@@ -472,7 +477,7 @@ def schema_org(meta, rec, urls):
     return store.clean(
         {
             "@context": "https://schema.org",
-            "@type": "AudioObject",
+            "@type": SCHEMA_TYPES.get(rec.get("kind") or "", "AudioObject"),
             "@id": urls["manifest"] + "#record",
             "name": first(meta.get("label")),
             "description": first(meta.get("summary")),
@@ -524,7 +529,7 @@ def dublin_core(meta, rec, urls):
     lines += [el("subject", s["label"]) for s in meta.get("subjects") or []]
     lines += [
         el("date", (meta.get("navDate") or "")[:10]),
-        el("type", "Sound"),
+        el("type", DC_TYPES.get(rec.get("kind") or "", "Sound")),
         el("format", rec.get("format") or "audio"),
         el("identifier", urls["manifest"]),
     ] + [el("identifier", i["value"]) for i in meta.get("identifiers") or []]

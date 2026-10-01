@@ -2,7 +2,8 @@
  * Storage connections and watched folders as the Sources screens show them: labels, one-line summaries, health in
  * the backend's own words, the rclone token paste check, and what a watched folder's settings mean in words.
  */
-import type { Source, Watch } from "@/app/openapi-client/types.gen";
+import type { Source, Watch, WatchPreview } from "@/app/openapi-client/types.gen";
+import { plural } from "@/lib/format";
 
 export type SourceType = Source["type"];
 
@@ -187,29 +188,36 @@ const AUDIO = [
   ".m4v",
   ".avi",
 ];
-const TRANSCRIPT = [
-  ".txt",
-  ".text",
-  ".md",
-  ".markdown",
-  ".mdx",
-  ".docx",
-  ".doc",
-  ".pdf",
-  ".srt",
-  ".vtt",
-  ".json",
-  ".jsonl",
-];
+const TRANSCRIPT = [".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".srt", ".vtt", ".json", ".jsonl"];
+const DOCUMENT = [".pdf"];
+const IMAGE = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp"];
 
-/** What a watched folder would do with a file, by extension (the backend's default lists). */
-export function fileKind(name: string): "audio" | "transcript" | "other" {
+export type SourceFileKind = "audio" | "transcript" | "document" | "image" | "other";
+
+/**
+ * What a watched folder would make of a file, by extension (the backend's default lists): a PDF is a document, as
+ * it is for new watched folders (those set to audio and transcripts read it as a transcript).
+ */
+export function fileKind(name: string): SourceFileKind {
   const n = name.toLowerCase();
   const dot = n.lastIndexOf(".");
   const ext = dot >= 0 ? n.slice(dot) : "";
   if (AUDIO.includes(ext)) return "audio";
+  if (DOCUMENT.includes(ext)) return "document";
+  if (IMAGE.includes(ext)) return "image";
   if (TRANSCRIPT.includes(ext)) return "transcript";
   return "other";
+}
+
+/** "7 files · 2 audio · 3 transcripts · 1 document · 1 image": what there is to pick up (kinds with none left out). */
+export function pickupText(p: Pick<WatchPreview, "files" | "audio" | "transcripts" | "documents" | "images">): string {
+  const parts = [
+    p.audio ? `${p.audio} audio` : null,
+    p.transcripts ? plural(p.transcripts, "transcript") : null,
+    p.documents ? plural(p.documents, "document") : null,
+    p.images ? plural(p.images, "image") : null,
+  ].filter(Boolean);
+  return [plural(p.files, "file"), ...parts].join(" · ");
 }
 
 /** "*.m4a, *.srt" ⇄ ["*.m4a", "*.srt"] */
@@ -220,11 +228,17 @@ export function splitPatterns(text: string): string[] {
     .filter(Boolean);
 }
 
-const PICK: Record<string, string> = {
-  audio: "audio only",
-  transcripts: "transcripts only",
-  both: "audio and transcripts",
-};
+export type WatchKinds = NonNullable<Watch["kinds"]>;
+
+/** What a watched folder picks up: the choices, with what each means in a summary. New folders take everything. */
+export const WATCH_KINDS: { value: WatchKinds; label: string; summary: string }[] = [
+  { value: "all", label: "Everything", summary: "everything" },
+  { value: "audio", label: "Audio and video", summary: "audio only" },
+  { value: "transcripts", label: "Transcripts (PDFs among them)", summary: "transcripts only" },
+  { value: "documents", label: "Documents and images", summary: "documents and images only" },
+  { value: "both", label: "Audio and transcripts (PDFs as transcripts)", summary: "audio and transcripts" },
+];
+const PICK: Record<string, string> = Object.fromEntries(WATCH_KINDS.map((k) => [k.value, k.summary]));
 
 /** "→ customer-calls · audio only · every 5 min · wait 60 s · include *.m4a · steps: transcribe, diarize" */
 export function watchSummary(
@@ -233,7 +247,7 @@ export function watchSummary(
 ): string {
   const parts = [
     `→ ${w.namespace ?? "?"}`,
-    PICK[w.kinds ?? "both"] ?? "audio and transcripts",
+    PICK[w.kinds ?? "all"] ?? "everything",
     `every ${w.poll_minutes ?? 5} min`,
     `wait ${w.stable_seconds ?? 30} s`,
   ];

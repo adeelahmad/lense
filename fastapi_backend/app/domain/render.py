@@ -213,12 +213,11 @@ def visual(db, rid, rec):
             {**p, "image": frame_link(rid, p.get("image")), "thumb": frame_link(rid, p.get("thumb"))} for p in documents.pages(db, rid)
         ]
         out["poster"] = out["pages"][0]["thumb"] if out["pages"] else None
-        return out
+        return {**out, **_faces(db, rid, rec)}  # their spans and boxes count pages, from 0
     if media.get("kind") != "video":
         return out
-    from . import faces
 
-    frame = lambda name: f"{store.API}/recordings/{rid}/frames/{name}" if name else None  # noqa: E731
+    frame = lambda name: frame_link(rid, name)  # noqa: E731
     out["shots"] = [
         {"idx": x["idx"], "t0": x["t0"], "t1": x["t1"], "frame": frame(x.get("frame"))}
         for x in db.rows("SELECT idx, t0, t1, frame FROM shot WHERE recording = $r ORDER BY idx", r=rid)
@@ -237,20 +236,19 @@ def visual(db, rid, rec):
             "SELECT record::id(id) AS id, t0, t1, text, box, frame, edited FROM ocr_span WHERE recording = $r ORDER BY t0", r=rid
         )
     ]
-    out["faces_mode"] = faces.mode(db, rec["space"])
-    out["faces"] = (
-        [
-            {
-                **{k: t.get(k) for k in ("id", "local", "face", "name", "spans", "screen_ms", "first_ms", "boxes", "score", "match")},
-                "cover": frame(t.get("cover")),
-            }
-            for t in faces.tracks_for(db, rid)
-        ]
-        if out["faces_mode"] != "off"
-        else []
-    )
+    out.update(_faces(db, rid, rec))
     out["poster"] = out["shots"][0]["frame"] if out["shots"] else None
     return out
+
+
+def _faces(db, rid, rec):
+    """The namespace's face mode, and the faces found in the recording (none while it's off)."""
+    from . import faces
+
+    mode = faces.mode(db, rec["space"])
+    keep = ("id", "local", "face", "name", "spans", "screen_ms", "first_ms", "boxes", "score", "match")
+    tracks = faces.tracks_for(db, rid) if mode != "off" else []
+    return {"faces_mode": mode, "faces": [{**{k: t.get(k) for k in keep}, "cover": frame_link(rid, t.get("cover"))} for t in tracks]}
 
 
 def has_audio(db, cfg, rid):

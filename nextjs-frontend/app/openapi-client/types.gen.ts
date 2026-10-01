@@ -2017,7 +2017,7 @@ export type FacesMode = {
   purpose?: string | null;
   /**
    * Reprocess
-   * queue face detection for this namespace's videos
+   * queue face detection for this namespace's videos, documents and images
    */
   reprocess?: boolean;
 };
@@ -5041,7 +5041,12 @@ export type PublicHit = {
    * the line around the match, HTML-escaped, with <mark> around what was found
    */
   snippet: string;
-  [key: string]: unknown | number | string;
+  /**
+   * Page
+   * a document's or an image's text: the page it's on (from 0)
+   */
+  page?: number | null;
+  [key: string]: unknown | number | string | number | null | undefined;
 };
 
 /**
@@ -5072,13 +5077,13 @@ export type PublicHome = {
 export type PublicMedia = {
   /**
    * Url
-   * signed link to the audio or video
+   * signed link to the audio or video; to a document's or an image's file, to save
    */
   url: string;
   /**
    * Kind
    */
-  kind: "audio" | "video";
+  kind: "audio" | "video" | "document" | "image";
   /**
    * Width
    */
@@ -5089,7 +5094,7 @@ export type PublicMedia = {
   height?: number | null;
   /**
    * Poster
-   * signed link to a video's first frame
+   * signed link to a video's first frame, or a document's first page
    */
   poster?: string | null;
   /**
@@ -5097,11 +5102,18 @@ export type PublicMedia = {
    * loudness over time, for drawing the waveform
    */
   envelope?: Array<unknown> | null;
+  /**
+   * Pages
+   * a document's or an image's pages
+   */
+  pages?: Array<PublicPage> | null;
   [key: string]:
     | unknown
     | string
     | "audio"
     | "video"
+    | "document"
+    | "image"
     | number
     | null
     | number
@@ -5109,6 +5121,57 @@ export type PublicMedia = {
     | string
     | null
     | Array<unknown>
+    | null
+    | Array<PublicPage>
+    | null
+    | undefined;
+};
+
+/**
+ * PublicPage
+ * A page of a document, or an image, drawn.
+ */
+export type PublicPage = {
+  /**
+   * Idx
+   * from 0
+   */
+  idx: number;
+  /**
+   * Width
+   */
+  width?: number | null;
+  /**
+   * Height
+   */
+  height?: number | null;
+  /**
+   * Image
+   * signed link to it, drawn; none when it couldn't be
+   */
+  image?: string | null;
+  /**
+   * Thumb
+   * signed link to it, small
+   */
+  thumb?: string | null;
+  /**
+   * Label
+   * the PDF's own name for it, when it isn't its number
+   */
+  label?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | number
+    | null
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
     | null
     | undefined;
 };
@@ -5418,7 +5481,7 @@ export type PublicSearch = {
 export type PublicSegment = {
   /**
    * T0
-   * start, in ms
+   * start, in ms (for a document's text, only a reading pace)
    */
   t0: number;
   /**
@@ -5435,7 +5498,12 @@ export type PublicSegment = {
    * Text
    */
   text: string;
-  [key: string]: unknown | number | string | null | string | undefined;
+  /**
+   * P
+   * a document's or an image's text: the page it's on (from 0)
+   */
+  p?: number | null;
+  [key: string]: unknown | number | string | null | string | number | null | undefined;
 };
 
 /**
@@ -7123,6 +7191,11 @@ export type SourceImportRequest = {
    * a collection of the namespace to put them in; default: its default collection
    */
   collection?: number | null;
+  /**
+   * Pdf As
+   * PDFs become documents (their pages kept and read), or transcripts (their text only)
+   */
+  pdf_as?: "document" | "transcript";
 };
 
 /**
@@ -8644,7 +8717,7 @@ export type Watch = {
   /**
    * Kinds
    */
-  kinds?: "audio" | "transcripts" | "both" | null;
+  kinds?: "audio" | "transcripts" | "both" | "documents" | "all" | null;
   /**
    * Poll Minutes
    */
@@ -8702,6 +8775,8 @@ export type Watch = {
     | "audio"
     | "transcripts"
     | "both"
+    | "documents"
+    | "all"
     | null
     | number
     | null
@@ -8736,8 +8811,9 @@ export type Watch = {
 export type WatchCreate = {
   /**
    * Kinds
+   * what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)
    */
-  kinds?: "audio" | "transcripts" | "both" | null;
+  kinds?: "audio" | "transcripts" | "both" | "documents" | "all" | null;
   /**
    * Poll Minutes
    */
@@ -8795,13 +8871,22 @@ export type WatchPreview = {
   files: number;
   /**
    * Audio
+   * audio and video
    */
   audio: number;
   /**
    * Transcripts
    */
   transcripts: number;
-  [key: string]: unknown | number;
+  /**
+   * Documents
+   */
+  documents?: number;
+  /**
+   * Images
+   */
+  images?: number;
+  [key: string]: unknown | number | undefined;
 };
 
 /**
@@ -8818,8 +8903,9 @@ export type WatchPreviewRequest = {
   path?: string;
   /**
    * Kinds
+   * what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)
    */
-  kinds?: "audio" | "transcripts" | "both" | null;
+  kinds?: "audio" | "transcripts" | "both" | "documents" | "all" | null;
   /**
    * Include
    */
@@ -8836,8 +8922,9 @@ export type WatchPreviewRequest = {
 export type WatchUpdate = {
   /**
    * Kinds
+   * what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)
    */
-  kinds?: "audio" | "transcripts" | "both" | null;
+  kinds?: "audio" | "transcripts" | "both" | "documents" | "all" | null;
   /**
    * Poll Minutes
    */

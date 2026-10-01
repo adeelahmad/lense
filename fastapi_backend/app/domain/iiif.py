@@ -24,6 +24,7 @@ from collections import Counter
 from . import (
     access as acc,
     deletion,
+    documents,
     fields as fieldmod,
     files as filemod,
     hierarchy,
@@ -80,7 +81,7 @@ def site_label(cfg, base):
     return (cfg["iiif"].get("provider") or {}).get("name") or urllib.parse.urlsplit(base).netloc or "Lens Archive"
 
 
-def probe_service(cfg, base, rid, what):
+def probe_service(cfg, base, rid, what, heading="Sign in to listen"):
     site = site_label(cfg, base)
     return {
         "id": f"{base}/iiif/auth/probe/{rid}/{what}",
@@ -91,7 +92,7 @@ def probe_service(cfg, base, rid, what):
                 "type": "AuthAccessService2",
                 "profile": "active",
                 "label": lm(f"Sign in to {site}", "en"),
-                "heading": lm("Sign in to listen", "en"),
+                "heading": lm(heading, "en"),
                 "note": lm(f"{site} requires an account with access to this collection.", "en"),
                 "confirmLabel": lm("Sign in", "en"),
                 "service": [
@@ -101,6 +102,58 @@ def probe_service(cfg, base, rid, what):
             }
         ],
     }
+
+
+def page_canvases(m, pages):
+    """A document's or an image's pages as canvases: {page: (canvas id, width, height)}. A page that couldn't be drawn
+    has no size of its own, so it gets an A4-shaped one."""
+    return {p["idx"]: (f"{m}/canvas/{p['idx'] + 1}", p.get("width") or 1000, p.get("height") or 1414) for p in pages}
+
+
+def _xywh(box, w, h):
+    return f"{round(box[0] * w)},{round(box[1] * h)},{max(1, round(box[2] * w))},{max(1, round(box[3] * h))}"
+
+
+def target(m, canvases, page, box, t0, t1):
+    """Where a piece of text is: a document's page (the place on it, when known), else a moment of the recording."""
+    if page is not None and page in canvases:
+        cid, w, h = canvases[page]
+        return f"{cid}#xywh={_xywh(box, w, h)}" if box else cid
+    return f"{m}/canvas/1#t={_t(t0)},{_t(t1)}"
+
+
+def _page_canvas(cfg, base, m, rid, p, canvases, locked, layers):
+    """One page of a document or an image: its image (behind a probe when the media isn't open), its thumbnail, and the
+    text and other layers on it."""
+    cid, w, h = canvases[p["idx"]]
+    n = p["idx"] + 1
+    items = []
+    if p.get("image"):
+        body = {"id": f"{m}/pages/{n}.jpg", "type": "Image", "format": "image/jpeg", "width": w, "height": h}
+        if locked:
+            body["service"] = [probe_service(cfg, base, rid, f"page{n}", "Sign in to see this")]
+        items = [{"id": f"{cid}/page/1/image", "type": "Annotation", "motivation": "painting", "body": body, "target": cid}]
+    out = {
+        "id": cid,
+        "type": "Canvas",
+        "label": lm(f"Page {p.get('label') or n}", "en"),
+        "width": w,
+        "height": h,
+        "items": [{"id": f"{cid}/page/1", "type": "AnnotationPage", "items": items}],
+        "annotations": [{"id": f"{m}/annotations/{k}?page={n}", "type": "AnnotationPage", "label": lm(LAYERS[k], "en")} for k in layers],
+    }
+    if p.get("thumb") and not locked:
+        tw = min(cfg["documents"]["thumb_pixels"], w) if w >= h else round(w * min(cfg["documents"]["thumb_pixels"], h) / h)
+        out["thumbnail"] = [
+            {
+                "id": f"{m}/frames/{p['thumb'].rsplit('/', 1)[-1]}",
+                "type": "Image",
+                "format": "image/jpeg",
+                "width": tw,
+                "height": round(h * tw / w),
+            }
+        ]
+    return _prune(out)
 
 
 def _pairs(meta, rec, ns):
@@ -150,6 +203,9 @@ def manifest(db, cfg, rid, base):
     title = md.first(meta.get("label")) or d["title"]
     media = rec.get("media") or {}
     is_video = media.get("kind") == "video" and media.get("width")
+    paged = rec.get("source") in documents.KINDS  # a document's or an image's pages are its canvases
+    pages = documents.pages(db, rid) if paged else []
+    canvases = page_canvases(m, pages)
     items = []
     if has_audio:
         ext = pathlib.PurePosixPath((rec.get("remote") or {}).get("path") or rec.get("path") or "").suffix.lower()
@@ -173,7 +229,12 @@ def manifest(db, cfg, rid, base):
     )
     if text_locked:
         vtt["service"] = [probe_service(cfg, base, rid, "transcript")]
-    captions = [{"id": f"{canvas}/captions/1", "type": "Annotation", "motivation": "supplementing", "body": vtt, "target": canvas}]
+    # a document's text has no times for captions: it's on its pages
+    captions = (
+        []
+        if paged
+        else [{"id": f"{canvas}/captions/1", "type": "Annotation", "motivation": "supplementing", "body": vtt, "target": canvas}]
+    )
     kept = filemod.of(db, rid)
     for f in kept:  # supplementary transcripts, captions and translations that say when their lines are, as WebVTT
         if f["role"] in ("transcript", "captions", "translation") and f.get("timed"):
@@ -192,7 +253,7 @@ def manifest(db, cfg, rid, base):
             captions.append(
                 {"id": f"{canvas}/captions/{n}", "type": "Annotation", "motivation": "supplementing", "body": body, "target": canvas}
             )
-    annotations = [{"id": f"{canvas}/captions", "type": "AnnotationPage", "items": captions}]
+    annotations = [{"id": f"{canvas}/captions", "type": "AnnotationPage", "items": captions}] if captions else []
     faces_published = bool(is_video and cfg["video"].get("publish_faces") and not audio_locked and d.get("faces_mode") != "off")
     if not text_locked:
         annotations += [
@@ -224,14 +285,38 @@ def manifest(db, cfg, rid, base):
                 }
             ]
             cv["thumbnail"] = thumb
+    doc_layers = [k for k in ("transcript", "entities") if k in layers and not text_locked]
+    page_items = [_page_canvas(cfg, base, m, rid, p, canvases, audio_locked, doc_layers) for p in pages]
+    if page_items and page_items[0].get("thumbnail"):
+        thumb = page_items[0]["thumbnail"]  # a document's first page stands for it
     pic = next((f for f in kept if f["role"] == "thumbnail"), None)
     if pic and not audio_locked:  # a thumbnail added to the resource stands for it
         thumb = [{"id": f"{m}/files/{pic['id']}", "type": "Image", "format": filemod.served_type(pic)}]
     renderings = (
         []
         if text_locked
-        else [{"id": f"{m}/transcript.{k}", "type": "Text", "label": lm(v[1], "en"), "format": v[0]} for k, v in DOWNLOADS.items()]
+        else [
+            {
+                "id": f"{m}/transcript.{k}",
+                "type": "Text",
+                "label": lm(v[1].replace("Transcript", "Text") if paged else v[1], "en"),
+                "format": v[0],
+            }
+            for k, v in DOWNLOADS.items()
+            if not (paged and k in ("vtt", "srt"))  # a document's text has no times
+        ]
     )
+    if paged and (rec.get("remote") or rec.get("path")):  # the document or image itself, to save
+        name = pathlib.PurePosixPath((rec.get("remote") or {}).get("path") or rec.get("path") or "").name
+        own = {
+            "id": f"{m}/media",
+            "type": "Image" if rec["source"] == "image" else "Text",
+            "label": lm("The image" if rec["source"] == "image" else "The PDF", "en"),
+            "format": documents.content_type(name) or "application/octet-stream",
+        }
+        if audio_locked:
+            own["service"] = [probe_service(cfg, base, rid, "audio", "Sign in to see this")]
+        renderings.insert(0, own)
     for f in kept:  # every supplementary file, to download; the ones that need permission behind sign-in
         r = _prune(
             {
@@ -246,7 +331,11 @@ def manifest(db, cfg, rid, base):
             r["service"] = [probe_service(cfg, base, rid, f"file{f['id']}")]
         renderings.append(r)
     locked_files = any(not _file_open(a, f) for f in kept)
-    contexts = ([AUTH2] if (audio_locked and has_audio) or text_locked or locked_files else []) + ([] if text_locked else [SEARCH2]) + [P3]
+    contexts = (
+        ([AUTH2] if (audio_locked and (has_audio or paged)) or text_locked or locked_files else [])
+        + ([] if text_locked else [SEARCH2])
+        + [P3]
+    )
     out = {
         "@context": contexts if len(contexts) > 1 else P3,
         "id": f"{m}/manifest",
@@ -284,7 +373,7 @@ def manifest(db, cfg, rid, base):
         "service": None
         if text_locked
         else [{"id": f"{m}/search", "type": "SearchService2", "service": [{"id": f"{m}/autocomplete", "type": "AutoCompleteService2"}]}],
-        "items": [cv],
+        "items": page_items if paged else [cv],
     }
     structures = []
     if is_video and d.get("shots"):
@@ -316,7 +405,14 @@ def manifest(db, cfg, rid, base):
                         "id": f"{m}/range/{k + 1}",
                         "type": "Range",
                         "label": lm(s.get("title") or f"Part {k + 1}", lang),
-                        "items": [{"id": f"{canvas}#t={_t(s['t0'])},{_t(s['t1'])}", "type": "Canvas"}],
+                        "items": [
+                            {
+                                "id": canvases[d["segments"][s["seg0"]]["p"]][0]
+                                if paged and s["seg0"] < len(d["segments"]) and d["segments"][s["seg0"]].get("p") in canvases
+                                else f"{canvas}#t={_t(s['t0'])},{_t(s['t1'])}",
+                                "type": "Canvas",
+                            }
+                        ],
                     }
                     for k, s in enumerate(d["sections"])
                 ],
@@ -371,13 +467,18 @@ def file_type(f):
     return "Text" if text else "Dataset"
 
 
-def annotation_page(db, cfg, rid, base, layer):
-    rec = db.one("SELECT language FROM $r", r=R("recording", rid)) or {}
+def annotation_page(db, cfg, rid, base, layer, page=None):
+    """A layer's annotations. A document's or an image's target the place on their page; `page` (from 1) keeps to one
+    page's."""
+    rec = db.one("SELECT language, source FROM $r", r=R("recording", rid)) or {}
     d = render.player_data(db, rid)
     m = f"{base}/iiif/{rid}"
     canvas, tlang = f"{m}/canvas/1", _lang(rec)
     names, items = {s["key"]: s["name"] for s in d["speakers"]}, []
     segs = d["segments"]
+    canvases = page_canvases(m, documents.pages(db, rid)) if rec.get("source") in documents.KINDS else {}
+    where = lambda s: target(m, canvases, s.get("p"), s.get("b"), s["t0"], s["t1"])  # noqa: E731
+    on = lambda s: page is None or s.get("p") == page - 1  # noqa: E731
     if layer == "transcript":
         items = [
             {
@@ -385,9 +486,10 @@ def annotation_page(db, cfg, rid, base, layer):
                 "type": "Annotation",
                 "motivation": "supplementing",
                 "body": _prune({"type": "TextualBody", "value": s["text"], "format": "text/plain", "language": tlang}),
-                "target": f"{canvas}#t={_t(s['t0'])},{_t(s['t1'])}",
+                "target": where(s),
             }
             for i, s in enumerate(segs)
+            if on(s)
         ]
     elif layer == "speakers":
         turns = []
@@ -440,20 +542,21 @@ def annotation_page(db, cfg, rid, base, layer):
         n = 0
         for e in d["entities"]:
             for i in e["segs"]:
-                if i < len(segs):
+                if i < len(segs) and on(segs[i]):
                     items.append(
                         {
                             "id": f"{m}/annotations/entities/a{n}",
                             "type": "Annotation",
                             "motivation": "tagging",
                             "body": {"type": "TextualBody", "value": e["name"], "purpose": "tagging"},
-                            "target": f"{canvas}#t={_t(segs[i]['t0'])},{_t(segs[i]['t1'])}",
+                            "target": where(segs[i]),
                         }
                     )
                     n += 1
     else:
         raise KeyError(layer)
-    return {"@context": P3, "id": f"{m}/annotations/{layer}", "type": "AnnotationPage", "label": lm(LAYERS[layer], "en"), "items": items}
+    own = f"{m}/annotations/{layer}" + (f"?page={page}" if page is not None else "")
+    return {"@context": P3, "id": own, "type": "AnnotationPage", "label": lm(LAYERS[layer], "en"), "items": items}
 
 
 def collection_url(base, ns, cid=None):
@@ -572,29 +675,32 @@ def search(db, base, q, rids, page_url, page=0):
         if not db.ready_fulltext():
             raise LookupError("no full-text index on this engine")
         rows = db.rows(
-            "SELECT recording, idx, t0, t1, text FROM segment WHERE text @1@ $q AND recording IN $r LIMIT 2000",
+            "SELECT recording, idx, t0, t1, text, page, box FROM segment WHERE text @1@ $q AND recording IN $r LIMIT 2000",
             q=" ".join(words),
             r=list(rids),
         )
     except Exception:  # noqa: BLE001 - no full-text index on this engine
         rows = [
             s
-            for s in db.rows("SELECT recording, idx, t0, t1, text FROM segment WHERE recording IN $r", r=list(rids))
+            for s in db.rows("SELECT recording, idx, t0, t1, text, page, box FROM segment WHERE recording IN $r", r=list(rids))
             if all(w in s["text"].lower() for w in words)
         ]
     rows.sort(key=lambda s: (s["recording"], s["idx"]))
     total, rows = len(rows), rows[page * PAGE : (page + 1) * PAGE]
     rx = re.compile(r"\b(" + "|".join(re.escape(w) for w in words) + r")[\w'’-]*", re.I)
-    items, marks = [], []
+    items, marks, paged = [], [], {}
     for s in rows:
-        aid = f"{base}/iiif/{s['recording']}/annotations/transcript/a{s['idx']}"
+        m = f"{base}/iiif/{s['recording']}"
+        if s.get("page") is not None and s["recording"] not in paged:  # a document's pages, once per document
+            paged[s["recording"]] = page_canvases(m, documents.pages(db, s["recording"]))
+        aid = f"{m}/annotations/transcript/a{s['idx']}"
         items.append(
             {
                 "id": aid,
                 "type": "Annotation",
                 "motivation": "supplementing",
                 "body": {"type": "TextualBody", "value": s["text"], "format": "text/plain"},
-                "target": f"{base}/iiif/{s['recording']}/canvas/1#t={_t(s['t0'])},{_t(s['t1'])}",
+                "target": target(m, paged.get(s["recording"], {}), s.get("page"), s.get("box"), s["t0"], s["t1"]),
             }
         )
         for hit in rx.finditer(s["text"]):

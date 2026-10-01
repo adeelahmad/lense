@@ -12,6 +12,15 @@ can open them, and harvesters can follow them.
     (`/iiif/<id>/files/<file>.vtt`, whatever their format), an index as a table of contents (a Range), and a thumbnail
     as the Manifest's thumbnail. Files that need permission sit behind the Authorization Flow; attachments always do.
   - A schema.org record and a Dublin Core record, linked with `seeAlso`.
+- **Documents and images** ([API](api.md#documents-and-images)): a Canvas per page, each with its page drawn as an
+  Image (`/iiif/<id>/pages/<n>.jpg`, from 1) and its size; the first page is the thumbnail.
+  - The text is annotations on the page, each targeting where its block is (`canvas/<n>#xywh=…`), one page at a time
+    (`/iiif/<id>/annotations/transcript?page=<n>`). Content Search hits target their block on the page.
+  - Downloads: txt, md and json (no captions: a document's text has no times), and the file itself (`/iiif/<id>/media`,
+    "The PDF" or "The image"). Sections become Ranges that start on their page's Canvas.
+  - The schema.org record is a `DigitalDocument` or an `ImageObject`, the Dublin Core type `Text` or `StillImage`.
+  - With the media closed, each page's image has its own probe (`/iiif/auth/probe/<id>/page<n>`, "Sign in to see
+    this"), the file sits behind the audio's probe, and there's no thumbnail.
 - **Collections:** `/iiif/collection` lists the namespaces, `/iiif/collection/<namespace>` the namespace's top
   collections, and `/iiif/collection/<namespace>/<id>` one collection: the collections inside it, then its recordings'
   Manifests, oldest first. Each is a Collection with its parent as `partOf`, and a Manifest is `partOf` the collection

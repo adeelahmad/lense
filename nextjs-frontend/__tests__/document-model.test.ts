@@ -14,6 +14,8 @@ import { hasSound, lengthText } from "@/components/library/model";
 import {
   blocksByPage,
   clampPage,
+  facePages,
+  facesOn,
   marksOn,
   pageAt,
   pageNumber,
@@ -126,6 +128,34 @@ describe("a document's pages", () => {
     expect(pagesSummary([page(0)], "document")).toBe("1 page");
   });
 
+  it("says which pages a face is on, and finds the faces on a page", () => {
+    const pages = [page(0), page(1), page(2, { label: "iii" }), page(3)];
+    expect(
+      facePages(pages, [
+        [0, 1],
+        [2, 4],
+      ]),
+    ).toBe("p. 1, iii–4");
+    expect(facePages(pages, [])).toBe("");
+    const face = (boxes: [number, number, number, number, number][]) =>
+      ({ boxes }) as unknown as Parameters<typeof facesOn>[0][number];
+    expect(
+      facesOn(
+        [
+          face([[0, 0.1, 0.1, 0.2, 0.2]]),
+          face([
+            [2, 0.5, 0.5, 0.1, 0.1],
+            [0, 0.4, 0.4, 0.1, 0.1],
+          ]),
+        ],
+        0,
+      ),
+    ).toEqual([
+      { box: [0.1, 0.1, 0.2, 0.2], track: 0 },
+      { box: [0.4, 0.4, 0.1, 0.1], track: 1 },
+    ]);
+  });
+
   it("puts a document's notes, rows and search matches on pages", () => {
     expect(momentLabel({ t0: 2000, t1: 3000 }, (ms) => `p. ${pageAt(SEGS, ms) + 1}`)).toBe("p. 3");
     expect(momentLabel({ t0: 2000, t1: 3000 })).toBe("0:02–0:03");
@@ -158,9 +188,10 @@ describe("importing documents and images", () => {
       "Image",
       "Video",
     ]);
-    // a source's images aren't imported from it (yet); its PDFs are, as transcripts
-    expect(importable({ name: "a.png", dir: false })).toBe(false);
+    // a source's documents and images are imported from it too
+    expect(importable({ name: "a.png", dir: false })).toBe(true);
     expect(importable({ name: "a.pdf", dir: false })).toBe(true);
+    expect(importable({ name: "a.xyz", dir: false })).toBe(false);
     expect(mediaTypes(DEFAULT_LIMITS)).not.toContain(".pdf");
     expect(mediaTypes(DEFAULT_LIMITS)).toContain(".mp3");
   });

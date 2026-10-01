@@ -320,6 +320,13 @@ page's size. `GET /{rid}/media` is the file itself, as a download that browsers 
 action items cite pages: each has the `page` it comes from. The web app opens a document at a page with
 `/resources/<id>?page=<n>` (from 1).
 
+Storage sources bring documents and images in too ([sources](#sources), [imports](#imports)): their files stay on the
+source, like audio and video. Where a namespace looks for faces ([Video](video.md)), the faces step looks at each page
+drawn: a track's `spans`, `first_ms` and `boxes` then count pages (from 0) rather than milliseconds, and `screen_ms` is
+how many pages it's on (the namespace's faces don't count those as time on screen). Published, a document is a IIIF
+Manifest with a Canvas per page ([IIIF](iiif.md)), and its public page shows its pages and its text page by page
+([public](#public)).
+
 ## notes
 
 ```
@@ -394,12 +401,13 @@ POST   /api/v1/import/preview
 namespace to put the recordings in (default: its default collection; 404 for one of another namespace): `POST /import`,
 `POST /import/source`, `POST /uploads` and `POST /import/iiif`.
 
-`POST /api/v1/import/source {source, paths, namespace, pipeline?, collection?}` imports chosen files of a storage source now,
-rather than watching their folder (admins, like sources; up to 500 paths, as `GET /sources/{sid}/browse` lists them).
-Audio and video stay on the source and run the namespace's pipeline, or `pipeline`; transcripts are imported. Each
-path gets a result: `queued` (with `recording` and `job`), `already` (the namespace has it from this source),
-`skipped` (a folder, or not audio, video or a transcript) or `error`. Choosing a file whose recording was deleted
-brings it back. Audited as `import.source`.
+`POST /api/v1/import/source {source, paths, namespace, pipeline?, collection?, pdf_as?}` imports chosen files of a
+storage source now, rather than watching their folder (admins, like sources; up to 500 paths, as
+`GET /sources/{sid}/browse` lists them). Audio, video, documents and images stay on the source and run the namespace's
+pipeline, or `pipeline`; transcripts are imported. A PDF is a document unless `pdf_as` is `transcript` (its text
+only). Each path gets a result: `queued` (with `recording` and `job`), `already` (the namespace has it from this
+source), `skipped` (a folder, or not audio, video, a document, an image or a transcript) or `error`. Choosing a file
+whose recording was deleted brings it back. Audited as `import.source`.
 
 ### Uploads
 
@@ -673,6 +681,12 @@ POST   /api/v1/watches/{wid}/scan
 `GET /sources/{sid}/browse?path=` lists a folder of a source; each file says which recordings it is already
 (`imported: [{recording, namespace}]`).
 
+A watched folder's `kinds` says what it picks up: `audio` (and video), `transcripts`, `both` of those, `documents`
+(PDFs and images) or `all` of them, the default. The three from before documents (`audio`, `transcripts`, `both`)
+read PDFs as transcripts, as they always did; `documents` and `all` take them as documents. `POST /watches/preview
+{source, path, kinds?, include?, exclude?}` counts what a folder would pick up: `files`, `audio`, `transcripts`,
+`documents` and `images`.
+
 ## templates
 
 ```
@@ -815,8 +829,8 @@ frame comes only with media the caller may play. A collection with nothing for t
 
 `GET /public/search?q=` (`limit`, `offset`) finds the recordings the caller sees by their title, and by the lines of
 the transcripts they may read (the same query syntax as `/search`: words, "phrases", OR). Title matches come first;
-each result is a card with up to three matching `hits` (`t0` and an HTML-escaped `snippet` with `<mark>`). Restricted
-recordings and closed transcripts match on the title only.
+each result is a card with up to three matching `hits` (`t0` and an HTML-escaped `snippet` with `<mark>`, and the
+`page` of a document's text). Restricted recordings and closed transcripts match on the title only.
 
 `GET /public/recordings/{rid}` is a recording's public page as the caller may see it. `view` says how:
 
@@ -827,6 +841,11 @@ recordings and closed transcripts match on the title only.
   parts: `media` (a signed link to the audio or video, with its waveform), `transcript` (speakers and lines, and the
   transcript files to download when the transcript is open to everyone) and `chapters` (the index).
 * `locked`: a restricted recording, for someone signed in without permission: its title and namespace only.
+
+A document's or an image's media are its pages and its file: `media.kind` is `document` or `image`, `media.pages`
+lists each page (`idx`, `width`, `height`, `label`, and signed links to its `image` and `thumb`), `media.url` is the
+file to save and `media.poster` the first page. Its transcript is its text: each segment has its page (`p`), and the
+downloads are its text (txt, md, json) without subtitles. A public document's page opens at `?page=<n>` (from 1).
 
 Parts the caller can't use are `null` and listed in `closed`. `files` are the supplementary files the caller may
 download (with signed links: those that follow an open part, or all of them with permission), and `files_closed` how

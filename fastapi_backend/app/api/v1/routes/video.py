@@ -146,7 +146,8 @@ def get_namespace_faces(name: str, user: CurrentUser, acl: Acl, db: Db) -> Names
 
 @router.put("/namespaces/{name}/faces/mode")
 def set_namespace_faces_mode(name: str, body: FacesMode, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> FacesModeSet:
-    """off, detect or recognize (which needs a purpose). Owners only. `reprocess` queues the namespace's videos."""
+    """off, detect or recognize (which needs a purpose). Owners only. `reprocess` queues the namespace's videos,
+    documents and images (faces on their pages)."""
     sid = acl.namespace(name, "owner")
     with domain_errors():
         facemod.set_mode(db, sid, body.mode, body.purpose, user.email, cfg)
@@ -154,7 +155,7 @@ def set_namespace_faces_mode(name: str, body: FacesMode, user: Writer, acl: Acl,
     queued = []
     if body.reprocess and body.mode != "off":
         for r in db.rows("SELECT record::id(id) AS id, media FROM recording WHERE space = $s", s=sid):
-            if (r.get("media") or {}).get("kind") == "video":
+            if (r.get("media") or {}).get("kind") in ("video", "document", "image"):
                 queued.append(jobs.enqueue(db, r["id"], ["faces"], by=user.email))
     return FacesModeSet(jobs=queued)
 

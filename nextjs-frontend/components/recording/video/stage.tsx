@@ -16,8 +16,8 @@ import { useCallback, useRef, useState } from "react";
 import { usePlayerApi, usePlayerState, usePlayerTick } from "@/components/player/media";
 import { PlayButton, SpeedMenu } from "@/components/player/transport";
 import { useRec } from "@/components/recording/context";
-import { useNamespaceFaces } from "@/components/recording/hooks";
 import { segmentAt } from "@/components/recording/model";
+import { useFaceColors } from "@/components/recording/video/face-colors";
 import { faceBoxAt, fineTime, frameMs, textAt } from "@/components/recording/video/model";
 import { Tooltip } from "@/components/ui/tooltip";
 import { tc } from "@/lib/format";
@@ -25,28 +25,6 @@ import { cn } from "@/lib/utils";
 
 export type Overlays = { captions: boolean; faces: boolean; text: boolean };
 export type VideoLayoutMode = "side" | "stacked" | "theatre";
-
-/** Face colours follow the linked speaker where there is one (same person, same colour), else the order people appear. */
-export function useFaceColors() {
-  const { model, ns } = useRec();
-  const faces = useNamespaceFaces(ns, model.facesMode === "recognize");
-  return useCallback(
-    (i: number) => {
-      const fid = model.faces[i]?.face;
-      const linked = fid
-        ? (
-            (faces.data?.faces ?? []) as {
-              id: number;
-              speaker?: number | null;
-            }[]
-          ).find((f) => f.id === fid)?.speaker
-        : null;
-      const spk = linked != null ? model.speakers.find((s) => s.id === linked) : null;
-      return spk ? spk.color : `var(--spk-${((model.speakers.length + i) % 8) + 1})`;
-    },
-    [model.faces, model.speakers, faces.data],
-  );
-}
 
 /**
  * The video with its overlays (VR1): faces (blue, labelled boxes), text on screen (dashed gold boxes) and captions from

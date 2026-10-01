@@ -96,9 +96,11 @@ def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecordin
     if who.signed_in and not permitted:
         d["can_request"] = seen == "locked" or bool(d["closed"]) or d["files_closed"] > 0
         d["request"] = acc.request_of(db, rid, acl.user.id if acl.user else None)
-    if d["media"]:  # only the media this visitor may play is signed
+    if d["media"]:  # only the media this visitor may play (or a document's pages they may see) is signed
         d["media"]["url"] = sign_url(d["media"]["url"])
         d["media"]["poster"] = sign_url(d["media"]["poster"])
+        for p in d["media"].get("pages") or []:
+            p["image"], p["thumb"] = sign_url(p["image"]), sign_url(p["thumb"])
     for f in d["files"]:  # and only the files they may download
         f["url"] = sign_url(f["url"])
     return PublicRecording.model_validate(d)

@@ -2185,9 +2185,10 @@ export class Imports {
   /**
    * Import From Source
    * Import chosen files of a storage source into a namespace now, rather than watching their folder (admins, like
-   * sources; a new namespace is created). Audio and video stay on the source and run the namespace's pipeline, or
-   * `pipeline`; transcripts are imported. Each file gets a result: queued, already (the namespace has it from this
-   * source), skipped (not audio, video or a transcript) or error. Audited as `import.source`.
+   * sources; a new namespace is created). Audio, video, documents (PDFs) and images stay on the source and run the
+   * namespace's pipeline, or `pipeline`; transcripts are imported, and PDFs too with `pdf_as: transcript`. Each file
+   * gets a result: queued, already (the namespace has it from this source), skipped (not audio, video, a document, an
+   * image or a transcript) or error. Audited as `import.source`.
    */
   public static importFromSource<ThrowOnError extends boolean = false>(
     options: Options<ImportFromSourceData, ThrowOnError>,
@@ -2960,7 +2961,8 @@ export class Video {
 
   /**
    * Set Namespace Faces Mode
-   * off, detect or recognize (which needs a purpose). Owners only. `reprocess` queues the namespace's videos.
+   * off, detect or recognize (which needs a purpose). Owners only. `reprocess` queues the namespace's videos,
+   * documents and images (faces on their pages).
    */
   public static setNamespaceFacesMode<ThrowOnError extends boolean = false>(
     options: Options<SetNamespaceFacesModeData, ThrowOnError>,

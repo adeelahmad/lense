@@ -10,7 +10,7 @@ import { Public } from "@/app/openapi-client";
 import type { PublicResult } from "@/app/openapi-client/types.gen";
 import { KIND_ICON } from "@/components/public/cards";
 import { usePublicClient } from "@/components/public/hooks";
-import { cardLine, collectionPath, momentPath, publicPath, searchPath } from "@/components/public/model";
+import { cardLine, collectionPath, hitWhere, publicPath, searchPath } from "@/components/public/model";
 import { LoadError } from "@/components/public/states";
 import { splitSnippet } from "@/components/search/snippet";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import { SearchInput } from "@/components/ui/field";
 import { EmptyState, SkeletonRows } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { data } from "@/lib/api/browser";
-import { count, tc } from "@/lib/format";
+import { count } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const PAGE = 20;
@@ -156,28 +156,31 @@ function Result({ r }: { r: PublicResult }) {
           </span>
         ) : hits.length ? (
           <ul className="mt-1 flex flex-col gap-1">
-            {hits.map((h, i) => (
-              <li key={i} className="grid grid-cols-[44px_minmax(0,1fr)] gap-2 text-[13.5px] leading-[1.45]">
-                <Link
-                  href={momentPath(r.id, h.t0)}
-                  className="tabular text-[12.5px] font-medium text-fg-accent hover:underline"
-                  aria-label={`Open at ${tc(h.t0)}`}
-                >
-                  {tc(h.t0)}
-                </Link>
-                <span className="font-serif text-fg">
-                  {splitSnippet(h.snippet).map((p, k) =>
-                    p.mark ? (
-                      <mark key={k} className="rounded-[2px] bg-hl-word text-fg">
-                        {p.text}
-                      </mark>
-                    ) : (
-                      <span key={k}>{p.text}</span>
-                    ),
-                  )}
-                </span>
-              </li>
-            ))}
+            {hits.map((h, i) => {
+              const where = hitWhere(r.id, h);
+              return (
+                <li key={i} className="grid grid-cols-[44px_minmax(0,1fr)] gap-2 text-[13.5px] leading-[1.45]">
+                  <Link
+                    href={where.href}
+                    className="tabular text-[12.5px] font-medium text-fg-accent hover:underline"
+                    aria-label={`Open at ${where.label}`}
+                  >
+                    {where.label}
+                  </Link>
+                  <span className="font-serif text-fg">
+                    {splitSnippet(h.snippet).map((p, k) =>
+                      p.mark ? (
+                        <mark key={k} className="rounded-[2px] bg-hl-word text-fg">
+                          {p.text}
+                        </mark>
+                      ) : (
+                        <span key={k}>{p.text}</span>
+                      ),
+                    )}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         ) : r.summary ? (
           <p className="line-clamp-2 text-[13px] leading-[1.45] text-fg-secondary">{r.summary}</p>

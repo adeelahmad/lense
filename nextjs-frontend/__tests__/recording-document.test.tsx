@@ -17,6 +17,10 @@ jest.mock("@/app/openapi-client", () => ({
   Resources: { editSegment: jest.fn() },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
+jest.mock("@/lib/hooks/session", () => ({
+  ...jest.requireActual("@/lib/hooks/session"),
+  useArchive: () => ({ can: () => true, namespaces: [{ name: "pods" }] }),
+}));
 const toast = jest.fn();
 jest.mock("@/components/ui/toast", () => ({ useToast: () => toast }));
 // the header and the other panels have tests of their own
@@ -86,6 +90,9 @@ const MODEL = {
   ],
   pages: [page(0), page(1, { text: "ocr" }), page(2, { label: "iii" })],
   media: { kind: "document", pages: 3, width: 1545, height: 2000, fps: null },
+  speakers: [],
+  faces: [],
+  facesMode: "off",
 } as unknown as PlayerModel;
 
 function Harness({ model, canEdit, startPage }: { model: PlayerModel; canEdit: boolean; startPage: number | null }) {
@@ -248,5 +255,51 @@ describe("a document's page", () => {
     });
     expect(screen.queryByRole("img", { name: /^Page / })).not.toBeInTheDocument();
     expect(screen.getByText(/couldn't be drawn on the server/)).toBeInTheDocument();
+  });
+
+  it("lists the people on its pages, turns to them and marks them on the page", () => {
+    const track = (id: string, spans: [number, number][], boxes: [number, number, number, number, number][]) => ({
+      id,
+      local: id,
+      face: null,
+      name: id,
+      spans,
+      screenMs: spans.reduce((n, [a, b]) => n + b - a, 0),
+      firstMs: spans[0][0],
+      boxes,
+      score: 0.9,
+      match: null,
+      cover: null,
+    });
+    const model = {
+      ...MODEL,
+      facesMode: "detect",
+      faces: [
+        track(
+          "P1",
+          [[1, 3]],
+          [
+            [1, 0.4, 0.3, 0.2, 0.3],
+            [2, 0.5, 0.3, 0.2, 0.3],
+          ],
+        ),
+      ],
+    } as unknown as PlayerModel;
+    const { container } = show({ model });
+    expect(container.querySelectorAll("[data-face]")).toHaveLength(0); // none on page 1
+    fireEvent.click(screen.getByRole("tab", { name: "People" }));
+    const people = screen.getByRole("list", { name: "People on its pages" });
+    expect(within(people).getByText("On p. 2–iii")).toBeInTheDocument();
+    expect(screen.getByText(/boxes and pages, no names/)).toBeInTheDocument();
+    fireEvent.click(within(people).getByRole("button", { name: "Turn to Face 1's first page, p. 2" }));
+    expect(shown()).toHaveAttribute("alt", "Page 2");
+    const box = container.querySelector<HTMLElement>("[data-face='1']");
+    expect(box?.style.left).toBe("40%");
+    expect(box).toHaveTextContent("Face 1");
+  });
+
+  it("has no People tab where the namespace doesn't look for faces", () => {
+    show();
+    expect(screen.queryByRole("tab", { name: "People" })).toBeNull();
   });
 });

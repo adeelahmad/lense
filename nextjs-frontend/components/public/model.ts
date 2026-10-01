@@ -5,7 +5,7 @@
 import type { AccessPart } from "@/components/access/model";
 import { first, langName, type Meta, type Person } from "@/components/iiif/metadata-model";
 import { rightsFor } from "@/components/iiif/rights";
-import { relative, shortDate } from "@/lib/format";
+import { relative, shortDate, tc } from "@/lib/format";
 
 /** The public page of a recording, the link to share. */
 export function publicPath(id: number): string {
@@ -15,6 +15,18 @@ export function publicPath(id: number): string {
 /** A recording's public page at a moment (whole seconds, like the workspace's ?t=). */
 export function momentPath(id: number, ms: number): string {
   return `${publicPath(id)}?t=${Math.floor(Math.max(0, ms) / 1000)}`;
+}
+
+/** A document's public page open at a page (counting from 0; the address counts from 1, like the workspace's). */
+export function pagePath(id: number, page: number): string {
+  return `${publicPath(id)}?page=${Math.max(0, Math.floor(page)) + 1}`;
+}
+
+/** Where a search hit is: "p. 3" on a document's page, else its moment ("1:05"); and the link that opens it there. */
+export function hitWhere(id: number, hit: { t0: number; page?: number | null }): { label: string; href: string } {
+  return hit.page != null
+    ? { label: `p. ${hit.page + 1}`, href: pagePath(id, hit.page) }
+    : { label: tc(hit.t0), href: momentPath(id, hit.t0) };
 }
 
 /** The search page for a query. */
@@ -100,13 +112,16 @@ export function lineAt(segments: readonly { t0: number }[], ms: number): number 
   return found;
 }
 
+const PAGED = new Set(["document", "image"]);
 const PART_WORDS: Record<AccessPart, { what: (kind: string) => string; verb: (kind: string) => string }> = {
   media: {
-    what: (kind) => (kind === "video" ? "The video" : "The audio"),
-    verb: (kind) => (kind === "video" ? "watch it" : "listen to it"),
+    what: (kind) =>
+      kind === "video" ? "The video" : kind === "document" ? "The pages" : kind === "image" ? "The image" : "The audio",
+    verb: (kind) =>
+      kind === "video" ? "watch it" : kind === "document" ? "see them" : kind === "image" ? "see it" : "listen to it",
   },
-  transcript: { what: () => "The transcript", verb: () => "read it" },
-  index: { what: () => "The chapters", verb: () => "see them" },
+  transcript: { what: (kind) => (PAGED.has(kind) ? "The text" : "The transcript"), verb: () => "read it" },
+  index: { what: (kind) => (PAGED.has(kind) ? "The sections" : "The chapters"), verb: () => "see them" },
 };
 
 /** What stands in for a part this visitor can't use. */
@@ -117,7 +132,8 @@ export function closedNote(
   const w = PART_WORDS[part];
   const kind = opts.kind ?? "audio";
   const who = opts.ns ? `members of ${opts.ns}` : "members of its namespace";
-  const title = `${w.what(kind)} ${part === "index" ? "aren’t" : "isn’t"} open to everyone`;
+  const many = part === "index" || (part === "media" && kind === "document");
+  const title = `${w.what(kind)} ${many ? "aren’t" : "isn’t"} open to everyone`;
   return {
     title,
     body: opts.signedIn
@@ -216,4 +232,45 @@ export function networkNote(network: string, what: "recording" | "collection", a
   if (what === "collection")
     return `You’re connecting from ${network}, so you see all of its recordings. Visitors elsewhere see the public ones.`;
   return `You’re connecting from ${network}, so you see all of it${access === "public" ? ", not only the parts open to everyone" : ""}.`;
+}
+
+/** A page's name: the PDF's own (“iv”) where it has one, else its number from 1. */
+export function pageName(pages: readonly { label?: string | null }[] | null | undefined, idx: number): string {
+  return pages?.[idx]?.label || String(idx + 1);
+}
+
+/** A document's lines, page by page in reading order: [{ page, lines: indexes into the segments }]. */
+export function linesByPage(segments: readonly { p?: number | null }[]): { page: number; lines: number[] }[] {
+  const out: { page: number; lines: number[] }[] = [];
+  segments.forEach((s, i) => {
+    const page = s.p ?? 0;
+    const last = out[out.length - 1];
+    if (last && last.page === page) last.lines.push(i);
+    else out.push({ page, lines: [i] });
+  });
+  return out;
+}
+
+/** The page to open first: ?page= (from 1, within the document), else the page of the line at ?t=, else the first. */
+export function firstPage(
+  count: number,
+  segments: readonly { t0: number; p?: number | null }[],
+  page: number | null,
+  startMs: number | null,
+): number {
+  const clamp = (n: number) => Math.max(0, Math.min(Math.max(0, count - 1), n));
+  if (page != null) return clamp(page - 1);
+  if (startMs != null) {
+    const i = lineAt(segments, startMs);
+    if (i >= 0) return clamp(segments[i].p ?? 0);
+  }
+  return 0;
+}
+
+/** ?page= as the address has it (a page from 1), or null when it isn't one. */
+export function parsePageParam(raw: string | string[] | null | undefined): number | null {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (!v || !/^\d+$/.test(v.trim())) return null;
+  const n = Number(v);
+  return n >= 1 ? n : null;
 }

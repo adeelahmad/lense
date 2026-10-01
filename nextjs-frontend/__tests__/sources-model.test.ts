@@ -6,10 +6,12 @@ import {
   healthOf,
   nextScan,
   parseRcloneToken,
+  pickupText,
   sourceSubtitle,
   splitPatterns,
   suggestName,
   validateForm,
+  WATCH_KINDS,
   watchSummary,
   type BackendSpec,
 } from "@/components/sources/source-model";
@@ -137,10 +139,17 @@ describe("connections", () => {
 });
 
 describe("watched folders", () => {
-  it("knows audio from transcripts", () => {
+  it("knows audio, transcripts, documents and images apart, and counts them", () => {
     expect(fileKind("ep12.M4A")).toBe("audio");
     expect(fileKind("ep12.srt")).toBe("transcript");
+    expect(fileKind("Report.PDF")).toBe("document"); // as new watched folders take it
+    expect(fileKind("scan.tiff")).toBe("image");
     expect(fileKind("notes")).toBe("other");
+    expect(pickupText({ files: 7, audio: 2, transcripts: 3, documents: 1, images: 1 })).toBe(
+      "7 files · 2 audio · 3 transcripts · 1 document · 1 image",
+    );
+    expect(pickupText({ files: 1, audio: 0, transcripts: 1 })).toBe("1 file · 1 transcript");
+    expect(pickupText({ files: 0, audio: 0, transcripts: 0, documents: 0, images: 0 })).toBe("0 files");
   });
   it("splits patterns and describes the settings", () => {
     expect(splitPatterns("*.m4a, *.srt,\n drafts/*")).toEqual(["*.m4a", "*.srt", "drafts/*"]);
@@ -166,6 +175,11 @@ describe("watched folders", () => {
         "Podcast standard",
       ),
     ).toContain("pipeline: Podcast standard");
+    // what each choice picks up; new folders take everything
+    expect(WATCH_KINDS[0].value).toBe("all");
+    expect(watchSummary({ namespace: "papers", kinds: "documents" })).toContain("documents and images only");
+    expect(watchSummary({ namespace: "papers", kinds: "both" })).toContain("audio and transcripts");
+    expect(watchSummary({ namespace: "papers" })).toContain("· everything ·");
   });
   it("says when the next scan is", () => {
     const now = Date.parse("2026-09-30T14:00:00Z");

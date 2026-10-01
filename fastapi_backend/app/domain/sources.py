@@ -1,9 +1,10 @@
 """Storage sources through rclone, and the folders on them that the archive watches.
 
 A source is one connection: S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV, or a folder on
-this machine (only inside sources.local_roots). A watch maps a folder on a source to a namespace: new audio becomes a
-recording queued for the whole pipeline; new transcripts are imported and queued for analysis. Credentials are stored
-encrypted and handed to rclone in a private temporary config file per call; OAuth tokens rclone refreshes are saved.
+this machine (only inside sources.local_roots). A watch maps a folder on a source to a namespace: new audio, video,
+documents (PDFs) and images become resources queued for the whole pipeline, their files staying on the source; new
+transcripts are imported and queued for analysis. Credentials are stored encrypted and handed to rclone in a private
+temporary config file per call; OAuth tokens rclone refreshes are saved.
 """
 
 from __future__ import annotations
@@ -47,9 +48,18 @@ BACKENDS = {
     "local": {"label": "Folder on this machine", "fields": {}, "secrets": []},
 }
 OBSCURED = {"pass"}  # rclone wants these obscured in its config file
+SKIPPED = "not audio, video, a document, an image or a transcript"
 TRANSCRIPT_EXT = {".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".srt", ".vtt", ".json", ".jsonl"}
+# what a watched folder picks up (its `kinds`): the first three are from before documents, and read PDFs as transcripts
+TAKES = {
+    "audio": {"audio"},
+    "transcripts": {"transcript"},
+    "both": {"audio", "transcript"},
+    "documents": {"document", "image"},
+    "all": {"audio", "transcript", "document", "image"},
+}
 WATCH = {
-    "kinds": "both",
+    "kinds": "all",
     "poll_minutes": 5,
     "stable_seconds": 30,
     "backfill": False,
@@ -339,8 +349,8 @@ def list_sources(db):
 # ---------- watched folders ----------
 def _check_watch(opts):
     out = {k: opts[k] for k in WATCH if k in opts}
-    if out.get("kinds", "both") not in ("audio", "transcripts", "both"):
-        raise ValueError("kinds is audio, transcripts or both")
+    if out.get("kinds", WATCH["kinds"]) not in TAKES:
+        raise ValueError(f"kinds is one of: {', '.join(TAKES)}")
     if not isinstance(out.get("poll_minutes", 5), int) or out.get("poll_minutes", 5) < 1:
         raise ValueError("poll_minutes must be a whole number of at least 1")
     if not isinstance(out.get("stable_seconds", 30), int) or out.get("stable_seconds", 30) < 0:
@@ -406,8 +416,9 @@ def _when(s):
 
 
 def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collection=None):
-    """One file of a source becomes a recording in namespace `space` (in `collection`, else the namespace's default),
-    and its processing is queued: (id, job). Audio and video stay on the source; a transcript is imported from it."""
+    """One file of a source becomes a resource in namespace `space` (in `collection`, else the namespace's default),
+    and its processing is queued: (id, job). Audio, video, documents and images stay on the source; a transcript is
+    imported from it."""
     title, shown = pathlib.PurePosixPath(f["path"]).stem, f"{src['name']}:{f['path']}"
     if kind == "transcript":
         ns = (db.one("SELECT name FROM $s", s=R("space", space)) or {})["name"]
@@ -429,7 +440,8 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
             "collection": store.home(db, space, collection),
             "path": shown,
             "remote": {"source": src["id"], "path": f["path"]},
-            "source": "audio",
+            "source": kind,  # audio (and video), document or image
+            **({} if kind == "audio" else {"media": {"kind": kind}}),
             "fingerprint": fp,
             "fp_key": f"{space}:{fp}",
             "title": title,
@@ -442,19 +454,28 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
     return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
 
 
-def file_kind(cfg, name):
-    """'audio' (audio and video), 'transcript', or None for a file Lens doesn't import."""
+def file_kind(cfg, name, pdf_as="document"):
+    """'audio' (audio and video), 'document' (a PDF, unless `pdf_as` says 'transcript'), 'image', 'transcript', or
+    None for a file Lens doesn't import."""
     p = pathlib.PurePosixPath(name)
     ext = p.suffix.lower()
     if p.name.startswith("."):
         return None
-    return "audio" if ext in {e.lower() for e in cfg["audio"]["extensions"]} else "transcript" if ext in TRANSCRIPT_EXT else None
+    if ext in {e.lower() for e in cfg["audio"]["extensions"]}:
+        return "audio"
+    if ext in store.DOCUMENT_EXT:
+        return pdf_as
+    if ext in store.IMAGE_EXT:
+        return "image"
+    return "transcript" if ext in TRANSCRIPT_EXT else None
 
 
 def kind_of(cfg, w, f):
-    """'audio', 'transcript', or None when a watched folder should ignore the file."""
-    kind = file_kind(cfg, f["path"])
-    if not kind or (w.get("kinds") or "both") not in ("both", "audio" if kind == "audio" else "transcripts"):
+    """'audio', 'document', 'image', 'transcript', or None when a watched folder should ignore the file. The kinds
+    from before documents (audio, transcripts, both) read a PDF as a transcript, as they did."""
+    kinds = w.get("kinds") or WATCH["kinds"]
+    kind = file_kind(cfg, f["path"], "transcript" if kinds in ("transcripts", "both") else "document")
+    if kind not in TAKES.get(kinds, ()):
         return None
     rel = f.get("rel", f["path"])
     if (w.get("include") and not any(fnmatch.fnmatch(rel, g) for g in w["include"])) or any(
@@ -524,12 +545,12 @@ def imported(db, sid, paths):
     return out
 
 
-def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None):
+def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None, pdf_as="document"):
     """Chosen files of a source, imported into namespace `space` (into `collection`, else its default) now rather than
-    watched: audio and video stay on the source and run the pipeline (the namespace's, or `pipeline`); transcripts are
-    imported. One result per path:
-    queued (with the recording and job), already (it's a recording of the namespace from this source), skipped (not
-    audio, video or a transcript; a folder) or error. Choosing a file on purpose brings back one deleted before."""
+    watched: audio, video, documents and images stay on the source and run the pipeline (the namespace's, or
+    `pipeline`); transcripts are imported, and PDFs too when `pdf_as` is 'transcript'. One result per path:
+    queued (with the recording and job), already (it's a recording of the namespace from this source), skipped (a
+    kind of file Lens doesn't import; a folder) or error. Choosing a file on purpose brings back one deleted before."""
     src = get(db, sid)
     folders = {}
     for path in paths:
@@ -546,12 +567,12 @@ def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None)
             results += [{"path": p, "status": "error", "detail": str(e)[:300]} for p in wanted]
             continue
         for p in wanted:
-            f, kind = listing.get(p), file_kind(cfg, p)
+            f, kind = listing.get(p), file_kind(cfg, p, pdf_as)
             mine = [x for x in have.get(p, []) if x["namespace"] == ns]
             if f is None:
                 results.append({"path": p, "status": "error", "detail": "not found"})
             elif f["dir"] or not kind:
-                results.append({"path": p, "status": "skipped", "detail": "not audio, video or a transcript"})
+                results.append({"path": p, "status": "skipped", "detail": SKIPPED})
             elif mine:
                 results.append({"path": p, "status": "already", "recording": mine[0]["recording"]})
             else:

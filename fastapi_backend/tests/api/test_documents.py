@@ -5,6 +5,8 @@ summarised by page."""
 from __future__ import annotations
 
 import io
+import json
+import re
 import shutil
 
 import pytest
@@ -229,3 +231,202 @@ def test_document_settings_and_what_can_be_uploaded(client, env, db, cfg):
     assert put("uploads", {"extensions": [".wav"]}).status_code == 200
     r = _start(client, he, b"%PDF", "notes.pdf")
     assert r.status_code == 400 and r.json()["detail"].startswith("PDF files can't be uploaded here")
+
+
+@POPPLER
+def test_documents_in_iiif(app, client, env, db, cfg):
+    """A document's pages are its Manifest's canvases: each page's image (behind a probe when the media isn't open), its
+    text where it is on the page, and search that finds it there."""
+    from fastapi.testclient import TestClient
+
+    from app.domain import iiif, metadata
+    from tests.api.test_iiif import sign_in
+
+    rid = _upload(client, env["he"], text_pdf(HARBOUR), "harbour.pdf", title="Harbour report")["recording"]
+    drain(db, cfg)
+    metadata.save(db, cfg, rid, {"access": "public"})
+    anon = TestClient(app, base_url="https://127.0.0.1")
+    m = f"https://127.0.0.1/iiif/{rid}"
+    doc = anon.get(f"/iiif/{rid}/manifest").json()
+    assert iiif.validate(doc) in (None, [])
+    canvases = doc["items"]
+    assert [(c["id"], c["label"]["en"][0], c["height"]) for c in canvases] == [
+        (f"{m}/canvas/1", "Page 1", 2000),
+        (f"{m}/canvas/2", "Page 2", 2000),
+    ]
+    body = canvases[0]["items"][0]["items"][0]["body"]
+    assert (body["id"], body["type"], body["format"], "service" in body) == (f"{m}/pages/1.jpg", "Image", "image/jpeg", False)
+    assert canvases[1]["annotations"][0]["id"] == f"{m}/annotations/transcript?page=2"
+    assert doc["thumbnail"][0]["id"] == f"{m}/frames/thumb-0001.jpg"
+    assert "annotations" not in canvases[0] or all("captions" not in a["id"] for a in canvases[0]["annotations"])
+    own = doc["rendering"][0]
+    assert (own["id"], own["type"], own["format"], own["label"]["en"][0]) == (f"{m}/media", "Text", "application/pdf", "The PDF")
+    assert not any(r["format"] in ("text/vtt", "application/x-subrip") for r in doc["rendering"])  # no times
+    page = anon.get(f"/iiif/{rid}/pages/2.jpg")
+    assert (page.status_code, page.headers["content-type"]) == (200, "image/jpeg")
+    assert anon.get(f"/iiif/{rid}/pages/9.jpg").status_code == 404 and anon.get(f"/iiif/{rid}/pages/x.jpg").status_code == 404
+    assert anon.get(f"/iiif/{rid}/media").headers["content-type"] == "application/pdf"
+    text = anon.get(f"/iiif/{rid}/annotations/transcript", params={"page": 2}).json()
+    assert [a["body"]["value"] for a in text["items"]] == ["Second page about the lighthouse keeper."]
+    assert text["items"][0]["target"].startswith(f"{m}/canvas/2#xywh=") and text["id"].endswith("?page=2")
+    hit = anon.get(f"/iiif/{rid}/search", params={"q": "lighthouse"}).json()["items"][0]
+    assert hit["target"].startswith(f"{m}/canvas/2#xywh=")
+    assert anon.get(f"/iiif/{rid}/record.json").json()["@type"] == "DigitalDocument"
+    dc = anon.get(f"/iiif/{rid}/dc.xml").text
+    assert "<dc:type>Text</dc:type>" in dc and "<dc:format>application/pdf</dc:format>" in dc
+
+    # the media closed: pages and the PDF behind sign-in, each page with its own probe
+    metadata.save(db, cfg, rid, {"access": "public", "open": ["transcript", "index"]})
+    doc = anon.get(f"/iiif/{rid}/manifest").json()
+    body = doc["items"][1]["items"][0]["items"][0]["body"]
+    assert body["service"][0]["id"] == f"https://127.0.0.1/iiif/auth/probe/{rid}/page2"
+    assert body["service"][0]["service"][0]["heading"]["en"][0] == "Sign in to see this"
+    assert "thumbnail" not in doc and "service" in doc["rendering"][0]
+    assert anon.get(f"/iiif/{rid}/pages/2.jpg").status_code == 401
+    assert anon.get(f"/iiif/auth/probe/{rid}/page2").json()["status"] == 401
+    viewer = TestClient(app, base_url="https://127.0.0.1")
+    sign_in(viewer, "view@x.io", "viewer password 1", "https://viewer.example")
+    tok = viewer.get("/iiif/auth/token", params={"messageId": "m", "origin": "https://viewer.example"}).text
+    token = json.loads(re.search(r"postMessage\((\{.*?\}), ", tok).group(1))["accessToken"]
+    fresh = TestClient(app, base_url="https://127.0.0.1")
+    res = fresh.get(f"/iiif/auth/probe/{rid}/page2", headers={"Authorization": f"Bearer {token}"}).json()
+    assert res["status"] == 302 and res["location"]["type"] == "Image"
+    signed = res["location"]["id"].replace("https://127.0.0.1", "")
+    assert fresh.get(signed).status_code == 200
+    assert fresh.get(signed.replace("/pages/2.jpg", "/pages/1.jpg")).status_code == 401  # signed for page 2 only
+    own = fresh.get(f"/iiif/auth/probe/{rid}/audio", headers={"Authorization": f"Bearer {token}"}).json()
+    assert own["location"]["format"] == "application/pdf" and own["location"]["type"] == "Text"
+
+
+@POPPLER
+def test_documents_on_public_pages(client, new_client, env, db, cfg):
+    """A public document's page shows its pages (signed, like a recording's media), its text page by page and the file
+    to save; with its pages closed, none of that is signed for visitors."""
+    from app.domain import metadata
+
+    rid = _upload(client, env["he"], text_pdf(HARBOUR), "harbour.pdf", title="Harbour report")["recording"]
+    drain(db, cfg)
+    metadata.save(db, cfg, rid, {"access": "public", "open": ["media", "transcript"], "featured": True})
+    anon = new_client()
+    d = anon.get(f"/api/v1/public/recordings/{rid}").json()
+    assert (d["media_kind"], d["closed"]) == ("document", ["index"])  # its sections stay closed
+    m = d["media"]
+    assert (m["kind"], m["envelope"], [p["idx"] for p in m["pages"]]) == ("document", None, [0, 1])
+    assert m["url"].startswith(f"/api/v1/recordings/{rid}/media?") and "sig=" in m["url"]
+    assert anon.get(m["url"]).headers["content-type"] == "application/pdf"
+    assert anon.get(m["pages"][1]["image"]).headers["content-type"] == "image/jpeg"
+    assert m["poster"] == m["pages"][0]["thumb"] and "sig=" in m["poster"]
+    segs = d["transcript"]["segments"]
+    assert [(s["text"], s["p"]) for s in segs][-1] == ("Second page about the lighthouse keeper.", 1)
+    downloads = {x["format"]: x["label"] for x in d["transcript"]["downloads"]}
+    assert "vtt" not in downloads and "srt" not in downloads and all("Transcript" not in v for v in downloads.values())
+    # the home page's card shows its first page
+    card = anon.get("/api/v1/public/home").json()["featured"][0]
+    assert card["id"] == rid and card["media_kind"] == "document" and card["poster"].split("?")[0].endswith("thumb-0001.jpg")
+
+    # visitors' search finds its text on its page
+    found = anon.get("/api/v1/public/search", params={"q": "lighthouse"}).json()["items"]
+    assert [(x["id"], [h["page"] for h in x["hits"]]) for x in found] == [(rid, [1])]
+
+    # its pages closed: no pages, file or poster for visitors; members still have them
+    metadata.save(db, cfg, rid, {"open": ["transcript"]})
+    d = anon.get(f"/api/v1/public/recordings/{rid}").json()
+    assert d["media"] is None and "media" in d["closed"] and d["transcript"]["segments"]
+    assert anon.get("/api/v1/public/home").json()["featured"][0]["poster"] is None
+    assert client.get(f"/api/v1/public/recordings/{rid}", headers=env["hv"]).json()["media"]["pages"]
+
+
+class _FacesOnSomePages:
+    """A face in the same place on every page but the second."""
+
+    name = "fake"
+
+    def faces(self, path):
+        import numpy as np
+
+        if path.name == "page-0002.jpg":
+            return []
+        e = np.zeros(16)
+        e[0], e[5] = 1.0, 0.1
+        return [{"box": [0.4, 0.3, 0.2, 0.3], "score": 0.98, "embedding": e / np.linalg.norm(e)}]
+
+
+@POPPLER
+def test_faces_on_a_documents_pages(client, env, db, cfg, monkeypatch):
+    """Faces on a document's pages are tracks over pages (counted from 0): pages without the face aren't bridged, and
+    the namespace's faces don't count pages as time on screen."""
+    from app.domain import faces
+
+    monkeypatch.setattr(video, "face_engine", lambda _cfg: _FacesOnSomePages())
+    faces.set_mode(db, store.ns_id(db, "pods"), "detect", user="root@x.io")
+    pages = [["The harbour report"], ["No one here."], ["The keeper again."], ["And again."]]
+    up = _upload(client, env["he"], text_pdf(pages), "album.pdf")
+    drain(db, cfg)
+    assert _runs(client, env["he"], up["job"])["faces"] == ("done", "1 face(s) on its pages (detect only)")
+    p = client.get(f"/api/v1/resources/{up['recording']}/player", headers=env["hv"]).json()
+    assert p["faces_mode"] == "detect" and len(p["faces"]) == 1
+    track = p["faces"][0]
+    assert (track["spans"], track["first_ms"], track["screen_ms"]) == ([[0, 1], [2, 4]], 0, 3)
+    assert [b[0] for b in track["boxes"]] == [0, 2, 3] and track["cover"]
+
+    # turned to recognising with the namespace reprocessed: its documents are queued too
+    body = {"mode": "recognize", "purpose": "Name the keepers", "reprocess": True}
+    queued = client.put("/api/v1/namespaces/pods/faces/mode", json=body, headers=env["ha"]).json()["jobs"]
+    assert len(queued) == 1
+    drain(db, cfg)
+    listed = faces.list_faces(db, store.ns_id(db, "pods"))
+    assert [(f["recordings"], f["screen_ms"]) for f in listed] == [(1, 0)]
+    assert db.one("SELECT n_obs FROM face")["n_obs"] == 3 * faces.PAGE_SECONDS
+
+
+def test_documents_and_images_from_a_source(client, env, db, cfg, folder, monkeypatch):
+    """A source's PDFs are documents and its images images, staying on the source; the kinds of watched folders from
+    before (audio, transcripts, both) read PDFs as transcripts, as they did."""
+    from app.domain import sources
+    from tests.api.test_sources import _lsjson_without_rclone
+    from tests.helpers import write_wav
+
+    _lsjson_without_rclone(monkeypatch)
+    inbox = folder / "inbox" / "papers"
+    inbox.mkdir(parents=True)
+    (inbox / "harbour.pdf").write_bytes(text_pdf(HARBOUR))
+    (inbox / "photo.png").write_bytes(_png(scan(["Galway harbour"])))
+    (inbox / "call.txt").write_text("Ann: hello.\nBen: hi there.\nAnn: bye.")
+    write_wav(inbox / "ep1.wav")
+    ha = env["ha"]
+    sid = client.post("/api/v1/sources", json={"name": "inbox", "type": "local"}, headers=ha).json()["id"]
+    preview = lambda **more: client.post("/api/v1/watches/preview", json={"source": sid, "path": str(inbox), **more}, headers=ha).json()  # noqa: E731
+    assert preview() == {"files": 4, "audio": 1, "transcripts": 1, "documents": 1, "images": 1}
+    assert preview(kinds="both") == {"files": 3, "audio": 1, "transcripts": 2, "documents": 0, "images": 0}
+    assert preview(kinds="documents", exclude=["*.png"]) == {"files": 1, "audio": 0, "transcripts": 0, "documents": 1, "images": 0}
+    assert client.post("/api/v1/watches/preview", json={"source": sid, "path": str(inbox), "kinds": "pdf"}, headers=ha).status_code == 422
+
+    # chosen files: the PDF is a document unless asked for as a transcript; the image an image
+    url, paths = "/api/v1/import/source", [str(inbox / "harbour.pdf"), str(inbox / "photo.png")]
+    assert client.post(url, json={"source": sid, "paths": paths, "namespace": "pods", "pdf_as": "slides"}, headers=ha).status_code == 422
+    got = client.post(url, json={"source": sid, "paths": paths, "namespace": "pods"}, headers=ha).json()["results"]
+    assert [x["status"] for x in got] == ["queued", "queued"]
+    doc, img = (db.one("SELECT source, media, remote, path FROM $r", r=R("recording", x["recording"])) for x in got)
+    assert (doc["source"], doc["media"], doc["remote"]) == ("document", {"kind": "document"}, {"source": sid, "path": paths[0]})
+    assert (img["source"], img["media"]["kind"], img["path"]) == ("image", "image", f"inbox:{paths[1]}")
+    as_text = client.post(url, json={"source": sid, "paths": paths[:1], "namespace": "calls", "pdf_as": "transcript"}, headers=ha)
+    text = as_text.json()["results"][0]
+    assert text["status"] == "queued" and db.one("SELECT source FROM $r", r=R("recording", text["recording"]))["source"] != "document"
+    drain(db, cfg)
+    segs = db.values("SELECT VALUE text FROM segment WHERE recording = $r", r=got[0]["recording"])
+    assert "Second page about the lighthouse keeper." in segs  # read from the source's file
+    assert db.one("SELECT media FROM $r", r=R("recording", got[0]["recording"]))["media"]["pages"] == 2
+
+    # watched folders: "both" (from before) takes the PDF as a transcript and leaves the image; "all" takes everything
+    def watch(ns, **more):
+        body = {"source": sid, "path": str(inbox), "namespace": ns, "stable_seconds": 0, "backfill": True, **more}
+        wid = client.post("/api/v1/watches", json=body, headers=ha).json()["id"]
+        sources.poll_watch(db, cfg, wid, log=lambda *a: None)
+        rows = db.rows("SELECT source, title FROM recording WHERE space = $s", s=store.ns_id(db, ns))
+        return sorted((r["title"], render_kind(r)) for r in rows)
+
+    from app.domain.render import kind as render_kind
+
+    assert watch("old", kinds="both") == [("call", "transcript"), ("ep1", "audio"), ("harbour", "transcript")]
+    assert watch("new") == [("call", "transcript"), ("ep1", "audio"), ("harbour", "document"), ("photo", "image")]
+    assert client.get("/api/v1/watches", headers=ha).json()[-1]["kinds"] == "all"  # the default now
