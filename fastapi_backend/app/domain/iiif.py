@@ -24,6 +24,7 @@ from collections import Counter
 from . import (
     access as acc,
     deletion,
+    fields as fieldmod,
     files as filemod,
     hierarchy,
     ingest,
@@ -252,7 +253,8 @@ def manifest(db, cfg, rid, base):
         "type": "Manifest",
         "label": meta.get("label") or lm(title, lang),
         "summary": meta.get("summary"),
-        "metadata": _pairs(meta, rec, ns),
+        "metadata": _pairs(meta, rec, ns)
+        + fieldmod.published_pairs(fieldmod.applying(db, rec["space"], "resource", rec.get("collection")), rec),
         "rights": meta.get("rights"),
         "requiredStatement": {"label": lm("Attribution", "en"), "value": meta["attribution"]} if meta.get("attribution") else None,
         "provider": _provider(meta, base),
@@ -482,8 +484,9 @@ def _branches(db, base, ns, sid, shown, parent):
     ]
 
 
-def _frame(meta, base, ns, id_, label, summary, part_of, items):
-    """A Collection with what it has from its namespace's description: rights, attribution and provider."""
+def _frame(meta, base, ns, id_, label, summary, part_of, items, pairs=None):
+    """A Collection with what it has from its namespace's description: rights, attribution and provider; `pairs` are a
+    collection's published custom fields."""
     return _prune(
         {
             "@context": P3,
@@ -491,7 +494,7 @@ def _frame(meta, base, ns, id_, label, summary, part_of, items):
             "type": "Collection",
             "label": label,
             "summary": summary,
-            "metadata": meta.get("metadata") if id_ == collection_url(base, ns) else None,
+            "metadata": (meta.get("metadata") if id_ == collection_url(base, ns) else None) or pairs or None,
             "rights": meta.get("rights"),
             "requiredStatement": {"label": lm("Attribution", "en"), "value": meta["attribution"]} if meta.get("attribution") else None,
             "provider": _provider(meta, base),
@@ -533,6 +536,7 @@ def subcollection(db, cfg, sid, cid, base, readable=None, granted=frozenset()):
             )
         )
     part_of = collection_url(base, ns["name"], c.get("parent"))
+    row = db.one("SELECT fields FROM $r", r=R("collection", c["id"])) or {}
     return _frame(
         ns["meta"],
         base,
@@ -542,6 +546,7 @@ def subcollection(db, cfg, sid, cid, base, readable=None, granted=frozenset()):
         lm(c["description"]) if c.get("description") else None,
         part_of,
         items,
+        fieldmod.published_pairs(fieldmod.applying(db, sid, "collection", c.get("parent")), row),
     )
 
 

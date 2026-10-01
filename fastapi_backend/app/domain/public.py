@@ -8,7 +8,7 @@ title of a restricted one ("content locked"). The routes sign the media links, a
 
 from __future__ import annotations
 
-from . import access as acc, files as filemod, iiif, metadata as md, render, store
+from . import access as acc, fields as fieldmod, files as filemod, iiif, metadata as md, render, store
 from . import search as searchmod
 
 R = store.R
@@ -68,6 +68,10 @@ def recording(db, cfg, rid, seen, a, member=False, granted=False, network=None):
     if seen == "locked":
         return out
     out["description"] = _description(meta)
+    row = db.one("SELECT space, collection, fields FROM $r", r=R("recording", rid)) or {}
+    pairs = fieldmod.published_pairs(fieldmod.applying(db, rec["space"], "resource", row.get("collection")), row)
+    if pairs:  # its published custom fields, as IIIF shows them
+        out["description"]["metadata"] = list(out["description"].get("metadata") or []) + pairs
     use = {p: has[p] and acc.usable(a, seen, p) for p in acc.PARTS}
     out["closed"] = [p for p in acc.PARTS if has[p] and not use[p]]
     kept = filemod.of(db, rid)

@@ -4,6 +4,7 @@
  * the Views dialog lists and describes them. Tested in __tests__/library-views.test.ts.
  */
 import type { SavedView, ViewState } from "@/app/openapi-client/types.gen";
+import { fieldFilterLabel } from "@/components/fields/fields-model";
 import {
   DATE_LABEL,
   DURATION_LABEL,
@@ -35,6 +36,8 @@ export function viewState({ filters, view, sort }: LibraryState): ViewState {
     languages: [...filters.languages],
     sort: (sort.dir === "desc" ? `-${sort.key}` : sort.key) as Sort,
     collection: filters.collection,
+    field: filters.field?.id ?? null,
+    value: filters.field?.value.trim() || null,
   };
 }
 
@@ -54,6 +57,7 @@ export function fromView(s: ViewState | null | undefined): LibraryState & { spea
       origins: [...(s?.origins ?? [])],
       languages: [...(s?.languages ?? [])],
       collection: s?.collection ?? null,
+      field: s?.field != null ? { id: s.field, value: s.value ?? "" } : null,
     },
     view: s?.tab ?? "all",
     sort: { key: (desc ? sort.slice(1) : sort) as SortKey, dir: desc ? "desc" : "asc" },
@@ -82,6 +86,8 @@ export function sameState(a: ViewState | null | undefined, b: ViewState | null |
     sameSet(x.filters.origins, y.filters.origins) &&
     sameSet(x.filters.languages, y.filters.languages, true) &&
     x.filters.collection === y.filters.collection &&
+    (x.filters.field?.id ?? null) === (y.filters.field?.id ?? null) &&
+    (x.filters.field?.value.trim() ?? "") === (y.filters.field?.value.trim() ?? "") &&
     x.sort.key === y.sort.key &&
     x.sort.dir === y.sort.dir
   );
@@ -113,12 +119,14 @@ export function describeView(
   s: ViewState | null | undefined,
   origin: (key: string) => string = (k) => k,
   collection: (id: number) => string | null = () => null,
+  field: (id: number) => string | null = () => null,
 ): string {
   const x = fromView(s);
   const f = x.filters;
   const parts = [
     TAB_LABEL[x.view],
     f.collection != null ? `in ${collection(f.collection) ?? "a collection"}` : null,
+    f.field ? fieldFilterLabel({ label: field(f.field.id) ?? "A field", value: f.field.value }) : null,
     f.q ? `“${f.q}”` : null,
     f.statuses.length ? f.statuses.map((t) => STATUS_FILTER_LABEL[t]).join(", ") : null,
     x.speaker,

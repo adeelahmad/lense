@@ -147,10 +147,10 @@ never appear there, and grant holders see the recordings shared with them.
 IIIF follows the same setting. A public recording's manifest is open; its media and transcript are plain links when
 those parts are open, otherwise they sit behind the IIIF Authorization Flow, which admits people with permission
 (visitors from an IP group's addresses need no sign-in). Chapters appear as ranges when the index is open. Supplementary
-files follow their parts the same way (see Files). Restricted and private recordings are not published: their manifests
-answer 404 unless the request carries permission, and they are left out of collections. Change Discovery announces a
-**Create** when a recording becomes public, an **Update** when a public one changes, and a **Delete** when it stops
-being public.
+files follow their parts the same way (see Files), and custom fields appear only when published ([API](api.md#fields)).
+Restricted and private recordings are not published: their manifests answer 404 unless the request carries permission,
+and they are left out of collections. Change Discovery announces a **Create** when a recording becomes public, an
+**Update** when a public one changes, and a **Delete** when it stops being public.
 
 ## Moving from the IIIF access levels
 

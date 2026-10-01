@@ -51,6 +51,8 @@ describe("saved views", () => {
       languages: [],
       sort: "title",
       collection: null,
+      field: null,
+      value: null,
     });
     expect(viewState({ filters: NO_FILTERS, view: "all", sort: { key: "date", dir: "desc" } }).sort).toBe("-date");
   });

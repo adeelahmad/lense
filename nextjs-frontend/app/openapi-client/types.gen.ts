@@ -2054,6 +2054,202 @@ export type FacetCount = {
 };
 
 /**
+ * FieldCreate
+ */
+export type FieldCreate = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Type
+   */
+  type: "text" | "longtext" | "number" | "date" | "boolean" | "choice" | "choices" | "link";
+  /**
+   * Target
+   */
+  target?: "resource" | "collection" | "file";
+  /**
+   * Collection
+   * define it on this collection of the namespace (default: the namespace)
+   */
+  collection?: number | null;
+  /**
+   * Options
+   * choice and choices fields
+   */
+  options?: Array<string> | null;
+  /**
+   * Help
+   */
+  help?: string | null;
+  /**
+   * Published
+   */
+  published?: boolean;
+};
+
+/**
+ * FieldDef
+ */
+export type FieldDef = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Type
+   */
+  type: "text" | "longtext" | "number" | "date" | "boolean" | "choice" | "choices" | "link";
+  /**
+   * Target
+   * what it describes: the resources, the collections or the files inside where it's defined
+   */
+  target: "resource" | "collection" | "file";
+  /**
+   * Options
+   * choice and choices fields: what may be chosen
+   */
+  options?: Array<string> | null;
+  /**
+   * Help
+   */
+  help?: string | null;
+  /**
+   * Published
+   * shown on public pages and in IIIF metadata; otherwise only in the workspace
+   */
+  published: boolean;
+  /**
+   * Collection
+   * the collection it's defined on; null: the namespace
+   */
+  collection?: number | null;
+  /**
+   * Collection Path
+   * that collection's names, from the top
+   */
+  collection_path?: Array<string>;
+  /**
+   * Ord
+   */
+  ord?: number | null;
+  /**
+   * Can Change
+   * you may change or delete it: editors of where it's defined
+   */
+  can_change: boolean;
+  /**
+   * Uses
+   * how many items have a value for it (when asked for one field)
+   */
+  uses?: number | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | "text"
+    | "longtext"
+    | "number"
+    | "date"
+    | "boolean"
+    | "choice"
+    | "choices"
+    | "link"
+    | "resource"
+    | "collection"
+    | "file"
+    | Array<string>
+    | null
+    | string
+    | null
+    | boolean
+    | number
+    | null
+    | Array<string>
+    | number
+    | null
+    | number
+    | null
+    | undefined;
+};
+
+/**
+ * FieldUpdate
+ */
+export type FieldUpdate = {
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Options
+   */
+  options?: Array<string> | null;
+  /**
+   * Help
+   * null clears it
+   */
+  help?: string | null;
+  /**
+   * Published
+   */
+  published?: boolean | null;
+  /**
+   * Ord
+   * its place among the namespace's fields, lowest first
+   */
+  ord?: number | null;
+};
+
+/**
+ * FieldValue
+ */
+export type FieldValue = {
+  field: FieldDef;
+  /**
+   * Value
+   * text, a number, a date (YYYY, YYYY-MM or YYYY-MM-DD), yes/no, an option or options, a link
+   */
+  value?: unknown;
+  [key: string]: unknown | FieldDef | undefined;
+};
+
+/**
+ * FieldValues
+ */
+export type FieldValues = {
+  /**
+   * Fields
+   * the fields that describe it, in order, with its values (null: none)
+   */
+  fields: Array<FieldValue>;
+  /**
+   * Can Change
+   * you may change its values
+   */
+  can_change: boolean;
+  [key: string]: unknown | Array<FieldValue> | boolean;
+};
+
+/**
+ * FieldValuesUpdate
+ */
+export type FieldValuesUpdate = {
+  /**
+   * Values
+   * {"<field id>": its value, or null to clear it}; fields not named keep theirs
+   */
+  values: {
+    [key: string]: unknown;
+  };
+};
+
+/**
  * FileLine
  */
 export type FileLine = {
@@ -8256,6 +8452,16 @@ export type ViewState = {
    * a collection of the view's namespace (and the ones inside it)
    */
   collection?: number | null;
+  /**
+   * Field
+   * a custom field of the view's namespace: the recordings with a value for it
+   */
+  field?: number | null;
+  /**
+   * Value
+   * with field: the value to match (GET /recordings `value`)
+   */
+  value?: string | null;
 };
 
 /**
@@ -9873,6 +10079,16 @@ export type ListRecordingsData = {
      */
     collection?: number | null;
     /**
+     * Field
+     * a custom field (of resources): the recordings with a value for it, or with `value`
+     */
+    field?: number | null;
+    /**
+     * Value
+     * with `field`: text that its value contains, the number, a date it starts with (1998, 1998-05), true/false, or one of its options
+     */
+    value?: string | null;
+    /**
      * Sort
      * date, title, duration, speakers, status or importance; prefix - for descending
      */
@@ -11401,6 +11617,365 @@ export type ListFileLinesResponses = {
 };
 
 export type ListFileLinesResponse = ListFileLinesResponses[keyof ListFileLinesResponses];
+
+export type ListFieldsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/fields";
+};
+
+export type ListFieldsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListFieldsError = ListFieldsErrors[keyof ListFieldsErrors];
+
+export type ListFieldsResponses = {
+  /**
+   * Response Fields-List Fields
+   * Successful Response
+   */
+  200: Array<FieldDef>;
+};
+
+export type ListFieldsResponse = ListFieldsResponses[keyof ListFieldsResponses];
+
+export type CreateFieldData = {
+  body: FieldCreate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/fields";
+};
+
+export type CreateFieldErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateFieldError = CreateFieldErrors[keyof CreateFieldErrors];
+
+export type CreateFieldResponses = {
+  /**
+   * Successful Response
+   */
+  200: FieldDef;
+};
+
+export type CreateFieldResponse = CreateFieldResponses[keyof CreateFieldResponses];
+
+export type DeleteFieldData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/fields/{fid}";
+};
+
+export type DeleteFieldErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteFieldError = DeleteFieldErrors[keyof DeleteFieldErrors];
+
+export type DeleteFieldResponses = {
+  /**
+   * Successful Response
+   */
+  200: FieldDef;
+};
+
+export type DeleteFieldResponse = DeleteFieldResponses[keyof DeleteFieldResponses];
+
+export type GetFieldData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/fields/{fid}";
+};
+
+export type GetFieldErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetFieldError = GetFieldErrors[keyof GetFieldErrors];
+
+export type GetFieldResponses = {
+  /**
+   * Successful Response
+   */
+  200: FieldDef;
+};
+
+export type GetFieldResponse = GetFieldResponses[keyof GetFieldResponses];
+
+export type UpdateFieldData = {
+  body: FieldUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/fields/{fid}";
+};
+
+export type UpdateFieldErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateFieldError = UpdateFieldErrors[keyof UpdateFieldErrors];
+
+export type UpdateFieldResponses = {
+  /**
+   * Successful Response
+   */
+  200: FieldDef;
+};
+
+export type UpdateFieldResponse = UpdateFieldResponses[keyof UpdateFieldResponses];
+
+export type GetResourceFieldsData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/fields";
+};
+
+export type GetResourceFieldsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetResourceFieldsError = GetResourceFieldsErrors[keyof GetResourceFieldsErrors];
+
+export type GetResourceFieldsResponses = {
+  /**
+   * Successful Response
+   */
+  200: FieldValues;
+};
+
+export type GetResourceFieldsResponse = GetResourceFieldsResponses[keyof GetResourceFieldsResponses];
+
+export type SaveResourceFieldsData = {
+  body: FieldValuesUpdate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/fields";
+};
+
+export type SaveResourceFieldsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveResourceFieldsError = SaveResourceFieldsErrors[keyof SaveResourceFieldsErrors];
+
+export type SaveResourceFieldsResponses = {
+  /**
+   * Successful Response
+   */
+  200: FieldValues;
+};
+
+export type SaveResourceFieldsResponse = SaveResourceFieldsResponses[keyof SaveResourceFieldsResponses];
+
+export type GetCollectionFieldsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/collections/{cid}/fields";
+};
+
+export type GetCollectionFieldsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetCollectionFieldsError = GetCollectionFieldsErrors[keyof GetCollectionFieldsErrors];
+
+export type GetCollectionFieldsResponses = {
+  /**
+   * Successful Response
+   */
+  200: FieldValues;
+};
+
+export type GetCollectionFieldsResponse = GetCollectionFieldsResponses[keyof GetCollectionFieldsResponses];
+
+export type SaveCollectionFieldsData = {
+  body: FieldValuesUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/collections/{cid}/fields";
+};
+
+export type SaveCollectionFieldsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveCollectionFieldsError = SaveCollectionFieldsErrors[keyof SaveCollectionFieldsErrors];
+
+export type SaveCollectionFieldsResponses = {
+  /**
+   * Successful Response
+   */
+  200: FieldValues;
+};
+
+export type SaveCollectionFieldsResponse = SaveCollectionFieldsResponses[keyof SaveCollectionFieldsResponses];
+
+export type GetFileFieldsData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/files/{fid}/fields";
+};
+
+export type GetFileFieldsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetFileFieldsError = GetFileFieldsErrors[keyof GetFileFieldsErrors];
+
+export type GetFileFieldsResponses = {
+  /**
+   * Successful Response
+   */
+  200: FieldValues;
+};
+
+export type GetFileFieldsResponse = GetFileFieldsResponses[keyof GetFileFieldsResponses];
+
+export type SaveFileFieldsData = {
+  body: FieldValuesUpdate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/files/{fid}/fields";
+};
+
+export type SaveFileFieldsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveFileFieldsError = SaveFileFieldsErrors[keyof SaveFileFieldsErrors];
+
+export type SaveFileFieldsResponses = {
+  /**
+   * Successful Response
+   */
+  200: FieldValues;
+};
+
+export type SaveFileFieldsResponse = SaveFileFieldsResponses[keyof SaveFileFieldsResponses];
 
 export type ImportTranscriptData = {
   body: ImportRequest;

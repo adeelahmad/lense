@@ -216,8 +216,8 @@ def make_default(db, cid):
 
 
 def delete(db, cid):
-    """Delete an empty collection, and the roles given on it. ValueError when it's the default, holds collections or
-    holds recordings."""
+    """Delete an empty collection, the roles given on it and the fields defined on it. ValueError when it's the default,
+    holds collections or holds recordings."""
     c = get(db, cid)
     if is_default(db, cid):
         raise ValueError("This is the namespace's default collection: make another one the default first.")
@@ -225,6 +225,9 @@ def delete(db, cid):
         raise ValueError("It holds other collections: move or delete them first.")
     if db.values("SELECT VALUE id FROM recording WHERE collection = $c LIMIT 1", c=c["id"]):
         raise ValueError("It holds recordings: move them to another collection first.")
+    from . import fields  # fields builds on this module
+
+    fields.delete_for_collection(db, c["id"])  # the fields defined on it, and their values
     db.q("DELETE collection_role WHERE collection = $c", c=c["id"])
     db.q("DELETE $r", r=R("collection", c["id"]))
     return c

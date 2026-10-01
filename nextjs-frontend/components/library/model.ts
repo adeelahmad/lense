@@ -226,7 +226,12 @@ export type Filters = {
   languages: string[];
   /** A collection of the namespace shown: the recordings in it and in the collections inside it. */
   collection: number | null;
+  /** A custom field of the namespace shown: the recordings with a value for it, or with this value. */
+  field: FieldFilter | null;
 };
+
+/** A custom field filter: its id, and the value to match (empty: any value). */
+export type FieldFilter = { id: number; value: string };
 
 export const NO_FILTERS: Filters = {
   q: "",
@@ -239,6 +244,7 @@ export const NO_FILTERS: Filters = {
   origins: [],
   languages: [],
   collection: null,
+  field: null,
 };
 
 /** "en" → "English", "pt-BR" → "Brazilian Portuguese"; null (not known) → "Not known"; an odd code stays as it is. */
@@ -297,7 +303,8 @@ export function activeFilterCount(f: Filters): number {
     (f.tags.length ? 1 : 0) +
     (f.origins.length ? 1 : 0) +
     (f.languages.length ? 1 : 0) +
-    (f.collection != null ? 1 : 0)
+    (f.collection != null ? 1 : 0) +
+    (f.field ? 1 : 0)
   );
 }
 
@@ -357,6 +364,10 @@ export function libraryQuery(
   if (f.origins.length) q.origin = f.origins;
   if (f.languages.length) q.language = f.languages;
   if (f.collection != null) q.collection = f.collection;
+  if (f.field) {
+    q.field = f.field.id;
+    if (f.field.value.trim()) q.value = f.field.value.trim();
+  }
   if (view === "attention") q.attention = true;
   if (view === "processing") q.processing = true;
   if (view === "mine") q.edited_by = "me";

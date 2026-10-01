@@ -3,7 +3,8 @@
 import { Check, ChevronDown, FolderTree, Search, X } from "lucide-react";
 import { forwardRef, useState, type ReactNode } from "react";
 
-import type { CollectionNode } from "@/app/openapi-client/types.gen";
+import type { CollectionNode, FieldDef } from "@/app/openapi-client/types.gen";
+import { fieldFilterLabel } from "@/components/fields/fields-model";
 import { collectionName } from "@/components/library/collections-model";
 import {
   DATE_LABEL,
@@ -13,11 +14,14 @@ import {
   languageName,
   type DateRange,
   type DurationRange,
+  type FieldFilter,
   type Filters,
   type MediaFilter,
   type SpeakerChoice,
   type StatusFilter,
 } from "@/components/library/model";
+import { Button } from "@/components/ui/button";
+import { Input, Select } from "@/components/ui/field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { count } from "@/lib/format";
@@ -186,7 +190,72 @@ export const FilterInput = forwardRef<
   );
 });
 
-/** Library filters: namespace, collection, source, status, speaker, date, duration, language, media and tags. */
+/** Pick a custom field and the value to match: an option, yes or no, or text it contains (empty: any value). */
+function FieldFilterForm({
+  fields,
+  current,
+  onApply,
+}: {
+  fields: FieldDef[];
+  current: FieldFilter | null;
+  onApply: (f: FieldFilter) => void;
+}) {
+  const [id, setId] = useState(current?.id ?? fields[0]?.id ?? 0);
+  const [value, setValue] = useState(current?.value ?? "");
+  const f = fields.find((x) => x.id === id) ?? fields[0];
+  if (!f) return null;
+  const choices =
+    f.type === "boolean"
+      ? [
+          { value: "true", label: "Yes" },
+          { value: "false", label: "No" },
+        ]
+      : f.type === "choice" || f.type === "choices"
+        ? (f.options ?? []).map((o) => ({ value: o, label: o }))
+        : null;
+  return (
+    <form
+      className="flex flex-col gap-2 p-1"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onApply({ id: f.id, value });
+      }}
+    >
+      <Select
+        aria-label="Field"
+        size="sm"
+        value={String(f.id)}
+        onChange={(e) => {
+          setId(Number(e.target.value));
+          setValue("");
+        }}
+        options={fields.map((x) => ({ value: String(x.id), label: x.label }))}
+      />
+      {choices ? (
+        <Select
+          aria-label={`Value of ${f.label}`}
+          size="sm"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          options={[{ value: "", label: "Any value" }, ...choices]}
+        />
+      ) : (
+        <Input
+          aria-label={`Value of ${f.label}`}
+          className="h-8 text-[13px]"
+          value={value}
+          placeholder={f.type === "date" ? "Any value, or 1998, 1998-05…" : "Any value, or text it contains"}
+          onChange={(e) => setValue(e.target.value)}
+        />
+      )}
+      <Button type="submit" size="xs" variant="primary" className="self-end">
+        Show these
+      </Button>
+    </form>
+  );
+}
+
+/** Library filters: namespace, collection, field, source, status, speaker, date, duration, language, media and tags. */
 export function FiltersBar({
   filters,
   onChange,
@@ -202,6 +271,8 @@ export function FiltersBar({
   collections,
   collectionsLoading,
   onManageCollections,
+  fields,
+  fieldsLoading,
 }: {
   filters: Filters;
   onChange: (f: Filters) => void;
@@ -224,6 +295,9 @@ export function FiltersBar({
   collectionsLoading?: boolean;
   /** Open the dialog that arranges them. */
   onManageCollections?: () => void;
+  /** The custom fields that describe the namespace's resources (none without a namespace). */
+  fields?: FieldDef[];
+  fieldsLoading?: boolean;
 }) {
   const { namespaces: full, partialNamespaces, namespace, setNamespace, isPartial } = useArchive();
   const namespaces = [...full, ...partialNamespaces].sort((a, b) => a.name.localeCompare(b.name));
@@ -318,6 +392,43 @@ export function FiltersBar({
         </Chip>
       ) : (
         <OffChip label="Collection" reason="Pick a namespace first: each has its own collections." />
+      )}
+      {!namespace ? (
+        <OffChip label="Field" reason="Pick a namespace first: each has its own fields." />
+      ) : fields?.length ? (
+        <Chip
+          label={
+            filters.field
+              ? fieldFilterLabel({
+                  label: fields.find((f) => f.id === filters.field?.id)?.label ?? "Field",
+                  value: filters.field.value,
+                })
+              : "Field"
+          }
+          active={Boolean(filters.field)}
+          onClear={() => set({ field: null })}
+          width={260}
+        >
+          {(close) => (
+            <FieldFilterForm
+              fields={fields}
+              current={filters.field}
+              onApply={(field) => {
+                set({ field });
+                close();
+              }}
+            />
+          )}
+        </Chip>
+      ) : (
+        <OffChip
+          label="Field"
+          reason={
+            fieldsLoading
+              ? "Loading the fields…"
+              : `No custom fields describe resources in ${namespace} yet: Manage collections → Fields of ${namespace}`
+          }
+        />
       )}
       <Chip
         label={

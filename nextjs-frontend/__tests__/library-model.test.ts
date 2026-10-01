@@ -202,6 +202,7 @@ describe("the list query", () => {
         origins: ["upload", "source:4"],
         languages: ["en", "none"],
         collection: 12,
+        field: { id: 7, value: " Lecture " },
       },
       "all",
       { key: "duration", dir: "desc" },
@@ -221,6 +222,14 @@ describe("the list query", () => {
       origin: ["upload", "source:4"],
       language: ["en", "none"],
       collection: 12,
+      field: 7,
+      value: "Lecture",
+    });
+    // a field with any value
+    expect(libraryQuery({ ...NO_FILTERS, field: { id: 7, value: " " } }, "all", byDate, "pods", NOW)).toEqual({
+      sort: "-date",
+      ns: "pods",
+      field: 7,
     });
   });
 

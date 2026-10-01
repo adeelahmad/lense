@@ -8,6 +8,7 @@ import { rememberView } from "@/components/home/recently-viewed";
 import { isFileDrag, useSendToImport } from "@/components/import/pending";
 import { useRecordingActions } from "@/components/library/actions";
 import { BulkBar, DeleteDialog, MoveDialog, ReprocessDialog, TagDialog } from "@/components/library/bulk-bar";
+import { useNamespaceFields } from "@/components/fields/use-fields";
 import { collectionName } from "@/components/library/collections-model";
 import { CollectionsDialog, PlaceDialog } from "@/components/library/collections-ui";
 import { FiltersBar } from "@/components/library/filters-bar";
@@ -21,6 +22,7 @@ import {
   moveTargets,
   rangeIds,
   totalDuration,
+  type FieldFilter,
   type Filters,
   type LibraryView,
   type SortDir,
@@ -145,9 +147,9 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
     }
   };
 
-  // A new namespace is a new list: forget the speaker and collection filters (each namespace has its own).
+  // A new namespace is a new list: forget the speaker, collection and field filters (each namespace has its own).
   useEffect(() => {
-    setFilters((f) => ({ ...f, speaker: null, collection: null }));
+    setFilters((f) => ({ ...f, speaker: null, collection: null, field: null }));
   }, [namespace]);
   // Other filters, another tab or sort: a new list too, so the selection starts over.
   useEffect(() => {
@@ -210,12 +212,23 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
   // A saved view brings back its namespace, tab, filters and sort; its speaker by name, once that namespace's
   // speakers are known (each namespace has its own ids).
   const [pendingSpeaker, setPendingSpeaker] = useState<{ name: string; ns: string | null } | null>(null);
-  // Its collection too, once that namespace's collections are known (it may have been deleted since).
+  // Its collection too, once that namespace's collections are known (it may have been deleted since); and its field.
   const [pendingCollection, setPendingCollection] = useState<{ id: number; ns: string } | null>(null);
+  const [pendingField, setPendingField] = useState<(FieldFilter & { ns: string }) | null>(null);
+  const fieldDefs = useNamespaceFields(namespace);
+  const resourceFields = useMemo(() => (fieldDefs.data ?? []).filter((f) => f.target === "resource"), [fieldDefs.data]);
+  useEffect(() => {
+    if (!pendingField || pendingField.ns !== namespace || !fieldDefs.isSuccess) return;
+    const known = resourceFields.some((f) => f.id === pendingField.id);
+    setFilters((f) => ({ ...f, field: known ? { id: pendingField.id, value: pendingField.value } : null }));
+    setPendingField(null);
+    if (!known) toast({ title: `That field isn’t in ${namespace} now`, body: "The view shows its other filters." });
+  }, [pendingField, namespace, fieldDefs.isSuccess, resourceFields, toast]);
   const applyView = (v: SavedView) => {
     const s = fromView(v.state);
     if ((v.namespace ?? null) !== namespace) setNamespace(v.namespace ?? null);
-    setFilters({ ...s.filters, collection: null });
+    setFilters({ ...s.filters, collection: null, field: null });
+    setPendingField(s.filters.field && v.namespace ? { ...s.filters.field, ns: v.namespace } : null);
     setView(s.view);
     setSort(s.sort);
     setPendingSpeaker(s.speaker ? { name: s.speaker, ns: v.namespace ?? null } : null);
@@ -519,6 +532,8 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
               collections={tree.data}
               collectionsLoading={tree.isLoading}
               onManageCollections={() => setCollectionsOpen(true)}
+              fields={resourceFields}
+              fieldsLoading={fieldDefs.isLoading}
               trailing={
                 <SavedViews
                   state={shownState}
@@ -526,6 +541,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
                   onApply={applyView}
                   originName={(k) => origins.data?.find((o) => o.origin === k)?.name ?? k}
                   collectionName={(id) => collectionName(tree.data, id)}
+                  fieldName={(id) => resourceFields.find((f) => f.id === id)?.label ?? null}
                 />
               }
             />

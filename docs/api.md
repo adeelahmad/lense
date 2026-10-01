@@ -507,6 +507,49 @@ PUT    /api/v1/namespaces/{name}/metadata
 POST   /api/v1/metadata/bulk
 ```
 
+### fields
+
+```
+GET    /api/v1/namespaces/{name}/fields
+POST   /api/v1/namespaces/{name}/fields
+GET    /api/v1/namespaces/{name}/fields/{fid}
+PATCH  /api/v1/namespaces/{name}/fields/{fid}
+DELETE /api/v1/namespaces/{name}/fields/{fid}
+GET    /api/v1/resources/{rid}/fields
+PUT    /api/v1/resources/{rid}/fields
+GET    /api/v1/namespaces/{name}/collections/{cid}/fields
+PUT    /api/v1/namespaces/{name}/collections/{cid}/fields
+GET    /api/v1/resources/{rid}/files/{fid}/fields
+PUT    /api/v1/resources/{rid}/files/{fid}/fields
+```
+
+Custom metadata fields, defined by editors on a namespace or on one of its collections (`collection`). A field describes
+the resources, the collections or the files inside where it's defined (`target`): one defined on a namespace applies
+everywhere in it, one defined on a collection to what is inside that collection. Each has a `label` (unique where it's
+defined, for its target), a `type` (`text`, `longtext`, `number`, `date`, `boolean`, `choice`, `choices` or `link`),
+`options` for the two choice types, `help`, and whether it's `published`: published fields appear on public pages and
+in IIIF metadata (Manifests for resources, Collections for collections), internal ones only in the workspace. New
+fields are internal. Up to 100 fields per namespace.
+
+Editors of the namespace define fields on it and on any of its collections; editors of a collection, on it. `PATCH`
+renames a field and changes its options (400 for an option that items have chosen), help, publishing or place in the
+order (`ord`); its type and target stay. `DELETE` deletes it with every value it has (`uses`, which `GET` of one field
+also reports). These are audited as `field.create`, `field.update` and `field.delete`. A collection's fields go when it
+is deleted.
+
+Values: `GET …/fields` on a resource, a collection or a file lists the fields that describe it with its values;
+`PUT` with `{"values": {"<field id>": value}}` sets them (null clears one; fields not named keep theirs). Values are
+checked by type: text up to 500 characters (long text 5,000), a number, a date as YYYY, YYYY-MM or YYYY-MM-DD, true or
+false, an option (or a list of options), an http(s) link; 400 says what doesn't fit, or names a field that doesn't
+describe the item. Editors set a resource's and its files' values, those who arrange a collection (editors of the
+namespace, admins of the collection) its own. A resource's values are part of its metadata history, so reverting an
+edit puts them back too; saving values is audited as `fields.save`. A resource that moves keeps its values, and shows
+those of the fields that describe it in its new place.
+
+`GET /resources?field=<id>` lists the resources with a value for a field; with `value`, those whose value contains
+that text (text and links, ignoring case), equals that number, starts with that date (1998, 1998-05), is true or
+false, or is (or includes) that option. Saved views keep `field` and `value`.
+
 ## video
 
 ```

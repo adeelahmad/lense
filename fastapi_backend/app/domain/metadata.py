@@ -8,6 +8,11 @@ date, language, speakers, topics, summary); every change is kept and can be reve
 Three fields are the recording's access (see access.py and docs/access.md) rather than description: access (public,
 restricted or private), open (the parts of a public recording anyone may use) and featured. They are kept in the
 recording's own fields, so lists can filter by them, and the namespace profile holds their defaults.
+
+A recording's custom field values (fields.py) are kept in its own `fields` too, and are part of what the history keeps
+(`fields` in a stored snapshot), so reverting puts them back as well. They are saved through fields.py's checks
+(save_fields), never with the other fields, and the effective metadata leaves them out: what is published of them is
+decided field by field.
 """
 
 from __future__ import annotations
@@ -264,19 +269,25 @@ def _split(row):
     for field, col in COLUMNS.items():
         if row.get(col) is not None:
             meta[field] = row[col]
+    if row.get("fields"):
+        meta["fields"] = row["fields"]
     return meta
 
 
 def stored(db, rid):
-    return _split(db.one("SELECT meta_json, access, access_parts, featured FROM $r", r=R("recording", rid)) or {})
+    """What has been saved on a recording, its custom field values (`fields`) included."""
+    return _split(db.one("SELECT meta_json, access, access_parts, featured, fields FROM $r", r=R("recording", rid)) or {})
 
 
 def _write(db, rid, meta):
-    """Save a recording's metadata: the access fields to their columns (NONE: follow the namespace), the rest as JSON."""
-    rest = {k: v for k, v in meta.items() if k not in COLUMNS}
+    """Save a recording's metadata: the access fields to their columns (NONE: follow the namespace), its custom field
+    values to `fields`, the rest as JSON."""
+    rest = {k: v for k, v in meta.items() if k not in COLUMNS and k != "fields"}
     if "access" in meta and meta["access"] not in ACCESS:  # an old level from a history entry
         meta = {**meta, **dict(zip(("access", "open"), acc.LEGACY.get(meta["access"]) or ("private", None)))}
-    sets, params = ["meta_json = $m"], {"m": json.dumps(rest)}
+    sets, params = ["meta_json = $m", "fields = $f" if meta.get("fields") else "fields = NONE"], {"m": json.dumps(rest)}
+    if meta.get("fields"):
+        params["f"] = meta["fields"]
     for field, col in COLUMNS.items():
         if meta.get(field) is None:
             sets.append(f"{col} = NONE")
@@ -334,8 +345,9 @@ def defaults(db, cfg, rid):
 
 
 def effective(db, cfg, rid):
+    """The recording's description: what was saved over what it says about itself (custom fields aside)."""
     merged = {**defaults(db, cfg, rid), **stored(db, rid)}
-    return {k: v for k, v in merged.items() if v is not None}
+    return {k: v for k, v in merged.items() if v is not None and k != "fields"}
 
 
 def problems(meta, profile):
@@ -357,7 +369,7 @@ def get(db, cfg, rid):
     meta = effective(db, cfg, rid)
     return {
         "meta": meta,
-        "stored": stored(db, rid),
+        "stored": {k: v for k, v in stored(db, rid).items() if k != "fields"},
         "defaults": defaults(db, cfg, rid),
         "problems": problems(meta, namespace(db, rec.get("space"))["profile"]),
     }
@@ -382,6 +394,18 @@ def save(db, cfg, rid, patch=None, reset=(), user=None):
     new = acc.of(db, rid)
     note_change(db, rid, old["access"], new["access"])
     return old["access"], new["access"]
+
+
+def save_fields(db, cfg, rid, fields, user=None):
+    """Keep a recording's custom field values (a `fields` object checked by fields.py), in its history like any other
+    change. A published recording's manifest changes, so harvesters hear an Update."""
+    before = stored(db, rid)
+    after = {k: v for k, v in before.items() if k != "fields"}
+    if fields:
+        after["fields"] = fields
+    _write(db, rid, after)
+    _history(db, f"recording:{rid}", before, after, user)
+    touched(db, cfg, rid)
 
 
 def history(db, target):

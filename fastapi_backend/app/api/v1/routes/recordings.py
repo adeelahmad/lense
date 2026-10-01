@@ -18,6 +18,7 @@ from app.api.media import sign_url, sign_urls
 from app.api.streaming import file_response, range_response
 from app.domain import access as acc
 from app.domain import analyze, auth, deletion, hierarchy, ipgroups, jobs, library, moving, render, sources, store, transcript, video
+from app.domain import fields as fieldmod
 from app.domain import metadata as md
 from app.domain.store import API, DB
 from app.schemas.common import AccessLevel, Ok
@@ -116,6 +117,13 @@ def list_recordings(
         None, description="me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)"
     ),
     collection: int | None = Query(None, description="a collection: the recordings in it and in the collections inside it"),
+    field: int | None = Query(None, description="a custom field (of resources): the recordings with a value for it, or with `value`"),
+    value: str | None = Query(
+        None,
+        max_length=200,
+        description="with `field`: text that its value contains, the number, a date it starts with (1998, 1998-05), "
+        "true/false, or one of its options",
+    ),
     sort: RecordingSort = Query("-date", description="date, title, duration, speakers, status or importance; prefix - for descending"),
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
@@ -130,6 +138,15 @@ def list_recordings(
         if not c or (c["space"] not in spaces and collection not in within.get(c["space"], [])):
             raise HTTPException(404, "not found")
         cols = hierarchy.subtree(db, c["space"], collection)
+    by_field = None
+    if field is not None:
+        try:
+            f = fieldmod.get(db, field)
+        except KeyError:
+            raise HTTPException(404, "not found") from None
+        if f["target"] != "resource" or (f["space"] not in spaces and f["space"] not in within):
+            raise HTTPException(404, "not found")
+        by_field = fieldmod.filter_condition(f, value)
     with domain_errors():
         rows, total = library.list_recordings(
             db,
@@ -156,6 +173,7 @@ def list_recordings(
             edited=library.edited_by(db, user.email) if edited_by and user else None,
             collections=cols,
             cfg=cfg,
+            field=by_field,
         )
     response.headers["X-Total-Count"] = str(total)
     for r in rows:

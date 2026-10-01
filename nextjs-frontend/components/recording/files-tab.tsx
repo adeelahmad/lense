@@ -14,12 +14,15 @@ import {
   Paperclip,
   Pencil,
   Rows3,
+  SlidersHorizontal,
   Trash2,
   Upload,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import type { PrimaryFile, ResourceFile } from "@/app/openapi-client/types.gen";
+import { FieldValuesPanel } from "@/components/fields/fields-ui";
+import { useNamespaceFields } from "@/components/fields/use-fields";
 import { chooseFiles } from "@/components/import/pending";
 import { usePlayerApi, usePlayerState } from "@/components/player/media";
 import { useRec } from "@/components/recording/context";
@@ -158,6 +161,9 @@ function FileRow({ f, focus }: { f: ResourceFile; focus: number | null }) {
   const [open, setOpen] = useState(focus != null && Boolean(f.lines));
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  const [describing, setDescribing] = useState(false);
+  const fieldDefs = useNamespaceFields(ns);
+  const fileFields = (fieldDefs.data ?? []).some((x) => x.target === "file");
   const why = canEdit ? undefined : needRole("editor", ns);
   return (
     <li data-file={f.id} className="flex flex-col gap-1.5 border-t border-border py-3 first:border-t-0">
@@ -206,6 +212,11 @@ function FileRow({ f, focus }: { f: ResourceFile; focus: number | null }) {
                 {open ? "Hide its lines" : "Show its lines"}
               </MenuItem>
             ) : null}
+            {fileFields && (
+              <MenuItem icon={<SlidersHorizontal />} onSelect={() => setDescribing(true)}>
+                Fields…
+              </MenuItem>
+            )}
             <MenuSeparator />
             <MenuItem icon={<Pencil />} disabled={!canEdit} onSelect={() => setEditing(true)}>
               {canEdit ? "Edit details…" : why}
@@ -248,6 +259,16 @@ function FileRow({ f, focus }: { f: ResourceFile; focus: number | null }) {
         </div>
       )}
       {editing && <EditFileDialog f={f} onClose={() => setEditing(false)} />}
+      {describing && (
+        <Dialog
+          open
+          onOpenChange={(o) => !o && setDescribing(false)}
+          title={`Fields of ${fileTitle(f)}`}
+          description="The custom fields that describe this file."
+        >
+          <FieldValuesPanel source={{ kind: "file", rid: id, fid: f.id }} title="Fields" />
+        </Dialog>
+      )}
     </li>
   );
 }

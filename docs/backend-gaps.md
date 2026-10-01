@@ -86,7 +86,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | Order a collection by series or by hand | a `series` field and `PUT /namespaces/{ns}/iiif/order` |
 | CSV metadata import with a column mapping and dry run | `POST /metadata/import` |
 | Publish saved collections as IIIF Collections | `/iiif/collection/{ns}/saved/{id}` and a publish flag |
-| Custom fields in a namespace profile | field definitions in `PUT /namespaces/{ns}/metadata` |
 | Subject lookups (Wikidata, GeoNames, LCSH) | `GET /authorities/search?source=&q=` |
 | EBUCore and PBCore records | `/iiif/{rid}/ebucore.xml`, `/iiif/{rid}/pbcore.xml` |
 | Import IIIF audio by reference, re-harvest from change feeds, import resources behind IIIF Auth | `audio: "reference"`, a harvest schedule, an Auth 2 client |

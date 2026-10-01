@@ -34,6 +34,8 @@ class ViewState(RequestModel):
     )
     sort: RecordingSort = "-date"
     collection: int | None = Field(None, description="a collection of the view's namespace (and the ones inside it)")
+    field: int | None = Field(None, description="a custom field of the view's namespace: the recordings with a value for it")
+    value: str | None = Field(None, max_length=200, description="with field: the value to match (GET /recordings `value`)")
 
 
 class SavedView(ResponseModel):

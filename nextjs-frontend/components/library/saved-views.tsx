@@ -32,6 +32,7 @@ function SaveViewDialog({
   namespace,
   originName,
   collectionName,
+  fieldName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,6 +40,7 @@ function SaveViewDialog({
   namespace: string | null;
   originName: (key: string) => string;
   collectionName: (id: number) => string | null;
+  fieldName: (id: number) => string | null;
 }) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -73,7 +75,7 @@ function SaveViewDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Save view"
-      description={`${namespace ?? "All namespaces"} · ${describeView(state, originName, collectionName)}`}
+      description={`${namespace ?? "All namespaces"} · ${describeView(state, originName, collectionName, fieldName)}`}
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -125,6 +127,7 @@ function ViewRow({
   onApply,
   originName,
   collectionName,
+  fieldName,
 }: {
   view: SavedView;
   showing: boolean;
@@ -133,6 +136,7 @@ function ViewRow({
   onApply: () => void;
   originName: (key: string) => string;
   collectionName: (id: number) => string | null;
+  fieldName: (id: number) => string | null;
 }) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -185,7 +189,12 @@ function ViewRow({
         </span>
         <span className="text-[12px] text-fg-muted">{viewMeta(v)}</span>
         <span className="text-[12px] text-fg-secondary">
-          {describeView(v.state, originName, (v.namespace ?? null) === namespace ? collectionName : undefined)}
+          {describeView(
+            v.state,
+            originName,
+            (v.namespace ?? null) === namespace ? collectionName : undefined,
+            (v.namespace ?? null) === namespace ? fieldName : undefined,
+          )}
         </span>
       </button>
       {confirm ? (
@@ -255,6 +264,7 @@ export function SavedViews({
   onApply,
   originName = (k) => k,
   collectionName = () => null,
+  fieldName = () => null,
 }: {
   state: ViewState;
   namespace: string | null;
@@ -263,6 +273,8 @@ export function SavedViews({
   originName?: (key: string) => string;
   /** What to call a collection of the namespace shown (null when it isn't one of its). */
   collectionName?: (id: number) => string | null;
+  /** What to call a custom field of the namespace shown. */
+  fieldName?: (id: number) => string | null;
 }) {
   const views = useViews();
   const [listOpen, setListOpen] = useState(false);
@@ -294,6 +306,7 @@ export function SavedViews({
         namespace={namespace}
         originName={originName}
         collectionName={collectionName}
+        fieldName={fieldName}
       />
       <Dialog
         open={listOpen}
@@ -314,6 +327,7 @@ export function SavedViews({
                   namespace={namespace}
                   originName={originName}
                   collectionName={collectionName}
+                  fieldName={fieldName}
                   onApply={() => {
                     onApply(v);
                     setListOpen(false);

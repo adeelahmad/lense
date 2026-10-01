@@ -1,6 +1,6 @@
 "use client";
 
-import { Ellipsis, FolderPlus, FolderTree, Plus, UsersRound, X } from "lucide-react";
+import { Ellipsis, FolderPlus, FolderTree, Plus, SlidersHorizontal, UsersRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { CollectionMember, CollectionNode } from "@/app/openapi-client/types.gen";
@@ -18,6 +18,8 @@ import {
   useCollectionTree,
   useSetCollectionMember,
 } from "@/components/library/use-collections";
+import { FieldsDialog } from "@/components/fields/fields-dialog";
+import { FieldValuesPanel } from "@/components/fields/fields-ui";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select } from "@/components/ui/field";
@@ -203,6 +205,9 @@ export function CollectionsDialog({
   const [moveTo, setMoveTo] = useState("");
   const [adding, setAdding] = useState("");
   const [people, setPeople] = useState<CollectionNode | null>(null);
+  // custom fields: defined on the namespace or on a collection; a collection's own values
+  const [fieldsOf, setFieldsOf] = useState<CollectionNode | "namespace" | null>(null);
+  const [describing, setDescribing] = useState<CollectionNode | null>(null);
   const reason = canTop ? undefined : needRole("editor", ns);
   const noChange = `Editors of ${ns}, or admins of this collection, can do this`;
   useEffect(() => {
@@ -227,9 +232,19 @@ export function CollectionsDialog({
       description="Every recording lives in one collection. New recordings go to the default unless someone picks another."
       className="max-w-[640px]"
       actions={
-        <Button variant="ghost" onClick={() => onOpenChange(false)}>
-          Close
-        </Button>
+        <>
+          <Button
+            variant="ghost"
+            icon={<SlidersHorizontal />}
+            className="mr-auto"
+            onClick={() => setFieldsOf("namespace")}
+          >
+            Fields of {ns}…
+          </Button>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </>
       }
     >
       <form
@@ -366,6 +381,10 @@ export function CollectionsDialog({
                       <MenuItem icon={<UsersRound />} disabled={!n.can_grant} onSelect={() => setPeople(n)}>
                         People…
                       </MenuItem>
+                      <MenuItem icon={<SlidersHorizontal />} onSelect={() => setFieldsOf(n)}>
+                        Fields…
+                      </MenuItem>
+                      <MenuItem onSelect={() => setDescribing(n)}>Describe…</MenuItem>
                       <MenuSeparator />
                       <MenuItem
                         danger
@@ -466,6 +485,29 @@ export function CollectionsDialog({
             ? "You arrange the collections you’re an admin of, and the ones inside them."
             : reason}
       </p>
+      {fieldsOf && (
+        <FieldsDialog
+          ns={ns}
+          collection={fieldsOf === "namespace" ? null : fieldsOf.id}
+          collectionName={fieldsOf === "namespace" ? undefined : fieldsOf.name}
+          canDefine={canTop || (fieldsOf !== "namespace" && (fieldsOf.role === "editor" || fieldsOf.role === "admin"))}
+          open
+          onOpenChange={(o) => !o && setFieldsOf(null)}
+        />
+      )}
+      {describing && (
+        <Dialog
+          open
+          onOpenChange={(o) => !o && setDescribing(null)}
+          title={`Describe ${describing.name}`}
+          description="The custom fields that describe this collection. Published ones show in IIIF."
+        >
+          <FieldValuesPanel source={{ kind: "collection", ns, cid: describing.id }} title="Fields" />
+          <p className="text-[13px] leading-snug text-fg-muted">
+            Fields for collections are defined with Fields of {ns}…, or Fields… on the collection this one is in.
+          </p>
+        </Dialog>
+      )}
       {people && (
         <MembersDialog ns={ns} node={people} open={Boolean(people)} onOpenChange={(o) => !o && setPeople(null)} />
       )}

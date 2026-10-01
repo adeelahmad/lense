@@ -2191,6 +2191,43 @@
             "description": "a collection: the recordings in it and in the collections inside it"
           },
           {
+            "name": "field",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a custom field (of resources): the recordings with a value for it, or with `value`",
+              "title": "Field"
+            },
+            "description": "a custom field (of resources): the recordings with a value for it, or with `value`"
+          },
+          {
+            "name": "value",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "with `field`: text that its value contains, the number, a date it starts with (1998, 1998-05), true/false, or one of its options",
+              "title": "Value"
+            },
+            "description": "with `field`: text that its value contains, the number, a date it starts with (1998, 1998-05), true/false, or one of its options"
+          },
+          {
             "name": "sort",
             "in": "query",
             "required": false,
@@ -4665,6 +4702,584 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FileLines"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/fields": {
+      "get": {
+        "tags": [
+          "fields"
+        ],
+        "summary": "List Fields",
+        "description": "The namespace's custom fields: its own, then those of its collections (the ones you see), each in order.",
+        "operationId": "list_fields",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FieldDef"
+                  },
+                  "title": "Response Fields-List Fields"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "fields"
+        ],
+        "summary": "Create Field",
+        "description": "Define a field on the namespace, or on one of its collections (`collection`). It describes the resources, the\ncollections or the files inside (`target`); new fields are internal unless `published`. Editors; audited as\n`field.create`.",
+        "operationId": "create_field",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldDef"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/fields/{fid}": {
+      "get": {
+        "tags": [
+          "fields"
+        ],
+        "summary": "Get Field",
+        "description": "One field, with how many items have a value for it (`uses`).",
+        "operationId": "get_field",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldDef"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "fields"
+        ],
+        "summary": "Update Field",
+        "description": "Rename a field, change its options (400 for one that items have chosen), its help, whether it's published, or\nits place in the order. Its type and what it describes stay. Editors of where it's defined; audited as\n`field.update`.",
+        "operationId": "update_field",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldDef"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "fields"
+        ],
+        "summary": "Delete Field",
+        "description": "Delete a field and every value it has. Editors of where it's defined; audited as `field.delete` with how many\nvalues went. Answers with the field as it was, `uses` saying how many values were deleted.",
+        "operationId": "delete_field",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldDef"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/fields": {
+      "get": {
+        "tags": [
+          "fields"
+        ],
+        "summary": "Get Resource Fields",
+        "description": "The custom fields that describe this resource (defined on its namespace and on the collections it's in), with\nits values.",
+        "operationId": "get_resource_fields",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldValues"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "fields"
+        ],
+        "summary": "Save Resource Fields",
+        "description": "Set or clear (null) the resource's values for the fields named; the others keep theirs. Editors. Kept in its\nmetadata history (so a revert puts them back) and audited as `fields.save`.",
+        "operationId": "save_resource_fields",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldValuesUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldValues"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/collections/{cid}/fields": {
+      "get": {
+        "tags": [
+          "fields"
+        ],
+        "summary": "Get Collection Fields",
+        "description": "The custom fields that describe this collection (defined on the namespace, and on the collections it's inside),\nwith its values.",
+        "operationId": "get_collection_fields",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldValues"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "fields"
+        ],
+        "summary": "Save Collection Fields",
+        "description": "Set or clear (null) the collection's values for the fields named. Those who arrange it (editors of the namespace,\nadmins of the collection); audited as `fields.save`.",
+        "operationId": "save_collection_fields",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldValuesUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldValues"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/files/{fid}/fields": {
+      "get": {
+        "tags": [
+          "fields"
+        ],
+        "summary": "Get File Fields",
+        "description": "The custom fields that describe this file (defined on its resource's namespace and collections), with its\nvalues.",
+        "operationId": "get_file_fields",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldValues"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "fields"
+        ],
+        "summary": "Save File Fields",
+        "description": "Set or clear (null) the file's values for the fields named. Editors of the resource; audited as `fields.save`.",
+        "operationId": "save_file_fields",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldValuesUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldValues"
                 }
               }
             }
@@ -14518,6 +15133,346 @@
         ],
         "title": "FacetCount"
       },
+      "FieldCreate": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "longtext",
+              "number",
+              "date",
+              "boolean",
+              "choice",
+              "choices",
+              "link"
+            ],
+            "title": "Type"
+          },
+          "target": {
+            "type": "string",
+            "enum": [
+              "resource",
+              "collection",
+              "file"
+            ],
+            "title": "Target",
+            "default": "resource"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "define it on this collection of the namespace (default: the namespace)"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options",
+            "description": "choice and choices fields"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help"
+          },
+          "published": {
+            "type": "boolean",
+            "title": "Published",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "type"
+        ],
+        "title": "FieldCreate"
+      },
+      "FieldDef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "longtext",
+              "number",
+              "date",
+              "boolean",
+              "choice",
+              "choices",
+              "link"
+            ],
+            "title": "Type"
+          },
+          "target": {
+            "type": "string",
+            "enum": [
+              "resource",
+              "collection",
+              "file"
+            ],
+            "title": "Target",
+            "description": "what it describes: the resources, the collections or the files inside where it's defined"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options",
+            "description": "choice and choices fields: what may be chosen"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help"
+          },
+          "published": {
+            "type": "boolean",
+            "title": "Published",
+            "description": "shown on public pages and in IIIF metadata; otherwise only in the workspace"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "the collection it's defined on; null: the namespace"
+          },
+          "collection_path": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Collection Path",
+            "description": "that collection's names, from the top"
+          },
+          "ord": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ord"
+          },
+          "can_change": {
+            "type": "boolean",
+            "title": "Can Change",
+            "description": "you may change or delete it: editors of where it's defined"
+          },
+          "uses": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uses",
+            "description": "how many items have a value for it (when asked for one field)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "type",
+          "target",
+          "published",
+          "can_change"
+        ],
+        "title": "FieldDef"
+      },
+      "FieldUpdate": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help",
+            "description": "null clears it"
+          },
+          "published": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published"
+          },
+          "ord": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ord",
+            "description": "its place among the namespace's fields, lowest first"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FieldUpdate"
+      },
+      "FieldValue": {
+        "properties": {
+          "field": {
+            "$ref": "#/components/schemas/FieldDef"
+          },
+          "value": {
+            "title": "Value",
+            "description": "text, a number, a date (YYYY, YYYY-MM or YYYY-MM-DD), yes/no, an option or options, a link"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "field"
+        ],
+        "title": "FieldValue"
+      },
+      "FieldValues": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldValue"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "the fields that describe it, in order, with its values (null: none)"
+          },
+          "can_change": {
+            "type": "boolean",
+            "title": "Can Change",
+            "description": "you may change its values"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "fields",
+          "can_change"
+        ],
+        "title": "FieldValues"
+      },
+      "FieldValuesUpdate": {
+        "properties": {
+          "values": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Values",
+            "description": "{\"<field id>\": its value, or null to clear it}; fields not named keep theirs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "values"
+        ],
+        "title": "FieldValuesUpdate"
+      },
       "FileLine": {
         "properties": {
           "idx": {
@@ -24212,6 +25167,31 @@
             ],
             "title": "Collection",
             "description": "a collection of the view's namespace (and the ones inside it)"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field",
+            "description": "a custom field of the view's namespace: the recordings with a value for it"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "with field: the value to match (GET /recordings `value`)"
           }
         },
         "additionalProperties": false,

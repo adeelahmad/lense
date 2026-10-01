@@ -1,5 +1,6 @@
 "use client";
 
+import { FieldValuesPanel } from "@/components/fields/fields-ui";
 import { IiifPanel } from "@/components/iiif/iiif-panel";
 import { MetadataEditor } from "@/components/iiif/metadata-editor";
 import { useRec } from "@/components/recording/context";
@@ -10,8 +11,13 @@ export function IiifTab() {
   return <IiifPanel recordingId={id} />;
 }
 
-/** Metadata tab: the recording's descriptive metadata editor (the one-column panel variant). */
+/** Metadata tab: the recording's custom fields, then its descriptive metadata editor (the one-column panel variant). */
 export function MetadataTab() {
   const { id } = useRec();
-  return <MetadataEditor recordingId={id} variant="panel" />;
+  return (
+    <>
+      <FieldValuesPanel source={{ kind: "resource", rid: id }} className="border-b border-border pb-4" />
+      <MetadataEditor recordingId={id} variant="panel" />
+    </>
+  );
 }

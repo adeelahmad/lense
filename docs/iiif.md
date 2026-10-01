@@ -48,7 +48,8 @@ viewers also need the public host in `server.allowed_hosts`. `iiif.viewers` hold
 
 **Metadata.** Viewers show label, summary (in several languages), label/value pairs, rights (a Creative Commons or
 RightsStatements.org URI), attribution, provider, date, languages, creators, contributors, subjects (optionally linked
-to authorities such as Wikidata), identifiers and related links.
+to authorities such as Wikidata), identifiers and related links. Published custom fields ([API](api.md#fields)) are
+label/value pairs too: a resource's in its Manifest, a collection's in its Collection; internal ones never are.
 
 - Values that aren't set come from the recording itself: its title, date, language, speakers, main topics and summary.
 - A namespace profile sets required fields, defaults, controlled vocabularies, and the default access and open parts.

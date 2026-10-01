@@ -26,6 +26,18 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Custom fields.** Editors define their own metadata fields on a namespace or on a collection, for the resources,
+  the collections or the files inside it: text, long text, number, date, yes/no, one or several of a list, or a link.
+  Decided with the project owner: fields live where they're defined and apply to everything inside; each is published
+  (public pages and IIIF) or internal (the workspace only), and new fields are internal.
+    - Values are checked by type and saved only where someone may edit the item. A resource's values are part of its
+      metadata history, so a revert puts them back; deleting a field deletes its values (after saying how many).
+      Defining, changing and deleting fields and saving values are audited.
+    - Web app: Manage collections → Fields of the namespace…, and Fields… and Describe… on each collection; the
+      recording page's Metadata tab (and the metadata page) and a file's Fields… take the values; the Library filters
+      by a field (Field chip), and saved views keep it.
+    - API: `/api/v1/namespaces/{name}/fields` and the `fields` of resources, collections and files; `field`/`value` on
+      `GET /api/v1/resources` (docs/api.md#fields). Answers "Custom fields in a namespace profile" (docs/backend-gaps.md).
 - **Files: transcripts, captions, translations, indexes, thumbnails and attachments beside a resource.** A
   resource has its primary file (the audio or video its pipeline runs on) and now any number of supplementary files,
   each with a role, a language, a label and a description. Decided with the project owner: typed files, parsed.

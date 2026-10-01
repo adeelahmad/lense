@@ -258,6 +258,39 @@ import type {
   ListFileLinesData,
   ListFileLinesResponses,
   ListFileLinesErrors,
+  ListFieldsData,
+  ListFieldsResponses,
+  ListFieldsErrors,
+  CreateFieldData,
+  CreateFieldResponses,
+  CreateFieldErrors,
+  DeleteFieldData,
+  DeleteFieldResponses,
+  DeleteFieldErrors,
+  GetFieldData,
+  GetFieldResponses,
+  GetFieldErrors,
+  UpdateFieldData,
+  UpdateFieldResponses,
+  UpdateFieldErrors,
+  GetResourceFieldsData,
+  GetResourceFieldsResponses,
+  GetResourceFieldsErrors,
+  SaveResourceFieldsData,
+  SaveResourceFieldsResponses,
+  SaveResourceFieldsErrors,
+  GetCollectionFieldsData,
+  GetCollectionFieldsResponses,
+  GetCollectionFieldsErrors,
+  SaveCollectionFieldsData,
+  SaveCollectionFieldsResponses,
+  SaveCollectionFieldsErrors,
+  GetFileFieldsData,
+  GetFileFieldsResponses,
+  GetFileFieldsErrors,
+  SaveFileFieldsData,
+  SaveFileFieldsResponses,
+  SaveFileFieldsErrors,
   ImportTranscriptData,
   ImportTranscriptResponses,
   ImportTranscriptErrors,
@@ -1948,6 +1981,169 @@ export class Files {
     return (options.client ?? client).get<ListFileLinesResponses, ListFileLinesErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/files/{fid}/lines",
       ...options,
+    });
+  }
+}
+
+export class Fields {
+  /**
+   * List Fields
+   * The namespace's custom fields: its own, then those of its collections (the ones you see), each in order.
+   */
+  public static listFields<ThrowOnError extends boolean = false>(options: Options<ListFieldsData, ThrowOnError>) {
+    return (options.client ?? client).get<ListFieldsResponses, ListFieldsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/fields",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Field
+   * Define a field on the namespace, or on one of its collections (`collection`). It describes the resources, the
+   * collections or the files inside (`target`); new fields are internal unless `published`. Editors; audited as
+   * `field.create`.
+   */
+  public static createField<ThrowOnError extends boolean = false>(options: Options<CreateFieldData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateFieldResponses, CreateFieldErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/fields",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Field
+   * Delete a field and every value it has. Editors of where it's defined; audited as `field.delete` with how many
+   * values went. Answers with the field as it was, `uses` saying how many values were deleted.
+   */
+  public static deleteField<ThrowOnError extends boolean = false>(options: Options<DeleteFieldData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteFieldResponses, DeleteFieldErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/fields/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Field
+   * One field, with how many items have a value for it (`uses`).
+   */
+  public static getField<ThrowOnError extends boolean = false>(options: Options<GetFieldData, ThrowOnError>) {
+    return (options.client ?? client).get<GetFieldResponses, GetFieldErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/fields/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Field
+   * Rename a field, change its options (400 for one that items have chosen), its help, whether it's published, or
+   * its place in the order. Its type and what it describes stay. Editors of where it's defined; audited as
+   * `field.update`.
+   */
+  public static updateField<ThrowOnError extends boolean = false>(options: Options<UpdateFieldData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateFieldResponses, UpdateFieldErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/fields/{fid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Resource Fields
+   * The custom fields that describe this resource (defined on its namespace and on the collections it's in), with
+   * its values.
+   */
+  public static getResourceFields<ThrowOnError extends boolean = false>(
+    options: Options<GetResourceFieldsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetResourceFieldsResponses, GetResourceFieldsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/fields",
+      ...options,
+    });
+  }
+
+  /**
+   * Save Resource Fields
+   * Set or clear (null) the resource's values for the fields named; the others keep theirs. Editors. Kept in its
+   * metadata history (so a revert puts them back) and audited as `fields.save`.
+   */
+  public static saveResourceFields<ThrowOnError extends boolean = false>(
+    options: Options<SaveResourceFieldsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<SaveResourceFieldsResponses, SaveResourceFieldsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/fields",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Collection Fields
+   * The custom fields that describe this collection (defined on the namespace, and on the collections it's inside),
+   * with its values.
+   */
+  public static getCollectionFields<ThrowOnError extends boolean = false>(
+    options: Options<GetCollectionFieldsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetCollectionFieldsResponses, GetCollectionFieldsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/collections/{cid}/fields",
+      ...options,
+    });
+  }
+
+  /**
+   * Save Collection Fields
+   * Set or clear (null) the collection's values for the fields named. Those who arrange it (editors of the namespace,
+   * admins of the collection); audited as `fields.save`.
+   */
+  public static saveCollectionFields<ThrowOnError extends boolean = false>(
+    options: Options<SaveCollectionFieldsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<SaveCollectionFieldsResponses, SaveCollectionFieldsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/collections/{cid}/fields",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get File Fields
+   * The custom fields that describe this file (defined on its resource's namespace and collections), with its
+   * values.
+   */
+  public static getFileFields<ThrowOnError extends boolean = false>(options: Options<GetFileFieldsData, ThrowOnError>) {
+    return (options.client ?? client).get<GetFileFieldsResponses, GetFileFieldsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/{fid}/fields",
+      ...options,
+    });
+  }
+
+  /**
+   * Save File Fields
+   * Set or clear (null) the file's values for the fields named. Editors of the resource; audited as `fields.save`.
+   */
+  public static saveFileFields<ThrowOnError extends boolean = false>(
+    options: Options<SaveFileFieldsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<SaveFileFieldsResponses, SaveFileFieldsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/{fid}/fields",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

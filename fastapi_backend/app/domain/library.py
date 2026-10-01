@@ -193,6 +193,7 @@ def where(
     collections=None,
     within=None,
     cfg=None,
+    field=None,
 ):
     """The WHERE clause and its parameters for these filters. Filters combine with AND, the values of one filter with OR.
 
@@ -203,7 +204,8 @@ def where(
     featured: true or false. tags: any of these tags (ignoring case). origins: where they came from (Origins; needs cfg).
     languages: language codes (ignoring case), "none" for recordings whose language isn't known. edited: recording ids
     (edited_by). collections: collection ids (a collection and the ones inside it). within: {namespace: collection
-    ids} for namespaces someone sees only some collections of (in_scope).
+    ids} for namespaces someone sees only some collections of (in_scope). field: (condition, value) on a custom field,
+    from fields.filter_condition.
     """
     base, p = in_scope(spaces, within)
     w = [base]
@@ -296,6 +298,11 @@ def where(
     if collections is not None:
         p["cols"] = sorted(collections)
         w.append("collection IN $cols")
+    if field is not None:
+        cond, value = field
+        w.append(cond)
+        if value is not None:
+            p["fv"] = value
     return " AND ".join(w), p
 
 

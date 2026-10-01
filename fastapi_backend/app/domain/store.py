@@ -606,6 +606,11 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS note SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_rec ON note FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS note_account ON note FIELDS account",
+    # custom metadata fields defined on namespaces and collections (app/domain/fields.py); key: "<space>:<collection>:<target>:<name>"
+    "DEFINE TABLE IF NOT EXISTS field SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS field_space ON field FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS field_collection ON field FIELDS collection",
+    "DEFINE INDEX IF NOT EXISTS field_key ON field FIELDS key UNIQUE",
     # a resource's supplementary files, and the lines parsed from its transcripts, captions and indexes (app/domain/files.py)
     "DEFINE TABLE IF NOT EXISTS resource_file SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS resource_file_rec ON resource_file FIELDS recording",
