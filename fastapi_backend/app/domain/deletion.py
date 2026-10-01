@@ -4,7 +4,7 @@ folders don't import it again (docs/api.md).
 What goes: its transcript and everything derived from it (segments, speakers' appearances, chapters, entities'
 mentions, terms, edits), video shots, text on screen and face tracks with their frames, the pages drawn of documents
 and images, outputs and reports, shares,
-notes, supplementary files, permissions, requests for access, and its place in IP groups, fixed collections, chat
+notes, comments, highlights, supplementary files, permissions, requests for access, and its place in IP groups, fixed collections, chat
 scopes and batch runs that haven't started it. Speakers and faces that only it had, and that nobody named, go too; named ones stay. Its jobs
 are cancelled (a job that is running has to stop first), and harvesters hear a Delete when it was public.
 
@@ -40,6 +40,8 @@ OWN = (
     "share_link",
     "share_embed",
     "note",
+    "comment",
+    "highlight",
     "permission",
     "access_request",
     "resource_file",

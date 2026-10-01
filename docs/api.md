@@ -363,6 +363,49 @@ or an owner of the namespace for a shared one, deletes it. Sharing, unsharing an
 (`note.share`, `note.unshare`, `note.delete`, on the recording). Notes move with their recording and go when it's
 deleted.
 
+## comments
+
+```
+GET    /api/v1/resources/{rid}/comments
+POST   /api/v1/resources/{rid}/comments
+PATCH  /api/v1/resources/{rid}/comments/{cid}
+DELETE /api/v1/resources/{rid}/comments/{cid}
+```
+
+Comments on a resource: a conversation everyone with a role on the resource (in its namespace, or on its collection)
+reads and joins; share links and signed links don't reach them. `POST` with `text` (up to 5,000 characters) and, for
+a comment about a moment or a passage, `t0` and `t1` (ms from the start; a document's pages have a reading-pace
+clock, so `t0` is a place on a page; `t1` defaults to `t0` and stops at the end of the resource) and the `quote`
+picked in the text (up to 1,000 characters); without `t0` the comment is about the whole resource. A comment starts
+a thread; `POST` with `parent` replies on that comment's thread (a reply to a reply goes on the thread too, and a
+reply is about what its thread is about, so its moment is ignored). Anyone who can read the resource can comment, up
+to 1,000 each on a resource. `GET` lists them threaded: each thread (the ones about the whole resource first, then by
+moment) followed by its replies, the earliest first, each with its writer (`created_by`, `created_by_name`), `mine`,
+`can_resolve`, `can_delete` and `edited_at`. Only its writer changes a comment's text (`PATCH` with `text`). A thread
+is resolved and reopened on its first comment (`PATCH` with `resolved`), by its writer or an editor of the resource;
+the thread says who resolved it (`resolved_by`, `resolved_by_name`, `resolved_at`). Its writer, or an owner of the
+resource (of its namespace, or an admin of its collection), deletes a comment; a thread's first comment takes its
+replies with it. Resolving, reopening and deleting are audited (`comment.resolve`, `comment.reopen`, `comment.delete`
+with whether its writer did it and how many replies went, on the resource). Comments move with their resource and go
+when it's deleted.
+
+## highlights
+
+```
+GET    /api/v1/resources/{rid}/highlights
+POST   /api/v1/resources/{rid}/highlights
+PATCH  /api/v1/resources/{rid}/highlights/{hid}
+DELETE /api/v1/resources/{rid}/highlights/{hid}
+```
+
+Passages of a resource its editors mark in colour, for everyone with a role on it. `POST` (editors) with the passage
+(`t0` and `t1`, as for comments; `t1` defaults to `t0`), the `quote` picked in the text (up to 1,000 characters), a
+`colour` (`yellow`, the default, `green`, `blue` or `red`: the web app has a token for each) and a `label` of what it
+marks (up to 200 characters). Up to 1,000 on a resource. `GET` lists them by passage, each with who made it
+(`created_by`, `created_by_name`), `mine` and `can_edit`. Any editor of the resource changes one (`PATCH` with
+`colour` or `label`; an empty label clears it) or deletes it; deleting is audited (`highlight.delete`, on the
+resource). Highlights move with their resource and go when it's deleted.
+
 ## files
 
 ```

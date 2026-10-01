@@ -243,6 +243,30 @@ import type {
   UpdateNoteData,
   UpdateNoteResponses,
   UpdateNoteErrors,
+  ListCommentsData,
+  ListCommentsResponses,
+  ListCommentsErrors,
+  CreateCommentData,
+  CreateCommentResponses,
+  CreateCommentErrors,
+  DeleteCommentData,
+  DeleteCommentResponses,
+  DeleteCommentErrors,
+  UpdateCommentData,
+  UpdateCommentResponses,
+  UpdateCommentErrors,
+  ListHighlightsData,
+  ListHighlightsResponses,
+  ListHighlightsErrors,
+  CreateHighlightData,
+  CreateHighlightResponses,
+  CreateHighlightErrors,
+  DeleteHighlightData,
+  DeleteHighlightResponses,
+  DeleteHighlightErrors,
+  UpdateHighlightData,
+  UpdateHighlightResponses,
+  UpdateHighlightErrors,
   ListFilesData,
   ListFilesResponses,
   ListFilesErrors,
@@ -1915,6 +1939,126 @@ export class Notes {
   public static updateNote<ThrowOnError extends boolean = false>(options: Options<UpdateNoteData, ThrowOnError>) {
     return (options.client ?? client).patch<UpdateNoteResponses, UpdateNoteErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/notes/{nid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Comments {
+  /**
+   * List Comments
+   * The resource's comments, threaded: each thread (the ones about the whole resource first, then by moment)
+   * followed by its replies, the earliest first.
+   */
+  public static listComments<ThrowOnError extends boolean = false>(options: Options<ListCommentsData, ThrowOnError>) {
+    return (options.client ?? client).get<ListCommentsResponses, ListCommentsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/comments",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Comment
+   * Comment on a moment or passage (`t0`–`t1`, with the `quote` picked in the text) or on the whole resource, or
+   * with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone who can read the resource
+   * can, up to 1,000 each on a resource.
+   */
+  public static createComment<ThrowOnError extends boolean = false>(options: Options<CreateCommentData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateCommentResponses, CreateCommentErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/comments",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Comment
+   * Delete it: its writer, or an owner of the resource (of its namespace, or an admin of its collection). A
+   * thread's first comment takes its replies with it. Audited (`comment.delete`).
+   */
+  public static deleteComment<ThrowOnError extends boolean = false>(options: Options<DeleteCommentData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteCommentResponses, DeleteCommentErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/comments/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Comment
+   * Change its text (its writer only), or resolve or reopen its thread (`resolved`, on the thread's first
+   * comment: its writer, or an editor of the resource; audited as `comment.resolve` and `comment.reopen`).
+   */
+  public static updateComment<ThrowOnError extends boolean = false>(options: Options<UpdateCommentData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateCommentResponses, UpdateCommentErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/comments/{cid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Highlights
+   * The resource's highlights, by passage, for everyone who can read it.
+   */
+  public static listHighlights<ThrowOnError extends boolean = false>(
+    options: Options<ListHighlightsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<ListHighlightsResponses, ListHighlightsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/highlights",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Highlight
+   * Mark a passage (`t0`–`t1`, with the `quote` picked in the text) in a `colour` (yellow, green, blue or red),
+   * with a `label`: editors of the resource. Up to 1,000 on a resource.
+   */
+  public static createHighlight<ThrowOnError extends boolean = false>(
+    options: Options<CreateHighlightData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<CreateHighlightResponses, CreateHighlightErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/highlights",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Highlight
+   * Delete it: editors of the resource. Audited (`highlight.delete`).
+   */
+  public static deleteHighlight<ThrowOnError extends boolean = false>(
+    options: Options<DeleteHighlightData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<DeleteHighlightResponses, DeleteHighlightErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/highlights/{hid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Highlight
+   * Change its colour or its label (an empty label clears it): editors of the resource.
+   */
+  public static updateHighlight<ThrowOnError extends boolean = false>(
+    options: Options<UpdateHighlightData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).patch<UpdateHighlightResponses, UpdateHighlightErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/highlights/{hid}",
       ...options,
       headers: {
         "Content-Type": "application/json",

@@ -1585,6 +1585,176 @@ export type CollectionUpdate = {
 };
 
 /**
+ * Comment
+ */
+export type Comment = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Parent
+   * the comment this replies to (the thread's first); null: it starts a thread
+   */
+  parent?: number | null;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * T0
+   * the moment it's about, in ms from the start; null: the whole resource, or a reply
+   */
+  t0?: number | null;
+  /**
+   * T1
+   * where that moment ends, in ms
+   */
+  t1?: number | null;
+  /**
+   * Quote
+   * the words picked in the text
+   */
+  quote?: string | null;
+  /**
+   * Resolved
+   * the thread is resolved (its first comment says so)
+   */
+  resolved?: boolean;
+  /**
+   * Resolved By
+   * who resolved it: their email
+   */
+  resolved_by?: string | null;
+  /**
+   * Resolved By Name
+   */
+  resolved_by_name?: string | null;
+  /**
+   * Resolved At
+   */
+  resolved_at?: string | null;
+  /**
+   * Created By
+   * its writer's email
+   */
+  created_by?: string | null;
+  /**
+   * Created By Name
+   * its writer's name, when they gave one
+   */
+  created_by_name?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Edited At
+   * when its text last changed
+   */
+  edited_at?: string | null;
+  /**
+   * Mine
+   * you wrote it: only you can change its text
+   */
+  mine: boolean;
+  /**
+   * Can Resolve
+   * you can resolve or reopen the thread: you started it, or you edit the resource
+   */
+  can_resolve: boolean;
+  /**
+   * Can Delete
+   * you wrote it, or you own the resource
+   */
+  can_delete: boolean;
+  [key: string]:
+    | unknown
+    | number
+    | number
+    | null
+    | string
+    | number
+    | null
+    | number
+    | null
+    | string
+    | null
+    | boolean
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * CommentCreate
+ */
+export type CommentCreate = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Parent
+   * reply on this comment's thread (its moment is the thread's)
+   */
+  parent?: number | null;
+  /**
+   * T0
+   * the moment it's about, in ms from the start; leave out for the whole resource
+   */
+  t0?: number | null;
+  /**
+   * T1
+   * where that moment ends, in ms (default: t0)
+   */
+  t1?: number | null;
+  /**
+   * Quote
+   * the words picked in the text
+   */
+  quote?: string | null;
+};
+
+/**
+ * CommentUpdate
+ */
+export type CommentUpdate = {
+  /**
+   * Text
+   * its writer only
+   */
+  text?: string | null;
+  /**
+   * Resolved
+   * resolve or reopen the thread: its writer, or an editor of the resource
+   */
+  resolved?: boolean | null;
+};
+
+/**
  * ContentState
  */
 export type ContentState = {
@@ -2664,6 +2834,137 @@ export type HealthSource = {
       }
     | null
     | undefined;
+};
+
+/**
+ * Highlight
+ */
+export type Highlight = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * T0
+   * where the passage starts, in ms from the start
+   */
+  t0: number;
+  /**
+   * T1
+   * where it ends, in ms
+   */
+  t1: number;
+  /**
+   * Quote
+   * the words picked in the text
+   */
+  quote?: string | null;
+  /**
+   * Colour
+   */
+  colour: "yellow" | "green" | "blue" | "red";
+  /**
+   * Label
+   * what it marks, in a few words
+   */
+  label?: string | null;
+  /**
+   * Created By
+   * who made it: their email
+   */
+  created_by?: string | null;
+  /**
+   * Created By Name
+   */
+  created_by_name?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Mine
+   * you made it
+   */
+  mine: boolean;
+  /**
+   * Can Edit
+   * you can change or delete it: you edit the resource
+   */
+  can_edit: boolean;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | null
+    | "yellow"
+    | "green"
+    | "blue"
+    | "red"
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | boolean
+    | undefined;
+};
+
+/**
+ * HighlightCreate
+ */
+export type HighlightCreate = {
+  /**
+   * T0
+   * where the passage starts, in ms from the start
+   */
+  t0: number;
+  /**
+   * T1
+   * where it ends, in ms (default: t0)
+   */
+  t1?: number | null;
+  /**
+   * Quote
+   * the words picked in the text
+   */
+  quote?: string | null;
+  /**
+   * Colour
+   */
+  colour?: "yellow" | "green" | "blue" | "red";
+  /**
+   * Label
+   * what it marks, in a few words
+   */
+  label?: string | null;
+};
+
+/**
+ * HighlightUpdate
+ */
+export type HighlightUpdate = {
+  /**
+   * Colour
+   */
+  colour?: "yellow" | "green" | "blue" | "red" | null;
+  /**
+   * Label
+   * a new label; empty clears it
+   */
+  label?: string | null;
 };
 
 /**
@@ -12050,6 +12351,264 @@ export type UpdateNoteResponses = {
 };
 
 export type UpdateNoteResponse = UpdateNoteResponses[keyof UpdateNoteResponses];
+
+export type ListCommentsData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/comments";
+};
+
+export type ListCommentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListCommentsError = ListCommentsErrors[keyof ListCommentsErrors];
+
+export type ListCommentsResponses = {
+  /**
+   * Response Comments-List Comments
+   * Successful Response
+   */
+  200: Array<Comment>;
+};
+
+export type ListCommentsResponse = ListCommentsResponses[keyof ListCommentsResponses];
+
+export type CreateCommentData = {
+  body: CommentCreate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/comments";
+};
+
+export type CreateCommentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateCommentError = CreateCommentErrors[keyof CreateCommentErrors];
+
+export type CreateCommentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Comment;
+};
+
+export type CreateCommentResponse = CreateCommentResponses[keyof CreateCommentResponses];
+
+export type DeleteCommentData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/comments/{cid}";
+};
+
+export type DeleteCommentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteCommentError = DeleteCommentErrors[keyof DeleteCommentErrors];
+
+export type DeleteCommentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteCommentResponse = DeleteCommentResponses[keyof DeleteCommentResponses];
+
+export type UpdateCommentData = {
+  body: CommentUpdate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/comments/{cid}";
+};
+
+export type UpdateCommentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateCommentError = UpdateCommentErrors[keyof UpdateCommentErrors];
+
+export type UpdateCommentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Comment;
+};
+
+export type UpdateCommentResponse = UpdateCommentResponses[keyof UpdateCommentResponses];
+
+export type ListHighlightsData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/highlights";
+};
+
+export type ListHighlightsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListHighlightsError = ListHighlightsErrors[keyof ListHighlightsErrors];
+
+export type ListHighlightsResponses = {
+  /**
+   * Response Comments-List Highlights
+   * Successful Response
+   */
+  200: Array<Highlight>;
+};
+
+export type ListHighlightsResponse = ListHighlightsResponses[keyof ListHighlightsResponses];
+
+export type CreateHighlightData = {
+  body: HighlightCreate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/highlights";
+};
+
+export type CreateHighlightErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateHighlightError = CreateHighlightErrors[keyof CreateHighlightErrors];
+
+export type CreateHighlightResponses = {
+  /**
+   * Successful Response
+   */
+  200: Highlight;
+};
+
+export type CreateHighlightResponse = CreateHighlightResponses[keyof CreateHighlightResponses];
+
+export type DeleteHighlightData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Hid
+     */
+    hid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/highlights/{hid}";
+};
+
+export type DeleteHighlightErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteHighlightError = DeleteHighlightErrors[keyof DeleteHighlightErrors];
+
+export type DeleteHighlightResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteHighlightResponse = DeleteHighlightResponses[keyof DeleteHighlightResponses];
+
+export type UpdateHighlightData = {
+  body: HighlightUpdate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Hid
+     */
+    hid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/highlights/{hid}";
+};
+
+export type UpdateHighlightErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateHighlightError = UpdateHighlightErrors[keyof UpdateHighlightErrors];
+
+export type UpdateHighlightResponses = {
+  /**
+   * Successful Response
+   */
+  200: Highlight;
+};
+
+export type UpdateHighlightResponse = UpdateHighlightResponses[keyof UpdateHighlightResponses];
 
 export type ListFilesData = {
   body?: never;

@@ -1,6 +1,6 @@
 "use client";
 
-import { Link2, LocateFixed, MessagesSquare, Pencil, Search, Share2, StickyNote } from "lucide-react";
+import { LocateFixed, Pencil, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { prefersReducedMotion, usePlayerApi, usePlayerState } from "@/components/player/media";
@@ -8,18 +8,22 @@ import { useRec } from "@/components/recording/context";
 import { EditProvider, EditToolbar, useEdit } from "@/components/recording/edit";
 import { FindBar } from "@/components/recording/find-bar";
 import { transcriptOrigin } from "@/components/recording/labels";
-import { useNamespaceFaces, useNotes, useSpeakerDirectory } from "@/components/recording/hooks";
+import { commentsAt, highlightRanges, type HighlightRange } from "@/components/recording/comments-model";
+import {
+  useComments,
+  useHighlights,
+  useNamespaceFaces,
+  useNotes,
+  useSpeakerDirectory,
+} from "@/components/recording/hooks";
 import { currentStep } from "@/components/recording/jobs";
 import { segmentAt, textRange, wordAt, type Segment } from "@/components/recording/model";
-import { draftFromSelection, notesAt } from "@/components/recording/notes-model";
+import { notesAt } from "@/components/recording/notes-model";
+import { SelectionToolbar } from "@/components/recording/selection-toolbar";
 import { TurnView, type Unsure } from "@/components/recording/turn";
-import { ShareMoment } from "@/components/iiif/iiif-panel";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
 import { EmptyState, Skeleton } from "@/components/ui/states";
-import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
-import { tc } from "@/lib/format";
 import { needRole } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
@@ -86,8 +90,30 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
     }
     return m;
   }, [notes, turns]);
-  const { setTab } = r;
+  const { setTab, focusHighlight } = r;
   const openNotes = useCallback(() => setTab("notes"), [setTab]);
+  // Turns with comment threads get a mark that opens the Comments tab.
+  const comments = useComments(r.id).data;
+  const commentCounts = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const t of comments?.length ? turns : []) {
+      const n = commentsAt(comments ?? [], t.t0, t.t1).length;
+      if (n) m.set(t.key, n);
+    }
+    return m;
+  }, [comments, turns]);
+  const openComments = useCallback(() => setTab("comments"), [setTab]);
+  // Highlighted passages are marked in their colour, by segment.
+  const highlights = useHighlights(r.id).data;
+  const highlightsBySeg = useMemo(() => {
+    const m = new Map<number, HighlightRange[]>();
+    if (!highlights?.length) return m;
+    for (const s of model.segments) {
+      const ranges = highlightRanges(s, highlights);
+      if (ranges.length) m.set(s.idx, ranges);
+    }
+    return m;
+  }, [highlights, model.segments]);
   const entityNames = useMemo(() => {
     const m = new Map<number, string[]>();
     for (const e of model.entities) for (const s of e.segs) m.set(s, [...(m.get(s) ?? []), e.name]);
@@ -273,6 +299,10 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
               onScreen={Boolean(t.speaker && onScreen.has(t.speaker))}
               notes={noteCounts.get(t.key)}
               onNotes={openNotes}
+              comments={commentCounts.get(t.key)}
+              onComments={openComments}
+              highlights={highlightsBySeg}
+              onHighlight={focusHighlight}
               editing={editing}
               editTarget={edit?.target ?? null}
               onSeek={onSeek}
@@ -386,157 +416,4 @@ function useSpokenWord(box: React.RefObject<HTMLDivElement | null>, segments: Se
       CSS.highlights.delete("lens-word");
     };
   }, [api, box, segments]);
-}
-
-/** The time of a character inside a line, spread evenly over the line's duration (there are no word timings). */
-export function timeAtOffset(seg: { t0: number; t1: number; text: string }, offset: number): number {
-  const f = seg.text.length ? Math.max(0, Math.min(1, offset / seg.text.length)) : 0;
-  return Math.round(seg.t0 + (seg.t1 - seg.t0) * f);
-}
-
-/** Selecting transcript text offers Copy link at that moment, a IIIF link, Ask in chat (with the quote) and Add note
- * (a note about that moment, quoting it). */
-function SelectionToolbar({ box }: { box: React.RefObject<HTMLDivElement | null> }) {
-  const { id, model, askInChat, addNote } = useRec();
-  const toast = useToast();
-  const [sel, setSel] = useState<{
-    x: number;
-    y: number;
-    t: number;
-    end: number;
-    quote: string;
-  } | null>(null);
-  const [moment, setMoment] = useState<{ t0: number; t1: number } | null>(null);
-  useEffect(() => {
-    const onChange = () => {
-      const s = window.getSelection();
-      const container = box.current;
-      if (!s || s.isCollapsed || !s.rangeCount || !container) return setSel(null);
-      const range = s.getRangeAt(0);
-      if (!container.contains(range.commonAncestorContainer)) return setSel(null);
-      const quote = s.toString().trim();
-      if (quote.length < 2) return setSel(null);
-      const startEl = (
-        range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement
-      ) as HTMLElement | null;
-      const segEl = startEl?.closest<HTMLElement>("[data-seg]");
-      const seg = segEl ? model.segments[Number(segEl.dataset.seg)] : null;
-      let offset = 0;
-      if (segEl && seg) {
-        const pre = document.createRange();
-        pre.selectNodeContents(segEl);
-        pre.setEnd(range.startContainer, range.startOffset);
-        offset = pre.toString().length;
-      }
-      const endEl = (
-        range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement
-      ) as HTMLElement | null;
-      const endSegEl = endEl?.closest<HTMLElement>("[data-seg]");
-      const endSeg = endSegEl ? model.segments[Number(endSegEl.dataset.seg)] : null;
-      let endOffset = 0;
-      if (endSegEl && endSeg) {
-        const pre = document.createRange();
-        pre.selectNodeContents(endSegEl);
-        pre.setEnd(range.endContainer, range.endOffset);
-        endOffset = pre.toString().length;
-      }
-      const rect = range.getBoundingClientRect();
-      const t = seg ? timeAtOffset(seg, offset) : 0;
-      setSel({
-        x: rect.left + rect.width / 2,
-        y: rect.top,
-        t,
-        end: endSeg ? Math.max(t, timeAtOffset(endSeg, endOffset)) : t,
-        quote,
-      });
-    };
-    document.addEventListener("selectionchange", onChange);
-    const hide = () => setSel(null);
-    const el = box.current;
-    el?.addEventListener("scroll", hide);
-    return () => {
-      document.removeEventListener("selectionchange", onChange);
-      el?.removeEventListener("scroll", hide);
-    };
-  }, [box, model.segments]);
-  const momentDialog = (
-    <Dialog
-      open={moment != null}
-      onOpenChange={(o) => !o && setMoment(null)}
-      title="Share a moment"
-      description="A IIIF link that opens this time range in Lens Archive and in any viewer that supports content state."
-    >
-      {moment && <ShareMoment recordingId={id} initial={moment} />}
-    </Dialog>
-  );
-  if (!sel) return momentDialog;
-  const secs = Math.floor(sel.t / 1000);
-  const copy = async () => {
-    const url = `${window.location.origin}/resources/${id}?t=${secs}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast({ title: `Link at ${tc(sel.t)} copied`, tone: "green" });
-    } catch {
-      toast({ title: "Couldn't copy the link", body: url, tone: "red" });
-    }
-  };
-  return (
-    <>
-      {momentDialog}
-      <div
-        role="toolbar"
-        aria-label="Selection actions"
-        onMouseDown={(e) => e.preventDefault()}
-        className="fixed z-[60] flex -translate-x-1/2 -translate-y-[calc(100%+10px)] gap-0.5 whitespace-nowrap rounded-[10px] bg-fg p-1 text-[12.5px] font-semibold text-background shadow-3"
-        style={{
-          left: Math.max(180, Math.min(sel.x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 180)),
-          top: Math.max(70, sel.y),
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => void copy()}
-          className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
-        >
-          <Link2 className="size-3.5" /> Copy link at {tc(sel.t)}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMoment({
-              t0: Math.floor(sel.t / 1000),
-              t1: Math.max(Math.floor(sel.t / 1000) + 1, Math.ceil(sel.end / 1000)),
-            });
-            window.getSelection()?.removeAllRanges();
-            setSel(null);
-          }}
-          className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
-        >
-          <Share2 className="size-3.5" /> IIIF link
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            askInChat(`> “${sel.quote.length > 400 ? `${sel.quote.slice(0, 397)}…` : sel.quote}” (${tc(sel.t)})\n\n`);
-            window.getSelection()?.removeAllRanges();
-            setSel(null);
-          }}
-          className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
-        >
-          <MessagesSquare className="size-3.5" /> Ask in chat
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            addNote(draftFromSelection(sel.t, sel.end, sel.quote));
-            window.getSelection()?.removeAllRanges();
-            setSel(null);
-          }}
-          className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
-        >
-          <StickyNote className="size-3.5" /> Add note
-        </button>
-      </div>
-    </>
-  );
 }

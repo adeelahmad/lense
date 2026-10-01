@@ -10,7 +10,8 @@ import { usePlayerApi } from "@/components/player/media";
 import { useRec, type PanelTab } from "@/components/recording/context";
 import { Banners, HeaderActions } from "@/components/recording/header";
 import { sourceLabel } from "@/components/recording/labels";
-import { useNotes, useVisualNotes } from "@/components/recording/hooks";
+import { openThreads } from "@/components/recording/comments-model";
+import { useComments, useNotes, useVisualNotes } from "@/components/recording/hooks";
 import { currentStep, isActive, loopSteps, type JobInfo } from "@/components/recording/jobs";
 import { MORE_TABS, PanelBody, PanelScroll, PanelTabs, type TabDef } from "@/components/recording/side-panel";
 import { Transcript } from "@/components/recording/transcript";
@@ -55,6 +56,7 @@ export function VideoLayout({
   const [object, setObject] = useState<string | null>(null);
   const notes = useVisualNotes(jobs);
   const notesCount = useNotes(r.id).data?.length ?? 0;
+  const openCount = openThreads(useComments(r.id).data ?? []);
   useEffect(() => {
     try {
       const v = localStorage.getItem(LAYOUT_KEY);
@@ -105,6 +107,7 @@ export function VideoLayout({
     { value: "entities", label: "Entities" },
     { value: "chat", label: "Chat" },
     { value: "notes", label: "Notes", count: notesCount || undefined },
+    { value: "comments", label: "Comments", count: openCount || undefined },
     { value: "history", label: "History" },
     ...MORE_TABS.filter((t) => t.value !== "iiif"),
   ];

@@ -175,6 +175,23 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       photo's People tab; a visitor's public page shows the face in blocks while the admin's page shows it as it is
       (the pictures differ, and only the member's link carries the signed mark, which can't be added to a visitor's);
       a viewer on a phone in dark mode sees the switch and that owners can use it. No console errors.
+- **Comments and highlights on resources.** Everyone who can read a resource joins a conversation about it in the new
+  Comments tab: select words in the transcript or a document's text and choose Comment, or comment on where the
+  player is or on the whole resource; replies go on the thread, and a thread is resolved (by whoever started it or
+  an editor) and reopened. Editors mark passages in colour: select words and choose Highlight; the passage is marked
+  in the text for everyone, and the new Highlights tab (under More) recolours it, labels it and removes it. Decided
+  with the project owner: readers comment, threaded, on the whole resource or a moment or passage, resolvable;
+  highlights are shared, coloured and labelled, made by editors.
+    - `GET`/`POST /api/v1/resources/{rid}/comments`, `PATCH`/`DELETE …/comments/{cid}` (new `comment` table) and
+      `GET`/`POST /api/v1/resources/{rid}/highlights`, `PATCH`/`DELETE …/highlights/{hid}` (new `highlight` table;
+      docs/api.md). A comment's text is changed only by its writer; its writer or an owner deletes it, replies and
+      all. Highlights come in yellow, green, blue or red, each a token of the web app's; any editor changes or deletes
+      one. Resolving, reopening and deleting are audited.
+    - Turns with comment threads get a mark that opens the tab, like notes; a click on a highlighted passage opens it
+      in the Highlights tab. Highlights fall on the words their passage covers (by the line's timed words, or in
+      proportion to its time, the same way a selection's moment is read). The selection toolbar now works on a
+      document's text too (Copy link to the page, Ask in chat, Add note, Comment, Highlight).
+    - Comments and highlights move with their resource and go when it's deleted.
 - **Word, text, web pages and emails as documents.** Any document now becomes a resource with pages, not only a PDF:
   Word, PowerPoint and spreadsheet files (and OpenDocument and RTF), text and Markdown, saved web pages and emails
   (`.eml`, and Outlook `.msg` with the `msg` extra) are made into PDFs and read like one. Decided with the project

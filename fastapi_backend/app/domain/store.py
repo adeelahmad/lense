@@ -661,6 +661,13 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS note SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_rec ON note FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS note_account ON note FIELDS account",
+    # comments on resources, threaded, by everyone who can read them (app/domain/comments.py)
+    "DEFINE TABLE IF NOT EXISTS comment SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS comment_rec ON comment FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS comment_parent ON comment FIELDS parent",
+    # passages of resources marked in colour by their editors (app/domain/highlights.py)
+    "DEFINE TABLE IF NOT EXISTS highlight SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS highlight_rec ON highlight FIELDS recording",
     # custom metadata fields defined on namespaces and collections (app/domain/fields.py); key: "<space>:<collection>:<target>:<name>"
     "DEFINE TABLE IF NOT EXISTS field SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS field_space ON field FIELDS space",

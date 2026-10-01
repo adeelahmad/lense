@@ -18,7 +18,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent a
 import { homeText } from "@/components/library/collections-model";
 import { usePlayerApi } from "@/components/player/media";
 import { useMediaQuery } from "@/components/player/use-media-query";
+import { highlightRanges, highlightRuns, openThreads } from "@/components/recording/comments-model";
 import { useRec, type PanelTab } from "@/components/recording/context";
+import { HighlightMark } from "@/components/recording/highlight-mark";
 import {
   blocksByPage,
   clampPage,
@@ -33,12 +35,19 @@ import {
   type Mark,
 } from "@/components/recording/document/model";
 import { Banners, HeaderActions, RecordingHeader } from "@/components/recording/header";
-import { useNotes, useRecordingActions, useVisualNotes } from "@/components/recording/hooks";
-import { descriptionOf, segmentAt, splitRuns, type Box, type PageInfo } from "@/components/recording/model";
+import {
+  useComments,
+  useHighlights,
+  useNotes,
+  useRecordingActions,
+  useVisualNotes,
+} from "@/components/recording/hooks";
+import { descriptionOf, segmentAt, type Box, type PageInfo } from "@/components/recording/model";
 import { boxesOnPage, objectName } from "@/components/recording/objects-model";
 import { ObjectsTab } from "@/components/recording/objects-tab";
 import { MORE_TABS, PanelBody, PanelScroll, PanelTabs, type TabDef } from "@/components/recording/side-panel";
 import { FindBar } from "@/components/recording/find-bar";
+import { SelectionToolbar } from "@/components/recording/selection-toolbar";
 import { useFaceColors } from "@/components/recording/video/face-colors";
 import { PeopleTab } from "@/components/recording/video/people-tab";
 import { Button, IconButton } from "@/components/ui/button";
@@ -436,8 +445,10 @@ function BlockEditor({ idx, text, onDone }: { idx: number; text: string; onDone:
 /** The text, page by page: choosing a block turns to its page and marks it there; find marks matches in both. With
  * `follow` (beside the page, in a panel of its own) the page's text, or the block chosen, scrolls into view. */
 export function PageText({ view, follow = true }: { view: DocView; follow?: boolean }) {
-  const { model, find, canEdit, ns, editing, setEditing } = useRec();
+  const { id, model, find, canEdit, ns, editing, setEditing, focusHighlight } = useRec();
   const by = useMemo(() => blocksByPage(model.segments), [model.segments]);
+  const highlights = useHighlights(id).data;
+  const root = useRef<HTMLDivElement>(null);
   const hits = useMemo(() => {
     const out = new Map<number, { start: number; end: number }[]>();
     for (const h of find.hits) out.set(h.seg, [...(out.get(h.seg) ?? []), h]);
@@ -467,7 +478,8 @@ export function PageText({ view, follow = true }: { view: DocView; follow?: bool
 
   const pages = model.pages.length ? model.pages : [];
   return (
-    <div className="flex flex-col gap-4">
+    <div ref={root} className="flex flex-col gap-4">
+      {!editing && <SelectionToolbar box={root} />}
       <div className="flex flex-wrap items-center gap-2">
         <FindBar what="the text" />
         <Button
@@ -531,14 +543,20 @@ export function PageText({ view, follow = true }: { view: DocView; follow?: bool
             {list.map((i) => {
               const s = model.segments[i];
               if (open === i) return <BlockEditor key={i} idx={i} text={s.text} onDone={() => setOpen(null)} />;
-              const runs = splitRuns(
+              const runs = highlightRuns(
                 s.text,
                 (hits.get(i) ?? []).map((h) => ({
                   ...h,
                   kind: current && current.seg === i && current.start === h.start ? "hit-current" : "hit",
                 })),
+                highlights?.length ? highlightRanges(s, highlights) : [],
               );
-              const act = () => (editing ? setOpen(i) : view.choose(i));
+              const act = () => {
+                const sel = typeof window !== "undefined" ? window.getSelection() : null;
+                if (!editing && sel && !sel.isCollapsed) return; // picking words, not choosing the block
+                if (editing) setOpen(i);
+                else view.choose(i);
+              };
               return (
                 <p
                   key={i}
@@ -549,6 +567,7 @@ export function PageText({ view, follow = true }: { view: DocView; follow?: bool
                   role="button"
                   tabIndex={0}
                   data-block={i}
+                  data-seg={i}
                   aria-current={view.selected === i ? "true" : undefined}
                   aria-label={editing ? `Correct: ${s.text.slice(0, 80)}` : undefined}
                   onClick={act}
@@ -563,10 +582,9 @@ export function PageText({ view, follow = true }: { view: DocView; follow?: bool
                     view.selected === i ? "bg-hl" : editing ? "hover:bg-blue-surface" : "hover:bg-surface-neutral",
                   )}
                 >
-                  {runs.map((r, k) =>
-                    r.kind ? (
+                  {runs.map((r, k) => {
+                    const run = r.kind ? (
                       <mark
-                        key={k}
                         data-hit={r.kind === "hit-current" ? "current" : undefined}
                         className={cn(
                           "rounded-[3px] text-fg",
@@ -578,9 +596,16 @@ export function PageText({ view, follow = true }: { view: DocView; follow?: bool
                         {r.text}
                       </mark>
                     ) : (
-                      <span key={k}>{r.text}</span>
-                    ),
-                  )}
+                      <span>{r.text}</span>
+                    );
+                    return r.hl ? (
+                      <HighlightMark key={k} hl={r.hl} onOpen={focusHighlight}>
+                        {run}
+                      </HighlightMark>
+                    ) : (
+                      <span key={k}>{run}</span>
+                    );
+                  })}
                 </p>
               );
             })}
@@ -602,6 +627,7 @@ export function DocumentLayout({ compact }: { compact: boolean }) {
   const view = useDocView();
   const wide = useMediaQuery("(min-width: 1280px)");
   const notes = useNotes(r.id).data?.length ?? 0;
+  const open = openThreads(useComments(r.id).data ?? []);
   const visual = useVisualNotes(r.jobs);
   const [object, setObject] = useState<string | null>(null);
   const tabs: TabDef[] = [
@@ -610,6 +636,7 @@ export function DocumentLayout({ compact }: { compact: boolean }) {
     { value: "entities", label: "Entities" },
     { value: "chat", label: "Chat" },
     { value: "notes", label: "Notes", count: notes || undefined },
+    { value: "comments", label: "Comments", count: open || undefined },
     // people on its pages, where the namespace looks for faces
     ...(model.facesMode === "off"
       ? []

@@ -180,6 +180,8 @@ function Inner({ id, start, focus, page, rec, model, state, jobs, turns, speaker
   );
   const [chatDraft, setChatDraft] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState<NoteDraft | null>(null);
+  const [commentDraft, setCommentDraft] = useState<NoteDraft | null>(null);
+  const [highlightFocus, setHighlightFocus] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const videoCmd = useRef<((c: VideoCommand) => void) | null>(null);
@@ -240,6 +242,17 @@ function Inner({ id, start, focus, page, rec, model, state, jobs, turns, speaker
         setTab("notes");
       },
       clearNoteDraft: () => setNoteDraft(null),
+      commentDraft,
+      addComment: (draft) => {
+        setCommentDraft(draft);
+        setTab("comments");
+      },
+      clearCommentDraft: () => setCommentDraft(null),
+      highlightFocus,
+      focusHighlight: (hid) => {
+        setHighlightFocus(hid);
+        if (hid != null) setTab("highlights");
+      },
       editing,
       setEditing,
       openReprocess: () => setDialog({ kind: "reprocess" }),
@@ -274,6 +287,8 @@ function Inner({ id, start, focus, page, rec, model, state, jobs, turns, speaker
       focus,
       chatDraft,
       noteDraft,
+      commentDraft,
+      highlightFocus,
       editing,
     ],
   );

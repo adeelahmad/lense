@@ -14,6 +14,8 @@ export type PanelTab =
   | "entities"
   | "chat"
   | "notes"
+  | "comments"
+  | "highlights"
   | "history"
   | "metadata"
   | "iiif"
@@ -73,6 +75,13 @@ export type RecordingCtx = {
   noteDraft: NoteDraft | null;
   addNote: (draft: NoteDraft) => void;
   clearNoteDraft: () => void;
+  /** A moment and its words waiting to start a comment (the transcript's "Comment"). */
+  commentDraft: NoteDraft | null;
+  addComment: (draft: NoteDraft) => void;
+  clearCommentDraft: () => void;
+  /** The highlight chosen on the text, for the Highlights tab to show. */
+  highlightFocus: number | null;
+  focusHighlight: (id: number | null) => void;
   editing: boolean;
   setEditing: (on: boolean) => void;
   openReprocess: () => void;

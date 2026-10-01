@@ -3,8 +3,19 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 
-import { Entities, Files, Jobs, Notes, Pipelines, Resources, Speakers, Templates, Video } from "@/app/openapi-client";
-import type { FileUpdate, NoteCreate, Recording } from "@/app/openapi-client/types.gen";
+import {
+  Comments,
+  Entities,
+  Files,
+  Jobs,
+  Notes,
+  Pipelines,
+  Resources,
+  Speakers,
+  Templates,
+  Video,
+} from "@/app/openapi-client";
+import type { CommentCreate, FileUpdate, HighlightCreate, NoteCreate, Recording } from "@/app/openapi-client/types.gen";
 import type { FileRole } from "@/components/recording/files-model";
 import { isActive, normalizeJob, visualNotes, type JobInfo } from "@/components/recording/jobs";
 import { normalizePlayer } from "@/components/recording/model";
@@ -22,6 +33,8 @@ export const rk = {
   outputs: (id: number) => ["recording", id, "outputs"] as const,
   entities: (id: number) => ["recording", id, "entities"] as const,
   notes: (id: number) => ["recording", id, "notes"] as const,
+  comments: (id: number) => ["recording", id, "comments"] as const,
+  highlights: (id: number) => ["recording", id, "highlights"] as const,
   files: (id: number) => ["recording", id, "files"] as const,
   fileLines: (id: number, fid: number) => ["recording", id, "files", fid, "lines"] as const,
   job: (jid: number) => ["job", jid] as const,
@@ -243,6 +256,97 @@ export function useNoteActions(id: number) {
       toast({ title: "Note deleted", tone: "green" });
     },
     onError: fail("Couldn't delete the note"),
+  });
+  return { create, update, remove };
+}
+
+/** The resource's comments, threaded (the Comments tab, and the marks in the transcript). */
+export function useComments(id: number) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: rk.comments(id),
+    queryFn: () => data(Comments.listComments({ client, path: { rid: id } })),
+    staleTime: 0, // others comment, reply and resolve while the page is open
+  });
+}
+/** Comment, reply, change or resolve, and delete; each refreshes the list. */
+export function useCommentActions(id: number) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const fail = (title: string) => (e: unknown) =>
+    toast({ title, body: e instanceof ApiError ? e.message : "Please try again.", tone: "red" });
+  const refresh = () => qc.invalidateQueries({ queryKey: rk.comments(id) });
+  const create = useMutation({
+    mutationFn: (body: CommentCreate) => data(Comments.createComment({ client, path: { rid: id }, body })),
+    onSuccess: (c) => {
+      void refresh();
+      toast({ title: c.parent != null ? "Reply added" : "Comment added", tone: "green" });
+    },
+    onError: fail("Couldn't add the comment"),
+  });
+  const update = useMutation({
+    mutationFn: (v: { cid: number; text?: string; resolved?: boolean }) =>
+      data(
+        Comments.updateComment({ client, path: { rid: id, cid: v.cid }, body: { text: v.text, resolved: v.resolved } }),
+      ),
+    onSuccess: (c, v) => {
+      void refresh();
+      if (v.resolved !== undefined) toast({ title: c.resolved ? "Thread resolved" : "Thread reopened", tone: "green" });
+    },
+    onError: fail("Couldn't change the comment"),
+  });
+  const remove = useMutation({
+    mutationFn: (cid: number) => data(Comments.deleteComment({ client, path: { rid: id, cid } })),
+    onSuccess: () => {
+      void refresh();
+      toast({ title: "Comment deleted", tone: "green" });
+    },
+    onError: fail("Couldn't delete the comment"),
+  });
+  return { create, update, remove };
+}
+
+/** The resource's highlights, by passage (the Highlights tab, and the marks on the text). */
+export function useHighlights(id: number) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: rk.highlights(id),
+    queryFn: () => data(Comments.listHighlights({ client, path: { rid: id } })),
+    staleTime: 0, // editors mark and change them while the page is open
+  });
+}
+/** Mark a passage, change a highlight's colour or label, and delete one; each refreshes the list. */
+export function useHighlightActions(id: number) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const fail = (title: string) => (e: unknown) =>
+    toast({ title, body: e instanceof ApiError ? e.message : "Please try again.", tone: "red" });
+  const refresh = () => qc.invalidateQueries({ queryKey: rk.highlights(id) });
+  const create = useMutation({
+    mutationFn: (body: HighlightCreate) => data(Comments.createHighlight({ client, path: { rid: id }, body })),
+    onSuccess: () => {
+      void refresh();
+      toast({ title: "Highlighted", tone: "green" });
+    },
+    onError: fail("Couldn't highlight it"),
+  });
+  const update = useMutation({
+    mutationFn: (v: { hid: number; colour?: HighlightCreate["colour"]; label?: string }) =>
+      data(
+        Comments.updateHighlight({ client, path: { rid: id, hid: v.hid }, body: { colour: v.colour, label: v.label } }),
+      ),
+    onSuccess: () => void refresh(),
+    onError: fail("Couldn't change the highlight"),
+  });
+  const remove = useMutation({
+    mutationFn: (hid: number) => data(Comments.deleteHighlight({ client, path: { rid: id, hid } })),
+    onSuccess: () => {
+      void refresh();
+      toast({ title: "Highlight removed", tone: "green" });
+    },
+    onError: fail("Couldn't remove the highlight"),
   });
   return { create, update, remove };
 }

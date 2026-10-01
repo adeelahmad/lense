@@ -9,7 +9,10 @@ import { DetailsTab } from "@/components/recording/details-tab";
 import { EntitiesTab } from "@/components/recording/entities-tab";
 import { FilesTab } from "@/components/recording/files-tab";
 import { HistoryTab } from "@/components/recording/history-tab";
-import { useNotes } from "@/components/recording/hooks";
+import { CommentsTab } from "@/components/recording/comments-tab";
+import { openThreads } from "@/components/recording/comments-model";
+import { HighlightsTab } from "@/components/recording/highlights-tab";
+import { useComments, useNotes } from "@/components/recording/hooks";
 import { IiifTab, MetadataTab } from "@/components/recording/iiif-tab";
 import { NotesTab } from "@/components/recording/notes-tab";
 import { SpeakersTab } from "@/components/recording/speakers-tab";
@@ -32,16 +35,22 @@ export const AUDIO_TABS: TabDef[] = [
   { value: "entities", label: "Entities" },
   { value: "chat", label: "Chat" },
   { value: "notes", label: "Notes" },
+  { value: "comments", label: "Comments" },
   { value: "history", label: "History" },
 ];
-/** The tabs with their counts: how many notes you see. */
+/** The tabs with their counts: how many notes you see, and how many comment threads are open. */
 export function useAudioTabs(): TabDef[] {
   const { id } = useRec();
   const notes = useNotes(id);
+  const comments = useComments(id);
   const n = notes.data?.length ?? 0;
-  return AUDIO_TABS.map((t) => (t.value === "notes" && n ? { ...t, count: n } : t));
+  const open = openThreads(comments.data ?? []);
+  return AUDIO_TABS.map((t) =>
+    t.value === "notes" && n ? { ...t, count: n } : t.value === "comments" && open ? { ...t, count: open } : t,
+  );
 }
 export const MORE_TABS: TabDef[] = [
+  { value: "highlights", label: "Highlights" },
   { value: "files", label: "Files" },
   { value: "metadata", label: "Metadata" },
   { value: "iiif", label: "IIIF" },
@@ -241,6 +250,10 @@ export function PanelBody({ tab }: { tab: PanelTab }) {
       return <ChatTab />;
     case "notes":
       return <NotesTab />;
+    case "comments":
+      return <CommentsTab />;
+    case "highlights":
+      return <HighlightsTab />;
     case "history":
       return <HistoryTab />;
     case "metadata":
@@ -284,7 +297,7 @@ export function PanelScroll({
   );
 }
 
-/** Desktop side panel (488px): Summary · Speakers · Entities · Chat · Notes · History, and More (…). */
+/** Desktop side panel (488px): Summary · Speakers · Entities · Chat · Notes · Comments · History, and More (…). */
 export function SidePanel() {
   const { tab, setTab } = useRec();
   const tabs = useAudioTabs();

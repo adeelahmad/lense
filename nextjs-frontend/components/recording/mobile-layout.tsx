@@ -51,11 +51,11 @@ export function MobileLayout() {
     setTab(t);
     setSheet(true);
   };
-  // "Ask in chat", "Add note" and the ⋯ menu's History switch the tab; open the sheet to show it.
+  // "Ask in chat", "Add note", "Comment", a highlight and the ⋯ menu's History switch the tab; open the sheet to show it.
   const [lastTab, setLastTab] = useState(tab);
   if (tab !== lastTab) {
     setLastTab(tab);
-    if (tab === "chat" || tab === "notes" || tab === "history" || tab === "details" || tab === "files") setSheet(true);
+    if (["chat", "notes", "comments", "highlights", "history", "details", "files"].includes(tab)) setSheet(true);
   }
 
   return (

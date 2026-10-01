@@ -4400,6 +4400,426 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/comments": {
+      "get": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "List Comments",
+        "description": "The resource's comments, threaded: each thread (the ones about the whole resource first, then by moment)\nfollowed by its replies, the earliest first.",
+        "operationId": "list_comments",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Comment"
+                  },
+                  "title": "Response Comments-List Comments"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Create Comment",
+        "description": "Comment on a moment or passage (`t0`\u2013`t1`, with the `quote` picked in the text) or on the whole resource, or\nwith `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone who can read the resource\ncan, up to 1,000 each on a resource.",
+        "operationId": "create_comment",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/comments/{cid}": {
+      "patch": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Update Comment",
+        "description": "Change its text (its writer only), or resolve or reopen its thread (`resolved`, on the thread's first\ncomment: its writer, or an editor of the resource; audited as `comment.resolve` and `comment.reopen`).",
+        "operationId": "update_comment",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Delete Comment",
+        "description": "Delete it: its writer, or an owner of the resource (of its namespace, or an admin of its collection). A\nthread's first comment takes its replies with it. Audited (`comment.delete`).",
+        "operationId": "delete_comment",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/highlights": {
+      "get": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "List Highlights",
+        "description": "The resource's highlights, by passage, for everyone who can read it.",
+        "operationId": "list_highlights",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Highlight"
+                  },
+                  "title": "Response Comments-List Highlights"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Create Highlight",
+        "description": "Mark a passage (`t0`\u2013`t1`, with the `quote` picked in the text) in a `colour` (yellow, green, blue or red),\nwith a `label`: editors of the resource. Up to 1,000 on a resource.",
+        "operationId": "create_highlight",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HighlightCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Highlight"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/highlights/{hid}": {
+      "patch": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Update Highlight",
+        "description": "Change its colour or its label (an empty label clears it): editors of the resource.",
+        "operationId": "update_highlight",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "hid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Hid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HighlightUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Highlight"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Delete Highlight",
+        "description": "Delete it: editors of the resource. Audited (`highlight.delete`).",
+        "operationId": "delete_highlight",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "hid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Hid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/files": {
       "get": {
         "tags": [
@@ -14714,6 +15134,294 @@
         "type": "object",
         "title": "CollectionUpdate"
       },
+      "Comment": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the comment this replies to (the thread's first); null: it starts a thread"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "the moment it's about, in ms from the start; null: the whole resource, or a reply"
+          },
+          "t1": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T1",
+            "description": "where that moment ends, in ms"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote",
+            "description": "the words picked in the text"
+          },
+          "resolved": {
+            "type": "boolean",
+            "title": "Resolved",
+            "description": "the thread is resolved (its first comment says so)",
+            "default": false
+          },
+          "resolved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By",
+            "description": "who resolved it: their email"
+          },
+          "resolved_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By Name"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By",
+            "description": "its writer's email"
+          },
+          "created_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Name",
+            "description": "its writer's name, when they gave one"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "edited_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited At",
+            "description": "when its text last changed"
+          },
+          "mine": {
+            "type": "boolean",
+            "title": "Mine",
+            "description": "you wrote it: only you can change its text"
+          },
+          "can_resolve": {
+            "type": "boolean",
+            "title": "Can Resolve",
+            "description": "you can resolve or reopen the thread: you started it, or you edit the resource"
+          },
+          "can_delete": {
+            "type": "boolean",
+            "title": "Can Delete",
+            "description": "you wrote it, or you own the resource"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "recording",
+          "text",
+          "mine",
+          "can_resolve",
+          "can_delete"
+        ],
+        "title": "Comment"
+      },
+      "CommentCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "reply on this comment's thread (its moment is the thread's)"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "the moment it's about, in ms from the start; leave out for the whole resource"
+          },
+          "t1": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T1",
+            "description": "where that moment ends, in ms (default: t0)"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote",
+            "description": "the words picked in the text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "CommentCreate"
+      },
+      "CommentUpdate": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "its writer only"
+          },
+          "resolved": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved",
+            "description": "resolve or reopen the thread: its writer, or an editor of the resource"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CommentUpdate"
+      },
       "ContentState": {
         "properties": {
           "content_state": {
@@ -16291,6 +16999,232 @@
           "type"
         ],
         "title": "HealthSource"
+      },
+      "Highlight": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "t0": {
+            "type": "integer",
+            "title": "T0",
+            "description": "where the passage starts, in ms from the start"
+          },
+          "t1": {
+            "type": "integer",
+            "title": "T1",
+            "description": "where it ends, in ms"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote",
+            "description": "the words picked in the text"
+          },
+          "colour": {
+            "type": "string",
+            "enum": [
+              "yellow",
+              "green",
+              "blue",
+              "red"
+            ],
+            "title": "Colour"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "what it marks, in a few words"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By",
+            "description": "who made it: their email"
+          },
+          "created_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Name"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "mine": {
+            "type": "boolean",
+            "title": "Mine",
+            "description": "you made it"
+          },
+          "can_edit": {
+            "type": "boolean",
+            "title": "Can Edit",
+            "description": "you can change or delete it: you edit the resource"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "recording",
+          "t0",
+          "t1",
+          "colour",
+          "mine",
+          "can_edit"
+        ],
+        "title": "Highlight"
+      },
+      "HighlightCreate": {
+        "properties": {
+          "t0": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "T0",
+            "description": "where the passage starts, in ms from the start"
+          },
+          "t1": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T1",
+            "description": "where it ends, in ms (default: t0)"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote",
+            "description": "the words picked in the text"
+          },
+          "colour": {
+            "type": "string",
+            "enum": [
+              "yellow",
+              "green",
+              "blue",
+              "red"
+            ],
+            "title": "Colour",
+            "default": "yellow"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "what it marks, in a few words"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "t0"
+        ],
+        "title": "HighlightCreate"
+      },
+      "HighlightUpdate": {
+        "properties": {
+          "colour": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "yellow",
+                  "green",
+                  "blue",
+                  "red"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Colour"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "a new label; empty clears it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "HighlightUpdate"
       },
       "IiifImport": {
         "properties": {
