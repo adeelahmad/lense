@@ -7,11 +7,14 @@ from __future__ import annotations
 import base64
 import http.client
 import json
+import sys
+import time
 from email.message import EmailMessage
 
 import pytest
 
 from app.domain import convert, netguard
+from tests import fake_chromium
 
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
 
@@ -124,24 +127,10 @@ def test_what_the_server_can_convert(cfg, monkeypatch):
     assert convert.bootstrap(cfg)["chromium"] == "/usr/bin/chromium"
 
 
-# a Chromium that can't start its sandbox here: it prints only with --no-sandbox, else fails as Ubuntu's AppArmor makes it
-NO_USERNS = r"""#!/bin/sh
-for a in "$@"; do case "$a" in --print-to-pdf=*) out="${a#--print-to-pdf=}";; --no-sandbox) free=1;; esac; done
-if [ -z "$free" ]; then echo "[1:1:FATAL:credentials.cc(127)] Check failed: . : Permission denied (13)" >&2; exit 1; fi
-printf '%%PDF-1.4\n' > "$out"
-"""
-
-
 def test_chromium_runs_without_its_sandbox_only_where_it_cant_have_one(tmp_path, monkeypatch):
-    def fake(name, script):
-        f = tmp_path / name
-        f.write_text(script)
-        f.chmod(0o755)
-        return str(f)
-
-    stuck = fake("stuck", NO_USERNS)
-    able = fake("able", NO_USERNS.replace('if [ -z "$free" ]', "if false"))
-    broken = fake("broken", "#!/bin/sh\necho '[1:1:FATAL:zygote_host_impl_linux.cc(1)] It broke.' >&2\nexit 1\n")
+    stuck = fake_chromium.make(tmp_path / "stuck", "no-userns")
+    able = fake_chromium.make(tmp_path / "able", "able")
+    broken = fake_chromium.make(tmp_path / "broken", "broken")
     monkeypatch.setattr(convert.os, "geteuid", lambda: 1000)
     convert.no_sandbox.cache_clear()
     try:
@@ -158,31 +147,31 @@ def test_chromium_runs_without_its_sandbox_only_where_it_cant_have_one(tmp_path,
         convert.no_sandbox.cache_clear()
 
 
-# a Chromium on a system bus that's slow to start what it asks for, as on GitHub's runners: with a bus to reach, it waits
-# (25 s an answer); it prints what its profile says
-SLOW_BUS = r"""#!/bin/sh
-for a in "$@"; do case "$a" in --print-to-pdf=*) out="${a#--print-to-pdf=}";; --user-data-dir=*) profile="${a#--user-data-dir=}";; esac; done
-case "$DBUS_SYSTEM_BUS_ADDRESS $DBUS_SESSION_BUS_ADDRESS" in "unix:path=$profile/no-bus unix:path=$profile/no-bus") ;; *) sleep 70;; esac
-printf '%%PDF-1.4\n' > "$out"
-cat "$profile/Default/Preferences" >> "$out" 2>/dev/null
-exit 0
-"""
-
-
 def test_chromium_reaches_no_d_bus_and_keeps_webrtc_to_the_proxy(tmp_path, monkeypatch):
     """Chromium asks D-Bus services things on its main thread and waits for the answers, so it gets no bus (nor does the
     probe for its sandbox); full Chromium takes its WebRTC policy from the profile, not from the switch."""
-    f = tmp_path / "chromium"
-    f.write_text(SLOW_BUS)
-    f.chmod(0o755)
+    slow = fake_chromium.make(tmp_path / "chromium", "slow-bus")
     monkeypatch.setenv("DBUS_SYSTEM_BUS_ADDRESS", "unix:path=/run/dbus/system_bus_socket")
     monkeypatch.setattr(convert.os, "geteuid", lambda: 1000)
     convert.no_sandbox.cache_clear()
     try:
-        assert convert.no_sandbox(str(f)) is False  # it printed the empty page, in good time
+        assert convert.no_sandbox(slow) is False  # it printed the empty page, in good time
         with netguard.Guard() as g:
-            convert.print_pdf(str(f), g, netguard.DOCUMENT_URL, tmp_path / "a.pdf", 20)
+            convert.print_pdf(slow, g, netguard.DOCUMENT_URL, tmp_path / "a.pdf", 20)
     finally:
         convert.no_sandbox.cache_clear()
     prefs = json.loads((tmp_path / "a.pdf").read_text().split("\n", 1)[1])
     assert prefs == {"webrtc": {"ip_handling_policy": "disable_non_proxied_udp"}}
+
+
+def test_chromium_that_never_answers_is_stopped_in_time(tmp_path, monkeypatch):
+    """The --print-to-pdf of some builds never finishes; over the pipe a Chromium that doesn't answer is given up on,
+    saying so, and doesn't outlive it."""
+    mute = tmp_path / "mute"
+    mute.write_text(f"#!{sys.executable}\nimport sys, time\nprint('[1:1:WARNING:x.cc(1)] Waiting.', file=sys.stderr)\ntime.sleep(60)\n")
+    mute.chmod(0o755)
+    monkeypatch.setattr(convert, "no_sandbox", lambda exe: True)
+    started = time.monotonic()
+    with netguard.Guard() as g, pytest.raises(ValueError, match=r"took longer than 2 s .*it last said: .*Waiting\."):
+        convert.print_pdf(str(mute), g, netguard.DOCUMENT_URL, tmp_path / "a.pdf", 2)
+    assert time.monotonic() - started < 10

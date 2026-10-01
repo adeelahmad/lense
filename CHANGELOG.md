@@ -86,10 +86,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       add an intranet's networks.
     - Chromium runs without its own sandbox only where it can't have one (as root, or where the system doesn't allow
       it, as in most containers: see [Deployment](docs/deployment.md)), found once by printing an empty page, never
-      because of a page. It reaches no D-Bus: Chromium asks D-Bus services things on its main thread and waits for
-      the answers, and nothing on the server's buses is a page's business. Nothing else it could wait on is left on
-      (a keyring, the crash reporter, casting), and when it can't print a page the error says what it last said and
-      what the page asked for. This applies to documents made into PDFs too.
+      because of a page. It's driven over its DevTools pipe, as Puppeteer and Playwright drive it, not by
+      `--print-to-pdf`, which some builds never finish (Chromium 154's headless commands all hang): it prints once the
+      page has loaded and gone quiet. It reaches no D-Bus: Chromium asks D-Bus services things on its main thread and
+      waits for the answers, and nothing on the server's buses is a page's business. Nothing else it could wait on is
+      left on (a keyring, the crash reporter, casting), and when it can't print a page the error says what it last
+      said and what the page asked for. This applies to documents made into PDFs too.
     - The PDF is named after the link or the page's title (`harbour-news.pdf`), in `data_dir/web/<resource>/`.
     - Web app: Import → Web page (disabled with the reason where the server has no Chromium); a captured page says
       "Captured from <host>" and links to it, and Details shows its address, when it was captured and how.

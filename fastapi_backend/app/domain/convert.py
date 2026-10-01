@@ -14,16 +14,21 @@ other emails) also become resources of their own beside it, each saying which em
 
 from __future__ import annotations
 
+import base64
 import datetime as dt
+import fcntl
 import functools
 import html
 import json
 import os
 import pathlib
 import re
+import select
 import shutil
+import signal
 import subprocess
 import tempfile
+import time
 from email.utils import getaddresses, parsedate_to_datetime
 from html.parser import HTMLParser
 
@@ -210,14 +215,12 @@ def no_sandbox(exe):
     if os.geteuid() == 0:
         return True
     with tempfile.TemporaryDirectory(prefix="lens-chromium-") as profile:
-        target = pathlib.Path(profile) / "empty.pdf"
         argv = [exe, "--headless", "--disable-gpu", "--no-first-run", f"--user-data-dir={profile}"]
-        argv += ["--proxy-server=http://127.0.0.1:9", f"--print-to-pdf={target}", "data:text/html,<p>Lens</p>"]
         try:
-            subprocess.run(argv, capture_output=True, timeout=60, env=no_bus(profile))
-        except (OSError, subprocess.TimeoutExpired):
+            _print([*argv, "--proxy-server=http://127.0.0.1:9"], no_bus(profile), "data:text/html,<p>Lens</p>", 60, 0)
+        except (OSError, ValueError):
             return True
-        return not target.is_file()
+        return False
 
 
 def no_bus(profile):
@@ -230,36 +233,165 @@ def no_bus(profile):
 
 def print_pdf(exe, guard, url, out, seconds, settle_ms=5000):
     """Chromium, headless, printing `url` to the PDF `out` through `guard` (its only way out), with its sandbox where
-    it can have one."""
+    it can have one. It's driven over its DevTools pipe (as Puppeteer and Playwright drive it), not by --print-to-pdf,
+    which some builds never finish (Chromium 154 among them)."""
     with tempfile.TemporaryDirectory(prefix="lens-chromium-") as profile:
-        target = pathlib.Path(profile) / "page.pdf"
         # WebRTC only through the proxy: full Chromium takes this from the profile, and ignores the switch below
         # (which the headless shell takes)
         (pathlib.Path(profile) / "Default").mkdir()
         (pathlib.Path(profile) / "Default" / "Preferences").write_text(
             json.dumps({"webrtc": {"ip_handling_policy": "disable_non_proxied_udp"}})
         )
-        base = [exe, "--headless", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--disable-extensions"]
-        base += ["--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-default-apps"]
-        base += ["--mute-audio", "--hide-scrollbars", "--disable-dev-shm-usage", f"--user-data-dir={profile}", *guard.args()]
+        argv = [exe, "--headless", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--disable-extensions"]
+        argv += ["--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-default-apps"]
+        argv += ["--mute-audio", "--hide-scrollbars", "--disable-dev-shm-usage", f"--user-data-dir={profile}", *guard.args()]
         # nothing around the proxy: no name lookups of its own, and WebRTC (which a page's script can start) only
         # through the proxy, never UDP straight to an address
-        base += [f"--host-resolver-rules={RESOLVE_NOTHING}", "--dns-prefetch-disable"]
-        base += ["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"]
+        argv += [f"--host-resolver-rules={RESOLVE_NOTHING}", "--dns-prefetch-disable"]
+        argv += ["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"]
         # nothing it could wait on: no keyring, crash reporter or casting (and no D-Bus: no_bus)
-        base += ["--password-store=basic", "--use-mock-keychain", "--disable-breakpad", "--disable-features=MediaRouter"]
-        base += ["--enable-logging=stderr"]  # what it says goes into the error when it fails
-        tail = [f"--print-to-pdf={target}", "--no-pdf-header-footer", "--run-all-compositor-stages-before-draw"]
-        tail += [f"--virtual-time-budget={settle_ms}", url]
+        argv += ["--password-store=basic", "--use-mock-keychain", "--disable-breakpad", "--disable-features=MediaRouter"]
+        argv += ["--enable-logging=stderr"]  # what it says goes into the error when it fails
+        argv += ["--no-sandbox"] if no_sandbox(exe) else []
         try:
-            r = _run([*base, *(["--no-sandbox"] if no_sandbox(exe) else []), *tail], seconds, env=no_bus(profile))
+            pdf = _print(argv, no_bus(profile), url, seconds, settle_ms)
         except ValueError as e:
             raise ValueError(f"{e}{_asked(guard)}") from None
-        if not target.is_file() or target.stat().st_size == 0:
-            said = _last_said(r.stderr) or f"exit {r.returncode}"
-            raise ValueError(f"Chromium couldn't print it ({said}){_asked(guard)}")
-        out.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(target), out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(pdf)
+
+
+def _high(fd):
+    """`fd` moved above the ones a child is given (0-4), so that giving them can't overwrite it."""
+    moved = fcntl.fcntl(fd, fcntl.F_DUPFD_CLOEXEC, 10)
+    os.close(fd)
+    return moved
+
+
+def _print(argv, env, url, seconds, settle_ms):
+    """The PDF of `url`, printed by the Chromium `argv` starts, over its DevTools pipe (--remote-debugging-pipe: its
+    commands on its fd 3, its answers and events on its fd 4, each JSON ending in a NUL). It prints once the page has
+    loaded and gone quiet (nothing fetched for half a second), or `settle_ms` after it loaded."""
+    to_read, to_write = map(_high, os.pipe())
+    from_read, from_write = map(_high, os.pipe())
+    said = tempfile.TemporaryFile()
+    err = _high(os.dup(said.fileno()))
+    deadline, buf, n = time.monotonic() + seconds, b"", 0
+    try:
+        pid = os.posix_spawn(
+            argv[0],
+            [*argv, "--remote-debugging-pipe", "about:blank"],
+            env,
+            file_actions=[
+                (os.POSIX_SPAWN_OPEN, 0, os.devnull, os.O_RDONLY, 0),
+                (os.POSIX_SPAWN_OPEN, 1, os.devnull, os.O_WRONLY, 0),
+                (os.POSIX_SPAWN_DUP2, err, 2),
+                (os.POSIX_SPAWN_DUP2, to_read, 3),
+                (os.POSIX_SPAWN_DUP2, from_write, 4),
+            ],
+            setsid=True,  # its own process group, so that it goes with all its helpers
+        )
+    finally:
+        for fd in (to_read, from_write, err):
+            os.close(fd)
+    events: list[dict] = []
+
+    def receive(by):
+        """The next message, or None at the monotonic time `by`; EOFError when Chromium has gone."""
+        nonlocal buf
+        while b"\0" not in buf:
+            left = by - time.monotonic()
+            if left <= 0 or not select.select([from_read], [], [], left)[0]:
+                return None
+            chunk = os.read(from_read, 1 << 20)
+            if not chunk:
+                raise EOFError
+            buf += chunk
+        msg, buf = buf.split(b"\0", 1)
+        return json.loads(msg)
+
+    def call(method, params=None, session=None):
+        nonlocal n
+        n += 1
+        msg = {"id": n, "method": method, "params": params or {}, **({"sessionId": session} if session else {})}
+        os.write(to_write, json.dumps(msg).encode() + b"\0")
+        while True:
+            m = receive(deadline)
+            if m is None:
+                raise TimeoutError
+            if m.get("id") == n:
+                if "error" in m:
+                    raise ValueError(f"Chromium couldn't {method}: {(m['error'] or {}).get('message')}")
+                return m.get("result") or {}
+            events.append(m)
+
+    def happened(name, loader, by):
+        """Whether the page's lifecycle reached `name` (load, networkIdle) by the monotonic time `by`."""
+        while True:
+            for e in events:
+                p = e.get("params") or {}
+                if e.get("method") == "Page.lifecycleEvent" and p.get("name") == name and p.get("loaderId") == loader:
+                    return True
+            m = receive(by)
+            if m is None:
+                return False
+            events.append(m)
+
+    try:
+        target = call("Target.createTarget", {"url": "about:blank"})["targetId"]
+        session = call("Target.attachToTarget", {"targetId": target, "flatten": True})["sessionId"]
+        call("Page.enable", session=session)
+        call("Page.setLifecycleEventsEnabled", {"enabled": True}, session=session)
+        nav = call("Page.navigate", {"url": url}, session=session)
+        if nav.get("errorText"):
+            raise ValueError(f"Chromium couldn't load it ({nav['errorText']})")
+        if not happened("load", nav.get("loaderId"), deadline):
+            raise TimeoutError
+        happened("networkIdle", nav.get("loaderId"), min(deadline, time.monotonic() + settle_ms / 1000))
+        data = call("Page.printToPDF", {"printBackground": True, "preferCSSPageSize": True}, session=session)["data"]
+        try:
+            call("Browser.close")
+        except (TimeoutError, EOFError, ValueError):
+            pass
+        return base64.b64decode(data)
+    except TimeoutError:
+        last = _last_said(_said(said))
+        raise ValueError(
+            f"converting it took longer than {seconds} s (documents.convert_seconds){f'; it last said: {last}' if last else ''}"
+        ) from None
+    except (EOFError, OSError, KeyError):
+        raise ValueError(f"Chromium couldn't print it ({_last_said(_said(said)) or 'it stopped'})") from None
+    finally:
+        _end(pid, 5)
+        for fd in (to_write, from_read):
+            os.close(fd)
+        said.close()
+
+
+def _said(f):
+    f.flush()
+    f.seek(0)
+    return f.read()
+
+
+def _end(pid, seconds):
+    """Chromium gone, with its helpers: it's given `seconds` to close by itself."""
+    until = time.monotonic() + seconds
+    while time.monotonic() < until:
+        try:
+            if os.waitpid(pid, os.WNOHANG)[0]:
+                break
+        except ChildProcessError:
+            break
+        time.sleep(0.05)
+    try:
+        os.killpg(pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+    try:
+        os.waitpid(pid, 0)
+    except ChildProcessError:
+        pass
 
 
 def _asked(guard):
