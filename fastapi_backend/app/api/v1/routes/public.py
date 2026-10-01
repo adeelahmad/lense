@@ -94,11 +94,13 @@ def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecordin
         raise HTTPException(404, "not found")
     d = public.recording(db, cfg, rid, seen, a, member, granted and not member, network)
     if who.signed_in and not permitted:
-        d["can_request"] = seen == "locked" or bool(d["closed"])
+        d["can_request"] = seen == "locked" or bool(d["closed"]) or d["files_closed"] > 0
         d["request"] = acc.request_of(db, rid, acl.user.id if acl.user else None)
     if d["media"]:  # only the media this visitor may play is signed
         d["media"]["url"] = sign_url(d["media"]["url"])
         d["media"]["poster"] = sign_url(d["media"]["poster"])
+    for f in d["files"]:  # and only the files they may download
+        f["url"] = sign_url(f["url"])
     return PublicRecording.model_validate(d)
 
 

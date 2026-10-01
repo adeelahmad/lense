@@ -78,8 +78,8 @@ run a separate `worker` service.
 
 ## Media
 
-Audio, video, frames and word clouds are loaded by `<audio>`, `<video>` and `<img>` tags, which can't send an
-`Authorization` header. The API therefore returns **signed links** (`?exp=…&sig=…`, HMAC over the path and expiry)
+Audio, video, frames and word clouds are loaded by `<audio>`, `<video>` and `<img>` tags, and supplementary files are
+downloaded through links, none of which can send an `Authorization` header. The API therefore returns **signed links** (`?exp=…&sig=…`, HMAC over the path and expiry)
 in every response that contains media, and only to callers who may read that recording. Media endpoints accept a
 signed link, a share link (`?s=…`) or a bearer token. Byte ranges are supported so players can seek.
 

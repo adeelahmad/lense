@@ -26,6 +26,24 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Files: transcripts, captions, translations, indexes, thumbnails and attachments beside a resource.** A
+  resource has its primary file (the audio or video its pipeline runs on) and now any number of supplementary files,
+  each with a role, a language, a label and a description. Decided with the project owner: typed files, parsed.
+    - Transcripts, captions and translations (text, Markdown, JSON, SRT, WebVTT, Word, PDF) and indexes (WebVTT or SRT
+      chapters, JSON, OHMS XML, or lines that start with a time) are read into lines that search finds next to what
+      was said and shown on screen (`source: "file"`). Lines play from their times; a file without times opens on its
+      line instead.
+    - The recording page's Files tab (under More) lists the primary file and the others to download, shows their
+      lines, and lets editors add, describe, re-role and delete files. Adding, changing and deleting are audited
+      (`file.add`, `file.update`, `file.delete`).
+    - A public resource opens its files with its parts (decided with the project owner): transcripts, captions and
+      translations with its transcript, indexes with its index, thumbnails with its media; attachments always need
+      permission. The public page lists the ones a visitor may download.
+    - IIIF lists every file as a download (closed ones behind the Authorization Flow), timed transcripts, captions and
+      translations as WebVTT captions, indexes as tables of contents, and a thumbnail as the Manifest's.
+    - API: `/api/v1/resources/{rid}/files` (list, add as the raw body, change, delete, download, lines), up to
+      `server.max_upload_mb` each (docs/api.md#files). Files are kept in `data_dir/files/<resource>/`; they stay when a
+      resource moves and go when it's deleted.
 - **Resources: `/api/v1/resources` names what the archive holds.** The API's recordings are now its resources: every
   `/api/v1/recordings/…` path is published as `/api/v1/resources/…`, the schema's tag and the generated client's
   class are `resources`/`Resources`, and the web app's pages are at `/resources/<id>`. Decided with the project owner:

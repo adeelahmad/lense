@@ -18,6 +18,7 @@ export type PanelTab =
   | "metadata"
   | "iiif"
   | "details"
+  | "files"
   | "shots"
   | "text"
   | "people"
@@ -54,6 +55,8 @@ export type RecordingCtx = {
   entity: { selected: EntityRef | null; select: (e: EntityRef | null) => void };
   tab: PanelTab;
   setTab: (t: PanelTab) => void;
+  /** A file to show in the Files tab (and one of its lines), from the page's address (?file=&line=). */
+  fileFocus?: { file: number; line: number | null } | null;
   /** A quote waiting to prefill the recording chat ("Ask in chat"). */
   chatDraft: string | null;
   askInChat: (quote: string) => void;

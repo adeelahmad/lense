@@ -78,7 +78,8 @@ Audio and video uploaded in the web app (Import → Upload) go up in pieces ([AP
 
 Pieces are written straight to `data_dir/uploads/.partial`, never held in memory; finished files are kept in
 `data_dir/uploads/<namespace>/`, so give `data_dir` room for them (an upload is refused when it would leave less than
-512 MB free). Transcript files have their own limit, `server.max_upload_mb` (Settings → Access & embedding); watched
+512 MB free). Transcript files have their own limit, `server.max_upload_mb` (Settings → Access & embedding), which
+also caps a resource's supplementary files ([API](api.md#files)), kept in `data_dir/files/<resource>/`; watched
 folders have none.
 
 ## API keys

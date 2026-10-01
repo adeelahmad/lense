@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -8,11 +8,11 @@ from app.schemas.common import ResponseModel
 
 
 class SearchHit(ResponseModel):
-    id: int | str = Field(description="segment id (int) for transcript hits, OCR span id (str) for screen hits")
+    id: int | str = Field(description="segment id (int) for transcript hits, OCR span or file line id (str) for the others")
     recording_id: int
     idx: int | None = None
-    t0: int
-    t1: int
+    t0: int | None = Field(description="ms; None for a line of a file that doesn't say when its lines are")
+    t1: int | None
     emotion: str | None = None
     speaker_id: int | None = None
     speaker: str | None = None
@@ -20,9 +20,15 @@ class SearchHit(ResponseModel):
     recorded_at: str | None = None
     namespace: str | None = None
     snippet: str = Field(description="HTML: escaped text with <mark> around matches")
-    source: str = Field(description='"said" (transcript) or "screen" (text on screen in a video)')
+    source: Literal["said", "screen", "file"] = Field(
+        description='"said" (transcript), "screen" (text on screen in a video) or "file" (a line of a supplementary file)'
+    )
     frame: str | None = Field(None, description="screen hits: signed link to the video frame")
     box: Any = Field(None, description="screen hits: where the text is on the frame")
+    file: int | None = Field(None, description="file hits: the supplementary file the line is in")
+    file_role: str | None = Field(None, description="file hits: its role (transcript, captions, translation or index)")
+    file_label: str | None = Field(None, description="file hits: its label, or its name")
+    line: int | None = Field(None, description="file hits: which of its lines (from 0)")
 
 
 class FacetCount(ResponseModel):

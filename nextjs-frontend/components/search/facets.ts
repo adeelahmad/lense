@@ -50,7 +50,7 @@ export type HitGroup = {
   hits: SearchHit[];
 };
 
-/** Hits grouped by recording, in the order their best hit ranks; hits inside a group in time order. */
+/** Hits grouped by recording, in the order their best hit ranks; hits inside a group in time order (untimed last). */
 export function groupByRecording(hits: SearchHit[]): HitGroup[] {
   const groups = new Map<number, HitGroup>();
   for (const h of hits) {
@@ -67,6 +67,8 @@ export function groupByRecording(hits: SearchHit[]): HitGroup[] {
     }
     g.hits.push(h);
   }
-  for (const g of groups.values()) g.hits.sort((a, b) => a.t0 - b.t0);
+  // lines of files without times come after the moments, in their order
+  const at = (h: SearchHit) => h.t0 ?? Number.MAX_SAFE_INTEGER;
+  for (const g of groups.values()) g.hits.sort((a, b) => at(a) - at(b) || (a.line ?? 0) - (b.line ?? 0));
   return [...groups.values()];
 }

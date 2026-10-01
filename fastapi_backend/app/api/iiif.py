@@ -32,6 +32,7 @@ from app.api.deps import Cfg, Db, OptionalUser, Principal, client_ip, get_cfg, g
 from app.api.v1.routes.recordings import serve_audio
 from app.domain import access as acc
 from app.domain import auth, iiif, iiif_auth, render, store, video
+from app.domain import files as filemod
 from app.domain import metadata as md
 from app.domain.store import DB, R
 
@@ -82,6 +83,19 @@ def _granted(request: Request, db: DB, user: Principal | None) -> frozenset[int]
 
 
 PART = {"audio": "media", "transcript": "transcript"}  # what the probe and content routes call each part
+FILE_WHAT = re.compile(r"(file|vtt)(\d+)")  # a supplementary file (file<id>), or one read as WebVTT (vtt<id>)
+
+
+def _part(db: DB, rid: int, what: str) -> str | None:
+    """The part (access.PARTS) that opens `what` to everyone: audio and transcript, or a supplementary file's (by its
+    role; None for attachments, which never are). KeyError for anything else."""
+    if what in PART:
+        return PART[what]
+    m = FILE_WHAT.fullmatch(what)
+    f = db.one("SELECT role, recording FROM $r", r=R("resource_file", int(m.group(2)))) if m else None
+    if not f or f.get("recording") != rid:
+        raise KeyError(what)
+    return filemod.PART.get(f["role"])
 
 
 def _allowed(request: Request, db: DB, cfg: Config, user: Principal | None, rec: dict[str, Any], rid: int, what: str | None = None) -> bool:
@@ -115,7 +129,8 @@ def _content_ok(
     request: Request, db: DB, cfg: Config, user: Principal | None, rec: dict[str, Any], rid: int, a: dict[str, Any], what: str
 ) -> bool:
     """A part open to everyone, or permission (_allowed)."""
-    return acc.is_open(a, PART[what]) or _allowed(request, db, cfg, user, rec, rid, what)
+    part = _part(db, rid, what)
+    return bool(part and acc.is_open(a, part)) or _allowed(request, db, cfg, user, rec, rid, what)
 
 
 def _ld(doc: dict[str, Any], status: int = 200) -> JSONResponse:
@@ -215,9 +230,13 @@ def iiif_probe(rid: int, what: str, request: Request, db: Db, cfg: Cfg) -> JSONR
         return JSONResponse(iiif_auth.probe_result(*a, **k), media_type="application/ld+json")
 
     rec = db.one("SELECT space, path, remote, source, media FROM $r", r=R("recording", rid))
-    if not rec or what not in ("audio", "transcript"):
+    try:
+        part = _part(db, rid, what) if rec else None
+    except KeyError:
+        rec = None
+    if not rec:
         return result(404, heading="Not found")
-    if acc.is_open(acc.of(db, rid), PART[what]):
+    if part and acc.is_open(acc.of(db, rid), part):
         return result(200)
     h = request.headers.get("authorization", "")
     acct = iiif_auth.token_account(db, h[7:].strip() if h.lower().startswith("bearer ") else "")
@@ -229,9 +248,17 @@ def iiif_probe(rid: int, what: str, request: Request, db: Db, cfg: Cfg) -> JSONR
             loc = {"id": f"{base}/iiif/{rid}/audio?{sig}", "type": "Sound", "format": render.AUDIO_TYPES.get(ext, "audio/mpeg")}
             if (rec.get("media") or {}).get("kind") == "video":
                 loc = {"id": f"{base}/iiif/{rid}/media?{sig}", "type": "Video", "format": video.VIDEO_TYPES.get(ext, "video/mp4")}
-        else:
+        elif what == "transcript":
             sig = iiif.sign(cfg, rid, "transcript")
             loc = {"id": f"{base}/iiif/{rid}/transcript.vtt?{sig}", "type": "Text", "format": "text/vtt"}
+        else:
+            kind, fid = FILE_WHAT.fullmatch(what).groups()  # type: ignore[union-attr]  # _part checked it
+            f = filemod.get(db, rid, int(fid))
+            sig = iiif.sign(cfg, rid, what)
+            if kind == "vtt":
+                loc = {"id": f"{base}/iiif/{rid}/files/{fid}.vtt?{sig}", "type": "Text", "format": "text/vtt"}
+            else:
+                loc = {"id": f"{base}/iiif/{rid}/files/{fid}?{sig}", "type": iiif.file_type(f), "format": filemod.served_type(f)}
         return result(302, loc)
     if acct:
         return result(403, heading="No access", note="Your account doesn't have access to this recording.")
@@ -394,6 +421,32 @@ def iiif_transcript(rid: int, fmt: str, request: Request, user: OptionalUser, db
         raise HTTPException(401, "sign in through the viewer to read this transcript")
     text = render.export_text(render.player_data(db, rid), fmt)
     return Response(text, media_type=iiif.DOWNLOADS[fmt][0] + "; charset=utf-8")
+
+
+@router.get("/iiif/{rid}/files/{name}", response_class=Response)
+def iiif_file(rid: int, name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
+    """A supplementary file as it was added (`<id>`), or a transcript, captions, translation or index that says when its
+    lines are as WebVTT (`<id>.vtt`). Open to everyone with the part its role follows (attachments never are)."""
+    m = re.fullmatch(r"(\d+)(\.vtt)?", name)
+    if not m:
+        raise HTTPException(404, "not found")
+    fid, vtt = int(m.group(1)), bool(m.group(2))
+    what = f"{'vtt' if vtt else 'file'}{fid}"
+    try:
+        f = filemod.get(db, rid, fid)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    rec, a = _rec(request, db, cfg, user, rid, what)
+    if vtt and not (f["role"] in filemod.PARSED and f.get("timed")):
+        raise HTTPException(404, "not found")
+    if not _content_ok(request, db, cfg, user, rec, rid, a, what):
+        raise HTTPException(401, "sign in through the viewer to open this file")
+    if vtt:
+        return Response(filemod.as_vtt(db, f), media_type="text/vtt; charset=utf-8")
+    path = filemod.path_of(cfg, f)
+    if not path.is_file():
+        raise HTTPException(404, "not found")
+    return FileResponse(path, media_type=filemod.served_type(f), filename=f["name"], headers=filemod.HEADERS)
 
 
 @router.get("/iiif/{rid}/search")

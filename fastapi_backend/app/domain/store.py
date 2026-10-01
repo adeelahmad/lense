@@ -423,7 +423,7 @@ class DB:
             with self._text_lock:
                 if not self._text_ready:
                     t = time.time()
-                    for index, table in (("segment_text", "segment"), ("ocr_text", "ocr_span")):
+                    for index, table in TEXT_INDEXES:
                         self.q(f"REBUILD INDEX IF EXISTS {index} ON {table}")
                     self._text_ready = True
                     logging.getLogger("lens").info("rebuilt the embedded full-text index in %.1fs", time.time() - t)
@@ -606,6 +606,14 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS note SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_rec ON note FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS note_account ON note FIELDS account",
+    # a resource's supplementary files, and the lines parsed from its transcripts, captions and indexes (app/domain/files.py)
+    "DEFINE TABLE IF NOT EXISTS resource_file SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS resource_file_rec ON resource_file FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS resource_file_space ON resource_file FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS file_line SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS file_line_file ON file_line FIELDS file",
+    "DEFINE INDEX IF NOT EXISTS file_line_rec ON file_line FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS file_line_space ON file_line FIELDS space",
     "DEFINE INDEX IF NOT EXISTS saved_collection_owner ON saved_collection FIELDS account",
     "DEFINE TABLE IF NOT EXISTS batch SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_batch ON job FIELDS batch",
@@ -619,13 +627,17 @@ def _analyzer(cfg):
     return f"DEFINE ANALYZER IF NOT EXISTS archive_text TOKENIZERS class FILTERS lowercase, ascii{stem}"
 
 
+# the full-text indexes, each on the `text` of its table: transcripts, text on screen, and lines of supplementary files
+TEXT_INDEXES = (("segment_text", "segment"), ("ocr_text", "ocr_span"), ("file_text", "file_line"))
+
+
 def _text_index(db):
     # SurrealDB 3 spells full-text indexes FULLTEXT; 2.x (and the embedded engine) spell them SEARCH.
     found = None
     for kw in ("FULLTEXT", "SEARCH"):
         try:
-            db.q(f"DEFINE INDEX IF NOT EXISTS segment_text ON segment FIELDS text {kw} ANALYZER archive_text BM25 HIGHLIGHTS")
-            db.q(f"DEFINE INDEX IF NOT EXISTS ocr_text ON ocr_span FIELDS text {kw} ANALYZER archive_text BM25 HIGHLIGHTS")
+            for index, table in TEXT_INDEXES:
+                db.q(f"DEFINE INDEX IF NOT EXISTS {index} ON {table} FIELDS text {kw} ANALYZER archive_text BM25 HIGHLIGHTS")
             return kw
         except Exception:  # noqa: BLE001
             continue
@@ -663,11 +675,7 @@ def migrate(db):
 
 def reindex(db, cfg):
     """Rebuild the full-text index, e.g. after changing search.stemming."""
-    for s in (
-        "REMOVE INDEX IF EXISTS segment_text ON segment",
-        "REMOVE INDEX IF EXISTS ocr_text ON ocr_span",
-        "REMOVE ANALYZER IF EXISTS archive_text",
-    ):
+    for s in [f"REMOVE INDEX IF EXISTS {index} ON {table}" for index, table in TEXT_INDEXES] + ["REMOVE ANALYZER IF EXISTS archive_text"]:
         try:
             db.q(s)
         except Exception:  # noqa: BLE001

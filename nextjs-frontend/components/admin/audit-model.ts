@@ -27,7 +27,7 @@ const PREFIX: [RegExp, Group][] = [
   [/^(source\.|watch\.|import)/, "sources"],
   [/^(share\.|embed)/, "sharing"],
   [
-    /^(metadata\.|speaker\.|entity\.|mention\.|transcript\.|ocr\.|face\.|faces\.|batch\.|assistant\.|recording\.|collection\.)/,
+    /^(metadata\.|speaker\.|entity\.|mention\.|transcript\.|ocr\.|face\.|faces\.|batch\.|assistant\.|recording\.|collection\.|file\.)/,
     "content",
   ],
 ];

@@ -1,7 +1,7 @@
 """Moving a recording to another namespace (docs/api.md).
 
-It keeps its transcript, media, frames, outputs, notes, the people given permission on it and, unless they are
-revoked, its share links. Its IIIF manifest stays as it was: what it had from its old namespace (the default access and
+It keeps its transcript, media, frames, outputs, notes, supplementary files, the people given permission on it and,
+unless they are revoked, its share links. Its IIIF manifest stays as it was: what it had from its old namespace (the default access and
 open parts, and the metadata profile's defaults) is pinned on the recording wherever the new namespace would change it,
 and the change is kept in its metadata history.
 
@@ -22,7 +22,20 @@ from . import access as acc, auth, deletion, faces as facemod, jobs, metadata as
 
 R = store.R
 # rows that belong to the recording and say which namespace they are in
-SPACED = ("segment", "appearance", "section", "shot", "ocr_span", "face_track", "job", "output", "share_link", "note")
+SPACED = (
+    "segment",
+    "appearance",
+    "section",
+    "shot",
+    "ocr_span",
+    "face_track",
+    "job",
+    "output",
+    "share_link",
+    "note",
+    "resource_file",
+    "file_line",
+)
 
 
 class Conflict(RuntimeError):

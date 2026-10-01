@@ -1,10 +1,11 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
-import { Entities, Jobs, Notes, Pipelines, Resources, Speakers, Templates, Video } from "@/app/openapi-client";
-import type { NoteCreate, Recording } from "@/app/openapi-client/types.gen";
+import { Entities, Files, Jobs, Notes, Pipelines, Resources, Speakers, Templates, Video } from "@/app/openapi-client";
+import type { FileUpdate, NoteCreate, Recording } from "@/app/openapi-client/types.gen";
+import type { FileRole } from "@/components/recording/files-model";
 import { isActive, normalizeJob, type JobInfo } from "@/components/recording/jobs";
 import { normalizePlayer } from "@/components/recording/model";
 import { useToast } from "@/components/ui/toast";
@@ -21,6 +22,8 @@ export const rk = {
   outputs: (id: number) => ["recording", id, "outputs"] as const,
   entities: (id: number) => ["recording", id, "entities"] as const,
   notes: (id: number) => ["recording", id, "notes"] as const,
+  files: (id: number) => ["recording", id, "files"] as const,
+  fileLines: (id: number, fid: number) => ["recording", id, "files", fid, "lines"] as const,
   job: (jid: number) => ["job", jid] as const,
 };
 
@@ -242,6 +245,81 @@ export function useNoteActions(id: number) {
     onError: fail("Couldn't delete the note"),
   });
   return { create, update, remove };
+}
+
+/** The resource's primary file and supplementary files, with signed links to download them. */
+export function useFiles(id: number) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: rk.files(id),
+    queryFn: () => data(Files.listFiles({ client, path: { rid: id } })),
+    staleTime: 60_000, // the download links are signed for a while; editors' changes refresh it
+  });
+}
+
+const LINES_PAGE = 200;
+/** The lines read from one file, a page at a time. */
+export function useFileLines(id: number, fid: number, enabled = true) {
+  const client = useApiClient();
+  return useInfiniteQuery({
+    queryKey: rk.fileLines(id, fid),
+    enabled,
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      data(Files.listFileLines({ client, path: { rid: id, fid }, query: { offset: pageParam, limit: LINES_PAGE } })),
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((n, p) => n + p.lines.length, 0);
+      return loaded < last.total && last.lines.length ? loaded : undefined;
+    },
+  });
+}
+
+/** Add, change and delete files; each refreshes the list and search. */
+export function useFileActions(id: number) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const fail = (title: string) => (e: unknown) =>
+    toast({ title, body: e instanceof ApiError ? e.message : "Please try again.", tone: "red" });
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: rk.files(id) });
+    for (const key of ["search-results", "search-base"]) void qc.invalidateQueries({ queryKey: [key] });
+  };
+  const add = useMutation({
+    mutationFn: (v: { file: File; role: FileRole; language: string | null; label: string | null }) =>
+      data(
+        Files.addFile({
+          client,
+          path: { rid: id },
+          query: { role: v.role, name: v.file.name, language: v.language, label: v.label },
+          body: v.file,
+        }),
+      ),
+    onSuccess: (f) => {
+      refresh();
+      toast({ title: `Added ${f.label || f.name}`, tone: "green" });
+    },
+    onError: fail("Couldn't add the file"),
+  });
+  const update = useMutation({
+    mutationFn: (v: { fid: number; body: FileUpdate }) =>
+      data(Files.updateFile({ client, path: { rid: id, fid: v.fid }, body: v.body })),
+    onSuccess: (f) => {
+      refresh();
+      void qc.invalidateQueries({ queryKey: rk.fileLines(id, f.id) });
+      toast({ title: "Saved", tone: "green" });
+    },
+    onError: fail("Couldn't change the file"),
+  });
+  const remove = useMutation({
+    mutationFn: (fid: number) => data(Files.deleteFile({ client, path: { rid: id, fid } })),
+    onSuccess: () => {
+      refresh();
+      toast({ title: "File deleted", tone: "green" });
+    },
+    onError: fail("Couldn't delete the file"),
+  });
+  return { add, update, remove };
 }
 
 export function useRecordingActions(id: number) {

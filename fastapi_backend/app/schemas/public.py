@@ -66,6 +66,20 @@ class PublicChapter(ResponseModel):
     title: str | None = None
 
 
+class PublicFile(ResponseModel):
+    """A supplementary file a visitor may download: it follows the part its role does (transcripts, captions and
+    translations the transcript, indexes the index, thumbnails the media); attachments need permission."""
+
+    id: int
+    role: str
+    name: str
+    label: str | None = None
+    language: str | None = None
+    size: int = Field(description="bytes")
+    content_type: str | None = None
+    url: str = Field(description="a signed link to download it")
+
+
 class PublicRecording(ResponseModel):
     """A recording as this visitor may see it: all of it with permission, else its page, description and open parts,
     or (restricted, signed in) its title only. Parts left out are null."""
@@ -88,6 +102,8 @@ class PublicRecording(ResponseModel):
     transcript: PublicTranscript | None = None
     chapters: list[PublicChapter] | None = None
     closed: list[AccessPart] = Field(description="parts the recording has that this visitor can't use")
+    files: list[PublicFile] = Field(default_factory=list, description="its supplementary files this visitor may download")
+    files_closed: int = Field(0, description="how many of its files this visitor can't download")
     can_request: bool = Field(False, description="signed in without permission, with something closed: they may ask for access")
     request: PublicRequest | None = Field(None, description="their latest request for access, if they made one")
 

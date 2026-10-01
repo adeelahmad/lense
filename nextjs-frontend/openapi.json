@@ -4284,6 +4284,404 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/files": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "List Files",
+        "description": "The resource's primary file (its audio or video, if it has one) and its supplementary files, with signed links to\ndownload them.",
+        "operationId": "list_files",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceFiles"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Add File",
+        "description": "Add a file as the raw request body (application/octet-stream), up to `server.max_upload_mb`. Each role takes\nits own types: transcripts and translations .txt .md .json .jsonl .srt .vtt .docx .doc .pdf, captions .vtt .srt,\nindexes those and OHMS .xml, thumbnails .jpg .png .webp .gif, attachments anything. 400 when its contents can't\nbe read as its role. Editors; audited as `file.add`.",
+        "operationId": "add_file",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "transcript",
+                "captions",
+                "translation",
+                "index",
+                "thumbnail",
+                "attachment"
+              ],
+              "type": "string",
+              "description": "what it is: transcripts, captions, translations and indexes are read into lines search finds",
+              "title": "Role"
+            },
+            "description": "what it is: transcripts, captions, translations and indexes are read into lines search finds"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "its file name, with the extension",
+              "title": "Name"
+            },
+            "description": "its file name, with the extension"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "what language it's in (en, pt-BR)",
+              "title": "Language"
+            },
+            "description": "what language it's in (en, pt-BR)"
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceFile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/files/{fid}": {
+      "patch": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Update File",
+        "description": "Change a file's role, language, label or description (null clears the last three). A new role reads it again,\nso a file can't take a role whose type it isn't. Editors; audited as `file.update`.",
+        "operationId": "update_file",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceFile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Delete File",
+        "description": "Delete a file and the lines read from it. Editors; audited as `file.delete`.",
+        "operationId": "delete_file",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/files/{fid}/download": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Download File",
+        "description": "The file as it was added, to save. Accepts a bearer token or a signed link (from the list).",
+        "operationId": "download_file",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/files/{fid}/lines": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "List File Lines",
+        "description": "The lines read from a transcript, captions, translation or index, in order.",
+        "operationId": "list_file_lines",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileLines"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/import": {
       "post": {
         "tags": [
@@ -4655,7 +5053,7 @@
           "search"
         ],
         "summary": "Search Transcripts",
-        "description": "Moments where the words are said (or shown on screen in a video), best first, in the namespaces you can read and\nthe collections you were given a role on.",
+        "description": "Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary\ntranscripts, captions, translations and indexes), best first, in the namespaces you can read and the collections\nyou were given a role on. A speaker or emotion filter keeps to what was said.",
         "operationId": "search_transcripts",
         "parameters": [
           {
@@ -14120,6 +14518,188 @@
         ],
         "title": "FacetCount"
       },
+      "FileLine": {
+        "properties": {
+          "idx": {
+            "type": "integer",
+            "title": "Idx"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "ms; none in a file that doesn't say when its lines are"
+          },
+          "t1": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T1"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "the line; for an index, its title, synopsis and keywords together"
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker",
+            "description": "who says it, as the file names them"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "an index entry's title"
+          },
+          "synopsis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Synopsis",
+            "description": "an index entry's synopsis"
+          },
+          "keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keywords",
+            "description": "an index entry's keywords"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "idx",
+          "text"
+        ],
+        "title": "FileLine"
+      },
+      "FileLines": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/FileLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "total",
+          "lines"
+        ],
+        "title": "FileLines"
+      },
+      "FileUpdate": {
+        "properties": {
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "transcript",
+                  "captions",
+                  "translation",
+                  "index",
+                  "thumbnail",
+                  "attachment"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role",
+            "description": "a new role; transcripts, captions, translations and indexes are read again"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "null clears it"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "null clears it"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "null clears it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FileUpdate"
+      },
       "ForgotPasswordRequest": {
         "properties": {
           "email": {
@@ -17658,6 +18238,65 @@
         ],
         "title": "PreviewLine"
       },
+      "PrimaryFile": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "audio",
+              "video"
+            ],
+            "title": "Kind"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size",
+            "description": "bytes"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          },
+          "download": {
+            "type": "string",
+            "title": "Download",
+            "description": "a signed link to it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "download"
+        ],
+        "title": "PrimaryFile",
+        "description": "The audio or video the resource's pipeline runs on."
+      },
       "PublicCard": {
         "properties": {
           "id": {
@@ -17984,6 +18623,76 @@
         ],
         "title": "PublicDownload"
       },
+      "PublicFile": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "description": "bytes"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "a signed link to download it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "name",
+          "size",
+          "url"
+        ],
+        "title": "PublicFile",
+        "description": "A supplementary file a visitor may download: it follows the part its role does (transcripts, captions and\ntranslations the transcript, indexes the index, thumbnails the media); attachments need permission."
+      },
       "PublicHit": {
         "properties": {
           "t0": {
@@ -18288,6 +18997,20 @@
             "type": "array",
             "title": "Closed",
             "description": "parts the recording has that this visitor can't use"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/PublicFile"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "its supplementary files this visitor may download"
+          },
+          "files_closed": {
+            "type": "integer",
+            "title": "Files Closed",
+            "description": "how many of its files this visitor can't download",
+            "default": 0
           },
           "can_request": {
             "type": "boolean",
@@ -19622,6 +20345,206 @@
         ],
         "title": "ResetPasswordRequest"
       },
+      "ResourceFile": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "transcript",
+              "captions",
+              "translation",
+              "index",
+              "thumbnail",
+              "attachment"
+            ],
+            "title": "Role"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "description": "bytes"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "what language it's in (a code such as en or pt-BR)"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "lines": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lines",
+            "description": "transcripts, captions, translations and indexes: how many lines were read from it"
+          },
+          "timed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timed",
+            "description": "whether its lines say when they are (else they have no times)"
+          },
+          "public": {
+            "type": "boolean",
+            "title": "Public",
+            "description": "everyone may download it: the resource is public with the part its role follows open (attachments never are)"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By",
+            "description": "who added it: their email"
+          },
+          "created_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Name",
+            "description": "their name, when they gave one"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "download": {
+            "type": "string",
+            "title": "Download",
+            "description": "a signed link to it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "name",
+          "size",
+          "content_type",
+          "public",
+          "download"
+        ],
+        "title": "ResourceFile"
+      },
+      "ResourceFiles": {
+        "properties": {
+          "primary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrimaryFile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "none for a transcript without audio or video"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceFile"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "by role, then the earliest added first"
+          },
+          "max_mb": {
+            "type": "integer",
+            "title": "Max Mb",
+            "description": "the largest file that can be added (server.max_upload_mb)"
+          },
+          "can_change": {
+            "type": "boolean",
+            "title": "Can Change",
+            "description": "you may add, change and delete its files (editors)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "files",
+          "max_mb",
+          "can_change"
+        ],
+        "title": "ResourceFiles"
+      },
       "SavedSearch": {
         "properties": {
           "id": {
@@ -19992,7 +20915,7 @@
               }
             ],
             "title": "Id",
-            "description": "segment id (int) for transcript hits, OCR span id (str) for screen hits"
+            "description": "segment id (int) for transcript hits, OCR span or file line id (str) for the others"
           },
           "recording_id": {
             "type": "integer",
@@ -20010,11 +20933,26 @@
             "title": "Idx"
           },
           "t0": {
-            "type": "integer",
-            "title": "T0"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "ms; None for a line of a file that doesn't say when its lines are"
           },
           "t1": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "T1"
           },
           "emotion": {
@@ -20090,8 +21028,13 @@
           },
           "source": {
             "type": "string",
+            "enum": [
+              "said",
+              "screen",
+              "file"
+            ],
             "title": "Source",
-            "description": "\"said\" (transcript) or \"screen\" (text on screen in a video)"
+            "description": "\"said\" (transcript), \"screen\" (text on screen in a video) or \"file\" (a line of a supplementary file)"
           },
           "frame": {
             "anyOf": [
@@ -20108,6 +21051,54 @@
           "box": {
             "title": "Box",
             "description": "screen hits: where the text is on the frame"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File",
+            "description": "file hits: the supplementary file the line is in"
+          },
+          "file_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Role",
+            "description": "file hits: its role (transcript, captions, translation or index)"
+          },
+          "file_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Label",
+            "description": "file hits: its label, or its name"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line",
+            "description": "file hits: which of its lines (from 0)"
           }
         },
         "additionalProperties": true,

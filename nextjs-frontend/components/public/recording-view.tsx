@@ -15,6 +15,8 @@ import { PlayerProvider, usePlayerApi, usePlayerState } from "@/components/playe
 import { PlayButton, SkipButton, SpeedMenu, TimeReadout, VolumeControl } from "@/components/player/transport";
 import { useMediaQuery } from "@/components/player/use-media-query";
 import { Waveform, type WaveLane } from "@/components/player/waveform";
+import { languageName } from "@/components/library/model";
+import { ROLE_LABEL, type FileRole } from "@/components/recording/files-model";
 import type { Segment } from "@/components/recording/model";
 import {
   closedNote,
@@ -34,7 +36,7 @@ import { Button, IconButton } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/states";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
-import { shortDate, tc } from "@/lib/format";
+import { bytes, plural, shortDate, tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Rec = PublicRecording;
@@ -148,6 +150,7 @@ function RecordingBody({ rec, signedIn, start }: { rec: Rec; signedIn: boolean; 
             <ChaptersCard rec={rec} signedIn={signedIn} />
             <DescriptionCard meta={meta} />
             <DownloadsCard rec={rec} />
+            <FilesCard rec={rec} />
           </aside>
         </div>
       </article>
@@ -531,6 +534,45 @@ function DownloadsCard({ rec }: { rec: Rec }) {
           </li>
         ))}
       </ul>
+    </Card>
+  );
+}
+
+/** The recording's files this visitor may download (they follow its open parts), and how many more need permission. */
+function FilesCard({ rec }: { rec: Rec }) {
+  const files = rec.files ?? [];
+  const closed = rec.files_closed ?? 0;
+  if (!files.length && !closed) return null;
+  return (
+    <Card title="Files">
+      {files.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {files.map((f) => (
+            <li key={f.id} className="flex min-w-0 flex-col">
+              <a
+                href={f.url}
+                download={f.name}
+                className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-semibold text-fg-accent hover:underline"
+              >
+                <Download aria-hidden className="size-3.5 shrink-0" />
+                <span className="truncate">{f.label || f.name}</span>
+              </a>
+              <span className="pl-5 text-[12px] text-fg-muted">
+                {[ROLE_LABEL[f.role as FileRole] ?? f.role, f.language ? languageName(f.language) : null, bytes(f.size)]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {closed > 0 && (
+        <p className="flex items-center gap-1.5 text-[12.5px] text-fg-muted">
+          <Lock aria-hidden className="size-3.5 shrink-0" />
+          {files.length ? plural(closed, "more file") : plural(closed, "file")} {closed === 1 ? "needs" : "need"}{" "}
+          permission.
+        </p>
+      )}
     </Card>
   );
 }

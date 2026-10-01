@@ -8,7 +8,7 @@ title of a restricted one ("content locked"). The routes sign the media links, a
 
 from __future__ import annotations
 
-from . import access as acc, iiif, metadata as md, render, store
+from . import access as acc, files as filemod, iiif, metadata as md, render, store
 from . import search as searchmod
 
 R = store.R
@@ -62,12 +62,30 @@ def recording(db, cfg, rid, seen, a, member=False, granted=False, network=None):
         "transcript": None,
         "chapters": None,
         "closed": [p for p in acc.PARTS if has[p]],
+        "files": [],
+        "files_closed": len(filemod.of(db, rid)),
     }
     if seen == "locked":
         return out
     out["description"] = _description(meta)
     use = {p: has[p] and acc.usable(a, seen, p) for p in acc.PARTS}
     out["closed"] = [p for p in acc.PARTS if has[p] and not use[p]]
+    kept = filemod.of(db, rid)
+    out["files"] = [
+        {
+            "id": f["id"],
+            "role": f["role"],
+            "name": f["name"],
+            "label": f.get("label"),
+            "language": f.get("language"),
+            "size": f.get("size") or 0,
+            "content_type": f.get("content_type"),
+            "url": f"{store.API}/recordings/{rid}/files/{f['id']}/download",
+        }
+        for f in kept
+        if filemod.open_to(a, seen, f["role"])
+    ]
+    out["files_closed"] = len(kept) - len(out["files"])
     if not any(use.values()):
         return out
     d = render.player_data(db, rid)

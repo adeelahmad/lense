@@ -27,7 +27,16 @@ import { useMediaQuery } from "@/components/player/use-media-query";
  * The recording page (R1–R9, VR1–VR3): loads the recording, its player data and jobs, derives the page state, and
  * renders the audio or the video layout (desktop or phone) around one media clock.
  */
-export function RecordingPage({ id, start }: { id: number; start: number | null }) {
+export function RecordingPage({
+  id,
+  start,
+  focus = null,
+}: {
+  id: number;
+  start: number | null;
+  /** A file to open the Files tab on (?file=&line=). */
+  focus?: { file: number; line: number | null } | null;
+}) {
   const rec = useRecording(id);
   const jobs = useRecordingJobs(id);
   const state = useMemo(() => pageState(rec.data ?? {}, jobs.data ?? []), [rec.data, jobs.data]);
@@ -81,6 +90,7 @@ export function RecordingPage({ id, start }: { id: number; start: number | null 
       key={id}
       id={id}
       start={start}
+      focus={focus}
       rec={rec.data}
       model={player.data}
       state={state}
@@ -124,6 +134,7 @@ function PlayerShell(props: Omit<InnerProps, "turns" | "speakers">) {
 type InnerProps = {
   id: number;
   start: number | null;
+  focus: RecordingCtx["fileFocus"];
   rec: RecordingCtx["rec"];
   model: RecordingCtx["model"];
   state: RecordingCtx["state"];
@@ -132,7 +143,7 @@ type InnerProps = {
   speakers: RecordingCtx["speakers"];
 };
 
-function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerProps) {
+function Inner({ id, start, focus, rec, model, state, jobs, turns, speakers }: InnerProps) {
   const api = usePlayerApi();
   const { hasMedia } = usePlayerState();
   const { roleIn, can, admin } = useArchive();
@@ -149,7 +160,7 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
   const [hitIndex, setHitIndex] = useState(0);
   const hits = useMemo(() => findInSegments(model.segments, query), [model.segments, query]);
   const [selected, select] = useState<EntityRef | null>(null);
-  const [tab, setTab] = useState<PanelTab>(video ? (compact ? "transcript" : "text") : "summary");
+  const [tab, setTab] = useState<PanelTab>(focus ? "files" : video ? (compact ? "transcript" : "text") : "summary");
   const [chatDraft, setChatDraft] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState<NoteDraft | null>(null);
   const [editing, setEditing] = useState(false);
@@ -196,6 +207,7 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
       entity: { selected, select },
       tab,
       setTab,
+      fileFocus: focus,
       chatDraft,
       askInChat: (quote) => {
         setChatDraft(quote);
@@ -236,6 +248,7 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
       hitIndex,
       selected,
       tab,
+      focus,
       chatDraft,
       noteDraft,
       editing,

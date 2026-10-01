@@ -240,6 +240,24 @@ import type {
   UpdateNoteData,
   UpdateNoteResponses,
   UpdateNoteErrors,
+  ListFilesData,
+  ListFilesResponses,
+  ListFilesErrors,
+  AddFileData,
+  AddFileResponses,
+  AddFileErrors,
+  DeleteFileData,
+  DeleteFileResponses,
+  DeleteFileErrors,
+  UpdateFileData,
+  UpdateFileResponses,
+  UpdateFileErrors,
+  DownloadFileData,
+  DownloadFileResponses,
+  DownloadFileErrors,
+  ListFileLinesData,
+  ListFileLinesResponses,
+  ListFileLinesErrors,
   ImportTranscriptData,
   ImportTranscriptResponses,
   ImportTranscriptErrors,
@@ -1852,6 +1870,88 @@ export class Notes {
   }
 }
 
+export class Files {
+  /**
+   * List Files
+   * The resource's primary file (its audio or video, if it has one) and its supplementary files, with signed links to
+   * download them.
+   */
+  public static listFiles<ThrowOnError extends boolean = false>(options: Options<ListFilesData, ThrowOnError>) {
+    return (options.client ?? client).get<ListFilesResponses, ListFilesErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files",
+      ...options,
+    });
+  }
+
+  /**
+   * Add File
+   * Add a file as the raw request body (application/octet-stream), up to `server.max_upload_mb`. Each role takes
+   * its own types: transcripts and translations .txt .md .json .jsonl .srt .vtt .docx .doc .pdf, captions .vtt .srt,
+   * indexes those and OHMS .xml, thumbnails .jpg .png .webp .gif, attachments anything. 400 when its contents can't
+   * be read as its role. Editors; audited as `file.add`.
+   */
+  public static addFile<ThrowOnError extends boolean = false>(options: Options<AddFileData, ThrowOnError>) {
+    return (options.client ?? client).post<AddFileResponses, AddFileErrors, ThrowOnError>({
+      bodySerializer: null,
+      url: "/api/v1/resources/{rid}/files",
+      ...options,
+      headers: {
+        "Content-Type": "application/octet-stream",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete File
+   * Delete a file and the lines read from it. Editors; audited as `file.delete`.
+   */
+  public static deleteFile<ThrowOnError extends boolean = false>(options: Options<DeleteFileData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteFileResponses, DeleteFileErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update File
+   * Change a file's role, language, label or description (null clears the last three). A new role reads it again,
+   * so a file can't take a role whose type it isn't. Editors; audited as `file.update`.
+   */
+  public static updateFile<ThrowOnError extends boolean = false>(options: Options<UpdateFileData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateFileResponses, UpdateFileErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/{fid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Download File
+   * The file as it was added, to save. Accepts a bearer token or a signed link (from the list).
+   */
+  public static downloadFile<ThrowOnError extends boolean = false>(options: Options<DownloadFileData, ThrowOnError>) {
+    return (options.client ?? client).get<DownloadFileResponses, DownloadFileErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/{fid}/download",
+      ...options,
+    });
+  }
+
+  /**
+   * List File Lines
+   * The lines read from a transcript, captions, translation or index, in order.
+   */
+  public static listFileLines<ThrowOnError extends boolean = false>(options: Options<ListFileLinesData, ThrowOnError>) {
+    return (options.client ?? client).get<ListFileLinesResponses, ListFileLinesErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/{fid}/lines",
+      ...options,
+    });
+  }
+}
+
 export class Imports {
   /**
    * Import Transcript
@@ -1995,8 +2095,9 @@ export class Uploads {
 export class Search {
   /**
    * Search Transcripts
-   * Moments where the words are said (or shown on screen in a video), best first, in the namespaces you can read and
-   * the collections you were given a role on.
+   * Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
+   * transcripts, captions, translations and indexes), best first, in the namespaces you can read and the collections
+   * you were given a role on. A speaker or emotion filter keeps to what was said.
    */
   public static searchTranscripts<ThrowOnError extends boolean = false>(
     options: Options<SearchTranscriptsData, ThrowOnError>,

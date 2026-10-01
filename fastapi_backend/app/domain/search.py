@@ -76,12 +76,13 @@ def search(
     screen=True,
     facets=False,
     also=None,
+    files=False,
 ):
-    """Transcript lines (and, unless screen is false, text on screen in videos) matching q. spaces limits the search to
-    namespaces someone may read, and `also` adds recordings they may read beyond those (in collections they were given
-    a role on); recordings limits it to a set of recordings (such as the transcripts a visitor may read). With facets,
-    also how many of all the matching moments (up to FACET_CAP) are in each namespace, speaker, emotion and
-    recording."""
+    """Transcript lines (and, unless screen is false, text on screen in videos; with files, the lines of supplementary
+    transcripts, captions, translations and indexes) matching q. spaces limits the search to namespaces someone may
+    read, and `also` adds recordings they may read beyond those (in collections they were given a role on); recordings
+    limits it to a set of recordings (such as the transcripts a visitor may read). With facets, also how many of all the
+    matching moments (up to FACET_CAP) are in each namespace, speaker, emotion and recording."""
     groups = parse_query(q)
     empty = {"q": q, "query": "", "total": 0, "capped": False, "hits": []}
     if not groups or (recordings is not None and not recordings):
@@ -144,6 +145,8 @@ def search(
         h["source"] = "said"
     if screen and not speaker and not emotion:  # text shown on screen in videos has no speaker or emotion
         hits += _screen(db, groups, space_filter(ns, spaces, recording, params), cap, params)
+    if files and not speaker and not emotion:  # nor do the lines of files (a speaker there is just a label)
+        hits += _file_lines(db, groups, space_filter(ns, spaces, recording, params), cap, params)
     hits.sort(key=lambda r: (-r["_score"], r["recording"], r.get("idx") or 0))
     page = hits[offset : offset + limit]
     recs = (
@@ -169,13 +172,24 @@ def search(
         else {}
     )
     spaces = store.space_names(db) if page else {}
+    in_files = (
+        {
+            x["id"]: x
+            for x in db.rows(
+                "SELECT record::id(id) AS id, role, label, name FROM resource_file WHERE id IN $ids",
+                ids=[store.R("resource_file", i) for i in {h["file"] for h in page if h["source"] == "file"}],
+            )
+        }
+        if any(h["source"] == "file" for h in page)
+        else {}
+    )
     out = [
         {
             "id": h["id"],
             "recording_id": h["recording"],
             "idx": h.get("idx"),
-            "t0": h["t0"],
-            "t1": h["t1"],
+            "t0": h.get("t0"),
+            "t1": h.get("t1"),
             "emotion": h.get("emotion"),
             "speaker_id": h.get("speaker"),
             "speaker": spk.get(h.get("speaker")),
@@ -189,13 +203,20 @@ def search(
                 if h["source"] == "screen"
                 else {}
             ),
+            **(_in_file(in_files.get(h["file"]) or {"id": h["file"]}, h.get("line")) if h["source"] == "file" else {}),
         }
         for h in page
     ]
     res = {"q": q, "query": describe(groups), "total": len(hits), "capped": len(rows) >= cap, "hits": out}
     if facets:
-        res["facets"] = _facets(db, groups, where_f, base_params, screen and not speaker and not emotion, ns, spaces, recording)
+        alone = not speaker and not emotion
+        res["facets"] = _facets(db, groups, where_f, base_params, screen and alone, ns, spaces, recording, files and alone)
     return res
+
+
+def _in_file(f, line):
+    """Which supplementary file a line was found in, and which of its lines it is."""
+    return {"file": f["id"], "file_role": f.get("role"), "file_label": f.get("label") or f.get("name"), "line": line}
 
 
 def _matches(db, groups, table, fields, where_f, base):
@@ -229,12 +250,13 @@ def _matches(db, groups, table, fields, where_f, base):
     return rows
 
 
-def _facets(db, groups, where_f, base, screen, ns, spaces, recording):
+def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=False):
     """How many matching moments are in each namespace, speaker, emotion and recording, most first."""
     said = _matches(db, groups, "segment", "recording, space, speaker, emotion", where_f, base)
     seen = _matches(db, groups, "ocr_span", "recording, space", space_filter(ns, spaces, recording, base), base) if screen else []
-    rows = (said + seen)[:FACET_CAP]
-    partial = len(said) + len(seen) > FACET_CAP
+    filed = _matches(db, groups, "file_line", "recording, space", space_filter(ns, spaces, recording, base), base) if files else []
+    rows = (said + seen + filed)[:FACET_CAP]
+    partial = len(said) + len(seen) + len(filed) > FACET_CAP
     by_space, by_rec = Counter(r["space"] for r in rows), Counter(r["recording"] for r in rows)
     by_spk = Counter(r["speaker"] for r in rows if r.get("speaker"))
     by_emo = Counter(r["emotion"] for r in rows if r.get("emotion") and r["emotion"] != "Unknown")
@@ -274,7 +296,7 @@ def _facets(db, groups, where_f, base, screen, ns, spaces, recording):
     ]
     order = lambda xs, key: sorted(xs, key=lambda x: (-x["count"], str(x[key]).casefold()))  # noqa: E731
     return {
-        "moments": min(len(said) + len(seen), FACET_CAP),
+        "moments": min(len(said) + len(seen) + len(filed), FACET_CAP),
         "partial": partial,
         "namespaces": order([{"name": space_names.get(k) or str(k), "count": n} for k, n in top(by_space)], "name"),
         "speakers": order(speakers, "name"),
@@ -296,26 +318,30 @@ def space_filter(ns, spaces, recording, params):
 
 def _screen(db, groups, where_f, cap, base):
     """Hits in text read off video frames (OCR), ranked alongside the transcript."""
+    return _layer(db, groups, where_f, cap, base, "ocr_span", "frame, box", "screen")
+
+
+def _file_lines(db, groups, where_f, cap, base):
+    """Hits in the lines of supplementary files, ranked alongside the transcript."""
+    return _layer(db, groups, where_f, cap, base, "file_line", "file, idx AS line", "file")
+
+
+def _layer(db, groups, where_f, cap, base, table, extra, source):
+    """Hits in another table of text with times (`extra` names the fields it adds), marked as from `source`."""
     params = {k: v for k, v in base.items() if k in ("m0", "m1", "sp", "allowed", "also", "rec") or k.startswith("q")}
+    fields = f"record::id(id) AS id, recording, t0, t1, space, text, {extra}"
     rows = None
     if db.ready_fulltext():
         conds = [f"text @{k}@ $q{k}" for k in range(1, len(groups) + 1)]
         sel = [f"search::highlight($m0, $m1, {k}) AS h{k}, search::score({k}) AS s{k}" for k in range(1, len(groups) + 1)]
         try:
-            rows = db.rows(
-                f"SELECT record::id(id) AS id, recording, t0, t1, space, text, frame, box, {', '.join(sel)} FROM ocr_span "
-                f"WHERE ({' OR '.join(conds)}){where_f} LIMIT {cap}",
-                **params,
-            )
+            rows = db.rows(f"SELECT {fields}, {', '.join(sel)} FROM {table} WHERE ({' OR '.join(conds)}){where_f} LIMIT {cap}", **params)
         except Exception:  # noqa: BLE001
             rows = None
     if rows is None:
         rows = [
             r
-            for r in db.rows(
-                f"SELECT record::id(id) AS id, recording, t0, t1, space, text, frame, box FROM ocr_span WHERE true{where_f} LIMIT 5000",
-                **params,
-            )
+            for r in db.rows(f"SELECT {fields} FROM {table} WHERE true{where_f} LIMIT 5000", **params)
             if any(all(w.lower() in r["text"].lower() for w in g["words"] + g["phrases"]) for g in groups)
         ]
         for r in rows:
@@ -328,7 +354,7 @@ def _screen(db, groups, where_f, cap, base):
         marks = [r.get(f"h{k}") for k in range(1, len(groups) + 1) if isinstance(r.get(f"h{k}"), str)]
         r["_snip"] = snippet(max(marks, key=lambda h: h.count(M0)) if marks else r["text"])
         r["_score"] = sum(abs(r.get(f"s{k}") or 0) for k in range(1, len(groups) + 1))
-        r["source"] = "screen"
+        r["source"] = source
         out.append(r)
     return out
 

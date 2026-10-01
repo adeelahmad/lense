@@ -21,6 +21,15 @@ profile. Editors edit the rest of the metadata. Every change is kept in the meta
 Moving a recording to another namespace doesn't change who sees it: the access it had from its old namespace is pinned
 on it.
 
+## Files
+
+A resource's supplementary files ([API](api.md#files)) follow its parts. On a public resource, transcripts, captions
+and translations are open when its transcript is, indexes when its index is, and thumbnails when its media is;
+attachments (release forms, notes, anything else) always need permission. Decided with the project owner. People with
+permission download all of them; the public page lists the files a visitor may download and says how many more need
+permission, which signed-in visitors may ask for. IIIF lists every file, the closed ones behind the Authorization
+Flow.
+
 ## Who is asking
 
 | In the matrix | In Lens |
@@ -123,13 +132,12 @@ isn't there for them. The sign-in page links to the home page.
 title matches first; each line links to its moment in the recording. A restricted recording (for signed-in people) and
 a public one whose transcript is closed match on their title only, so a search never reveals what they say.
 
-**A recording's public page** shows what the visitor may see: its title, date and description, and each open part:
-the player, the transcript (with find in the transcript, and its files to download) and the chapters. A closed part
-says who can open it and offers visitors to sign in; signing in comes back to the page. Signed-in people without
-permission see a restricted recording's title behind a lock ("content locked"); members see all of it, with a link to
-the workspace. `?t=<seconds>` opens it at a moment. Owners find the link to share in a public recording's Access
-dialog. The page is left out of search
-engines unless the recording is public.
+**A recording's public page** shows what the visitor may see: its title, date and description, and each open part: the
+player, the transcript (with find in the transcript, and its files to download), the chapters, and the supplementary
+files open to them. A closed part says who can open it and offers visitors to sign in; signing in comes back to the
+page. Signed-in people without permission see a restricted recording's title behind a lock ("content locked"); members
+see all of it, with a link to the workspace. `?t=<seconds>` opens it at a moment. Owners find the link to share in a
+public recording's Access dialog. The page is left out of search engines unless the recording is public.
 
 The workspace (Library, recording pages, Search, Chat and the rest) stays as it is: namespaces you have no role in
 never appear there, and grant holders see the recordings shared with them.
@@ -138,11 +146,11 @@ never appear there, and grant holders see the recordings shared with them.
 
 IIIF follows the same setting. A public recording's manifest is open; its media and transcript are plain links when
 those parts are open, otherwise they sit behind the IIIF Authorization Flow, which admits people with permission
-(visitors from an IP group's addresses need no sign-in).
-Chapters appear as ranges when the index is open. Restricted and private recordings are not published: their
-manifests answer 404 unless the request carries permission, and they are left out of collections. Change Discovery
-announces a **Create** when a recording becomes public, an **Update** when a public one changes, and a **Delete**
-when it stops being public.
+(visitors from an IP group's addresses need no sign-in). Chapters appear as ranges when the index is open. Supplementary
+files follow their parts the same way (see Files). Restricted and private recordings are not published: their manifests
+answer 404 unless the request carries permission, and they are left out of collections. Change Discovery announces a
+**Create** when a recording becomes public, an **Update** when a public one changes, and a **Delete** when it stops
+being public.
 
 ## Moving from the IIIF access levels
 

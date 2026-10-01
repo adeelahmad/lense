@@ -30,12 +30,15 @@ def search_transcripts(
     offset: int = Query(0, ge=0),
     facets: bool = Query(False, description="also count all the matching moments by namespace, speaker, emotion and recording (`facets`)"),
 ) -> SearchResults:
-    """Moments where the words are said (or shown on screen in a video), best first, in the namespaces you can read and
-    the collections you were given a role on."""
+    """Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
+    transcripts, captions, translations and indexes), best first, in the namespaces you can read and the collections
+    you were given a role on. A speaker or emotion filter keeps to what was said."""
     if ns:
         acl.scope(ns)  # 404 unless they see some of it
     also = acl.partial_recordings()
-    res = searchmod.search(db, q, ns, speaker, emotion, recording, limit, offset, spaces=set(acl.roles), facets=facets, also=also)
+    res = searchmod.search(
+        db, q, ns, speaker, emotion, recording, limit, offset, spaces=set(acl.roles), facets=facets, also=also, files=True
+    )
     return sign_urls(res)
 
 

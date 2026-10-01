@@ -3,8 +3,8 @@ folders don't import it again (docs/api.md).
 
 What goes: its transcript and everything derived from it (segments, speakers' appearances, chapters, entities'
 mentions, terms, edits), video shots, text on screen and face tracks with their frames, outputs and reports, shares,
-notes, permissions, requests for access, and its place in IP groups, fixed collections, chat scopes and batch runs
-that haven't started it. Speakers and faces that only it had, and that nobody named, go too; named ones stay. Its jobs
+notes, supplementary files, permissions, requests for access, and its place in IP groups, fixed collections, chat
+scopes and batch runs that haven't started it. Speakers and faces that only it had, and that nobody named, go too; named ones stay. Its jobs
 are cancelled (a job that is running has to stop first), and harvesters hear a Delete when it was public.
 
 What stays: the media file, the audit log, IIIF change discovery, and a note (`gone_recording`) of its path,
@@ -18,7 +18,7 @@ from __future__ import annotations
 import pathlib
 import shutil
 
-from . import access as acc, render, store, video
+from . import access as acc, files as filemod, render, store, video
 
 R = store.R
 # rows that belong to the recording
@@ -39,6 +39,8 @@ OWN = (
     "note",
     "permission",
     "access_request",
+    "resource_file",
+    "file_line",
 )
 
 
@@ -164,6 +166,7 @@ def delete(db, cfg, rid, by=None):
         rec=R("recording", rid),
     )
     shutil.rmtree(video.frames_dir(cfg, rid), ignore_errors=True)
+    shutil.rmtree(filemod.folder(cfg, rid), ignore_errors=True)
     for f in files:
         f.unlink(missing_ok=True)
     orphans(db, speakers, faces)

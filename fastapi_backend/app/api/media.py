@@ -1,9 +1,10 @@
 """Signing media links in API responses and in the pages the API serves.
 
-Audio, video, frames and word clouds are fetched by <audio>, <video> and <img> tags, which can't send the
-Authorization header. The domain layer builds plain links (``/api/v1/recordings/12/audio``); before a response leaves,
-``sign_urls`` turns every such link into a signed one that works on its own until it expires. Only responses already
-limited to what the caller may read pass through here, so a signed link never grants more than the caller had.
+Audio, video, frames and word clouds are fetched by <audio>, <video> and <img> tags, and files are downloaded by
+links, none of which can send the Authorization header. The domain layer builds plain links
+(``/api/v1/recordings/12/audio``); before a response leaves, ``sign_urls`` turns every such link into a signed one that
+works on its own until it expires. Only responses already limited to what the caller may read pass through here, so a
+signed link never grants more than the caller had.
 
 Only links the server wrote are signed: the fields that hold links in API responses (LINK_KEYS), and in a page, links
 to the recordings the page is about. Titles, transcript lines, metadata and chat messages are written by people (or
@@ -21,13 +22,16 @@ from typing import Any, cast
 from app.core.security import sign_path
 from app.domain.store import API
 
-MEDIA_RX = re.compile(rf"^{re.escape(API)}/recordings/\d+/(audio|media|wordcloud\.svg|frames/[\w.-]+)$")
+MEDIA_RX = re.compile(rf"^{re.escape(API)}/recordings/\d+/(audio|media|wordcloud\.svg|frames/[\w.-]+|files/\d+/download)$")
 NS_MEDIA_RX = re.compile(rf"^{re.escape(API)}/namespaces/[a-z0-9][a-z0-9_-]*/wordcloud\.svg$")
 REPORT_RX = re.compile(r"^/(reports|embed)/")
-# the response fields the server fills with links (player audio, frames, face covers, posters, reports, word clouds)
-LINK_KEYS = frozenset({"audio", "cover", "cover_url", "frame", "poster", "report_url", "wordcloud"})
+# the response fields the server fills with links (player audio, frames, face covers, posters, reports, word clouds,
+# files to download)
+LINK_KEYS = frozenset({"audio", "cover", "cover_url", "download", "frame", "poster", "report_url", "wordcloud"})
 # a media link in a page, in an attribute or inside embedded JSON (followed by a quote, or a backslash in JSON)
-MEDIA_IN_HTML = re.compile(rf"{re.escape(API)}/recordings/(\d+)/(?:audio|media|wordcloud\.svg|frames/[\w.-]+)(?=[\"'\\])")
+MEDIA_IN_HTML = re.compile(
+    rf"{re.escape(API)}/recordings/(\d+)/(?:audio|media|wordcloud\.svg|frames/[\w.-]+|files/\d+/download)(?=[\"'\\])"
+)
 
 
 def sign_url(url: str | None) -> str | None:

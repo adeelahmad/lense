@@ -321,6 +321,47 @@ or an owner of the namespace for a shared one, deletes it. Sharing, unsharing an
 (`note.share`, `note.unshare`, `note.delete`, on the recording). Notes move with their recording and go when it's
 deleted.
 
+## files
+
+```
+GET    /api/v1/resources/{rid}/files
+POST   /api/v1/resources/{rid}/files?role=&name=&language=&label=
+PATCH  /api/v1/resources/{rid}/files/{fid}
+DELETE /api/v1/resources/{rid}/files/{fid}
+GET    /api/v1/resources/{rid}/files/{fid}/download
+GET    /api/v1/resources/{rid}/files/{fid}/lines
+```
+
+A resource's files: its primary file (`primary`: the audio or video its pipeline runs on, none for a transcript
+without media) and any number of supplementary files beside it, each with a `role`, and a `language`, `label` and
+`description` of its own:
+
+| `role` | Types | What becomes of it |
+|---|---|---|
+| `transcript` | .txt .md .json .jsonl .srt .vtt .docx .doc .pdf | another transcript, read into lines search finds |
+| `captions` | .vtt .srt | lines, and WebVTT captions in IIIF |
+| `translation` | as transcripts | lines in another language |
+| `index` | WebVTT or SRT chapters, JSON, OHMS XML, text whose entries start with a time | entries with a title, synopsis and keywords, and a table of contents in IIIF |
+| `thumbnail` | .jpg .jpeg .png .webp .gif | the Manifest's thumbnail in IIIF |
+| `attachment` | anything | a file to download |
+
+People who can read the resource list its files (`GET`, each with a signed `download` link that works on its own, as
+media links do) and read the lines of transcripts, captions, translations and indexes (`…/lines`, in order, with
+`offset` and `limit` up to 1,000). A line has `t0`/`t1` in ms, which are null when its file doesn't say when its lines
+are (`timed: false`, such as prose in a PDF); an index entry also has its `title`, `synopsis` and `keywords`.
+
+Editors add a file as the raw request body (`application/octet-stream`), naming it and its role in the query, up to
+`server.max_upload_mb`. 400 when its type doesn't fit the role, when it can't be read as its role (no text, more than
+20,000 lines, a PDF without a text layer), or when the resource has 100 files already; 413 past the limit. `PATCH`
+changes its role (reading it again), language, label or description (null clears the last three); `DELETE` deletes it
+and its lines. Adding, changing and deleting are audited (`file.add`, `file.update`, `file.delete`, on the resource).
+Downloads come as attachments and are never run by a browser: pages, scripts and SVG are sent as plain bytes. Files
+stay with a resource that moves to another namespace and go when it's deleted.
+
+`public` says whether everyone may download a file. A public resource opens its files with its parts
+([Access](access.md#files)): transcripts, captions and translations with its transcript, indexes with its index,
+thumbnails with its media. Attachments always need permission.
+
 ## imports
 
 ```
@@ -392,12 +433,18 @@ GET    /api/v1/graph
 GET    /api/v1/mentions
 ```
 
-`GET /search?q=` finds the moments where the words are said (or shown on screen in a video) in the namespaces you can
-read, best first: every word (English stemming), "quoted phrases" as written, `OR` between alternatives; `ns`,
-`speaker`, `emotion` and `recording` narrow it, `limit`/`offset` page through it. `total` counts the moments ranked so
-far (`capped` when there may be more). With `facets=true` it also counts all the matching moments, whatever the page,
-by namespace, speaker, emotion and recording (`facets`: up to 50 values each, most first, and `moments`); past 20,000
-moments the counts cover 20,000 of them (`partial`).
+`GET /search?q=` finds the moments where the words are said (or shown on screen in a video, or written in a resource's
+supplementary transcripts, captions, translations and indexes) in the namespaces you can read, best first: every word
+(English stemming), "quoted phrases" as written, `OR` between alternatives; `ns`, `speaker`, `emotion` and `recording`
+narrow it, `limit`/`offset` page through it. `total` counts the moments ranked so far (`capped` when there may be more).
+With `facets=true` it also counts all the matching moments, whatever the page, by namespace, speaker, emotion and
+recording (`facets`: up to 50 values each, most first, and `moments`); past 20,000 moments the counts cover 20,000 of
+them (`partial`).
+
+Each hit's `source` says where it was found: `said` (the transcript), `screen` (text on screen) or `file` (a line of a
+supplementary file: its `file`, `file_role` and `file_label`, and which `line`). A file's lines have no `t0` when the
+file doesn't say when they are; the web app opens those in the resource's Files tab. A `speaker` or `emotion` filter
+keeps to what was said.
 
 Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
 words said in the namespaces you can read (`ns` for one) that start with it, the most said first, with how often and
@@ -715,7 +762,9 @@ recordings and closed transcripts match on the title only.
   transcript files to download when the transcript is open to everyone) and `chapters` (the index).
 * `locked`: a restricted recording, for someone signed in without permission: its title and namespace only.
 
-Parts the caller can't use are `null` and listed in `closed`. For someone signed in without permission,
+Parts the caller can't use are `null` and listed in `closed`. `files` are the supplementary files the caller may
+download (with signed links: those that follow an open part, or all of them with permission), and `files_closed` how
+many more there are. For someone signed in without permission,
 `can_request` says whether they may ask for access (something is closed to them) and `request` is their latest request.
 `POST …/request` with an optional `message` asks the owners (400 when the caller already sees all of it, or when all of
 it is open to everyone); asking again replaces the request. `GET /access-requests` lists the requests waiting for an

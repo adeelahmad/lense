@@ -7,6 +7,7 @@ import { ChatTab } from "@/components/recording/chat-tab";
 import { useRec, type PanelTab } from "@/components/recording/context";
 import { DetailsTab } from "@/components/recording/details-tab";
 import { EntitiesTab } from "@/components/recording/entities-tab";
+import { FilesTab } from "@/components/recording/files-tab";
 import { HistoryTab } from "@/components/recording/history-tab";
 import { useNotes } from "@/components/recording/hooks";
 import { IiifTab, MetadataTab } from "@/components/recording/iiif-tab";
@@ -41,6 +42,7 @@ export function useAudioTabs(): TabDef[] {
   return AUDIO_TABS.map((t) => (t.value === "notes" && n ? { ...t, count: n } : t));
 }
 export const MORE_TABS: TabDef[] = [
+  { value: "files", label: "Files" },
   { value: "metadata", label: "Metadata" },
   { value: "iiif", label: "IIIF" },
   { value: "details", label: "Details" },
@@ -247,6 +249,8 @@ export function PanelBody({ tab }: { tab: PanelTab }) {
       return <IiifTab />;
     case "details":
       return <DetailsTab />;
+    case "files":
+      return <FilesTab />;
     default:
       return null;
   }

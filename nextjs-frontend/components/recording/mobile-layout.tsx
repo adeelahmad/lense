@@ -43,7 +43,7 @@ const SHEET_MORE = [AUDIO_TABS.find((t) => t.value === "history")!, ...MORE_TABS
 export function MobileLayout() {
   const r = useRec();
   const { model, rec, role, state, tab, setTab } = r;
-  const [sheet, setSheet] = useState(false);
+  const [sheet, setSheet] = useState(tab === "files"); // a link to a file opens on it
   const status = (rec.status ?? "").toLowerCase();
   const word =
     state.phase === "processing" || state.phase === "analyzing" ? "Processing" : (STATUS_WORD[status] ?? status);
@@ -55,7 +55,7 @@ export function MobileLayout() {
   const [lastTab, setLastTab] = useState(tab);
   if (tab !== lastTab) {
     setLastTab(tab);
-    if (tab === "chat" || tab === "notes" || tab === "history" || tab === "details") setSheet(true);
+    if (tab === "chat" || tab === "notes" || tab === "history" || tab === "details" || tab === "files") setSheet(true);
   }
 
   return (

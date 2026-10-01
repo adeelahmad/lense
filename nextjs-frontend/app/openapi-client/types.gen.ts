@@ -2054,6 +2054,108 @@ export type FacetCount = {
 };
 
 /**
+ * FileLine
+ */
+export type FileLine = {
+  /**
+   * Idx
+   */
+  idx: number;
+  /**
+   * T0
+   * ms; none in a file that doesn't say when its lines are
+   */
+  t0?: number | null;
+  /**
+   * T1
+   */
+  t1?: number | null;
+  /**
+   * Text
+   * the line; for an index, its title, synopsis and keywords together
+   */
+  text: string;
+  /**
+   * Speaker
+   * who says it, as the file names them
+   */
+  speaker?: string | null;
+  /**
+   * Title
+   * an index entry's title
+   */
+  title?: string | null;
+  /**
+   * Synopsis
+   * an index entry's synopsis
+   */
+  synopsis?: string | null;
+  /**
+   * Keywords
+   * an index entry's keywords
+   */
+  keywords?: Array<string> | null;
+  [key: string]:
+    | unknown
+    | number
+    | number
+    | null
+    | number
+    | null
+    | string
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | Array<string>
+    | null
+    | undefined;
+};
+
+/**
+ * FileLines
+ */
+export type FileLines = {
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Lines
+   */
+  lines: Array<FileLine>;
+  [key: string]: unknown | number | Array<FileLine>;
+};
+
+/**
+ * FileUpdate
+ */
+export type FileUpdate = {
+  /**
+   * Role
+   * a new role; transcripts, captions, translations and indexes are read again
+   */
+  role?: "transcript" | "captions" | "translation" | "index" | "thumbnail" | "attachment" | null;
+  /**
+   * Language
+   * null clears it
+   */
+  language?: string | null;
+  /**
+   * Label
+   * null clears it
+   */
+  label?: string | null;
+  /**
+   * Description
+   * null clears it
+   */
+  description?: string | null;
+};
+
+/**
  * ForgotPasswordRequest
  */
 export type ForgotPasswordRequest = {
@@ -4342,6 +4444,36 @@ export type PreviewLine = {
 };
 
 /**
+ * PrimaryFile
+ * The audio or video the resource's pipeline runs on.
+ */
+export type PrimaryFile = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Kind
+   */
+  kind: "audio" | "video";
+  /**
+   * Size
+   * bytes
+   */
+  size?: number | null;
+  /**
+   * Content Type
+   */
+  content_type?: string | null;
+  /**
+   * Download
+   * a signed link to it
+   */
+  download: string;
+  [key: string]: unknown | string | null | "audio" | "video" | number | null | string | null | string | undefined;
+};
+
+/**
  * PublicCard
  * A recording in a list, as this visitor may see it: a locked one (restricted, signed in without permission) shows
  * its title only.
@@ -4562,6 +4694,49 @@ export type PublicDownload = {
 };
 
 /**
+ * PublicFile
+ * A supplementary file a visitor may download: it follows the part its role does (transcripts, captions and
+ * translations the transcript, indexes the index, thumbnails the media); attachments need permission.
+ */
+export type PublicFile = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Role
+   */
+  role: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Language
+   */
+  language?: string | null;
+  /**
+   * Size
+   * bytes
+   */
+  size: number;
+  /**
+   * Content Type
+   */
+  content_type?: string | null;
+  /**
+   * Url
+   * a signed link to download it
+   */
+  url: string;
+  [key: string]: unknown | number | string | string | null | string | null | string | null | undefined;
+};
+
+/**
  * PublicHit
  */
 export type PublicHit = {
@@ -4729,6 +4904,16 @@ export type PublicRecording = {
    */
   closed: Array<"media" | "transcript" | "index">;
   /**
+   * Files
+   * its supplementary files this visitor may download
+   */
+  files?: Array<PublicFile>;
+  /**
+   * Files Closed
+   * how many of its files this visitor can't download
+   */
+  files_closed?: number;
+  /**
    * Can Request
    * signed in without permission, with something closed: they may ask for access
    */
@@ -4772,6 +4957,7 @@ export type PublicRecording = {
     | Array<PublicChapter>
     | null
     | Array<"media" | "transcript" | "index">
+    | Array<PublicFile>
     | PublicRequest
     | null
     | undefined;
@@ -5640,6 +5826,140 @@ export type ResetPasswordRequest = {
 };
 
 /**
+ * ResourceFile
+ */
+export type ResourceFile = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Role
+   */
+  role: "transcript" | "captions" | "translation" | "index" | "thumbnail" | "attachment";
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Size
+   * bytes
+   */
+  size: number;
+  /**
+   * Content Type
+   */
+  content_type: string;
+  /**
+   * Language
+   * what language it's in (a code such as en or pt-BR)
+   */
+  language?: string | null;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Lines
+   * transcripts, captions, translations and indexes: how many lines were read from it
+   */
+  lines?: number | null;
+  /**
+   * Timed
+   * whether its lines say when they are (else they have no times)
+   */
+  timed?: boolean | null;
+  /**
+   * Public
+   * everyone may download it: the resource is public with the part its role follows open (attachments never are)
+   */
+  public: boolean;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Created By
+   * who added it: their email
+   */
+  created_by?: string | null;
+  /**
+   * Created By Name
+   * their name, when they gave one
+   */
+  created_by_name?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Download
+   * a signed link to it
+   */
+  download: string;
+  [key: string]:
+    | unknown
+    | number
+    | "transcript"
+    | "captions"
+    | "translation"
+    | "index"
+    | "thumbnail"
+    | "attachment"
+    | string
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | number
+    | null
+    | boolean
+    | null
+    | boolean
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * ResourceFiles
+ */
+export type ResourceFiles = {
+  /**
+   * none for a transcript without audio or video
+   */
+  primary?: PrimaryFile | null;
+  /**
+   * Files
+   * by role, then the earliest added first
+   */
+  files: Array<ResourceFile>;
+  /**
+   * Max Mb
+   * the largest file that can be added (server.max_upload_mb)
+   */
+  max_mb: number;
+  /**
+   * Can Change
+   * you may add, change and delete its files (editors)
+   */
+  can_change: boolean;
+  [key: string]: unknown | PrimaryFile | null | Array<ResourceFile> | number | boolean | undefined;
+};
+
+/**
  * SavedSearch
  */
 export type SavedSearch = {
@@ -5885,7 +6205,7 @@ export type SearchFacets = {
 export type SearchHit = {
   /**
    * Id
-   * segment id (int) for transcript hits, OCR span id (str) for screen hits
+   * segment id (int) for transcript hits, OCR span or file line id (str) for the others
    */
   id: number | string;
   /**
@@ -5898,12 +6218,13 @@ export type SearchHit = {
   idx?: number | null;
   /**
    * T0
+   * ms; None for a line of a file that doesn't say when its lines are
    */
-  t0: number;
+  t0: number | null;
   /**
    * T1
    */
-  t1: number;
+  t1: number | null;
   /**
    * Emotion
    */
@@ -5935,9 +6256,9 @@ export type SearchHit = {
   snippet: string;
   /**
    * Source
-   * "said" (transcript) or "screen" (text on screen in a video)
+   * "said" (transcript), "screen" (text on screen in a video) or "file" (a line of a supplementary file)
    */
-  source: string;
+  source: "said" | "screen" | "file";
   /**
    * Frame
    * screen hits: signed link to the video frame
@@ -5948,6 +6269,26 @@ export type SearchHit = {
    * screen hits: where the text is on the frame
    */
   box?: unknown;
+  /**
+   * File
+   * file hits: the supplementary file the line is in
+   */
+  file?: number | null;
+  /**
+   * File Role
+   * file hits: its role (transcript, captions, translation or index)
+   */
+  file_role?: string | null;
+  /**
+   * File Label
+   * file hits: its label, or its name
+   */
+  file_label?: string | null;
+  /**
+   * Line
+   * file hits: which of its lines (from 0)
+   */
+  line?: number | null;
   [key: string]:
     | unknown
     | number
@@ -5955,6 +6296,10 @@ export type SearchHit = {
     | number
     | number
     | null
+    | number
+    | null
+    | number
+    | null
     | string
     | null
     | number
@@ -5968,7 +6313,18 @@ export type SearchHit = {
     | string
     | null
     | string
+    | "said"
+    | "screen"
+    | "file"
     | string
+    | null
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | number
     | null
     | undefined;
 };
@@ -10820,6 +11176,231 @@ export type UpdateNoteResponses = {
 };
 
 export type UpdateNoteResponse = UpdateNoteResponses[keyof UpdateNoteResponses];
+
+export type ListFilesData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/files";
+};
+
+export type ListFilesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListFilesError = ListFilesErrors[keyof ListFilesErrors];
+
+export type ListFilesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ResourceFiles;
+};
+
+export type ListFilesResponse = ListFilesResponses[keyof ListFilesResponses];
+
+export type AddFileData = {
+  body: Blob | File;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query: {
+    /**
+     * Role
+     * what it is: transcripts, captions, translations and indexes are read into lines search finds
+     */
+    role: "transcript" | "captions" | "translation" | "index" | "thumbnail" | "attachment";
+    /**
+     * Name
+     * its file name, with the extension
+     */
+    name: string;
+    /**
+     * Language
+     * what language it's in (en, pt-BR)
+     */
+    language?: string | null;
+    /**
+     * Label
+     */
+    label?: string | null;
+  };
+  url: "/api/v1/resources/{rid}/files";
+};
+
+export type AddFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddFileError = AddFileErrors[keyof AddFileErrors];
+
+export type AddFileResponses = {
+  /**
+   * Successful Response
+   */
+  200: ResourceFile;
+};
+
+export type AddFileResponse = AddFileResponses[keyof AddFileResponses];
+
+export type DeleteFileData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/files/{fid}";
+};
+
+export type DeleteFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteFileError = DeleteFileErrors[keyof DeleteFileErrors];
+
+export type DeleteFileResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteFileResponse = DeleteFileResponses[keyof DeleteFileResponses];
+
+export type UpdateFileData = {
+  body: FileUpdate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/files/{fid}";
+};
+
+export type UpdateFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateFileError = UpdateFileErrors[keyof UpdateFileErrors];
+
+export type UpdateFileResponses = {
+  /**
+   * Successful Response
+   */
+  200: ResourceFile;
+};
+
+export type UpdateFileResponse = UpdateFileResponses[keyof UpdateFileResponses];
+
+export type DownloadFileData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/files/{fid}/download";
+};
+
+export type DownloadFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DownloadFileError = DownloadFileErrors[keyof DownloadFileErrors];
+
+export type DownloadFileResponses = {
+  /**
+   * Successful Response
+   */
+  200: Blob | File;
+};
+
+export type DownloadFileResponse = DownloadFileResponses[keyof DownloadFileResponses];
+
+export type ListFileLinesData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: {
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/resources/{rid}/files/{fid}/lines";
+};
+
+export type ListFileLinesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListFileLinesError = ListFileLinesErrors[keyof ListFileLinesErrors];
+
+export type ListFileLinesResponses = {
+  /**
+   * Successful Response
+   */
+  200: FileLines;
+};
+
+export type ListFileLinesResponse = ListFileLinesResponses[keyof ListFileLinesResponses];
 
 export type ImportTranscriptData = {
   body: ImportRequest;

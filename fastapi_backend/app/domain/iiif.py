@@ -21,7 +21,19 @@ import urllib.parse
 import urllib.request
 from collections import Counter
 
-from . import access as acc, deletion, hierarchy, ingest, metadata as md, pipelines, render, settings, speakers as spk, store
+from . import (
+    access as acc,
+    deletion,
+    files as filemod,
+    hierarchy,
+    ingest,
+    metadata as md,
+    pipelines,
+    render,
+    settings,
+    speakers as spk,
+    store,
+)
 
 R = store.R
 P3 = "http://iiif.io/api/presentation/3/context.json"
@@ -160,13 +172,26 @@ def manifest(db, cfg, rid, base):
     )
     if text_locked:
         vtt["service"] = [probe_service(cfg, base, rid, "transcript")]
-    annotations = [
-        {
-            "id": f"{canvas}/captions",
-            "type": "AnnotationPage",
-            "items": [{"id": f"{canvas}/captions/1", "type": "Annotation", "motivation": "supplementing", "body": vtt, "target": canvas}],
-        }
-    ]
+    captions = [{"id": f"{canvas}/captions/1", "type": "Annotation", "motivation": "supplementing", "body": vtt, "target": canvas}]
+    kept = filemod.of(db, rid)
+    for f in kept:  # supplementary transcripts, captions and translations that say when their lines are, as WebVTT
+        if f["role"] in ("transcript", "captions", "translation") and f.get("timed"):
+            body = _prune(
+                {
+                    "id": f"{m}/files/{f['id']}.vtt",
+                    "type": "Text",
+                    "format": "text/vtt",
+                    "label": lm(_file_label(f), lang),
+                    "language": f.get("language"),
+                }
+            )
+            if not _file_open(a, f):
+                body["service"] = [probe_service(cfg, base, rid, f"vtt{f['id']}")]
+            n = len(captions) + 1
+            captions.append(
+                {"id": f"{canvas}/captions/{n}", "type": "Annotation", "motivation": "supplementing", "body": body, "target": canvas}
+            )
+    annotations = [{"id": f"{canvas}/captions", "type": "AnnotationPage", "items": captions}]
     faces_published = bool(is_video and cfg["video"].get("publish_faces") and not audio_locked and d.get("faces_mode") != "off")
     if not text_locked:
         annotations += [
@@ -198,7 +223,29 @@ def manifest(db, cfg, rid, base):
                 }
             ]
             cv["thumbnail"] = thumb
-    contexts = ([AUTH2] if (audio_locked and has_audio) or text_locked else []) + ([] if text_locked else [SEARCH2]) + [P3]
+    pic = next((f for f in kept if f["role"] == "thumbnail"), None)
+    if pic and not audio_locked:  # a thumbnail added to the resource stands for it
+        thumb = [{"id": f"{m}/files/{pic['id']}", "type": "Image", "format": filemod.served_type(pic)}]
+    renderings = (
+        []
+        if text_locked
+        else [{"id": f"{m}/transcript.{k}", "type": "Text", "label": lm(v[1], "en"), "format": v[0]} for k, v in DOWNLOADS.items()]
+    )
+    for f in kept:  # every supplementary file, to download; the ones that need permission behind sign-in
+        r = _prune(
+            {
+                "id": f"{m}/files/{f['id']}",
+                "type": file_type(f),
+                "label": lm(_file_label(f), lang),
+                "format": filemod.served_type(f),
+                "language": f.get("language"),
+            }
+        )
+        if not _file_open(a, f):
+            r["service"] = [probe_service(cfg, base, rid, f"file{f['id']}")]
+        renderings.append(r)
+    locked_files = any(not _file_open(a, f) for f in kept)
+    contexts = ([AUTH2] if (audio_locked and has_audio) or text_locked or locked_files else []) + ([] if text_locked else [SEARCH2]) + [P3]
     out = {
         "@context": contexts if len(contexts) > 1 else P3,
         "id": f"{m}/manifest",
@@ -214,9 +261,7 @@ def manifest(db, cfg, rid, base):
         "homepage": [
             {"id": meta.get("homepage") or f"{base}/#/rec/{rid}", "type": "Text", "label": lm(title, lang), "format": "text/html"}
         ],
-        "rendering": None
-        if text_locked
-        else [{"id": f"{m}/transcript.{k}", "type": "Text", "label": lm(v[1], "en"), "format": v[0]} for k, v in DOWNLOADS.items()],
+        "rendering": renderings or None,
         "seeAlso": [
             {
                 "id": f"{m}/record.json",
@@ -275,9 +320,53 @@ def manifest(db, cfg, rid, base):
                 ],
             },
         )
+    if acc.is_open(a, "index"):  # indexes added to the resource, as tables of contents
+        for f in kept:
+            entries = (
+                [x for x in filemod.lines_of(db, f["id"]) if x.get("t0") is not None] if f["role"] == "index" and f.get("timed") else []
+            )
+            if entries:
+                structures.append(
+                    {
+                        "id": f"{m}/range/file{f['id']}",
+                        "type": "Range",
+                        "label": lm(_file_label(f), lang),
+                        "items": [
+                            {
+                                "id": f"{m}/range/file{f['id']}-{k + 1}",
+                                "type": "Range",
+                                "label": lm(x.get("title") or x["text"][:120], lang),
+                                "items": [
+                                    {"id": f"{canvas}#t={_t(x['t0'])}" + (f",{_t(x['t1'])}" if x.get("t1") else ""), "type": "Canvas"}
+                                ],
+                            }
+                            for k, x in enumerate(entries)
+                        ],
+                    }
+                )
     if structures:
         out["structures"] = structures
     return _prune(out)
+
+
+def _file_label(f):
+    return f.get("label") or f"{filemod.LABELS.get(f['role'], 'File')}: {f['name']}"
+
+
+def _file_open(a, f):
+    """Whether everyone may have a supplementary file: the part its role follows is open (attachments never are)."""
+    part = filemod.PART.get(f["role"])
+    return bool(part and acc.is_open(a, part))
+
+
+def file_type(f):
+    """The IIIF type of a supplementary file, from its media type."""
+    t = (f.get("content_type") or "").lower()
+    kind = t.split("/", 1)[0]
+    if kind in ("image", "audio", "video"):
+        return {"image": "Image", "audio": "Sound", "video": "Video"}[kind]
+    text = kind == "text" or t in ("application/pdf", "application/msword", "application/x-subrip") or "wordprocessingml" in t
+    return "Text" if text else "Dataset"
 
 
 def annotation_page(db, cfg, rid, base, layer):

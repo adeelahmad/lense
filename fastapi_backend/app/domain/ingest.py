@@ -632,7 +632,7 @@ def _timed(segs):
     for i, s in enumerate(segs):  # untimed lines get a speaking-rate estimate
         n = len(s["text"].split())
         if s["t0"] is None:
-            s["t0"] = t
+            s["t0"], s["guessed"] = t, True
         nxt = next((x["t0"] for x in segs[i + 1 :] if x["t0"] is not None), None)
         s["t1"] = nxt if nxt is not None and nxt > s["t0"] else s["t0"] + n * 385
         t = s["t1"] + 250
@@ -726,7 +726,8 @@ FORMATS = ("auto", "text", "markdown", "mdx", "json", "jsonl", "srt", "vtt")
 
 
 def read_text_transcript(raw, fmt="auto", name=None):
-    """Transcript text in any supported shape: pasted, or read from a file."""
+    """Transcript text in any supported shape: pasted, or read from a file. {segments, speakers, title, timed}; lines
+    that don't say when they are get a speaking-rate estimate, and `timed` is false when every line got one."""
     raw = raw.lstrip("\ufeff")
     fmt = fmt or "auto"
     if fmt == "auto":
@@ -752,7 +753,7 @@ def read_text_transcript(raw, fmt="auto", name=None):
         if fmt == "jsonl" or (raw.lstrip()[:1] == "{" and "\n{" in raw.strip()):
             rows = [json.loads(l) for l in raw.splitlines() if l.strip()]
             if rows and "start_ms" in rows[0] and ("raw_text" in rows[0] or "index" in rows[0]):
-                return {"segments": stitch_chunks(rows), "speakers": {}, "title": None}
+                return {"segments": stitch_chunks(rows), "speakers": {}, "title": None, "timed": True}
             segs = [_generic(r) for r in rows]
         else:
             j = json.loads(raw)
@@ -769,11 +770,13 @@ def read_text_transcript(raw, fmt="auto", name=None):
     t = 0
     for s in segs:
         if s.get("t0") is None:
-            s["t0"] = t
+            s["t0"], s["guessed"] = t, True
         if s.get("t1") is None:
             s["t1"] = s["t0"] + 385 * len(s["text"].split())
         t = s["t1"]
-    return {"segments": segs, "speakers": speakers, "title": title}
+    guessed = [s.pop("guessed", False) for s in segs]
+    # timed: whether it says when its lines are, rather than every time being a speaking-rate estimate
+    return {"segments": segs, "speakers": speakers, "title": title, "timed": bool(segs) and not all(guessed)}
 
 
 def sniff(raw):

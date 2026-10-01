@@ -7,6 +7,10 @@ can open them, and harvesters can follow them.
   - The transcript comes as WebVTT captions plus per-line annotations; speakers and entities come as tagging annotations.
   - Chapters become the table of contents (Ranges).
   - Downloads (`rendering`): vtt, srt, txt, md and json.
+  - Supplementary files ([API](api.md#files)): every one is a download (`rendering`, at `/iiif/<id>/files/<file>`).
+    Transcripts, captions and translations that say when their lines are also come as WebVTT captions
+    (`/iiif/<id>/files/<file>.vtt`, whatever their format), an index as a table of contents (a Range), and a thumbnail
+    as the Manifest's thumbnail. Files that need permission sit behind the Authorization Flow; attachments always do.
   - A schema.org record and a Dublin Core record, linked with `seeAlso`.
 - **Collections:** `/iiif/collection` lists the namespaces, `/iiif/collection/<namespace>` the namespace's top
   collections, and `/iiif/collection/<namespace>/<id>` one collection: the collections inside it, then its recordings'
