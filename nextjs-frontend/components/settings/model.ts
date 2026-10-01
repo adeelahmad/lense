@@ -19,6 +19,8 @@ export type SettingsView = Record<string, SectionView> & {
     secret_key?: string;
     rclone?: string;
     local_roots?: string[];
+    soffice?: string;
+    chromium?: string;
   } & Record<string, unknown>;
 };
 
@@ -67,6 +69,7 @@ export type SectionId =
   | "workers"
   | "access"
   | "uploads"
+  | "documents"
   | "tokens"
   | "iiif"
   | "startup";
@@ -153,6 +156,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["uploads"],
     description:
       "Audio and video people upload in the web app: which types, how large, and how long an unfinished upload waits.",
+  },
+  {
+    id: "documents",
+    label: "Documents",
+    backend: ["documents"],
+    description:
+      "How documents and images are drawn and read, and how Word and other Office files, text, web pages and emails are made into PDFs to read.",
   },
   {
     id: "tokens",
@@ -846,6 +856,57 @@ export const FIELDS: FieldSpec[] = [
     label: "Types people can upload",
     kind: "checks",
     options: UPLOAD_TYPES.map((e) => ({ value: e, label: e.slice(1) })),
+  },
+  // Documents
+  {
+    section: "documents",
+    key: "page_pixels",
+    label: "Page size (pixels, longest side)",
+    kind: "int",
+    min: 800,
+    max: 6000,
+    hint: "How large each page is drawn to look at",
+  },
+  {
+    section: "documents",
+    key: "thumb_pixels",
+    label: "Thumbnail size (pixels)",
+    kind: "int",
+    min: 120,
+    max: 800,
+  },
+  {
+    section: "documents",
+    key: "ocr_below_chars",
+    label: "Read a page by OCR below (characters)",
+    kind: "int",
+    min: 0,
+    max: 5000,
+    hint: "Pages with less text than this are scans: their text is read from the picture",
+  },
+  {
+    section: "documents",
+    key: "max_pages",
+    label: "Pages read, at most",
+    kind: "int",
+    min: 1,
+    max: 50000,
+  },
+  {
+    section: "documents",
+    key: "convert_seconds",
+    label: "Time to make a PDF (seconds)",
+    kind: "int",
+    min: 10,
+    max: 3600,
+    hint: "For a Word or other Office file, text, a web page or an email; longer and its job fails",
+  },
+  {
+    section: "documents",
+    key: "attachment_resources",
+    label: "Make an email’s attachments resources of their own",
+    kind: "switch",
+    hint: "Documents, images, audio, video and emails attached to an email; they’re kept as its files either way",
   },
   // IIIF & metadata
   {

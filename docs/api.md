@@ -302,8 +302,20 @@ and are audited as `recording.ip_group.open` and `recording.ip_group.close`.
 
 ### Documents and images
 
-A PDF uploaded as a document, or an image (JPEG, PNG, TIFF, WebP, GIF or BMP), is a resource of its own: its `source`
-is `document` or `image`, and so is `media_kind` in the list, with its `pages`. Its pipeline's transcribe step draws its
+A document (a PDF; a Word, PowerPoint or spreadsheet file, OpenDocument or RTF; text or Markdown; a saved web page; an
+email, `.eml` or `.msg`) or an image (JPEG, PNG, TIFF, WebP, GIF or BMP) is a resource of its own: its `source` is
+`document` or `image`, and so is `media_kind` in the list, with its `pages`. A document that isn't a PDF is made into
+one first ([Configuration](configuration.md#documents-and-images)): the resource keeps its own file
+(`GET /{rid}/media`), and the PDF it's read from is `GET /{rid}/pdf` (`primary.pdf` in its files, and `rendition`:
+`{from, by}` on the resource says how it was made). Nothing a document refers to is fetched while converting it. An
+email's `email` is its `subject`, `from`, `to`, `cc` and `date`; its subject becomes its title and its date when it was
+made, unless someone named or dated it. Its attachments are kept as its files (role `attachment`), and those Lens can
+read become resources of their own beside it, each with `attached_to: {resource, file, title}` (the email, and its
+title when the caller may see it); an attachment file's `resource` is the resource it became, or the one it was already
+in the namespace (`documents.attachment_resources`). Transcribing an email again keeps and makes nothing twice.
+`GET /uploads/limits` says what the server can convert (`convert: {office, pages, msg}`); an upload it can't read is
+refused, saying what it needs, and the files that can be transcripts too (PDFs, Word, text and Markdown) can be imported
+as transcripts instead (`POST /import`). Its pipeline's transcribe step draws its
 pages and reads their text: a PDF's own text, block by block with where each block is on its page (poppler's
 pdftotext; pypdf without poppler, when there are no pages to look at), and by OCR (`video.ocr_engine`) the pages with
 fewer than `documents.ocr_below_chars` characters of text, drawn sharper for it. An image is one page (a TIFF one per
@@ -401,11 +413,11 @@ POST   /api/v1/import/preview
 namespace to put the recordings in (default: its default collection; 404 for one of another namespace): `POST /import`,
 `POST /import/source`, `POST /uploads` and `POST /import/iiif`.
 
-`POST /api/v1/import/source {source, paths, namespace, pipeline?, collection?, pdf_as?}` imports chosen files of a
-storage source now, rather than watching their folder (admins, like sources; up to 500 paths, as
+`POST /api/v1/import/source {source, paths, namespace, pipeline?, collection?, documents_as?}` imports chosen files of
+a storage source now, rather than watching their folder (admins, like sources; up to 500 paths, as
 `GET /sources/{sid}/browse` lists them). Audio, video, documents and images stay on the source and run the namespace's
-pipeline, or `pipeline`; transcripts are imported. A PDF is a document unless `pdf_as` is `transcript` (its text
-only). Each path gets a result: `queued` (with `recording` and `job`), `already` (the namespace has it from this
+pipeline, or `pipeline`; transcripts are imported. A PDF, Word, text or Markdown file is a document unless
+`documents_as` is `transcript` (its text only), or the server can't make a PDF of it. Each path gets a result: `queued` (with `recording` and `job`), `already` (the namespace has it from this
 source), `skipped` (a folder, or not audio, video, a document, an image or a transcript) or `error`. Choosing a file
 whose recording was deleted brings it back. Audited as `import.source`.
 
@@ -682,8 +694,9 @@ POST   /api/v1/watches/{wid}/scan
 (`imported: [{recording, namespace}]`).
 
 A watched folder's `kinds` says what it picks up: `audio` (and video), `transcripts`, `both` of those, `documents`
-(PDFs and images) or `all` of them, the default. The three from before documents (`audio`, `transcripts`, `both`)
-read PDFs as transcripts, as they always did; `documents` and `all` take them as documents. `POST /watches/preview
+(documents and images) or `all` of them, the default. The three from before documents (`audio`, `transcripts`, `both`)
+read PDFs, Word and text files as transcripts, as they always did; `documents` and `all` take them as documents
+(subtitles and JSON stay transcripts). `POST /watches/preview
 {source, path, kinds?, include?, exclude?}` counts what a folder would pick up: `files`, `audio`, `transcripts`,
 `documents` and `images`.
 

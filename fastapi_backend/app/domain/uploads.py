@@ -22,7 +22,7 @@ import secrets
 import shutil
 import unicodedata
 
-from . import deletion, documents, ingest, jobs, render, store
+from . import convert, deletion, documents, ingest, jobs, render, store
 
 R = store.R
 MB = 1024 * 1024
@@ -34,6 +34,7 @@ FIELDS = (
 # What runs once media is attached to a transcript: its waveform (the transcript is kept), speakers by voice unless the
 # transcript named them, shots, text on screen and faces for video, then the analysis and report pages again.
 ATTACH_STEPS = ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "report"]
+TRANSCRIPT_EXT = frozenset({".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf"})  # documents imports read as text too
 
 
 class TooLarge(ValueError):
@@ -80,6 +81,7 @@ def limits(cfg):
         "extensions": sorted({e.lower() for e in u["extensions"]}),
         "chunk_mb": u["chunk_mb"],
         "transcript_mb": cfg["server"]["max_upload_mb"],
+        "convert": convert.capabilities(cfg),
     }
 
 
@@ -155,6 +157,10 @@ def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=Non
         raise ValueError(f"{kind} can't be uploaded here; these can: {', '.join(e[1:] for e in allowed)}")
     if attach and documents.kind_of(name):
         raise ValueError("only audio or video can be attached to a transcript")
+    why = convert.unavailable(cfg, name)
+    if why:
+        instead = "; import it as a transcript instead" if ext in TRANSCRIPT_EXT else ""
+        raise ValueError(f"this {convert.word(name)} can't be read here: {why}{instead}")
     if size <= 0:
         raise ValueError("the file is empty")
     if size > u["max_mb"] * MB:

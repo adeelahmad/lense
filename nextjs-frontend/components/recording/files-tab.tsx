@@ -20,11 +20,13 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 
 import type { PrimaryFile, ResourceFile } from "@/app/openapi-client/types.gen";
 import { FieldValuesPanel } from "@/components/fields/fields-ui";
 import { useNamespaceFields } from "@/components/fields/use-fields";
+import { uploadKindName } from "@/components/import/files";
 import { chooseFiles } from "@/components/import/pending";
 import { usePlayerApi, usePlayerState } from "@/components/player/media";
 import { useRec } from "@/components/recording/context";
@@ -131,12 +133,13 @@ export function FilesTab() {
 const PRIMARY = {
   audio: { icon: FileAudio, word: "Audio" },
   video: { icon: FileVideo, word: "Video" },
-  document: { icon: FileType, word: "PDF document" },
+  document: { icon: FileType, word: "Document" },
   image: { icon: FileImage, word: "Image" },
 } as const;
 
 function Primary({ p }: { p: PrimaryFile }) {
-  const { icon: Icon, word } = PRIMARY[p.kind] ?? PRIMARY.audio;
+  const { icon: Icon, word: kindWord } = PRIMARY[p.kind] ?? PRIMARY.audio;
+  const word = p.kind === "document" ? uploadKindName("document", p.name ?? "") : kindWord;
   return (
     <section
       aria-label="Primary file"
@@ -149,6 +152,14 @@ function Primary({ p }: { p: PrimaryFile }) {
           {["Primary", word, p.size != null ? bytes(p.size) : null].filter(Boolean).join(" · ")}
         </p>
       </div>
+      {p.pdf && (
+        <Button asChild size="sm" variant="ghost">
+          <a href={p.pdf} download aria-label="Download the PDF made of it">
+            <Download />
+            PDF
+          </a>
+        </Button>
+      )}
       <Button asChild size="sm" variant="ghost">
         <a href={p.download} download={p.name ?? true} aria-label={`Download ${p.name ?? "the media"}`}>
           <Download />
@@ -194,6 +205,13 @@ function FileRow({ f, focus }: { f: ResourceFile; focus: number | null }) {
             <Globe className="size-3" aria-hidden />
             Public
           </Badge>
+        )}
+        {f.resource != null && (
+          <Button asChild size="xs" variant="secondary" className="shrink-0">
+            <Link href={`/resources/${f.resource}`} aria-label={`Open ${fileTitle(f)}: a resource of its own`}>
+              Open
+            </Link>
+          </Button>
         )}
         <Menu>
           <MenuTrigger asChild>

@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 
 import { Imports, Sources } from "@/app/openapi-client";
 import type { BrowseEntry } from "@/app/openapi-client/types.gen";
-import { importable, kindOf, pipelineOptions, sourceImportSummary } from "@/components/import/files";
+import { canBeTranscript, importable, kindOf, pipelineOptions, sourceImportSummary } from "@/components/import/files";
 import { fileIcon } from "@/components/import/upload-tab";
 import { useNamespacePipeline } from "@/components/import/use-import";
 import { CollectionField } from "@/components/library/collections-ui";
@@ -331,15 +331,15 @@ function ImportChosenDialog({
   const [ns, setNs] = useState(defaultNs);
   const [pipelineId, setPipelineId] = useState<number | null>(null);
   const [collectionId, setCollectionId] = useState<number | null>(null);
-  const [pdfAs, setPdfAs] = useState<"document" | "transcript">("document");
-  const pdfs = paths.filter((p) => kindOf(p) === "document").length;
+  const [docsAs, setDocsAs] = useState<"document" | "transcript">("document");
+  const either = paths.filter((p) => canBeTranscript(p)).length; // PDFs, Word and text files: documents or transcripts
   const pipeline = useNamespacePipeline(ns || null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (open) {
       setNs(defaultNs);
-      setPdfAs("document");
+      setDocsAs("document");
       setError(null);
     }
   }, [open, defaultNs]);
@@ -371,7 +371,7 @@ function ImportChosenDialog({
                       namespace: ns,
                       pipeline: pipelineId,
                       collection: collectionId,
-                      pdf_as: pdfAs,
+                      documents_as: docsAs,
                     },
                   }),
                 );
@@ -400,22 +400,22 @@ function ImportChosenDialog({
           onChange={setCollectionId}
           id="source-import-collection"
         />
-        {pdfs > 0 && (
+        {either > 0 && (
           <div className="flex flex-col gap-1.5">
             <span className="text-[13px] font-bold text-fg-strong">
-              Import {pdfs === 1 ? "the PDF" : `the ${pdfs} PDFs`} as
+              Import {either === 1 ? "the PDF, Word or text file" : `the ${either} PDF, Word and text files`} as
             </span>
             <Segmented
-              label={`Import ${pdfs === 1 ? "the PDF" : "the PDFs"} as`}
+              label="Import PDF, Word and text files as"
               items={[
                 { value: "document", label: "Documents" },
                 { value: "transcript", label: "Transcripts" },
               ]}
-              value={pdfAs}
-              onChange={(v) => setPdfAs(v as "document" | "transcript")}
+              value={docsAs}
+              onChange={(v) => setDocsAs(v as "document" | "transcript")}
             />
             <span className="text-[12.5px] text-fg-muted">
-              {pdfAs === "document"
+              {docsAs === "document"
                 ? "Their pages, to look at and search; scans are read by OCR."
                 : "Only their text, as transcripts without media."}
             </span>

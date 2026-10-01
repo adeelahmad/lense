@@ -142,6 +142,11 @@ describe("watched folders", () => {
   it("knows audio, transcripts, documents and images apart, and counts them", () => {
     expect(fileKind("ep12.M4A")).toBe("audio");
     expect(fileKind("ep12.srt")).toBe("transcript");
+    expect([fileKind("notes.txt"), fileKind("letter.DOCX"), fileKind("mail.eml")]).toEqual([
+      "document",
+      "document",
+      "document",
+    ]);
     expect(fileKind("Report.PDF")).toBe("document"); // as new watched folders take it
     expect(fileKind("scan.tiff")).toBe("image");
     expect(fileKind("notes")).toBe("other");

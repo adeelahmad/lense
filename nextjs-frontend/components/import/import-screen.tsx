@@ -404,6 +404,7 @@ export function ImportScreen() {
                         pieceMb={files.limits.chunk_mb}
                         unfinished={unfinished.data ?? []}
                         twinOf={twinOf.get(current.id)?.file.name}
+                        limits={files.limits}
                       />
                     ) : current?.status === "ready" ? (
                       <FileDetail
@@ -415,6 +416,7 @@ export function ImportScreen() {
                         pipelineControl={pipelineControl}
                         directory={directory.data}
                         audioTwin={pairs.has(current.id) ? byId.get(pairs.get(current.id) ?? "")?.file.name : undefined}
+                        limits={files.limits}
                       />
                     ) : current?.problem ? (
                       <ProblemCard

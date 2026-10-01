@@ -188,15 +188,37 @@ const AUDIO = [
   ".m4v",
   ".avi",
 ];
-const TRANSCRIPT = [".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".srt", ".vtt", ".json", ".jsonl"];
-const DOCUMENT = [".pdf"];
+const TRANSCRIPT = [".srt", ".vtt", ".json", ".jsonl"];
+const DOCUMENT = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".odt",
+  ".rtf",
+  ".ppt",
+  ".pptx",
+  ".odp",
+  ".xls",
+  ".xlsx",
+  ".ods",
+  ".txt",
+  ".text",
+  ".md",
+  ".markdown",
+  ".mdx",
+  ".html",
+  ".htm",
+  ".eml",
+  ".msg",
+];
 const IMAGE = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp"];
 
 export type SourceFileKind = "audio" | "transcript" | "document" | "image" | "other";
 
 /**
- * What a watched folder would make of a file, by extension (the backend's default lists): a PDF is a document, as
- * it is for new watched folders (those set to audio and transcripts read it as a transcript).
+ * What a watched folder would make of a file, by extension (the backend's default lists): PDFs, Office files, text,
+ * Markdown, web pages and emails are documents, as they are for new watched folders (those set to audio and
+ * transcripts read PDFs, Word and text files as transcripts); subtitles and JSON are transcripts.
  */
 export function fileKind(name: string): SourceFileKind {
   const n = name.toLowerCase();
@@ -234,9 +256,13 @@ export type WatchKinds = NonNullable<Watch["kinds"]>;
 export const WATCH_KINDS: { value: WatchKinds; label: string; summary: string }[] = [
   { value: "all", label: "Everything", summary: "everything" },
   { value: "audio", label: "Audio and video", summary: "audio only" },
-  { value: "transcripts", label: "Transcripts (PDFs among them)", summary: "transcripts only" },
+  { value: "transcripts", label: "Transcripts (PDFs, Word and text files among them)", summary: "transcripts only" },
   { value: "documents", label: "Documents and images", summary: "documents and images only" },
-  { value: "both", label: "Audio and transcripts (PDFs as transcripts)", summary: "audio and transcripts" },
+  {
+    value: "both",
+    label: "Audio and transcripts (PDFs, Word and text files as transcripts)",
+    summary: "audio and transcripts",
+  },
 ];
 const PICK: Record<string, string> = Object.fromEntries(WATCH_KINDS.map((k) => [k.value, k.summary]));
 

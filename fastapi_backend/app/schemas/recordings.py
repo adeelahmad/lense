@@ -78,6 +78,31 @@ class RecordingSpeaker(ResponseModel):
     score: float | None = None
 
 
+class EmailInfo(ResponseModel):
+    """An email's own description, read when it was made into a PDF."""
+
+    subject: str | None = None
+    from_: str | None = Field(None, alias="from", description="who sent it")
+    to: str | None = None
+    cc: str | None = None
+    date: str | None = Field(None, description="when it was sent (ISO 8601)")
+
+
+class Rendition(ResponseModel):
+    """How a document that isn't a PDF was made into one."""
+
+    from_: str = Field(alias="from", description="its own type: .docx, .eml, …")
+    by: Literal["libreoffice", "chromium"]
+
+
+class AttachedTo(ResponseModel):
+    """The email a resource was attached to (it's one of that email's files too)."""
+
+    resource: int
+    file: int | None = None
+    title: str | None = None
+
+
 class Recording(ResponseModel):
     """The recording row (less its envelope) plus what the recording page needs."""
 
@@ -101,6 +126,9 @@ class Recording(ResponseModel):
     featured: bool = False
     access_inherited: bool = Field(True, description="the access comes from the namespace's default")
     tags: list[str] = Field(default_factory=list)
+    email: EmailInfo | None = Field(None, description="an email: its subject, sender, recipients and date")
+    rendition: Rendition | None = Field(None, description="a document that isn't a PDF: how the PDF it's read from was made")
+    attached_to: AttachedTo | None = Field(None, description="an email's attachment made a resource of its own: that email")
 
 
 class Page(ResponseModel):

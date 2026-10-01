@@ -17,7 +17,8 @@ can open them, and harvesters can follow them.
   - The text is annotations on the page, each targeting where its block is (`canvas/<n>#xywh=…`), one page at a time
     (`/iiif/<id>/annotations/transcript?page=<n>`). Content Search hits target their block on the page.
   - Downloads: txt, md and json (no captions: a document's text has no times), and the file itself (`/iiif/<id>/media`,
-    "The PDF" or "The image"). Sections become Ranges that start on their page's Canvas.
+    "The PDF", "The image", "The Word document", …) with the PDF made of a document that isn't one
+    (`/iiif/<id>/pdf`). Sections become Ranges that start on their page's Canvas.
   - The schema.org record is a `DigitalDocument` or an `ImageObject`, the Dublin Core type `Text` or `StillImage`.
   - With the media closed, each page's image has its own probe (`/iiif/auth/probe/<id>/page<n>`, "Sign in to see
     this"), the file sits behind the audio's probe, and there's no thumbnail.

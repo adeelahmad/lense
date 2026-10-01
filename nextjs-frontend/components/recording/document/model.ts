@@ -124,3 +124,30 @@ export function facesOn(faces: FaceTrack[], page: number): FaceMark[] {
   });
   return out;
 }
+
+export type EmailInfo = {
+  subject?: string | null;
+  from?: string | null;
+  to?: string | null;
+  cc?: string | null;
+  date?: string | null;
+};
+
+/** An email's own description as rows for the Details tab (only the ones it has). */
+export function emailRows(e: EmailInfo | null | undefined, when: (iso: string) => string): [string, string][] {
+  if (!e) return [];
+  const rows: [string, string | null | undefined][] = [
+    ["Subject", e.subject],
+    ["From", e.from],
+    ["To", e.to],
+    ["Cc", e.cc],
+    ["Sent", e.date ? when(e.date) : null],
+  ];
+  return rows.filter((r): r is [string, string] => Boolean(r[1]));
+}
+
+/** How a document that isn't a PDF was made into one: "made into a PDF by LibreOffice". */
+export function renditionNote(r: { by?: string | null } | null | undefined): string | null {
+  if (!r?.by) return null;
+  return `made into a PDF by ${r.by === "libreoffice" ? "LibreOffice" : "Chromium"}`;
+}

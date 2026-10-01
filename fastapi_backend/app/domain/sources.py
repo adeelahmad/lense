@@ -20,7 +20,7 @@ import shutil
 import subprocess
 import tempfile
 
-from . import deletion, ingest, jobs, settings, store
+from . import convert, deletion, ingest, jobs, settings, store
 
 R = store.R
 BACKENDS = {
@@ -454,9 +454,10 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
     return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
 
 
-def file_kind(cfg, name, pdf_as="document"):
-    """'audio' (audio and video), 'document' (a PDF, unless `pdf_as` says 'transcript'), 'image', 'transcript', or
-    None for a file Lens doesn't import."""
+def file_kind(cfg, name, documents_as="document"):
+    """'audio' (audio and video), 'document', 'image', 'transcript', or None for a file Lens doesn't import. A file
+    that can be either a document or a transcript (a PDF, a Word or text file) is a document unless `documents_as`
+    says 'transcript', or the server can't make a PDF of it (then it's read as a transcript)."""
     p = pathlib.PurePosixPath(name)
     ext = p.suffix.lower()
     if p.name.startswith("."):
@@ -464,7 +465,9 @@ def file_kind(cfg, name, pdf_as="document"):
     if ext in {e.lower() for e in cfg["audio"]["extensions"]}:
         return "audio"
     if ext in store.DOCUMENT_EXT:
-        return pdf_as
+        if ext in TRANSCRIPT_EXT and (documents_as == "transcript" or convert.unavailable(cfg, name)):
+            return "transcript"
+        return None if convert.unavailable(cfg, name) else "document"
     if ext in store.IMAGE_EXT:
         return "image"
     return "transcript" if ext in TRANSCRIPT_EXT else None
@@ -472,7 +475,7 @@ def file_kind(cfg, name, pdf_as="document"):
 
 def kind_of(cfg, w, f):
     """'audio', 'document', 'image', 'transcript', or None when a watched folder should ignore the file. The kinds
-    from before documents (audio, transcripts, both) read a PDF as a transcript, as they did."""
+    from before documents (audio, transcripts, both) read PDFs, Word and text files as transcripts, as they did."""
     kinds = w.get("kinds") or WATCH["kinds"]
     kind = file_kind(cfg, f["path"], "transcript" if kinds in ("transcripts", "both") else "document")
     if kind not in TAKES.get(kinds, ()):
@@ -545,10 +548,11 @@ def imported(db, sid, paths):
     return out
 
 
-def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None, pdf_as="document"):
+def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None, documents_as="document"):
     """Chosen files of a source, imported into namespace `space` (into `collection`, else its default) now rather than
     watched: audio, video, documents and images stay on the source and run the pipeline (the namespace's, or
-    `pipeline`); transcripts are imported, and PDFs too when `pdf_as` is 'transcript'. One result per path:
+    `pipeline`); transcripts are imported, and PDFs, Word and text files too when `documents_as` is 'transcript'. One
+    result per path:
     queued (with the recording and job), already (it's a recording of the namespace from this source), skipped (a
     kind of file Lens doesn't import; a folder) or error. Choosing a file on purpose brings back one deleted before."""
     src = get(db, sid)
@@ -567,7 +571,7 @@ def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None,
             results += [{"path": p, "status": "error", "detail": str(e)[:300]} for p in wanted]
             continue
         for p in wanted:
-            f, kind = listing.get(p), file_kind(cfg, p, pdf_as)
+            f, kind = listing.get(p), file_kind(cfg, p, documents_as)
             mine = [x for x in have.get(p, []) if x["namespace"] == ns]
             if f is None:
                 results.append({"path": p, "status": "error", "detail": "not found"})

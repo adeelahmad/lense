@@ -89,7 +89,14 @@ A PDF uploaded as a document, or an image, has its pages drawn and read when its
 Drawing pages and reading their text needs poppler-utils (`pdftoppm`, `pdftotext`, `pdfinfo`; in the Docker image);
 without it a PDF's text is read by pypdf and it has no pages to look at. Pages without text are read by the OCR engine of
 `video.ocr_engine` in the languages of `video.ocr_languages` (Tesseract is in the Docker image); without one, scans and
-images have no text. Settings → Documents and images:
+images have no text.
+
+Other documents are made into PDFs first ([API](api.md#documents-and-images)): Word, PowerPoint and spreadsheet files,
+OpenDocument and RTF by LibreOffice; text, Markdown, saved web pages (HTML) and emails by Chromium printing a page Lens
+makes of them, or by LibreOffice where there's no Chromium. Outlook `.msg` emails also need the `msg` extra
+(`pip install -e ".[msg]"`; extract-msg is GPL-3.0). The `lens:full` Docker image has LibreOffice and Chromium
+([Deployment](deployment.md)); without them, PDFs and images are read as before, and files that can be transcripts
+(Word, text, Markdown) are imported as transcripts. Settings → Documents:
 
 | Setting | Default | |
 |---|---|---|
@@ -97,9 +104,22 @@ images have no text. Settings → Documents and images:
 | `documents.thumb_pixels` | 360 | the longest side of its thumbnail, 120–800 |
 | `documents.ocr_below_chars` | 25 | a page with fewer characters of text than this is read by OCR, 0–5000 (0: never) |
 | `documents.max_pages` | 2000 | the most pages of one document that are drawn and read, 1–50000 |
+| `documents.convert_seconds` | 300 | how long making one PDF may take before its job fails, 10–3600 seconds |
+| `documents.attachment_resources` | true | whether an email's attachments that Lens can read (documents, images, audio, video, emails) also become resources of their own; they're kept as its files either way |
 
-The pages are JPEGs in `data_dir/frames/<resource>/` (a page of about 300 KB at the default size), and go when the
-resource does. Workers listed in `workers.steps` run them as part of `transcribe`.
+Set at startup only (the config file; the web app can't choose what the server runs):
+
+| Setting | Default | |
+|---|---|---|
+| `documents.soffice` | `soffice` or `libreoffice` on PATH | LibreOffice |
+| `documents.chromium` | the first of `chromium`, `chromium-browser`, `google-chrome`, `google-chrome-stable`, `chrome` on PATH | Chromium or Chrome (a headless shell works too) |
+
+Neither may reach anything while converting: Chromium goes through a proxy inside Lens that serves the page and refuses
+every other request (the page also allows no scripts), and LibreOffice is given a proxy address that isn't there.
+Chromium runs with its sandbox where it can, and without it as root or where the container lacks what the sandbox
+needs. The pages are JPEGs in `data_dir/frames/<resource>/` (a page of about 300 KB at the default size) and the PDF
+made of a document is `data_dir/renditions/<resource>.pdf`; both go when the resource does. Workers listed in
+`workers.steps` run them as part of `transcribe`.
 
 ## API keys
 

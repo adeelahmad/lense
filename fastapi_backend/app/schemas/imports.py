@@ -53,8 +53,9 @@ class SourceImportRequest(RequestModel):
     namespace: str
     pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's")
     collection: int | None = Field(None, description="a collection of the namespace to put them in; default: its default collection")
-    pdf_as: Literal["document", "transcript"] = Field(
-        "document", description="PDFs become documents (their pages kept and read), or transcripts (their text only)"
+    documents_as: Literal["document", "transcript"] = Field(
+        "document",
+        description="PDFs, Word and text files become documents (their pages kept and read), or transcripts (their text only)",
     )
 
 

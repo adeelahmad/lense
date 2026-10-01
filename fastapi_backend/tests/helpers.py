@@ -48,11 +48,37 @@ def write_docx(path, paras):
         from xml.sax.saxutils import escape
 
         body = "".join(f'<w:p><w:r><w:t xml:space="preserve">{escape(p)}</w:t></w:r></w:p>' for p in paras)
-        with zipfile.ZipFile(path, "w") as z:
+        pkg = "http://schemas.openxmlformats.org/package/2006"
+        main = "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
+        with zipfile.ZipFile(path, "w") as z:  # the least a package needs for Word and LibreOffice to open it
+            z.writestr(
+                "[Content_Types].xml",
+                f'<Types xmlns="{pkg}/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.'
+                f'relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" '
+                f'ContentType="{main}"/></Types>',
+            )
+            z.writestr(
+                "_rels/.rels",
+                f'<Relationships xmlns="{pkg}/relationships"><Relationship Id="rId1" Target="word/document.xml" Type="http://schemas.'
+                'openxmlformats.org/officeDocument/2006/relationships/officeDocument"/></Relationships>',
+            )
             z.writestr(
                 "word/document.xml",
                 f'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>{body}</w:body></w:document>',
             )
+
+
+def chromium_binary():
+    """A Chromium to print pages with: one on PATH (CI has Chrome), else Playwright's headless shell where it's
+    installed; None without either."""
+    import glob
+    import shutil
+
+    for name in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "chrome", "headless_shell"):
+        if shutil.which(name):
+            return shutil.which(name)
+    found = sorted(glob.glob("/opt/pw-browsers/chromium_headless_shell-*/chrome-linux/headless_shell"))
+    return found[-1] if found else None
 
 
 def write_pdf(path, lines):

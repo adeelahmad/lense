@@ -13,7 +13,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query, Request
 from fastapi.responses import Response
 
-from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer, domain_errors
+from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_url, sign_urls
 from app.api.streaming import file_response, range_response
 from app.domain import access as acc
@@ -261,7 +261,19 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
         {"id": a["speaker"], "name": names.get(a["speaker"], "?"), "method": a.get("method"), "score": a.get("score")} for a in apps
     ]
     d["jobs"] = jobs.list_jobs(db, recording=rid, limit=5)
+    d["attached_to"] = _attached_to(acl, db, r.get("attached_to"))
     return Recording.model_validate(sign_urls(d))
+
+
+def _attached_to(acl: Access, db: DB, link: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The email an attachment came from, with its title, when the caller may see that email."""
+    if not link or not link.get("resource"):
+        return None
+    try:
+        email = acl.recording(int(link["resource"]))
+    except HTTPException:
+        return None  # deleted since, or not theirs to see
+    return {"resource": int(link["resource"]), "file": link.get("file"), "title": email.get("title")}
 
 
 @router.patch("/{rid}")

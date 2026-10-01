@@ -17,7 +17,7 @@ import re
 import secrets
 import threading
 
-from . import ipgroups, store
+from . import convert, ipgroups, store
 
 R = store.R
 EDITABLE = {
@@ -49,7 +49,8 @@ EDITABLE = {
     "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
     "uploads": None,
     "tokens": None,
-    "documents": None,
+    # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
+    "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
 SECRETS = {"llm": ("api_key",)}
 ENUMS = {
@@ -69,7 +70,13 @@ ENV_OVERRIDES = {("server", "allowed_hosts"): "ARCHIVE_ALLOWED_HOSTS"}
 # images.
 UPLOAD_TYPES = frozenset([*store.MEDIA_EXT, ".aif", ".aiff", ".wma", ".mpg", ".mpeg", ".3gp", *store.DOCUMENT_EXT, *store.IMAGE_EXT])
 UPLOAD_RANGES = {"max_mb": (1, 1_000_000), "chunk_mb": (1, 64), "expire_hours": (1, 720)}
-DOCUMENT_RANGES = {"page_pixels": (800, 6000), "thumb_pixels": (120, 800), "ocr_below_chars": (0, 5000), "max_pages": (1, 50_000)}
+DOCUMENT_RANGES = {
+    "page_pixels": (800, 6000),
+    "thumb_pixels": (120, 800),
+    "ocr_below_chars": (0, 5000),
+    "max_pages": (1, 50_000),
+    "convert_seconds": (10, 3600),
+}
 TOKEN_DAYS = (1, 3650)
 VIEWER_URL = re.compile(r"^https?://[^\s]+$")
 _KEYS, _KL = {}, threading.Lock()
@@ -175,6 +182,7 @@ def view(db, base):
         "secret_key": "ARCHIVE_SECRET_KEY" if os.environ.get("ARCHIVE_SECRET_KEY") else "data_dir/secret.key",
         "rclone": base["sources"].get("rclone") or "rclone on PATH",
         "local_roots": base["sources"].get("local_roots") or [],
+        **convert.bootstrap(base),
     }
     return out
 
@@ -208,6 +216,10 @@ def _check(section, key, value, default):
         return list(dict.fromkeys(names))
     if section == "uploads":
         return _upload_setting(key, value)
+    if (section, key) == ("documents", "attachment_resources"):
+        if not isinstance(value, bool):
+            raise ValueError("documents.attachment_resources is true or false")
+        return value
     if section == "documents":
         lo, hi = DOCUMENT_RANGES[key]
         if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):

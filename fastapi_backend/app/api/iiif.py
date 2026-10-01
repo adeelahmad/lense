@@ -32,7 +32,7 @@ from app.api.deps import Cfg, Db, OptionalUser, Principal, client_ip, get_cfg, g
 from app.api.v1.routes.recordings import serve_audio
 from app.api.v1.routes.video import serve_document
 from app.domain import access as acc
-from app.domain import auth, documents, iiif, iiif_auth, render, store, video
+from app.domain import auth, convert, documents, iiif, iiif_auth, render, store, video
 from app.domain import files as filemod
 from app.domain import metadata as md
 from app.domain.store import DB, R
@@ -424,6 +424,20 @@ def iiif_audio(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg)
     if full.get("source") in documents.KINDS:  # a document or an image: its file, to save
         return serve_document(db, cfg, full)
     return serve_audio(db, cfg, full, rid, request)
+
+
+@router.get("/iiif/{rid}/pdf", response_class=FileResponse, responses={200: {"content": {"application/pdf": {}}}})
+def iiif_pdf(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> FileResponse:
+    """The PDF made of a document that isn't one (a Word file, an email, …), to save. It opens with the media part,
+    like the document itself, and with the link the document's probe service signed."""
+    rec, a = _rec(request, db, cfg, user, rid, "audio")
+    if not _content_ok(request, db, cfg, user, rec, rid, a, "audio"):
+        raise HTTPException(401, "sign in through the viewer to see this")
+    path = convert.rendition_path(cfg, rid)
+    if rec.get("source") != "document" or not path.is_file():
+        raise HTTPException(404, "not found")
+    stem = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "document")).stem or "document"
+    return FileResponse(path, media_type="application/pdf", filename=f"{stem}.pdf", headers=filemod.HEADERS)
 
 
 @router.get("/iiif/{rid}/pages/{name}", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})

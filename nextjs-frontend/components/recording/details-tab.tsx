@@ -7,12 +7,15 @@ import {
   FileVideo,
   Film,
   GitCommitHorizontal,
+  Mail,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { uploadKindName } from "@/components/import/files";
 import { useRec } from "@/components/recording/context";
+import { emailRows, renditionNote, type EmailInfo } from "@/components/recording/document/model";
 import { sourceLabel, transcriptOrigin } from "@/components/recording/labels";
 import { Button } from "@/components/ui/button";
 import { absolute, bytes, count, plural, tc } from "@/lib/format";
@@ -32,12 +35,13 @@ export function DetailsTab() {
         .split(/[\\/]/)
         .pop()
         ?.replace(/^upload:/, "") || null;
+  const ocrPages = model.pages.filter((p) => p.text === "ocr").length;
   const file: Row[] = [
     ["Name", name, true],
     [
       "Kind",
       model.media.kind === "document"
-        ? "Document"
+        ? uploadKindName("document", name ?? "")
         : model.media.kind === "image"
           ? "Image"
           : video
@@ -51,10 +55,7 @@ export function DetailsTab() {
     paged
       ? [
           "Text",
-          [
-            plural(model.segments.length, "block"),
-            plural(model.pages.filter((p) => p.text === "ocr").length, "page") + " read by OCR",
-          ]
+          [plural(model.segments.length, "block"), ocrPages ? `${plural(ocrPages, "page")} read by OCR` : null]
             .filter(Boolean)
             .join(" · "),
         ]
@@ -91,7 +92,11 @@ export function DetailsTab() {
   const processing: Row[] = [
     [
       "Transcribe",
-      rec.transcribed_at ? `${transcriptOrigin(rec.engine) ?? "done"} · ${absolute(rec.transcribed_at)}` : "not run",
+      rec.transcribed_at
+        ? [renditionNote(rec.rendition), transcriptOrigin(rec.engine) ?? "done", absolute(rec.transcribed_at)]
+            .filter(Boolean)
+            .join(" · ")
+        : "not run",
     ],
     [
       "Diarize",
@@ -138,6 +143,7 @@ export function DetailsTab() {
       </div>
       <Group icon={video ? FileVideo : model.audio ? FileAudio : FileText} title="File" rows={file} />
       {(video || rec.channels) && <Group icon={Film} title={video ? "Video and audio" : "Audio"} rows={media} />}
+      {rec.email && <Group icon={Mail} title="Email" rows={emailRows(rec.email as EmailInfo, absolute)} />}
       <Group icon={GitCommitHorizontal} title="Provenance" rows={provenance} />
       <Group icon={Workflow} title="Processing" rows={processing} />
     </>

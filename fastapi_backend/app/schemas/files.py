@@ -19,6 +19,7 @@ class PrimaryFile(ResponseModel):
     size: int | None = Field(None, description="bytes")
     content_type: str | None = None
     download: str = Field(description="a signed link to it")
+    pdf: str | None = Field(None, description="a document that isn't a PDF: a signed link to the PDF made of it")
 
 
 class ResourceFile(ResponseModel):
@@ -32,6 +33,7 @@ class ResourceFile(ResponseModel):
     description: str | None = None
     lines: int | None = Field(None, description="transcripts, captions, translations and indexes: how many lines were read from it")
     timed: bool | None = Field(None, description="whether its lines say when they are (else they have no times)")
+    resource: int | None = Field(None, description="an email's attachment: the resource it became (or the one it was already)")
     public: bool = Field(
         description="everyone may download it: the resource is public with the part its role follows open (attachments never are)"
     )

@@ -302,6 +302,26 @@ export type ApprovalOutcome = {
 };
 
 /**
+ * AttachedTo
+ * The email a resource was attached to (it's one of that email's files too).
+ */
+export type AttachedTo = {
+  /**
+   * Resource
+   */
+  resource: number;
+  /**
+   * File
+   */
+  file?: number | null;
+  /**
+   * Title
+   */
+  title?: string | null;
+  [key: string]: unknown | number | number | null | string | null | undefined;
+};
+
+/**
  * AuditEntry
  */
 export type AuditEntry = {
@@ -1596,6 +1616,29 @@ export type ContentState = {
 };
 
 /**
+ * Converters
+ * What this server can make into PDFs to read as documents (docs/api.md#documents-and-images).
+ */
+export type Converters = {
+  /**
+   * Office
+   * Word, PowerPoint and spreadsheet files, OpenDocument and RTF (LibreOffice)
+   */
+  office: boolean;
+  /**
+   * Pages
+   * text, Markdown, saved web pages and .eml emails (Chromium or LibreOffice)
+   */
+  pages: boolean;
+  /**
+   * Msg
+   * Outlook .msg emails (those, and the extract-msg package)
+   */
+  msg: boolean;
+  [key: string]: unknown | boolean;
+};
+
+/**
  * Created
  */
 export type Created = {
@@ -1608,6 +1651,36 @@ export type Created = {
    */
   id: number;
   [key: string]: unknown | boolean | number | undefined;
+};
+
+/**
+ * EmailInfo
+ * An email's own description, read when it was made into a PDF.
+ */
+export type EmailInfo = {
+  /**
+   * Subject
+   */
+  subject?: string | null;
+  /**
+   * From
+   * who sent it
+   */
+  from?: string | null;
+  /**
+   * To
+   */
+  to?: string | null;
+  /**
+   * Cc
+   */
+  cc?: string | null;
+  /**
+   * Date
+   * when it was sent (ISO 8601)
+   */
+  date?: string | null;
+  [key: string]: unknown | string | null | string | null | string | null | string | null | string | null | undefined;
 };
 
 /**
@@ -4746,6 +4819,11 @@ export type PrimaryFile = {
    * a signed link to it
    */
   download: string;
+  /**
+   * Pdf
+   * a document that isn't a PDF: a signed link to the PDF made of it
+   */
+  pdf?: string | null;
   [key: string]:
     | unknown
     | string
@@ -4759,6 +4837,8 @@ export type PrimaryFile = {
     | string
     | null
     | string
+    | string
+    | null
     | undefined;
 };
 
@@ -5107,6 +5187,16 @@ export type PublicMedia = {
    * a document's or an image's pages
    */
   pages?: Array<PublicPage> | null;
+  /**
+   * File
+   * a document's or an image's file, in words: PDF, Word document, email, image, …
+   */
+  file?: string | null;
+  /**
+   * Pdf
+   * a document that isn't a PDF: signed link to the PDF made of it
+   */
+  pdf?: string | null;
   [key: string]:
     | unknown
     | string
@@ -5123,6 +5213,10 @@ export type PublicMedia = {
     | Array<unknown>
     | null
     | Array<PublicPage>
+    | null
+    | string
+    | null
+    | string
     | null
     | undefined;
 };
@@ -5635,6 +5729,18 @@ export type Recording = {
    * Tags
    */
   tags?: Array<string>;
+  /**
+   * an email: its subject, sender, recipients and date
+   */
+  email?: EmailInfo | null;
+  /**
+   * a document that isn't a PDF: how the PDF it's read from was made
+   */
+  rendition?: Rendition | null;
+  /**
+   * an email's attachment made a resource of its own: that email
+   */
+  attached_to?: AttachedTo | null;
   [key: string]:
     | unknown
     | number
@@ -5671,6 +5777,12 @@ export type Recording = {
     | Array<"media" | "transcript" | "index">
     | boolean
     | Array<string>
+    | EmailInfo
+    | null
+    | Rendition
+    | null
+    | AttachedTo
+    | null
     | undefined;
 };
 
@@ -6162,6 +6274,23 @@ export type RefreshRequest = {
 };
 
 /**
+ * Rendition
+ * How a document that isn't a PDF was made into one.
+ */
+export type Rendition = {
+  /**
+   * From
+   * its own type: .docx, .eml, …
+   */
+  from: string;
+  /**
+   * By
+   */
+  by: "libreoffice" | "chromium";
+  [key: string]: unknown | string | "libreoffice" | "chromium";
+};
+
+/**
  * ReprocessRequest
  */
 export type ReprocessRequest = {
@@ -6244,6 +6373,11 @@ export type ResourceFile = {
    */
   timed?: boolean | null;
   /**
+   * Resource
+   * an email's attachment: the resource it became (or the one it was already)
+   */
+  resource?: number | null;
+  /**
    * Public
    * everyone may download it: the resource is public with the part its role follows open (attachments never are)
    */
@@ -6290,6 +6424,8 @@ export type ResourceFile = {
     | number
     | null
     | boolean
+    | null
+    | number
     | null
     | boolean
     | string
@@ -7192,10 +7328,10 @@ export type SourceImportRequest = {
    */
   collection?: number | null;
   /**
-   * Pdf As
-   * PDFs become documents (their pages kept and read), or transcripts (their text only)
+   * Documents As
+   * PDFs, Word and text files become documents (their pages kept and read), or transcripts (their text only)
    */
-  pdf_as?: "document" | "transcript";
+  documents_as?: "document" | "transcript";
 };
 
 /**
@@ -8296,12 +8432,12 @@ export type Upload = {
 export type UploadLimits = {
   /**
    * Max Mb
-   * the largest audio or video file, in MB (uploads.max_mb)
+   * the largest file, in MB (uploads.max_mb)
    */
   max_mb: number;
   /**
    * Extensions
-   * the audio and video types that can be uploaded (uploads.extensions)
+   * the types that can be uploaded (uploads.extensions)
    */
   extensions: Array<string>;
   /**
@@ -8314,7 +8450,8 @@ export type UploadLimits = {
    * the largest transcript file for POST /import (server.max_upload_mb)
    */
   transcript_mb: number;
-  [key: string]: unknown | number | Array<string>;
+  convert: Converters;
+  [key: string]: unknown | number | Array<string> | Converters;
 };
 
 /**
@@ -13830,6 +13967,41 @@ export type GetMediaResponses = {
    */
   206: unknown;
 };
+
+export type GetPdfData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * S
+     */
+    s?: string;
+  };
+  url: "/api/v1/resources/{rid}/pdf";
+};
+
+export type GetPdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetPdfError = GetPdfErrors[keyof GetPdfErrors];
+
+export type GetPdfResponses = {
+  /**
+   * Successful Response
+   */
+  200: Blob | File;
+};
+
+export type GetPdfResponse = GetPdfResponses[keyof GetPdfResponses];
 
 export type GetFrameData = {
   body?: never;

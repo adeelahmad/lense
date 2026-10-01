@@ -5389,7 +5389,7 @@
           "imports"
         ],
         "summary": "Import From Source",
-        "description": "Import chosen files of a storage source into a namespace now, rather than watching their folder (admins, like\nsources; a new namespace is created). Audio, video, documents (PDFs) and images stay on the source and run the\nnamespace's pipeline, or `pipeline`; transcripts are imported, and PDFs too with `pdf_as: transcript`. Each file\ngets a result: queued, already (the namespace has it from this source), skipped (not audio, video, a document, an\nimage or a transcript) or error. Audited as `import.source`.",
+        "description": "Import chosen files of a storage source into a namespace now, rather than watching their folder (admins, like\nsources; a new namespace is created). Audio, video, documents (PDFs) and images stay on the source and run the\nnamespace's pipeline, or `pipeline`; transcripts are imported, and PDFs, Word and text files too with\n`documents_as: transcript`. Each file\ngets a result: queued, already (the namespace has it from this source), skipped (not audio, video, a document, an\nimage or a transcript) or error. Audited as `import.source`.",
         "operationId": "import_from_source",
         "requestBody": {
           "content": {
@@ -8060,6 +8060,55 @@
           },
           "206": {
             "description": "a byte range"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/pdf": {
+      "get": {
+        "tags": [
+          "video"
+        ],
+        "summary": "Get Pdf",
+        "description": "The PDF made of a document that isn't one (a Word file, an email, \u2026): what its pages are drawn from, to save.\nAccepts a bearer token, a share link (``?s=``) or a signed link.",
+        "operationId": "get_pdf",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "s",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {}
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -12441,6 +12490,43 @@
         ],
         "title": "ApprovalOutcome"
       },
+      "AttachedTo": {
+        "properties": {
+          "resource": {
+            "type": "integer",
+            "title": "Resource"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource"
+        ],
+        "title": "AttachedTo",
+        "description": "The email a resource was attached to (it's one of that email's files too)."
+      },
       "AuditEntry": {
         "properties": {
           "at": {
@@ -14523,6 +14609,34 @@
         ],
         "title": "ContentState"
       },
+      "Converters": {
+        "properties": {
+          "office": {
+            "type": "boolean",
+            "title": "Office",
+            "description": "Word, PowerPoint and spreadsheet files, OpenDocument and RTF (LibreOffice)"
+          },
+          "pages": {
+            "type": "boolean",
+            "title": "Pages",
+            "description": "text, Markdown, saved web pages and .eml emails (Chromium or LibreOffice)"
+          },
+          "msg": {
+            "type": "boolean",
+            "title": "Msg",
+            "description": "Outlook .msg emails (those, and the extract-msg package)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "office",
+          "pages",
+          "msg"
+        ],
+        "title": "Converters",
+        "description": "What this server can make into PDFs to read as documents (docs/api.md#documents-and-images)."
+      },
       "Created": {
         "properties": {
           "ok": {
@@ -14541,6 +14655,71 @@
           "id"
         ],
         "title": "Created"
+      },
+      "EmailInfo": {
+        "properties": {
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From",
+            "description": "who sent it"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "cc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cc"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date",
+            "description": "when it was sent (ISO 8601)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "EmailInfo",
+        "description": "An email's own description, read when it was made into a PDF."
       },
       "EmbedLink": {
         "properties": {
@@ -19373,6 +19552,18 @@
             "type": "string",
             "title": "Download",
             "description": "a signed link to it"
+          },
+          "pdf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf",
+            "description": "a document that isn't a PDF: a signed link to the PDF made of it"
           }
         },
         "additionalProperties": true,
@@ -19928,6 +20119,30 @@
             ],
             "title": "Pages",
             "description": "a document's or an image's pages"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File",
+            "description": "a document's or an image's file, in words: PDF, Word document, email, image, \u2026"
+          },
+          "pdf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf",
+            "description": "a document that isn't a PDF: signed link to the PDF made of it"
           }
         },
         "additionalProperties": true,
@@ -20752,6 +20967,39 @@
             },
             "type": "array",
             "title": "Tags"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmailInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "an email: its subject, sender, recipients and date"
+          },
+          "rendition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Rendition"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a document that isn't a PDF: how the PDF it's read from was made"
+          },
+          "attached_to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttachedTo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "an email's attachment made a resource of its own: that email"
           }
         },
         "additionalProperties": true,
@@ -21505,6 +21753,31 @@
         ],
         "title": "RefreshRequest"
       },
+      "Rendition": {
+        "properties": {
+          "from": {
+            "type": "string",
+            "title": "From",
+            "description": "its own type: .docx, .eml, \u2026"
+          },
+          "by": {
+            "type": "string",
+            "enum": [
+              "libreoffice",
+              "chromium"
+            ],
+            "title": "By"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "from",
+          "by"
+        ],
+        "title": "Rendition",
+        "description": "How a document that isn't a PDF was made into one."
+      },
       "ReprocessRequest": {
         "properties": {
           "steps": {
@@ -21653,6 +21926,18 @@
             ],
             "title": "Timed",
             "description": "whether its lines say when they are (else they have no times)"
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource",
+            "description": "an email's attachment: the resource it became (or the one it was already)"
           },
           "public": {
             "type": "boolean",
@@ -23106,14 +23391,14 @@
             "title": "Collection",
             "description": "a collection of the namespace to put them in; default: its default collection"
           },
-          "pdf_as": {
+          "documents_as": {
             "type": "string",
             "enum": [
               "document",
               "transcript"
             ],
-            "title": "Pdf As",
-            "description": "PDFs become documents (their pages kept and read), or transcripts (their text only)",
+            "title": "Documents As",
+            "description": "PDFs, Word and text files become documents (their pages kept and read), or transcripts (their text only)",
             "default": "document"
           }
         },
@@ -24859,7 +25144,7 @@
           "max_mb": {
             "type": "integer",
             "title": "Max Mb",
-            "description": "the largest audio or video file, in MB (uploads.max_mb)"
+            "description": "the largest file, in MB (uploads.max_mb)"
           },
           "extensions": {
             "items": {
@@ -24867,7 +25152,7 @@
             },
             "type": "array",
             "title": "Extensions",
-            "description": "the audio and video types that can be uploaded (uploads.extensions)"
+            "description": "the types that can be uploaded (uploads.extensions)"
           },
           "chunk_mb": {
             "type": "integer",
@@ -24878,6 +25163,9 @@
             "type": "integer",
             "title": "Transcript Mb",
             "description": "the largest transcript file for POST /import (server.max_upload_mb)"
+          },
+          "convert": {
+            "$ref": "#/components/schemas/Converters"
           }
         },
         "additionalProperties": true,
@@ -24886,7 +25174,8 @@
           "max_mb",
           "extensions",
           "chunk_mb",
-          "transcript_mb"
+          "transcript_mb",
+          "convert"
         ],
         "title": "UploadLimits"
       },

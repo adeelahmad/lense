@@ -1,13 +1,33 @@
 "use client";
 
+import type { UploadLimits } from "@/app/openapi-client/types.gen";
 import type { FileKind } from "@/components/import/files";
-import { canBeTranscript } from "@/components/import/files";
+import { canBeTranscript, conversionProblem, DEFAULT_LIMITS, uploadKindName } from "@/components/import/files";
 import type { Item } from "@/components/import/use-import";
 import { Segmented } from "@/components/ui/tabs";
 
-/** A PDF is imported as a document (its pages, read; scans by OCR) unless someone chooses a transcript (its text only). */
-export function ImportAs({ it, onKind }: { it: Item; onKind: (kind: FileKind) => void }) {
+/**
+ * A PDF, Word, text or Markdown file is imported as a document (its pages, read; scans by OCR) unless someone chooses a
+ * transcript (its text only). Where the server can't make a document of it, it's a transcript, and this says why.
+ */
+export function ImportAs({
+  it,
+  onKind,
+  limits = DEFAULT_LIMITS,
+}: {
+  it: Item;
+  onKind: (kind: FileKind) => void;
+  limits?: UploadLimits;
+}) {
   if (!canBeTranscript(it.file.name)) return null;
+  const cannot = conversionProblem(it.file.name, limits);
+  if (cannot)
+    return (
+      <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+        Imported as a transcript: this server can’t keep {uploadKindName("document", it.file.name).toLowerCase()}s as
+        documents. {cannot}
+      </p>
+    );
   const doc = it.kind !== "transcript";
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">

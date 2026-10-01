@@ -17,7 +17,7 @@ import {
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
-import type { SpeakerDirectory, Upload as UploadT } from "@/app/openapi-client/types.gen";
+import type { SpeakerDirectory, Upload as UploadT, UploadLimits } from "@/app/openapi-client/types.gen";
 import {
   canBeTranscript,
   extOf,
@@ -93,7 +93,7 @@ export function fileMeta(it: Item): string {
     if (it.problem.code === "too-large") return `${bytes(it.file.size)} — over the upload limit`;
     return it.problem.title;
   }
-  if (isUpload(it.kind)) return `${uploadKindName(it.kind)} · ${bytes(it.file.size)} · ready to upload`;
+  if (isUpload(it.kind)) return `${uploadKindName(it.kind, it.file.name)} · ${bytes(it.file.size)} · ready to upload`;
   const pv = it.preview;
   if (!pv) return bytes(it.file.size);
   const parts = [formatName(pv.format).replace(/ \(\.\w+\)$/, ""), plural(pv.segments, "segment")];
@@ -315,10 +315,12 @@ export function FileDetail({
   pipelineControl,
   directory,
   audioTwin,
+  limits,
 }: {
   it: Item;
   onPatch: (p: Partial<Item>) => void;
   onKind?: (kind: FileKind) => void;
+  limits?: UploadLimits;
   namespace: string | null;
   namespaceControl: ReactNode;
   pipelineControl: ReactNode;
@@ -337,7 +339,7 @@ export function FileDetail({
           Parsed
         </Badge>
       </div>
-      {onKind && <ImportAs it={it} onKind={onKind} />}
+      {onKind && <ImportAs it={it} onKind={onKind} limits={limits} />}
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Stat k="Format" v={formatName(pv.format)} />
         <Stat k="Speakers found" v={count(pv.speakers.length)} />
@@ -391,10 +393,12 @@ export function MediaDetail({
   pieceMb,
   unfinished,
   twinOf,
+  limits,
 }: {
   it: Item;
   onPatch: (p: Partial<Item>) => void;
   onKind?: (kind: FileKind) => void;
+  limits?: UploadLimits;
   namespace: string | null;
   namespaceControl: ReactNode;
   pipelineControl: ReactNode;
@@ -415,9 +419,9 @@ export function MediaDetail({
           Ready to upload
         </Badge>
       </div>
-      {onKind && <ImportAs it={it} onKind={onKind} />}
+      {onKind && <ImportAs it={it} onKind={onKind} limits={limits} />}
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
-        <Stat k="Type" v={`${uploadKindName(it.kind)} (${extOf(it.file.name).slice(1)})`} />
+        <Stat k="Type" v={`${uploadKindName(it.kind, it.file.name)} (${extOf(it.file.name).slice(1)})`} />
         <Stat k="Size" v={bytes(it.file.size)} />
         <Stat k="Sent in" v={pieces === 1 ? "one piece" : `${count(pieces)} pieces`} />
       </div>

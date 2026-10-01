@@ -130,6 +130,34 @@ describe("the Files tab", () => {
     expect(within(list).getAllByText("Public")).toHaveLength(1);
   });
 
+  it("offers an email's PDF and opens the resources its attachments became", async () => {
+    m(Files.listFiles).mockImplementation(() =>
+      ok({
+        ...LIST,
+        primary: {
+          name: "harbour.eml",
+          kind: "document",
+          size: 4096,
+          content_type: "message/rfc822",
+          download: "/api/v1/recordings/7/media?sig=y",
+          pdf: "/api/v1/recordings/7/pdf?sig=p",
+        },
+        files: [{ ...LIST.files[1], resource: 12 }],
+      }),
+    );
+    show();
+    const primary = await screen.findByRole("region", { name: "Primary file" });
+    expect(within(primary).getByText("Primary · Email · 4.0 KB")).toBeInTheDocument();
+    expect(within(primary).getByRole("link", { name: "Download the PDF made of it" })).toHaveAttribute(
+      "href",
+      "/api/v1/recordings/7/pdf?sig=p",
+    );
+    expect(screen.getByRole("link", { name: "Open release.pdf: a resource of its own" })).toHaveAttribute(
+      "href",
+      "/resources/12",
+    );
+  });
+
   it("adds a file, guessing what it is", async () => {
     show();
     await screen.findByRole("region", { name: "Supplementary files" });

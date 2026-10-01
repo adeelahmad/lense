@@ -7,11 +7,20 @@ from pydantic import Field
 from app.schemas.common import RequestModel, ResponseModel
 
 
+class Converters(ResponseModel):
+    """What this server can make into PDFs to read as documents (docs/api.md#documents-and-images)."""
+
+    office: bool = Field(description="Word, PowerPoint and spreadsheet files, OpenDocument and RTF (LibreOffice)")
+    pages: bool = Field(description="text, Markdown, saved web pages and .eml emails (Chromium or LibreOffice)")
+    msg: bool = Field(description="Outlook .msg emails (those, and the extract-msg package)")
+
+
 class UploadLimits(ResponseModel):
-    max_mb: int = Field(description="the largest audio or video file, in MB (uploads.max_mb)")
-    extensions: list[str] = Field(description="the audio and video types that can be uploaded (uploads.extensions)")
+    max_mb: int = Field(description="the largest file, in MB (uploads.max_mb)")
+    extensions: list[str] = Field(description="the types that can be uploaded (uploads.extensions)")
     chunk_mb: int = Field(description="how much the web app sends per request (uploads.chunk_mb)")
     transcript_mb: int = Field(description="the largest transcript file for POST /import (server.max_upload_mb)")
+    convert: Converters
 
 
 class UploadStart(RequestModel):

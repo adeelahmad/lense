@@ -442,6 +442,9 @@ import type {
   GetMediaData,
   GetMediaResponses,
   GetMediaErrors,
+  GetPdfData,
+  GetPdfResponses,
+  GetPdfErrors,
   GetFrameData,
   GetFrameResponses,
   GetFrameErrors,
@@ -2186,7 +2189,8 @@ export class Imports {
    * Import From Source
    * Import chosen files of a storage source into a namespace now, rather than watching their folder (admins, like
    * sources; a new namespace is created). Audio, video, documents (PDFs) and images stay on the source and run the
-   * namespace's pipeline, or `pipeline`; transcripts are imported, and PDFs too with `pdf_as: transcript`. Each file
+   * namespace's pipeline, or `pipeline`; transcripts are imported, and PDFs, Word and text files too with
+   * `documents_as: transcript`. Each file
    * gets a result: queued, already (the namespace has it from this source), skipped (not audio, video, a document, an
    * image or a transcript) or error. Audited as `import.source`.
    */
@@ -2888,6 +2892,18 @@ export class Video {
   public static getMedia<ThrowOnError extends boolean = false>(options: Options<GetMediaData, ThrowOnError>) {
     return (options.client ?? client).get<GetMediaResponses, GetMediaErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/media",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Pdf
+   * The PDF made of a document that isn't one (a Word file, an email, …): what its pages are drawn from, to save.
+   * Accepts a bearer token, a share link (``?s=``) or a signed link.
+   */
+  public static getPdf<ThrowOnError extends boolean = false>(options: Options<GetPdfData, ThrowOnError>) {
+    return (options.client ?? client).get<GetPdfResponses, GetPdfErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/pdf",
       ...options,
     });
   }

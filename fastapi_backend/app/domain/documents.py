@@ -19,7 +19,7 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 
-from . import ingest, store, video
+from . import convert, ingest, store, video
 
 R = store.R
 TYPES = {
@@ -50,7 +50,8 @@ def kind_of(name):
 
 
 def content_type(name):
-    return TYPES.get(pathlib.PurePosixPath(str(name or "")).suffix.lower())
+    ext = pathlib.PurePosixPath(str(name or "")).suffix.lower()
+    return TYPES.get(ext) or convert.TYPES.get(ext)
 
 
 def page_name(i):
@@ -394,6 +395,18 @@ def segments_of(blocks):
     return out
 
 
+def _named(rec, path, learnt):
+    """An email's subject as its title and its date as when it was made, unless someone named or dated it otherwise:
+    an upload is titled after its file and dated by it until then."""
+    out = {}
+    stem = pathlib.PurePosixPath(str(path)).stem
+    if learnt.get("title") and (not rec.get("title") or rec["title"] == stem):
+        out["title"] = learnt["title"][:200]
+    if learnt["email"].get("date"):
+        out["recorded_at"] = learnt["email"]["date"]
+    return out
+
+
 def _clear(d):
     for pattern in ("page-*.jpg", "thumb-*.jpg"):
         for f in d.glob(pattern):
@@ -401,17 +414,27 @@ def _clear(d):
 
 
 def transcribe(db, cfg, rid, say):
-    """Draw a document's or an image's pages and read their text into its segments (the transcribe step for them)."""
-    rec = db.one("SELECT space, path, remote, source, title FROM $r", r=R("recording", rid)) or {}
+    """Draw a document's or an image's pages and read their text into its segments (the transcribe step for them). A
+    document that isn't a PDF is made into one first (convert.py): its rendition, which its pages come from; an email
+    also gives its sender, recipients, date and subject, and its attachments are kept."""
+    rec = db.one("SELECT space, path, remote, source, title, recorded_at FROM $r", r=R("recording", rid)) or {}
     path = ingest.audio_path(db, cfg, rec)
     if not path or not os.path.exists(path):
         raise FileNotFoundError(f"its file isn't there ({rec.get('path')})")
     opts, engine = cfg["documents"], video.ocr_engine(cfg)
+    learnt, pdf = {}, path
+    if rec["source"] == "document" and convert.needs(path):
+        pdf = convert.rendition_path(cfg, rid)
+        try:
+            learnt = convert.to_pdf(cfg, path, pdf)
+        except convert.Unavailable as e:
+            raise ValueError(f"this {convert.word(path)} can't be read here: {e}") from None
+        say(f"made into a PDF by {'LibreOffice' if learnt['by'] == 'libreoffice' else 'Chromium'}")
     d = video.frames_dir(cfg, rid)
     d.mkdir(parents=True, exist_ok=True)
     _clear(d)
     read = read_image if rec["source"] == "image" else read_pdf
-    pages, blocks, notes, ocred = read(path, d, opts, engine, say)
+    pages, blocks, notes, ocred = read(pdf, d, opts, engine, say)
     segs = segments_of(blocks)
     rows = [{**p, "id": R("page", f"{rid}-{p['idx']}"), "recording": rid, "space": rec["space"]} for p in pages]
     db.run(
@@ -423,14 +446,16 @@ def transcribe(db, cfg, rid, say):
     first = next((p for p in pages if p.get("width")), {})
     media = store.clean({"kind": rec["source"], "pages": len(pages), "width": first.get("width"), "height": first.get("height")})
     how = ("pdf" if rec["source"] == "document" else "image") + (f"+ocr:{engine.name}" if ocred and engine else "")
-    ingest.write_transcript(
-        db,
-        rid,
-        rec["space"],
-        segs,
-        {"status": "transcribed", "engine": how, "media": media, "transcribed_at": store.now()},
-    )
+    patch = {"status": "transcribed", "engine": how, "media": media, "transcribed_at": store.now()}
+    if learnt:
+        patch["rendition"] = {"from": convert.ext_of(path), "by": learnt["by"]}
+    if learnt.get("email"):
+        patch["email"] = learnt["email"]
+        patch.update(_named(rec, path, learnt))
+    ingest.write_transcript(db, rid, rec["space"], segs, patch)
     for note in notes:
         say(note)
+    if learnt.get("attachments") is not None:
+        convert.keep_attachments(db, cfg, rid, learnt["attachments"], say)
     by_ocr = f", {ocred} read by OCR ({engine.name})" if ocred and engine else ""
     say(f"{len(pages)} page(s){by_ocr}, {len(segs)} block(s) of text")

@@ -14,6 +14,11 @@ import { cn } from "@/lib/utils";
 type Rec = PublicRecording;
 type Text = NonNullable<Rec["transcript"]>;
 
+function ownWord(file: string | null | undefined): string {
+  const w = file || "original";
+  return w.charAt(0).toUpperCase() + w.slice(1);
+}
+
 /** How many pages a document has: its pages when the visitor may see them, else as many as its text is on. */
 function pageCount(rec: Rec): number {
   const drawn = rec.media?.pages?.length ?? 0;
@@ -85,16 +90,28 @@ function PagesCard({
   const pages = m.pages ?? [];
   const p = pages[page];
   const name = `Page ${pageName(pages, page)}`;
+  // its own file: the image, the PDF, or (made into a PDF) the Word document, email, … it was
+  const own = image ? "Image" : m.pdf ? ownWord(m.file) : "PDF";
   return (
     <Card
       title={title}
       extra={
-        <Button asChild size="sm" variant="ghost">
-          <a href={m.url} download>
-            <Download aria-hidden />
-            {image ? "Download the image" : "Download the PDF"}
-          </a>
-        </Button>
+        <div className="flex flex-wrap justify-end gap-1">
+          {m.pdf && (
+            <Button asChild size="sm" variant="ghost">
+              <a href={m.pdf} download aria-label="Download the PDF">
+                <Download aria-hidden />
+                PDF
+              </a>
+            </Button>
+          )}
+          <Button asChild size="sm" variant="ghost">
+            <a href={m.url} download aria-label={`Download the ${own === "PDF" ? own : own.toLowerCase()}`}>
+              <Download aria-hidden />
+              {m.pdf ? own : `Download the ${own === "PDF" ? own : own.toLowerCase()}`}
+            </a>
+          </Button>
+        </div>
       }
     >
       {pages.length > 1 && (

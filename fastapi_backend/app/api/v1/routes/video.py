@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, Response
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_urls
 from app.api.v1.routes.recordings import serve_audio
-from app.domain import auth, documents, files, ingest, jobs, video
+from app.domain import auth, convert, documents, files, ingest, jobs, video
 from app.domain import faces as facemod
 from app.domain.store import API, DB, R
 from app.schemas.common import Ok
@@ -66,6 +66,18 @@ def serve_document(db: DB, cfg: dict[str, Any], rec: dict[str, Any]) -> FileResp
     name = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or path)).name
     ctype = documents.content_type(name) or "application/octet-stream"
     return FileResponse(path, media_type=ctype, filename=name, headers=files.HEADERS)
+
+
+@router.get("/recordings/{rid}/pdf", response_class=FileResponse, responses={200: {"content": {"application/pdf": {}}}})
+def get_pdf(rid: int, acl: Acl, cfg: Cfg, s: str = "") -> FileResponse:
+    """The PDF made of a document that isn't one (a Word file, an email, …): what its pages are drawn from, to save.
+    Accepts a bearer token, a share link (``?s=``) or a signed link."""
+    rec = acl.recording(rid, share=s)
+    path = convert.rendition_path(cfg, rid)
+    if rec.get("source") != "document" or not path.is_file():
+        raise HTTPException(404, "not found")
+    name = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "document")).stem or "document"
+    return FileResponse(path, media_type="application/pdf", filename=f"{name}.pdf", headers=files.HEADERS)
 
 
 @router.get("/recordings/{rid}/frames/{name}", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})

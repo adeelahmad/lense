@@ -8,7 +8,9 @@ title of a restricted one ("content locked"). The routes sign the media links, a
 
 from __future__ import annotations
 
-from . import access as acc, documents, fields as fieldmod, files as filemod, iiif, metadata as md, render, store
+import pathlib
+
+from . import access as acc, convert, documents, fields as fieldmod, files as filemod, iiif, metadata as md, render, store
 from . import search as searchmod
 
 R = store.R
@@ -34,7 +36,7 @@ def recording(db, cfg, rid, seen, a, member=False, granted=False, network=None):
 
     `closed` lists the parts the recording has that this visitor can't use; a locked recording closes all of them.
     """
-    rec = db.one("SELECT title, recorded_at, duration_ms, space, source, remote, media FROM $r", r=R("recording", rid))
+    rec = db.one("SELECT title, recorded_at, duration_ms, space, source, path, remote, media FROM $r", r=R("recording", rid))
     if not rec:
         raise KeyError(rid)
     meta = md.effective(db, cfg, rid)
@@ -108,6 +110,10 @@ def recording(db, cfg, rid, seen, a, member=False, granted=False, network=None):
             "envelope": None if paged else d.get("envelope"),
         }
         if paged:
+            name = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "")).name
+            out["media"]["file"] = "image" if rec.get("source") == "image" else convert.word(name)
+            if rec.get("source") == "document" and convert.needs(name) and convert.rendition_path(cfg, rid).is_file():
+                out["media"]["pdf"] = f"{store.API}/recordings/{rid}/pdf"
             out["media"]["pages"] = [
                 {k: p.get(k) for k in ("idx", "width", "height", "image", "thumb", "label")} for p in d.get("pages") or []
             ]

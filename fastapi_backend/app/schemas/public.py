@@ -45,6 +45,8 @@ class PublicMedia(ResponseModel):
     poster: str | None = Field(None, description="signed link to a video's first frame, or a document's first page")
     envelope: list[Any] | None = Field(None, description="loudness over time, for drawing the waveform")
     pages: list[PublicPage] | None = Field(None, description="a document's or an image's pages")
+    file: str | None = Field(None, description="a document's or an image's file, in words: PDF, Word document, email, image, …")
+    pdf: str | None = Field(None, description="a document that isn't a PDF: signed link to the PDF made of it")
 
 
 class PublicSpeaker(ResponseModel):

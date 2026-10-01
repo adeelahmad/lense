@@ -10,7 +10,7 @@ import {
   DEFAULT_LIMITS,
   fileToBase64,
   initialMapping,
-  kindOf,
+  defaultKind,
   mappingParam,
   parseMapping,
   readProblem,
@@ -52,7 +52,7 @@ function makeItem(file: File, limits: UploadLimits): Item {
   return {
     id: `f${++seq}`,
     file,
-    ...asKind(file, kindOf(file.name), limits),
+    ...asKind(file, defaultKind(file.name, limits), limits),
     title: titleFromName(file.name),
     mapping: "",
     mappingTouched: false,

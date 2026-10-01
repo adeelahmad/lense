@@ -71,12 +71,12 @@ def stop_jobs(db, rid, verb="delete"):
 
 
 def _files(db, cfg, rec, rid, ns):
-    """The files Lens made from the recording: its frames, its report pages, the exports only it wrote, and a cached
-    copy of a remote file that no other recording uses. Never the media file."""
+    """The files Lens made from the recording: its frames, its report pages, the PDF made of a document, the exports
+    only it wrote, and a cached copy of a remote file that no other recording uses. Never the media file."""
     data = pathlib.Path(cfg["data_dir"])
     reports = data / "reports" / (ns or "_")
     name = f"{render.slug(rec.get('title'))}-{rid}"
-    out = [reports / f"{name}.html", *reports.glob(f"{name}--*.html")]
+    out = [reports / f"{name}.html", *reports.glob(f"{name}--*.html"), data / "renditions" / f"{int(rid)}.pdf"]
     exports = data / "exports" / (ns or "_")
     mine = {
         (o.get("value") or {}).get("file")
@@ -159,6 +159,7 @@ def delete(db, cfg, rid, by=None):
             "UPDATE saved_collection SET recordings = array::complement(recordings, [$r]) WHERE recordings CONTAINS $r",
             "UPDATE chat SET scope.recordings = array::complement(scope.recordings, [$r]) WHERE scope.recordings CONTAINS $r",
             "UPDATE batch SET recordings = array::complement(recordings, [$r]) WHERE recordings CONTAINS $r AND started CONTAINSNOT $r",
+            "UPDATE resource_file SET resource = NONE WHERE resource = $r",  # an email's attachment that this was
             "DELETE $rec",
         ],
         r=rid,

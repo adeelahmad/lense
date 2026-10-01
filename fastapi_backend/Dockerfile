@@ -1,4 +1,7 @@
 # Lens API and worker image. The same image runs `fastapi` (API) or `lens worker` (background jobs).
+# Two targets: the default one (lean), and `full` (docker build --target full -t lens:full), which adds what makes
+# Word, PowerPoint and spreadsheet files, text, web pages and emails into documents: LibreOffice, Chromium and fonts
+# for most scripts. Outlook .msg emails also need the msg extra (extract-msg, GPL-3.0): --build-arg EXTRAS="msg".
 FROM python:3.12-slim-bookworm AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -38,3 +41,14 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/auth/status', timeout=4)" || exit 1
 CMD ["fastapi", "run", "app/main.py", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+
+FROM base AS full
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui \
+       chromium fonts-dejavu-core fonts-liberation2 fonts-noto-core fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/*
+USER lens
+
+# the default: everything above, without the converters
+FROM base AS lean

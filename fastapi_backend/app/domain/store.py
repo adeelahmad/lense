@@ -112,8 +112,13 @@ def labels():
 
 # Audio and video the folder scans import, and the types uploads accept unless changed.
 MEDIA_EXT = (".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".mp4", ".webm", ".amr", ".mov", ".mkv", ".m4v", ".avi")
-# documents and images, which uploads also accept (domain/documents.py)
-DOCUMENT_EXT = (".pdf",)
+# documents and images, which uploads also accept (domain/documents.py): PDFs, and files made into PDFs to read
+# (domain/convert.py): Office and OpenDocument files, text and Markdown, saved web pages, and emails
+OFFICE_EXT = (".doc", ".docx", ".odt", ".rtf", ".ppt", ".pptx", ".odp", ".xls", ".xlsx", ".ods")
+TEXT_EXT = (".txt", ".text", ".md", ".markdown", ".mdx")
+PAGE_EXT = (".html", ".htm")
+EMAIL_EXT = (".eml", ".msg")
+DOCUMENT_EXT = (".pdf", *OFFICE_EXT, *TEXT_EXT, *PAGE_EXT, *EMAIL_EXT)
 IMAGE_EXT = (".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp")
 DEFAULTS = {
     "data_dir": "./archive-data",
@@ -167,7 +172,16 @@ DEFAULTS = {
     "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT + DOCUMENT_EXT + IMAGE_EXT), "chunk_mb": 8, "expire_hours": 24},
     # documents and images (docs/configuration.md): how large their pages are drawn, when a page is read by OCR, and
     # how many pages are read at most
-    "documents": {"page_pixels": 2000, "thumb_pixels": 360, "ocr_below_chars": 25, "max_pages": 2000},
+    "documents": {
+        "page_pixels": 2000,
+        "thumb_pixels": 360,
+        "ocr_below_chars": 25,
+        "max_pages": 2000,
+        "convert_seconds": 300,
+        "attachment_resources": True,
+        "soffice": None,
+        "chromium": None,
+    },
     "workers": {
         "inline": 1,
         "poll_seconds": 2,

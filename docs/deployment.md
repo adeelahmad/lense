@@ -32,6 +32,10 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
 * **Workers.** Scale with `docker compose up -d --scale worker=3`. For GPU transcription, build with
   `EXTRAS="sensevoice voices"` and give the worker the GPU; or run workers on other machines with `SURREAL_URL`
   pointing at the database and `--steps` limited to what they can do.
+* **Documents.** The default image reads PDFs and images. To read Word, PowerPoint and spreadsheet files, text,
+  Markdown, saved web pages and emails too, build the full image: `LENS_TARGET=full docker compose up` (or
+  `docker build --target full -t lens:full fastapi_backend`), which adds LibreOffice, Chromium and fonts for most
+  scripts; add `EXTRAS="msg"` for Outlook `.msg` emails ([Configuration](configuration.md#documents-and-images)).
 * **IIIF.** Set `iiif.base_url` to the stable public address before publishing anything; identifiers are built from it.
 
 ## Frontend on Vercel

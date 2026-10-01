@@ -19,7 +19,8 @@ import {
 describe("what a dropped file is", () => {
   it("sorts files by extension", () => {
     expect(kindOf("ep14-transcript.SRT")).toBe("transcript");
-    expect(kindOf("notes.docx")).toBe("transcript");
+    expect(kindOf("notes.docx")).toBe("document"); // or a transcript, if chosen
+    expect(kindOf("ep14.json")).toBe("transcript");
     expect(kindOf("ep14.m4a")).toBe("audio");
     expect(kindOf("clip.mov")).toBe("video");
     expect(kindOf("townhall.pages")).toBe("unsupported");

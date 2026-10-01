@@ -22,15 +22,15 @@ from typing import Any, cast
 from app.core.security import sign_path
 from app.domain.store import API
 
-MEDIA_RX = re.compile(rf"^{re.escape(API)}/recordings/\d+/(audio|media|wordcloud\.svg|frames/[\w.-]+|files/\d+/download)$")
+MEDIA_RX = re.compile(rf"^{re.escape(API)}/recordings/\d+/(audio|media|pdf|wordcloud\.svg|frames/[\w.-]+|files/\d+/download)$")
 NS_MEDIA_RX = re.compile(rf"^{re.escape(API)}/namespaces/[a-z0-9][a-z0-9_-]*/wordcloud\.svg$")
 REPORT_RX = re.compile(r"^/(reports|embed)/")
 # the response fields the server fills with links (player audio, frames, face covers, posters, pages and their
 # thumbnails, reports, word clouds, files to download)
-LINK_KEYS = frozenset({"audio", "cover", "cover_url", "download", "frame", "image", "poster", "report_url", "thumb", "wordcloud"})
+LINK_KEYS = frozenset({"audio", "cover", "cover_url", "download", "frame", "image", "pdf", "poster", "report_url", "thumb", "wordcloud"})
 # a media link in a page, in an attribute or inside embedded JSON (followed by a quote, or a backslash in JSON)
 MEDIA_IN_HTML = re.compile(
-    rf"{re.escape(API)}/recordings/(\d+)/(?:audio|media|wordcloud\.svg|frames/[\w.-]+|files/\d+/download)(?=[\"'\\])"
+    rf"{re.escape(API)}/recordings/(\d+)/(?:audio|media|pdf|wordcloud\.svg|frames/[\w.-]+|files/\d+/download)(?=[\"'\\])"
 )
 
 

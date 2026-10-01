@@ -23,6 +23,7 @@ from collections import Counter
 
 from . import (
     access as acc,
+    convert,
     deletion,
     documents,
     fields as fieldmod,
@@ -308,15 +309,22 @@ def manifest(db, cfg, rid, base):
     )
     if paged and (rec.get("remote") or rec.get("path")):  # the document or image itself, to save
         name = pathlib.PurePosixPath((rec.get("remote") or {}).get("path") or rec.get("path") or "").name
-        own = {
-            "id": f"{m}/media",
-            "type": "Image" if rec["source"] == "image" else "Text",
-            "label": lm("The image" if rec["source"] == "image" else "The PDF", "en"),
-            "format": documents.content_type(name) or "application/octet-stream",
-        }
-        if audio_locked:
-            own["service"] = [probe_service(cfg, base, rid, "audio", "Sign in to see this")]
-        renderings.insert(0, own)
+        made = rec["source"] == "document" and convert.needs(name) and convert.rendition_path(cfg, rid).is_file()
+        what = "image" if rec["source"] == "image" else convert.word(name) if convert.needs(name) else "PDF"
+        own = [
+            {
+                "id": f"{m}/media",
+                "type": "Image" if rec["source"] == "image" else "Text",
+                "label": lm(f"The {what}", "en"),
+                "format": documents.content_type(name) or "application/octet-stream",
+            }
+        ]
+        if made:  # and the PDF it's read from
+            own.append({"id": f"{m}/pdf", "type": "Text", "label": lm("The PDF", "en"), "format": "application/pdf"})
+        for r in own:
+            if audio_locked:
+                r["service"] = [probe_service(cfg, base, rid, "audio", "Sign in to see this")]
+        renderings[:0] = own
     for f in kept:  # every supplementary file, to download; the ones that need permission behind sign-in
         r = _prune(
             {

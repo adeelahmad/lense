@@ -76,6 +76,20 @@ describe("a document's public page", () => {
     expect(screen.getByRole("link", { name: "Download the PDF" })).toHaveAttribute("href", REC.media?.url);
   });
 
+  it("offers the PDF made of a Word document, and the document itself", () => {
+    show({
+      ...REC,
+      media: { ...REC.media, file: "Word document", pdf: "/api/v1/recordings/9/pdf?sig=y" },
+    } as unknown as PublicRecording);
+    expect(screen.getByRole("link", { name: "Download the PDF" })).toHaveAttribute(
+      "href",
+      "/api/v1/recordings/9/pdf?sig=y",
+    );
+    const own = screen.getByRole("link", { name: "Download the word document" });
+    expect(own).toHaveAttribute("href", REC.media?.url);
+    expect(own).toHaveTextContent("Word document");
+  });
+
   it("reads its text page by page; a page's name, a match or a section turns to it", () => {
     show();
     expect(screen.getByRole("region", { name: "Page 1" })).toHaveTextContent("Ships arrived at dawn.");

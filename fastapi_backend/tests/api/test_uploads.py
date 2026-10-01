@@ -115,8 +115,8 @@ def test_uploading_audio_in_chunks(client, env, db, cfg):
 
 def test_what_can_be_uploaded(client, env, db, cfg, monkeypatch):
     data, ha, he = env["data"], env["ha"], env["he"]
-    r = _start(client, he, 100, name="notes.txt")
-    assert r.status_code == 400 and r.json()["detail"].startswith("TXT files can't be uploaded")
+    r = _start(client, he, 100, name="notes.xyz")
+    assert r.status_code == 400 and r.json()["detail"].startswith("XYZ files can't be uploaded")
     assert _start(client, he, 100, name="noextension").status_code == 400
     assert _start(client, he, 100, ns="Bad Name").status_code == 400
     assert _start(client, he, 0).status_code == 422

@@ -19,7 +19,7 @@ from app.api.deps import Access, Acl, Cfg, Db, Writer, domain_errors
 from app.api.media import sign_urls
 from app.api.v1.routes.uploads import CHUNK
 from app.domain import access as acc
-from app.domain import auth, documents, files, render, store, video
+from app.domain import auth, convert, documents, files, render, store, video
 from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.files import FileLine, FileLines, FileRole, FileUpdate, PrimaryFile, ResourceFile, ResourceFiles
@@ -41,7 +41,8 @@ def _primary(db: DB, cfg: dict[str, Any], rid: int, rec: dict[str, Any]) -> Prim
     ext = pathlib.PurePosixPath(name).suffix.lower()
     ctype = {"video": video.VIDEO_TYPES.get(ext), "audio": render.AUDIO_TYPES.get(ext)}.get(kind) or documents.content_type(name)
     size = rec.get("size") or (pathlib.Path(local).stat().st_size if local else None)
-    return PrimaryFile(name=name or None, kind=kind, size=size, content_type=ctype, download=f"{store.API}/recordings/{rid}/media")
+    pdf = f"{store.API}/recordings/{rid}/pdf" if kind == "document" and convert.rendition_path(cfg, rid).is_file() else None
+    return PrimaryFile(name=name or None, kind=kind, size=size, content_type=ctype, download=f"{store.API}/recordings/{rid}/media", pdf=pdf)
 
 
 def _out(db: DB, rows: list[dict[str, Any]], a: dict[str, Any]) -> list[ResourceFile]:
@@ -68,6 +69,7 @@ def _out(db: DB, rows: list[dict[str, Any]], a: dict[str, Any]) -> list[Resource
             description=f.get("description"),
             lines=f.get("lines"),
             timed=f.get("timed"),
+            resource=f.get("resource"),
             public=bool(files.PART[f["role"]] and acc.is_open(a, files.PART[f["role"]])),
             created_at=f.get("created_at"),
             created_by=people.get(f.get("created_by"), {}).get("email"),

@@ -126,6 +126,19 @@ export function RecordingHeader() {
         ) : (
           <Meta icon={<Clock3 />}>{tc(model.durationMs)}</Meta>
         )}
+        {rec.attached_to && (
+          <Meta icon={<Paperclip />}>
+            <span>
+              Attached to{" "}
+              <Link
+                href={`/resources/${rec.attached_to.resource}`}
+                className="font-semibold text-fg-accent hover:underline"
+              >
+                {rec.attached_to.title || "an email"}
+              </Link>
+            </span>
+          </Meta>
+        )}
         {source && (
           <Meta icon={source.remote ? <Cloud /> : <FileText />}>
             <span className={cn("max-w-[320px] truncate", source.file && "font-mono text-[12px]")} title={source.title}>

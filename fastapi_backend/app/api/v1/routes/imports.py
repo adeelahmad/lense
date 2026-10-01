@@ -152,7 +152,8 @@ def preview_import(body: ImportPreviewRequest, user: Writer, cfg: Cfg) -> Import
 def import_from_source(body: SourceImportRequest, request: Request, user: AdminWriter, db: Db, cfg: Cfg) -> SourceImport:
     """Import chosen files of a storage source into a namespace now, rather than watching their folder (admins, like
     sources; a new namespace is created). Audio, video, documents (PDFs) and images stay on the source and run the
-    namespace's pipeline, or `pipeline`; transcripts are imported, and PDFs too with `pdf_as: transcript`. Each file
+    namespace's pipeline, or `pipeline`; transcripts are imported, and PDFs, Word and text files too with
+    `documents_as: transcript`. Each file
     gets a result: queued, already (the namespace has it from this source), skipped (not audio, video, a document, an
     image or a transcript) or error. Audited as `import.source`."""
     ns = body.namespace.strip()
@@ -170,7 +171,7 @@ def import_from_source(body: SourceImportRequest, request: Request, user: AdminW
     check_collection(db, sid, body.collection)  # before a new namespace is made
     sid = sid if sid is not None else store.ns_id(db, ns)
     with domain_errors():
-        results = sources.import_files(db, cfg, body.source, body.paths, sid, user.email, body.pipeline, body.collection, body.pdf_as)
+        results = sources.import_files(db, cfg, body.source, body.paths, sid, user.email, body.pipeline, body.collection, body.documents_as)
     queued = [r for r in results if r["status"] == "queued"]
     if queued:
         detail = {"namespace": ns, "files": len(queued), "recordings": [r["recording"] for r in queued]}

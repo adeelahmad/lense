@@ -305,6 +305,20 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "documents":
+      return (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="documents.page_pixels" />
+            <F ctx={ctx} id="documents.thumb_pixels" />
+            <F ctx={ctx} id="documents.ocr_below_chars" />
+            <F ctx={ctx} id="documents.max_pages" />
+          </div>
+          <F ctx={ctx} id="documents.convert_seconds" />
+          <F ctx={ctx} id="documents.attachment_resources" />
+          <Converters view={ctx.view} />
+        </>
+      );
     case "iiif":
       return <IiifBody ctx={ctx} />;
     case "startup":
@@ -586,6 +600,33 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
   );
 }
 
+/** Which programs this server makes PDFs with (set at startup): what it can read without them, and with them. */
+function Converters({ view }: { view: SettingsView }) {
+  const b = view.bootstrap ?? {};
+  const missing = (v?: string) => !v || v === "not installed";
+  const rows: [string, string | undefined, string][] = [
+    ["LibreOffice", b.soffice, "Word, PowerPoint and spreadsheet files, OpenDocument and RTF"],
+    ["Chromium", b.chromium, "text, Markdown, saved web pages and emails (LibreOffice does them too, plainer)"],
+  ];
+  return (
+    <div className="flex flex-col gap-1.5 rounded-md border border-border bg-surface p-3.5">
+      <b className="text-[13.5px] font-bold text-fg">Making PDFs</b>
+      <ul className="flex flex-col gap-1 text-[13px] leading-[1.45] text-fg-secondary">
+        {rows.map(([name, path, what]) => (
+          <li key={name}>
+            <b className="font-semibold text-fg">{name}</b>:{" "}
+            {missing(path) ? "not installed" : <code className="font-mono text-[12px]">{path}</code>} · {what}
+          </li>
+        ))}
+      </ul>
+      <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+        PDFs and images are read without either. The lens:full image has both; their paths are set at startup
+        (documents.soffice, documents.chromium).
+      </p>
+    </div>
+  );
+}
+
 function Startup({ view }: { view: SettingsView }) {
   const b = view.bootstrap ?? {};
   const rows: [string, ReactNode][] = [
@@ -598,6 +639,8 @@ function Startup({ view }: { view: SettingsView }) {
         : "a key file in the data folder (secret.key)",
     ],
     ["rclone", b.rclone ?? "—"],
+    ["LibreOffice", b.soffice ?? "—"],
+    ["Chromium", b.chromium ?? "—"],
     ["Watchable folders", b.local_roots?.length ? b.local_roots.join(" · ") : "none: local folders can’t be watched"],
   ];
   return (

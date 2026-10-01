@@ -76,7 +76,7 @@ OWN_TYPES = {
 }
 FIELDS = (
     "record::id(id) AS id, recording, space, role, name, size, content_type, language, label, description, lines, timed, "
-    "created_at, created_by, updated_at"
+    "resource, created_at, created_by, updated_at"
 )
 LINE_FIELDS = "idx, t0, t1, text, speaker, title, synopsis, keywords"
 CLOCK = re.compile(r"(?:\d{1,2}:)?\d{1,2}:\d{2}(?:[.,]\d{1,3})?")

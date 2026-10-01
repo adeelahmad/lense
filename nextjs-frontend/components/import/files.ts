@@ -22,9 +22,38 @@ export const TRANSCRIPT_EXT = [
 ];
 const AUDIO_EXT = [".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".wma", ".aif", ".aiff", ".amr", ".weba"];
 const VIDEO_EXT = [".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v", ".mpg", ".mpeg", ".3gp"];
-/** Documents and images (the backend's DOCUMENT_EXT and IMAGE_EXT): uploaded in pieces, their pages drawn and read. */
-export const DOCUMENT_EXT = [".pdf"];
+/** Documents and images (the backend's DOCUMENT_EXT and IMAGE_EXT): uploaded in pieces, their pages drawn and read.
+ * Documents other than PDFs are made into PDFs on the server first: Office and OpenDocument files by LibreOffice;
+ * text, Markdown, saved web pages and emails by Chromium (or LibreOffice). */
+const OFFICE_EXT = [".doc", ".docx", ".odt", ".rtf", ".ppt", ".pptx", ".odp", ".xls", ".xlsx", ".ods"];
+const TEXT_DOC_EXT = [".txt", ".text", ".md", ".markdown", ".mdx"];
+const PAGE_EXT = [".html", ".htm"];
+const EMAIL_EXT = [".eml", ".msg"];
+export const DOCUMENT_EXT = [".pdf", ...OFFICE_EXT, ...TEXT_DOC_EXT, ...PAGE_EXT, ...EMAIL_EXT];
 export const IMAGE_EXT = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp"];
+/** What a document is, in words (the backend's convert.WORDS). */
+const DOCUMENT_NAME: Record<string, string> = {
+  ".pdf": "PDF document",
+  ".doc": "Word document",
+  ".docx": "Word document",
+  ".odt": "OpenDocument text",
+  ".rtf": "RTF document",
+  ".ppt": "PowerPoint presentation",
+  ".pptx": "PowerPoint presentation",
+  ".odp": "OpenDocument presentation",
+  ".xls": "Excel spreadsheet",
+  ".xlsx": "Excel spreadsheet",
+  ".ods": "OpenDocument spreadsheet",
+  ".txt": "Text document",
+  ".text": "Text document",
+  ".md": "Markdown document",
+  ".markdown": "Markdown document",
+  ".mdx": "MDX document",
+  ".html": "Web page",
+  ".htm": "Web page",
+  ".eml": "Email",
+  ".msg": "Outlook email",
+};
 
 export const SUPPORTED_LIST = "txt, md, mdx, docx, doc, pdf, srt, vtt, json, jsonl";
 
@@ -49,16 +78,17 @@ export const DEFAULT_LIMITS: UploadLimits = {
     ".mp4",
     ".ogg",
     ".opus",
-    ".pdf",
     ".png",
     ".tif",
     ".tiff",
     ".wav",
     ".webm",
     ".webp",
-  ],
+    ...DOCUMENT_EXT,
+  ].sort(),
   chunk_mb: 8,
   transcript_mb: 50,
+  convert: { office: true, pages: true, msg: false },
 };
 
 export type FileKind = "transcript" | "audio" | "video" | "document" | "image" | "unsupported";
@@ -73,8 +103,8 @@ export function stemOf(name: string): string {
   return i > 0 ? name.slice(0, i) : name;
 }
 
-/** What a file becomes: a PDF a document (unless someone chooses a transcript, see canBeTranscript), an image an
- * image, other text a transcript. */
+/** What a file becomes: a document (PDFs, Office files, text, Markdown, web pages, emails; unless someone chooses a
+ * transcript, see canBeTranscript), an image, a transcript (subtitles and JSON), audio or video. */
 export function kindOf(name: string): FileKind {
   const ext = extOf(name);
   if (DOCUMENT_EXT.includes(ext)) return "document";
@@ -95,14 +125,34 @@ export function mediaTypes(limits: UploadLimits): string {
   return limits.extensions.filter((e) => AUDIO_EXT.includes(e) || VIDEO_EXT.includes(e)).join(",");
 }
 
-/** A document that can be imported as a transcript instead (its text only): a PDF. */
+/** A document that can be imported as a transcript instead (its text only): a PDF, a Word, text or Markdown file. */
 export function canBeTranscript(name: string): boolean {
-  return DOCUMENT_EXT.includes(extOf(name));
+  const ext = extOf(name);
+  return DOCUMENT_EXT.includes(ext) && TRANSCRIPT_EXT.includes(ext);
 }
 
-/** What a file to upload is, in a word: "Video", "Audio", "PDF document", "Image". */
-export function uploadKindName(kind: FileKind): string {
-  return kind === "video" ? "Video" : kind === "document" ? "PDF document" : kind === "image" ? "Image" : "Audio";
+/** Why this server can't read a document (null when it can, or for a PDF): what it would need. */
+export function conversionProblem(name: string, limits: UploadLimits = DEFAULT_LIMITS): string | null {
+  const ext = extOf(name);
+  const can = limits.convert;
+  if (!DOCUMENT_EXT.includes(ext) || ext === ".pdf" || !can) return null;
+  if (OFFICE_EXT.includes(ext))
+    return can.office ? null : "Reading it needs LibreOffice on the server (the lens:full image).";
+  if (ext === ".msg") return can.msg ? null : "Reading Outlook emails needs the extract-msg package on the server.";
+  return can.pages ? null : "Reading it needs Chromium or LibreOffice on the server (the lens:full image).";
+}
+
+/** What a file becomes unless someone chooses otherwise: a document where this server can read it as one, else the
+ * transcript it can be. */
+export function defaultKind(name: string, limits: UploadLimits = DEFAULT_LIMITS): FileKind {
+  const kind = kindOf(name);
+  return kind === "document" && conversionProblem(name, limits) && canBeTranscript(name) ? "transcript" : kind;
+}
+
+/** What a file to upload is, in words: "Video", "Audio", "PDF document", "Word document", "Email", "Image". */
+export function uploadKindName(kind: FileKind, name?: string): string {
+  if (kind === "document") return DOCUMENT_NAME[extOf(name ?? "")] ?? "Document";
+  return kind === "video" ? "Video" : kind === "image" ? "Image" : "Audio";
 }
 
 const FORMAT_NAME: Record<string, string> = {
@@ -153,6 +203,13 @@ export function localProblem(
 ): Problem | null {
   const ext = extOf(file.name);
   if (isUpload(kind)) {
+    const convert = kind === "document" ? conversionProblem(file.name, limits) : null;
+    if (convert)
+      return {
+        code: "unsupported",
+        title: `This server can’t read ${uploadKindName(kind, file.name).toLowerCase()}s`,
+        body: canBeTranscript(file.name) ? `${convert} Import it as a transcript instead.` : convert,
+      };
     if (!limits.extensions.includes(ext))
       return {
         code: "unsupported",
@@ -174,7 +231,7 @@ export function localProblem(
     return {
       code: "unsupported",
       title: `${ext ? ext.slice(1).toUpperCase() : "These"} files can’t be imported`,
-      body: `Save it as .docx, .pdf or plain text and drop it again. Supported transcripts: ${SUPPORTED_LIST}, or audio, video, PDF documents and images.`,
+      body: `Save it as .docx, .pdf or plain text and drop it again. Supported: documents (PDF, Office, text, web pages, emails), images, audio, video, and transcripts (${SUPPORTED_LIST}).`,
     };
   }
   if (file.size > limits.transcript_mb * MB) {

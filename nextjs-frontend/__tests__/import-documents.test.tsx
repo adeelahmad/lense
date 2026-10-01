@@ -30,13 +30,24 @@ describe("importing a PDF", () => {
     expect(onKind).toHaveBeenCalledWith("transcript");
   });
 
-  it("is read first when it's a transcript, and only a PDF has the choice", () => {
+  it("is read first when it's a transcript, and only documents that can be transcripts have the choice", () => {
     const pdf = item("harbour.pdf", "transcript");
     expect(pdf.status).toBe("reading");
     const { container, rerender } = render(<ImportAs it={pdf} onKind={() => {}} />);
     expect(screen.getByRole("radio", { name: "Transcript" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByText("Only its text, as a transcript without media.")).toBeInTheDocument();
-    rerender(<ImportAs it={item("notes.docx", "transcript")} onKind={() => {}} />);
+    rerender(<ImportAs it={item("notes.docx", "document")} onKind={() => {}} />);
+    expect(screen.getByRole("radio", { name: "Document" })).toHaveAttribute("aria-checked", "true");
+    // where the server can't make a document of it, it's a transcript, and why is said
+    const noOffice = { ...DEFAULT_LIMITS, convert: { office: false, pages: true, msg: false } };
+    rerender(<ImportAs it={item("notes.docx", "transcript")} onKind={() => {}} limits={noOffice} />);
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(container).toHaveTextContent(
+      "Imported as a transcript: this server can’t keep word documents as documents. Reading it needs LibreOffice on the server (the lens:full image).",
+    );
+    rerender(<ImportAs it={item("deck.pptx", "document")} onKind={() => {}} />);
+    expect(container).toBeEmptyDOMElement(); // a presentation is a document only
+    rerender(<ImportAs it={item("talk.srt", "transcript")} onKind={() => {}} />);
     expect(container).toBeEmptyDOMElement();
     expect(item("photo.png", "image").status).toBe("ready");
     expect(item("photo.png", "image").problem).toBeUndefined();

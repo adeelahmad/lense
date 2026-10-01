@@ -99,6 +99,7 @@ def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecordin
     if d["media"]:  # only the media this visitor may play (or a document's pages they may see) is signed
         d["media"]["url"] = sign_url(d["media"]["url"])
         d["media"]["poster"] = sign_url(d["media"]["poster"])
+        d["media"]["pdf"] = sign_url(d["media"].get("pdf"))
         for p in d["media"].get("pages") or []:
             p["image"], p["thumb"] = sign_url(p["image"]), sign_url(p["thumb"])
     for f in d["files"]:  # and only the files they may download

@@ -57,7 +57,8 @@ def test_plain_text_in_blocks_and_blocks_as_segments():
         {"t0": 385, "t1": 1155, "text": "two words", "page": 1, "box": [0, 0, 1, 1]},
     ]
     assert (documents.kind_of("Scan.TIFF"), documents.kind_of("a.pdf"), documents.kind_of("a.wav")) == ("image", "document", None)
-    assert documents.content_type("x.webp") == "image/webp" and documents.content_type("x.txt") is None
+    assert documents.content_type("x.webp") == "image/webp" and documents.content_type("x.xyz") is None
+    assert documents.content_type("notes.TXT") == "text/plain" and documents.kind_of("mail.eml") == "document"
 
 
 def test_summaries_of_documents_cite_pages():

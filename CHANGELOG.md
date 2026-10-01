@@ -71,6 +71,38 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       on the page and in People; a visitor reads the public page, finds "lighthouse" on page 2 and follows a public
       search hit there; on a phone in dark mode a visitor reads the document and the image, and a viewer sees the
       people on its pages. No console errors.
+- **Word, text, web pages and emails as documents.** Any document now becomes a resource with pages, not only a PDF:
+  Word, PowerPoint and spreadsheet files (and OpenDocument and RTF), text and Markdown, saved web pages and emails
+  (`.eml`, and Outlook `.msg` with the `msg` extra) are made into PDFs and read like one. Decided with the project
+  owner: every text-like file is a document unless the person importing it chooses a transcript (subtitles and JSON
+  stay transcripts); an email's attachments are kept as its files and, those Lens can read, also become resources of
+  their own.
+    - The transcribe step converts: LibreOffice for Office files; text, Markdown, web pages and emails become a page of
+      HTML, cleaned of anything that fetches or runs, printed by headless Chromium (or LibreOffice). Neither can reach
+      anything while converting: Chromium goes through a proxy inside Lens that serves only that page (with a policy
+      that allows no scripts), LibreOffice through a proxy address that isn't there. The resource keeps its own file;
+      the PDF it's read from is `GET /resources/{rid}/pdf` and IIIF's `/iiif/<id>/pdf`.
+    - Emails: the subject becomes the title and the date the resource's date; sender, recipients and date are its
+      `email`. Attachments are its files (role attachment); documents, images, audio, video and emails among them
+      become resources beside it (`attached_to`), queued for the namespace's pipeline, once only
+      (`documents.attachment_resources` turns that off).
+    - What the server can convert is reported (`GET /uploads/limits` → `convert`); uploads it can't read are refused
+      with what's missing, and the web app imports Word, text and Markdown files as transcripts there instead. Storage
+      sources: `pdf_as` is now `documents_as` and covers Word and text files; watched folders set to all or documents
+      take text files as documents, those from before as transcripts.
+    - Settings → Documents (new): page and thumbnail sizes, OCR threshold, page limit, `documents.convert_seconds`,
+      attachments as resources, and which converters the server found (`documents.soffice`, `documents.chromium`, set
+      at startup).
+    - Docker: `--target full` (`LENS_TARGET=full docker compose up`) builds `lens:full` with LibreOffice, Chromium and
+      fonts for most scripts; the default image stays lean. CI installs LibreOffice Writer to test conversions.
+    - Web app: the Upload tab names each document ("Word document", "Email") and offers "Import as" for those that can
+      be transcripts; a document's Files tab offers the PDF made of it and opens an attachment's resource; an
+      attachment's page says which email it came from; Details shows an email's sender, recipients and date, and how a
+      document was made into a PDF; the public page offers the PDF and the original.
+    - Checked in the browser: an admin imports a Word letter, a Markdown note and an email with a PDF, a photo and a
+      data file attached; each is read page by page; the email's PDF downloads, its PDF and photo open as resources that
+      link back to it, the data file is only kept; the letter's details say LibreOffice made its PDF; Settings →
+      Documents lists the converters; a viewer on a phone in dark mode reads the email's details. No console errors.
 - **Custom fields.** Editors define their own metadata fields on a namespace or on a collection, for the resources,
   the collections or the files inside it: text, long text, number, date, yes/no, one or several of a list, or a link.
   Decided with the project owner: fields live where they're defined and apply to everything inside; each is published

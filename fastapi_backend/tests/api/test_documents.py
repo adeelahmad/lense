@@ -387,6 +387,9 @@ def test_documents_and_images_from_a_source(client, env, db, cfg, folder, monkey
     from tests.helpers import write_wav
 
     _lsjson_without_rclone(monkeypatch)
+    from app.domain import convert
+
+    monkeypatch.setattr(convert, "unavailable", lambda cfg, name: None)  # as if it could convert any document
     inbox = folder / "inbox" / "papers"
     inbox.mkdir(parents=True)
     (inbox / "harbour.pdf").write_bytes(text_pdf(HARBOUR))
@@ -396,20 +399,22 @@ def test_documents_and_images_from_a_source(client, env, db, cfg, folder, monkey
     ha = env["ha"]
     sid = client.post("/api/v1/sources", json={"name": "inbox", "type": "local"}, headers=ha).json()["id"]
     preview = lambda **more: client.post("/api/v1/watches/preview", json={"source": sid, "path": str(inbox), **more}, headers=ha).json()  # noqa: E731
-    assert preview() == {"files": 4, "audio": 1, "transcripts": 1, "documents": 1, "images": 1}
+    assert preview() == {"files": 4, "audio": 1, "transcripts": 0, "documents": 2, "images": 1}  # text is a document too
     assert preview(kinds="both") == {"files": 3, "audio": 1, "transcripts": 2, "documents": 0, "images": 0}
-    assert preview(kinds="documents", exclude=["*.png"]) == {"files": 1, "audio": 0, "transcripts": 0, "documents": 1, "images": 0}
+    assert preview(kinds="documents", exclude=["*.png"]) == {"files": 2, "audio": 0, "transcripts": 0, "documents": 2, "images": 0}
     assert client.post("/api/v1/watches/preview", json={"source": sid, "path": str(inbox), "kinds": "pdf"}, headers=ha).status_code == 422
 
     # chosen files: the PDF is a document unless asked for as a transcript; the image an image
     url, paths = "/api/v1/import/source", [str(inbox / "harbour.pdf"), str(inbox / "photo.png")]
-    assert client.post(url, json={"source": sid, "paths": paths, "namespace": "pods", "pdf_as": "slides"}, headers=ha).status_code == 422
+    assert (
+        client.post(url, json={"source": sid, "paths": paths, "namespace": "pods", "documents_as": "slides"}, headers=ha).status_code == 422
+    )
     got = client.post(url, json={"source": sid, "paths": paths, "namespace": "pods"}, headers=ha).json()["results"]
     assert [x["status"] for x in got] == ["queued", "queued"]
     doc, img = (db.one("SELECT source, media, remote, path FROM $r", r=R("recording", x["recording"])) for x in got)
     assert (doc["source"], doc["media"], doc["remote"]) == ("document", {"kind": "document"}, {"source": sid, "path": paths[0]})
     assert (img["source"], img["media"]["kind"], img["path"]) == ("image", "image", f"inbox:{paths[1]}")
-    as_text = client.post(url, json={"source": sid, "paths": paths[:1], "namespace": "calls", "pdf_as": "transcript"}, headers=ha)
+    as_text = client.post(url, json={"source": sid, "paths": paths[:1], "namespace": "calls", "documents_as": "transcript"}, headers=ha)
     text = as_text.json()["results"][0]
     assert text["status"] == "queued" and db.one("SELECT source FROM $r", r=R("recording", text["recording"]))["source"] != "document"
     drain(db, cfg)
@@ -428,5 +433,5 @@ def test_documents_and_images_from_a_source(client, env, db, cfg, folder, monkey
     from app.domain.render import kind as render_kind
 
     assert watch("old", kinds="both") == [("call", "transcript"), ("ep1", "audio"), ("harbour", "transcript")]
-    assert watch("new") == [("call", "transcript"), ("ep1", "audio"), ("harbour", "document"), ("photo", "image")]
+    assert watch("new") == [("call", "document"), ("ep1", "audio"), ("harbour", "document"), ("photo", "image")]
     assert client.get("/api/v1/watches", headers=ha).json()[-1]["kinds"] == "all"  # the default now

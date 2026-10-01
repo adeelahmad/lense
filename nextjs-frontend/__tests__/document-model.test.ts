@@ -1,7 +1,9 @@
 import type { Player } from "@/app/openapi-client/types.gen";
 import {
   canBeTranscript,
+  conversionProblem,
   DEFAULT_LIMITS,
+  defaultKind,
   importable,
   isUpload,
   kindOf,
@@ -14,6 +16,7 @@ import { hasSound, lengthText } from "@/components/library/model";
 import {
   blocksByPage,
   clampPage,
+  emailRows,
   facePages,
   facesOn,
   marksOn,
@@ -23,6 +26,7 @@ import {
   pagesSummary,
   pageStart,
   parsePage,
+  renditionNote,
   textNote,
   zoomStep,
 } from "@/components/recording/document/model";
@@ -156,6 +160,28 @@ describe("a document's pages", () => {
     ]);
   });
 
+  it("describes an email and how a document was made into a PDF", () => {
+    const sent = {
+      subject: "Harbour report",
+      from: "Mara <m@x.org>",
+      to: "tom@x.org",
+      cc: null,
+      date: "2026-09-29T09:30:00+01:00",
+    };
+    expect(emailRows(sent, (iso) => `on ${iso.slice(0, 10)}`)).toEqual([
+      ["Subject", "Harbour report"],
+      ["From", "Mara <m@x.org>"],
+      ["To", "tom@x.org"],
+      ["Sent", "on 2026-09-29"],
+    ]);
+    expect(emailRows(null, String)).toEqual([]);
+    expect([renditionNote({ by: "libreoffice" }), renditionNote({ by: "chromium" }), renditionNote(null)]).toEqual([
+      "made into a PDF by LibreOffice",
+      "made into a PDF by Chromium",
+      null,
+    ]);
+  });
+
   it("puts a document's notes, rows and search matches on pages", () => {
     expect(momentLabel({ t0: 2000, t1: 3000 }, (ms) => `p. ${pageAt(SEGS, ms) + 1}`)).toBe("p. 3");
     expect(momentLabel({ t0: 2000, t1: 3000 })).toBe("0:02–0:03");
@@ -174,26 +200,65 @@ describe("importing documents and images", () => {
     expect([kindOf("Report.PDF"), kindOf("scan.tiff"), kindOf("notes.docx"), kindOf("talk.mp3")]).toEqual([
       "document",
       "image",
-      "transcript",
+      "document",
       "audio",
     ]);
+    expect([kindOf("mail.eml"), kindOf("deck.pptx"), kindOf("notes.md"), kindOf("page.html"), kindOf("x.srt")]).toEqual(
+      ["document", "document", "document", "document", "transcript"],
+    );
     expect([canBeTranscript("a.pdf"), canBeTranscript("a.png"), canBeTranscript("a.docx")]).toEqual([
+      true,
+      false,
+      true,
+    ]);
+    expect([canBeTranscript("a.txt"), canBeTranscript("a.pptx"), canBeTranscript("a.eml")]).toEqual([
       true,
       false,
       false,
     ]);
     expect([isUpload("document"), isUpload("image"), isUpload("transcript")]).toEqual([true, true, false]);
-    expect([uploadKindName("document"), uploadKindName("image"), uploadKindName("video")]).toEqual([
-      "PDF document",
-      "Image",
-      "Video",
-    ]);
+    expect([
+      uploadKindName("document", "a.pdf"),
+      uploadKindName("document", "a.docx"),
+      uploadKindName("document", "a.eml"),
+      uploadKindName("image"),
+      uploadKindName("video"),
+    ]).toEqual(["PDF document", "Word document", "Email", "Image", "Video"]);
     // a source's documents and images are imported from it too
     expect(importable({ name: "a.png", dir: false })).toBe(true);
     expect(importable({ name: "a.pdf", dir: false })).toBe(true);
     expect(importable({ name: "a.xyz", dir: false })).toBe(false);
     expect(mediaTypes(DEFAULT_LIMITS)).not.toContain(".pdf");
     expect(mediaTypes(DEFAULT_LIMITS)).toContain(".mp3");
+  });
+
+  it("makes documents of what the server can convert, and transcripts of the rest that can be", () => {
+    const none = { ...DEFAULT_LIMITS, convert: { office: false, pages: false, msg: false } };
+    expect([defaultKind("a.docx"), defaultKind("a.txt"), defaultKind("a.pdf")]).toEqual([
+      "document",
+      "document",
+      "document",
+    ]);
+    expect([
+      defaultKind("a.docx", none),
+      defaultKind("a.txt", none),
+      defaultKind("a.pptx", none),
+      defaultKind("a.pdf", none),
+    ]).toEqual(["transcript", "transcript", "document", "document"]);
+    expect(conversionProblem("a.pdf", none)).toBeNull();
+    expect(conversionProblem("a.eml", none)).toBe(
+      "Reading it needs Chromium or LibreOffice on the server (the lens:full image).",
+    );
+    expect(conversionProblem("a.msg")).toBe("Reading Outlook emails needs the extract-msg package on the server.");
+    expect(localProblem({ name: "deck.pptx", size: 10 }, none)).toMatchObject({
+      code: "unsupported",
+      title: "This server can’t read powerpoint presentations",
+      body: "Reading it needs LibreOffice on the server (the lens:full image).",
+    });
+    expect(localProblem({ name: "notes.docx", size: 10 }, none, "document")?.body).toMatch(
+      /Import it as a transcript instead\.$/,
+    );
+    expect(importable({ name: "mail.eml", dir: false })).toBe(true);
   });
 
   it("checks a document against the upload limits, or the transcript limits when read as one", () => {
