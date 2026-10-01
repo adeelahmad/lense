@@ -25,6 +25,7 @@ from app.api.v1.routes import (
     uploads,
     users,
     video,
+    views,
 )
 
 api_router = APIRouter()
@@ -52,5 +53,6 @@ for module in (
     batches,
     public,
     requests,
+    views,
 ):
     api_router.include_router(module.router)

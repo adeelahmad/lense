@@ -9524,6 +9524,166 @@
           }
         }
       }
+    },
+    "/api/v1/views": {
+      "get": {
+        "tags": [
+          "views"
+        ],
+        "summary": "List Views",
+        "description": "Your views, then the ones shared with namespaces you can read; the latest changed first in each.",
+        "operationId": "list_views",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SavedView"
+                  },
+                  "type": "array",
+                  "title": "Response Views-List Views"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "views"
+        ],
+        "summary": "Create View",
+        "description": "Save what the Library shows under a name (unique among your views). Sharing it with its namespace needs\neditor access there.",
+        "operationId": "create_view",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/views/{vid}": {
+      "patch": {
+        "tags": [
+          "views"
+        ],
+        "summary": "Update View",
+        "description": "Rename it, share or unshare it, or save what the Library shows into it. Its maker only; sharing needs editor\naccess to its namespace, and a view of every namespace can't be shared.",
+        "operationId": "update_view",
+        "parameters": [
+          {
+            "name": "vid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Vid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "views"
+        ],
+        "summary": "Delete View",
+        "description": "Delete it: its maker, or for a shared view an owner of its namespace. Deleting a shared view is audited.",
+        "operationId": "delete_view",
+        "parameters": [
+          {
+            "name": "vid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Vid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -17153,6 +17313,93 @@
         ],
         "title": "ResetPasswordRequest"
       },
+      "SavedView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "the namespace it shows; null: every namespace you can read"
+          },
+          "shared": {
+            "type": "boolean",
+            "title": "Shared",
+            "description": "everyone with a role in its namespace sees it",
+            "default": false
+          },
+          "state": {
+            "$ref": "#/components/schemas/ViewState"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By",
+            "description": "its maker's email"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "mine": {
+            "type": "boolean",
+            "title": "Mine",
+            "description": "you made it: only you can change it"
+          },
+          "can_delete": {
+            "type": "boolean",
+            "title": "Can Delete",
+            "description": "you made it, or it's shared and you own its namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "state",
+          "mine",
+          "can_delete"
+        ],
+        "title": "SavedView"
+      },
       "SearchHit": {
         "properties": {
           "id": {
@@ -19993,6 +20240,209 @@
           "version"
         ],
         "title": "VersionSaved"
+      },
+      "ViewCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "the namespace it shows; null: every namespace you can read"
+          },
+          "shared": {
+            "type": "boolean",
+            "title": "Shared",
+            "description": "share it with its namespace (needs editor access there)",
+            "default": false
+          },
+          "state": {
+            "$ref": "#/components/schemas/ViewState"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ViewCreate"
+      },
+      "ViewState": {
+        "properties": {
+          "tab": {
+            "type": "string",
+            "enum": [
+              "all",
+              "attention",
+              "processing"
+            ],
+            "title": "Tab",
+            "default": "all"
+          },
+          "q": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Q",
+            "description": "the filter box",
+            "default": ""
+          },
+          "statuses": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "new",
+                "transcribed",
+                "diarized",
+                "analyzed",
+                "error",
+                "processing",
+                "failed"
+              ]
+            },
+            "type": "array",
+            "maxItems": 7,
+            "title": "Statuses"
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker",
+            "description": "a speaker's name: whoever has it in the namespaces shown"
+          },
+          "date": {
+            "type": "string",
+            "enum": [
+              "any",
+              "today",
+              "7d",
+              "30d",
+              "90d",
+              "1y"
+            ],
+            "title": "Date",
+            "default": "any"
+          },
+          "duration": {
+            "type": "string",
+            "enum": [
+              "any",
+              "short",
+              "medium",
+              "long",
+              "xlong"
+            ],
+            "title": "Duration",
+            "description": "short: under 10 min; medium: 10\u201330; long: 30\u201360; xlong: over an hour",
+            "default": "any"
+          },
+          "media": {
+            "type": "string",
+            "enum": [
+              "any",
+              "audio",
+              "video",
+              "transcript"
+            ],
+            "title": "Media",
+            "default": "any"
+          },
+          "tags": {
+            "items": {
+              "type": "string",
+              "maxLength": 40,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Tags",
+            "description": "any of these"
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "date",
+              "-date",
+              "title",
+              "-title",
+              "duration",
+              "-duration",
+              "speakers",
+              "-speakers",
+              "status",
+              "-status",
+              "importance",
+              "-importance"
+            ],
+            "title": "Sort",
+            "default": "-date"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ViewState",
+        "description": "What the Library shows. Dates and lengths are the Library's ranges, so \"the last 7 days\" stays the last 7 days."
+      },
+      "ViewUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared",
+            "description": "share it with its namespace (needs editor access there), or stop"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ViewState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what it shows now"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ViewUpdate",
+        "description": "Only what you send changes."
       },
       "ViewerLink": {
         "properties": {

@@ -585,6 +585,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS face_merge SCHEMALESS",
     # collections, batch runs, assistant approvals
     "DEFINE TABLE IF NOT EXISTS saved_collection SCHEMALESS",
+    # saved views of the Library (app/domain/views.py)
+    "DEFINE TABLE IF NOT EXISTS saved_view SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS saved_view_account ON saved_view FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS saved_view_space ON saved_view FIELDS space",
     "DEFINE INDEX IF NOT EXISTS saved_collection_owner ON saved_collection FIELDS account",
     "DEFINE TABLE IF NOT EXISTS batch SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_batch ON job FIELDS batch",

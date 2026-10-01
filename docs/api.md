@@ -476,6 +476,26 @@ PATCH  /api/v1/collections/{cid}
 DELETE /api/v1/collections/{cid}
 ```
 
+## views
+
+```
+GET    /api/v1/views
+POST   /api/v1/views
+PATCH  /api/v1/views/{vid}
+DELETE /api/v1/views/{vid}
+```
+
+Saved views of the Library: a `name` (unique among your views, ignoring case), the `namespace` it shows (`null`: every
+namespace you can read) and its `state`: the tab (`all`, `attention`, `processing`), the filter box `q`, `statuses`,
+a `speaker` by name (each namespace has its own speaker ids), the Library's `date` and `duration` ranges (kept as
+ranges, so `30d` stays the last 30 days), `media`, `tags` and `sort` (as `GET /recordings` takes it). A view is its
+maker's; `shared: true` shows it to everyone with a role in its namespace (sharing needs editor access there, and a
+view of every namespace can't be shared). `GET` lists yours, then the shared ones of namespaces you can read, each
+with `mine` and `can_delete`; a view of a namespace you can no longer read is left out. Only its maker changes a view
+(`PATCH` with `name`, `shared` or `state`); its maker, or an owner of its namespace for a shared one, deletes it. Up to
+100 views each. Sharing, unsharing and deleting a shared view are audited (`view.share`, `view.unshare`,
+`view.delete`).
+
 ## batches
 
 ```

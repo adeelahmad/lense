@@ -26,6 +26,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Library: saved views.** Save view keeps what the Library shows (its namespace, tab, filters and sort) under a
+  name, and Views brings it back. Views are yours; editors can share one with its namespace, and everyone with a role
+  there then sees it (decided with the project owner). Only its maker changes a view; its maker or an owner of the
+  namespace deletes a shared one.
+    - `GET/POST /api/v1/views`, `PATCH/DELETE /api/v1/views/{vid}` (docs/api.md), in a new `saved_view` table. Date
+      and length filters are kept as the Library's ranges, so "last 30 days" stays the last 30 days; the speaker is
+      kept by name and found again in the view's namespace.
+    - In Views, your own views can take what the Library shows now, and be shared or unshared. Sharing, unsharing and
+      deleting a shared view are audited.
 - **Reports: a namespace's numbers come from the server, for the range you pick.** The overview's recordings, hours,
   speakers, months and top speakers come from a new `GET /api/v1/namespaces/{name}/stats?from=&to=` (docs/api.md);
   the page used to load every recording of the namespace (up to 10,000) and count in the browser. Top speakers are

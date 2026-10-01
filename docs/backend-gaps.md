@@ -18,7 +18,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| Saved views | `/views` (list, create, delete) |
 | "Edited by me" tab | `?edited_by=me` |
 | Source and language filters | `path`/`remote` and `language` in `RecordingSummary` |
 | Bulk export as one file | `POST /recordings/export` returning a zip |

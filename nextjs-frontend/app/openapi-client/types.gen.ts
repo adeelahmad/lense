@@ -5003,6 +5003,69 @@ export type ResetPasswordRequest = {
 };
 
 /**
+ * SavedView
+ */
+export type SavedView = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Namespace
+   * the namespace it shows; null: every namespace you can read
+   */
+  namespace?: string | null;
+  /**
+   * Shared
+   * everyone with a role in its namespace sees it
+   */
+  shared?: boolean;
+  state: ViewState;
+  /**
+   * Created By
+   * its maker's email
+   */
+  created_by?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Mine
+   * you made it: only you can change it
+   */
+  mine: boolean;
+  /**
+   * Can Delete
+   * you made it, or it's shared and you own its namespace
+   */
+  can_delete: boolean;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | boolean
+    | ViewState
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
  * SearchHit
  */
 export type SearchHit = {
@@ -6802,6 +6865,106 @@ export type VersionSaved = {
    */
   version: number;
   [key: string]: unknown | boolean | number | undefined;
+};
+
+/**
+ * ViewCreate
+ */
+export type ViewCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Namespace
+   * the namespace it shows; null: every namespace you can read
+   */
+  namespace?: string | null;
+  /**
+   * Shared
+   * share it with its namespace (needs editor access there)
+   */
+  shared?: boolean;
+  state?: ViewState;
+};
+
+/**
+ * ViewState
+ * What the Library shows. Dates and lengths are the Library's ranges, so "the last 7 days" stays the last 7 days.
+ */
+export type ViewState = {
+  /**
+   * Tab
+   */
+  tab?: "all" | "attention" | "processing";
+  /**
+   * Q
+   * the filter box
+   */
+  q?: string;
+  /**
+   * Statuses
+   */
+  statuses?: Array<"new" | "transcribed" | "diarized" | "analyzed" | "error" | "processing" | "failed">;
+  /**
+   * Speaker
+   * a speaker's name: whoever has it in the namespaces shown
+   */
+  speaker?: string | null;
+  /**
+   * Date
+   */
+  date?: "any" | "today" | "7d" | "30d" | "90d" | "1y";
+  /**
+   * Duration
+   * short: under 10 min; medium: 10–30; long: 30–60; xlong: over an hour
+   */
+  duration?: "any" | "short" | "medium" | "long" | "xlong";
+  /**
+   * Media
+   */
+  media?: "any" | "audio" | "video" | "transcript";
+  /**
+   * Tags
+   * any of these
+   */
+  tags?: Array<string>;
+  /**
+   * Sort
+   */
+  sort?:
+    | "date"
+    | "-date"
+    | "title"
+    | "-title"
+    | "duration"
+    | "-duration"
+    | "speakers"
+    | "-speakers"
+    | "status"
+    | "-status"
+    | "importance"
+    | "-importance";
+};
+
+/**
+ * ViewUpdate
+ * Only what you send changes.
+ */
+export type ViewUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Shared
+   * share it with its namespace (needs editor access there), or stop
+   */
+  shared?: boolean | null;
+  /**
+   * what it shows now
+   */
+  state?: ViewState | null;
 };
 
 /**
@@ -12924,6 +13087,108 @@ export type ListPendingAccessRequestsResponses = {
 
 export type ListPendingAccessRequestsResponse =
   ListPendingAccessRequestsResponses[keyof ListPendingAccessRequestsResponses];
+
+export type ListViewsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/views";
+};
+
+export type ListViewsResponses = {
+  /**
+   * Response Views-List Views
+   * Successful Response
+   */
+  200: Array<SavedView>;
+};
+
+export type ListViewsResponse = ListViewsResponses[keyof ListViewsResponses];
+
+export type CreateViewData = {
+  body: ViewCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/views";
+};
+
+export type CreateViewErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateViewError = CreateViewErrors[keyof CreateViewErrors];
+
+export type CreateViewResponses = {
+  /**
+   * Successful Response
+   */
+  200: SavedView;
+};
+
+export type CreateViewResponse = CreateViewResponses[keyof CreateViewResponses];
+
+export type DeleteViewData = {
+  body?: never;
+  path: {
+    /**
+     * Vid
+     */
+    vid: number;
+  };
+  query?: never;
+  url: "/api/v1/views/{vid}";
+};
+
+export type DeleteViewErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteViewError = DeleteViewErrors[keyof DeleteViewErrors];
+
+export type DeleteViewResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteViewResponse = DeleteViewResponses[keyof DeleteViewResponses];
+
+export type UpdateViewData = {
+  body: ViewUpdate;
+  path: {
+    /**
+     * Vid
+     */
+    vid: number;
+  };
+  query?: never;
+  url: "/api/v1/views/{vid}";
+};
+
+export type UpdateViewErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateViewError = UpdateViewErrors[keyof UpdateViewErrors];
+
+export type UpdateViewResponses = {
+  /**
+   * Successful Response
+   */
+  200: SavedView;
+};
+
+export type UpdateViewResponse = UpdateViewResponses[keyof UpdateViewResponses];
 
 export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});

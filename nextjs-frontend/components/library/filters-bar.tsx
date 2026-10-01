@@ -1,6 +1,6 @@
 "use client";
 
-import { BookmarkPlus, Check, ChevronDown, Search, X } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import { forwardRef, useState, type ReactNode } from "react";
 
 import {
@@ -15,7 +15,6 @@ import {
   type SpeakerChoice,
   type StatusFilter,
 } from "@/components/library/model";
-import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { count } from "@/lib/format";
@@ -193,6 +192,7 @@ export function FiltersBar({
   tagsLoading,
   inputRef,
   compact,
+  trailing,
 }: {
   filters: Filters;
   onChange: (f: Filters) => void;
@@ -204,6 +204,8 @@ export function FiltersBar({
   tagsLoading?: boolean;
   inputRef: React.Ref<HTMLInputElement>;
   compact?: boolean;
+  /** At the end of the bar: saved views. */
+  trailing?: ReactNode;
 }) {
   const { namespaces, namespace, setNamespace } = useArchive();
   const [spkQuery, setSpkQuery] = useState("");
@@ -432,6 +434,7 @@ export function FiltersBar({
       <div className="flex flex-col gap-2.5">
         <FilterInput ref={inputRef} value={filters.q} onChange={(q) => set({ q })} />
         <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none]">{chips}</div>
+        {trailing && <div className="flex flex-wrap gap-1.5">{trailing}</div>}
       </div>
     );
   }
@@ -440,15 +443,7 @@ export function FiltersBar({
       <FilterInput ref={inputRef} value={filters.q} onChange={(q) => set({ q })} className="w-[214px]" />
       {chips}
       <span className="flex-1" />
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled
-        disabledReason="Not available yet: saved views need somewhere on the server to keep them."
-        icon={<BookmarkPlus />}
-      >
-        Save view
-      </Button>
+      {trailing}
     </div>
   );
 }

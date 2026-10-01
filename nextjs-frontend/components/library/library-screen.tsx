@@ -3,7 +3,7 @@
 import { ArrowUp, Eye, List, Table2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { RecordingSummary } from "@/app/openapi-client/types.gen";
+import type { RecordingSummary, SavedView } from "@/app/openapi-client/types.gen";
 import { rememberView } from "@/components/home/recently-viewed";
 import { isFileDrag, useSendToImport } from "@/components/import/pending";
 import { useRecordingActions } from "@/components/library/actions";
@@ -27,6 +27,7 @@ import {
 } from "@/components/library/model";
 import { RecordingCards, RecordingList } from "@/components/library/recording-list";
 import { RecordingTable } from "@/components/library/recording-table";
+import { SavedViews } from "@/components/library/saved-views";
 import { SourcesStrip } from "@/components/library/sources-strip";
 import {
   PAGE,
@@ -38,6 +39,7 @@ import {
   useWatchedSources,
 } from "@/components/library/use-library";
 import { useIsNarrow } from "@/components/library/use-media";
+import { fromView, viewState } from "@/components/library/views-model";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
@@ -81,7 +83,7 @@ function typing(t: EventTarget | null): boolean {
 
 /** The Library (L1–L6): every recording you can see, across namespaces, with live job progress in its row. */
 export function LibraryScreen() {
-  const { namespace, namespaces, roleIn, can, me } = useArchive();
+  const { namespace, namespaces, roleIn, can, me, setNamespace } = useArchive();
   const [layout, setLayout] = useState<"table" | "list">("table");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [view, setView] = useState<LibraryView>("all");
@@ -189,6 +191,29 @@ export function LibraryScreen() {
   const reviewScope = useMemo(() => (namespace ? [namespace] : namespaces.map((n) => n.name)), [namespace, namespaces]);
   const reviews = useReviewsByRecording(reviewScope);
   const speakers = useSpeakerChoices(reviewScope);
+  // A saved view brings back its namespace, tab, filters and sort; its speaker by name, once that namespace's
+  // speakers are known (each namespace has its own ids).
+  const [pendingSpeaker, setPendingSpeaker] = useState<{ name: string; ns: string | null } | null>(null);
+  const applyView = (v: SavedView) => {
+    const s = fromView(v.state);
+    if ((v.namespace ?? null) !== namespace) setNamespace(v.namespace ?? null);
+    setFilters(s.filters);
+    setView(s.view);
+    setSort(s.sort);
+    setPendingSpeaker(s.speaker ? { name: s.speaker, ns: v.namespace ?? null } : null);
+  };
+  useEffect(() => {
+    if (!pendingSpeaker || pendingSpeaker.ns !== namespace || speakers.loading) return;
+    const choice = speakers.choices.find((c) => c.name === pendingSpeaker.name) ?? null;
+    setFilters((f) => ({ ...f, speaker: choice }));
+    setPendingSpeaker(null);
+    if (!choice)
+      toast({
+        title: `No one called ${pendingSpeaker.name} speaks in ${namespace ?? "your namespaces"} now`,
+        body: "The view shows everyone’s recordings instead.",
+      });
+  }, [pendingSpeaker, namespace, speakers.loading, speakers.choices, toast]);
+  const shownState = useMemo(() => viewState({ filters, view, sort }), [filters, view, sort]);
   const heldSet = useMemo(() => new Set(held), [held]);
   const shown = useMemo(() => lib.rows.filter((r) => !heldSet.has(r.id)), [lib.rows, heldSet]);
 
@@ -427,6 +452,7 @@ export function LibraryScreen() {
               tagsLoading={tagCounts.isPending}
               inputRef={filterRef}
               compact={narrow}
+              trailing={<SavedViews state={shownState} namespace={namespace} onApply={applyView} />}
             />
           </>
         )}

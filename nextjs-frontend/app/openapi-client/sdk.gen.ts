@@ -550,6 +550,17 @@ import type {
   RequestAccessErrors,
   ListPendingAccessRequestsData,
   ListPendingAccessRequestsResponses,
+  ListViewsData,
+  ListViewsResponses,
+  CreateViewData,
+  CreateViewResponses,
+  CreateViewErrors,
+  DeleteViewData,
+  DeleteViewResponses,
+  DeleteViewErrors,
+  UpdateViewData,
+  UpdateViewResponses,
+  UpdateViewErrors,
 } from "./types.gen";
 import { client } from "./client.gen";
 
@@ -3216,6 +3227,62 @@ export class AccessRequests {
     return (options?.client ?? client).get<ListPendingAccessRequestsResponses, unknown, ThrowOnError>({
       url: "/api/v1/access-requests",
       ...options,
+    });
+  }
+}
+
+export class Views {
+  /**
+   * List Views
+   * Your views, then the ones shared with namespaces you can read; the latest changed first in each.
+   */
+  public static listViews<ThrowOnError extends boolean = false>(options?: Options<ListViewsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListViewsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/views",
+      ...options,
+    });
+  }
+
+  /**
+   * Create View
+   * Save what the Library shows under a name (unique among your views). Sharing it with its namespace needs
+   * editor access there.
+   */
+  public static createView<ThrowOnError extends boolean = false>(options: Options<CreateViewData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateViewResponses, CreateViewErrors, ThrowOnError>({
+      url: "/api/v1/views",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete View
+   * Delete it: its maker, or for a shared view an owner of its namespace. Deleting a shared view is audited.
+   */
+  public static deleteView<ThrowOnError extends boolean = false>(options: Options<DeleteViewData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteViewResponses, DeleteViewErrors, ThrowOnError>({
+      url: "/api/v1/views/{vid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update View
+   * Rename it, share or unshare it, or save what the Library shows into it. Its maker only; sharing needs editor
+   * access to its namespace, and a view of every namespace can't be shared.
+   */
+  public static updateView<ThrowOnError extends boolean = false>(options: Options<UpdateViewData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateViewResponses, UpdateViewErrors, ThrowOnError>({
+      url: "/api/v1/views/{vid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
