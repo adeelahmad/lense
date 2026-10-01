@@ -12,6 +12,7 @@ import { ALL_PARTS, accessLabel, accessPatch, partsText, type AccessValue } from
 import { PeopleWithPermission, RequestsWaiting } from "@/components/access/people";
 import { CopyButton } from "@/components/iiif/collections";
 import { publicPath } from "@/components/public/model";
+import { AttachAudioDialog } from "@/components/recording/attach-audio";
 import { useRec } from "@/components/recording/context";
 import { ShareEmbedDialog } from "@/components/sharing/share-dialog";
 import { useEdits, useRecordingActions } from "@/components/recording/hooks";
@@ -32,13 +33,15 @@ export type DialogState =
   | { kind: "reprocess" }
   | { kind: "rename" }
   | { kind: "access" }
+  | { kind: "attach" }
   | { kind: "share"; startMs?: number };
 
-/** The page's dialogs: Reprocess (R9), Rename, Access and Share / Embed. */
+/** The page's dialogs: Reprocess (R9), Rename, Access, Attach audio and Share / Embed. */
 export function RecordingDialogs({ state, onClose }: { state: DialogState; onClose: () => void }) {
   return (
     <>
       <ReprocessDialog open={state?.kind === "reprocess"} onOpenChange={(o) => !o && onClose()} />
+      <AttachAudioDialog open={state?.kind === "attach"} onOpenChange={(o) => !o && onClose()} />
       <RenameDialog open={state?.kind === "rename"} onOpenChange={(o) => !o && onClose()} />
       <AccessDialog open={state?.kind === "access"} onOpenChange={(o) => !o && onClose()} />
       <ShareSlot

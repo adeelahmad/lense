@@ -25,6 +25,15 @@ Formats: .txt, .md, .markdown, .mdx, .docx, .doc, .pdf, .srt, .vtt, .json (lens,
     lens import notes minutes.pdf --format text
 
 In the web app, Import takes pasted text, a chosen file or one dropped on the text box, and analyses it straight away.
+It also uploads audio and video, which go through the namespace's pipeline like scanned files.
+
+**Audio for a transcript.** A transcript can get its audio (or video) in the web app: Import → Paste's "Attach audio…",
+a transcript dropped together with the audio of the same name (`ep14-transcript.srt` and `ep14.m4a`), or "Attach audio"
+on a transcript-only recording's page. The file is uploaded and becomes the recording's media; the transcript and its
+speakers stay. Then these steps run, after anything the recording's job still had to do: transcribe (which keeps the
+transcript and draws the waveform), diarize (speakers by voice, unless the transcript named them), shots, text on screen
+and faces (video only), analyze and report. The recording takes the file's fingerprint, so scans and uploads of the
+same file find it, unless another recording in the namespace has it already.
 
 Speakers are recognised from `Name: text`, `[12:30] Name: text`, `Name (12:30): text`, Otter/Zoom/Teams exports (a
 `Name  12:30` line, then what they said), `speaker|emotion|text` lines, and the speakers in SRT/VTT and JSON. Anything
@@ -104,7 +113,9 @@ Imports, pipeline runs and folder scans return at once and run as jobs stored in
 `workers.inline` workers itself; more can run anywhere that reaches the database, each limited to the steps it can do.
 A job whose next step a worker can't run goes back on the queue for one that can, so a Mac can transcribe with mlx while
 the container does the rest. Jobs can be cancelled and retried from the failed step; a job whose worker stops
-responding is retried. `GET /api/v1/events` streams job progress (server-sent events).
+responding is retried. Steps added to a job while it runs (attaching audio does) run after its other steps: a worker
+reads the job's steps again before each step, and only finishes a job whose steps are all done.
+`GET /api/v1/events` streams job progress (server-sent events).
 
     lens worker --steps transcribe,diarize     # e.g. on the Mac, with SURREAL_URL pointing at the server
 

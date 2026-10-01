@@ -21,6 +21,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - `speaker` takes speaker ids. Speakers belong to one namespace, so the web app's speaker filter lists everyone
       who speaks in the namespaces in scope by name and sends every id with that name.
     - The Needs attention and Processing tab counts come from the server too.
+- **Attach audio to a transcript.** A transcript-only recording gets its audio or video from its page ("Attach audio",
+  also in the ⋯ menu on phones), from Import → Paste ("Attach audio…"), or by dropping a transcript together with the
+  audio of the same name on Import → Upload, which now makes one recording of the pair instead of two. The file goes up
+  in pieces like any upload (`POST /api/v1/uploads` with `recording`) and becomes the recording's media: the transcript
+  and its speakers stay, the waveform is drawn, speakers are told apart by voice when the transcript didn't name them,
+  and video gets shots, text on screen and faces (docs/processing.md).
+    - The steps that need media are added to the recording's job when it has one (the import's, say), after what it
+      still has to do. Workers now read a job's steps again before each step and only finish a job whose steps are
+      all done, so steps added while it runs aren't missed.
 - **Upload audio and video.** Import → Upload takes audio and video as well as transcripts. Files go up in pieces
   (`uploads.chunk_mb`, 8 MB), each written straight to disk on the server; a piece that fails is sent again, an upload
   can be paused and resumed, and choosing the same file again after a reload carries on where it stopped. When the

@@ -5697,8 +5697,13 @@ export type Upload = {
    */
   state: "receiving" | "done";
   /**
+   * Attach
+   * the transcript-only recording it becomes the audio of
+   */
+  attach?: number | null;
+  /**
    * Recording
-   * the recording it became, once done
+   * the recording it became (or was attached to), once done
    */
   recording?: number | null;
   /**
@@ -5728,6 +5733,8 @@ export type Upload = {
     | number
     | "receiving"
     | "done"
+    | number
+    | null
     | number
     | null
     | number
@@ -5769,9 +5776,14 @@ export type UploadLimits = {
 export type UploadStart = {
   /**
    * Namespace
-   * a namespace you edit; admins may name a new one, created when the upload finishes
+   * a namespace you edit; admins may name a new one, created when the upload finishes (default: the recording's)
    */
-  namespace: string;
+  namespace?: string;
+  /**
+   * Recording
+   * attach the file to this transcript-only recording as its audio, instead of making a recording of it
+   */
+  recording?: number | null;
   /**
    * Filename
    */

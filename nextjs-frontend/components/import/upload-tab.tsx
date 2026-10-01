@@ -16,7 +16,7 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import type { SpeakerDirectory, Upload as UploadT } from "@/app/openapi-client/types.gen";
-import { extOf, formatName, isUntimed, kindOf, stemOf } from "@/components/import/files";
+import { extOf, formatName, isUntimed, kindOf } from "@/components/import/files";
 import { MappingField, PreviewLines } from "@/components/import/mapping";
 import { chooseFiles, isFileDrag } from "@/components/import/pending";
 import { pieceCount, resumeFrom, sentShare } from "@/components/import/upload-model";
@@ -355,8 +355,8 @@ export function FileDetail({
       )}
       {audioTwin && (
         <p className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-secondary">
-          <b className="font-bold text-fg-strong">{audioTwin}</b> from this upload has the same name. They become two
-          recordings: this transcript, and the audio, transcribed on its own.
+          <b className="font-bold text-fg-strong">{audioTwin}</b> from this upload has the same name: it becomes this
+          transcript’s audio, uploaded once the transcript is in. The transcript and its speakers stay as they are.
         </p>
       )}
     </div>
@@ -373,6 +373,7 @@ export function MediaDetail({
   pipeline,
   pieceMb,
   unfinished,
+  twinOf,
 }: {
   it: Item;
   onPatch: (p: Partial<Item>) => void;
@@ -381,9 +382,11 @@ export function MediaDetail({
   pipeline: string;
   pieceMb: number;
   unfinished: UploadT[];
+  /** The transcript this file goes with: it becomes that transcript's audio. */
+  twinOf?: string;
 }) {
   const Icon = fileIcon(it);
-  const earlier = namespace ? resumeFrom(unfinished, it.file, namespace) : null;
+  const earlier = namespace && !twinOf ? resumeFrom(unfinished, it.file, namespace) : null;
   const pieces = pieceCount(it.file.size, pieceMb);
   return (
     <div className="flex flex-col gap-4">
@@ -399,6 +402,12 @@ export function MediaDetail({
         <Stat k="Size" v={bytes(it.file.size)} />
         <Stat k="Sent in" v={pieces === 1 ? "one piece" : `${count(pieces)} pieces`} />
       </div>
+      {twinOf && (
+        <p className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-secondary">
+          It goes with <b className="font-bold text-fg-strong">{twinOf}</b> from this upload: it becomes that
+          transcript’s audio rather than a recording of its own.
+        </p>
+      )}
       <p className="text-[13px] leading-[1.5] text-fg-secondary">
         {earlier ? (
           <>
@@ -430,15 +439,4 @@ export function MediaDetail({
       </div>
     </div>
   );
-}
-
-/** An audio file in the upload whose name matches this transcript ("ep14.m4a" for "ep14-transcript.srt"). */
-export function audioTwinOf(it: Item, items: Item[]): string | undefined {
-  const norm = (s: string) =>
-    stemOf(s)
-      .toLowerCase()
-      .replace(/[-_ ]*(transcript|captions|subtitles|subs)$/, "");
-  const me = norm(it.file.name);
-  return items.find((x) => x !== it && (x.kind === "audio" || x.kind === "video") && norm(x.file.name) === me)?.file
-    .name;
 }

@@ -1468,9 +1468,10 @@ export class Uploads {
 
   /**
    * Start Upload
-   * Start uploading an audio or video file into a namespace (editors; admins may name a new one). Then send the file
-   * with PUT /uploads/{uid}. 400 for a type not in uploads.extensions, 413 over uploads.max_mb, 507 when the server's
-   * disk can't hold it.
+   * Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
+   * a transcript-only recording (`recording`; editors of its namespace). Then send the file with PUT /uploads/{uid}.
+   * 400 for a type not in uploads.extensions, 409 when the recording has audio already, 413 over uploads.max_mb, 507
+   * when the server's disk can't hold it.
    */
   public static startUpload<ThrowOnError extends boolean = false>(options: Options<StartUploadData, ThrowOnError>) {
     return (options.client ?? client).post<StartUploadResponses, StartUploadErrors, ThrowOnError>({
@@ -1510,7 +1511,7 @@ export class Uploads {
    * The next chunk of the file as the raw request body (application/octet-stream), starting at `offset`; it streams
    * to disk. A chunk that breaks off is dropped whole. 409 when `offset` isn't where the upload has got to (GET it and
    * send from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload
-   * done, with its recording and job; audited as `upload`.
+   * done, with its recording and job (for `attach`, the job that runs the steps that need media); audited as `upload`.
    */
   public static sendChunk<ThrowOnError extends boolean = false>(options: Options<SendChunkData, ThrowOnError>) {
     return (options.client ?? client).put<SendChunkResponses, SendChunkErrors, ThrowOnError>({

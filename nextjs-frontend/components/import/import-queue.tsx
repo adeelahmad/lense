@@ -46,9 +46,13 @@ function QueueRow({
   const j = job.data;
   let st: RowState;
   const share = sentShare(q.sent, q.size);
-  if (q.state === "uploading" && q.kind === "media")
+  // audio or video going up in pieces: on its own, or as a transcript's audio once the transcript is in (`audio` is
+  // set when it lands)
+  const pieces = q.kind === "media" || Boolean(q.audio);
+  const what = q.audio ? "Attaching audio" : "Upload";
+  if (q.state === "uploading" && pieces)
     st = {
-      step: `Upload · ${sentText(q.sent ?? 0, q.size ?? 0)}`,
+      step: `${what} · ${sentText(q.sent ?? 0, q.size ?? 0)}`,
       pct: `${Math.floor(share * 100)}%`,
       width: Math.max(0.02, share),
       badge: "Uploading",
@@ -73,9 +77,9 @@ function QueueRow({
       tone: "neutral",
       bar: "muted",
     };
-  else if (q.state === "failed" && q.kind === "media")
+  else if (q.state === "failed" && pieces)
     st = {
-      step: `Upload stopped · ${sentText(q.sent ?? 0, q.size ?? 0)}`,
+      step: `${q.audio ? "The audio didn’t attach" : "Upload stopped"} · ${sentText(q.sent ?? 0, q.size ?? 0)}`,
       pct: "",
       width: Math.max(0.02, share),
       badge: "Failed",
@@ -172,7 +176,8 @@ function QueueRow({
       <span className="flex min-w-0 flex-col gap-[3px]">
         <span className="truncate text-[14px] font-semibold leading-tight text-fg">{j?.title || q.title}</span>
         <span className="truncate text-[12px] leading-tight text-fg-muted">
-          {q.name} · {q.namespace}
+          {q.name}
+          {q.audio ? ` + ${q.audio}` : ""} · {q.namespace}
         </span>
         {error && <span className="text-[12px] leading-snug text-red-dark">{error}</span>}
       </span>
@@ -212,11 +217,11 @@ function QueueRow({
           </Badge>
         </span>
         <span className="text-right text-[13px] font-semibold">
-          {q.kind === "media" && q.state === "uploading" ? (
+          {pieces && q.state === "uploading" ? (
             <button type="button" className="text-fg-accent hover:underline" onClick={() => onPause(q.key)}>
               Pause
             </button>
-          ) : q.kind === "media" && (q.state === "paused" || q.state === "failed") ? (
+          ) : pieces && (q.state === "paused" || q.state === "failed") ? (
             <button type="button" className="text-fg-accent hover:underline" onClick={() => onResume(q.key)}>
               {q.state === "paused" ? "Resume" : "Try again"}
             </button>

@@ -16,6 +16,7 @@ import {
   Keyboard,
   Link2,
   ListChecks,
+  Paperclip,
   Pencil,
   RefreshCw,
   RotateCw,
@@ -304,6 +305,11 @@ function MoreMenu({ compact }: { compact?: boolean }) {
             <MenuItem icon={<Pencil />} disabled={!r.canEdit} onSelect={r.openRename}>
               Rename…
             </MenuItem>
+            {r.transcriptOnly && (
+              <MenuItem icon={<Paperclip />} disabled={!r.canEdit} onSelect={r.openAttach}>
+                Attach audio…
+              </MenuItem>
+            )}
             <MenuItem icon={<Globe />} onSelect={r.openAccess}>
               Access…
             </MenuItem>

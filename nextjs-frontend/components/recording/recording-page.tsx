@@ -202,6 +202,7 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
       openShare: (startMs) => setDialog({ kind: "share", startMs }),
       openRename: () => setDialog({ kind: "rename" }),
       openAccess: () => setDialog({ kind: "access" }),
+      openAttach: () => setDialog({ kind: "attach" }),
     }),
     [
       id,

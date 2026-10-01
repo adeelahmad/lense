@@ -7,8 +7,8 @@ import pathlib
 
 import pytest
 
-from app.domain import deletion, ingest, render, store, uploads
-from tests.helpers import login, make_user, quiet, write_wav
+from app.domain import deletion, ingest, jobs, render, store, uploads
+from tests.helpers import drain, login, make_user, quiet, write_wav
 
 R = store.R
 
@@ -98,7 +98,7 @@ def test_uploading_audio_in_chunks(client, env, db, cfg):
             "action": "upload",
             "target": f"recording:{rid}",
             "email": "ed@x.io",
-            "detail": {"file": "2024-03-05 interview.wav", "size": len(data), "namespace": "pods", "duplicate": False},
+            "detail": {"file": "2024-03-05 interview.wav", "size": len(data), "namespace": "pods", "duplicate": False, "attached": False},
         }
     ]
     assert client.get("/api/v1/uploads", headers=he).json() == []
@@ -207,3 +207,71 @@ def test_a_chunk_is_whole_or_not_at_all(db, cfg):
     uploads.cancel(db, cfg, up)
     with pytest.raises(KeyError):
         uploads.received(db, cfg, up["id"])
+
+
+def _attach(client, h, data, rid, name="talk.wav", **more):
+    return client.post("/api/v1/uploads", headers=h, json={"recording": rid, "filename": name, "size": len(data), **more})
+
+
+def test_attaching_audio_to_a_transcript(client, env, db, cfg):
+    data, he, hv = env["data"], env["he"], env["hv"]
+    text = "[00:00] Alice: A short clip about the capsid.\n[00:01] Bob: Indeed it is short.\n[00:02] Alice: Bye."
+    r = client.post("/api/v1/import", headers=he, json={"namespace": "pods", "text": text, "title": "Clip"})
+    rid, imported = r.json()["id"], r.json()["job"]
+    assert not render.has_audio(db, cfg, rid)
+    calls = ingest.import_text(db, cfg, "calls", "[00:00] Dave: Hello.\n[00:02] Eve: Hi.")
+
+    # editors of its namespace only; the namespace, when named, must be its own
+    assert _attach(client, hv, data, rid).status_code == 403
+    assert _attach(client, he, data, calls).status_code == 404
+    assert _attach(client, he, data, rid, namespace="calls").status_code == 400
+    r = _attach(client, he, data, rid, namespace="pods")
+    assert r.status_code == 201, r.text
+    up = r.json()
+    assert (up["attach"], up["namespace"]) == (rid, "pods")
+
+    # its pieces arrive like any upload; the last makes the file the transcript's audio
+    for at in range(0, len(data), 30_000):
+        r = _send(client, he, up["id"], at, data[at : at + 30_000])
+        assert r.status_code == 200, r.text
+    done = r.json()
+    assert (done["state"], done["recording"], done["duplicate"]) == ("done", rid, False)
+    # the import's job, still waiting, does the steps that need media too
+    assert done["job"] == imported
+    steps = [s["type"] for s in db.one("SELECT steps FROM $j", j=R("job", imported))["steps"]]
+    assert steps[-len(uploads.ATTACH_STEPS) :] == uploads.ATTACH_STEPS
+    rec = db.one("SELECT * FROM $r", r=R("recording", rid))
+    path = pathlib.Path(rec["path"])
+    assert path.read_bytes() == data and rec["source"] == "audio" and 2400 <= rec["duration_ms"] <= 2600
+    assert rec["fingerprint"] == ingest.fingerprint(path) and rec["fp_key"] == f"{rec['space']}:{rec['fingerprint']}"
+    assert db.values("SELECT VALUE detail.attached FROM audit_log WHERE action = 'upload'") == [True]
+
+    # processing keeps the transcript and its speakers, and draws the waveform
+    drain(db, cfg)
+    assert db.one("SELECT status FROM $j", j=R("job", imported))["status"] == "succeeded"
+    player = client.get(f"/api/v1/recordings/{rid}/player", headers=he).json()
+    assert player["audio"] and player["envelope"] and [s["text"] for s in player["segments"]][0] == "A short clip about the capsid."
+    assert db.one("SELECT diarizer FROM $r", r=R("recording", rid))["diarizer"] == "labels"
+
+    # a recording with audio can't take more; the same file uploaded on its own finds this recording
+    assert _attach(client, he, data, rid).status_code == 409
+    again = _upload(client, he, data, name="again.wav")
+    assert (again["recording"], again["duplicate"]) == (rid, True)
+
+
+def test_steps_added_while_a_job_runs_are_not_missed(db, cfg, folder, monkeypatch):
+    rid = ingest.import_text(db, cfg, "pods", "[00:00] Alice: Hello there.\n[00:02] Bob: Hi.")
+    jid = jobs.enqueue(db, rid, ["analyze"])
+    analyze = jobs.STEPS["analyze"]
+
+    def analyze_then_more(db_, cfg_, rid_, say, spec=None):
+        analyze(db_, cfg_, rid_, say, spec)
+        assert jobs.add_steps(db, rid, ["report"]) == jid  # while it runs: added to it
+
+    monkeypatch.setitem(jobs.STEPS, "analyze", analyze_then_more)
+    drain(db, cfg)
+    job = db.one("SELECT status, step_index, steps, log FROM $j", j=R("job", jid))
+    assert job["status"] == "succeeded" and [s["type"] for s in job["steps"]] == ["analyze", "report"] and job["step_index"] == 2
+    assert any("report done" in line for line in job["log"])
+    # with nothing running, added steps are a job of their own
+    assert jobs.add_steps(db, rid, ["report"]) != jid

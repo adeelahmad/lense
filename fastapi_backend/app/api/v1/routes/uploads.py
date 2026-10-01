@@ -30,7 +30,7 @@ def _errors() -> Iterator[None]:
         raise
     except uploads.TooLarge as e:
         raise HTTPException(413, str(e)) from None
-    except (uploads.Mismatch, uploads.Busy) as e:
+    except (uploads.Mismatch, uploads.Busy, uploads.HasMedia) as e:
         raise HTTPException(409, str(e)) from None
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
@@ -64,6 +64,14 @@ def _may_add(acl: Access, db: Any, user: Principal, ns: str) -> None:
     acl.need(sid, "editor")
 
 
+def _may_send(acl: Access, db: Any, user: Principal, row: dict[str, Any]) -> None:
+    """Still allowed to add to it: editor of its namespace, or of the recording it's for."""
+    if row.get("attach"):
+        acl.recording(row["attach"], "editor")
+    else:
+        _may_add(acl, db, user, row["namespace"])
+
+
 def _finished(db: Any, uid: str) -> dict[str, Any] | None:
     try:
         row: dict[str, Any] = uploads.get(db, uid)
@@ -81,15 +89,25 @@ def upload_limits(user: CurrentUser, cfg: Cfg) -> UploadLimits:
 
 @router.post("", status_code=201)
 def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Upload:
-    """Start uploading an audio or video file into a namespace (editors; admins may name a new one). Then send the file
-    with PUT /uploads/{uid}. 400 for a type not in uploads.extensions, 413 over uploads.max_mb, 507 when the server's
-    disk can't hold it."""
+    """Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
+    a transcript-only recording (`recording`; editors of its namespace). Then send the file with PUT /uploads/{uid}.
+    400 for a type not in uploads.extensions, 409 when the recording has audio already, 413 over uploads.max_mb, 507
+    when the server's disk can't hold it."""
     ns = body.namespace.strip()
-    if not store.NS_RX.match(ns):
+    if body.recording is not None:
+        rec = acl.recording(body.recording, "editor")
+        home = store.space_names(db).get(rec["space"], "")
+        if ns and ns != home:
+            raise HTTPException(400, f"that recording is in {home}")
+        if uploads.has_media(db, cfg, rec):
+            raise HTTPException(409, "that recording has audio already")
+        ns = home
+    elif not store.NS_RX.match(ns):
         raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
-    _may_add(acl, db, user, ns)
+    else:
+        _may_add(acl, db, user, ns)
     with _errors():
-        row = uploads.start(db, cfg, ns, body.filename, body.size, user.as_audit(), body.title, body.modified)
+        row = uploads.start(db, cfg, ns, body.filename, body.size, user.as_audit(), body.title, body.modified, body.recording)
     return Upload(**uploads.view(cfg, row))
 
 
@@ -119,11 +137,11 @@ async def send_chunk(
     """The next chunk of the file as the raw request body (application/octet-stream), starting at `offset`; it streams
     to disk. A chunk that breaks off is dropped whole. 409 when `offset` isn't where the upload has got to (GET it and
     send from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload
-    done, with its recording and job; audited as `upload`."""
+    done, with its recording and job (for `attach`, the job that runs the steps that need media); audited as `upload`."""
     row = await run_in_threadpool(_theirs, db, uid, user)
     if row.get("state") == "done":
         return Upload(**uploads.view(cfg, row))
-    await run_in_threadpool(_may_add, acl, db, user, row["namespace"])
+    await run_in_threadpool(_may_send, acl, db, user, row)
     try:
         with _errors(), uploads.Chunk(cfg, row, offset) as chunk:
             async for piece in request.stream():
@@ -139,7 +157,13 @@ async def send_chunk(
             return Upload(**uploads.view(cfg, done))
         raise
     if up.get("state") == "done":
-        detail = {"file": up["filename"], "size": up["size"], "namespace": up["namespace"], "duplicate": bool(up.get("duplicate"))}
+        detail = {
+            "file": up["filename"],
+            "size": up["size"],
+            "namespace": up["namespace"],
+            "duplicate": bool(up.get("duplicate")),
+            "attached": bool(up.get("attach")),
+        }
         await run_in_threadpool(auth.audit, db, user.as_audit(), "upload", f"recording:{up['recording']}", detail)
         request.app.state.graph_cache.clear()
     return Upload(**uploads.view(cfg, up))

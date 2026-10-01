@@ -3237,7 +3237,7 @@
           "uploads"
         ],
         "summary": "Start Upload",
-        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one). Then send the file\nwith PUT /uploads/{uid}. 400 for a type not in uploads.extensions, 413 over uploads.max_mb, 507 when the server's\ndisk can't hold it.",
+        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of\na transcript-only recording (`recording`; editors of its namespace). Then send the file with PUT /uploads/{uid}.\n400 for a type not in uploads.extensions, 409 when the recording has audio already, 413 over uploads.max_mb, 507\nwhen the server's disk can't hold it.",
         "operationId": "start_upload",
         "requestBody": {
           "content": {
@@ -3321,7 +3321,7 @@
           "uploads"
         ],
         "summary": "Send Chunk",
-        "description": "The next chunk of the file as the raw request body (application/octet-stream), starting at `offset`; it streams\nto disk. A chunk that breaks off is dropped whole. 409 when `offset` isn't where the upload has got to (GET it and\nsend from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload\ndone, with its recording and job; audited as `upload`.",
+        "description": "The next chunk of the file as the raw request body (application/octet-stream), starting at `offset`; it streams\nto disk. A chunk that breaks off is dropped whole. 409 when `offset` isn't where the upload has got to (GET it and\nsend from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload\ndone, with its recording and job (for `attach`, the job that runs the steps that need media); audited as `upload`.",
         "operationId": "send_chunk",
         "parameters": [
           {
@@ -17746,6 +17746,18 @@
             ],
             "title": "State"
           },
+          "attach": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attach",
+            "description": "the transcript-only recording it becomes the audio of"
+          },
           "recording": {
             "anyOf": [
               {
@@ -17756,7 +17768,7 @@
               }
             ],
             "title": "Recording",
-            "description": "the recording it became, once done"
+            "description": "the recording it became (or was attached to), once done"
           },
           "job": {
             "anyOf": [
@@ -17841,7 +17853,20 @@
           "namespace": {
             "type": "string",
             "title": "Namespace",
-            "description": "a namespace you edit; admins may name a new one, created when the upload finishes"
+            "description": "a namespace you edit; admins may name a new one, created when the upload finishes (default: the recording's)",
+            "default": ""
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording",
+            "description": "attach the file to this transcript-only recording as its audio, instead of making a recording of it"
           },
           "filename": {
             "type": "string",
@@ -17885,7 +17910,6 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "namespace",
           "filename",
           "size"
         ],

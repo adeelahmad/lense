@@ -43,18 +43,47 @@ export function storedName(name: string): string {
   return (stem.trim() || "upload") + ext.toLowerCase();
 }
 
-/** An unfinished upload of this file into this namespace, to carry on rather than start again. */
-export function resumeFrom<U extends Pick<Upload, "state" | "namespace" | "size" | "filename">>(
+/** An unfinished upload of this file into this namespace (as the audio of recording `attach`, when given), to carry
+ * on rather than start again. */
+export function resumeFrom<U extends Pick<Upload, "state" | "namespace" | "size" | "filename" | "attach">>(
   uploads: U[],
   file: { name: string; size: number },
   namespace: string,
+  attach: number | null = null,
 ): U | null {
   const name = storedName(file.name);
   return (
     uploads.find(
-      (u) => u.state === "receiving" && u.namespace === namespace && u.size === file.size && u.filename === name,
+      (u) =>
+        u.state === "receiving" &&
+        (attach != null || u.namespace === namespace) &&
+        u.size === file.size &&
+        u.filename === name &&
+        (u.attach ?? null) === attach,
     ) ?? null
   );
+}
+
+/** "ep14-transcript.srt" and "ep14.m4a" go together: the name without its extension or a "-transcript" ending. */
+export function twinKey(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return (dot > 0 ? name.slice(0, dot) : name).toLowerCase().replace(/[-_ ]*(transcript|captions|subtitles|subs)$/, "");
+}
+
+/** Transcripts dropped with their audio: each transcript's id → the audio or video file with the same name, which
+ * becomes its media instead of a recording of its own. Each file pairs once, the first match first. */
+export function pairTwins(items: { id: string; name: string; media: boolean }[]): Map<string, string> {
+  const pairs = new Map<string, string>();
+  const taken = new Set<string>();
+  for (const t of items) {
+    if (t.media) continue;
+    const m = items.find((x) => x.media && !taken.has(x.id) && twinKey(x.name) === twinKey(t.name));
+    if (m) {
+      pairs.set(t.id, m.id);
+      taken.add(m.id);
+    }
+  }
+  return pairs;
 }
 
 /** How far through the file: "36.0 MB of 80.0 MB". */

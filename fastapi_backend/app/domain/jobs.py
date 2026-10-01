@@ -34,10 +34,13 @@ def _spec(s):
 
 
 def _transcribe(db, cfg, rid, say, spec=None):
-    rec = db.one("SELECT source, engine, status FROM $r", r=R("recording", rid)) or {}
+    rec = db.one("SELECT source, engine, status, envelope FROM $r", r=R("recording", rid)) or {}
     if rec.get("source") != "audio":
         return say("imported transcript: nothing to transcribe")
     if str(rec.get("engine") or "").startswith("import:") and rec.get("status") != "new" and not (spec or {}).get("force"):
+        if not rec.get("envelope"):  # its audio was attached after the transcript was imported
+            ingest.add_envelope(db, cfg, rid)
+            say("drew the waveform of the attached media")
         return say("the transcript came with the media: kept it (force the step to transcribe again)")
     ingest.transcribe_one(db, cfg, rid, say)
 
@@ -152,6 +155,23 @@ def enqueue(db, rid, steps=None, by=None, priority=0, pipeline=None, batch=None)
     return jid
 
 
+def add_steps(db, rid, steps, by=None):
+    """Run these steps on a recording after what its queued or running job still has to do, or as a new job when it
+    has none. Workers read a job's steps again before each step, and only finish a job whose steps are all done, so
+    steps added while it runs aren't missed."""
+    specs = [_spec(s) for s in steps]
+    for jid in db.values("SELECT VALUE record::id(id) FROM job WHERE recording = $r AND status IN $a", r=rid, a=ACTIVE):
+        if db.rows(
+            "UPDATE $j SET steps = array::concat(steps, $m), updated_at = $t WHERE status IN $a RETURN AFTER",
+            j=R("job", jid),
+            m=specs,
+            a=ACTIVE,
+            t=store.now(),
+        ):
+            return jid
+    return enqueue(db, rid, steps, by)
+
+
 def steps_for(rec):
     st, audio = rec.get("status"), rec.get("source") == "audio"
     if st in ("new", "error") and audio:
@@ -213,7 +233,19 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
 
     threading.Thread(target=beat, daemon=True).start()
     try:
-        while i < len(steps):
+        while True:
+            steps = (db.one("SELECT steps FROM $j", j=jr) or {}).get("steps") or steps  # with any added meanwhile (add_steps)
+            if i >= len(steps):
+                if db.rows(
+                    "UPDATE $j SET status = 'succeeded', step_index = $i, next_step = NONE, error = NONE, finished_at = $t, "
+                    "updated_at = $t, log = $l WHERE array::len(steps) <= $i RETURN AFTER",
+                    j=jr,
+                    i=i,
+                    t=store.now(),
+                    l=lines,
+                ):
+                    return "succeeded"
+                continue  # steps were added just now
             spec = _spec(steps[i])
             step = spec["type"]
             gone = not db.one("SELECT id FROM $r", r=R("recording", rid))
@@ -253,27 +285,20 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
             STEPS[step](db, cfg_fn(), rid, say, spec)
             say(f"{spec.get('name') or step} done in {time.time() - t0:.1f}s")
             i += 1
-        db.q(
-            "UPDATE $j SET status = 'succeeded', step_index = $i, next_step = NONE, error = NONE, finished_at = $t, updated_at = $t, log = $l",
-            j=jr,
-            i=i,
-            t=store.now(),
-            l=lines,
-        )
-        return "succeeded"
     except Exception as e:  # noqa: BLE001 - recorded on the job
         err = f"{type(e).__name__}: {e}"[:500]
-        say(f"{_spec(steps[i])['type']} failed: {err}")
+        failed = _spec(steps[i])["type"] if i < len(steps) else None
+        say(f"{failed or 'finishing'} failed: {err}")
         db.q(
             "UPDATE $j SET status = 'failed', error = $e, step_index = $i, next_step = $s, finished_at = $t, updated_at = $t, log = $l",
             j=jr,
             e=err,
             i=i,
-            s=_spec(steps[i])["type"],
+            s=failed,
             t=store.now(),
             l=lines,
         )
-        if _spec(steps[i])["type"] == "transcribe":
+        if failed == "transcribe":
             db.q("UPDATE $r SET status = 'error', error = $e", r=R("recording", rid), e=err)
         return "failed"
     finally:

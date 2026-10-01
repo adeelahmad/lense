@@ -9,7 +9,8 @@ import { ImportQueue } from "@/components/import/import-queue";
 import { PasteTab } from "@/components/import/paste-tab";
 import { chooseFiles, defaultImportNamespace, isFileDrag, takeFiles } from "@/components/import/pending";
 import { SourceTab } from "@/components/import/source-tab";
-import { FileDetail, FileList, MediaDetail, ProblemCard, audioTwinOf } from "@/components/import/upload-tab";
+import { FileDetail, FileList, MediaDetail, ProblemCard } from "@/components/import/upload-tab";
+import { pairTwins } from "@/components/import/upload-model";
 import {
   fileBody,
   isMedia,
@@ -167,23 +168,35 @@ export function ImportScreen() {
         ? `Fix the speaker mapping of ${mappingProblem.file.name}`
         : null);
   const current = items.find((i) => i.id === selected) ?? null;
+  // a transcript dropped with its audio: the audio becomes its media, not a recording of its own
+  const pairs = pairTwins(ready.map((i) => ({ id: i.id, name: i.file.name, media: isMedia(i.kind) })));
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const twinOf = new Map([...pairs].map(([t, m]) => [m, byId.get(t)]));
 
   const nsControl = <NamespaceField value={ns} onChange={setNs} options={editable} admin={admin} />;
 
   const importFiles = () => {
     const target = ns;
     void queue.send(
-      ready.map((it): QueueJob => {
-        const base = {
-          key: it.id,
-          name: it.file.name,
-          title: it.title.trim() || titleFromName(it.file.name),
-          namespace: target,
-        };
-        return isMedia(it.kind)
-          ? { ...base, kind: "media", file: it.file }
-          : { ...base, kind: "file", body: () => fileBody(it, target) };
-      }),
+      ready
+        .filter((it) => !twinOf.has(it.id))
+        .map((it): QueueJob => {
+          const base = {
+            key: it.id,
+            name: it.file.name,
+            title: it.title.trim() || titleFromName(it.file.name),
+            namespace: target,
+          };
+          const twin = pairs.get(it.id);
+          return isMedia(it.kind)
+            ? { ...base, kind: "media", file: it.file }
+            : {
+                ...base,
+                kind: "file",
+                body: () => fileBody(it, target),
+                audio: twin ? byId.get(twin)?.file : undefined,
+              };
+        }),
     );
     files.clear();
   };
@@ -261,6 +274,7 @@ export function ImportScreen() {
                       speakers: b.speakers,
                       format: "auto" as const,
                     }),
+                    audio: b.audio ?? undefined,
                   },
                 ])
               }
@@ -333,6 +347,7 @@ export function ImportScreen() {
                         pipeline={pipeline.name}
                         pieceMb={files.limits.chunk_mb}
                         unfinished={unfinished.data ?? []}
+                        twinOf={twinOf.get(current.id)?.file.name}
                       />
                     ) : current?.status === "ready" ? (
                       <FileDetail
@@ -342,7 +357,7 @@ export function ImportScreen() {
                         namespaceControl={nsControl}
                         pipeline={pipeline.name}
                         directory={directory.data}
-                        audioTwin={audioTwinOf(current, items)}
+                        audioTwin={pairs.has(current.id) ? byId.get(pairs.get(current.id) ?? "")?.file.name : undefined}
                       />
                     ) : current?.problem ? (
                       <ProblemCard

@@ -62,6 +62,7 @@ describe("sending a file in pieces", () => {
     const done = await run;
     expect(m(Uploads.startUpload).mock.calls[0][0].body).toEqual({
       namespace: "pods",
+      recording: null,
       filename: "ep.M4A",
       size: SIZE,
       title: "Episode",
@@ -71,6 +72,23 @@ describe("sending a file in pieces", () => {
     expect(m(Uploads.sendChunk).mock.calls.map(([o]) => o.body.size)).toEqual([MB, MB, 0.5 * MB]);
     expect(progress).toEqual([0, MB, 2 * MB, SIZE]);
     expect([done.state, done.recording, done.job]).toEqual(["done", 7, 9]);
+  });
+
+  it("uploads a transcript's audio for its recording", async () => {
+    m(Uploads.listUploads).mockReturnValue(ok([up(MB)]));
+    m(Uploads.startUpload).mockReturnValue(ok(up(0, { attach: 5 })));
+    serverTakesPieces();
+    const file = new File([new Uint8Array(SIZE)], "ep.m4a");
+    await sendFile(client, file, {
+      namespace: "pods",
+      attach: 5,
+      pieceMb: 1,
+      signal: new AbortController().signal,
+      onProgress: () => {},
+    });
+    // the unfinished upload of the same file was for a recording of its own, so this one starts afresh
+    expect(m(Uploads.startUpload).mock.calls[0][0].body).toMatchObject({ recording: 5, filename: "ep.m4a" });
+    expect(offsets()).toEqual([0, MB, 2 * MB]);
   });
 
   it("carries on an unfinished upload of the same file", async () => {

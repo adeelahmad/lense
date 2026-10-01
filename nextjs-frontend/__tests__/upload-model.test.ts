@@ -1,5 +1,6 @@
 import {
   nextPiece,
+  pairTwins,
   pieceCount,
   resumeFrom,
   retryDelay,
@@ -7,6 +8,7 @@ import {
   sentShare,
   sentText,
   storedName,
+  twinKey,
   uploadError,
 } from "@/components/import/upload-model";
 
@@ -38,6 +40,25 @@ describe("uploading in pieces", () => {
     const uploads = [up({ namespace: "calls" }), up({ size: 99 }), up({ state: "done" }), up({ id: "x" })];
     expect(resumeFrom(uploads, { name: "ep 1.M4A", size: 100 }, "pods")).toEqual(up({ id: "x" }));
     expect(resumeFrom(uploads, { name: "ep 2.m4a", size: 100 }, "pods")).toBeNull();
+    // as a transcript's audio: only an upload for that recording
+    const forRec = [up({ id: "y", attach: 7 }), ...uploads];
+    expect(resumeFrom(forRec, { name: "ep 1.m4a", size: 100 }, "pods", 7)).toEqual(up({ id: "y", attach: 7 }));
+    expect(resumeFrom(forRec, { name: "ep 1.m4a", size: 100 }, "", 7)).toEqual(up({ id: "y", attach: 7 }));
+    expect(resumeFrom(forRec, { name: "ep 1.m4a", size: 100 }, "pods", 8)).toBeNull();
+  });
+
+  it("pairs transcripts with the audio of the same name", () => {
+    expect(twinKey("EP14-Transcript.srt")).toBe("ep14");
+    expect(twinKey("ep14.m4a")).toBe("ep14");
+    expect(twinKey("ep14 captions.vtt")).toBe("ep14");
+    const items = [
+      { id: "t1", name: "ep14-transcript.srt", media: false },
+      { id: "a1", name: "ep14.m4a", media: true },
+      { id: "t2", name: "ep14.vtt", media: false },
+      { id: "t3", name: "ep15.txt", media: false },
+      { id: "a2", name: "ep16.mp3", media: true },
+    ];
+    expect([...pairTwins(items)]).toEqual([["t1", "a1"]]);
   });
 
   it("knows the name the server keeps a file under", () => {

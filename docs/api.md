@@ -201,8 +201,10 @@ DELETE /api/v1/uploads/{uid}
 (`uploads.max_mb`), the piece size the web app sends (`uploads.chunk_mb`) and the largest transcript file for
 `POST /import` (`server.max_upload_mb`).
 
-`POST /uploads {namespace, filename, size, title?, modified?}` starts one (editors of the namespace; admins may name a
-new namespace, created when the upload finishes). The name loses any folders and its extension is lowercased; `modified`
+`POST /uploads {namespace, filename, size, title?, modified?, recording?}` starts one (editors of the namespace; admins
+may name a new namespace, created when the upload finishes). With `recording`, a transcript-only recording, the file
+becomes that recording's audio instead of a recording of its own (editors of its namespace; `namespace` can then be left
+out; 409 when it has audio already). [Processing](processing.md#importing-transcripts) says what runs then. The name loses any folders and its extension is lowercased; `modified`
 (the file's last-modified time in milliseconds) dates the recording when its name doesn't. 400 for a type not in
 `uploads.extensions`, 413 over `uploads.max_mb`, 507 when the server's disk can't hold it with 512 MB to spare.
 
@@ -211,9 +213,11 @@ new namespace, created when the upload finishes). The name loses any folders and
 `data_dir/uploads/.partial`; a piece that breaks off is dropped whole, so after a dropped connection the client gets the
 upload and sends from its `offset`. 409 when `offset` isn't where the upload has got to, or while another piece of it
 is arriving. The piece with the last byte moves the file to `data_dir/uploads/<namespace>/<uid>/<name>`, makes it a
-recording and queues the namespace's pipeline: the answer has `state: "done"`, `recording` and `job`. When the namespace
+recording and queues the namespace's pipeline (or attaches it, adding the steps that need media to the recording's job):
+the answer has `state: "done"`, `recording` and `job`. When the namespace
 already has the same file (uploaded, scanned or imported before), no second recording is made: `duplicate` is true and
-`recording` is that one, which gets its media back if it had lost it. Audited as `upload`. Sending the last piece again
+`recording` is that one, which gets its media back if it had lost it. Audited as `upload` (with `attached` in the
+detail). Sending the last piece again
 answers the same.
 
 `GET /uploads` lists your unfinished uploads, newest first: choosing the same file for the same namespace again carries

@@ -58,6 +58,8 @@ export type RecordingCtx = {
   openShare: (startMs?: number) => void;
   openRename: () => void;
   openAccess: () => void;
+  /** Attach audio to a transcript-only recording (editors). */
+  openAttach: () => void;
 };
 
 const Ctx = createContext<RecordingCtx | null>(null);

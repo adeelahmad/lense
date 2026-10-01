@@ -228,6 +228,8 @@ export type QueueItem = {
   job?: number;
   /** Media: the namespace already had this file; `recording` is that one. */
   duplicate?: boolean;
+  /** A transcript's own audio, attached once the transcript is in. */
+  audio?: string;
   error?: string;
 };
 
@@ -237,7 +239,7 @@ export type QueueJob = {
   name: string;
   title: string;
   namespace: string;
-} & ({ kind: "file" | "paste"; body: () => Promise<ImportBody> } | { kind: "media"; file: File });
+} & ({ kind: "file" | "paste"; body: () => Promise<ImportBody>; audio?: File } | { kind: "media"; file: File });
 
 /**
  * Sends imports one at a time; each row then follows its job. Audio and video go up in pieces, can be paused and
@@ -249,7 +251,7 @@ export function useImportQueue() {
   const limits = useUploadLimits();
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const uploading = queue.some((q) => q.state === "uploading");
-  const media = useRef(new Map<string, { file: File; namespace: string; title: string }>());
+  const media = useRef(new Map<string, { file: File; namespace: string; title: string; attach?: number }>());
   const stops = useRef(new Map<string, AbortController>());
 
   useEffect(() => {
@@ -282,6 +284,7 @@ export function useImportQueue() {
       try {
         const up = await sendFile(client, m.file, {
           namespace: m.namespace,
+          attach: m.attach,
           title: m.title,
           pieceMb: limits.chunk_mb,
           signal: stop.signal,
@@ -331,6 +334,14 @@ export function useImportQueue() {
         }
         try {
           const res = await data(Imports.importTranscript({ client, body: await j.body() }));
+          if (j.audio) {
+            // then its audio, attached to the transcript that just landed
+            update(j.key, { recording: res.id, job: res.job, audio: j.audio.name, sent: 0, size: j.audio.size });
+            media.current.set(j.key, { file: j.audio, namespace: j.namespace, title: j.title, attach: res.id });
+            landed();
+            await upload(j.key);
+            continue;
+          }
           update(j.key, { state: "sent", recording: res.id, job: res.job });
           landed();
         } catch (e) {

@@ -22,7 +22,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | "Edited by me" tab | `?edited_by=me` |
 | Source and language filters | `path`/`remote` and `language` in `RecordingSummary` |
 | Bulk export as one file | `POST /recordings/export` returning a zip |
-| Attach audio to a transcript | attach an upload to a transcript-only recording |
 | Notes | notes create/read/update/delete |
 | Split or merge turns; word highlighting | split/merge segment endpoints; word timings in the player |
 | Timestamps on summary items | times in the summary schema |

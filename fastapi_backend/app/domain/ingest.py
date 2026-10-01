@@ -392,6 +392,12 @@ def audio_path(db, cfg, rec):
     return store.resolve_path(cfg, rec.get("path"))
 
 
+def add_envelope(db, cfg, rid):
+    """The waveform of media attached to a recording whose transcript was imported before."""
+    rec = db.one("SELECT path, source, remote FROM $r", r=store.R("recording", rid))
+    db.q("UPDATE $r SET envelope = $e", r=store.R("recording", rid), e=envelope(decode(audio_path(db, cfg, rec))))
+
+
 def transcribe_one(db, cfg, rid, log=print, engine=None):
     r = db.one("SELECT record::id(id) AS id, space, path, title, remote FROM $r", r=store.R("recording", rid))
     engine, t = engine or get_engine(cfg), time.time()

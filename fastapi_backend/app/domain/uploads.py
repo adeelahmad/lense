@@ -6,8 +6,9 @@ whole file in memory. The partial file's length is how much has arrived: after a
 and carries on from there. A chunk that breaks off is cut off again, so the file only ever holds whole chunks.
 
 When the last byte lands, the file moves to data_dir/uploads/<namespace>/<upload id>/<its name> and becomes a
-recording (or finds the one it already is), and the namespace's pipeline is queued. Uploads nobody has sent a chunk
-to for uploads.expire_hours are removed with their partial files.
+recording (or finds the one it already is), and the namespace's pipeline is queued; or, for an upload started for a
+transcript-only recording, it becomes that recording's audio. Uploads nobody has sent a chunk to for
+uploads.expire_hours are removed with their partial files.
 """
 
 from __future__ import annotations
@@ -26,7 +27,13 @@ from . import deletion, ingest, jobs, render, store
 R = store.R
 MB = 1024 * 1024
 ROOM = 512 * MB  # what an upload must leave free on the server's disk
-FIELDS = "record::id(id) AS id, account, email, namespace, filename, title, size, modified, state, recording, job, duplicate, created_at, touched_at"
+FIELDS = (
+    "record::id(id) AS id, account, email, namespace, filename, title, size, modified, attach, state, recording, job, duplicate, "
+    "created_at, touched_at"
+)
+# What runs once media is attached to a transcript: its waveform (the transcript is kept), speakers by voice unless the
+# transcript named them, shots, text on screen and faces for video, then the analysis and report pages again.
+ATTACH_STEPS = ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "report"]
 
 
 class TooLarge(ValueError):
@@ -39,6 +46,15 @@ class Mismatch(ValueError):
 
 class Busy(RuntimeError):
     """Another chunk of the same upload is arriving."""
+
+
+class HasMedia(ValueError):
+    """The recording to attach to has audio or video already."""
+
+
+def has_media(db, cfg, rec):
+    """Whether a recording plays something: a file on a storage source, or a local file that's there."""
+    return bool(rec.get("remote")) or bool(render.has_audio(db, cfg, rec["id"]))
 
 
 def clean_name(name):
@@ -86,6 +102,7 @@ def view(cfg, row):
         "size": row["size"],
         "offset": row["size"] if done else (part.stat().st_size if part.exists() else 0),
         "state": "done" if done else "receiving",
+        "attach": row.get("attach"),
         "recording": row.get("recording"),
         "job": row.get("job"),
         "duplicate": bool(row.get("duplicate")),
@@ -106,10 +123,11 @@ def mine(db, account):
     return db.rows(f"SELECT {FIELDS} FROM upload WHERE account = $a AND state = 'receiving' ORDER BY created_at DESC", a=account)
 
 
-def start(db, cfg, ns, filename, size, by, title=None, modified=None):
+def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=None):
     """A new upload into namespace `ns`, by `by` ({id, email}). Its name, type and size are checked, and the disk
     must have room for it; nothing is in the archive until the last byte arrives. `modified` is the file's own time
-    (milliseconds since 1970), which dates the recording when its name doesn't."""
+    (milliseconds since 1970), which dates the recording when its name doesn't. `attach` is a transcript-only
+    recording in `ns` the file becomes the audio of, instead of a recording of its own."""
     sweep(db, cfg)
     u = cfg["uploads"]
     name = clean_name(filename)
@@ -140,6 +158,7 @@ def start(db, cfg, ns, filename, size, by, title=None, modified=None):
                 "title": (title or "").strip()[:200] or None,
                 "size": size,
                 "modified": modified,
+                "attach": attach,
                 "state": "receiving",
                 "created_at": t,
                 "touched_at": t,
@@ -212,10 +231,19 @@ def finish(db, cfg, row, admin=False):
     """All of it is here: the file moves into the namespace's upload folder and becomes a recording, and the
     namespace's pipeline is queued. The same file already in the namespace (uploaded, scanned or imported before)
     isn't added twice: the upload points at that recording instead, and gives it back its media if it had lost it.
-    `admin` creates the namespace if it doesn't exist (only admins may start an upload into a new one). If anything
-    fails, the file goes back to where it was, so finishing can be tried again."""
-    uid, by = row["id"], row.get("email")
-    sid = store.ns_id(db, row["namespace"], create=admin)
+    `admin` creates the namespace if it doesn't exist (only admins may start an upload into a new one). An upload for
+    a transcript-only recording becomes its media instead, and the steps that need media run (ATTACH_STEPS). If
+    anything fails, the file goes back to where it was, so finishing can be tried again."""
+    uid, by, target = row["id"], row.get("email"), row.get("attach")
+    if target:
+        rec = db.one("SELECT record::id(id) AS id, space, remote FROM $r", r=R("recording", target))
+        if not rec:
+            raise KeyError(target)
+        if has_media(db, cfg, rec):
+            raise HasMedia("that recording has audio already")
+        sid = rec["space"]
+    else:
+        sid = store.ns_id(db, row["namespace"], create=admin)
     part, dest = _part(cfg, uid), _dir(cfg) / row["namespace"] / uid / row["filename"]
     dest.parent.mkdir(parents=True, exist_ok=True)
     os.replace(part, dest)
@@ -226,12 +254,18 @@ def finish(db, cfg, row, admin=False):
         st = dest.stat()
         fp = ingest.fingerprint(dest)
         deletion.forget(db, sid, fp)  # uploaded on purpose: a recording deleted before comes back
-        dup = db.one(
-            "SELECT record::id(id) AS id, status, remote FROM recording WHERE space = $s AND fingerprint = $f LIMIT 1", s=sid, f=fp
+        dup = (
+            None
+            if target
+            else db.one(
+                "SELECT record::id(id) AS id, status, remote FROM recording WHERE space = $s AND fingerprint = $f LIMIT 1", s=sid, f=fp
+            )
         )
-        copy = bool(dup and (dup.get("remote") or render.has_audio(db, cfg, dup["id"])))  # it's here already, with its media
+        copy = bool(dup and has_media(db, cfg, dup))  # it's here already, with its media
         job = None
-        if copy:
+        if target:
+            rid, job = target, _attach(db, cfg, target, sid, dest, st, fp, by)
+        elif copy:
             rid = dup["id"]
         else:
             dur, ch = ingest.probe(dest)
@@ -271,6 +305,17 @@ def finish(db, cfg, row, admin=False):
     if copy:
         shutil.rmtree(dest.parent, ignore_errors=True)
     return get(db, uid)
+
+
+def _attach(db, cfg, rid, sid, dest, st, fp, by):
+    """The file becomes the media of a transcript-only recording; it takes the file's fingerprint (so scans and uploads
+    know the file) unless another recording in the namespace has it."""
+    dur, ch = ingest.probe(dest)
+    d = store.clean({"path": str(dest), "source": "audio", "size": st.st_size, "mtime": st.st_mtime, "duration_ms": dur, "channels": ch})
+    if not db.values("SELECT VALUE id FROM recording WHERE fp_key = $k", k=f"{sid}:{fp}"):
+        d.update(fingerprint=fp, fp_key=f"{sid}:{fp}")
+    db.q("UPDATE $r MERGE $d", r=R("recording", rid), d=d)
+    return jobs.add_steps(db, rid, ATTACH_STEPS, by=by)
 
 
 def cancel(db, cfg, row):

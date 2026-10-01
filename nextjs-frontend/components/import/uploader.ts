@@ -11,6 +11,8 @@ const TRIES = 8;
 
 export type SendOptions = {
   namespace: string;
+  /** A transcript-only recording the file becomes the audio of, instead of a recording of its own. */
+  attach?: number | null;
   title?: string | null;
   pieceMb: number;
   signal: AbortSignal;
@@ -40,13 +42,14 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
 export async function sendFile(client: Client, file: File, o: SendOptions): Promise<Upload> {
   const open = await data(Uploads.listUploads({ client, signal: o.signal }));
   let up =
-    resumeFrom(open, file, o.namespace) ??
+    resumeFrom(open, file, o.namespace, o.attach ?? null) ??
     (await data(
       Uploads.startUpload({
         client,
         signal: o.signal,
         body: {
           namespace: o.namespace,
+          recording: o.attach ?? null,
           filename: file.name,
           size: file.size,
           title: o.title || null,

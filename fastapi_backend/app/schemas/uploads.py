@@ -15,7 +15,12 @@ class UploadLimits(ResponseModel):
 
 
 class UploadStart(RequestModel):
-    namespace: str = Field(description="a namespace you edit; admins may name a new one, created when the upload finishes")
+    namespace: str = Field(
+        "", description="a namespace you edit; admins may name a new one, created when the upload finishes (default: the recording's)"
+    )
+    recording: int | None = Field(
+        None, description="attach the file to this transcript-only recording as its audio, instead of making a recording of it"
+    )
     filename: str = Field(min_length=1, max_length=1000)
     size: int = Field(gt=0, description="the file's size in bytes")
     title: str | None = Field(None, max_length=200, description="the recording's title (default: the file's name)")
@@ -32,7 +37,8 @@ class Upload(ResponseModel):
     size: int
     offset: int = Field(description="how many bytes have arrived: the next chunk starts here")
     state: Literal["receiving", "done"]
-    recording: int | None = Field(None, description="the recording it became, once done")
+    attach: int | None = Field(None, description="the transcript-only recording it becomes the audio of")
+    recording: int | None = Field(None, description="the recording it became (or was attached to), once done")
     job: int | None = Field(None, description="the processing queued for it, if any")
     duplicate: bool = Field(False, description="the namespace already had this file: `recording` is that one")
     created_at: str

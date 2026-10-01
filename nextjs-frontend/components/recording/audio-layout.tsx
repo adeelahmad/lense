@@ -24,6 +24,7 @@ import { Transcript } from "@/components/recording/transcript";
 import { Button } from "@/components/ui/button";
 import { StepLoop } from "@/components/ui/loop";
 import { tc } from "@/lib/format";
+import { needRole } from "@/lib/hooks/session";
 
 const MAX_LANES = 6;
 
@@ -141,7 +142,7 @@ export function AudioLayout() {
 }
 
 function PlayerPanel({ chapterMenu }: { chapterMenu: boolean }) {
-  const { model, state, transcriptOnly } = useRec();
+  const { model, state, transcriptOnly, canEdit, ns, openAttach } = useRec();
   const wave = useWave();
   const { hasMedia, status } = usePlayerState();
   return (
@@ -163,8 +164,9 @@ function PlayerPanel({ chapterMenu }: { chapterMenu: boolean }) {
             variant="secondary"
             size="sm"
             icon={<Paperclip />}
-            disabled
-            disabledReason="Attaching audio to an imported transcript isn't available yet"
+            onClick={openAttach}
+            disabled={!canEdit}
+            disabledReason={needRole("editor", ns)}
           >
             Attach audio
           </Button>
