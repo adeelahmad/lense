@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Acl, Cfg, Db, Writer
-from app.domain import auth, ingest, jobs, store
+from app.domain import auth, ingest, jobs, pipelines, store
 from app.schemas.imports import ImportPreview, ImportPreviewRequest, ImportRequest, ImportResult, PreviewLine
 
 router = APIRouter(prefix="/import", tags=["imports"])
@@ -39,6 +39,16 @@ def _decode(data: str, cfg: dict[str, Any]) -> bytes:
     return raw
 
 
+def check_pipeline(db: Any, pid: int | None) -> None:
+    """A pipeline chosen to run after an import must exist (400 before anything is saved)."""
+    if pid is None:
+        return
+    try:
+        pipelines.get(db, pid)
+    except KeyError:
+        raise HTTPException(400, "there's no such pipeline") from None
+
+
 @contextmanager
 def _unreadable() -> Iterator[None]:
     try:
@@ -51,10 +61,12 @@ def _unreadable() -> Iterator[None]:
 
 @router.post("")
 def import_transcript(body: ImportRequest, request: Request, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> ImportResult:
-    """Import a transcript into a namespace (editors; admins may name a new namespace). Analysis is queued as a job."""
+    """Import a transcript into a namespace (editors; admins may name a new namespace). The namespace's pipeline, or
+    the one chosen (`pipeline`), is queued as a job."""
     ns = body.namespace.strip()
     if not store.NS_RX.match(ns):
         raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
+    check_pipeline(db, body.pipeline)
     try:
         acl.need(store.ns_id(db, ns, create=False), "editor")
     except KeyError:
@@ -73,7 +85,7 @@ def import_transcript(body: ImportRequest, request: Request, acl: Acl, user: Wri
             db.q("UPDATE $r SET path = $p", r=store.R("recording", rid), p="upload:" + name)
         else:
             rid = ingest.import_text(db, cfg, ns, body.text or "", title=title, fmt=body.format, speaker_names=names)
-    job = jobs.enqueue(db, rid, None, by=user.email)
+    job = jobs.enqueue(db, rid, None, by=user.email, pipeline=body.pipeline)
     auth.audit(db, user.as_audit(), "import", f"recording:{rid}")
     request.app.state.graph_cache.clear()
     return ImportResult(id=rid, job=job)

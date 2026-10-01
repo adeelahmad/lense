@@ -79,8 +79,7 @@ export function fileMeta(it: Item): string {
     if (it.problem.code === "too-large") return `${bytes(it.file.size)} — over the upload limit`;
     return it.problem.title;
   }
-  if (isMedia(it.kind))
-    return `${it.kind === "video" ? "Video" : "Audio"} · ${bytes(it.file.size)} · transcribed after upload`;
+  if (isMedia(it.kind)) return `${it.kind === "video" ? "Video" : "Audio"} · ${bytes(it.file.size)} · ready to upload`;
   const pv = it.preview;
   if (!pv) return bytes(it.file.size);
   const parts = [formatName(pv.format).replace(/ \(\.\w+\)$/, ""), plural(pv.segments, "segment")];
@@ -290,7 +289,7 @@ export function FileDetail({
   onPatch,
   namespace,
   namespaceControl,
-  pipeline,
+  pipelineControl,
   directory,
   audioTwin,
 }: {
@@ -298,7 +297,7 @@ export function FileDetail({
   onPatch: (p: Partial<Item>) => void;
   namespace: string | null;
   namespaceControl: ReactNode;
-  pipeline: string;
+  pipelineControl: ReactNode;
   directory: SpeakerDirectory | undefined;
   audioTwin?: string;
 }) {
@@ -334,15 +333,7 @@ export function FileDetail({
           <Input value={it.title} onChange={(e) => onPatch({ title: e.target.value })} maxLength={200} />
         </label>
         {namespaceControl}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[13px] font-bold text-fg-strong">Then run</span>
-          <span
-            className="flex h-10 items-center truncate rounded-sm border border-dashed border-border bg-surface px-3.5 text-[14px] text-fg-secondary"
-            title="Imports run the namespace’s pipeline. Change which one in Pipelines."
-          >
-            {pipeline}
-          </span>
-        </div>
+        {pipelineControl}
       </div>
       {isUntimed(pv.format) && (
         <p className="flex gap-2.5 rounded-[10px] border border-gold-border bg-gold-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-strong">
@@ -370,7 +361,7 @@ export function MediaDetail({
   onPatch,
   namespace,
   namespaceControl,
-  pipeline,
+  pipelineControl,
   pieceMb,
   unfinished,
   twinOf,
@@ -379,7 +370,7 @@ export function MediaDetail({
   onPatch: (p: Partial<Item>) => void;
   namespace: string | null;
   namespaceControl: ReactNode;
-  pipeline: string;
+  pipelineControl: ReactNode;
   pieceMb: number;
   unfinished: UploadT[];
   /** The transcript this file goes with: it becomes that transcript's audio. */
@@ -419,7 +410,7 @@ export function MediaDetail({
         ) : (
           <>Sent in pieces: if the connection drops, the upload carries on where it stopped.</>
         )}{" "}
-        It’s transcribed once it has arrived.
+        What runs next starts once it has arrived.
       </p>
       <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr]">
         <label className="flex flex-col gap-1.5">
@@ -427,15 +418,7 @@ export function MediaDetail({
           <Input value={it.title} onChange={(e) => onPatch({ title: e.target.value })} maxLength={200} />
         </label>
         {namespaceControl}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[13px] font-bold text-fg-strong">Then run</span>
-          <span
-            className="flex h-10 items-center truncate rounded-sm border border-dashed border-border bg-surface px-3.5 text-[14px] text-fg-secondary"
-            title="Imports run the namespace’s pipeline. Change which one in Pipelines."
-          >
-            {pipeline}
-          </span>
-        </div>
+        {pipelineControl}
       </div>
     </div>
   );

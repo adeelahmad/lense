@@ -13,6 +13,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.requests import ClientDisconnect
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
+from app.api.v1.routes.imports import check_pipeline
 from app.domain import auth, store, uploads
 from app.schemas.common import Ok
 from app.schemas.uploads import Upload, UploadLimits, UploadStart
@@ -90,10 +91,14 @@ def upload_limits(user: CurrentUser, cfg: Cfg) -> UploadLimits:
 @router.post("", status_code=201)
 def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Upload:
     """Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
-    a transcript-only recording (`recording`; editors of its namespace). Then send the file with PUT /uploads/{uid}.
+    a transcript-only recording (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
+    namespace's. Then send the file with PUT /uploads/{uid}.
     400 for a type not in uploads.extensions, 409 when the recording has audio already, 413 over uploads.max_mb, 507
     when the server's disk can't hold it."""
     ns = body.namespace.strip()
+    if body.pipeline is not None and body.recording is not None:
+        raise HTTPException(400, "attaching audio runs its own steps; a pipeline can't be chosen for it")
+    check_pipeline(db, body.pipeline)
     if body.recording is not None:
         rec = acl.recording(body.recording, "editor")
         home = store.space_names(db).get(rec["space"], "")
@@ -107,7 +112,9 @@ def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) ->
     else:
         _may_add(acl, db, user, ns)
     with _errors():
-        row = uploads.start(db, cfg, ns, body.filename, body.size, user.as_audit(), body.title, body.modified, body.recording)
+        row = uploads.start(
+            db, cfg, ns, body.filename, body.size, user.as_audit(), body.title, body.modified, body.recording, body.pipeline
+        )
     return Upload(**uploads.view(cfg, row))
 
 

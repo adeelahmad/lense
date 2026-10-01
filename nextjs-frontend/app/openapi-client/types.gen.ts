@@ -2045,6 +2045,11 @@ export type ImportRequest = {
    * rename speakers on the way in: "S1=Alice,S2=Bob"
    */
   speakers?: string | null;
+  /**
+   * Pipeline
+   * run this pipeline afterwards instead of the namespace's (GET /pipelines)
+   */
+  pipeline?: number | null;
 };
 
 /**
@@ -5702,6 +5707,11 @@ export type Upload = {
    */
   attach?: number | null;
   /**
+   * Pipeline
+   * the pipeline chosen to run once it's here (default: the namespace's)
+   */
+  pipeline?: number | null;
+  /**
    * Recording
    * the recording it became (or was attached to), once done
    */
@@ -5733,6 +5743,8 @@ export type Upload = {
     | number
     | "receiving"
     | "done"
+    | number
+    | null
     | number
     | null
     | number
@@ -5798,6 +5810,11 @@ export type UploadStart = {
    * the recording's title (default: the file's name)
    */
   title?: string | null;
+  /**
+   * Pipeline
+   * run this pipeline once it's here instead of the namespace's (not with `recording`)
+   */
+  pipeline?: number | null;
   /**
    * Modified
    * the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't

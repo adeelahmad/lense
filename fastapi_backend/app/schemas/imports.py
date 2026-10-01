@@ -22,6 +22,7 @@ class ImportRequest(ImportPreviewRequest):
     namespace: str = Field("", description="created if it doesn't exist (admins only)")
     title: str | None = None
     speakers: str | None = Field(None, description='rename speakers on the way in: "S1=Alice,S2=Bob"')
+    pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's (GET /pipelines)")
 
 
 class ImportResult(ResponseModel):

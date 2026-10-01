@@ -28,8 +28,8 @@ R = store.R
 MB = 1024 * 1024
 ROOM = 512 * MB  # what an upload must leave free on the server's disk
 FIELDS = (
-    "record::id(id) AS id, account, email, namespace, filename, title, size, modified, attach, state, recording, job, duplicate, "
-    "created_at, touched_at"
+    "record::id(id) AS id, account, email, namespace, filename, title, size, modified, attach, pipeline, state, recording, job, "
+    "duplicate, created_at, touched_at"
 )
 # What runs once media is attached to a transcript: its waveform (the transcript is kept), speakers by voice unless the
 # transcript named them, shots, text on screen and faces for video, then the analysis and report pages again.
@@ -103,6 +103,7 @@ def view(cfg, row):
         "offset": row["size"] if done else (part.stat().st_size if part.exists() else 0),
         "state": "done" if done else "receiving",
         "attach": row.get("attach"),
+        "pipeline": row.get("pipeline"),
         "recording": row.get("recording"),
         "job": row.get("job"),
         "duplicate": bool(row.get("duplicate")),
@@ -123,11 +124,12 @@ def mine(db, account):
     return db.rows(f"SELECT {FIELDS} FROM upload WHERE account = $a AND state = 'receiving' ORDER BY created_at DESC", a=account)
 
 
-def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=None):
+def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=None, pipeline=None):
     """A new upload into namespace `ns`, by `by` ({id, email}). Its name, type and size are checked, and the disk
     must have room for it; nothing is in the archive until the last byte arrives. `modified` is the file's own time
     (milliseconds since 1970), which dates the recording when its name doesn't. `attach` is a transcript-only
-    recording in `ns` the file becomes the audio of, instead of a recording of its own."""
+    recording in `ns` the file becomes the audio of, instead of a recording of its own; `pipeline` runs instead of the
+    namespace's once a new recording is made."""
     sweep(db, cfg)
     u = cfg["uploads"]
     name = clean_name(filename)
@@ -159,6 +161,7 @@ def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=Non
                 "size": size,
                 "modified": modified,
                 "attach": attach,
+                "pipeline": pipeline,
                 "state": "receiving",
                 "created_at": t,
                 "touched_at": t,
@@ -293,7 +296,7 @@ def finish(db, cfg, row, admin=False):
                         "created_at": store.now(),
                     },
                 )
-                job = jobs.enqueue(db, rid, None, by=by)
+                job = jobs.enqueue(db, rid, None, by=by, pipeline=row.get("pipeline"))
         db.q(
             "UPDATE $r MERGE $d",
             r=R("upload", uid),

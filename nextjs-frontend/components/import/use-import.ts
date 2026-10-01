@@ -210,6 +210,8 @@ export function useNamespacePipeline(ns: string | null) {
   return {
     name: own ? own.name : "Standard pipeline",
     steps: q.data?.standard ?? [],
+    /** Every saved pipeline: an import can run another one. */
+    pipelines: q.data?.pipelines ?? [],
     loading: q.isLoading,
   };
 }
@@ -239,7 +241,10 @@ export type QueueJob = {
   name: string;
   title: string;
   namespace: string;
-} & ({ kind: "file" | "paste"; body: () => Promise<ImportBody>; audio?: File } | { kind: "media"; file: File });
+} & (
+  | { kind: "file" | "paste"; body: () => Promise<ImportBody>; audio?: File }
+  | { kind: "media"; file: File; pipeline?: number | null }
+);
 
 /**
  * Sends imports one at a time; each row then follows its job. Audio and video go up in pieces, can be paused and
@@ -251,7 +256,9 @@ export function useImportQueue() {
   const limits = useUploadLimits();
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const uploading = queue.some((q) => q.state === "uploading");
-  const media = useRef(new Map<string, { file: File; namespace: string; title: string; attach?: number }>());
+  const media = useRef(
+    new Map<string, { file: File; namespace: string; title: string; attach?: number; pipeline?: number | null }>(),
+  );
   const stops = useRef(new Map<string, AbortController>());
 
   useEffect(() => {
@@ -285,6 +292,7 @@ export function useImportQueue() {
         const up = await sendFile(client, m.file, {
           namespace: m.namespace,
           attach: m.attach,
+          pipeline: m.pipeline,
           title: m.title,
           pieceMb: limits.chunk_mb,
           signal: stop.signal,
@@ -328,7 +336,7 @@ export function useImportQueue() {
       ]);
       for (const j of jobs) {
         if (j.kind === "media") {
-          media.current.set(j.key, { file: j.file, namespace: j.namespace, title: j.title });
+          media.current.set(j.key, { file: j.file, namespace: j.namespace, title: j.title, pipeline: j.pipeline });
           await upload(j.key);
           continue;
         }
@@ -363,10 +371,11 @@ export function useImportQueue() {
 }
 
 /** Build the import body for a file item. */
-export async function fileBody(it: Item, namespace: string) {
+export async function fileBody(it: Item, namespace: string, pipeline: number | null = null) {
   const labels = it.preview?.speakers ?? [];
   return {
     namespace,
+    pipeline,
     title: it.title.trim() || null,
     speakers: mappingParam(parseMapping(it.mapping, labels)),
     filename: it.file.name,

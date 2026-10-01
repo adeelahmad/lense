@@ -25,7 +25,8 @@ Formats: .txt, .md, .markdown, .mdx, .docx, .doc, .pdf, .srt, .vtt, .json (lens,
     lens import notes minutes.pdf --format text
 
 In the web app, Import takes pasted text, a chosen file or one dropped on the text box, and analyses it straight away.
-It also uploads audio and video, which go through the namespace's pipeline like scanned files.
+It also uploads audio and video, which go through the namespace's pipeline like scanned files. "Then run" picks
+another saved pipeline for what you import.
 
 **Audio for a transcript.** A transcript can get its audio (or video) in the web app: Import → Paste's "Attach audio…",
 a transcript dropped together with the audio of the same name (`ep14-transcript.srt` and `ep14.m4a`), or "Attach audio"

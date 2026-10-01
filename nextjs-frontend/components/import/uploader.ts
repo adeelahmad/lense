@@ -13,6 +13,8 @@ export type SendOptions = {
   namespace: string;
   /** A transcript-only recording the file becomes the audio of, instead of a recording of its own. */
   attach?: number | null;
+  /** Run this pipeline once it's here instead of the namespace's (not when attaching). */
+  pipeline?: number | null;
   title?: string | null;
   pieceMb: number;
   signal: AbortSignal;
@@ -50,6 +52,7 @@ export async function sendFile(client: Client, file: File, o: SendOptions): Prom
         body: {
           namespace: o.namespace,
           recording: o.attach ?? null,
+          pipeline: o.attach != null ? null : (o.pipeline ?? null),
           filename: file.name,
           size: file.size,
           title: o.title || null,

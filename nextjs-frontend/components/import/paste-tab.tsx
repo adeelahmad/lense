@@ -26,12 +26,14 @@ import { bytes, plural } from "@/lib/format";
 export function PasteTab({
   namespace,
   namespaceControl,
+  pipelineControl,
   directory,
   blockReason,
   onImport,
 }: {
   namespace: string | null;
   namespaceControl: ReactNode;
+  pipelineControl: ReactNode;
   directory: SpeakerDirectory | undefined;
   /** Why importing is blocked right now (no namespace, no rights), or null. */
   blockReason: string | null;
@@ -143,8 +145,8 @@ export function PasteTab({
               namespace={namespace}
               directory={directory}
             />
-            <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr]">
-              <label className="flex flex-col gap-1.5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
                 <span className="text-[13px] font-bold text-fg-strong">Title</span>
                 <Input
                   value={title}
@@ -154,6 +156,7 @@ export function PasteTab({
                 />
               </label>
               {namespaceControl}
+              {pipelineControl}
             </div>
           </>
         )}

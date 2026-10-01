@@ -3107,7 +3107,7 @@
           "imports"
         ],
         "summary": "Import Transcript",
-        "description": "Import a transcript into a namespace (editors; admins may name a new namespace). Analysis is queued as a job.",
+        "description": "Import a transcript into a namespace (editors; admins may name a new namespace). The namespace's pipeline, or\nthe one chosen (`pipeline`), is queued as a job.",
         "operationId": "import_transcript",
         "requestBody": {
           "content": {
@@ -3237,7 +3237,7 @@
           "uploads"
         ],
         "summary": "Start Upload",
-        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of\na transcript-only recording (`recording`; editors of its namespace). Then send the file with PUT /uploads/{uid}.\n400 for a type not in uploads.extensions, 409 when the recording has audio already, 413 over uploads.max_mb, 507\nwhen the server's disk can't hold it.",
+        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of\na transcript-only recording (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the\nnamespace's. Then send the file with PUT /uploads/{uid}.\n400 for a type not in uploads.extensions, 409 when the recording has audio already, 413 over uploads.max_mb, 507\nwhen the server's disk can't hold it.",
         "operationId": "start_upload",
         "requestBody": {
           "content": {
@@ -12063,6 +12063,18 @@
             ],
             "title": "Speakers",
             "description": "rename speakers on the way in: \"S1=Alice,S2=Bob\""
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline",
+            "description": "run this pipeline afterwards instead of the namespace's (GET /pipelines)"
           }
         },
         "additionalProperties": false,
@@ -17758,6 +17770,18 @@
             "title": "Attach",
             "description": "the transcript-only recording it becomes the audio of"
           },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline",
+            "description": "the pipeline chosen to run once it's here (default: the namespace's)"
+          },
           "recording": {
             "anyOf": [
               {
@@ -17892,6 +17916,18 @@
             ],
             "title": "Title",
             "description": "the recording's title (default: the file's name)"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline",
+            "description": "run this pipeline once it's here instead of the namespace's (not with `recording`)"
           },
           "modified": {
             "anyOf": [

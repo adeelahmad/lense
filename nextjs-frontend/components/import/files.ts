@@ -259,6 +259,17 @@ export function fileToBase64(file: Blob): Promise<string> {
   });
 }
 
+/** "Then run": the namespace's own pipeline (value "", the default), then every saved pipeline. */
+export function pipelineOptions(
+  namespaceDefault: string,
+  pipelines: { id: number; name: string }[],
+): { value: string; label: string }[] {
+  return [
+    { value: "", label: `${namespaceDefault} (the namespace’s)` },
+    ...pipelines.map((p) => ({ value: String(p.id), label: p.name })),
+  ];
+}
+
 export function namespaceNameProblem(name: string): string | null {
   if (!name) return "Choose a namespace.";
   return /^[a-z0-9][a-z0-9_-]{0,40}$/.test(name)

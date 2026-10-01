@@ -4,7 +4,7 @@ import { FolderOpen, Upload } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { namespaceNameProblem, parseMapping, titleFromName } from "@/components/import/files";
+import { namespaceNameProblem, parseMapping, pipelineOptions, titleFromName } from "@/components/import/files";
 import { ImportQueue } from "@/components/import/import-queue";
 import { PasteTab } from "@/components/import/paste-tab";
 import { chooseFiles, defaultImportNamespace, isFileDrag, takeFiles } from "@/components/import/pending";
@@ -97,6 +97,33 @@ function NamespaceField({
   );
 }
 
+/** What runs once the import lands: the namespace's pipeline unless another is chosen. */
+function PipelineField({
+  value,
+  onChange,
+  namespaceDefault,
+  pipelines,
+}: {
+  value: number | null;
+  onChange: (v: number | null) => void;
+  namespaceDefault: string;
+  pipelines: { id: number; name: string }[];
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[13px] font-bold text-fg-strong" id="import-pipeline-label">
+        Then run
+      </span>
+      <Select
+        aria-labelledby="import-pipeline-label"
+        value={value == null ? "" : String(value)}
+        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+        options={pipelineOptions(namespaceDefault, pipelines)}
+      />
+    </div>
+  );
+}
+
 /** Import (I1–I5): upload transcripts, paste text or watch a folder of a source. Nothing is saved before the preview. */
 export function ImportScreen() {
   const { namespaces, namespace: topNs, can, admin, me } = useArchive();
@@ -113,6 +140,7 @@ export function ImportScreen() {
   const pipeline = useNamespacePipeline(ns || null);
   const [selected, setSelected] = useState<string | null>(null);
   const [over, setOver] = useState(false);
+  const [pipelineId, setPipelineId] = useState<number | null>(null);
 
   // Default namespace (once): the top bar's, if you can import there, else your busiest one.
   const defaulted = useRef(false);
@@ -174,6 +202,14 @@ export function ImportScreen() {
   const twinOf = new Map([...pairs].map(([t, m]) => [m, byId.get(t)]));
 
   const nsControl = <NamespaceField value={ns} onChange={setNs} options={editable} admin={admin} />;
+  const pipelineControl = (
+    <PipelineField
+      value={pipelineId}
+      onChange={setPipelineId}
+      namespaceDefault={pipeline.name}
+      pipelines={pipeline.pipelines}
+    />
+  );
 
   const importFiles = () => {
     const target = ns;
@@ -189,11 +225,11 @@ export function ImportScreen() {
           };
           const twin = pairs.get(it.id);
           return isMedia(it.kind)
-            ? { ...base, kind: "media", file: it.file }
+            ? { ...base, kind: "media", file: it.file, pipeline: pipelineId }
             : {
                 ...base,
                 kind: "file",
-                body: () => fileBody(it, target),
+                body: () => fileBody(it, target, pipelineId),
                 audio: twin ? byId.get(twin)?.file : undefined,
               };
         }),
@@ -257,6 +293,7 @@ export function ImportScreen() {
             <PasteTab
               namespace={ns || null}
               namespaceControl={nsControl}
+              pipelineControl={pipelineControl}
               directory={directory.data}
               blockReason={nsReason}
               onImport={(b) =>
@@ -273,6 +310,7 @@ export function ImportScreen() {
                       title: b.title,
                       speakers: b.speakers,
                       format: "auto" as const,
+                      pipeline: pipelineId,
                     }),
                     audio: b.audio ?? undefined,
                   },
@@ -344,7 +382,7 @@ export function ImportScreen() {
                         onPatch={(p) => files.patch(current.id, p)}
                         namespace={ns || null}
                         namespaceControl={nsControl}
-                        pipeline={pipeline.name}
+                        pipelineControl={pipelineControl}
                         pieceMb={files.limits.chunk_mb}
                         unfinished={unfinished.data ?? []}
                         twinOf={twinOf.get(current.id)?.file.name}
@@ -355,7 +393,7 @@ export function ImportScreen() {
                         onPatch={(p) => files.patch(current.id, p)}
                         namespace={ns || null}
                         namespaceControl={nsControl}
-                        pipeline={pipeline.name}
+                        pipelineControl={pipelineControl}
                         directory={directory.data}
                         audioTwin={pairs.has(current.id) ? byId.get(pairs.get(current.id) ?? "")?.file.name : undefined}
                       />

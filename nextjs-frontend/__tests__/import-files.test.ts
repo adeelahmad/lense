@@ -9,6 +9,7 @@ import {
   mappingParam,
   namespaceNameProblem,
   parseMapping,
+  pipelineOptions,
   readProblem,
   titleFromName,
 } from "@/components/import/files";
@@ -74,6 +75,13 @@ describe("what a dropped file is", () => {
     expect(isUntimed("markdown")).toBe(true);
     expect(isUntimed("vtt")).toBe(false);
     expect(titleFromName("interview_09 p09.docx")).toBe("interview 09 p09");
+  });
+
+  it("offers the namespace's pipeline first, then every saved one", () => {
+    expect(pipelineOptions("Standard pipeline", [{ id: 4, name: "Quick look" }])).toEqual([
+      { value: "", label: "Standard pipeline (the namespace’s)" },
+      { value: "4", label: "Quick look" },
+    ]);
   });
 
   it("checks namespace names like the backend", () => {

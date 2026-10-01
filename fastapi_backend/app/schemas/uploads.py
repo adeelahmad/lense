@@ -24,6 +24,7 @@ class UploadStart(RequestModel):
     filename: str = Field(min_length=1, max_length=1000)
     size: int = Field(gt=0, description="the file's size in bytes")
     title: str | None = Field(None, max_length=200, description="the recording's title (default: the file's name)")
+    pipeline: int | None = Field(None, description="run this pipeline once it's here instead of the namespace's (not with `recording`)")
     modified: int | None = Field(
         None, ge=0, description="the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't"
     )
@@ -38,6 +39,7 @@ class Upload(ResponseModel):
     offset: int = Field(description="how many bytes have arrived: the next chunk starts here")
     state: Literal["receiving", "done"]
     attach: int | None = Field(None, description="the transcript-only recording it becomes the audio of")
+    pipeline: int | None = Field(None, description="the pipeline chosen to run once it's here (default: the namespace's)")
     recording: int | None = Field(None, description="the recording it became (or was attached to), once done")
     job: int | None = Field(None, description="the processing queued for it, if any")
     duplicate: bool = Field(False, description="the namespace already had this file: `recording` is that one")

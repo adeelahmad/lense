@@ -1411,7 +1411,8 @@ export class Recordings {
 export class Imports {
   /**
    * Import Transcript
-   * Import a transcript into a namespace (editors; admins may name a new namespace). Analysis is queued as a job.
+   * Import a transcript into a namespace (editors; admins may name a new namespace). The namespace's pipeline, or
+   * the one chosen (`pipeline`), is queued as a job.
    */
   public static importTranscript<ThrowOnError extends boolean = false>(
     options: Options<ImportTranscriptData, ThrowOnError>,
@@ -1469,7 +1470,8 @@ export class Uploads {
   /**
    * Start Upload
    * Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
-   * a transcript-only recording (`recording`; editors of its namespace). Then send the file with PUT /uploads/{uid}.
+   * a transcript-only recording (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
+   * namespace's. Then send the file with PUT /uploads/{uid}.
    * 400 for a type not in uploads.extensions, 409 when the recording has audio already, 413 over uploads.max_mb, 507
    * when the server's disk can't hold it.
    */

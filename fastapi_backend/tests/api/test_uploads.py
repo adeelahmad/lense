@@ -7,7 +7,7 @@ import pathlib
 
 import pytest
 
-from app.domain import deletion, ingest, jobs, render, store, uploads
+from app.domain import deletion, ingest, jobs, pipelines, render, store, uploads
 from tests.helpers import drain, login, make_user, quiet, write_wav
 
 R = store.R
@@ -185,6 +185,20 @@ def test_an_upload_finds_the_recording_it_already_is(client, env, db, cfg, folde
     again = _upload(client, he, data)
     assert again["recording"] != rid and not again["duplicate"]
     assert not deletion.gone(db, store.ns_id(db, "pods"))[1]
+
+
+def test_an_upload_can_run_another_pipeline(client, env, db, cfg):
+    data, he = env["data"], env["he"]
+    quick = pipelines.create(db, "Quick look", ["transcribe", "report"], "", "root@x.io")
+    assert _start(client, he, len(data), pipeline=999).status_code == 400
+    up = _start(client, he, len(data), pipeline=quick).json()
+    assert up["pipeline"] == quick
+    done = _send(client, he, up["id"], 0, data).json()
+    row = db.one("SELECT steps, pipeline FROM $j", j=R("job", done["job"]))
+    assert [s["type"] for s in row["steps"]] == ["transcribe", "report"] and row["pipeline"]["id"] == quick
+    # attaching runs its own steps
+    rid = ingest.import_text(db, cfg, "pods", "[00:00] Ann: Hello there.\n[00:02] Ben: Hi.\n[00:04] Ann: Bye.")
+    assert _attach(client, he, data, rid, pipeline=quick).status_code == 400
 
 
 def test_a_chunk_is_whole_or_not_at_all(db, cfg):

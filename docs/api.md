@@ -184,6 +184,9 @@ POST   /api/v1/import
 POST   /api/v1/import/preview
 ```
 
+`POST /import` queues the namespace's pipeline after the import, or the saved pipeline named by `pipeline` (any of
+`GET /pipelines`; 400 for one that doesn't exist, before anything is saved).
+
 ### Uploads
 
 Audio and video go up in pieces, so a dropped connection costs one piece, not the file.
@@ -201,10 +204,11 @@ DELETE /api/v1/uploads/{uid}
 (`uploads.max_mb`), the piece size the web app sends (`uploads.chunk_mb`) and the largest transcript file for
 `POST /import` (`server.max_upload_mb`).
 
-`POST /uploads {namespace, filename, size, title?, modified?, recording?}` starts one (editors of the namespace; admins
+`POST /uploads {namespace, filename, size, title?, modified?, pipeline?, recording?}` starts one (editors of the namespace; admins
 may name a new namespace, created when the upload finishes). With `recording`, a transcript-only recording, the file
 becomes that recording's audio instead of a recording of its own (editors of its namespace; `namespace` can then be left
-out; 409 when it has audio already). [Processing](processing.md#importing-transcripts) says what runs then. The name loses any folders and its extension is lowercased; `modified`
+out; 409 when it has audio already). [Processing](processing.md#importing-transcripts) says what runs then. `pipeline`
+runs instead of the namespace's once a new recording is made (not with `recording`). The name loses any folders and its extension is lowercased; `modified`
 (the file's last-modified time in milliseconds) dates the recording when its name doesn't. 400 for a type not in
 `uploads.extensions`, 413 over `uploads.max_mb`, 507 when the server's disk can't hold it with 512 MB to spare.
 
