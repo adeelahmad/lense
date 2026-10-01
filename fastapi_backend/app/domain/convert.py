@@ -17,6 +17,7 @@ from __future__ import annotations
 import datetime as dt
 import functools
 import html
+import json
 import os
 import pathlib
 import re
@@ -213,10 +214,18 @@ def no_sandbox(exe):
         argv = [exe, "--headless", "--disable-gpu", "--no-first-run", f"--user-data-dir={profile}"]
         argv += ["--proxy-server=http://127.0.0.1:9", f"--print-to-pdf={target}", "data:text/html,<p>Lens</p>"]
         try:
-            subprocess.run(argv, capture_output=True, timeout=60)
+            subprocess.run(argv, capture_output=True, timeout=60, env=no_bus(profile))
         except (OSError, subprocess.TimeoutExpired):
             return True
         return not target.is_file()
+
+
+def no_bus(profile):
+    """Chromium's environment: the server's, with no D-Bus to reach. Chromium asks D-Bus services (the network, power,
+    screen savers) things on its main thread and waits for the answers, which on a system bus where one is slow to
+    start can each take 25 s; and nothing on the server's buses is any page's business."""
+    nowhere = f"unix:path={profile}/no-bus"
+    return {**os.environ, "DBUS_SYSTEM_BUS_ADDRESS": nowhere, "DBUS_SESSION_BUS_ADDRESS": nowhere}
 
 
 def print_pdf(exe, guard, url, out, seconds, settle_ms=5000):
@@ -224,6 +233,12 @@ def print_pdf(exe, guard, url, out, seconds, settle_ms=5000):
     it can have one."""
     with tempfile.TemporaryDirectory(prefix="lens-chromium-") as profile:
         target = pathlib.Path(profile) / "page.pdf"
+        # WebRTC only through the proxy: full Chromium takes this from the profile, and ignores the switch below
+        # (which the headless shell takes)
+        (pathlib.Path(profile) / "Default").mkdir()
+        (pathlib.Path(profile) / "Default" / "Preferences").write_text(
+            json.dumps({"webrtc": {"ip_handling_policy": "disable_non_proxied_udp"}})
+        )
         base = [exe, "--headless", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--disable-extensions"]
         base += ["--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-default-apps"]
         base += ["--mute-audio", "--hide-scrollbars", "--disable-dev-shm-usage", f"--user-data-dir={profile}", *guard.args()]
@@ -231,13 +246,13 @@ def print_pdf(exe, guard, url, out, seconds, settle_ms=5000):
         # through the proxy, never UDP straight to an address
         base += [f"--host-resolver-rules={RESOLVE_NOTHING}", "--dns-prefetch-disable"]
         base += ["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"]
-        # nothing it could wait on: no keyring (over D-Bus, where there's one), crash reporter or casting
+        # nothing it could wait on: no keyring, crash reporter or casting (and no D-Bus: no_bus)
         base += ["--password-store=basic", "--use-mock-keychain", "--disable-breakpad", "--disable-features=MediaRouter"]
         base += ["--enable-logging=stderr"]  # what it says goes into the error when it fails
         tail = [f"--print-to-pdf={target}", "--no-pdf-header-footer", "--run-all-compositor-stages-before-draw"]
         tail += [f"--virtual-time-budget={settle_ms}", url]
         try:
-            r = _run([*base, *(["--no-sandbox"] if no_sandbox(exe) else []), *tail], seconds)
+            r = _run([*base, *(["--no-sandbox"] if no_sandbox(exe) else []), *tail], seconds, env=no_bus(profile))
         except ValueError as e:
             raise ValueError(f"{e}{_asked(guard)}") from None
         if not target.is_file() or target.stat().st_size == 0:

@@ -48,20 +48,25 @@ jobs:
 
       - name: Chromium prints a page (diagnostic)
         continue-on-error: true
-        timeout-minutes: 3
+        timeout-minutes: 4
         run: |
           uv run python - <<'PY'
-          import pathlib, shutil, tempfile, time
+          import os, pathlib, shutil, subprocess, tempfile, time
           from app.domain import convert
           exe = next((shutil.which(n) for n in ("chromium", "chromium-browser", "google-chrome") if shutil.which(n)), None)
-          print("chromium:", exe, "| without its sandbox:", exe and convert.no_sandbox(exe))
-          out = pathlib.Path(tempfile.mkdtemp()) / "page.pdf"
-          t = time.time()
-          try:
-              print(convert.html_pdf({"documents": {"chromium": exe, "convert_seconds": 60}}, convert.text_page("High at noon.", "Tide notes"), out), out.stat().st_size, "bytes")
-          except Exception as e:
-              print("FAILED:", e)
-          print(f"took {time.time() - t:.1f} s")
+          version = subprocess.run([exe, "--version"], capture_output=True, text=True).stdout.strip()
+          print("chromium:", exe, version, "| without its sandbox:", convert.no_sandbox(exe), flush=True)
+          page = convert.text_page("High at noon.", "Tide notes")
+          # as Lens runs it (no D-Bus), then with the runner's D-Bus, to see whether that's what it waited on
+          for name, bus in (("without D-Bus", False), ("with the runner's D-Bus", True)):
+              if bus:
+                  convert.no_bus = lambda profile: dict(os.environ)
+              out, t = pathlib.Path(tempfile.mkdtemp()) / "page.pdf", time.time()
+              try:
+                  convert.html_pdf({"documents": {"chromium": exe, "convert_seconds": 60}}, page, out)
+                  print(f"{name}: printed {out.stat().st_size} bytes in {time.time() - t:.1f} s", flush=True)
+              except Exception as e:
+                  print(f"{name}: FAILED after {time.time() - t:.1f} s: {e}", flush=True)
           PY
 
       - name: Lint

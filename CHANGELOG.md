@@ -80,14 +80,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - Only public addresses on ports 80 and 443 are reached: checked when the address is given, and every request the
       page makes is checked again by the proxy inside Lens, which resolves each host once and connects only to the
       address it checked (no_proxy in the environment doesn't let a request around it). Chromium looks up no names
-      itself and its WebRTC may only use the proxy, so a page's script can't send UDP to an address around it; a
-      redirect to anything but http or https isn't followed. `documents.web_networks` (startup only) can add an
-      intranet's networks.
+      itself and its WebRTC may only use the proxy, so a page's script can't send UDP to an address around it (full
+      Chromium, as in `lens:full`, takes that from its profile and ignores the switch the headless shell takes: both
+      are set); a redirect to anything but http or https isn't followed. `documents.web_networks` (startup only) can
+      add an intranet's networks.
     - Chromium runs without its own sandbox only where it can't have one (as root, or where the system doesn't allow
       it, as in most containers: see [Deployment](docs/deployment.md)), found once by printing an empty page, never
-      because of a page. Nothing it could wait on is left on (a keyring over D-Bus, the crash reporter, casting), and
-      when it can't print a page the error says what it last said and what the page asked for. This applies to
-      documents made into PDFs too.
+      because of a page. It reaches no D-Bus: Chromium asks D-Bus services things on its main thread and waits for
+      the answers, and nothing on the server's buses is a page's business. Nothing else it could wait on is left on
+      (a keyring, the crash reporter, casting), and when it can't print a page the error says what it last said and
+      what the page asked for. This applies to documents made into PDFs too.
     - The PDF is named after the link or the page's title (`harbour-news.pdf`), in `data_dir/web/<resource>/`.
     - Web app: Import → Web page (disabled with the reason where the server has no Chromium); a captured page says
       "Captured from <host>" and links to it, and Details shows its address, when it was captured and how.

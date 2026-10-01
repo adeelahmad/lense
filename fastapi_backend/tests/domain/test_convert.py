@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import base64
 import http.client
+import json
 from email.message import EmailMessage
 
 import pytest
@@ -155,3 +156,33 @@ def test_chromium_runs_without_its_sandbox_only_where_it_cant_have_one(tmp_path,
         assert convert.no_sandbox(able) is True  # as root it never starts one
     finally:
         convert.no_sandbox.cache_clear()
+
+
+# a Chromium on a system bus that's slow to start what it asks for, as on GitHub's runners: with a bus to reach, it waits
+# (25 s an answer); it prints what its profile says
+SLOW_BUS = r"""#!/bin/sh
+for a in "$@"; do case "$a" in --print-to-pdf=*) out="${a#--print-to-pdf=}";; --user-data-dir=*) profile="${a#--user-data-dir=}";; esac; done
+case "$DBUS_SYSTEM_BUS_ADDRESS $DBUS_SESSION_BUS_ADDRESS" in "unix:path=$profile/no-bus unix:path=$profile/no-bus") ;; *) sleep 70;; esac
+printf '%%PDF-1.4\n' > "$out"
+cat "$profile/Default/Preferences" >> "$out" 2>/dev/null
+exit 0
+"""
+
+
+def test_chromium_reaches_no_d_bus_and_keeps_webrtc_to_the_proxy(tmp_path, monkeypatch):
+    """Chromium asks D-Bus services things on its main thread and waits for the answers, so it gets no bus (nor does the
+    probe for its sandbox); full Chromium takes its WebRTC policy from the profile, not from the switch."""
+    f = tmp_path / "chromium"
+    f.write_text(SLOW_BUS)
+    f.chmod(0o755)
+    monkeypatch.setenv("DBUS_SYSTEM_BUS_ADDRESS", "unix:path=/run/dbus/system_bus_socket")
+    monkeypatch.setattr(convert.os, "geteuid", lambda: 1000)
+    convert.no_sandbox.cache_clear()
+    try:
+        assert convert.no_sandbox(str(f)) is False  # it printed the empty page, in good time
+        with netguard.Guard() as g:
+            convert.print_pdf(str(f), g, netguard.DOCUMENT_URL, tmp_path / "a.pdf", 20)
+    finally:
+        convert.no_sandbox.cache_clear()
+    prefs = json.loads((tmp_path / "a.pdf").read_text().split("\n", 1)[1])
+    assert prefs == {"webrtc": {"ip_handling_policy": "disable_non_proxied_udp"}}

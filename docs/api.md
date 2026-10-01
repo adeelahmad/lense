@@ -438,8 +438,8 @@ Only public addresses are reached, on ports 80 and 443: the address is checked w
 http(s), a user name or password in it, another port, or a host with an address that isn't public), and every request
 the page makes is checked again by a proxy inside Lens, which resolves each host itself and connects only to the
 address it checked; redirects are followed to http and https addresses only, each checked. Chromium has no other way
-out: it looks up no names itself, and WebRTC, which a page's script can start, may only go through the proxy (never
-UDP straight to an address). `documents.web_networks` (startup) adds networks that may be reached too, for an
+out: it looks up no names itself, reaches no D-Bus, and WebRTC, which a page's script can start, may only go through
+the proxy (never UDP straight to an address). `documents.web_networks` (startup) adds networks that may be reached too, for an
 intranet. Without Chromium on the server it answers 400 (`GET /uploads/limits` → `convert.web`). Audited as
 `import.web`. The PDF is the resource's file (`GET /resources/{rid}/media`), named after the link
 (`annual-report.pdf`) or the page's title (`harbour-news.pdf`).

@@ -119,7 +119,7 @@ Set at startup only (the config file; the web app can't choose what the server r
 Neither may reach anything while converting: Chromium goes through a proxy inside Lens that serves the page and refuses
 every other request (the page also allows no scripts), and LibreOffice is given a proxy address that isn't there.
 Chromium runs with its sandbox where it can, and without it as root or where the container lacks what the sandbox
-needs. The pages are JPEGs in `data_dir/frames/<resource>/` (a page of about 300 KB at the default size) and the PDF
+needs; it's given no D-Bus to reach (it would wait on the services it asks there). The pages are JPEGs in `data_dir/frames/<resource>/` (a page of about 300 KB at the default size) and the PDF
 made of a document is `data_dir/renditions/<resource>.pdf`; both go when the resource does. Workers listed in
 `workers.steps` run them as part of `transcribe`.
 
