@@ -51,10 +51,6 @@
   .transcript-text {
     font: var(--type-transcript);
   }
-  /* the word being said, from the transcript's timed words (CSS Custom Highlight API; transcript.tsx) */
-  ::highlight(lens-word) {
-    background-color: var(--hl-word);
-  }
   .skeleton {
     background: linear-gradient(90deg, var(--surface-neutral) 25%, var(--surface) 50%, var(--surface-neutral) 75%);
     background-size: 200% 100%;

@@ -75,7 +75,7 @@ pnpm build
 ```
 
 Several dev servers can run side by side with separate build folders:
-`NEXT_DIST_DIR=.next-a next dev --webpack -p 3021` (the webpack flag is needed: the config customises webpack).
+`NEXT_DIST_DIR=.next-a next dev --turbopack -p 3021`. The dev server runs on Turbopack (`pnpm dev`); the production build (`pnpm build`) stays on webpack. Type errors in dev come from your editor or `pnpm tsc`: there is no type checker in the dev server.
 `next dev` adds its build folder's type paths to `tsconfig.json`; don't commit those lines.
 
 When the API changes, regenerate the client: `make openapi` from the repository root.

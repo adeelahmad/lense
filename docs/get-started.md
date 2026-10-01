@@ -2,16 +2,33 @@
 
 ## With Docker (recommended)
 
-You need Docker with Compose.
+You need Docker with Compose, and `make`.
+
+```bash
+make run          # build once, run everything: http://localhost:3000
+make setup-code   # the first-admin setup code, printed by the API on its first start
+```
+
+`make run` builds the images (the full backend image, which reads Office files, web pages and emails too; `make run
+LENS_TARGET=lean` for the smaller one), writes a `.env` with fresh secrets if there is none, and starts SurrealDB, the
+API, a job worker and the web app with `docker-compose.prod.yml`: the web app is built ahead of time, so every page is
+instant. `make stop` stops it; `make logs` follows it. The database and the archive live in Docker volumes and survive
+rebuilds.
+
+To work on the code, run the hot-reload stack instead:
 
 ```bash
 cp fastapi_backend/.env.example fastapi_backend/.env          # set ACCESS_SECRET_KEY
 cp nextjs-frontend/.env.example nextjs-frontend/.env.local    # set AUTH_SECRET
-docker compose up --build
+make dev                                                      # docker compose up --build
 ```
 
 This starts SurrealDB, the API with hot reload (<http://localhost:8000/docs>), a job worker, the web app
-(<http://localhost:3000>) and MailHog for password-reset emails (<http://localhost:8025>).
+(<http://localhost:3000>) and MailHog for password-reset emails (<http://localhost:8025>). Pages are compiled the
+first time they are visited, so the first visit to each takes a few seconds; both stacks share the same volumes, so
+`make run` and `make dev` see the same archive (stop one before starting the other). On a Mac the web app's dev server
+is much faster run natively than through Docker's file sharing: keep the rest in Docker and run `cd nextjs-frontend &&
+pnpm install && pnpm dev` with `API_BASE_URL=http://localhost:8000` in `.env.local`.
 
 On first start the API log prints a setup code:
 
