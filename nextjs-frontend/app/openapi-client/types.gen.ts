@@ -2645,6 +2645,22 @@ export type JobsQueued = {
 };
 
 /**
+ * LanguageCount
+ */
+export type LanguageCount = {
+  /**
+   * Language
+   * a language code; null: not known
+   */
+  language?: string | null;
+  /**
+   * Recordings
+   */
+  recordings: number;
+  [key: string]: unknown | string | null | number | undefined;
+};
+
+/**
  * LlmEstimate
  */
 export type LlmEstimate = {
@@ -3318,6 +3334,26 @@ export type Ok = {
    */
   ok?: boolean;
   [key: string]: unknown | boolean | undefined;
+};
+
+/**
+ * OriginCount
+ */
+export type OriginCount = {
+  /**
+   * Origin
+   * source:<id>, upload, paste, iiif, folder (the archive's own folders) or file
+   */
+  origin: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Recordings
+   */
+  recordings: number;
+  [key: string]: unknown | string | number;
 };
 
 /**
@@ -4889,6 +4925,21 @@ export type RecordingSummary = {
    * Tags
    */
   tags?: Array<string>;
+  /**
+   * Language
+   * its language code, when known
+   */
+  language?: string | null;
+  /**
+   * Origin
+   * where it came from: source:<id> (a connected source), upload, paste, iiif, folder or file
+   */
+  origin?: string | null;
+  /**
+   * Origin Name
+   * what to call its origin: the source's name, or e.g. Uploaded
+   */
+  origin_name?: string | null;
   [key: string]:
     | unknown
     | number
@@ -4920,6 +4971,12 @@ export type RecordingSummary = {
     | Array<"media" | "transcript" | "index">
     | boolean
     | Array<string>
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
     | undefined;
 };
 
@@ -6896,7 +6953,7 @@ export type ViewState = {
   /**
    * Tab
    */
-  tab?: "all" | "attention" | "processing";
+  tab?: "all" | "attention" | "processing" | "mine";
   /**
    * Q
    * the filter box
@@ -6929,6 +6986,16 @@ export type ViewState = {
    * any of these
    */
   tags?: Array<string>;
+  /**
+   * Origins
+   * where they came from (GET /recordings `origin`)
+   */
+  origins?: Array<string>;
+  /**
+   * Languages
+   * language codes; none: not known
+   */
+  languages?: Array<string>;
   /**
    * Sort
    */
@@ -8242,6 +8309,21 @@ export type ListRecordingsData = {
      */
     tag?: Array<string> | null;
     /**
+     * Origin
+     * where they came from: source:<id> (a connected source), upload, paste, iiif, folder (the archive's own folders) or file; repeat for several
+     */
+    origin?: Array<string> | null;
+    /**
+     * Language
+     * language codes (ignoring case), none for recordings whose language isn't known; repeat for several
+     */
+    language?: Array<string> | null;
+    /**
+     * Edited By
+     * me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)
+     */
+    edited_by?: "me" | null;
+    /**
      * Sort
      * date, title, duration, speakers, status or importance; prefix - for descending
      */
@@ -8345,6 +8427,70 @@ export type RetagRecordingsResponses = {
 };
 
 export type RetagRecordingsResponse = RetagRecordingsResponses[keyof RetagRecordingsResponses];
+
+export type ListOriginsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     * one namespace
+     */
+    ns?: string | null;
+  };
+  url: "/api/v1/recordings/origins";
+};
+
+export type ListOriginsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListOriginsError = ListOriginsErrors[keyof ListOriginsErrors];
+
+export type ListOriginsResponses = {
+  /**
+   * Response Recordings-List Origins
+   * Successful Response
+   */
+  200: Array<OriginCount>;
+};
+
+export type ListOriginsResponse = ListOriginsResponses[keyof ListOriginsResponses];
+
+export type ListLanguagesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     * one namespace
+     */
+    ns?: string | null;
+  };
+  url: "/api/v1/recordings/languages";
+};
+
+export type ListLanguagesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListLanguagesError = ListLanguagesErrors[keyof ListLanguagesErrors];
+
+export type ListLanguagesResponses = {
+  /**
+   * Response Recordings-List Languages
+   * Successful Response
+   */
+  200: Array<LanguageCount>;
+};
+
+export type ListLanguagesResponse = ListLanguagesResponses[keyof ListLanguagesResponses];
 
 export type DeleteRecordingData = {
   body?: never;

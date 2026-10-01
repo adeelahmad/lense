@@ -1639,6 +1639,67 @@
             "description": "tags (ignoring case); repeat for several (any of them matches)"
           },
           {
+            "name": "origin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "where they came from: source:<id> (a connected source), upload, paste, iiif, folder (the archive's own folders) or file; repeat for several",
+              "title": "Origin"
+            },
+            "description": "where they came from: source:<id> (a connected source), upload, paste, iiif, folder (the archive's own folders) or file; repeat for several"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "language codes (ignoring case), none for recordings whose language isn't known; repeat for several",
+              "title": "Language"
+            },
+            "description": "language codes (ignoring case), none for recordings whose language isn't known; repeat for several"
+          },
+          {
+            "name": "edited_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "me",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)",
+              "title": "Edited By"
+            },
+            "description": "me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)"
+          },
+          {
             "name": "sort",
             "in": "query",
             "required": false,
@@ -1803,6 +1864,118 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TagsChanged"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/origins": {
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "List Origins",
+        "description": "Where the recordings you can read (or one namespace's) came from, with how many came from each: connected sources\nby name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files.",
+        "operationId": "list_origins",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace",
+              "title": "Ns"
+            },
+            "description": "one namespace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OriginCount"
+                  },
+                  "title": "Response Recordings-List Origins"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/languages": {
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "List Languages",
+        "description": "The languages of the recordings you can read (or one namespace's), with how many are in each; null: not known.",
+        "operationId": "list_languages",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace",
+              "title": "Ns"
+            },
+            "description": "one namespace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LanguageCount"
+                  },
+                  "title": "Response Recordings-List Languages"
                 }
               }
             }
@@ -13728,6 +13901,32 @@
         ],
         "title": "JobsQueued"
       },
+      "LanguageCount": {
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "a language code; null: not known"
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recordings"
+        ],
+        "title": "LanguageCount"
+      },
       "LlmEstimate": {
         "properties": {
           "calls": {
@@ -14782,6 +14981,31 @@
         "additionalProperties": true,
         "type": "object",
         "title": "Ok"
+      },
+      "OriginCount": {
+        "properties": {
+          "origin": {
+            "type": "string",
+            "title": "Origin",
+            "description": "source:<id>, upload, paste, iiif, folder (the archive's own folders) or file"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "origin",
+          "name",
+          "recordings"
+        ],
+        "title": "OriginCount"
       },
       "Output": {
         "properties": {
@@ -17155,6 +17379,42 @@
             },
             "type": "array",
             "title": "Tags"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "its language code, when known"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin",
+            "description": "where it came from: source:<id> (a connected source), upload, paste, iiif, folder or file"
+          },
+          "origin_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Name",
+            "description": "what to call its origin: the source's name, or e.g. Uploaded"
           }
         },
         "additionalProperties": true,
@@ -20285,7 +20545,8 @@
             "enum": [
               "all",
               "attention",
-              "processing"
+              "processing",
+              "mine"
             ],
             "title": "Tab",
             "default": "all"
@@ -20374,6 +20635,27 @@
             "maxItems": 20,
             "title": "Tags",
             "description": "any of these"
+          },
+          "origins": {
+            "items": {
+              "type": "string",
+              "pattern": "^(upload|paste|iiif|folder|file|source:\\d+)$"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Origins",
+            "description": "where they came from (GET /recordings `origin`)"
+          },
+          "languages": {
+            "items": {
+              "type": "string",
+              "maxLength": 20,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Languages",
+            "description": "language codes; none: not known"
           },
           "sort": {
             "type": "string",

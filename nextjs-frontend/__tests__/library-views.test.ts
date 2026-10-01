@@ -47,6 +47,8 @@ describe("saved views", () => {
       duration: "any",
       media: "any",
       tags: ["Interview"],
+      origins: [],
+      languages: [],
       sort: "title",
     });
     expect(viewState({ filters: NO_FILTERS, view: "all", sort: { key: "date", dir: "desc" } }).sort).toBe("-date");
@@ -76,6 +78,22 @@ describe("saved views", () => {
     expect(isShowing(view({}), now, "podcasts")).toBe(true);
     expect(isShowing(view({}), now, null)).toBe(false);
     expect(isShowing(view({ namespace: null }), now, null)).toBe(true);
+  });
+
+  it("keeps where they came from, their languages and Edited by me", () => {
+    const mine = {
+      ...library,
+      view: "mine" as const,
+      filters: { ...library.filters, origins: ["upload"], languages: ["de"] },
+    };
+    const s = viewState(mine);
+    expect([s.tab, s.origins, s.languages]).toEqual(["mine", ["upload"], ["de"]]);
+    expect(fromView(s).filters.origins).toEqual(["upload"]);
+    expect(sameState(s, { ...s, languages: ["DE"] })).toBe(true);
+    expect(sameState(s, { ...s, origins: [] })).toBe(false);
+    expect(describeView(s, (k) => (k === "upload" ? "Uploaded" : k))).toBe(
+      "Edited by me · “capsid” · Analyzed, Job failed · Alice · Last 30 days · #Interview · Uploaded · German · by title",
+    );
   });
 
   it("describes them", () => {

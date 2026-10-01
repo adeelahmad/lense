@@ -205,7 +205,7 @@ export function emotionMix(emotions: Record<string, unknown> | null | undefined)
 export type DateRange = "any" | "today" | "7d" | "30d" | "90d" | "1y";
 export type DurationRange = "any" | "short" | "medium" | "long" | "xlong";
 export type MediaFilter = "any" | "audio" | "video" | "transcript";
-export type LibraryView = "all" | "attention" | "processing";
+export type LibraryView = "all" | "attention" | "processing" | "mine";
 /** Status filter values: the backend statuses plus two job states. */
 export type StatusFilter = RecordingStatus | "processing" | "failed";
 /** A speaker picked by name. Speakers belong to one namespace, so one name can stand for an id in each of several. */
@@ -220,6 +220,10 @@ export type Filters = {
   media: MediaFilter;
   /** Any of these tags. */
   tags: string[];
+  /** Where they came from (GET /recordings/origins): source:<id>, upload, paste, iiif, folder or file. */
+  origins: string[];
+  /** Language codes; "none" for recordings whose language isn't known. */
+  languages: string[];
 };
 
 export const NO_FILTERS: Filters = {
@@ -230,7 +234,20 @@ export const NO_FILTERS: Filters = {
   duration: "any",
   media: "any",
   tags: [],
+  origins: [],
+  languages: [],
 };
+
+/** "en" → "English", "pt-BR" → "Brazilian Portuguese"; null (not known) → "Not known"; an odd code stays as it is. */
+export function languageName(code: string | null | undefined): string {
+  if (!code || code === "none") return "Not known";
+  try {
+    const name = new Intl.DisplayNames(["en"], { type: "language" }).of(code);
+    return name && name.toLowerCase() !== code.toLowerCase() ? name : code;
+  } catch {
+    return code;
+  }
+}
 
 export const DATE_LABEL: Record<DateRange, string> = {
   any: "Any time",
@@ -274,7 +291,9 @@ export function activeFilterCount(f: Filters): number {
     (f.date !== "any" ? 1 : 0) +
     (f.duration !== "any" ? 1 : 0) +
     (f.media !== "any" ? 1 : 0) +
-    (f.tags.length ? 1 : 0)
+    (f.tags.length ? 1 : 0) +
+    (f.origins.length ? 1 : 0) +
+    (f.languages.length ? 1 : 0)
   );
 }
 
@@ -331,8 +350,11 @@ export function libraryQuery(
   }
   if (f.media !== "any") q.media = f.media;
   if (f.tags.length) q.tag = f.tags;
+  if (f.origins.length) q.origin = f.origins;
+  if (f.languages.length) q.language = f.languages;
   if (view === "attention") q.attention = true;
   if (view === "processing") q.processing = true;
+  if (view === "mine") q.edited_by = "me";
   return q;
 }
 

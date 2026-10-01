@@ -46,6 +46,22 @@ class RecordingSummary(ResponseModel):
     open: list[AccessPart] = Field(default_factory=list, description="the parts anyone may use when it is public")
     featured: bool = False
     tags: list[str] = Field(default_factory=list)
+    language: str | None = Field(None, description="its language code, when known")
+    origin: str | None = Field(
+        None, description="where it came from: source:<id> (a connected source), upload, paste, iiif, folder or file"
+    )
+    origin_name: str | None = Field(None, description="what to call its origin: the source's name, or e.g. Uploaded")
+
+
+class OriginCount(ResponseModel):
+    origin: str = Field(description="source:<id>, upload, paste, iiif, folder (the archive's own folders) or file")
+    name: str
+    recordings: int
+
+
+class LanguageCount(ResponseModel):
+    language: str | None = Field(None, description="a language code; null: not known")
+    recordings: int
 
 
 class RecordingSpeaker(ResponseModel):

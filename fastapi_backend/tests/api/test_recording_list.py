@@ -134,3 +134,71 @@ def test_bad_filters_and_access(client, db, archive):
         library.list_recordings(db, [1], status=["done"])
     with pytest.raises(ValueError):
         library.list_recordings(db, [1], media="pdf")
+
+
+def test_where_they_came_from_and_their_language(client, db, cfg, archive, folder):
+    import pathlib
+
+    from app.domain import ingest
+
+    a, b, call, h = archive["a"], archive["b"], archive["call"], archive["h"]
+    uploads = pathlib.Path(cfg["data_dir"]) / "uploads" / "pods" / "u1" / "talk.wav"
+    sid = db.next_id("storage_source")
+    db.q("CREATE $r CONTENT {name: 'Team drive', type: 'local'}", r=R("storage_source", sid))
+    pasted = ingest.import_text(db, cfg, "pods", "[00:00] Ann: One.\n[00:02] Ben: Two.\n[00:04] Ann: Three.", title="Pasted")
+    db.q("UPDATE $r SET path = $p, language = 'en'", r=R("recording", a), p=str(uploads))
+    db.q("UPDATE $r SET remote = {source: $s, path: 'talks/b.wav'}, language = 'DE'", r=R("recording", b), s=sid)
+    # the call keeps the path it was imported from: another file, with no language known
+    rows = {x["id"]: x for x in client.get("/api/v1/recordings", headers=h).json()}
+    assert {k: (rows[k]["origin"], rows[k]["origin_name"], rows[k]["language"]) for k in rows} == {
+        a: ("upload", "Uploaded", "en"),
+        b: (f"source:{sid}", "Team drive", "DE"),
+        call: ("file", "Imported files", None),
+        pasted: ("paste", "Pasted text", None),
+    }
+    assert "path" not in rows[a] and "remote" not in rows[b]
+    # filters, alone and together, and the counts for the Source and Language filters
+    assert listing(client, h, origin="upload")[0] == [a]
+    assert sorted(listing(client, h, origin=["paste", f"source:{sid}"])[0]) == sorted([pasted, b])
+    assert listing(client, h, language="de") == ([b], 1)
+    assert sorted(listing(client, h, language=["EN", "none"])[0]) == sorted([a, call, pasted])
+    assert listing(client, h, origin="file", language="none")[0] == [call]
+    origins = client.get("/api/v1/recordings/origins", headers=h).json()
+    assert sorted((o["origin"], o["name"], o["recordings"]) for o in origins) == sorted(
+        [("upload", "Uploaded", 1), (f"source:{sid}", "Team drive", 1), ("file", "Imported files", 1), ("paste", "Pasted text", 1)]
+    )
+    assert [x["origin"] for x in client.get("/api/v1/recordings/origins", params={"ns": "calls"}, headers=h).json()] == ["file"]
+    langs = client.get("/api/v1/recordings/languages", params={"ns": "pods"}, headers=h).json()
+    assert langs == [{"language": "de", "recordings": 1}, {"language": "en", "recordings": 1}, {"language": None, "recordings": 1}]
+    # the archive's own folders, and a source that was removed
+    scanned = {**cfg, "namespaces": {**cfg["namespaces"], "calls": {**cfg["namespaces"]["calls"], "paths": [str(folder.resolve())]}}}
+    assert library.Origins(db, scanned).recordings([store.ns_id(db, "calls")]) == {call: "folder"}
+    db.q("DELETE $r", r=R("storage_source", sid))
+    assert client.get("/api/v1/recordings", params={"origin": f"source:{sid}"}, headers=h).json()[0]["origin_name"] == "A removed source"
+    for bad in ({"origin": "elsewhere"}, {"origin": "source:x"}):
+        assert client.get("/api/v1/recordings", params=bad, headers=h).status_code == 400
+    # people without a role in a namespace don't learn about it
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    hv = login(client, "vi@x.io", "viewer password 1")
+    assert client.get("/api/v1/recordings/origins", params={"ns": "calls"}, headers=hv).status_code == 404
+    assert {x["origin"] for x in client.get("/api/v1/recordings/origins", headers=hv).json()} == {"upload", "paste", f"source:{sid}"}
+
+
+def test_edited_by_me(client, db, cfg, archive):
+    from app.domain import metadata
+
+    a, b, call = archive["a"], archive["b"], archive["call"]
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor", "calls": "editor"})
+    make_user(db, "other@x.io", "other password 1", roles={"pods": "editor", "calls": "editor"})
+    he, ho = login(client, "ed@x.io", "editor password 1"), login(client, "other@x.io", "other password 1")
+    assert listing(client, he, edited_by="me") == ([], 0)
+    # a corrected line, a changed catalogue record, a new title
+    assert client.patch(f"/api/v1/recordings/{a}/segments/0", headers=he, json={"text": "Welcome back, everyone."}).status_code == 200
+    metadata.save(db, cfg, call, {"rights": "https://creativecommons.org/licenses/by/4.0/"}, user="ed@x.io")
+    assert client.patch(f"/api/v1/recordings/{b}", headers=ho, json={"title": "Second episode"}).status_code == 200
+    assert listing(client, he, edited_by="me") == ([a, call], 2)
+    assert listing(client, ho, edited_by="me") == ([b], 1)
+    assert listing(client, he, edited_by="me", ns="calls")[0] == [call]
+    assert client.patch(f"/api/v1/recordings/{b}", headers=he, json={"title": "Episode two"}).status_code == 200
+    assert listing(client, he, edited_by="me")[0] == [a, b, call]
+    assert client.get("/api/v1/recordings", params={"edited_by": "someone"}, headers=he).status_code == 422

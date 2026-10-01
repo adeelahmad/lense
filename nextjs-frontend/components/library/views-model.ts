@@ -10,6 +10,7 @@ import {
   MEDIA_LABEL,
   NO_FILTERS,
   STATUS_FILTER_LABEL,
+  languageName,
   type Filters,
   type LibraryView,
   type SortDir,
@@ -30,6 +31,8 @@ export function viewState({ filters, view, sort }: LibraryState): ViewState {
     duration: filters.duration,
     media: filters.media,
     tags: [...filters.tags],
+    origins: [...filters.origins],
+    languages: [...filters.languages],
     sort: (sort.dir === "desc" ? `-${sort.key}` : sort.key) as Sort,
   };
 }
@@ -47,6 +50,8 @@ export function fromView(s: ViewState | null | undefined): LibraryState & { spea
       duration: s?.duration ?? "any",
       media: s?.media ?? "any",
       tags: [...(s?.tags ?? [])],
+      origins: [...(s?.origins ?? [])],
+      languages: [...(s?.languages ?? [])],
     },
     view: s?.tab ?? "all",
     sort: { key: (desc ? sort.slice(1) : sort) as SortKey, dir: desc ? "desc" : "asc" },
@@ -72,6 +77,8 @@ export function sameState(a: ViewState | null | undefined, b: ViewState | null |
     x.filters.duration === y.filters.duration &&
     x.filters.media === y.filters.media &&
     sameSet(x.filters.tags, y.filters.tags, true) &&
+    sameSet(x.filters.origins, y.filters.origins) &&
+    sameSet(x.filters.languages, y.filters.languages, true) &&
     x.sort.key === y.sort.key &&
     x.sort.dir === y.sort.dir
   );
@@ -86,6 +93,7 @@ const TAB_LABEL: Record<LibraryView, string> = {
   all: "All recordings",
   attention: "Needs attention",
   processing: "Processing",
+  mine: "Edited by me",
 };
 const SORT_LABEL: Record<SortKey, string> = {
   date: "date",
@@ -96,8 +104,8 @@ const SORT_LABEL: Record<SortKey, string> = {
   importance: "importance",
 };
 
-/** "Needs attention · “capsid” · Analyzed · Alice · Last 30 days · #Interview · by title" */
-export function describeView(s: ViewState | null | undefined): string {
+/** "Needs attention · “capsid” · Analyzed · Alice · Last 30 days · #Interview · by title"; `origin` names sources. */
+export function describeView(s: ViewState | null | undefined, origin: (key: string) => string = (k) => k): string {
   const x = fromView(s);
   const f = x.filters;
   const parts = [
@@ -109,6 +117,8 @@ export function describeView(s: ViewState | null | undefined): string {
     f.duration !== "any" ? DURATION_LABEL[f.duration] : null,
     f.media !== "any" ? MEDIA_LABEL[f.media] : null,
     f.tags.length ? f.tags.map((t) => `#${t}`).join(" ") : null,
+    f.origins.length ? f.origins.map(origin).join(", ") : null,
+    f.languages.length ? f.languages.map(languageName).join(", ") : null,
     x.sort.key !== "date" || x.sort.dir !== "desc"
       ? `by ${SORT_LABEL[x.sort.key]}${x.sort.dir === "asc" && x.sort.key === "date" ? ", oldest first" : ""}`
       : null,

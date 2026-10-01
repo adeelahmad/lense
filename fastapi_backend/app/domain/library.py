@@ -26,8 +26,16 @@ SORTS = {
 }
 FIELDS = (
     "record::id(id) AS id, title, recorded_at, duration_ms, status, error, source, stats, summary, space, media, access, "
-    "access_parts, featured, tags"
+    "access_parts, featured, tags, language, path, remote, engine"
 )
+# where a recording came from (origin_of): a connected source (source:<id>), or one of these
+ORIGINS = {
+    "upload": "Uploaded",
+    "paste": "Pasted text",
+    "iiif": "IIIF imports",
+    "folder": "Archive folders",
+    "file": "Imported files",
+}
 MAX_WORDS = 10
 TAG_MAX, TAGS_MAX = 40, 20  # characters in a tag, tags on a recording
 MONTHS_MAX = 240  # months in a namespace's stats: the latest twenty years
@@ -70,6 +78,90 @@ def _day(v):
     return v if isinstance(v, dt.date) else dt.date.fromisoformat(str(v))
 
 
+# ---------- where recordings came from, their languages, and who edited them ----------
+class Origins:
+    """Tells where each recording came from: a connected source (``source:<id>``, Sources), an upload, pasted text, a
+    IIIF import, one of the archive's own folders (``lens scan``), or another file imported by path."""
+
+    def __init__(self, db, cfg):
+        self.uploads = str(pathlib.Path(cfg["data_dir"]) / "uploads") + os.sep
+        names = store.space_names(db)
+        roots = {
+            name: [str(pathlib.Path(p)) + os.sep for p in (spec or {}).get("paths") or []]
+            for name, spec in (cfg.get("namespaces") or {}).items()
+        }
+        self.roots = {sid: roots.get(name, []) for sid, name in names.items()}
+        self.db = db
+
+    def of(self, r):
+        rm = r.get("remote") or {}
+        if rm.get("source") is not None:
+            return f"source:{rm['source']}"
+        path = str(r.get("path") or "")
+        if r.get("engine") == "import:iiif" or path.startswith("iiif:"):
+            return "iiif"
+        if path.startswith("paste:"):
+            return "paste"
+        if path.startswith(self.uploads):
+            return "upload"
+        if any(path.startswith(root) for root in self.roots.get(r.get("space"), [])):
+            return "folder"
+        return "file"
+
+    def recordings(self, spaces):
+        """{recording id: origin} for the recordings of these namespaces."""
+        rows = self.db.rows("SELECT record::id(id) AS id, space, path, remote, engine FROM recording WHERE space IN $s", s=sorted(spaces))
+        return {r["id"]: self.of(r) for r in rows}
+
+    def names(self, keys):
+        """{origin: what to call it}: a source's name, else ORIGINS."""
+        ids = sorted({int(k.split(":", 1)[1]) for k in keys if k.startswith("source:")})
+        srcs = (
+            {
+                r["id"]: r["name"]
+                for r in self.db.rows(
+                    "SELECT record::id(id) AS id, name FROM storage_source WHERE id IN $ids", ids=[R("storage_source", i) for i in ids]
+                )
+            }
+            if ids
+            else {}
+        )
+        return {k: ORIGINS.get(k) or srcs.get(int(k.split(":", 1)[1])) or "A removed source" for k in keys}
+
+    def counts(self, spaces):
+        """[{origin, name, recordings}], the most recordings first."""
+        n = Counter(self.recordings(spaces).values())
+        names = self.names(n)
+        return sorted(
+            ({"origin": k, "name": names[k], "recordings": c} for k, c in n.items()), key=lambda x: (-x["recordings"], x["name"].casefold())
+        )
+
+
+def check_origins(origins):
+    for o in origins or []:
+        kind, _, sid = o.partition(":")
+        if not (o in ORIGINS or (kind == "source" and sid.isdigit())):
+            raise ValueError(f"origin is one of {', '.join(ORIGINS)} or source:<id>")
+
+
+def language_counts(db, spaces):
+    """[{language, recordings}] in these namespaces, the most recordings first; null is "not known"."""
+    n = Counter(
+        (str(v or "").strip().lower() or None)
+        for v in db.values("SELECT VALUE language FROM recording WHERE space IN $s", s=sorted(spaces))
+    )
+    return sorted(({"language": k, "recordings": c} for k, c in n.items()), key=lambda x: (-x["recordings"], x["language"] or "~"))
+
+
+def edited_by(db, email):
+    """Recordings this person edited: corrected a line of the transcript, changed the catalogue record, or renamed."""
+    ids = set(db.values("SELECT VALUE recording FROM segment_edit WHERE by = $e", e=email))
+    targets = db.values("SELECT VALUE target FROM meta_edit WHERE by = $e AND string::starts_with(target, 'recording:')", e=email)
+    targets += db.values("SELECT VALUE target FROM audit_log WHERE action = 'recording.rename' AND email = $e", e=email)
+    ids |= {int(t.split(":", 1)[1]) for t in targets if str(t).split(":", 1)[-1].isdigit()}
+    return ids
+
+
 def where(
     db,
     spaces,
@@ -86,6 +178,10 @@ def where(
     access=None,
     featured=None,
     tags=None,
+    origins=None,
+    languages=None,
+    edited=None,
+    cfg=None,
 ):
     """The WHERE clause and its parameters for these filters. Filters combine with AND, the values of one filter with OR.
 
@@ -93,7 +189,9 @@ def where(
     (STATES). attention: errored, latest job failed, or a voice match to review. processing: a job queued or running.
     speakers: speaker ids. date_from/date_to: the recording date, inclusive. min/max_duration: seconds, max exclusive.
     access: levels (public, restricted, private), a namespace's default counting for recordings without their own.
-    featured: true or false. tags: any of these tags (ignoring case).
+    featured: true or false. tags: any of these tags (ignoring case). origins: where they came from (Origins; needs cfg).
+    languages: language codes (ignoring case), "none" for recordings whose language isn't known. edited: recording ids
+    (edited_by).
     """
     spaces = sorted(spaces)
     w, p = ["space IN $spaces"], {"spaces": spaces}
@@ -168,6 +266,20 @@ def where(
     if keys:
         p["tag_keys"] = keys
         w.append("tag_keys CONTAINSANY $tag_keys")
+    if origins:
+        check_origins(origins)
+        if cfg is None:
+            raise ValueError("origin needs the configuration")
+        wanted = set(origins)
+        p["by_origin"] = recs(sorted(i for i, o in Origins(db, cfg).recordings(spaces).items() if o in wanted))
+        w.append("id IN $by_origin")
+    langs = sorted({x.strip().lower() for x in languages or [] if x and x.strip()})
+    if langs:
+        p["langs"] = [x for x in langs if x != "none"]
+        w.append("(string::lowercase(language ?? '') IN $langs" + (" OR language = NONE OR language = ''" if "none" in langs else "") + ")")
+    if edited is not None:
+        p["edited"] = recs(sorted(edited))
+        w.append("id IN $edited")
     return " AND ".join(w), p
 
 
@@ -177,7 +289,8 @@ def _speakers(db, spaces):
 
 
 def list_recordings(db, spaces, sort="-date", limit=500, offset=0, **filters):
-    """(one page of recording summaries, how many match in all). `sort` is a key of SORTS, prefixed with - for descending."""
+    """(one page of recording summaries, how many match in all). `sort` is a key of SORTS, prefixed with - for descending.
+    With ``cfg`` among the filters, rows say where they came from (``origin``, ``origin_name``)."""
     sort = sort or "-date"
     key, desc = sort.lstrip("-"), sort.startswith("-")
     if key not in SORTS:
@@ -196,11 +309,12 @@ def list_recordings(db, spaces, sort="-date", limit=500, offset=0, **filters):
     # count() miscounts some OR filters on the embedded engine (2.x: "status IN $st OR status = NONE" counted rows twice);
     # counting the ids the same WHERE selects is exact on both engines
     total = db.values(f"RETURN array::len((SELECT VALUE id FROM recording WHERE {cond}))", **p)
-    return summaries(db, rows), int(total[0]) if total else 0
+    return summaries(db, rows, filters.get("cfg")), int(total[0]) if total else 0
 
 
-def summaries(db, rows):
-    """List rows as the library shows them: namespace, speakers, media kind, poster frame, emotion mix and summary."""
+def summaries(db, rows, cfg=None):
+    """List rows as the library shows them: namespace, speakers, media kind, poster frame, emotion mix and summary; with
+    cfg, where each came from."""
     ids = [r["id"] for r in rows]
     apps = defaultdict(list)
     for a in db.rows("SELECT recording, speaker FROM appearance WHERE recording IN $r", r=ids) if rows else []:
@@ -212,9 +326,15 @@ def summaries(db, rows):
         if rows
         else {}
     )
+    origins = Origins(db, cfg) if cfg is not None and rows else None
+    came = {r["id"]: origins.of(r) for r in rows} if origins else {}
+    called = origins.names(set(came.values())) if origins else {}
     out = []
     for r in rows:
-        for k in ("_k", "_none", "access_parts"):
+        if origins:
+            r["origin"] = came[r["id"]]
+            r["origin_name"] = called[r["origin"]]
+        for k in ("_k", "_none", "access_parts", "path", "remote", "engine"):
             r.pop(k, None)
         a = access[r["id"]]
         r.update(access=a["access"], open=a["open"], featured=a["featured"], tags=r.get("tags") or [])

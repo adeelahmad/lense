@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pathlib
 from datetime import date
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query, Request
 from fastapi.responses import Response
@@ -25,8 +25,10 @@ from app.schemas.recordings import (
     AccessRequest,
     EmbedLink,
     JobQueued,
+    LanguageCount,
     MediaKind,
     NamespaceAccess,
+    OriginCount,
     Output,
     Permission,
     PermissionAdd,
@@ -77,6 +79,7 @@ def list_recordings(
     acl: Acl,
     user: CurrentUser,
     db: Db,
+    cfg: Cfg,
     response: Response,
     ns: str | None = Query(None, description="one namespace (default: every namespace you can read)"),
     q: str | None = Query(None, max_length=200, description="words that must all appear in the title, the namespace or a speaker's name"),
@@ -98,6 +101,17 @@ def list_recordings(
     access: list[AccessLevel] | None = Query(None, description="public, restricted or private; repeat for several"),
     featured: bool | None = Query(None, description="only featured recordings (true) or only the others (false)"),
     tag: list[str] | None = Query(None, description="tags (ignoring case); repeat for several (any of them matches)"),
+    origin: list[str] | None = Query(
+        None,
+        description="where they came from: source:<id> (a connected source), upload, paste, iiif, folder (the archive's "
+        "own folders) or file; repeat for several",
+    ),
+    language: list[str] | None = Query(
+        None, description="language codes (ignoring case), none for recordings whose language isn't known; repeat for several"
+    ),
+    edited_by: Literal["me"] | None = Query(
+        None, description="me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)"
+    ),
     sort: RecordingSort = Query("-date", description="date, title, duration, speakers, status or importance; prefix - for descending"),
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
@@ -125,6 +139,10 @@ def list_recordings(
             access=access,
             featured=featured,
             tags=tag,
+            origins=origin,
+            languages=language,
+            edited=library.edited_by(db, user.email) if edited_by and user else None,
+            cfg=cfg,
         )
     response.headers["X-Total-Count"] = str(total)
     return [RecordingSummary.model_validate(x) for x in sign_urls(rows)]
@@ -134,6 +152,22 @@ def list_recordings(
 def list_tags(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(None, description="one namespace")) -> list[TagCount]:
     """The tags on the recordings you can read (or one namespace's), with how many recordings have each."""
     return [TagCount.model_validate(t) for t in library.tag_counts(db, [acl.namespace(ns)] if ns else acl.spaces())]
+
+
+@router.get("/origins")
+def list_origins(
+    acl: Acl, user: CurrentUser, db: Db, cfg: Cfg, ns: str | None = Query(None, description="one namespace")
+) -> list[OriginCount]:
+    """Where the recordings you can read (or one namespace's) came from, with how many came from each: connected sources
+    by name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files."""
+    spaces = [acl.namespace(ns)] if ns else acl.spaces()
+    return [OriginCount.model_validate(o) for o in library.Origins(db, cfg).counts(spaces)]
+
+
+@router.get("/languages")
+def list_languages(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(None, description="one namespace")) -> list[LanguageCount]:
+    """The languages of the recordings you can read (or one namespace's), with how many are in each; null: not known."""
+    return [LanguageCount.model_validate(x) for x in library.language_counts(db, [acl.namespace(ns)] if ns else acl.spaces())]
 
 
 @router.post("/tags")

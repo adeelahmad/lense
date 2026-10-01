@@ -85,6 +85,8 @@ All three answer with the list and are audited as `namespace.ip_group.create`, `
 ```
 GET    /api/v1/recordings
 GET    /api/v1/recordings/tags
+GET    /api/v1/recordings/origins
+GET    /api/v1/recordings/languages
 POST   /api/v1/recordings/tags
 GET    /api/v1/recordings/{rid}
 PATCH  /api/v1/recordings/{rid}
@@ -133,10 +135,18 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 | `access` | `public`, `restricted` or `private`: the recording's own setting, else its namespace's default |
 | `featured` | `true`: only featured recordings; `false`: only the others |
 | `tag` | tags, ignoring case |
+| `origin` | where they came from: `source:<id>` (a connected source), `upload`, `paste`, `iiif`, `folder` (the archive's own folders) or `file` (another file imported by path) |
+| `language` | language codes, ignoring case; `none` for recordings whose language isn't known |
+| `edited_by` | `me`: recordings you edited (corrected a line of the transcript, changed the catalogue record, or renamed) |
 | `sort` | `date`, `title`, `duration`, `speakers`, `status` or `importance`; `-` in front for descending (default `-date`). Recordings without the value come last either way |
 | `limit`, `offset` | one page (default 500 rows, at most 1000) |
 
 The body is the page's rows; the `X-Total-Count` header says how many recordings match on all pages.
+
+Rows also say where each recording came from (`origin`, and `origin_name`: the source's name, or e.g. "Uploaded")
+and its `language` when known. `GET /recordings/origins` and `GET /recordings/languages` (`ns` for one namespace) list
+the origins and languages of the recordings you can read with how many have each, most first, for the Library's
+Source and Language filters.
 
 Recordings carry `tags`. `PATCH /recordings/{rid}` with `{"tags": [...]}` replaces a recording's tags (editors; at most
 20, 40 characters each; whitespace is collapsed and repeats are dropped, ignoring case). `POST /recordings/tags` with

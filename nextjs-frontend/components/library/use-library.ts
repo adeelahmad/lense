@@ -161,7 +161,7 @@ export function useLibraryCounts(ns: string | null) {
   const client = useApiClient();
   const jobs = useJobs({ limit: 200 });
   const running = Boolean(jobs.data?.running);
-  const count = (extra: Pick<LibraryQuery, "attention" | "processing">) => ({
+  const count = (extra: Pick<LibraryQuery, "attention" | "processing" | "edited_by">) => ({
     queryKey: ["recordings", "count", ns ?? "*", extra] as const,
     queryFn: async () =>
       (await page(Recordings.listRecordings({ client, query: { ns: ns ?? undefined, ...extra, limit: 1 } }))).total,
@@ -169,7 +169,8 @@ export function useLibraryCounts(ns: string | null) {
   });
   const attention = useQuery(count({ attention: true }));
   const processing = useQuery(count({ processing: true }));
-  return { attention: attention.data, processing: processing.data };
+  const mine = useQuery(count({ edited_by: "me" }));
+  return { attention: attention.data, processing: processing.data, mine: mine.data };
 }
 
 /** Everyone who speaks in these namespaces, merged by name, for the speaker filter. */
@@ -194,6 +195,26 @@ export function useSpeakerChoices(nsList: string[]) {
 }
 
 /** The tags on the recordings in scope (one namespace, or all you can read), most used first. */
+/** Where the recordings in scope came from, with how many each (the Source filter). */
+export function useOrigins(ns: string | null) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["recording-origins", ns],
+    queryFn: () => data(Recordings.listOrigins({ client, query: ns ? { ns } : {} })),
+    staleTime: 60_000,
+  });
+}
+
+/** The languages of the recordings in scope, with how many each (the Language filter). */
+export function useLanguages(ns: string | null) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["recording-languages", ns],
+    queryFn: () => data(Recordings.listLanguages({ client, query: ns ? { ns } : {} })),
+    staleTime: 60_000,
+  });
+}
+
 export function useTagCounts(ns: string | null) {
   const client = useApiClient();
   return useQuery({

@@ -35,6 +35,8 @@ import {
   useLibraryCounts,
   useReviewsByRecording,
   useSpeakerChoices,
+  useLanguages,
+  useOrigins,
   useTagCounts,
   useWatchedSources,
 } from "@/components/library/use-library";
@@ -111,6 +113,8 @@ export function LibraryScreen() {
   const [moveOpen, setMoveOpen] = useState(false);
   const [tagOpen, setTagOpen] = useState(false);
   const tagCounts = useTagCounts(namespace);
+  const origins = useOrigins(namespace);
+  const languages = useLanguages(namespace);
   const [dragging, setDragging] = useState(false);
   const lastIndex = useRef<number | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -438,7 +442,7 @@ export function LibraryScreen() {
                   {
                     value: "mine",
                     label: "Edited by me",
-                    disabledReason: "Not available yet: the archive doesn’t list recordings by who edited them.",
+                    count: counts.mine ? count(counts.mine) : undefined,
                   },
                 ]}
               />
@@ -452,7 +456,16 @@ export function LibraryScreen() {
               tagsLoading={tagCounts.isPending}
               inputRef={filterRef}
               compact={narrow}
-              trailing={<SavedViews state={shownState} namespace={namespace} onApply={applyView} />}
+              origins={origins.data ?? []}
+              languages={languages.data ?? []}
+              trailing={
+                <SavedViews
+                  state={shownState}
+                  namespace={namespace}
+                  onApply={applyView}
+                  originName={(k) => origins.data?.find((o) => o.origin === k)?.name ?? k}
+                />
+              }
             />
           </>
         )}

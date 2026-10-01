@@ -101,6 +101,12 @@ import type {
   RetagRecordingsData,
   RetagRecordingsResponses,
   RetagRecordingsErrors,
+  ListOriginsData,
+  ListOriginsResponses,
+  ListOriginsErrors,
+  ListLanguagesData,
+  ListLanguagesResponses,
+  ListLanguagesErrors,
   DeleteRecordingData,
   DeleteRecordingResponses,
   DeleteRecordingErrors,
@@ -1074,6 +1080,31 @@ export class Recordings {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List Origins
+   * Where the recordings you can read (or one namespace's) came from, with how many came from each: connected sources
+   * by name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files.
+   */
+  public static listOrigins<ThrowOnError extends boolean = false>(options?: Options<ListOriginsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListOriginsResponses, ListOriginsErrors, ThrowOnError>({
+      url: "/api/v1/recordings/origins",
+      ...options,
+    });
+  }
+
+  /**
+   * List Languages
+   * The languages of the recordings you can read (or one namespace's), with how many are in each; null: not known.
+   */
+  public static listLanguages<ThrowOnError extends boolean = false>(
+    options?: Options<ListLanguagesData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ListLanguagesResponses, ListLanguagesErrors, ThrowOnError>({
+      url: "/api/v1/recordings/languages",
+      ...options,
     });
   }
 

@@ -9,7 +9,7 @@ from pydantic import Field
 from app.schemas.common import RequestModel, ResponseModel
 from app.schemas.recordings import RecordingSort, RecordingState
 
-LibraryTab = Literal["all", "attention", "processing"]
+LibraryTab = Literal["all", "attention", "processing", "mine"]
 Tag = Annotated[str, Field(min_length=1, max_length=40)]
 
 
@@ -26,6 +26,12 @@ class ViewState(RequestModel):
     )
     media: Literal["any", "audio", "video", "transcript"] = "any"
     tags: list[Tag] = Field(default_factory=list, max_length=20, description="any of these")
+    origins: list[Annotated[str, Field(pattern=r"^(upload|paste|iiif|folder|file|source:\d+)$")]] = Field(
+        default_factory=list, max_length=20, description="where they came from (GET /recordings `origin`)"
+    )
+    languages: list[Annotated[str, Field(min_length=1, max_length=20)]] = Field(
+        default_factory=list, max_length=20, description="language codes; none: not known"
+    )
     sort: RecordingSort = "-date"
 
 

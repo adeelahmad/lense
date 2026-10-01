@@ -14,6 +14,7 @@ import {
   emotionMix,
   importanceInfo,
   isUnnamedSpeaker,
+  languageName,
   latestJobs,
   libraryQuery,
   localDay,
@@ -197,6 +198,8 @@ describe("the list query", () => {
         duration: "medium",
         media: "transcript",
         tags: ["board", "Q3"],
+        origins: ["upload", "source:4"],
+        languages: ["en", "none"],
       },
       "all",
       { key: "duration", dir: "desc" },
@@ -213,7 +216,26 @@ describe("the list query", () => {
       max_duration: 1800,
       media: "transcript",
       tag: ["board", "Q3"],
+      origin: ["upload", "source:4"],
+      language: ["en", "none"],
     });
+  });
+
+  it("asks for the recordings you edited on Edited by me", () => {
+    expect(libraryQuery(NO_FILTERS, "mine", byDate, "podcasts", NOW)).toEqual({
+      sort: "-date",
+      ns: "podcasts",
+      edited_by: "me",
+    });
+  });
+
+  it("names languages", () => {
+    expect(languageName("en")).toBe("English");
+    expect(languageName("de")).toBe("German");
+    expect(languageName("pt-BR")).toBe("Brazilian Portuguese");
+    expect(languageName(null)).toBe("Not known");
+    expect(languageName("none")).toBe("Not known");
+    expect(languageName("zz-not-a-code!")).toBe("zz-not-a-code!");
   });
 
   it("leaves out the open end of a duration range", () => {

@@ -30,11 +30,13 @@ function SaveViewDialog({
   onOpenChange,
   state,
   namespace,
+  originName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   state: ViewState;
   namespace: string | null;
+  originName: (key: string) => string;
 }) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -69,7 +71,7 @@ function SaveViewDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Save view"
-      description={`${namespace ?? "All namespaces"} · ${describeView(state)}`}
+      description={`${namespace ?? "All namespaces"} · ${describeView(state, originName)}`}
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -119,12 +121,14 @@ function ViewRow({
   current,
   namespace,
   onApply,
+  originName,
 }: {
   view: SavedView;
   showing: boolean;
   current: ViewState;
   namespace: string | null;
   onApply: () => void;
+  originName: (key: string) => string;
 }) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -176,7 +180,7 @@ function ViewRow({
           {v.shared && <Badge>Shared</Badge>}
         </span>
         <span className="text-[12px] text-fg-muted">{viewMeta(v)}</span>
-        <span className="text-[12px] text-fg-secondary">{describeView(v.state)}</span>
+        <span className="text-[12px] text-fg-secondary">{describeView(v.state, originName)}</span>
       </button>
       {confirm ? (
         <div className="flex flex-wrap items-center gap-2" role="alert">
@@ -243,10 +247,13 @@ export function SavedViews({
   state,
   namespace,
   onApply,
+  originName = (k) => k,
 }: {
   state: ViewState;
   namespace: string | null;
   onApply: (v: SavedView) => void;
+  /** What to call where recordings came from ("source:4" → the source's name). */
+  originName?: (key: string) => string;
 }) {
   const views = useViews();
   const [listOpen, setListOpen] = useState(false);
@@ -271,7 +278,13 @@ export function SavedViews({
       <Button variant="ghost" size="sm" icon={<BookmarkPlus />} onClick={() => setSaveOpen(true)}>
         Save view
       </Button>
-      <SaveViewDialog open={saveOpen} onOpenChange={setSaveOpen} state={state} namespace={namespace} />
+      <SaveViewDialog
+        open={saveOpen}
+        onOpenChange={setSaveOpen}
+        state={state}
+        namespace={namespace}
+        originName={originName}
+      />
       <Dialog
         open={listOpen}
         onOpenChange={setListOpen}
@@ -289,6 +302,7 @@ export function SavedViews({
                   showing={isShowing(v, state, namespace)}
                   current={state}
                   namespace={namespace}
+                  originName={originName}
                   onApply={() => {
                     onApply(v);
                     setListOpen(false);

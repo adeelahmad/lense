@@ -8,6 +8,7 @@ import {
   DURATION_LABEL,
   MEDIA_LABEL,
   STATUS_FILTER_LABEL,
+  languageName,
   type DateRange,
   type DurationRange,
   type Filters,
@@ -16,7 +17,6 @@ import {
   type StatusFilter,
 } from "@/components/library/model";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/menu";
-import { Tooltip } from "@/components/ui/tooltip";
 import { count } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
@@ -72,22 +72,6 @@ function Chip({
 }
 
 /** A chip for a filter the backend can't answer yet: visible, disabled, and says why. */
-function DisabledChip({ label, reason }: { label: string; reason: string }) {
-  return (
-    <Tooltip content={reason}>
-      <span
-        tabIndex={0}
-        role="button"
-        aria-disabled
-        className={cn(chipBase, chipOff, "cursor-not-allowed pl-[11px] pr-2 opacity-50 hover:bg-background")}
-      >
-        {label}
-        <ChevronDown className="size-[13px]" aria-hidden />
-      </span>
-    </Tooltip>
-  );
-}
-
 function Option({
   on,
   onClick,
@@ -193,6 +177,8 @@ export function FiltersBar({
   inputRef,
   compact,
   trailing,
+  origins = [],
+  languages = [],
 }: {
   filters: Filters;
   onChange: (f: Filters) => void;
@@ -206,6 +192,10 @@ export function FiltersBar({
   compact?: boolean;
   /** At the end of the bar: saved views. */
   trailing?: ReactNode;
+  /** Where the recordings in scope came from (GET /recordings/origins), most first. */
+  origins?: { origin: string; name: string; recordings: number }[];
+  /** Their languages (GET /recordings/languages), most first; null is "not known". */
+  languages?: { language?: string | null; recordings: number }[];
 }) {
   const { namespaces, namespace, setNamespace } = useArchive();
   const [spkQuery, setSpkQuery] = useState("");
@@ -245,10 +235,44 @@ export function FiltersBar({
           </div>
         )}
       </Chip>
-      <DisabledChip
-        label="Source"
-        reason="Not available yet: the recordings list doesn’t say which source each recording came from."
-      />
+      <Chip
+        label={
+          filters.origins.length === 1
+            ? `Source: ${origins.find((o) => o.origin === filters.origins[0])?.name ?? "1 source"}`
+            : filters.origins.length
+              ? `Source: ${filters.origins.length} sources`
+              : "Source"
+        }
+        active={filters.origins.length > 0}
+        onClear={() => set({ origins: [] })}
+        width={240}
+      >
+        {() => (
+          <div role="menu" aria-label="Source" className="max-h-64 overflow-y-auto">
+            {origins.map((o) => {
+              const on = filters.origins.includes(o.origin);
+              return (
+                <Option
+                  key={o.origin}
+                  multi
+                  on={on}
+                  onClick={() =>
+                    set({
+                      origins: on ? filters.origins.filter((x) => x !== o.origin) : [...filters.origins, o.origin],
+                    })
+                  }
+                >
+                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                    <span className="truncate">{o.name}</span>
+                    <span className="tabular text-[12px] font-normal text-fg-muted">{count(o.recordings)}</span>
+                  </span>
+                </Option>
+              );
+            })}
+            {!origins.length && <p className="px-2.5 py-3 text-[13px] text-fg-muted">No recordings yet.</p>}
+          </div>
+        )}
+      </Chip>
       <Chip
         label={filters.statuses.length ? `Status: ${statusLabel}` : "Status"}
         active={filters.statuses.length > 0}
@@ -352,10 +376,43 @@ export function FiltersBar({
           />
         )}
       </Chip>
-      <DisabledChip
-        label="Language"
-        reason="Not available yet: the recordings list doesn’t include each recording’s language."
-      />
+      <Chip
+        label={
+          filters.languages.length === 1
+            ? `Language: ${languageName(filters.languages[0])}`
+            : filters.languages.length
+              ? `Language: ${filters.languages.length} languages`
+              : "Language"
+        }
+        active={filters.languages.length > 0}
+        onClear={() => set({ languages: [] })}
+        width={220}
+      >
+        {() => (
+          <div role="menu" aria-label="Language" className="max-h-64 overflow-y-auto">
+            {languages.map((l) => {
+              const code = l.language ?? "none";
+              const on = filters.languages.includes(code);
+              return (
+                <Option
+                  key={code}
+                  multi
+                  on={on}
+                  onClick={() =>
+                    set({ languages: on ? filters.languages.filter((x) => x !== code) : [...filters.languages, code] })
+                  }
+                >
+                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                    <span className="truncate">{languageName(l.language)}</span>
+                    <span className="tabular text-[12px] font-normal text-fg-muted">{count(l.recordings)}</span>
+                  </span>
+                </Option>
+              );
+            })}
+            {!languages.length && <p className="px-2.5 py-3 text-[13px] text-fg-muted">No recordings yet.</p>}
+          </div>
+        )}
+      </Chip>
       <Chip
         label={filters.media === "any" ? "Audio / text" : MEDIA_LABEL[filters.media]}
         active={filters.media !== "any"}

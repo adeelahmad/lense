@@ -26,6 +26,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Library: Edited by me, and Source and Language filters.** The Edited by me tab lists the recordings you corrected
+  (a line of the transcript), catalogued (the metadata record) or renamed, with a count like the other tabs. The
+  Source filter picks where recordings came from: each connected source by name, Uploaded, Pasted text, IIIF imports,
+  Archive folders (`lens scan`) and Imported files; the Language filter picks their languages, or "Not known".
+    - `GET /api/v1/recordings` takes `edited_by=me`, `origin` and `language`, and its rows carry `origin`,
+      `origin_name` and `language` (not the raw `path`/`remote`); `GET /api/v1/recordings/origins` and
+      `GET /api/v1/recordings/languages` count them for the filters (docs/api.md).
+    - Saved views keep the new tab and both filters.
 - **Library: saved views.** Save view keeps what the Library shows (its namespace, tab, filters and sort) under a
   name, and Views brings it back. Views are yours; editors can share one with its namespace, and everyone with a role
   there then sees it (decided with the project owner). Only its maker changes a view; its maker or an owner of the

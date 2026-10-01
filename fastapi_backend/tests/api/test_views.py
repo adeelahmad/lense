@@ -16,6 +16,7 @@ STATE = {
     "tags": ["Interview"],
     "sort": "title",
 }
+MORE = {"tab": "mine", "origins": ["upload", "source:3"], "languages": ["en", "none"]}
 
 
 @pytest.fixture
@@ -50,8 +51,9 @@ def test_personal_views(client, env, db):
         True,
         "vi@x.io",
     )
-    assert v["state"] == {**STATE, "duration": "any", "media": "any"}
-    everything = client.post("/api/v1/views", headers=hv, json={"name": "Everything new", "state": {"statuses": ["new"]}}).json()
+    assert v["state"] == {**STATE, "duration": "any", "media": "any", "origins": [], "languages": []}
+    everything = client.post("/api/v1/views", headers=hv, json={"name": "Everything new", "state": {"statuses": ["new"], **MORE}}).json()
+    assert {k: everything["state"][k] for k in MORE} == MORE
     assert everything["namespace"] is None and everything["state"]["sort"] == "-date"
     # only its maker sees a personal view
     assert set(_names(client, hv)) == {"Capsid talk", "Everything new"}
@@ -69,6 +71,7 @@ def test_personal_views(client, env, db):
         {"name": "Odd", "state": {"statuses": ["lost"]}},
         {"name": "Odd", "state": {"tags": ["t"] * 21}},
         {"name": "Odd", "state": {"colour": "red"}},
+        {"name": "Odd", "state": {"origins": ["elsewhere"]}},
         {"name": "Odd", "extra": 1},
     ):
         assert client.post("/api/v1/views", headers=hv, json=bad).status_code == 422, bad
