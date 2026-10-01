@@ -25,9 +25,17 @@ POST   /api/v1/auth/password/reset
 
 ```
 GET    /api/v1/tokens
+GET    /api/v1/tokens/limits
 POST   /api/v1/tokens
 DELETE /api/v1/tokens/{token_id}
+GET    /api/v1/admin/tokens
+DELETE /api/v1/admin/tokens/{token_id}
 ```
+
+`POST /tokens {name, scope, days?}` makes an API key (while signed in). `days` defaults to `tokens.default_days`; more
+than `tokens.max_days`, or `0` (never expires) when `tokens.never_expire` is off, is a 400. `GET /tokens/limits` says
+`{default_days, max_days, never_expire}`. `/admin/tokens` lists everyone's keys with their owner's `email` (admins), and
+`DELETE /admin/tokens/{token_id}` revokes any of them; revoking is audited as `token.revoke`.
 
 ## users
 

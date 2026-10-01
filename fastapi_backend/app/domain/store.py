@@ -156,6 +156,9 @@ DEFAULTS = {
         # proxies whose X-Forwarded-For names the visitor's address, for IP groups (docs/configuration.md)
         "trusted_proxies": ["127.0.0.0/8", "::1/128"],
     },
+    # how long API keys last (docs/configuration.md): what a new key gets, the most it may get, and whether keys may
+    # never expire
+    "tokens": {"default_days": 90, "max_days": 365, "never_expire": False},
     # audio and video uploaded in the web app, in pieces (docs/configuration.md); transcript files use server.max_upload_mb
     "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT), "chunk_mb": 8, "expire_hours": 24},
     "workers": {

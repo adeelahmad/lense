@@ -48,6 +48,7 @@ EDITABLE = {
     ),
     "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
     "uploads": None,
+    "tokens": None,
 }
 SECRETS = {"llm": ("api_key",)}
 ENUMS = {
@@ -66,6 +67,7 @@ ENV_OVERRIDES = {("server", "allowed_hosts"): "ARCHIVE_ALLOWED_HOSTS"}
 # The types uploads.extensions may name: what the folder scans import, and a few more that ffmpeg reads.
 UPLOAD_TYPES = frozenset([*store.MEDIA_EXT, ".aif", ".aiff", ".wma", ".mpg", ".mpeg", ".3gp"])
 UPLOAD_RANGES = {"max_mb": (1, 1_000_000), "chunk_mb": (1, 64), "expire_hours": (1, 720)}
+TOKEN_DAYS = (1, 3650)
 VIEWER_URL = re.compile(r"^https?://[^\s]+$")
 _KEYS, _KL = {}, threading.Lock()
 
@@ -203,6 +205,11 @@ def _check(section, key, value, default):
         return list(dict.fromkeys(names))
     if section == "uploads":
         return _upload_setting(key, value)
+    if section == "tokens" and key != "never_expire":
+        lo, hi = TOKEN_DAYS
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"tokens.{key} is a whole number of days from {lo} to {hi}")
+        return value
     if default is None or value is None:
         return value
     if isinstance(default, bool):
@@ -263,6 +270,8 @@ def save(db, base, section, changes, user=None):
         r = data.get("review_threshold", defaults["review_threshold"])
         if not (0 <= r <= m <= 1):
             raise ValueError("thresholds must satisfy 0 ≤ review ≤ match ≤ 1")
+    if section == "tokens" and data.get("default_days", defaults["default_days"]) > data.get("max_days", defaults["max_days"]):
+        raise ValueError("tokens.default_days can't be more than tokens.max_days")
     if (
         section == "server"
         and "allowed_hosts" in data

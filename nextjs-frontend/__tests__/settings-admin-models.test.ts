@@ -335,6 +335,13 @@ describe("account", () => {
     expect(daysError("90")).toBeNull();
     expect(daysError("4000")).toMatch(/0 to 3650/);
     expect(daysError("1.5")).toMatch(/whole days/);
+    // within what admins allow
+    const lim = { default_days: 30, max_days: 60, never_expire: false };
+    expect(daysError("60", lim)).toBeNull();
+    expect(daysError("61", lim)).toBe("Use whole days from 1 to 60");
+    expect(daysError("0", lim)).toBe("Keys have to expire: use 1 to 60 days");
+    expect(daysError("", lim)).toBe("Enter a number of days");
+    expect(daysError("0", { ...lim, never_expire: true })).toBeNull();
   });
 
   it("summarises roles for the account menu", () => {

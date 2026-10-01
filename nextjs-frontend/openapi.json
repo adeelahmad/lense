@@ -408,6 +408,7 @@
           "tokens"
         ],
         "summary": "Create Token",
+        "description": "A key that acts as you, with your roles (read only, or read and write). It lasts `days` (default\ntokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400.",
         "operationId": "create_token",
         "requestBody": {
           "content": {
@@ -443,12 +444,35 @@
         }
       }
     },
+    "/api/v1/tokens/limits": {
+      "get": {
+        "tags": [
+          "tokens"
+        ],
+        "summary": "Token Limits",
+        "description": "How long a new key may last: its default, the most it may get, and whether it may never expire (admins set\nthese in the tokens settings).",
+        "operationId": "token_limits",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenLimits"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tokens/{token_id}": {
       "delete": {
         "tags": [
           "tokens"
         ],
         "summary": "Revoke Token",
+        "description": "Revoke one of your keys. Audited as `token.revoke`.",
         "operationId": "revoke_token",
         "parameters": [
           {
@@ -835,6 +859,75 @@
                     "$ref": "#/components/schemas/AuditEntry"
                   },
                   "title": "Response Admin-List Audit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tokens": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List All Tokens",
+        "description": "Everyone's API keys (admins), the latest made first: whose, what scope, when it expires and was last used.",
+        "operationId": "list_all_tokens",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AccountToken"
+                  },
+                  "type": "array",
+                  "title": "Response Admin-List All Tokens"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tokens/{token_id}": {
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Revoke Any Token",
+        "description": "Revoke anyone's API key (admins): whatever uses it stops working now. Audited as `token.revoke`.",
+        "operationId": "revoke_any_token",
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -10550,6 +10643,83 @@
         "title": "AccessRequest",
         "description": "Someone asking for permission on a recording (docs/access.md)."
       },
+      "AccountToken": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write"
+            ],
+            "title": "Scope"
+          },
+          "prefix": {
+            "type": "string",
+            "title": "Prefix"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "account": {
+            "type": "integer",
+            "title": "Account"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "scope",
+          "prefix",
+          "created_at",
+          "account"
+        ],
+        "title": "AccountToken",
+        "description": "Anyone's key, for admins."
+      },
       "AnswerCheck": {
         "properties": {
           "claims": {
@@ -10665,12 +10835,18 @@
             "default": "read"
           },
           "days": {
-            "type": "integer",
-            "maximum": 3650.0,
-            "minimum": 0.0,
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3650.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Days",
-            "description": "0: never expires",
-            "default": 90
+            "description": "how long it lasts; default: tokens.default_days; 0: never expires, when tokens.never_expire allows"
           }
         },
         "additionalProperties": false,
@@ -21224,6 +21400,32 @@
           "recordings"
         ],
         "title": "TermSuggestion"
+      },
+      "TokenLimits": {
+        "properties": {
+          "default_days": {
+            "type": "integer",
+            "title": "Default Days"
+          },
+          "max_days": {
+            "type": "integer",
+            "title": "Max Days"
+          },
+          "never_expire": {
+            "type": "boolean",
+            "title": "Never Expire",
+            "description": "keys may be made that never expire (days: 0)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "default_days",
+          "max_days",
+          "never_expire"
+        ],
+        "title": "TokenLimits",
+        "description": "How long API keys may last, set by admins (the tokens settings)."
       },
       "TokenPair": {
         "properties": {

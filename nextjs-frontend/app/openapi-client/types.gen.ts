@@ -74,6 +74,62 @@ export type AccessRequest = {
 };
 
 /**
+ * AccountToken
+ * Anyone's key, for admins.
+ */
+export type AccountToken = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Scope
+   */
+  scope: "read" | "write";
+  /**
+   * Prefix
+   */
+  prefix: string;
+  /**
+   * Created At
+   */
+  created_at: string;
+  /**
+   * Expires At
+   */
+  expires_at?: string | null;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  /**
+   * Account
+   */
+  account: number;
+  /**
+   * Email
+   */
+  email?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | "read"
+    | "write"
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
  * AnswerCheck
  */
 export type AnswerCheck = {
@@ -156,9 +212,9 @@ export type ApiTokenCreate = {
   scope?: "read" | "write";
   /**
    * Days
-   * 0: never expires
+   * how long it lasts; default: tokens.default_days; 0: never expires, when tokens.never_expire allows
    */
-  days?: number;
+  days?: number | null;
 };
 
 /**
@@ -6986,6 +7042,27 @@ export type TermSuggestion = {
 };
 
 /**
+ * TokenLimits
+ * How long API keys may last, set by admins (the tokens settings).
+ */
+export type TokenLimits = {
+  /**
+   * Default Days
+   */
+  default_days: number;
+  /**
+   * Max Days
+   */
+  max_days: number;
+  /**
+   * Never Expire
+   * keys may be made that never expire (days: 0)
+   */
+  never_expire: boolean;
+  [key: string]: unknown | number | boolean;
+};
+
+/**
  * TokenPair
  */
 export type TokenPair = {
@@ -8114,6 +8191,22 @@ export type CreateTokenResponses = {
 
 export type CreateTokenResponse = CreateTokenResponses[keyof CreateTokenResponses];
 
+export type TokenLimitsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/tokens/limits";
+};
+
+export type TokenLimitsResponses = {
+  /**
+   * Successful Response
+   */
+  200: TokenLimits;
+};
+
+export type TokenLimitsResponse = TokenLimitsResponses[keyof TokenLimitsResponses];
+
 export type RevokeTokenData = {
   body?: never;
   path: {
@@ -8377,6 +8470,53 @@ export type ListAuditResponses = {
 };
 
 export type ListAuditResponse = ListAuditResponses[keyof ListAuditResponses];
+
+export type ListAllTokensData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/tokens";
+};
+
+export type ListAllTokensResponses = {
+  /**
+   * Response Admin-List All Tokens
+   * Successful Response
+   */
+  200: Array<AccountToken>;
+};
+
+export type ListAllTokensResponse = ListAllTokensResponses[keyof ListAllTokensResponses];
+
+export type RevokeAnyTokenData = {
+  body?: never;
+  path: {
+    /**
+     * Token Id
+     */
+    token_id: number;
+  };
+  query?: never;
+  url: "/api/v1/admin/tokens/{token_id}";
+};
+
+export type RevokeAnyTokenErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RevokeAnyTokenError = RevokeAnyTokenErrors[keyof RevokeAnyTokenErrors];
+
+export type RevokeAnyTokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RevokeAnyTokenResponse = RevokeAnyTokenResponses[keyof RevokeAnyTokenResponses];
 
 export type GetHealthData = {
   body?: never;

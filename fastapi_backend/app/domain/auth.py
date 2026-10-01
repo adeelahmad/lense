@@ -251,6 +251,23 @@ def finish_reset(db, raw, password):
     return row["account"]
 
 
+def token_limits(cfg):
+    """How long API keys may last (tokens settings): {default_days, max_days, never_expire}."""
+    t = {**store.DEFAULTS["tokens"], **(cfg.get("tokens") or {})}
+    return {"default_days": int(t["default_days"]), "max_days": int(t["max_days"]), "never_expire": bool(t["never_expire"])}
+
+
+def token_days(cfg, days):
+    """The lifetime a new key gets: `days`, or the default when None; 0 never expires. ValueError past the limits."""
+    lim = token_limits(cfg)
+    days = lim["default_days"] if days is None else int(days)
+    if days == 0 and not lim["never_expire"]:
+        raise ValueError(f"API keys have to expire: choose 1 to {lim['max_days']} days.")
+    if days > lim["max_days"]:
+        raise ValueError(f"API keys can last at most {lim['max_days']} days.")
+    return days
+
+
 def create_token(db, uid, name, scope="read", days=90):
     if scope not in ("read", "write"):
         raise ValueError("scope is read or write")
@@ -294,7 +311,25 @@ def list_tokens(db, uid):
 
 
 def revoke_token(db, uid, tid):
-    db.q("DELETE api_token WHERE account = $a AND id = $r", a=uid, r=R("api_token", tid))
+    """Revoke one of this person's keys; whether there was one."""
+    return bool(db.rows("DELETE api_token WHERE account = $a AND id = $r RETURN BEFORE", a=uid, r=R("api_token", tid)))
+
+
+def all_tokens(db):
+    """Everyone's keys (admins): the key's fields with its owner's email, the latest made first."""
+    people = {a["id"]: a["email"] for a in db.rows("SELECT record::id(id) AS id, email FROM account")}
+    rows = db.rows("SELECT record::id(id) AS id, account, name, scope, prefix, created_at, expires_at, last_used_at FROM api_token")
+    return sorted(
+        ({**r, "email": people.get(r["account"])} for r in rows), key=lambda r: (r.get("created_at") or "", r["id"]), reverse=True
+    )
+
+
+def drop_token(db, tid):
+    """Revoke any key (admins); its owner, or None when there's no such key."""
+    row = db.one("SELECT account FROM $r", r=R("api_token", tid))
+    if row:
+        db.q("DELETE $r", r=R("api_token", tid))
+    return row["account"] if row else None
 
 
 # ---------- roles ----------

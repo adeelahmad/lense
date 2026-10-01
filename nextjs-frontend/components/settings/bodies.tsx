@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 
 import { Admin, Metadata } from "@/app/openapi-client";
+import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
@@ -271,6 +272,21 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             </div>
           </div>
           <F ctx={ctx} id="server.max_upload_mb" />
+        </>
+      );
+    case "tokens":
+      return (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="tokens.default_days" />
+            <F ctx={ctx} id="tokens.max_days" />
+          </div>
+          <F ctx={ctx} id="tokens.never_expire" />
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            People make API keys on their API tokens page; a key acts as them, with their roles. These limits apply to
+            new keys.
+          </p>
+          <AllTokens />
         </>
       );
     case "uploads":

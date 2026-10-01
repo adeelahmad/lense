@@ -44,7 +44,10 @@ Reset emails go through the SMTP server in `MAIL_*`; without one, the link is wr
 ## API tokens
 
 For scripts and integrations: `POST /api/v1/tokens` (while signed in) returns `la_…` once. Tokens are **read** or
-**write** scoped, expire after `days` (0: never) and can be revoked.
+**write** scoped, act with their maker's roles, and expire after `days`: by default `tokens.default_days`, at most
+`tokens.max_days`, and never (`0`) only where `tokens.never_expire` allows ([Configuration](configuration.md#api-keys);
+`GET /api/v1/tokens/limits` says what's allowed). Their maker revokes them, and admins can revoke anyone's
+(`/api/v1/admin/tokens`); both are audited as `token.revoke`.
 
 ```bash
 curl -H "Authorization: Bearer la_…" https://lens.example.org/api/v1/recordings

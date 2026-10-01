@@ -14,6 +14,7 @@ from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
 from app.domain import auth, jobs, llm, settings, sources, store
 from app.schemas.admin import AuditEntry, Health, LlmTestResult, Started
+from app.schemas.auth import AccountToken
 from app.schemas.common import Ok
 
 log = logging.getLogger("lens")
@@ -57,6 +58,22 @@ def test_llm(user: AdminWriter, cfg: Cfg) -> LlmTestResult:
 def list_audit(user: AdminReader, db: Db, limit: int = Query(200, ge=1, le=1000)) -> list[AuditEntry]:
     """Who changed what, newest first."""
     return db.rows(f"SELECT at, email, action, target, detail FROM audit_log ORDER BY at DESC LIMIT {limit}")
+
+
+@router.get("/admin/tokens")
+def list_all_tokens(user: AdminReader, db: Db) -> list[AccountToken]:
+    """Everyone's API keys (admins), the latest made first: whose, what scope, when it expires and was last used."""
+    return [AccountToken(**t) for t in auth.all_tokens(db)]
+
+
+@router.delete("/admin/tokens/{token_id}")
+def revoke_any_token(token_id: int, user: AdminWriter, db: Db) -> Ok:
+    """Revoke anyone's API key (admins): whatever uses it stops working now. Audited as `token.revoke`."""
+    owner = auth.drop_token(db, token_id)
+    if owner is None:
+        raise HTTPException(404, "not found")
+    auth.audit(db, user.as_audit(), "token.revoke", f"api_token:{token_id}", {"account": owner})
+    return Ok()
 
 
 @router.get("/admin/health")

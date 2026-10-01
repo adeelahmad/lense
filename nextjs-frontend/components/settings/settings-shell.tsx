@@ -18,6 +18,7 @@ import {
   Terminal,
   Upload,
   type LucideIcon,
+  KeyRound,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -45,6 +46,7 @@ const ICON: Record<SectionId, LucideIcon> = {
   workers: Cpu,
   access: ShieldCheck,
   uploads: Upload,
+  tokens: KeyRound,
   iiif: Globe,
   startup: Terminal,
 };

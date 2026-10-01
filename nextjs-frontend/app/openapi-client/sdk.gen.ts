@@ -35,6 +35,8 @@ import type {
   CreateTokenData,
   CreateTokenResponses,
   CreateTokenErrors,
+  TokenLimitsData,
+  TokenLimitsResponses,
   RevokeTokenData,
   RevokeTokenResponses,
   RevokeTokenErrors,
@@ -62,6 +64,11 @@ import type {
   ListAuditData,
   ListAuditResponses,
   ListAuditErrors,
+  ListAllTokensData,
+  ListAllTokensResponses,
+  RevokeAnyTokenData,
+  RevokeAnyTokenResponses,
+  RevokeAnyTokenErrors,
   GetHealthData,
   GetHealthResponses,
   ReindexSearchData,
@@ -777,6 +784,8 @@ export class Tokens {
 
   /**
    * Create Token
+   * A key that acts as you, with your roles (read only, or read and write). It lasts `days` (default
+   * tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400.
    */
   public static createToken<ThrowOnError extends boolean = false>(options: Options<CreateTokenData, ThrowOnError>) {
     return (options.client ?? client).post<CreateTokenResponses, CreateTokenErrors, ThrowOnError>({
@@ -790,7 +799,20 @@ export class Tokens {
   }
 
   /**
+   * Token Limits
+   * How long a new key may last: its default, the most it may get, and whether it may never expire (admins set
+   * these in the tokens settings).
+   */
+  public static tokenLimits<ThrowOnError extends boolean = false>(options?: Options<TokenLimitsData, ThrowOnError>) {
+    return (options?.client ?? client).get<TokenLimitsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/tokens/limits",
+      ...options,
+    });
+  }
+
+  /**
    * Revoke Token
+   * Revoke one of your keys. Audited as `token.revoke`.
    */
   public static revokeToken<ThrowOnError extends boolean = false>(options: Options<RevokeTokenData, ThrowOnError>) {
     return (options.client ?? client).delete<RevokeTokenResponses, RevokeTokenErrors, ThrowOnError>({
@@ -915,6 +937,32 @@ export class Admin {
   public static listAudit<ThrowOnError extends boolean = false>(options?: Options<ListAuditData, ThrowOnError>) {
     return (options?.client ?? client).get<ListAuditResponses, ListAuditErrors, ThrowOnError>({
       url: "/api/v1/audit",
+      ...options,
+    });
+  }
+
+  /**
+   * List All Tokens
+   * Everyone's API keys (admins), the latest made first: whose, what scope, when it expires and was last used.
+   */
+  public static listAllTokens<ThrowOnError extends boolean = false>(
+    options?: Options<ListAllTokensData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ListAllTokensResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/tokens",
+      ...options,
+    });
+  }
+
+  /**
+   * Revoke Any Token
+   * Revoke anyone's API key (admins): whatever uses it stops working now. Audited as `token.revoke`.
+   */
+  public static revokeAnyToken<ThrowOnError extends boolean = false>(
+    options: Options<RevokeAnyTokenData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<RevokeAnyTokenResponses, RevokeAnyTokenErrors, ThrowOnError>({
+      url: "/api/v1/admin/tokens/{token_id}",
       ...options,
     });
   }

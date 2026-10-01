@@ -67,6 +67,7 @@ export type SectionId =
   | "workers"
   | "access"
   | "uploads"
+  | "tokens"
   | "iiif"
   | "startup";
 
@@ -152,6 +153,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["uploads"],
     description:
       "Audio and video people upload in the web app: which types, how large, and how long an unfinished upload waits.",
+  },
+  {
+    id: "tokens",
+    label: "API keys",
+    backend: ["tokens"],
+    description:
+      "How long the API keys people make for scripts and other apps last, and everyone’s keys, to revoke any of them.",
   },
   {
     id: "iiif",
@@ -782,6 +790,30 @@ export const FIELDS: FieldSpec[] = [
     hint: "Audio and video have their own limit, under Uploads",
   },
   // Uploads
+  // API keys
+  {
+    section: "tokens",
+    key: "default_days",
+    label: "A new key lasts (days)",
+    kind: "int",
+    min: 1,
+    max: 3650,
+  },
+  {
+    section: "tokens",
+    key: "max_days",
+    label: "At most (days)",
+    kind: "int",
+    min: 1,
+    max: 3650,
+  },
+  {
+    section: "tokens",
+    key: "never_expire",
+    label: "Allow keys that never expire",
+    kind: "switch",
+    hint: "Off: every key expires. Keys made before a change keep their expiry; revoke them below.",
+  },
   {
     section: "uploads",
     key: "max_mb",
@@ -1011,6 +1043,10 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const fr = n("video.face_review_threshold");
   if (typeof fm === "number" && typeof fr === "number" && fr > fm)
     e["video.face_review_threshold"] = "The review threshold can’t be above auto-match";
+  const dd = n("tokens.default_days");
+  const md = n("tokens.max_days");
+  if (typeof dd === "number" && typeof md === "number" && dd > md)
+    e["tokens.default_days"] = "A new key can’t last longer than the most a key may last";
   const mn = n("diarize.min_speakers");
   const mx = n("diarize.max_speakers");
   if (typeof mn === "number" && typeof mx === "number" && mn > mx)

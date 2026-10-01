@@ -26,6 +26,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Admins decide how long API keys last.** Settings → API keys sets how long a new key lasts (90 days unless
+  changed), the most it may last (365) and whether keys may never expire (not by default; until now anyone could
+  make one that never expires). The API tokens page offers what's allowed. The same section lists everyone's keys, and
+  an admin can revoke any of them.
+    - `tokens.default_days`, `tokens.max_days`, `tokens.never_expire` (docs/configuration.md); `POST /api/v1/tokens`
+      leaves out `days` for the default, and answers 400 past the limits. `GET /api/v1/tokens/limits` says them.
+    - `GET /api/v1/admin/tokens`, `DELETE /api/v1/admin/tokens/{id}` (admins). Revoking a key, yours or anyone's, is
+      audited as `token.revoke`. Keys made before a change keep their expiry.
 - **Summaries: key points and action items say when.** The Summarize step now gives key points as well, and each key
   point and action item comes with the time of the line it's from (and who will do an action item, when said); the
   Summary tab shows the time, which plays from there, as do the report page and the embedded player.

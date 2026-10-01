@@ -81,6 +81,21 @@ Pieces are written straight to `data_dir/uploads/.partial`, never held in memory
 512 MB free). Transcript files have their own limit, `server.max_upload_mb` (Settings → Access & embedding); watched
 folders have none.
 
+## API keys
+
+How long the API keys people make for scripts and other apps last ([Authentication](authentication.md#api-tokens)).
+Settings → API keys:
+
+| Setting | Default | |
+|---|---|---|
+| `tokens.default_days` | 90 | how long a new key lasts when its maker doesn't say, 1–3650 days (at most `tokens.max_days`) |
+| `tokens.max_days` | 365 | the longest a key may last, 1–3650 days |
+| `tokens.never_expire` | false | whether keys may be made that never expire |
+
+The limits apply to keys made after a change: keys made before keep their expiry. Settings → API keys also lists
+everyone's keys (whose, what scope, when they expire and were last used), and an admin can revoke any of them; that's
+audited as `token.revoke`.
+
 ## Trusted proxies
 
 IP groups ([Access](access.md#ip-groups)) match the visitor's address. The server takes it from the connection or,
