@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Acl, AdminWriter, Cfg, Db, Writer, domain_errors
-from app.domain import auth, ingest, jobs, pipelines, sources, store
+from app.domain import auth, convert, ingest, jobs, pipelines, sources, store, webcapture
 from app.domain.store import DB
 from app.schemas.imports import (
     ImportPreview,
@@ -25,6 +25,7 @@ from app.schemas.imports import (
     SourceImport,
     SourceImportRequest,
     SourceImportResult,
+    WebImportRequest,
 )
 
 router = APIRouter(prefix="/import", tags=["imports"])
@@ -118,6 +119,37 @@ def import_transcript(body: ImportRequest, request: Request, acl: Acl, user: Wri
     job = jobs.enqueue(db, rid, None, by=user.email, pipeline=body.pipeline)
     auth.audit(db, user.as_audit(), "import", f"recording:{rid}")
     request.app.state.graph_cache.clear()
+    return ImportResult(id=rid, job=job)
+
+
+@router.post("/web")
+def import_web_page(body: WebImportRequest, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> ImportResult:
+    """Capture a web page as a document (editors; admins may name a new namespace): the namespace's pipeline, or
+    `pipeline`, keeps the page as it is now, as a PDF (a link to a PDF is kept as it is; other pages are printed by
+    headless Chromium), and reads it page by page. Only public addresses on ports 80 and 443 can be captured (and the
+    networks in documents.web_networks). Audited as `import.web`."""
+    ns = body.namespace.strip()
+    if not store.NS_RX.match(ns):
+        raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
+    if not convert.chromium(cfg):
+        raise HTTPException(400, "capturing web pages needs Chromium on the server (the lens:full image)")
+    check_pipeline(db, body.pipeline)
+    try:
+        sid = store.ns_id(db, ns, create=False)
+        acl.need(sid, "editor")
+    except KeyError:
+        if not user.admin:
+            raise HTTPException(403, "only admins can create namespaces") from None
+        sid = None
+    check_collection(db, sid, body.collection)
+    try:
+        url = webcapture.check_url(cfg, body.url)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    sid = sid if sid is not None else store.ns_id(db, ns)
+    rid = webcapture.create(db, sid, url, body.title, body.collection, by=user.email)
+    job = jobs.enqueue(db, rid, None, by=user.email, pipeline=body.pipeline)
+    auth.audit(db, user.as_audit(), "import.web", f"recording:{rid}", {"url": url, "namespace": ns})
     return ImportResult(id=rid, job=job)
 
 

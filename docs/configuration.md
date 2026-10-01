@@ -112,7 +112,8 @@ Set at startup only (the config file; the web app can't choose what the server r
 | Setting | Default | |
 |---|---|---|
 | `documents.soffice` | `soffice` or `libreoffice` on PATH | LibreOffice |
-| `documents.chromium` | the first of `chromium`, `chromium-browser`, `google-chrome`, `google-chrome-stable`, `chrome` on PATH | Chromium or Chrome (a headless shell works too) |
+| `documents.chromium` | the first of `chromium`, `chromium-browser`, `google-chrome`, `google-chrome-stable`, `chrome` on PATH | Chromium or Chrome (a headless shell works too); it also captures web pages ([API](api.md#web-pages)) |
+| `documents.web_networks` | `[]` | networks (CIDR, such as `10.20.0.0/16`) that web pages may be captured from besides the public internet: for an intranet; loopback and cloud metadata addresses stay out unless listed |
 
 Neither may reach anything while converting: Chromium goes through a proxy inside Lens that serves the page and refuses
 every other request (the page also allows no scripts), and LibreOffice is given a proxy address that isn't there.

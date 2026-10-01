@@ -181,6 +181,7 @@ DEFAULTS = {
         "attachment_resources": True,
         "soffice": None,
         "chromium": None,
+        "web_networks": [],
     },
     "workers": {
         "inline": 1,

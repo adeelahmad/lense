@@ -95,6 +95,15 @@ class Rendition(ResponseModel):
     by: Literal["libreoffice", "chromium"]
 
 
+class WebPage(ResponseModel):
+    """A web page captured as a document: where it was, and when."""
+
+    url: str = Field(description="the address given")
+    final: str | None = Field(None, description="the address it ended at, after redirects")
+    captured_at: str | None = Field(None, description="when it was captured; none until its pipeline has run")
+    how: Literal["printed", "pdf"] | None = Field(None, description="printed by Chromium, or a PDF kept as it was")
+
+
 class AttachedTo(ResponseModel):
     """The email a resource was attached to (it's one of that email's files too)."""
 
@@ -129,6 +138,7 @@ class Recording(ResponseModel):
     email: EmailInfo | None = Field(None, description="an email: its subject, sender, recipients and date")
     rendition: Rendition | None = Field(None, description="a document that isn't a PDF: how the PDF it's read from was made")
     attached_to: AttachedTo | None = Field(None, description="an email's attachment made a resource of its own: that email")
+    web: WebPage | None = Field(None, description="a web page captured as a document")
 
 
 class Page(ResponseModel):

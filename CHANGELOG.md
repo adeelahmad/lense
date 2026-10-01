@@ -71,6 +71,29 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       on the page and in People; a visitor reads the public page, finds "lighthouse" on page 2 and follows a public
       search hit there; on a phone in dark mode a visitor reads the document and the image, and a viewer sees the
       people on its pages. No console errors.
+- **Web pages captured as documents.** Give a web address and Lens keeps the page as it is then, as a PDF, and reads
+  it like any document: a link to a PDF as it is, any other page printed by headless Chromium with its scripts run.
+  Decided with the project owner: headless Chromium, public addresses only.
+    - `POST /api/v1/import/web {url, namespace, title?, collection?, pipeline?}` (editors; audited as `import.web`);
+      the resource's `web` says where it was, where it ended up, when and how it was kept; its title becomes the
+      page's own unless one was given. Capturing happens once: transcribing again keeps the captured page.
+    - Only public addresses on ports 80 and 443 are reached: checked when the address is given, and every request the
+      page makes is checked again by the proxy inside Lens, which resolves each host once and connects only to the
+      address it checked (no_proxy in the environment doesn't let a request around it). Chromium looks up no names
+      itself and its WebRTC may only use the proxy, so a page's script can't send UDP to an address around it; a
+      redirect to anything but http or https isn't followed. `documents.web_networks` (startup only) can add an
+      intranet's networks.
+    - Chromium runs without its own sandbox only where it can't have one (as root, or where the system doesn't allow
+      it, as in most containers: see [Deployment](docs/deployment.md)), found once by printing an empty page, never
+      because of a page. This applies to documents made into PDFs too.
+    - The PDF is named after the link or the page's title (`harbour-news.pdf`), in `data_dir/web/<resource>/`.
+    - Web app: Import → Web page (disabled with the reason where the server has no Chromium); a captured page says
+      "Captured from <host>" and links to it, and Details shows its address, when it was captured and how.
+    - Checked in the browser: in Import → Web page an admin is told that a bare word isn't a web address and that a
+      private address can't be captured, then captures a page on a test site (allowed by `documents.web_networks`);
+      it's titled by the page, its text includes the line the page's script wrote, the header links to the page,
+      Details shows its address and that it was printed, and Files names its PDF `harbour-news.pdf`; a viewer on a
+      phone in dark mode reads it and its details. No console errors besides the 400 of the refused address.
 - **Word, text, web pages and emails as documents.** Any document now becomes a resource with pages, not only a PDF:
   Word, PowerPoint and spreadsheet files (and OpenDocument and RTF), text and Markdown, saved web pages and emails
   (`.eml`, and Outlook `.msg` with the `msg` extra) are made into PDFs and read like one. Decided with the project

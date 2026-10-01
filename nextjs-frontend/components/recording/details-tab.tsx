@@ -7,6 +7,7 @@ import {
   FileVideo,
   Film,
   GitCommitHorizontal,
+  Globe,
   Mail,
   Workflow,
   type LucideIcon,
@@ -15,7 +16,7 @@ import type { ReactNode } from "react";
 
 import { uploadKindName } from "@/components/import/files";
 import { useRec } from "@/components/recording/context";
-import { emailRows, renditionNote, type EmailInfo } from "@/components/recording/document/model";
+import { emailRows, renditionNote, webRows, type EmailInfo } from "@/components/recording/document/model";
 import { sourceLabel, transcriptOrigin } from "@/components/recording/labels";
 import { Button } from "@/components/ui/button";
 import { absolute, bytes, count, plural, tc } from "@/lib/format";
@@ -144,9 +145,27 @@ export function DetailsTab() {
       <Group icon={video ? FileVideo : model.audio ? FileAudio : FileText} title="File" rows={file} />
       {(video || rec.channels) && <Group icon={Film} title={video ? "Video and audio" : "Audio"} rows={media} />}
       {rec.email && <Group icon={Mail} title="Email" rows={emailRows(rec.email as EmailInfo, absolute)} />}
+      {rec.web && (
+        <Group
+          icon={Globe}
+          title="Web page"
+          rows={webRows(rec.web, absolute).map(
+            ([k, v]): Row => (/^https?:\/\//.test(v) ? [k, <WebLink key={k} href={v} />, true] : [k, v]),
+          )}
+        />
+      )}
       <Group icon={GitCommitHorizontal} title="Provenance" rows={provenance} />
       <Group icon={Workflow} title="Processing" rows={processing} />
     </>
+  );
+}
+
+/** A web address that opens in a new tab. */
+function WebLink({ href }: { href: string }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-fg-accent hover:underline">
+      {href}
+    </a>
   );
 }
 

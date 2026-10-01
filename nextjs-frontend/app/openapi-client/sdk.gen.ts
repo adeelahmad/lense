@@ -294,6 +294,9 @@ import type {
   ImportTranscriptData,
   ImportTranscriptResponses,
   ImportTranscriptErrors,
+  ImportWebPageData,
+  ImportWebPageResponses,
+  ImportWebPageErrors,
   PreviewImportData,
   PreviewImportResponses,
   PreviewImportErrors,
@@ -2162,6 +2165,24 @@ export class Imports {
   ) {
     return (options.client ?? client).post<ImportTranscriptResponses, ImportTranscriptErrors, ThrowOnError>({
       url: "/api/v1/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Import Web Page
+   * Capture a web page as a document (editors; admins may name a new namespace): the namespace's pipeline, or
+   * `pipeline`, keeps the page as it is now, as a PDF (a link to a PDF is kept as it is; other pages are printed by
+   * headless Chromium), and reads it page by page. Only public addresses on ports 80 and 443 can be captured (and the
+   * networks in documents.web_networks). Audited as `import.web`.
+   */
+  public static importWebPage<ThrowOnError extends boolean = false>(options: Options<ImportWebPageData, ThrowOnError>) {
+    return (options.client ?? client).post<ImportWebPageResponses, ImportWebPageErrors, ThrowOnError>({
+      url: "/api/v1/import/web",
       ...options,
       headers: {
         "Content-Type": "application/json",

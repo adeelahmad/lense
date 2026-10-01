@@ -59,6 +59,14 @@ class SourceImportRequest(RequestModel):
     )
 
 
+class WebImportRequest(RequestModel):
+    url: str = Field(min_length=1, max_length=2000, description="the page's address, http:// or https://")
+    namespace: str = Field(description="a namespace you edit; admins may name a new one")
+    title: str | None = Field(None, max_length=200, description="default: the page's own title, once it's captured")
+    pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's")
+    collection: int | None = Field(None, description="a collection of the namespace to put it in; default: its default collection")
+
+
 class SourceImportResult(ResponseModel):
     path: str
     status: Literal["queued", "already", "skipped", "error"]

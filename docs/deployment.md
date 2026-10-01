@@ -36,6 +36,11 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
   Markdown, saved web pages and emails too, build the full image: `LENS_TARGET=full docker compose up` (or
   `docker build --target full -t lens:full fastapi_backend`), which adds LibreOffice, Chromium and fonts for most
   scripts; add `EXTRAS="msg"` for Outlook `.msg` emails ([Configuration](configuration.md#documents-and-images)).
+  The full image also captures web pages ([API](api.md#web-pages)), running each page's scripts in Chromium. Inside
+  a container Chromium usually can't start its own sandbox (Docker's default seccomp profile doesn't allow the user
+  namespaces it needs) and runs without it, so what stops a page is Lens's proxy, which lets it reach public
+  addresses only. To keep Chromium's own sandbox as well, run the container with a seccomp profile that allows it
+  (such as Chrome's).
 * **IIIF.** Set `iiif.base_url` to the stable public address before publishing anything; identifiers are built from it.
 
 ## Frontend on Vercel

@@ -407,3 +407,18 @@ export function namespaceNameProblem(name: string): string | null {
     ? null
     : "Use lowercase letters, digits, - and _ (up to 41 characters), starting with a letter or digit.";
 }
+
+/** Why a web address can't be captured as it's typed (null when it can be tried): the server checks the rest. */
+export function webAddressProblem(text: string): string | null {
+  const t = text.trim();
+  if (!t) return "Give the page’s address.";
+  let u: URL;
+  try {
+    u = new URL(t);
+  } catch {
+    return "That isn’t a web address: it starts with https:// or http://.";
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return "Only web pages can be captured: https:// or http://.";
+  if (u.username || u.password) return "Leave the user name and password out of the address.";
+  return null;
+}

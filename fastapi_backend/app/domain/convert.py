@@ -15,6 +15,7 @@ other emails) also become resources of their own beside it, each saying which em
 from __future__ import annotations
 
 import datetime as dt
+import functools
 import html
 import os
 import pathlib
@@ -125,10 +126,11 @@ def _has_msg():
 
 
 def capabilities(cfg):
-    """What this server can make into PDFs: Office files (LibreOffice), text, Markdown, web pages and emails (Chromium
-    or LibreOffice), and Outlook .msg emails (those, and the extract-msg package)."""
+    """What this server can make into PDFs: Office files (LibreOffice), text, Markdown, saved web pages and emails
+    (Chromium or LibreOffice), Outlook .msg emails (those, and the extract-msg package), and web pages captured from
+    their address (Chromium)."""
     office, pages = bool(soffice(cfg)), bool(chromium(cfg) or soffice(cfg))
-    return {"office": office, "pages": pages, "msg": pages and _has_msg()}
+    return {"office": office, "pages": pages, "msg": pages and _has_msg(), "web": bool(chromium(cfg))}
 
 
 def unavailable(cfg, name):
@@ -152,6 +154,7 @@ def bootstrap(cfg):
     return {
         "soffice": d.get("soffice") or (shutil.which("soffice") or shutil.which("libreoffice") or "not installed"),
         "chromium": d.get("chromium") or (chromium(cfg) or "not installed"),
+        "web_networks": [str(n) for n in d.get("web_networks") or []],
     }
 
 
@@ -183,24 +186,52 @@ def office_pdf(cfg, src, out):
     return "libreoffice"
 
 
+RESOLVE_NOTHING = "MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"  # every name fails to resolve; the proxy is 127.0.0.1
+
+
+@functools.lru_cache(maxsize=8)
+def no_sandbox(exe):
+    """Whether Chromium has to run without its sandbox here: as root it won't start one, and some systems don't let it
+    (a container without user namespaces, Ubuntu's AppArmor). Found once, by printing an empty page, so that no page
+    decides whether it's printed without one."""
+    if os.geteuid() == 0:
+        return True
+    with tempfile.TemporaryDirectory(prefix="lens-chromium-") as profile:
+        target = pathlib.Path(profile) / "empty.pdf"
+        argv = [exe, "--headless", "--disable-gpu", "--no-first-run", f"--user-data-dir={profile}"]
+        argv += ["--proxy-server=http://127.0.0.1:9", f"--print-to-pdf={target}", "data:text/html,<p>Lens</p>"]
+        try:
+            subprocess.run(argv, capture_output=True, timeout=60)
+        except (OSError, subprocess.TimeoutExpired):
+            return True
+        return not target.is_file()
+
+
+def print_pdf(exe, guard, url, out, seconds, settle_ms=5000):
+    """Chromium, headless, printing `url` to the PDF `out` through `guard` (its only way out), with its sandbox where
+    it can have one."""
+    with tempfile.TemporaryDirectory(prefix="lens-chromium-") as profile:
+        target = pathlib.Path(profile) / "page.pdf"
+        base = [exe, "--headless", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--disable-extensions"]
+        base += ["--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-default-apps"]
+        base += ["--mute-audio", "--hide-scrollbars", "--disable-dev-shm-usage", f"--user-data-dir={profile}", *guard.args()]
+        # nothing around the proxy: no name lookups of its own, and WebRTC (which a page's script can start) only
+        # through the proxy, never UDP straight to an address
+        base += [f"--host-resolver-rules={RESOLVE_NOTHING}", "--dns-prefetch-disable"]
+        base += ["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"]
+        tail = [f"--print-to-pdf={target}", "--no-pdf-header-footer", "--run-all-compositor-stages-before-draw"]
+        tail += [f"--virtual-time-budget={settle_ms}", url]
+        r = _run([*base, *(["--no-sandbox"] if no_sandbox(exe) else []), *tail], seconds)
+        if not target.is_file() or target.stat().st_size == 0:
+            said = [x for x in (r.stderr or "").splitlines() if ("ERROR" in x or "FATAL" in x) and "dbus" not in x]
+            raise ValueError(f"Chromium couldn't print it ({said[-1][-200:] if said else f'exit {r.returncode}'})")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(target), out)
+
+
 def _chromium_pdf(exe, page, out, seconds):
     with netguard.Guard({netguard.DOCUMENT_URL: (page.encode("utf-8"), "text/html; charset=utf-8")}) as guard:
-        with tempfile.TemporaryDirectory(prefix="lens-chromium-") as profile:
-            target = pathlib.Path(profile) / "page.pdf"
-            base = [exe, "--headless", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--disable-extensions"]
-            base += ["--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-default-apps"]
-            base += ["--mute-audio", "--hide-scrollbars", "--disable-dev-shm-usage", f"--user-data-dir={profile}", *guard.args()]
-            tail = [f"--print-to-pdf={target}", "--no-pdf-header-footer", "--run-all-compositor-stages-before-draw"]
-            tail += ["--virtual-time-budget=5000", netguard.DOCUMENT_URL]
-            sandbox = [] if os.geteuid() != 0 else ["--no-sandbox"]  # Chromium won't start its sandbox as root
-            r = _run(base + sandbox + tail, seconds)
-            if not target.is_file() and not sandbox and "sandbox" in (r.stderr or "").lower():
-                r = _run([*base, "--no-sandbox", *tail], seconds)  # a container without the namespaces it needs
-            if not target.is_file() or target.stat().st_size == 0:
-                said = [x for x in (r.stderr or "").splitlines() if "ERROR" in x and "dbus" not in x]
-                raise ValueError(f"Chromium couldn't print it ({said[-1][-200:] if said else f'exit {r.returncode}'})")
-            out.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(target), out)
+        print_pdf(exe, guard, netguard.DOCUMENT_URL, out, seconds)
 
 
 def html_pdf(cfg, page, out):

@@ -19,7 +19,7 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 
-from . import convert, ingest, store, video
+from . import convert, ingest, store, video, webcapture
 
 R = store.R
 TYPES = {
@@ -417,8 +417,14 @@ def transcribe(db, cfg, rid, say):
     """Draw a document's or an image's pages and read their text into its segments (the transcribe step for them). A
     document that isn't a PDF is made into one first (convert.py): its rendition, which its pages come from; an email
     also gives its sender, recipients, date and subject, and its attachments are kept."""
-    rec = db.one("SELECT space, path, remote, source, title, recorded_at FROM $r", r=R("recording", rid)) or {}
-    path = ingest.audio_path(db, cfg, rec)
+    rec = db.one("SELECT space, path, remote, source, title, recorded_at, web FROM $r", r=R("recording", rid)) or {}
+    if rec.get("web"):  # a web page: captured the first time (webcapture.py)
+        try:
+            path = webcapture.ensure(db, cfg, rid, rec, say)
+        except convert.Unavailable as e:
+            raise ValueError(f"this web page can't be captured here: {e}") from None
+    else:
+        path = ingest.audio_path(db, cfg, rec)
     if not path or not os.path.exists(path):
         raise FileNotFoundError(f"its file isn't there ({rec.get('path')})")
     opts, engine = cfg["documents"], video.ocr_engine(cfg)

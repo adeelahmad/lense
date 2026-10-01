@@ -15,6 +15,7 @@ import { ImportQueue } from "@/components/import/import-queue";
 import { PasteTab } from "@/components/import/paste-tab";
 import { chooseFiles, defaultImportNamespace, isFileDrag, takeFiles } from "@/components/import/pending";
 import { SourceTab } from "@/components/import/source-tab";
+import { WebTab } from "@/components/import/web-tab";
 import { FileDetail, FileList, MediaDetail, ProblemCard } from "@/components/import/upload-tab";
 import { pairTwins } from "@/components/import/upload-model";
 import {
@@ -36,7 +37,7 @@ import { bytes, plural } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-type Tab = "upload" | "paste" | "source";
+type Tab = "upload" | "paste" | "web" | "source";
 const NEW_NS = "\u0000new";
 
 /** Where the import goes: a namespace you can edit, or (admins) a new one. */
@@ -137,7 +138,9 @@ export function ImportScreen() {
   const params = useSearchParams();
   const router = useRouter();
   const initialTab = (params.get("tab") as Tab) || "upload";
-  const [tab, setTab] = useState<Tab>(["upload", "paste", "source"].includes(initialTab) ? initialTab : "upload");
+  const [tab, setTab] = useState<Tab>(
+    ["upload", "paste", "web", "source"].includes(initialTab) ? initialTab : "upload",
+  );
   const editable = useMemo(() => namespaces.filter((n) => can("editor", n.name)).map((n) => n.name), [namespaces, can]);
   const [ns, setNs] = useState("");
   const files = useImportFiles();
@@ -293,6 +296,13 @@ export function ImportScreen() {
                   count: items.length || undefined,
                 },
                 { value: "paste", label: "Paste" },
+                files.limits.convert?.web === false
+                  ? {
+                      value: "web",
+                      label: "Web page",
+                      disabledReason: "Capturing web pages needs Chromium on the server (the lens:full image).",
+                    }
+                  : { value: "web", label: "Web page" },
                 admin
                   ? { value: "source", label: "From a source" }
                   : {
@@ -332,6 +342,17 @@ export function ImportScreen() {
                   },
                 ])
               }
+            />
+          )}
+
+          {tab === "web" && (
+            <WebTab
+              namespace={ns || null}
+              namespaceControl={nsControl}
+              pipelineControl={pipelineControl}
+              blockReason={nsReason}
+              pipeline={pipelineId}
+              collection={collectionId}
             />
           )}
 

@@ -13,6 +13,7 @@ class Converters(ResponseModel):
     office: bool = Field(description="Word, PowerPoint and spreadsheet files, OpenDocument and RTF (LibreOffice)")
     pages: bool = Field(description="text, Markdown, saved web pages and .eml emails (Chromium or LibreOffice)")
     msg: bool = Field(description="Outlook .msg emails (those, and the extract-msg package)")
+    web: bool = Field(False, description="web pages captured from their address (Chromium; POST /import/web)")
 
 
 class UploadLimits(ResponseModel):

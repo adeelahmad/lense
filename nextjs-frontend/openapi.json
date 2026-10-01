@@ -5341,6 +5341,48 @@
         }
       }
     },
+    "/api/v1/import/web": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Import Web Page",
+        "description": "Capture a web page as a document (editors; admins may name a new namespace): the namespace's pipeline, or\n`pipeline`, keeps the page as it is now, as a PDF (a link to a PDF is kept as it is; other pages are printed by\nheadless Chromium), and reads it page by page. Only public addresses on ports 80 and 443 can be captured (and the\nnetworks in documents.web_networks). Audited as `import.web`.",
+        "operationId": "import_web_page",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/import/preview": {
       "post": {
         "tags": [
@@ -14625,6 +14667,12 @@
             "type": "boolean",
             "title": "Msg",
             "description": "Outlook .msg emails (those, and the extract-msg package)"
+          },
+          "web": {
+            "type": "boolean",
+            "title": "Web",
+            "description": "web pages captured from their address (Chromium; POST /import/web)",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -21000,6 +21048,17 @@
               }
             ],
             "description": "an email's attachment made a resource of its own: that email"
+          },
+          "web": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebPage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a web page captured as a document"
           }
         },
         "additionalProperties": true,
@@ -26410,6 +26469,122 @@
         "additionalProperties": false,
         "type": "object",
         "title": "WatchUpdate"
+      },
+      "WebImportRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Url",
+            "description": "the page's address, http:// or https://"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace",
+            "description": "a namespace you edit; admins may name a new one"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "default: the page's own title, once it's captured"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline",
+            "description": "run this pipeline afterwards instead of the namespace's"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a collection of the namespace to put it in; default: its default collection"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "namespace"
+        ],
+        "title": "WebImportRequest"
+      },
+      "WebPage": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the address given"
+          },
+          "final": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final",
+            "description": "the address it ended at, after redirects"
+          },
+          "captured_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At",
+            "description": "when it was captured; none until its pipeline has run"
+          },
+          "how": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "printed",
+                  "pdf"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "How",
+            "description": "printed by Chromium, or a PDF kept as it was"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "WebPage",
+        "description": "A web page captured as a document: where it was, and when."
       },
       "WorkerInfo": {
         "properties": {

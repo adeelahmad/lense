@@ -71,15 +71,17 @@ def test_office_and_text_files_become_documents(app, client, env, db, cfg, folde
     txt = _upload(client, he, "Café notes\n\nTide at noon.\n".encode(), "notes.txt")
     drain(db, cfg)
 
-    rec = db.one("SELECT source, rendition, media, status, engine FROM $r", r=R("recording", doc["recording"]))
-    assert (rec["source"], rec["status"], rec["rendition"]) == ("document", "analyzed", {"from": ".docx", "by": "libreoffice"})
+    rec = db.one("SELECT source, rendition, media, status, engine, error FROM $r", r=R("recording", doc["recording"]))
+    assert (rec["source"], rec["status"], rec["rendition"]) == ("document", "analyzed", {"from": ".docx", "by": "libreoffice"}), rec.get(
+        "error"
+    )
     assert rec["media"]["pages"] == 1 and rec["engine"] == "pdf"
     assert "Ships arrived at dawn and the cargo was counted." in _text(db, doc["recording"])
     log = client.get(f"/api/v1/jobs/{doc['job']}/log", headers=he).json()["lines"]
     assert any("made into a PDF by LibreOffice" in x for x in log)
     for up, words in ((md, ["Lighthouse log", "The keeper wrote twice.", "oil"]), (txt, ["Café notes", "Tide at noon."])):
-        r = db.one("SELECT rendition, status FROM $r", r=R("recording", up["recording"]))
-        assert r["status"] == "analyzed" and r["rendition"]["by"] == ("chromium" if CHROME else "libreoffice")
+        r = db.one("SELECT rendition, status, error FROM $r", r=R("recording", up["recording"]))
+        assert r["status"] == "analyzed" and r["rendition"]["by"] == ("chromium" if CHROME else "libreoffice"), (CHROME, r.get("error"))
         assert all(w in _text(db, up["recording"]) for w in words), _text(db, up["recording"])
 
     # its own file, and the PDF made of it, to save
@@ -156,7 +158,8 @@ def test_an_email_becomes_a_document_and_its_attachments_resources(client, env, 
     rid = up["recording"]
     assert _Tracker.seen == []  # the tracking image wasn't fetched
     rec = client.get(f"/api/v1/resources/{rid}", headers=he).json()
-    assert (rec["title"], rec["recorded_at"], rec["status"]) == ("Harbour report", "2026-09-29T09:30:00+01:00", "analyzed")
+    why = (CHROME, (db.one("SELECT error FROM $r", r=R("recording", rid)) or {}).get("error"))
+    assert (rec["title"], rec["recorded_at"], rec["status"]) == ("Harbour report", "2026-09-29T09:30:00+01:00", "analyzed"), why
     sent = {"subject": "Harbour report", "from": "Mara Keane <mara@example.org>", "to": "tom@example.org", "cc": None}
     assert rec["email"] == {**sent, "date": rec["recorded_at"]}
     assert "The lighthouse keeper wrote twice." in _text(db, rid)
@@ -201,7 +204,12 @@ def test_documents_the_server_cannot_convert(client, env, db, cfg, monkeypatch):
     he = env["he"]
     monkeypatch.setattr(convert, "soffice", lambda cfg: None)
     monkeypatch.setattr(convert, "chromium", lambda cfg: None)
-    assert client.get("/api/v1/uploads/limits", headers=he).json()["convert"] == {"office": False, "pages": False, "msg": False}
+    assert client.get("/api/v1/uploads/limits", headers=he).json()["convert"] == {
+        "office": False,
+        "pages": False,
+        "msg": False,
+        "web": False,
+    }
     r = _start(client, he, b"x", "letter.docx")
     assert (r.status_code, r.json()["detail"]) == (
         400,

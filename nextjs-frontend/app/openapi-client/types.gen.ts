@@ -1635,7 +1635,12 @@ export type Converters = {
    * Outlook .msg emails (those, and the extract-msg package)
    */
   msg: boolean;
-  [key: string]: unknown | boolean;
+  /**
+   * Web
+   * web pages captured from their address (Chromium; POST /import/web)
+   */
+  web?: boolean;
+  [key: string]: unknown | boolean | undefined;
 };
 
 /**
@@ -5741,6 +5746,10 @@ export type Recording = {
    * an email's attachment made a resource of its own: that email
    */
   attached_to?: AttachedTo | null;
+  /**
+   * a web page captured as a document
+   */
+  web?: WebPage | null;
   [key: string]:
     | unknown
     | number
@@ -5782,6 +5791,8 @@ export type Recording = {
     | Rendition
     | null
     | AttachedTo
+    | null
+    | WebPage
     | null
     | undefined;
 };
@@ -9098,6 +9109,65 @@ export type WatchUpdate = {
 };
 
 /**
+ * WebImportRequest
+ */
+export type WebImportRequest = {
+  /**
+   * Url
+   * the page's address, http:// or https://
+   */
+  url: string;
+  /**
+   * Namespace
+   * a namespace you edit; admins may name a new one
+   */
+  namespace: string;
+  /**
+   * Title
+   * default: the page's own title, once it's captured
+   */
+  title?: string | null;
+  /**
+   * Pipeline
+   * run this pipeline afterwards instead of the namespace's
+   */
+  pipeline?: number | null;
+  /**
+   * Collection
+   * a collection of the namespace to put it in; default: its default collection
+   */
+  collection?: number | null;
+};
+
+/**
+ * WebPage
+ * A web page captured as a document: where it was, and when.
+ */
+export type WebPage = {
+  /**
+   * Url
+   * the address given
+   */
+  url: string;
+  /**
+   * Final
+   * the address it ended at, after redirects
+   */
+  final?: string | null;
+  /**
+   * Captured At
+   * when it was captured; none until its pipeline has run
+   */
+  captured_at?: string | null;
+  /**
+   * How
+   * printed by Chromium, or a PDF kept as it was
+   */
+  how?: "printed" | "pdf" | null;
+  [key: string]: unknown | string | string | null | string | null | "printed" | "pdf" | null | undefined;
+};
+
+/**
  * WorkerInfo
  */
 export type WorkerInfo = {
@@ -12339,6 +12409,31 @@ export type ImportTranscriptResponses = {
 };
 
 export type ImportTranscriptResponse = ImportTranscriptResponses[keyof ImportTranscriptResponses];
+
+export type ImportWebPageData = {
+  body: WebImportRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/import/web";
+};
+
+export type ImportWebPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportWebPageError = ImportWebPageErrors[keyof ImportWebPageErrors];
+
+export type ImportWebPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportResult;
+};
+
+export type ImportWebPageResponse = ImportWebPageResponses[keyof ImportWebPageResponses];
 
 export type PreviewImportData = {
   body: ImportPreviewRequest;

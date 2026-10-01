@@ -140,10 +140,25 @@ export function RecordingHeader() {
           </Meta>
         )}
         {source && (
-          <Meta icon={source.remote ? <Cloud /> : <FileText />}>
-            <span className={cn("max-w-[320px] truncate", source.file && "font-mono text-[12px]")} title={source.title}>
-              {source.text}
-            </span>
+          <Meta icon={source.href ? <Globe /> : source.remote ? <Cloud /> : <FileText />}>
+            {source.href ? (
+              <a
+                href={source.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="max-w-[320px] truncate font-semibold text-fg-accent hover:underline"
+                title={source.title}
+              >
+                {source.text}
+              </a>
+            ) : (
+              <span
+                className={cn("max-w-[320px] truncate", source.file && "font-mono text-[12px]")}
+                title={source.title}
+              >
+                {source.text}
+              </span>
+            )}
           </Meta>
         )}
         <Meta icon={<Workflow />}>

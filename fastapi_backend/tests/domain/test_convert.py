@@ -8,6 +8,8 @@ import base64
 import http.client
 from email.message import EmailMessage
 
+import pytest
+
 from app.domain import convert, netguard
 
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
@@ -110,12 +112,46 @@ def test_the_proxy_serves_lens_page_and_refuses_everything_else():
 def test_what_the_server_can_convert(cfg, monkeypatch):
     monkeypatch.setattr(convert, "soffice", lambda cfg: None)
     monkeypatch.setattr(convert, "chromium", lambda cfg: None)
-    assert convert.capabilities(cfg) == {"office": False, "pages": False, "msg": False}
+    assert convert.capabilities(cfg) == {"office": False, "pages": False, "msg": False, "web": False}
     assert convert.unavailable(cfg, "a.pdf") is None and convert.unavailable(cfg, "a.mp3") is None
     assert convert.unavailable(cfg, "a.docx") == "converting Word documents needs LibreOffice on the server (the lens:full image)"
     assert "Chromium or LibreOffice" in convert.unavailable(cfg, "a.eml")
     monkeypatch.setattr(convert, "chromium", lambda cfg: "/usr/bin/chromium")
     monkeypatch.setattr(convert, "_has_msg", lambda: False)
-    assert convert.capabilities(cfg) == {"office": False, "pages": True, "msg": False}
+    assert convert.capabilities(cfg) == {"office": False, "pages": True, "msg": False, "web": True}
     assert convert.unavailable(cfg, "a.md") is None and "extract-msg" in convert.unavailable(cfg, "a.msg")
     assert convert.bootstrap(cfg)["chromium"] == "/usr/bin/chromium"
+
+
+# a Chromium that can't start its sandbox here: it prints only with --no-sandbox, else fails as Ubuntu's AppArmor makes it
+NO_USERNS = r"""#!/bin/sh
+for a in "$@"; do case "$a" in --print-to-pdf=*) out="${a#--print-to-pdf=}";; --no-sandbox) free=1;; esac; done
+if [ -z "$free" ]; then echo "[1:1:FATAL:credentials.cc(127)] Check failed: . : Permission denied (13)" >&2; exit 1; fi
+printf '%%PDF-1.4\n' > "$out"
+"""
+
+
+def test_chromium_runs_without_its_sandbox_only_where_it_cant_have_one(tmp_path, monkeypatch):
+    def fake(name, script):
+        f = tmp_path / name
+        f.write_text(script)
+        f.chmod(0o755)
+        return str(f)
+
+    stuck = fake("stuck", NO_USERNS)
+    able = fake("able", NO_USERNS.replace('if [ -z "$free" ]', "if false"))
+    broken = fake("broken", "#!/bin/sh\necho '[1:1:FATAL:zygote_host_impl_linux.cc(1)] It broke.' >&2\nexit 1\n")
+    monkeypatch.setattr(convert.os, "geteuid", lambda: 1000)
+    convert.no_sandbox.cache_clear()
+    try:
+        assert (convert.no_sandbox(stuck), convert.no_sandbox(able)) == (True, False)  # tried on an empty page
+        with netguard.Guard() as g:
+            convert.print_pdf(stuck, g, netguard.DOCUMENT_URL, tmp_path / "a.pdf", 30)
+            assert (tmp_path / "a.pdf").read_bytes().startswith(b"%PDF")
+            with pytest.raises(ValueError, match="Chromium couldn't print it .*It broke"):
+                convert.print_pdf(broken, g, netguard.DOCUMENT_URL, tmp_path / "b.pdf", 30)
+        monkeypatch.setattr(convert.os, "geteuid", lambda: 0)
+        convert.no_sandbox.cache_clear()
+        assert convert.no_sandbox(able) is True  # as root it never starts one
+    finally:
+        convert.no_sandbox.cache_clear()

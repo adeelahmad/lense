@@ -151,3 +151,17 @@ export function renditionNote(r: { by?: string | null } | null | undefined): str
   if (!r?.by) return null;
   return `made into a PDF by ${r.by === "libreoffice" ? "LibreOffice" : "Chromium"}`;
 }
+
+export type WebPageInfo = { url: string; final?: string | null; captured_at?: string | null; how?: string | null };
+
+/** A captured web page as rows for the Details tab: where it was, where it ended up, when and how it was kept. */
+export function webRows(w: WebPageInfo | null | undefined, when: (iso: string) => string): [string, string][] {
+  if (!w) return [];
+  const rows: [string, string | null | undefined][] = [
+    ["Address", w.url],
+    ["Ended at", w.final && w.final !== w.url ? w.final : null],
+    ["Captured", w.captured_at ? when(w.captured_at) : "when its pipeline runs"],
+    ["Kept as", w.how === "pdf" ? "the PDF it was" : w.how === "printed" ? "printed by the server’s browser" : null],
+  ];
+  return rows.filter((r): r is [string, string] => Boolean(r[1]));
+}

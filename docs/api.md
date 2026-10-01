@@ -406,6 +406,7 @@ thumbnails with its media. Attachments always need permission.
 ```
 POST   /api/v1/import
 POST   /api/v1/import/preview
+POST   /api/v1/import/web
 ```
 
 `POST /import` queues the namespace's pipeline after the import, or the saved pipeline named by `pipeline` (any of
@@ -420,6 +421,25 @@ pipeline, or `pipeline`; transcripts are imported. A PDF, Word, text or Markdown
 `documents_as` is `transcript` (its text only), or the server can't make a PDF of it. Each path gets a result: `queued` (with `recording` and `job`), `already` (the namespace has it from this
 source), `skipped` (a folder, or not audio, video, a document, an image or a transcript) or `error`. Choosing a file
 whose recording was deleted brings it back. Audited as `import.source`.
+
+### Web pages
+
+`POST /api/v1/import/web {url, namespace, title?, collection?, pipeline?}` captures a web page as a document (editors
+of the namespace; admins may name a new one). Its pipeline keeps the page as it is then, as a PDF, and reads it like
+any document ([Documents and images](#documents-and-images)): a link to a PDF is kept as it is, any other page is
+printed by headless Chromium with its scripts run. Its `web` is `{url, final, captured_at, how}`: the address given,
+the one it ended at after redirects, when it was captured, and `printed` or `pdf`. Its title is the page's own once it's
+captured, unless `title` gave one. Capturing happens once: transcribing it again keeps the page it captured.
+
+Only public addresses are reached, on ports 80 and 443: the address is checked when it's given (400, saying why: not
+http(s), a user name or password in it, another port, or a host with an address that isn't public), and every request
+the page makes is checked again by a proxy inside Lens, which resolves each host itself and connects only to the
+address it checked; redirects are followed to http and https addresses only, each checked. Chromium has no other way
+out: it looks up no names itself, and WebRTC, which a page's script can start, may only go through the proxy (never
+UDP straight to an address). `documents.web_networks` (startup) adds networks that may be reached too, for an
+intranet. Without Chromium on the server it answers 400 (`GET /uploads/limits` → `convert.web`). Audited as
+`import.web`. The PDF is the resource's file (`GET /resources/{rid}/media`), named after the link
+(`annual-report.pdf`) or the page's title (`harbour-news.pdf`).
 
 ### Uploads
 
