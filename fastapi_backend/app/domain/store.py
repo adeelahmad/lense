@@ -330,11 +330,21 @@ class DB:
     def _open(self):
         from surrealdb import Surreal
 
-        c = Surreal(self.url)
-        if not self.embedded:
-            c.signin(self._creds)
-        c.use(*self._target)
-        return c
+        attempt = 0
+        while True:
+            c = Surreal(self.url)
+            try:
+                if not self.embedded:
+                    c.signin(self._creds)
+                c.use(*self._target)  # on a server this creates the database, and two at once can conflict
+                return c
+            except Exception as e:  # noqa: BLE001
+                with contextlib.suppress(Exception):
+                    c.close()
+                if attempt == RETRIES or not _retryable(e):
+                    raise
+                _backoff(attempt)
+                attempt += 1
 
     @contextlib.contextmanager
     def conn(self):
