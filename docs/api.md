@@ -209,6 +209,27 @@ all of the recording (owners). `PUT …/{gid}` opens the recording to a group th
 that opens `everything` already), `DELETE …/{gid}` closes it again (404 when it wasn't open). Both answer with the list
 and are audited as `recording.ip_group.open` and `recording.ip_group.close`.
 
+## notes
+
+```
+GET    /api/v1/recordings/{rid}/notes
+POST   /api/v1/recordings/{rid}/notes
+PATCH  /api/v1/recordings/{rid}/notes/{nid}
+DELETE /api/v1/recordings/{rid}/notes/{nid}
+```
+
+Notes on a recording, for people with a role in its namespace (share links and signed links don't reach them). `POST`
+with `text` (up to 5,000 characters) and, for a note about a moment, `t0` and `t1` (ms from the start; `t1` defaults
+to `t0` and stops at the end of the recording) and the `quote` picked in the transcript (up to 1,000 characters);
+without `t0` the note is about the whole recording. Anyone who can read the recording can write notes, up to 500 each
+on a recording. A note is its writer's: only they see it, unless they share it (`shared: true`, which needs editor
+access) with everyone who can read the recording. `GET` lists yours and the shared ones: notes about the whole
+recording first, then by moment, each with its writer (`created_by`, `created_by_name`), `mine`, `can_delete` and
+`edited_at` (when its text last changed). Only its writer changes a note (`PATCH` with `text` or `shared`); its writer,
+or an owner of the namespace for a shared one, deletes it. Sharing, unsharing and deleting a shared note are audited
+(`note.share`, `note.unshare`, `note.delete`, on the recording). Notes move with their recording and go when it's
+deleted.
+
 ## imports
 
 ```

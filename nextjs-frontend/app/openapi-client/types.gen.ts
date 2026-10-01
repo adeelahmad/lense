@@ -3337,6 +3337,144 @@ export type NamespaceUpdate = {
 };
 
 /**
+ * Note
+ */
+export type Note = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * T0
+   * the moment it's about, in ms from the start; null: the whole recording
+   */
+  t0?: number | null;
+  /**
+   * T1
+   * where that moment ends, in ms
+   */
+  t1?: number | null;
+  /**
+   * Quote
+   * the words picked in the transcript
+   */
+  quote?: string | null;
+  /**
+   * Shared
+   * everyone who can read the recording sees it
+   */
+  shared?: boolean;
+  /**
+   * Created By
+   * its writer's email
+   */
+  created_by?: string | null;
+  /**
+   * Created By Name
+   * its writer's name, when they gave one
+   */
+  created_by_name?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Edited At
+   * when its text last changed
+   */
+  edited_at?: string | null;
+  /**
+   * Mine
+   * you wrote it: only you can change it
+   */
+  mine: boolean;
+  /**
+   * Can Delete
+   * you wrote it, or it's shared and you own the recording's namespace
+   */
+  can_delete: boolean;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | number
+    | null
+    | number
+    | null
+    | string
+    | null
+    | boolean
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * NoteCreate
+ */
+export type NoteCreate = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * T0
+   * the moment it's about, in ms from the start; leave out for the whole recording
+   */
+  t0?: number | null;
+  /**
+   * T1
+   * where that moment ends, in ms (default: t0)
+   */
+  t1?: number | null;
+  /**
+   * Quote
+   * the words picked in the transcript
+   */
+  quote?: string | null;
+  /**
+   * Shared
+   * share it with everyone who can read the recording (needs editor access)
+   */
+  shared?: boolean;
+};
+
+/**
+ * NoteUpdate
+ */
+export type NoteUpdate = {
+  /**
+   * Text
+   */
+  text?: string | null;
+  /**
+   * Shared
+   * share or unshare it (sharing needs editor access)
+   */
+  shared?: boolean | null;
+};
+
+/**
  * OcrFix
  */
 export type OcrFix = {
@@ -9688,6 +9826,135 @@ export type ListOutputsResponses = {
 };
 
 export type ListOutputsResponse = ListOutputsResponses[keyof ListOutputsResponses];
+
+export type ListNotesData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/notes";
+};
+
+export type ListNotesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListNotesError = ListNotesErrors[keyof ListNotesErrors];
+
+export type ListNotesResponses = {
+  /**
+   * Response Notes-List Notes
+   * Successful Response
+   */
+  200: Array<Note>;
+};
+
+export type ListNotesResponse = ListNotesResponses[keyof ListNotesResponses];
+
+export type CreateNoteData = {
+  body: NoteCreate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/notes";
+};
+
+export type CreateNoteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateNoteError = CreateNoteErrors[keyof CreateNoteErrors];
+
+export type CreateNoteResponses = {
+  /**
+   * Successful Response
+   */
+  200: Note;
+};
+
+export type CreateNoteResponse = CreateNoteResponses[keyof CreateNoteResponses];
+
+export type DeleteNoteData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/notes/{nid}";
+};
+
+export type DeleteNoteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteNoteError = DeleteNoteErrors[keyof DeleteNoteErrors];
+
+export type DeleteNoteResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteNoteResponse = DeleteNoteResponses[keyof DeleteNoteResponses];
+
+export type UpdateNoteData = {
+  body: NoteUpdate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/notes/{nid}";
+};
+
+export type UpdateNoteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateNoteError = UpdateNoteErrors[keyof UpdateNoteErrors];
+
+export type UpdateNoteResponses = {
+  /**
+   * Successful Response
+   */
+  200: Note;
+};
+
+export type UpdateNoteResponse = UpdateNoteResponses[keyof UpdateNoteResponses];
 
 export type ImportTranscriptData = {
   body: ImportRequest;

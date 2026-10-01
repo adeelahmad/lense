@@ -2090,7 +2090,7 @@
           "recordings"
         ],
         "summary": "Delete Recording",
-        "description": "Delete a recording (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and\noutputs, shares, permissions and requests for access. The media file stays where it is, and scans and watched\nfolders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job\nis running on it, this answers 409. Audited as `recording.delete`.",
+        "description": "Delete a recording (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and\noutputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched\nfolders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job\nis running on it, this answers 409. Audited as `recording.delete`.",
         "operationId": "delete_recording",
         "parameters": [
           {
@@ -2133,7 +2133,7 @@
           "recordings"
         ],
         "summary": "Move Recording",
-        "description": "Move a recording to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its transcript, media, outputs, permissions and share links (`revoke_shares` stops them working); its IIIF\nmanifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and faces are\nmatched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and analysis\nruns again there (`job`). The old namespace's scans and watched folders don't import the file again. 409 when the\nnew namespace has the same file or a job is running on it. Audited as `recording.move`.",
+        "description": "Move a recording to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);\nits IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and\nfaces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and\nanalysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409\nwhen the new namespace has the same file or a job is running on it. Audited as `recording.move`.",
         "operationId": "move_recording",
         "parameters": [
           {
@@ -3409,6 +3409,216 @@
                     "$ref": "#/components/schemas/Output"
                   },
                   "title": "Response Recordings-List Outputs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{rid}/notes": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "List Notes",
+        "description": "Your notes on the recording and the ones shared on it: notes about the whole recording first, then by moment.",
+        "operationId": "list_notes",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Note"
+                  },
+                  "title": "Response Notes-List Notes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Create Note",
+        "description": "Write a note about a moment (`t0`\u2013`t1`, with the `quote` picked in the transcript) or about the whole recording.\nAnyone who can read the recording can; only you see it unless you share it with everyone who can read the\nrecording, which needs editor access. Up to 500 each on a recording. Sharing is audited (`note.share`).",
+        "operationId": "create_note",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Note"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{rid}/notes/{nid}": {
+      "patch": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Update Note",
+        "description": "Change its text, or share or unshare it: its writer only. Sharing needs editor access; sharing and unsharing\nare audited (`note.share`, `note.unshare`).",
+        "operationId": "update_note",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "nid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Nid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Note"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Delete Note",
+        "description": "Delete it: its writer, or for a shared note an owner of the recording's namespace. Deleting a shared note is\naudited (`note.delete`).",
+        "operationId": "delete_note",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "nid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Nid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -15244,6 +15454,235 @@
         "type": "object",
         "title": "NamespaceUpdate",
         "description": "Only the fields you send change; send ``pipeline: null`` to go back to the default pipeline."
+      },
+      "Note": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "the moment it's about, in ms from the start; null: the whole recording"
+          },
+          "t1": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T1",
+            "description": "where that moment ends, in ms"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote",
+            "description": "the words picked in the transcript"
+          },
+          "shared": {
+            "type": "boolean",
+            "title": "Shared",
+            "description": "everyone who can read the recording sees it",
+            "default": false
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By",
+            "description": "its writer's email"
+          },
+          "created_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Name",
+            "description": "its writer's name, when they gave one"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "edited_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited At",
+            "description": "when its text last changed"
+          },
+          "mine": {
+            "type": "boolean",
+            "title": "Mine",
+            "description": "you wrote it: only you can change it"
+          },
+          "can_delete": {
+            "type": "boolean",
+            "title": "Can Delete",
+            "description": "you wrote it, or it's shared and you own the recording's namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "recording",
+          "text",
+          "mine",
+          "can_delete"
+        ],
+        "title": "Note"
+      },
+      "NoteCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "the moment it's about, in ms from the start; leave out for the whole recording"
+          },
+          "t1": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T1",
+            "description": "where that moment ends, in ms (default: t0)"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote",
+            "description": "the words picked in the transcript"
+          },
+          "shared": {
+            "type": "boolean",
+            "title": "Shared",
+            "description": "share it with everyone who can read the recording (needs editor access)",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "NoteCreate"
+      },
+      "NoteUpdate": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared",
+            "description": "share or unshare it (sharing needs editor access)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NoteUpdate"
       },
       "OcrFix": {
         "properties": {

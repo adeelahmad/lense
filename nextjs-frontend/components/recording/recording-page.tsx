@@ -12,6 +12,7 @@ import { usePlayer, useRecording, useRecordingJobs } from "@/components/recordin
 import { pageState } from "@/components/recording/jobs";
 import { MobileLayout } from "@/components/recording/mobile-layout";
 import { adjacentTurnStart, findInSegments, groupTurns, segmentAt, type EntityRef } from "@/components/recording/model";
+import type { NoteDraft } from "@/components/recording/notes-model";
 import { RecordingSkeleton } from "@/components/recording/skeleton";
 import { RecordingDialogs, type DialogState } from "@/components/recording/dialogs";
 import { VideoLayout, type VideoCommand } from "@/components/recording/video/video-layout";
@@ -148,6 +149,7 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
   const [selected, select] = useState<EntityRef | null>(null);
   const [tab, setTab] = useState<PanelTab>(video ? (compact ? "transcript" : "text") : "summary");
   const [chatDraft, setChatDraft] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState<NoteDraft | null>(null);
   const [editing, setEditing] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const videoCmd = useRef<((c: VideoCommand) => void) | null>(null);
@@ -196,6 +198,12 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
         setTab("chat");
       },
       clearChatDraft: () => setChatDraft(null),
+      noteDraft,
+      addNote: (draft) => {
+        setNoteDraft(draft);
+        setTab("notes");
+      },
+      clearNoteDraft: () => setNoteDraft(null),
       editing,
       setEditing,
       openReprocess: () => setDialog({ kind: "reprocess" }),
@@ -222,6 +230,7 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
       selected,
       tab,
       chatDraft,
+      noteDraft,
       editing,
     ],
   );

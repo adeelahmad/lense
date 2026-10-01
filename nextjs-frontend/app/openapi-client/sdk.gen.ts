@@ -191,6 +191,18 @@ import type {
   ListOutputsData,
   ListOutputsResponses,
   ListOutputsErrors,
+  ListNotesData,
+  ListNotesResponses,
+  ListNotesErrors,
+  CreateNoteData,
+  CreateNoteResponses,
+  CreateNoteErrors,
+  DeleteNoteData,
+  DeleteNoteResponses,
+  DeleteNoteErrors,
+  UpdateNoteData,
+  UpdateNoteResponses,
+  UpdateNoteErrors,
   ImportTranscriptData,
   ImportTranscriptResponses,
   ImportTranscriptErrors,
@@ -1125,7 +1137,7 @@ export class Recordings {
   /**
    * Delete Recording
    * Delete a recording (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and
-   * outputs, shares, permissions and requests for access. The media file stays where it is, and scans and watched
+   * outputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched
    * folders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job
    * is running on it, this answers 409. Audited as `recording.delete`.
    */
@@ -1169,11 +1181,11 @@ export class Recordings {
    * Move Recording
    * Move a recording to another namespace (owners of its namespace, editors of the new one).
    *
-   * It keeps its transcript, media, outputs, permissions and share links (`revoke_shares` stops them working); its IIIF
-   * manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and faces are
-   * matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and analysis
-   * runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409 when the
-   * new namespace has the same file or a job is running on it. Audited as `recording.move`.
+   * It keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
+   * its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and
+   * faces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and
+   * analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409
+   * when the new namespace has the same file or a job is running on it. Audited as `recording.move`.
    */
   public static moveRecording<ThrowOnError extends boolean = false>(options: Options<MoveRecordingData, ThrowOnError>) {
     return (options.client ?? client).post<MoveRecordingResponses, MoveRecordingErrors, ThrowOnError>({
@@ -1515,6 +1527,64 @@ export class Recordings {
     return (options.client ?? client).get<ListOutputsResponses, ListOutputsErrors, ThrowOnError>({
       url: "/api/v1/recordings/{rid}/outputs",
       ...options,
+    });
+  }
+}
+
+export class Notes {
+  /**
+   * List Notes
+   * Your notes on the recording and the ones shared on it: notes about the whole recording first, then by moment.
+   */
+  public static listNotes<ThrowOnError extends boolean = false>(options: Options<ListNotesData, ThrowOnError>) {
+    return (options.client ?? client).get<ListNotesResponses, ListNotesErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/notes",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Note
+   * Write a note about a moment (`t0`–`t1`, with the `quote` picked in the transcript) or about the whole recording.
+   * Anyone who can read the recording can; only you see it unless you share it with everyone who can read the
+   * recording, which needs editor access. Up to 500 each on a recording. Sharing is audited (`note.share`).
+   */
+  public static createNote<ThrowOnError extends boolean = false>(options: Options<CreateNoteData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateNoteResponses, CreateNoteErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/notes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Note
+   * Delete it: its writer, or for a shared note an owner of the recording's namespace. Deleting a shared note is
+   * audited (`note.delete`).
+   */
+  public static deleteNote<ThrowOnError extends boolean = false>(options: Options<DeleteNoteData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteNoteResponses, DeleteNoteErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/notes/{nid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Note
+   * Change its text, or share or unshare it: its writer only. Sharing needs editor access; sharing and unsharing
+   * are audited (`note.share`, `note.unshare`).
+   */
+  public static updateNote<ThrowOnError extends boolean = false>(options: Options<UpdateNoteData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateNoteResponses, UpdateNoteErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/notes/{nid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

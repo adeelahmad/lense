@@ -589,6 +589,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS saved_view SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS saved_view_account ON saved_view FIELDS account",
     "DEFINE INDEX IF NOT EXISTS saved_view_space ON saved_view FIELDS space",
+    # notes on recordings, yours or shared with everyone who can read it (app/domain/notes.py)
+    "DEFINE TABLE IF NOT EXISTS note SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS note_rec ON note FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS note_account ON note FIELDS account",
     "DEFINE INDEX IF NOT EXISTS saved_collection_owner ON saved_collection FIELDS account",
     "DEFINE TABLE IF NOT EXISTS batch SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_batch ON job FIELDS batch",

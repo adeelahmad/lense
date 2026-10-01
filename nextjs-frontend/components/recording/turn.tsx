@@ -1,6 +1,6 @@
 "use client";
 
-import { ScanFace } from "lucide-react";
+import { ScanFace, StickyNote } from "lucide-react";
 import Link from "next/link";
 import { memo, type MouseEvent, type ReactNode } from "react";
 
@@ -34,6 +34,8 @@ export const TurnView = memo(function TurnView({
   entityNames,
   unsure,
   onScreen,
+  notes,
+  onNotes,
   editing,
   editTarget,
   onSeek,
@@ -52,6 +54,9 @@ export const TurnView = memo(function TurnView({
   unsure: Unsure | null;
   /** Video: this voice's face is on screen in the recording. */
   onScreen?: boolean;
+  /** How many of the notes you see are about this turn's moments; the mark opens the Notes tab. */
+  notes?: number;
+  onNotes?: () => void;
   editing: boolean;
   /** The segment being edited, if it's in this turn. */
   editTarget: EditTarget | null;
@@ -107,6 +112,17 @@ export const TurnView = memo(function TurnView({
             <ScanFace aria-hidden className="size-[11px]" /> on screen
           </span>
         )}
+        {notes ? (
+          <button
+            type="button"
+            onClick={onNotes}
+            aria-label={`${notes} ${notes === 1 ? "note" : "notes"} about this, open Notes`}
+            title="Open Notes"
+            className="inline-flex h-[18px] items-center gap-[3px] rounded-pill bg-surface-neutral px-1.5 text-[10.5px] font-semibold leading-none text-fg-secondary hover:bg-border hover:text-fg"
+          >
+            <StickyNote aria-hidden className="size-[11px]" /> {notes}
+          </button>
+        ) : null}
         {editing && <ReassignMenu turn={turn} current={speaker} />}
         {unsure && (
           <span

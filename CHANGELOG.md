@@ -26,6 +26,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Notes on recordings.** Select words in the transcript and choose Add note, or write one in the new Notes tab about
+  where the player is or about the whole recording. Notes are yours; editors can share theirs with everyone who can
+  read the recording (decided with the project owner, like saved views). Turns with notes get a mark that opens the
+  tab, and each note's time plays from there.
+    - `GET`/`POST /api/v1/recordings/{rid}/notes`, `PATCH`/`DELETE …/notes/{nid}` (new `note` table; docs/api.md):
+      text, an optional moment (`t0`, `t1` in ms) and quote, and `shared`. Only its writer changes a note; its writer,
+      or an owner of the namespace for a shared one, deletes it. Sharing, unsharing and deleting a shared note are
+      audited.
+    - Notes move with their recording and go when it's deleted.
 - **Chat: draw on collections as they are.** Scoping a conversation to a collection keeps the collection, not a copy
   of its first 200 recordings: the assistant reads its recordings each time it answers, so a filter collection's new
   recordings count. Several collections can be picked; the scope chip names them.

@@ -13,7 +13,14 @@ import { useWave } from "@/components/recording/audio-layout";
 import { ChapterNow } from "@/components/recording/chapters";
 import { useRec, type PanelTab } from "@/components/recording/context";
 import { Banners, HeaderActions } from "@/components/recording/header";
-import { AUDIO_TABS, MORE_TABS, PanelBody, PanelScroll, PanelTabs } from "@/components/recording/side-panel";
+import {
+  AUDIO_TABS,
+  MORE_TABS,
+  PanelBody,
+  PanelScroll,
+  PanelTabs,
+  useAudioTabs,
+} from "@/components/recording/side-panel";
 import { Transcript } from "@/components/recording/transcript";
 import { tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -43,11 +50,11 @@ export function MobileLayout() {
     setTab(t);
     setSheet(true);
   };
-  // "Ask in chat" and the ⋯ menu's History switch the tab; open the sheet to show it.
+  // "Ask in chat", "Add note" and the ⋯ menu's History switch the tab; open the sheet to show it.
   const [lastTab, setLastTab] = useState(tab);
   if (tab !== lastTab) {
     setLastTab(tab);
-    if (tab === "chat" || tab === "history" || tab === "details") setSheet(true);
+    if (tab === "chat" || tab === "notes" || tab === "history" || tab === "details") setSheet(true);
   }
 
   return (
@@ -96,6 +103,8 @@ export function MobileLayout() {
 
 function Sheet({ tab, setTab }: { tab: PanelTab; setTab: (t: PanelTab) => void }) {
   const [full, setFull] = useState(false);
+  const counted = useAudioTabs();
+  const tabs = SHEET_TABS.map((t) => counted.find((c) => c.value === t.value) ?? t);
   const current = [...SHEET_TABS, ...SHEET_MORE].some((t) => t.value === tab) ? tab : "summary";
   return (
     <D.Content
@@ -114,14 +123,7 @@ function Sheet({ tab, setTab }: { tab: PanelTab; setTab: (t: PanelTab) => void }
       >
         <span className="h-1 w-9 rounded-[2px] bg-border" />
       </button>
-      <PanelTabs
-        tabs={SHEET_TABS}
-        more={SHEET_MORE}
-        value={current}
-        onChange={setTab}
-        idBase="sheet"
-        className="px-3"
-      />
+      <PanelTabs tabs={tabs} more={SHEET_MORE} value={current} onChange={setTab} idBase="sheet" className="px-3" />
       <PanelScroll id="sheet" tab={current} className="px-[18px]">
         <PanelBody tab={current} />
       </PanelScroll>

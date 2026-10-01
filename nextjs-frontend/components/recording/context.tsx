@@ -5,6 +5,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import type { RecordingDetail } from "@/components/recording/hooks";
 import type { JobInfo, PageState } from "@/components/recording/jobs";
 import type { EntityRef, FindHit, PlayerModel, SpeakerInfo, Turn } from "@/components/recording/model";
+import type { NoteDraft } from "@/components/recording/notes-model";
 import type { Role } from "@/lib/hooks/session";
 
 export type PanelTab =
@@ -52,6 +53,10 @@ export type RecordingCtx = {
   chatDraft: string | null;
   askInChat: (quote: string) => void;
   clearChatDraft: () => void;
+  /** A moment and its words waiting to start a note (the transcript's "Add note"). */
+  noteDraft: NoteDraft | null;
+  addNote: (draft: NoteDraft) => void;
+  clearNoteDraft: () => void;
   editing: boolean;
   setEditing: (on: boolean) => void;
   openReprocess: () => void;

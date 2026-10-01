@@ -3,9 +3,9 @@ folders don't import it again (docs/api.md).
 
 What goes: its transcript and everything derived from it (segments, speakers' appearances, chapters, entities'
 mentions, terms, edits), video shots, text on screen and face tracks with their frames, outputs and reports, shares,
-permissions, requests for access, and its place in IP groups, fixed collections, chat scopes and batch runs that haven't
-started it. Speakers and faces that only it had, and that nobody named, go too; named ones stay. Its jobs are cancelled
-(a job that is running has to stop first), and harvesters hear a Delete when it was public.
+notes, permissions, requests for access, and its place in IP groups, fixed collections, chat scopes and batch runs
+that haven't started it. Speakers and faces that only it had, and that nobody named, go too; named ones stay. Its jobs
+are cancelled (a job that is running has to stop first), and harvesters hear a Delete when it was public.
 
 What stays: the media file, the audit log, IIIF change discovery, and a note (`gone_recording`) of its path,
 fingerprint and remote file, which scans and watched folders check. Importing the file on purpose (the Import dialog,
@@ -36,6 +36,7 @@ OWN = (
     "face_track",
     "share_link",
     "share_embed",
+    "note",
     "permission",
     "access_request",
 )

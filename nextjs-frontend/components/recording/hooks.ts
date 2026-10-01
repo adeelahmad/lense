@@ -3,8 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
-import { Entities, Jobs, Pipelines, Recordings, Speakers, Templates, Video } from "@/app/openapi-client";
-import type { Recording } from "@/app/openapi-client/types.gen";
+import { Entities, Jobs, Notes, Pipelines, Recordings, Speakers, Templates, Video } from "@/app/openapi-client";
+import type { NoteCreate, Recording } from "@/app/openapi-client/types.gen";
 import { isActive, normalizeJob, type JobInfo } from "@/components/recording/jobs";
 import { normalizePlayer } from "@/components/recording/model";
 import { useToast } from "@/components/ui/toast";
@@ -19,6 +19,7 @@ export const rk = {
   edits: (id: number) => ["recording", id, "edits"] as const,
   outputs: (id: number) => ["recording", id, "outputs"] as const,
   entities: (id: number) => ["recording", id, "entities"] as const,
+  notes: (id: number) => ["recording", id, "notes"] as const,
   job: (jid: number) => ["job", jid] as const,
 };
 
@@ -190,6 +191,53 @@ export function useNamespaceFaces(ns: string | null | undefined, enabled = true)
 }
 
 /** Mutations shared by the page; each refreshes what it touched and reports failures in a toast. */
+/** Your notes on the recording and the ones shared on it (the Notes tab, and the marks in the transcript). */
+export function useNotes(id: number) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: rk.notes(id),
+    queryFn: () => data(Notes.listNotes({ client, path: { rid: id } })),
+    staleTime: 0, // others share and delete notes while the page is open
+  });
+}
+
+/** Write, change, share or unshare, and delete notes; each refreshes the list. */
+export function useNoteActions(id: number) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const fail = (title: string) => (e: unknown) =>
+    toast({ title, body: e instanceof ApiError ? e.message : "Please try again.", tone: "red" });
+  const refresh = () => qc.invalidateQueries({ queryKey: rk.notes(id) });
+  const create = useMutation({
+    mutationFn: (body: NoteCreate) => data(Notes.createNote({ client, path: { rid: id }, body })),
+    onSuccess: (n) => {
+      void refresh();
+      toast({ title: n.shared ? "Note shared" : "Note added", tone: "green" });
+    },
+    onError: fail("Couldn't add the note"),
+  });
+  const update = useMutation({
+    mutationFn: (v: { nid: number; text?: string; shared?: boolean }) =>
+      data(Notes.updateNote({ client, path: { rid: id, nid: v.nid }, body: { text: v.text, shared: v.shared } })),
+    onSuccess: (n, v) => {
+      void refresh();
+      if (v.shared !== undefined)
+        toast({ title: n.shared ? "Shared with everyone who can read it" : "Only you see it now", tone: "green" });
+    },
+    onError: fail("Couldn't change the note"),
+  });
+  const remove = useMutation({
+    mutationFn: (nid: number) => data(Notes.deleteNote({ client, path: { rid: id, nid } })),
+    onSuccess: () => {
+      void refresh();
+      toast({ title: "Note deleted", tone: "green" });
+    },
+    onError: fail("Couldn't delete the note"),
+  });
+  return { create, update, remove };
+}
+
 export function useRecordingActions(id: number) {
   const client = useApiClient();
   const qc = useQueryClient();

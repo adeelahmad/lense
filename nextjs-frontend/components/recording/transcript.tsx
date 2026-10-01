@@ -18,9 +18,10 @@ import { prefersReducedMotion, usePlayerApi, usePlayerState } from "@/components
 import { useRec } from "@/components/recording/context";
 import { EditProvider, EditToolbar, useEdit } from "@/components/recording/edit";
 import { transcriptOrigin } from "@/components/recording/labels";
-import { useNamespaceFaces, useSpeakerDirectory } from "@/components/recording/hooks";
+import { useNamespaceFaces, useNotes, useSpeakerDirectory } from "@/components/recording/hooks";
 import { currentStep } from "@/components/recording/jobs";
 import { segmentAt } from "@/components/recording/model";
+import { draftFromSelection, notesAt } from "@/components/recording/notes-model";
 import { TurnView, type Unsure } from "@/components/recording/turn";
 import { ShareMoment } from "@/components/iiif/iiif-panel";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,18 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
     return m;
   }, [find.hits]);
   const currentHit = find.hits[find.index] ?? null;
+  // Turns that notes are about get a mark that opens the Notes tab.
+  const notes = useNotes(r.id).data;
+  const noteCounts = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const t of notes?.length ? turns : []) {
+      const n = notesAt(notes ?? [], t.t0, t.t1).length;
+      if (n) m.set(t.key, n);
+    }
+    return m;
+  }, [notes, turns]);
+  const { setTab } = r;
+  const openNotes = useCallback(() => setTab("notes"), [setTab]);
   const entityNames = useMemo(() => {
     const m = new Map<number, string[]>();
     for (const e of model.entities) for (const s of e.segs) m.set(s, [...(m.get(s) ?? []), e.name]);
@@ -267,6 +280,8 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
               entityNames={entityNames}
               unsure={t.speaker ? (unsure.get(t.speaker) ?? null) : null}
               onScreen={Boolean(t.speaker && onScreen.has(t.speaker))}
+              notes={noteCounts.get(t.key)}
+              onNotes={openNotes}
               editing={editing}
               editTarget={edit?.target ?? null}
               onSeek={onSeek}
@@ -431,9 +446,10 @@ export function timeAtOffset(seg: { t0: number; t1: number; text: string }, offs
   return Math.round(seg.t0 + (seg.t1 - seg.t0) * f);
 }
 
-/** Selecting transcript text offers Copy link at that moment, Ask in chat (with the quote) and Add note. */
+/** Selecting transcript text offers Copy link at that moment, a IIIF link, Ask in chat (with the quote) and Add note
+ * (a note about that moment, quoting it). */
 function SelectionToolbar({ box }: { box: React.RefObject<HTMLDivElement | null> }) {
-  const { id, model, askInChat } = useRec();
+  const { id, model, askInChat, addNote } = useRec();
   const toast = useToast();
   const [sel, setSel] = useState<{
     x: number;
@@ -561,15 +577,17 @@ function SelectionToolbar({ box }: { box: React.RefObject<HTMLDivElement | null>
         >
           <MessagesSquare className="size-3.5" /> Ask in chat
         </button>
-        <Tooltip content="Notes aren't available yet">
-          <button
-            type="button"
-            aria-disabled
-            className="flex h-[30px] cursor-not-allowed items-center gap-1.5 rounded-[7px] px-2.5 opacity-50"
-          >
-            <StickyNote className="size-3.5" /> Add note
-          </button>
-        </Tooltip>
+        <button
+          type="button"
+          onClick={() => {
+            addNote(draftFromSelection(sel.t, sel.end, sel.quote));
+            window.getSelection()?.removeAllRanges();
+            setSel(null);
+          }}
+          className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
+        >
+          <StickyNote className="size-3.5" /> Add note
+        </button>
       </div>
     </>
   );
