@@ -26,6 +26,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Runs of one namespace or one batch, from the server.** Activity's namespace filter asks the server, so the status
+  counts and the 200 rows shown are that namespace's (they were the newest 200 of every namespace, filtered in the
+  browser), and its menu says how many runs each namespace has. A batch run's page lists all of its jobs; it showed
+  those among the 500 newest jobs of the archive. `GET /api/v1/jobs` takes `batch` and `namespace`, and returns
+  `namespaces` (jobs per namespace) next to `counts`; `limit` goes up to 2,000 (docs/api.md). Live updates keep each
+  filtered list to its own jobs.
 - **Pause, drain and resume workers.** Activity → Workers lets admins pause a worker (it takes no new runs; the one
   it has carries on to the end), drain it (it also hands that run back to the queue after the step it's on, so another
   worker carries on, and stays paused) and resume it. Each card shows the machine's CPU load and the steps the worker

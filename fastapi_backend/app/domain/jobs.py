@@ -571,7 +571,7 @@ def _decorate(db, rows):
     return rows
 
 
-def list_jobs(db, spaces=None, status=None, recording=None, limit=100):
+def _where(spaces=None, status=None, recording=None, batch=None):
     where, p = [], {}
     if spaces is not None:
         where.append("space IN $sp")
@@ -582,8 +582,16 @@ def list_jobs(db, spaces=None, status=None, recording=None, limit=100):
     if recording:
         where.append("recording = $r")
         p["r"] = int(recording)
-    q = f"SELECT {FIELDS} FROM job" + (" WHERE " + " AND ".join(where) if where else "") + f" ORDER BY created_at DESC LIMIT {int(limit)}"
-    return _decorate(db, db.rows(q, **p))
+    if batch is not None:
+        where.append("batch = $b")
+        p["b"] = int(batch)
+    return (" WHERE " + " AND ".join(where) if where else ""), p
+
+
+def list_jobs(db, spaces=None, status=None, recording=None, limit=100, batch=None):
+    """The newest jobs (in these namespaces, with these statuses, of this recording or batch run)."""
+    where, p = _where(spaces, status, recording, batch)
+    return _decorate(db, db.rows(f"SELECT {FIELDS} FROM job{where} ORDER BY created_at DESC LIMIT {int(limit)}", **p))
 
 
 def changes(db, since, spaces=None, only=None):
@@ -597,9 +605,16 @@ def changes(db, since, spaces=None, only=None):
     return _decorate(db, db.rows(q, s=since or "", sp=sorted(spaces or []), j=R("job", only or 0)))
 
 
-def counts(db, spaces=None):
-    q = "SELECT status, count() AS n FROM job" + (" WHERE space IN $sp" if spaces is not None else "") + " GROUP BY status"
-    return {r["status"]: r["n"] for r in db.rows(q, sp=sorted(spaces or []))}
+def counts(db, spaces=None, batch=None):
+    """How many jobs there are of each status (in these namespaces, of this batch run)."""
+    where, p = _where(spaces, batch=batch)
+    return {r["status"]: r["n"] for r in db.rows(f"SELECT status, count() AS n FROM job{where} GROUP BY status", **p)}
+
+
+def per_space(db, spaces=None, batch=None):
+    """How many jobs each namespace has (id -> count)."""
+    where, p = _where(spaces, batch=batch)
+    return {r["space"]: r["n"] for r in db.rows(f"SELECT space, count() AS n FROM job{where} GROUP BY space", **p) if r.get("space")}
 
 
 def machine_load():

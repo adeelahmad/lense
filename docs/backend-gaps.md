@@ -64,7 +64,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| Jobs of one batch (today: filtered from the 500 most recent) | `GET /jobs?batch=` |
 | "Keep theirs" (skip recordings that already have an output) | a skip-existing option |
 | The "Moment" column in results | per-result timestamps |
 | Combine with a versioned template; PDF output | template versions and PDF in `/combine` |
@@ -76,7 +75,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| Filter jobs by namespace with counts | `/jobs?namespace=` |
 | Test a source in stages (reach, sign-in, list); OAuth token expiry | staged test results; `expires_at` on sources |
 | Per-file scan errors | `/watches/{id}/files?status=error` |
 | Which local folders may be watched | list `sources.local_roots` for admins |

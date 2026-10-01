@@ -322,3 +322,31 @@ def test_a_busy_worker_keeps_its_heartbeat(db, cfg, folder, monkeypatch):
     jobs.enqueue(db, a, ["analyze"])
     assert jobs.Worker(db, lambda: cfg, name="slow", steps=["analyze"]).drain() == 1
     assert seen[0] > "2000-01-01T00:00:00+00:00"  # it beat during the step
+
+
+def test_jobs_of_a_namespace_or_batch(client, db, cfg, folder):
+    a, b, call = seed(db, cfg, folder)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    hr = login(client, "root@x.io", "root password 1")
+    he = login(client, "ed@x.io", "editor password 1")
+    in_batch = [jobs.enqueue(db, a, ["analyze"], batch=7), jobs.enqueue(db, call, ["analyze"], batch=7)]
+    alone = jobs.enqueue(db, b, ["report"])
+    jobs.cancel(db, alone)
+
+    pods = client.get("/api/v1/jobs", params={"namespace": "pods"}, headers=he).json()
+    assert {j["id"] for j in pods["jobs"]} == {in_batch[0], alone}
+    assert pods["counts"] == {"queued": 1, "cancelled": 1} and pods["namespaces"] == {"pods": 2}
+    # counts stay those of the namespace whatever the status filter
+    queued = client.get("/api/v1/jobs", params={"namespace": "pods", "status": "queued"}, headers=he).json()
+    assert [j["id"] for j in queued["jobs"]] == [in_batch[0]] and queued["counts"] == pods["counts"]
+    assert client.get("/api/v1/jobs", params={"namespace": "calls"}, headers=he).status_code == 404  # no role there
+    assert client.get("/api/v1/jobs", params={"namespace": "nope"}, headers=hr).status_code == 404
+
+    # a batch run's jobs, in the namespaces you can read
+    assert {j["id"] for j in client.get("/api/v1/jobs", params={"batch": 7}, headers=hr).json()["jobs"]} == set(in_batch)
+    mine = client.get("/api/v1/jobs", params={"batch": 7}, headers=he).json()
+    assert [j["id"] for j in mine["jobs"]] == [in_batch[0]] and mine["counts"] == {"queued": 1}
+    everyone = client.get("/api/v1/jobs", headers=hr).json()
+    assert everyone["namespaces"] == {"pods": 2, "calls": 1} and sum(everyone["counts"].values()) == 3
+    assert client.get("/api/v1/jobs", params={"batch": 8}, headers=hr).json()["jobs"] == []

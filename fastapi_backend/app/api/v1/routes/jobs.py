@@ -39,16 +39,22 @@ def list_jobs(
     db: Db,
     status: str | None = Query(None, description="comma separated, e.g. queued,running"),
     recording: int | None = None,
-    limit: int = Query(100, ge=1, le=500),
+    batch: int | None = Query(None, description="only this batch run's jobs"),
+    namespace: str | None = Query(None, description="only this namespace's jobs (404 when you can't read it)"),
+    limit: int = Query(100, ge=1, le=2000),
 ) -> JobList:
-    """Recent jobs with counts by status, plus the latest job's step and log (for the progress bar)."""
-    sp = acl.readable()
-    rows = jobs.list_jobs(db, sp, status.split(",") if status else None, recording, limit)
-    counts = jobs.counts(db, sp)
+    """Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of
+    any status), plus the latest job's step and log (for the progress bar)."""
+    sp = {acl.namespace(namespace)} if namespace else acl.readable()
+    rows = jobs.list_jobs(db, sp, status.split(",") if status else None, recording, limit, batch)
+    counts = jobs.counts(db, sp, batch)
+    names = store.space_names(db)
+    by_ns = {names[k]: n for k, n in jobs.per_space(db, acl.readable(), batch).items() if k in names}
     latest = (jobs.get(db, rows[0]["id"]) if rows else None) or {}
     return JobList(
         jobs=rows,
         counts=counts,
+        namespaces=by_ns,
         running=bool(counts.get("queued") or counts.get("running")),
         step=latest.get("next_step") or (latest.get("steps") or [None])[-1],
         returncode=None if not latest or latest["status"] in jobs.ACTIVE else (0 if latest["status"] == "succeeded" else 1),

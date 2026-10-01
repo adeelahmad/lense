@@ -34,15 +34,12 @@ export type BatchJob = Job & {
   attempts?: number | null;
 };
 
-/** The batch's jobs, one per recording (the jobs list has no batch filter, so recent jobs are filtered here). */
+/** The batch's jobs, one per recording (in the namespaces you can read). */
 export function useBatchJobs(id: number, active: boolean) {
   const client = useApiClient();
   return useQuery({
     queryKey: ["batch-jobs", id],
-    queryFn: async () =>
-      (await data(Jobs.listJobs({ client, query: { limit: 500 } }))).jobs.filter(
-        (j) => (j as BatchJob).batch === id,
-      ) as BatchJob[],
+    queryFn: async () => (await data(Jobs.listJobs({ client, query: { batch: id, limit: 2000 } }))).jobs as BatchJob[],
     refetchInterval: active ? 4000 : false,
   });
 }

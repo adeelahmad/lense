@@ -6338,7 +6338,7 @@
           "jobs"
         ],
         "summary": "List Jobs",
-        "description": "Recent jobs with counts by status, plus the latest job's step and log (for the progress bar).",
+        "description": "Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of\nany status), plus the latest job's step and log (for the progress bar).",
         "operationId": "list_jobs",
         "parameters": [
           {
@@ -6376,12 +6376,48 @@
             }
           },
           {
+            "name": "batch",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only this batch run's jobs",
+              "title": "Batch"
+            },
+            "description": "only this batch run's jobs"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only this namespace's jobs (404 when you can't read it)",
+              "title": "Namespace"
+            },
+            "description": "only this namespace's jobs (404 when you can't read it)"
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 500,
+              "maximum": 2000,
               "minimum": 1,
               "default": 100,
               "title": "Limit"
@@ -12828,7 +12864,16 @@
               "type": "integer"
             },
             "type": "object",
-            "title": "Counts"
+            "title": "Counts",
+            "description": "jobs of each status (in `namespace` and `batch`, whatever `status`)"
+          },
+          "namespaces": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Namespaces",
+            "description": "jobs in each namespace you can read (in `batch`, whatever `status`)"
           },
           "running": {
             "type": "boolean",

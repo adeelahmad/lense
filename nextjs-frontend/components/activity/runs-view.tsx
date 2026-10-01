@@ -121,9 +121,11 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
   }>({ ns: "", worker: "", trigger: "", pipeline: "" });
   const [open, setOpen] = useState<Set<number>>(new Set());
   const [cancelling, setCancelling] = useState<JobRecord | null>(null);
+  const nsFilter = filters.ns || namespace || "";
   const list = useJobList({
     status: status === "all" ? undefined : status,
     limit: 200,
+    namespace: nsFilter, // on the server, so the counts and the 200 rows are that namespace's
   });
   const batches = useQuery({
     queryKey: ["batches"],
@@ -162,7 +164,6 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
       }),
   });
 
-  const nsFilter = filters.ns || namespace || "";
   const jobs = list.jobs;
   const total = Object.values(list.counts).reduce((a, n) => a + n, 0);
 
@@ -171,16 +172,17 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
     const batchIds = new Set(((batches.data ?? []) as BatchInfo[]).map((b) => b.id));
     const out: Item[] = jobs
       .filter((j) => !(status === "all" && j.batch != null && batchIds.has(j.batch)))
-      .filter((j) => !nsFilter || spaces[j.space ?? -1] === nsFilter)
       .filter((j) => !filters.worker || j.worker === filters.worker)
       .filter((j) => !filters.trigger || j.created_by === filters.trigger)
       .filter((j) => !filters.pipeline || pipelineKey(j.pipeline) === filters.pipeline)
       .map((j) => ({ id: `j${j.id}`, at: j.created_at ?? "", job: j }));
     if (status === "all" && !filters.worker && !filters.trigger && !filters.pipeline)
+      // with a namespace chosen, only batches with runs in it (a batch can span namespaces)
       for (const b of (batches.data ?? []) as BatchInfo[])
-        out.push({ id: `b${b.id}`, at: b.created_at ?? "", batch: b });
+        if (!nsFilter || jobs.some((j) => j.batch === b.id))
+          out.push({ id: `b${b.id}`, at: b.created_at ?? "", batch: b });
     return out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
-  }, [jobs, batches.data, status, nsFilter, filters.worker, filters.trigger, filters.pipeline, spaces]);
+  }, [jobs, batches.data, status, nsFilter, filters.worker, filters.trigger, filters.pipeline]);
 
   // Keep what is on screen still while scrolled down; new runs wait behind a pill.
   const filterKey = `${status}|${nsFilter}|${filters.worker}|${filters.trigger}|${filters.pipeline}`;
@@ -356,7 +358,7 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                       },
                       ...namespaces.map((n) => ({
                         value: n.name,
-                        label: n.name,
+                        label: `${n.name} · ${list.perNamespace[n.name] ?? 0} ${list.perNamespace[n.name] === 1 ? "run" : "runs"}`,
                       })),
                     ]}
                   />

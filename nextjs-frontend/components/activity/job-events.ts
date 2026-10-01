@@ -7,11 +7,12 @@
  */
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
 import type { JobList } from "@/app/openapi-client/types.gen";
 import { applyCount, applyJobEvent, type JobRecord } from "@/components/activity/job-model";
 import { streamSSE } from "@/lib/api/sse";
+import { useArchive } from "@/lib/hooks/session";
 
 export type FeedStatus = "connecting" | "live" | "polling";
 type Listener = (job: JobRecord) => void;
@@ -144,14 +145,22 @@ export function useJobEvents(onJob?: Listener, onOpen?: () => void): FeedStatus 
   );
 }
 
-type JobsKeyOpts = { status?: string; recording?: number; limit?: number } | undefined;
+type JobsKeyOpts =
+  | { status?: string; recording?: number; limit?: number; namespace?: string; batch?: number }
+  | undefined;
 
-/** Patch every cached job list (query keys ["jobs", {status, recording, limit}]) with one change. */
-export function patchJobLists(qc: QueryClient, job: JobRecord) {
+/**
+ * Patch every cached job list (query keys ["jobs", {status, recording, limit, namespace, batch}]) with one change.
+ * `spaceIds` (namespace name → id) lets a namespace's list take only its own jobs; without it those lists wait for
+ * their next refetch.
+ */
+export function patchJobLists(qc: QueryClient, job: JobRecord, spaceIds?: Record<string, number>) {
   for (const q of qc.getQueryCache().findAll({ queryKey: ["jobs"] })) {
     const opts = q.queryKey[1] as JobsKeyOpts;
     if (opts && typeof opts !== "object") continue;
     if (opts?.recording != null && Number(opts.recording) !== job.recording) continue;
+    if (opts?.batch != null && Number(opts.batch) !== job.batch) continue;
+    if (opts?.namespace && (spaceIds?.[opts.namespace] == null || spaceIds[opts.namespace] !== job.space)) continue;
     const statuses = opts?.status ? opts.status.split(",") : null;
     qc.setQueryData<JobList>(q.queryKey, (old) => {
       if (!old || !Array.isArray(old.jobs)) return old;
@@ -172,9 +181,11 @@ export function patchJobLists(qc: QueryClient, job: JobRecord) {
  */
 export function useJobCacheSync(onJob?: Listener): FeedStatus {
   const qc = useQueryClient();
+  const { namespaces } = useArchive();
+  const ids = useMemo(() => Object.fromEntries(namespaces.map((n) => [n.name, n.id])), [namespaces]);
   return useJobEvents(
     (job) => {
-      patchJobLists(qc, job);
+      patchJobLists(qc, job, ids);
       onJob?.(job);
     },
     () => void qc.invalidateQueries({ queryKey: ["jobs"] }),

@@ -2383,8 +2383,16 @@ export type JobList = {
   jobs: Array<Job>;
   /**
    * Counts
+   * jobs of each status (in `namespace` and `batch`, whatever `status`)
    */
   counts: {
+    [key: string]: number;
+  };
+  /**
+   * Namespaces
+   * jobs in each namespace you can read (in `batch`, whatever `status`)
+   */
+  namespaces?: {
     [key: string]: number;
   };
   /**
@@ -2408,6 +2416,9 @@ export type JobList = {
   [key: string]:
     | unknown
     | Array<Job>
+    | {
+        [key: string]: number;
+      }
     | {
         [key: string]: number;
       }
@@ -10505,6 +10516,16 @@ export type ListJobsData = {
      * Recording
      */
     recording?: number | null;
+    /**
+     * Batch
+     * only this batch run's jobs
+     */
+    batch?: number | null;
+    /**
+     * Namespace
+     * only this namespace's jobs (404 when you can't read it)
+     */
+    namespace?: string | null;
     /**
      * Limit
      */

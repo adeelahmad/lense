@@ -341,6 +341,11 @@ every 15 s while it runs a job), `current` job, `paused`/`draining` (with `pause
 stops it taking new jobs; `drain` also hands the job it has back to the queue after the step it's on (it stays paused);
 `resume` undoes either. Each returns the worker, is for admins, and is audited as `worker.<action>`.
 
+`GET /jobs` lists the newest jobs (`limit`, up to 2,000) in the namespaces you can read, filtered by `status`
+(comma separated), `recording`, `batch` (a batch run's jobs) and `namespace` (404 when you can't read it). `counts`
+gives the jobs of each status and `namespaces` the jobs in each namespace, both over `namespace` and `batch` but any
+status, so a client can show its filters' counts while one is applied.
+
 Every job names its recording (`title`) and the pipeline it runs with the version it pinned (`pipeline`:
 `{id, version, name}`; `{name: "Standard"}` for the standard steps, null when the steps were chosen directly).
 `GET /jobs/{jid}` adds how each step went, `step_runs` (one per step, null until it runs): `started_at`, `finished_at`,

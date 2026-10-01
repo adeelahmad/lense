@@ -79,7 +79,10 @@ class JobLog(ResponseModel):
 
 class JobList(ResponseModel):
     jobs: list[Job]
-    counts: dict[str, int]
+    counts: dict[str, int] = Field(description="jobs of each status (in `namespace` and `batch`, whatever `status`)")
+    namespaces: dict[str, int] = Field(
+        default_factory=dict, description="jobs in each namespace you can read (in `batch`, whatever `status`)"
+    )
     running: bool
     step: Any = Field(None, description="the latest job's current (or last) step")
     returncode: int | None = Field(None, description="the latest job: null while active, 0 succeeded, 1 otherwise")

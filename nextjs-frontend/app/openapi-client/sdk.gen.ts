@@ -2282,7 +2282,8 @@ export class Iiif {
 export class Jobs {
   /**
    * List Jobs
-   * Recent jobs with counts by status, plus the latest job's step and log (for the progress bar).
+   * Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of
+   * any status), plus the latest job's step and log (for the progress bar).
    */
   public static listJobs<ThrowOnError extends boolean = false>(options?: Options<ListJobsData, ThrowOnError>) {
     return (options?.client ?? client).get<ListJobsResponses, ListJobsErrors, ThrowOnError>({
