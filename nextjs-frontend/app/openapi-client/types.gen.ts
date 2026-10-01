@@ -2462,6 +2462,17 @@ export type Me = {
 };
 
 /**
+ * MeUpdate
+ */
+export type MeUpdate = {
+  /**
+   * Name
+   * whitespace is collapsed
+   */
+  name: string;
+};
+
+/**
  * Member
  */
 export type Member = {
@@ -3018,6 +3029,21 @@ export type Passage = {
     | boolean
     | null
     | undefined;
+};
+
+/**
+ * PasswordChange
+ */
+export type PasswordChange = {
+  /**
+   * Current Password
+   */
+  current_password: string;
+  /**
+   * New Password
+   * at least 10 characters
+   */
+  new_password: string;
 };
 
 /**
@@ -6253,6 +6279,56 @@ export type MeResponses = {
 };
 
 export type MeResponse = MeResponses[keyof MeResponses];
+
+export type UpdateMeData = {
+  body: MeUpdate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/me";
+};
+
+export type UpdateMeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateMeError = UpdateMeErrors[keyof UpdateMeErrors];
+
+export type UpdateMeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Me;
+};
+
+export type UpdateMeResponse = UpdateMeResponses[keyof UpdateMeResponses];
+
+export type ChangePasswordData = {
+  body: PasswordChange;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/password";
+};
+
+export type ChangePasswordErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangePasswordError = ChangePasswordErrors[keyof ChangePasswordErrors];
+
+export type ChangePasswordResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type ChangePasswordResponse = ChangePasswordResponses[keyof ChangePasswordResponses];
 
 export type ForgotPasswordData = {
   body: ForgotPasswordRequest;

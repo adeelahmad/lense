@@ -21,6 +21,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - `speaker` takes speaker ids. Speakers belong to one namespace, so the web app's speaker filter lists everyone
       who speaks in the namespaces in scope by name and sends every id with that name.
     - The Needs attention and Processing tab counts come from the server too.
+- **Your own name and password.** Everyone changes their own name on the Profile page, and their password with their
+  current one: `PATCH /api/v1/auth/me` and `POST /api/v1/auth/password` (signed in, not with an API token; wrong
+  guesses are throttled like sign-ins; audited as `password.change`). A new password ends your other sessions and
+  keeps this one; your API tokens and this device stay signed in. The reset link stays for a forgotten password.
 - **Tags on recordings.** Editors tag recordings from the Library's bulk bar (add tags, or take off ones they have);
   the Library filters by tags and shows them in a Tags column. `PATCH /api/v1/recordings/{rid}` takes `tags`,
   `POST /api/v1/recordings/tags` changes several at once, `GET /api/v1/recordings/tags` lists the tags in use, and

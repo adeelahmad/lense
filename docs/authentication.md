@@ -26,7 +26,8 @@ Sign out ──► POST /api/v1/auth/logout (ends the session on the API too)
 * **Refresh tokens** are random, stored only as hashes, one session per signed-in device, valid for
   `server.session_hours`. Each refresh rotates the token. A rotated token that comes back within 60 seconds is
   accepted (two tabs refreshing at once); after that it ends the whole session, because it was probably copied.
-* Changing a password or disabling an account ends all of that person's sessions.
+* An admin changing someone's password, a reset link, or disabling an account ends all of that person's sessions.
+  Changing your own password (with your current one) ends your other sessions and keeps the one you used.
 
 | Endpoint | |
 |---|---|
@@ -34,6 +35,8 @@ Sign out ──► POST /api/v1/auth/logout (ends the session on the API too)
 | `POST /api/v1/auth/setup` | first admin, with the setup code |
 | `POST /api/v1/auth/login` · `/refresh` · `/logout` | token pairs |
 | `GET /api/v1/auth/me` | the account, roles by namespace, and how the caller authenticated |
+| `PATCH /api/v1/auth/me` | change your own name |
+| `POST /api/v1/auth/password` | change your own password with your current one (signed in, not with an API token); wrong guesses are throttled like sign-ins; audited as `password.change` |
 | `POST /api/v1/auth/password/forgot` · `/reset` | email a one-time reset link (60 minutes); answers the same for unknown emails |
 
 Reset emails go through the SMTP server in `MAIL_*`; without one, the link is written to the API log.

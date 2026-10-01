@@ -18,6 +18,12 @@ import type {
   LogoutErrors,
   MeData,
   MeResponses,
+  UpdateMeData,
+  UpdateMeResponses,
+  UpdateMeErrors,
+  ChangePasswordData,
+  ChangePasswordResponses,
+  ChangePasswordErrors,
   ForgotPasswordData,
   ForgotPasswordResponses,
   ForgotPasswordErrors,
@@ -599,6 +605,39 @@ export class Auth {
     return (options?.client ?? client).get<MeResponses, unknown, ThrowOnError>({
       url: "/api/v1/auth/me",
       ...options,
+    });
+  }
+
+  /**
+   * Update Me
+   * Change your own name.
+   */
+  public static updateMe<ThrowOnError extends boolean = false>(options: Options<UpdateMeData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateMeResponses, UpdateMeErrors, ThrowOnError>({
+      url: "/api/v1/auth/me",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Change Password
+   * Change your own password, with your current one (signed in; not with an API token). Your other sessions end
+   * and this one stays; API tokens keep working. Audited as `password.change`.
+   */
+  public static changePassword<ThrowOnError extends boolean = false>(
+    options: Options<ChangePasswordData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<ChangePasswordResponses, ChangePasswordErrors, ThrowOnError>({
+      url: "/api/v1/auth/password",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

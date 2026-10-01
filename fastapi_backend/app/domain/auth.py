@@ -128,6 +128,35 @@ def update_account(db, uid, name=None, admin=None, disabled=None, password=None)
         db.q("DELETE login_session WHERE account = $a", a=uid)
 
 
+def change_password(db, uid, current, new, keep_sid=None, key=""):
+    """Someone changes their own password: the current one first. Their other sessions end (this one, keep_sid, stays)
+    and so do reset links they asked for. Wrong current passwords count towards the sign-in throttle (key)."""
+    u = get_account(db, uid)
+    if not u or not verify_password(current, u.get("pw") or ""):
+        with _FL:
+            _FAILS.setdefault(key, []).append(time.time())
+        raise ValueError("Your current password is wrong.")
+    if new == current:
+        raise ValueError("The new password is the same as the current one.")
+    db.q("UPDATE $r SET pw = $p", r=R("account", uid), p=hash_password(new))
+    db.run(
+        ["DELETE login_session WHERE account = $a AND sid != $keep", "DELETE password_reset WHERE account = $a"],
+        a=uid,
+        keep=keep_sid or "",
+    )
+
+
+def rename_account(db, uid, name):
+    """Someone changes their own name (whitespace collapsed, at most 80 characters)."""
+    n = " ".join((name or "").split())
+    if not n:
+        raise ValueError("Your name can't be empty.")
+    if len(n) > 80:
+        raise ValueError("A name has at most 80 characters.")
+    db.q("UPDATE $r SET name = $n", r=R("account", uid), n=n)
+    return n
+
+
 # ---------- sessions (refresh tokens) and API tokens ----------
 # The web app signs in through NextAuth: the API hands out a short-lived JWT access token (see app.core.security) and a
 # long-lived refresh token. Only the refresh token's hash is stored, one row per signed-in device; every refresh

@@ -20,6 +20,8 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
     Me,
+    MeUpdate,
+    PasswordChange,
     RefreshRequest,
     ResetPasswordRequest,
     SetupRequest,
@@ -91,6 +93,29 @@ def me(user: CurrentUser, db: Db) -> Me:
     names = store.space_names(db)
     roles: dict[str, Any] = {names.get(k, str(k)): v for k, v in user.roles.items()}
     return Me(user=UserPublic(**(auth.active_account(db, user.id) or {})), roles=roles, via=user.via, scope=user.scope)
+
+
+@router.patch("/me")
+def update_me(body: MeUpdate, user: Writer, db: Db) -> Me:
+    """Change your own name."""
+    with domain_errors():
+        auth.rename_account(db, user.id, body.name)
+    return me(user, db)
+
+
+@router.post("/password")
+def change_password(body: PasswordChange, user: CurrentUser, db: Db) -> Ok:
+    """Change your own password, with your current one (signed in; not with an API token). Your other sessions end
+    and this one stays; API tokens keep working. Audited as `password.change`."""
+    if user.via != "access":
+        raise HTTPException(403, "sign in to change your password; API tokens can't")
+    key = f"password|{user.id}"
+    if auth.throttled(key):
+        raise HTTPException(429, "too many attempts; try again in a few minutes")
+    with domain_errors():
+        auth.change_password(db, user.id, body.current_password, body.new_password, user.sid, key)
+    auth.audit(db, user.as_audit(), "password.change", f"account:{user.id}")
+    return Ok()
 
 
 @router.post("/password/forgot")

@@ -61,6 +61,15 @@ class ResetPasswordRequest(RequestModel):
     password: str
 
 
+class PasswordChange(RequestModel):
+    current_password: str
+    new_password: str = Field(description="at least 10 characters")
+
+
+class MeUpdate(RequestModel):
+    name: str = Field(min_length=1, max_length=80, description="whitespace is collapsed")
+
+
 class ApiTokenCreate(RequestModel):
     name: str = "token"
     scope: Literal["read", "write"] = "read"

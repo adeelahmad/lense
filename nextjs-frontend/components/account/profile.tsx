@@ -3,10 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, LogOut } from "lucide-react";
 import Link from "next/link";
-import { signIn, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import { useState } from "react";
 
-import { Auth, Tokens, Users } from "@/app/openapi-client";
+import { Auth, Tokens } from "@/app/openapi-client";
+import { confirmMismatch, passwordBlocked } from "@/components/account/profile-model";
 import { Badge, RoleChip, type Role } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -18,10 +19,7 @@ import { data, useApiClient } from "@/lib/api/browser";
 import { PASSWORD_MIN_LENGTH, passwordShortBy } from "@/lib/definitions";
 import { useArchive } from "@/lib/hooks/session";
 
-/**
- * Profile and password. The API has no self-service profile or password change for a signed-in person: admins change
- * their own through the admin account update; everyone else uses the emailed reset link or asks an admin.
- */
+/** Profile and password: everyone changes their own name, and their password with their current one. */
 export function ProfilePage() {
   const { me, admin } = useArchive();
   const client = useApiClient();
@@ -57,7 +55,7 @@ export function ProfilePage() {
               </div>
             </div>
           </div>
-          <NameForm id={me.user.id} name={me.user.name ?? ""} canEdit={admin} />
+          <NameForm name={me.user.name ?? ""} />
           <div className="flex flex-col gap-2">
             <span className="text-[13px] font-bold text-fg-strong">Your roles</span>
             {admin ? (
@@ -80,7 +78,10 @@ export function ProfilePage() {
         </div>
       </Panel>
       <Panel title="Password">
-        {admin ? <ChangePassword id={me.user.id} email={me.user.email} /> : <ResetByEmail email={me.user.email} />}
+        <div className="flex flex-col gap-5">
+          <ChangePassword />
+          <ResetByEmail email={me.user.email} />
+        </div>
       </Panel>
       <Panel
         title="API tokens"
@@ -102,20 +103,13 @@ export function ProfilePage() {
   );
 }
 
-function NameForm({ id, name, canEdit }: { id: number; name: string; canEdit: boolean }) {
+function NameForm({ name }: { name: string }) {
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
   const [value, setValue] = useState(name);
   const save = useMutation({
-    mutationFn: () =>
-      data(
-        Users.updateUser({
-          client,
-          path: { uid: id },
-          body: { name: value.trim() },
-        }),
-      ),
+    mutationFn: () => data(Auth.updateMe({ client, body: { name: value.trim() } })),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["me"] });
       toast({ title: "Name saved", tone: "green" });
@@ -128,10 +122,10 @@ function NameForm({ id, name, canEdit }: { id: number; name: string; canEdit: bo
       className="flex flex-col gap-1.5"
       onSubmit={(e) => {
         e.preventDefault();
-        if (canEdit && changed) save.mutate();
+        if (changed) save.mutate();
       }}
     >
-      <Field label="Name" hint={canEdit ? undefined : "Only admins can change names. Ask an admin if yours is wrong."}>
+      <Field label="Name" hint="How others see you in the archive">
         {(f) => (
           <div className="flex gap-2">
             <Input
@@ -139,14 +133,16 @@ function NameForm({ id, name, canEdit }: { id: number; name: string; canEdit: bo
               aria-describedby={f.describedBy}
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              disabled={!canEdit}
               maxLength={80}
+              autoComplete="name"
               className="max-w-[360px]"
             />
             <Button
               type="submit"
-              disabled={!canEdit || !changed || save.isPending}
-              disabledReason={!canEdit ? "Only admins can change names" : undefined}
+              disabled={!changed || save.isPending}
+              disabledReason={
+                !changed ? (value.trim() ? "Change your name first" : "Your name can’t be empty") : undefined
+              }
             >
               {save.isPending ? "Saving…" : "Save"}
             </Button>
@@ -158,34 +154,24 @@ function NameForm({ id, name, canEdit }: { id: number; name: string; canEdit: bo
   );
 }
 
-function ChangePassword({ id, email }: { id: number; email: string }) {
+function ChangePassword() {
   const client = useApiClient();
   const toast = useToast();
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [draft, setDraft] = useState({ current: "", next: "", confirm: "" });
   const [error, setError] = useState<string | null>(null);
-  const short = passwordShortBy(password);
-  const mismatch = confirm && confirm !== password ? "Passwords don’t match" : null;
-  const ready = password.length >= PASSWORD_MIN_LENGTH && confirm === password;
+  const set = (k: keyof typeof draft) => (e: { target: { value: string } }) => {
+    setDraft((d) => ({ ...d, [k]: e.target.value }));
+    setError(null);
+  };
+  const blocked = passwordBlocked(draft);
   const change = useMutation({
-    mutationFn: async () => {
-      await data(Users.updateUser({ client, path: { uid: id }, body: { password } }));
-      // A new password ends every session, this one included: sign straight back in with it.
-      const res = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-      if (!res || res.error)
-        throw new Error("Password changed, but signing back in failed. Sign in again with the new password.");
-    },
+    mutationFn: () =>
+      data(Auth.changePassword({ client, body: { current_password: draft.current, new_password: draft.next } })),
     onSuccess: () => {
-      setPassword("");
-      setConfirm("");
-      setError(null);
+      setDraft({ current: "", next: "", confirm: "" });
       toast({
         title: "Password changed",
-        body: "Your other devices were signed out.",
+        body: "You stay signed in here; your other devices were signed out.",
         tone: "green",
       });
     },
@@ -197,14 +183,31 @@ function ChangePassword({ id, email }: { id: number; email: string }) {
       className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        if (ready) change.mutate();
+        if (!blocked) change.mutate();
       }}
     >
       <p className="text-[13px] leading-normal text-fg-secondary">
         Changing it signs you out on your other devices. Your API tokens keep working.
       </p>
+      <Field label="Current password">
+        {(f) => (
+          <Input
+            id={f.id}
+            aria-describedby={f.describedBy}
+            type="password"
+            autoComplete="current-password"
+            value={draft.current}
+            onChange={set("current")}
+            className="sm:max-w-[calc(50%-6px)]"
+          />
+        )}
+      </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="New password" hint={`At least ${PASSWORD_MIN_LENGTH} characters`} error={short}>
+        <Field
+          label="New password"
+          hint={`At least ${PASSWORD_MIN_LENGTH} characters`}
+          error={passwordShortBy(draft.next)}
+        >
           {(f) => (
             <Input
               id={f.id}
@@ -212,12 +215,12 @@ function ChangePassword({ id, email }: { id: number; email: string }) {
               invalid={f.invalid}
               type="password"
               autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={draft.next}
+              onChange={set("next")}
             />
           )}
         </Field>
-        <Field label="Confirm new password" error={mismatch}>
+        <Field label="Confirm new password" error={confirmMismatch(draft)}>
           {(f) => (
             <Input
               id={f.id}
@@ -225,8 +228,8 @@ function ChangePassword({ id, email }: { id: number; email: string }) {
               invalid={f.invalid}
               type="password"
               autoComplete="new-password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
+              value={draft.confirm}
+              onChange={set("confirm")}
             />
           )}
         </Field>
@@ -236,8 +239,8 @@ function ChangePassword({ id, email }: { id: number; email: string }) {
         <Button
           type="submit"
           variant="primary"
-          disabled={!ready || change.isPending}
-          disabledReason={!ready ? "Type the new password twice" : undefined}
+          disabled={Boolean(blocked) || change.isPending}
+          disabledReason={blocked ?? undefined}
         >
           {change.isPending ? "Changing…" : "Change password"}
         </Button>
@@ -253,9 +256,9 @@ function ResetByEmail({ email }: { email: string }) {
   });
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[13px] leading-normal text-fg-secondary">
-        To change your password, get a reset link sent to <b className="text-fg">{email}</b>. If this server can’t send
-        email, ask an admin to reset it for you.
+      <p className="border-t border-border pt-4 text-[13px] leading-normal text-fg-secondary">
+        Forgot your current password? Get a reset link sent to <b className="text-fg">{email}</b>. If this server can’t
+        send email, ask an admin to reset it for you.
       </p>
       {send.isSuccess ? (
         <Banner tone="success">

@@ -9,8 +9,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| Change your own password (today: admins via the user admin, others by reset email) | `POST /auth/password {current_password, new_password}` |
-| Change your own name | `PATCH /auth/me {name}` |
 | Reindex progress | a job id or status from `POST /admin/reindex` |
 | Audit entries with the previous value and the request address | `before` and `ip` on audit entries |
 | Health: when source credentials expire; disk split into audio, cache and database | `credentials_expire_at` per source; `disk: {audio, cache, database}` |
