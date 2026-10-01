@@ -37,7 +37,10 @@ def test_ocr_lines_become_paragraphs():
         name = "lines"
 
         def lines(self, path):
-            return lines + [{"text": "~~ ||", "conf": 90, "box": [0.1, 0.9, 0.1, 0.02]}, {"text": "faint", "conf": 20, "box": [0, 0.95, 0.1, 0.02]}]
+            return lines + [
+                {"text": "~~ ||", "conf": 90, "box": [0.1, 0.9, 0.1, 0.02]},
+                {"text": "faint", "conf": 20, "box": [0, 0.95, 0.1, 0.02]},
+            ]
 
     blocks = documents.ocr_blocks(Engine(), "page.png")
     assert [b["text"] for b in blocks] == ["The keeper of the lighthouse wrote twice.", "A note in the margin", "Second paragraph"]

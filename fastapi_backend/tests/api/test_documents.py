@@ -5,7 +5,6 @@ summarised by page."""
 from __future__ import annotations
 
 import io
-import pathlib
 import shutil
 
 import pytest
@@ -71,7 +70,7 @@ def _png(img):
 def _runs(client, h, job):
     """Each step's outcome and note: {type: (outcome, note)}."""
     j = client.get(f"/api/v1/jobs/{job}", headers=h).json()
-    return {s["type"]: (r["outcome"], r.get("note")) for s, r in zip(j["steps"], j["step_runs"])}
+    return {s["type"]: (r["outcome"], r.get("note")) for s, r in zip(j["steps"], j["step_runs"], strict=False)}
 
 
 @POPPLER
