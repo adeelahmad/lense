@@ -169,10 +169,22 @@ export function ChatTab() {
             <Question key={m.id} text={m.content} />
           ) : (
             <div key={m.id} className="flex flex-col gap-1.5">
-              <AnswerView
-                text={m.content === "(stopped)" ? "" : m.content}
-                passages={(m.passages ?? []) as Passage[]}
-              />
+              {m.notice && <p className="text-[12.5px] text-fg-muted">{m.notice}</p>}
+              {(m.steps ?? []).length > 0 && (
+                <p className="text-[12.5px] text-fg-muted">
+                  {(m.steps ?? []).map((x) => x.summary || x.tool).join(" · ")}
+                </p>
+              )}
+              {m.error ? (
+                <p className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-fg-strong">
+                  <b className="text-red-dark">No answer.</b> {m.error}
+                </p>
+              ) : (
+                <AnswerView
+                  text={m.content === "(stopped)" ? "" : m.content}
+                  passages={(m.passages ?? []) as Passage[]}
+                />
+              )}
               {m.stopped && <p className="text-[12.5px] text-fg-muted">Stopped.</p>}
             </div>
           ),

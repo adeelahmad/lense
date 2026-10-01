@@ -893,6 +893,25 @@ export type ChatMessage = {
    * the answer was stopped (POST /chats/{cid}/stop): `content` is what came before
    */
   stopped?: boolean;
+  /**
+   * Steps
+   * the tools the assistant used for this answer, in order
+   */
+  steps?: Array<ToolStep>;
+  /**
+   * Notice
+   * e.g. the model can't use tools, so the answer came from a search
+   */
+  notice?: string | null;
+  /**
+   * Error
+   * why there's no answer
+   */
+  error?: string | null;
+  /**
+   * its latest source check (POST .../messages/{mid}/check)
+   */
+  check?: AnswerCheck | null;
   [key: string]:
     | unknown
     | number
@@ -904,6 +923,13 @@ export type ChatMessage = {
     | string
     | null
     | boolean
+    | Array<ToolStep>
+    | string
+    | null
+    | string
+    | null
+    | AnswerCheck
+    | null
     | undefined;
 };
 
@@ -6067,6 +6093,33 @@ export type TokenPair = {
   expires_in: number;
   user: UserPublic;
   [key: string]: unknown | string | "bearer" | number | UserPublic | undefined;
+};
+
+/**
+ * ToolStep
+ */
+export type ToolStep = {
+  /**
+   * Tool
+   */
+  tool: string;
+  /**
+   * Args
+   */
+  args?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Summary
+   */
+  summary?: string;
+  [key: string]:
+    | unknown
+    | string
+    | {
+        [key: string]: unknown;
+      }
+    | undefined;
 };
 
 /**

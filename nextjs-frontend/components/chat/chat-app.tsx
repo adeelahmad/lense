@@ -17,7 +17,7 @@ import { useApprovals, useChat, useChats, useLlmStatus, useStopAnswer } from "@/
 import { EmptyChat } from "@/components/chat/empty";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
-import { applyEvent, newTurn, type ToolStep, type TurnState } from "@/components/chat/stream";
+import { applyEvent, newTurn, savedSteps, type ToolStep, type TurnState } from "@/components/chat/stream";
 import { useRecordingIndex, useSpeakerDirectory } from "@/components/search/data";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
@@ -437,10 +437,10 @@ export function ChatApp() {
                       question={it.q?.content ?? ""}
                       text={it.a.stopped && it.a.content === "(stopped)" ? "" : it.a.content}
                       passages={it.a.passages ?? []}
-                      status={ex?.error ? "error" : it.a.stopped ? "stopped" : "done"}
-                      error={ex?.error}
-                      notice={ex?.notice}
-                      steps={ex?.steps}
+                      status={(ex?.error ?? it.a.error) ? "error" : it.a.stopped ? "stopped" : "done"}
+                      error={ex?.error ?? it.a.error}
+                      notice={ex?.notice ?? it.a.notice}
+                      steps={ex?.steps ?? savedSteps(it.a.steps)}
                       approvals={(approvalsFor.get(it.a.id) ?? [])
                         .filter((a) => !liveApprovalIds.has(a.id))
                         .map((a) => ({
@@ -451,7 +451,7 @@ export function ChatApp() {
                       model={model}
                       onRetry={it.q ? () => send(it.q!.content) : undefined}
                       onAddScope={addScope}
-                      check={checks[it.a.id]}
+                      check={checks[it.a.id] ?? it.a.check}
                       onChecked={(c) => setChecks((x) => ({ ...x, [it.a!.id]: c }))}
                       {...answerHandlers(aKey)}
                     />

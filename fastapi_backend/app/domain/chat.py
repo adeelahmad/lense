@@ -237,19 +237,30 @@ def get(db, cid, account):
 
 def history(db, cid):
     return db.rows(
-        "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped FROM chat_message "
-        "WHERE chat = $c ORDER BY id",
+        "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped, steps ?? [] AS steps, "
+        "notice, error, check FROM chat_message WHERE chat = $c ORDER BY id",
         c=cid,
     )
 
 
-def add(db, cid, role, content, passages=None, stopped=False):
+def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None):
+    """Save a message; an answer keeps the tool steps it took, any notice (e.g. the model can't use tools) and error."""
     mid = db.next_id("chat_message")
     db.q(
         "CREATE $r CONTENT $d",
         r=R("chat_message", mid),
         d=store.clean(
-            {"chat": cid, "role": role, "content": content, "passages": passages, "created_at": store.now(), "stopped": stopped or None}
+            {
+                "chat": cid,
+                "role": role,
+                "content": content,
+                "passages": passages,
+                "created_at": store.now(),
+                "stopped": stopped or None,
+                "steps": steps or None,
+                "notice": notice,
+                "error": error,
+            }
         ),
     )
     db.q("UPDATE $r SET updated_at = $t", r=R("chat", cid), t=store.now())

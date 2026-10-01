@@ -52,6 +52,19 @@ class Passage(ResponseModel):
     used: bool | None = Field(default=None, description="cited in the answer")
 
 
+class AnswerCheck(ResponseModel):
+    claims: int = Field(description="sentences that cite a source")
+    supported: int = Field(description="claims the cited excerpts support")
+    verdicts: list[dict[str, Any]] = []
+    uncited: list[str] = []
+
+
+class ToolStep(ResponseModel):
+    tool: str
+    args: dict[str, Any] = {}
+    summary: str = ""
+
+
 class ChatMessage(ResponseModel):
     id: int
     role: Literal["user", "assistant"]
@@ -59,6 +72,10 @@ class ChatMessage(ResponseModel):
     passages: list[Passage] | None = None
     created_at: str | None = None
     stopped: bool = Field(False, description="the answer was stopped (POST /chats/{cid}/stop): `content` is what came before")
+    steps: list[ToolStep] = Field(default_factory=list, description="the tools the assistant used for this answer, in order")
+    notice: str | None = Field(None, description="e.g. the model can't use tools, so the answer came from a search")
+    error: str | None = Field(None, description="why there's no answer")
+    check: AnswerCheck | None = Field(None, description="its latest source check (POST .../messages/{mid}/check)")
 
 
 class ChatCapabilities(ResponseModel):
@@ -81,13 +98,6 @@ class Chat(ChatSummary):
 
 class MessageCreate(RequestModel):
     content: str = Field(description="the question (up to 4000 characters)")
-
-
-class AnswerCheck(ResponseModel):
-    claims: int = Field(description="sentences that cite a source")
-    supported: int = Field(description="claims the cited excerpts support")
-    verdicts: list[dict[str, Any]] = []
-    uncited: list[str] = []
 
 
 class Approval(ResponseModel):

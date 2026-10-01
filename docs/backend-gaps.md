@@ -45,7 +45,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | "Try …" prefix suggestions | a term-completion endpoint |
 | Model picker | provider model list and a per-chat model |
 | Scope a chat by collection (today: expanded to at most 200 recording ids) | collection ids in the chat scope |
-| Tool steps and source-check verdicts when reopening a chat | return them in `GET /chats/{id}` |
 | Retry with another model | a model override on retry |
 
 ## Speakers and graph

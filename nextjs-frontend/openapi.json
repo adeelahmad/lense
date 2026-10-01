@@ -10655,6 +10655,49 @@
             "title": "Stopped",
             "description": "the answer was stopped (POST /chats/{cid}/stop): `content` is what came before",
             "default": false
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ToolStep"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "the tools the assistant used for this answer, in order"
+          },
+          "notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notice",
+            "description": "e.g. the model can't use tools, so the answer came from a search"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why there's no answer"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnswerCheck"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its latest source check (POST .../messages/{mid}/check)"
           }
         },
         "additionalProperties": true,
@@ -18641,6 +18684,31 @@
           "user"
         ],
         "title": "TokenPair"
+      },
+      "ToolStep": {
+        "properties": {
+          "tool": {
+            "type": "string",
+            "title": "Tool"
+          },
+          "args": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Args",
+            "default": {}
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "default": ""
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "tool"
+        ],
+        "title": "ToolStep"
       },
       "Upload": {
         "properties": {

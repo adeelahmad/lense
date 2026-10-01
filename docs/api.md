@@ -427,6 +427,10 @@ address or key. `POST /chats/{cid}/stop` stops the answer being written in your 
 step it's on: the stream sends `stopped`, then `done` with the saved message, whose `stopped` is true and whose
 `content` is what came before (`(stopped)` when nothing had). `{stopping: false}` when nothing was being written.
 
+`GET /chats/{cid}` returns each answer with the `steps` the assistant took (`{tool, args, summary}`), its `notice` and
+`error`, and its latest source `check` (`{claims, supported, verdicts, uncited}`), as they were when it was written
+or checked.
+
 ## collections
 
 ```

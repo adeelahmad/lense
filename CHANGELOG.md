@@ -26,6 +26,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Reopened conversations keep how answers were made.** An answer now keeps the tools the assistant used, any
+  notice, the error when there was no answer, and its source check; reopening a conversation (or reloading) showed
+  only the text. `GET /api/v1/chats/{cid}` returns `steps`, `notice`, `error` and `check` on each message
+  (docs/api.md); answers from before this have none.
 - **Stop an answer, and know the model, without being an admin.** Stop in Chat (and in a recording's Chat tab) now
   asks the server to end the answer after the piece or tool step it's on, and keeps what came before in the
   conversation, marked stopped; it used to stop reading, leaving the question without an answer and the model

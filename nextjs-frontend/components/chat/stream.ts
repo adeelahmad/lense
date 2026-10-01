@@ -113,6 +113,13 @@ export function applyEvent(s: TurnState, ev: { event: string; data: string }): T
   }
 }
 
+/** Tool steps as an answer was saved with them (GET /chats/{id}), in the shape the live stream gives. */
+export function savedSteps(
+  steps: { tool: string; args?: Record<string, unknown>; summary?: string }[] | null | undefined,
+): ToolStep[] {
+  return (steps ?? []).map((s) => ({ tool: s.tool, args: s.args ?? {}, summary: s.summary ?? "" }));
+}
+
 /** A short plain-words line for a tool call, when the backend's summary is missing. */
 export function stepTitle(step: ToolStep): string {
   if (step.summary) return step.summary;

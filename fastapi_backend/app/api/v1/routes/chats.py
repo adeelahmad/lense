@@ -154,17 +154,25 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
 
     past, passages = await run_in_threadpool(prepare)
 
+    steps: list[dict[str, Any]] = []
+    notice: str | None = None
+
+    def save(text: str, cited: list[dict[str, Any]], **kw: Any) -> int:
+        return int(chat.add(db, cid, "assistant", text, cited, steps=steps, notice=notice, **kw))
+
     def stopped(text: str, cited: list[dict[str, Any]]) -> Iterator[str]:
         yield _ev("stopped", {"message": "Stopped"})
-        yield _ev("done", {"message": chat.add(db, cid, "assistant", text or "(stopped)", cited, stopped=True)})
+        yield _ev("done", {"message": save(text or "(stopped)", cited, stopped=True)})
 
     def answer(on: chat.Answering) -> Iterator[str]:
+        nonlocal notice
         if llm.configured(cfg) and cfg["ai"].get("tools"):
             box = ai_tools.Toolbox(db, cfg, user.as_audit(), readable, set(acl.editable()), c.get("scope"), cid)
             try:
                 answer = ""
                 for kind, data in chat.tool_answer(cfg, box, q, past, cfg["ai"].get("max_steps") or 6):
                     if kind == "step":
+                        steps.append(data)
                         yield _ev("step", data)
                         if on.stop_requested(force=True):  # between steps: the model is called again after each
                             for appr in box.approvals:
@@ -178,16 +186,17 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 cited = box.cited(answer)
                 yield _ev("passages", cited)
                 yield _ev("token", {"text": answer})
-                yield _ev("done", {"message": chat.add(db, cid, "assistant", answer or "(no answer)", cited)})
+                yield _ev("done", {"message": save(answer or "(no answer)", cited)})
                 return
             except llm.ToolsUnsupported:
-                yield _ev("notice", {"message": "This model can't use tools, so the answer comes from a search instead."})
+                notice = "This model can't use tools, so the answer comes from a search instead."
+                yield _ev("notice", {"message": notice})
             except llm.LLMError as e:
                 yield _ev("error", {"message": str(e)})
-                yield _ev("done", {"message": chat.add(db, cid, "assistant", "(no answer)", [])})
+                yield _ev("done", {"message": save("(no answer)", [], error=str(e))})
                 return
         yield _ev("passages", passages)
-        text = ""
+        text, error = "", None
         try:
             if llm.configured(cfg):
                 for piece in llm.stream_chat(cfg, chat.messages_for(q, passages, past)):
@@ -200,8 +209,9 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 text = chat.fallback(passages)
                 yield _ev("token", {"text": text})
         except llm.LLMError as e:
-            yield _ev("error", {"message": str(e)})
-        yield _ev("done", {"message": chat.add(db, cid, "assistant", text or "(no answer)", chat.cited(text, passages))})
+            error = str(e)
+            yield _ev("error", {"message": error})
+        yield _ev("done", {"message": save(text or "(no answer)", chat.cited(text, passages), error=error)})
 
     def gen() -> Iterator[str]:
         on = chat.Answering(db, cid)

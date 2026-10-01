@@ -138,6 +138,10 @@ def test_tools_approvals_and_checking(app, db, cfg, folder, new_client, llm):
     chk = c.post(f"/api/v1/chats/{cid}/messages/{mid}/check", headers=h).json()
     assert (chk["claims"], chk["supported"]) == (2, 1)  # the invented claim is flagged
     assert c.post(f"/api/v1/chats/{cid}/messages/{mid - 1}/check", headers=h).status_code == 404  # the question, not an answer
+    # reopened, the answer still has the tools it used and its source check
+    reopened = c.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]
+    assert [x["tool"] for x in reopened[-1]["steps"]] == ["search_transcripts", "run_template"] and reopened[0]["steps"] == []
+    assert reopened[-1]["steps"][0]["args"] == {"query": "Dyno Therapeutics"} and reopened[-1]["check"] == chk
     box = ai_tools.Toolbox(db, cfg, {"id": 99, "email": "v"}, {store.ns_id(db, "pods")}, set(), {"recordings": [s.a]}, None)
     assert "run_template" not in [t["function"]["name"] for t in box.specs()]  # viewers get read tools only
     assert "error" in box.call("read_transcript", {"recording_id": s.b})[0]  # outside the conversation's scope
@@ -146,6 +150,7 @@ def test_tools_approvals_and_checking(app, db, cfg, folder, new_client, llm):
     ev = sse(cv.post(f"/api/v1/chats/{vid}/messages", headers=hv, json={"content": "capsid"}).text)
     assert "notice" in ev  # fell back to search-and-answer
     assert ev["passages"][0]
+    assert cv.get(f"/api/v1/chats/{vid}", headers=hv).json()["messages"][-1]["notice"] == ev["notice"][0]["message"]  # kept too
 
 
 def test_capabilities_for_everyone(client, new_client, db, cfg, folder, llm):
@@ -192,6 +197,20 @@ def test_stopping_an_answer(plain, client, new_client, db, cfg, folder, llm, mon
     monkeypatch.setattr(llm_mod, "stream_chat", lambda *a, **k: iter(["Friday [1]."]))
     ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Again?"}).text)
     assert "stopped" not in ev and client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]["stopped"] is False
+
+    # why there's no answer is kept with it
+    def broken(*_a, **_k):
+        raise llm_mod.LLMError("429 from the LLM server")
+        yield  # a generator, like the real one
+
+    monkeypatch.setattr(llm_mod, "stream_chat", broken)
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Once more?"}).text)
+    last = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]
+    assert (ev["error"][0]["message"], last["content"], last["error"]) == (
+        "429 from the LLM server",
+        "(no answer)",
+        "429 from the LLM server",
+    )
 
 
 def test_stopping_between_tool_steps(client, db, cfg, folder, llm, monkeypatch):
