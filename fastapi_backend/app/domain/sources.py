@@ -405,29 +405,30 @@ def _when(s):
     return t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
 
 
-def _ingest(db, cfg, src, w, f, kind):
+def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None):
+    """One file of a source becomes a recording in namespace `space`, and its processing is queued: (id, job).
+    Audio and video stay on the source; a transcript is imported from it."""
     title, shown = pathlib.PurePosixPath(f["path"]).stem, f"{src['name']}:{f['path']}"
     if kind == "transcript":
-        ns = (db.one("SELECT name FROM $s", s=R("space", w["space"])) or {})["name"]
+        ns = (db.one("SELECT name FROM $s", s=R("space", space)) or {})["name"]
         rid = ingest.import_transcript(db, cfg, ns, cached_copy(db, cfg, src["id"], f["path"]), title=title, log=lambda *a: None)
         db.q("UPDATE $r SET path = $p, remote = $m", r=R("recording", rid), p=shown, m={"source": src["id"], "path": f["path"]})
-        jobs.enqueue(db, rid, w.get("steps") or None, by=f"watch:{w['id']}", pipeline=w.get("pipeline"))
-        return rid
+        return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
     fp = "rclone-" + hashlib.sha1(f"{src['id']}:{f['path']}:{f['size']}:{f['modified']}".encode()).hexdigest()[:24]
-    known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{w['space']}:{fp}")
+    known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{space}:{fp}")
     if known:
-        return known["id"]
+        return known["id"], None
     rid = db.next_id("recording")
     db.q(
         "CREATE $r CONTENT $d",
         r=R("recording", rid),
         d={
-            "space": w["space"],
+            "space": space,
             "path": shown,
             "remote": {"source": src["id"], "path": f["path"]},
             "source": "audio",
             "fingerprint": fp,
-            "fp_key": f"{w['space']}:{fp}",
+            "fp_key": f"{space}:{fp}",
             "title": title,
             "recorded_at": _when(f["modified"]).isoformat(timespec="seconds"),
             "size": f["size"],
@@ -435,16 +436,22 @@ def _ingest(db, cfg, src, w, f, kind):
             "created_at": store.now(),
         },
     )
-    jobs.enqueue(db, rid, w.get("steps") or None, by=f"watch:{w['id']}", pipeline=w.get("pipeline"))
-    return rid
+    return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
+
+
+def file_kind(cfg, name):
+    """'audio' (audio and video), 'transcript', or None for a file Lens doesn't import."""
+    p = pathlib.PurePosixPath(name)
+    ext = p.suffix.lower()
+    if p.name.startswith("."):
+        return None
+    return "audio" if ext in {e.lower() for e in cfg["audio"]["extensions"]} else "transcript" if ext in TRANSCRIPT_EXT else None
 
 
 def kind_of(cfg, w, f):
     """'audio', 'transcript', or None when a watched folder should ignore the file."""
-    p = pathlib.PurePosixPath(f["path"])
-    ext = p.suffix.lower()
-    kind = "audio" if ext in {e.lower() for e in cfg["audio"]["extensions"]} else "transcript" if ext in TRANSCRIPT_EXT else None
-    if not kind or p.name.startswith(".") or (w.get("kinds") or "both") not in ("both", "audio" if kind == "audio" else "transcripts"):
+    kind = file_kind(cfg, f["path"])
+    if not kind or (w.get("kinds") or "both") not in ("both", "audio" if kind == "audio" else "transcripts"):
         return None
     rel = f.get("rel", f["path"])
     if (w.get("include") and not any(fnmatch.fnmatch(rel, g) for g in w["include"])) or any(
@@ -483,7 +490,7 @@ def poll_watch(db, cfg, wid, log=print):
             stats["waiting"] += 1
         else:
             try:
-                rid = _ingest(db, cfg, src, w, f, kind)
+                rid, _job = _ingest(db, cfg, src, f, kind, w["space"], f"watch:{wid}", w.get("steps"), w.get("pipeline"))
                 db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "queued", "recording": rid})
                 stats["new"] += 1
             except Exception as e:  # noqa: BLE001 - one bad file must not stop the scan
@@ -499,6 +506,58 @@ def poll_watch(db, cfg, wid, log=print):
         s=stats,
     )
     return stats
+
+
+def imported(db, sid, paths):
+    """Which of these files of a source are recordings already, and where: {path: [{recording, namespace}]}."""
+    names = store.space_names(db)
+    out = {}
+    for r in db.rows(
+        "SELECT record::id(id) AS id, space, remote.path AS path FROM recording WHERE remote.source = $s AND remote.path IN $p",
+        s=sid,
+        p=list(paths),
+    ):
+        out.setdefault(r["path"], []).append({"recording": r["id"], "namespace": names.get(r["space"], "")})
+    return out
+
+
+def import_files(db, cfg, sid, paths, space, by, pipeline=None):
+    """Chosen files of a source, imported into namespace `space` now rather than watched: audio and video stay on the
+    source and run the pipeline (the namespace's, or `pipeline`); transcripts are imported. One result per path:
+    queued (with the recording and job), already (it's a recording of the namespace from this source), skipped (not
+    audio, video or a transcript; a folder) or error. Choosing a file on purpose brings back one deleted before."""
+    src = get(db, sid)
+    folders = {}
+    for path in paths:
+        p = check_path(cfg, src, path)
+        parent = str(pathlib.PurePosixPath(p).parent)
+        folders.setdefault("" if parent in (".", "/") and src["type"] != "local" else parent, []).append(p)
+    have = imported(db, sid, [p for ps in folders.values() for p in ps])
+    ns = store.space_names(db).get(space)
+    results = []
+    for folder, wanted in folders.items():
+        try:
+            listing = {e["path"]: e for e in browse(db, cfg, sid, folder)}
+        except (ValueError, RuntimeError) as e:
+            results += [{"path": p, "status": "error", "detail": str(e)[:300]} for p in wanted]
+            continue
+        for p in wanted:
+            f, kind = listing.get(p), file_kind(cfg, p)
+            mine = [x for x in have.get(p, []) if x["namespace"] == ns]
+            if f is None:
+                results.append({"path": p, "status": "error", "detail": "not found"})
+            elif f["dir"] or not kind:
+                results.append({"path": p, "status": "skipped", "detail": "not audio, video or a transcript"})
+            elif mine:
+                results.append({"path": p, "status": "already", "recording": mine[0]["recording"]})
+            else:
+                try:
+                    deletion.forget(db, space, path=f"{src['name']}:{p}")  # chosen on purpose: it may come back
+                    rid, job = _ingest(db, cfg, src, f, kind, space, by, None, pipeline)
+                    results.append(store.clean({"path": p, "status": "queued", "recording": rid, "job": job}))
+                except Exception as e:  # noqa: BLE001 - one bad file must not stop the rest
+                    results.append({"path": p, "status": "error", "detail": f"{type(e).__name__}: {e}"[:300]})
+    return results
 
 
 def poll_due(db, cfg, log=print):

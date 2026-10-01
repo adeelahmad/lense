@@ -21,6 +21,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - `speaker` takes speaker ids. Speakers belong to one namespace, so the web app's speaker filter lists everyone
       who speaks in the namespaces in scope by name and sends every id with that name.
     - The Needs attention and Processing tab counts come from the server too.
+- **Import chosen files from a source.** Import → From a source lets admins tick files and import them now, into a
+  namespace and with the pipeline of their choice, instead of only watching the folder. The listing marks files that
+  are recordings already, and where. `POST /api/v1/import/source {source, paths, namespace, pipeline?}` answers per
+  file (queued, already, skipped or error) and is audited as `import.source`; `GET /api/v1/sources/{sid}/browse`
+  gives each file's `imported`. A file chosen on purpose comes back even if its recording was deleted.
 - **Choose the pipeline at import.** Import's "Then run" picks any saved pipeline instead of the namespace's, for
   uploaded transcripts, pasted text and audio or video uploads. `POST /api/v1/import` and `POST /api/v1/uploads` take
   `pipeline` (400 for one that doesn't exist, before anything is saved); attaching audio to a transcript runs its own

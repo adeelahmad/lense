@@ -44,3 +44,22 @@ class ImportPreview(ResponseModel):
     duration_ms: int
     speakers: list[str]
     preview: list[PreviewLine]
+
+
+class SourceImportRequest(RequestModel):
+    source: int
+    paths: list[str] = Field(min_length=1, max_length=500, description="files of the source, as browsing it lists them")
+    namespace: str
+    pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's")
+
+
+class SourceImportResult(ResponseModel):
+    path: str
+    status: Literal["queued", "already", "skipped", "error"]
+    recording: int | None = None
+    job: int | None = None
+    detail: str | None = None
+
+
+class SourceImport(ResponseModel):
+    results: list[SourceImportResult]

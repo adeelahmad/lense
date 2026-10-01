@@ -270,6 +270,24 @@ export function pipelineOptions(
   ];
 }
 
+/** Files of a source that can be imported: transcripts, audio and video (not folders or other files). */
+export function importable(entry: { name: string; dir: boolean }): boolean {
+  return !entry.dir && !entry.name.startsWith(".") && kindOf(entry.name) !== "unsupported";
+}
+
+/** What importing chosen files of a source did, in one line: "2 imported · 1 already here · 1 skipped". */
+export function sourceImportSummary(results: { status: string }[]): string {
+  const n = (s: string) => results.filter((r) => r.status === s).length;
+  return [
+    n("queued") ? `${n("queued")} imported` : null,
+    n("already") ? `${n("already")} already here` : null,
+    n("skipped") ? `${n("skipped")} skipped` : null,
+    n("error") ? `${n("error")} failed` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export function namespaceNameProblem(name: string): string | null {
   if (!name) return "Choose a namespace.";
   return /^[a-z0-9][a-z0-9_-]{0,40}$/.test(name)

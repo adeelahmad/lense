@@ -130,6 +130,9 @@ imported and analysed. Audio stays where it is: it is copied to a cache for proc
 playback. A file whose recording someone deleted, or moved to another namespace, isn't imported again, even when it
 changes.
 
+Admins can also import chosen files of a source once, without watching their folder: Import → From a source, tick the
+files, then Import (`POST /api/v1/import/source`). The listing marks files that are recordings already, and where.
+
 - Credentials are encrypted in the database (AES-GCM, key from `ARCHIVE_SECRET_KEY` or `data_dir/secret.key`) and given
   to rclone in a private temporary config file per call. For Dropbox, Drive and OneDrive, paste the token from
   `rclone authorize dropbox` (or drive, onedrive); tokens rclone refreshes are saved back.

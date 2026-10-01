@@ -185,6 +185,9 @@ import type {
   PreviewImportData,
   PreviewImportResponses,
   PreviewImportErrors,
+  ImportFromSourceData,
+  ImportFromSourceResponses,
+  ImportFromSourceErrors,
   UploadLimitsData,
   UploadLimitsResponses,
   ListUploadsData,
@@ -1441,6 +1444,26 @@ export class Imports {
       },
     });
   }
+
+  /**
+   * Import From Source
+   * Import chosen files of a storage source into a namespace now, rather than watching their folder (admins, like
+   * sources; a new namespace is created). Audio and video stay on the source and run the namespace's pipeline, or
+   * `pipeline`; transcripts are imported. Each file gets a result: queued, already (the namespace has it from this
+   * source), skipped (not audio, video or a transcript) or error. Audited as `import.source`.
+   */
+  public static importFromSource<ThrowOnError extends boolean = false>(
+    options: Options<ImportFromSourceData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<ImportFromSourceResponses, ImportFromSourceErrors, ThrowOnError>({
+      url: "/api/v1/import/source",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Uploads {
@@ -2416,7 +2439,8 @@ export class Sources {
 
   /**
    * Browse Source
-   * The folders and files at one path of a source (for local sources, no path lists the allowed roots).
+   * The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the
+   * recordings each file already is.
    */
   public static browseSource<ThrowOnError extends boolean = false>(options: Options<BrowseSourceData, ThrowOnError>) {
     return (options.client ?? client).get<BrowseSourceResponses, BrowseSourceErrors, ThrowOnError>({

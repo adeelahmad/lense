@@ -1,6 +1,7 @@
 import {
   DEFAULT_LIMITS,
   formatName,
+  importable,
   initialMapping,
   isUntimed,
   kindOf,
@@ -11,6 +12,7 @@ import {
   parseMapping,
   pipelineOptions,
   readProblem,
+  sourceImportSummary,
   titleFromName,
 } from "@/components/import/files";
 
@@ -82,6 +84,18 @@ describe("what a dropped file is", () => {
       { value: "", label: "Standard pipeline (the namespace’s)" },
       { value: "4", label: "Quick look" },
     ]);
+  });
+
+  it("chooses files of a source that can be imported, and sums up what happened", () => {
+    expect(importable({ name: "ep1.m4a", dir: false })).toBe(true);
+    expect(importable({ name: "notes.docx", dir: false })).toBe(true);
+    expect(importable({ name: "shows", dir: true })).toBe(false);
+    expect(importable({ name: "notes.xyz", dir: false })).toBe(false);
+    expect(importable({ name: ".hidden.mp3", dir: false })).toBe(false);
+    expect(
+      sourceImportSummary([{ status: "queued" }, { status: "queued" }, { status: "already" }, { status: "skipped" }]),
+    ).toBe("2 imported · 1 already here · 1 skipped");
+    expect(sourceImportSummary([{ status: "error" }])).toBe("1 failed");
   });
 
   it("checks namespace names like the backend", () => {

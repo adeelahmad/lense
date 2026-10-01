@@ -3185,6 +3185,48 @@
         }
       }
     },
+    "/api/v1/import/source": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Import From Source",
+        "description": "Import chosen files of a storage source into a namespace now, rather than watching their folder (admins, like\nsources; a new namespace is created). Audio and video stay on the source and run the namespace's pipeline, or\n`pipeline`; transcripts are imported. Each file gets a result: queued, already (the namespace has it from this\nsource), skipped (not audio, video or a transcript) or error. Audited as `import.source`.",
+        "operationId": "import_from_source",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceImport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/uploads/limits": {
       "get": {
         "tags": [
@@ -6886,7 +6928,7 @@
           "sources"
         ],
         "summary": "Browse Source",
-        "description": "The folders and files at one path of a source (for local sources, no path lists the allowed roots).",
+        "description": "The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the\nrecordings each file already is.",
         "operationId": "browse_source",
         "parameters": [
           {
@@ -10166,6 +10208,14 @@
               }
             ],
             "title": "Modified"
+          },
+          "imported": {
+            "items": {
+              "$ref": "#/components/schemas/ImportedAs"
+            },
+            "type": "array",
+            "title": "Imported",
+            "description": "the recordings this file already is, and where"
           }
         },
         "additionalProperties": true,
@@ -12104,6 +12154,25 @@
           "job"
         ],
         "title": "ImportResult"
+      },
+      "ImportedAs": {
+        "properties": {
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recording",
+          "namespace"
+        ],
+        "title": "ImportedAs"
       },
       "IpGroup": {
         "properties": {
@@ -16649,6 +16718,123 @@
           "ok"
         ],
         "title": "SourceHealth"
+      },
+      "SourceImport": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SourceImportResult"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "results"
+        ],
+        "title": "SourceImport"
+      },
+      "SourceImportRequest": {
+        "properties": {
+          "source": {
+            "type": "integer",
+            "title": "Source"
+          },
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Paths",
+            "description": "files of the source, as browsing it lists them"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline",
+            "description": "run this pipeline afterwards instead of the namespace's"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "paths",
+          "namespace"
+        ],
+        "title": "SourceImportRequest"
+      },
+      "SourceImportResult": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "already",
+              "skipped",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "path",
+          "status"
+        ],
+        "title": "SourceImportResult"
       },
       "SourceUpdate": {
         "properties": {

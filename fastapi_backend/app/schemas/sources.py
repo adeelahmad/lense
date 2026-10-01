@@ -64,6 +64,11 @@ class SourceUpdated(Ok):
     health: SourceHealth
 
 
+class ImportedAs(ResponseModel):
+    recording: int
+    namespace: str
+
+
 class BrowseEntry(ResponseModel):
     path: str
     rel: str
@@ -71,6 +76,7 @@ class BrowseEntry(ResponseModel):
     dir: bool
     size: int | None = None
     modified: str | None = None
+    imported: list[ImportedAs] = Field(default_factory=list, description="the recordings this file already is, and where")
 
 
 class WatchOptions(RequestModel):

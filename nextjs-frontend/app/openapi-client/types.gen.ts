@@ -764,7 +764,12 @@ export type BrowseEntry = {
    * Modified
    */
   modified?: string | null;
-  [key: string]: unknown | string | boolean | number | null | string | null | undefined;
+  /**
+   * Imported
+   * the recordings this file already is, and where
+   */
+  imported?: Array<ImportedAs>;
+  [key: string]: unknown | string | boolean | number | null | string | null | Array<ImportedAs> | undefined;
 };
 
 /**
@@ -2069,6 +2074,21 @@ export type ImportResult = {
    */
   job: number;
   [key: string]: unknown | boolean | number | undefined;
+};
+
+/**
+ * ImportedAs
+ */
+export type ImportedAs = {
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  [key: string]: unknown | number | string;
 };
 
 /**
@@ -5034,6 +5054,81 @@ export type SourceHealth = {
    */
   error?: string | null;
   [key: string]: unknown | boolean | string | null | string | null | undefined;
+};
+
+/**
+ * SourceImport
+ */
+export type SourceImport = {
+  /**
+   * Results
+   */
+  results: Array<SourceImportResult>;
+  [key: string]: unknown | Array<SourceImportResult>;
+};
+
+/**
+ * SourceImportRequest
+ */
+export type SourceImportRequest = {
+  /**
+   * Source
+   */
+  source: number;
+  /**
+   * Paths
+   * files of the source, as browsing it lists them
+   */
+  paths: Array<string>;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Pipeline
+   * run this pipeline afterwards instead of the namespace's
+   */
+  pipeline?: number | null;
+};
+
+/**
+ * SourceImportResult
+ */
+export type SourceImportResult = {
+  /**
+   * Path
+   */
+  path: string;
+  /**
+   * Status
+   */
+  status: "queued" | "already" | "skipped" | "error";
+  /**
+   * Recording
+   */
+  recording?: number | null;
+  /**
+   * Job
+   */
+  job?: number | null;
+  /**
+   * Detail
+   */
+  detail?: string | null;
+  [key: string]:
+    | unknown
+    | string
+    | "queued"
+    | "already"
+    | "skipped"
+    | "error"
+    | number
+    | null
+    | number
+    | null
+    | string
+    | null
+    | undefined;
 };
 
 /**
@@ -8215,6 +8310,31 @@ export type PreviewImportResponses = {
 };
 
 export type PreviewImportResponse = PreviewImportResponses[keyof PreviewImportResponses];
+
+export type ImportFromSourceData = {
+  body: SourceImportRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/import/source";
+};
+
+export type ImportFromSourceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportFromSourceError = ImportFromSourceErrors[keyof ImportFromSourceErrors];
+
+export type ImportFromSourceResponses = {
+  /**
+   * Successful Response
+   */
+  200: SourceImport;
+};
+
+export type ImportFromSourceResponse = ImportFromSourceResponses[keyof ImportFromSourceResponses];
 
 export type UploadLimitsData = {
   body?: never;

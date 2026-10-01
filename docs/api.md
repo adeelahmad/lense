@@ -187,6 +187,13 @@ POST   /api/v1/import/preview
 `POST /import` queues the namespace's pipeline after the import, or the saved pipeline named by `pipeline` (any of
 `GET /pipelines`; 400 for one that doesn't exist, before anything is saved).
 
+`POST /api/v1/import/source {source, paths, namespace, pipeline?}` imports chosen files of a storage source now,
+rather than watching their folder (admins, like sources; up to 500 paths, as `GET /sources/{sid}/browse` lists them).
+Audio and video stay on the source and run the namespace's pipeline, or `pipeline`; transcripts are imported. Each
+path gets a result: `queued` (with `recording` and `job`), `already` (the namespace has it from this source),
+`skipped` (a folder, or not audio, video or a transcript) or `error`. Choosing a file whose recording was deleted
+brings it back. Audited as `import.source`.
+
 ### Uploads
 
 Audio and video go up in pieces, so a dropped connection costs one piece, not the file.
@@ -341,6 +348,9 @@ PATCH  /api/v1/watches/{wid}
 DELETE /api/v1/watches/{wid}
 POST   /api/v1/watches/{wid}/scan
 ```
+
+`GET /sources/{sid}/browse?path=` lists a folder of a source; each file says which recordings it is already
+(`imported: [{recording, namespace}]`).
 
 ## templates
 

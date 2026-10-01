@@ -94,12 +94,15 @@ def test_source(sid: int, user: AdminWriter, db: Db, cfg: Cfg) -> SourceHealth:
 
 @router.get("/sources/{sid}/browse")
 def browse_source(sid: int, user: AdminReader, db: Db, cfg: Cfg, path: str = "") -> list[BrowseEntry]:
-    """The folders and files at one path of a source (for local sources, no path lists the allowed roots)."""
+    """The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the
+    recordings each file already is."""
     _source(db, sid)
     try:
-        return sources.browse(db, cfg, sid, path)
+        entries = sources.browse(db, cfg, sid, path)
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e)) from None
+    have = sources.imported(db, sid, [e["path"] for e in entries if not e["dir"]])
+    return [BrowseEntry(**e, imported=have.get(e["path"], [])) for e in entries]
 
 
 @router.get("/watches")

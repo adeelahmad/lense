@@ -1,4 +1,5 @@
-"""Importing transcripts: an uploaded file (base64 in JSON) or pasted text, and a preview that saves nothing."""
+"""Importing transcripts: an uploaded file (base64 in JSON) or pasted text, and a preview that saves nothing; and
+chosen files of a storage source."""
 
 from __future__ import annotations
 
@@ -12,9 +13,18 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
-from app.api.deps import Acl, Cfg, Db, Writer
-from app.domain import auth, ingest, jobs, pipelines, store
-from app.schemas.imports import ImportPreview, ImportPreviewRequest, ImportRequest, ImportResult, PreviewLine
+from app.api.deps import Acl, AdminWriter, Cfg, Db, Writer, domain_errors
+from app.domain import auth, ingest, jobs, pipelines, sources, store
+from app.schemas.imports import (
+    ImportPreview,
+    ImportPreviewRequest,
+    ImportRequest,
+    ImportResult,
+    PreviewLine,
+    SourceImport,
+    SourceImportRequest,
+    SourceImportResult,
+)
 
 router = APIRouter(prefix="/import", tags=["imports"])
 
@@ -116,3 +126,27 @@ def preview_import(body: ImportPreviewRequest, user: Writer, cfg: Cfg) -> Import
         speakers=sorted({x.get("speaker") for x in segs if x.get("speaker")}),
         preview=[PreviewLine(time=store.tc(x["t0"]), speaker=x.get("speaker"), text=x["text"]) for x in segs[:25]],
     )
+
+
+@router.post("/source")
+def import_from_source(body: SourceImportRequest, request: Request, user: AdminWriter, db: Db, cfg: Cfg) -> SourceImport:
+    """Import chosen files of a storage source into a namespace now, rather than watching their folder (admins, like
+    sources; a new namespace is created). Audio and video stay on the source and run the namespace's pipeline, or
+    `pipeline`; transcripts are imported. Each file gets a result: queued, already (the namespace has it from this
+    source), skipped (not audio, video or a transcript) or error. Audited as `import.source`."""
+    ns = body.namespace.strip()
+    if not store.NS_RX.match(ns):
+        raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
+    check_pipeline(db, body.pipeline)
+    try:
+        sources.get(db, body.source)
+    except KeyError:
+        raise HTTPException(400, "there's no such source") from None
+    with domain_errors():
+        results = sources.import_files(db, cfg, body.source, body.paths, store.ns_id(db, ns), user.email, body.pipeline)
+    queued = [r for r in results if r["status"] == "queued"]
+    if queued:
+        detail = {"namespace": ns, "files": len(queued), "recordings": [r["recording"] for r in queued]}
+        auth.audit(db, user.as_audit(), "import.source", f"source:{body.source}", detail)
+        request.app.state.graph_cache.clear()
+    return SourceImport(results=[SourceImportResult(**r) for r in results])
