@@ -316,3 +316,28 @@ def _screen(db, groups, where_f, cap, base):
         r["source"] = "screen"
         out.append(r)
     return out
+
+
+def terms(db, prefix, spaces, ns=None, limit=8):
+    """Words said in these namespaces (or in `ns`) that start with `prefix`, the most said first:
+    [{word, count, recordings}]. For "Try …" when someone types interp* (prefix search isn't supported)."""
+    p = re.sub(r"[^\w'’.-]", "", (prefix or "").rstrip("*")).lower().strip(".-")
+    if len(p) < 2:
+        return []
+    where, params = ["space IN $s", "string::starts_with(surface, $p)"], {"s": sorted(spaces), "p": p}
+    if ns:
+        try:
+            params["ns"] = store.ns_id(db, ns, create=False)
+        except KeyError:
+            return []
+        where.append("space = $ns")
+    rows = db.rows(f"SELECT surface, n, recording FROM term WHERE {' AND '.join(where)}", **params)
+    count, recs = Counter(), {}
+    for r in rows:
+        w = r.get("surface") or ""
+        if " " in w or w == p:
+            continue
+        count[w] += r.get("n") or 0
+        recs.setdefault(w, set()).add(r["recording"])
+    best = sorted(count, key=lambda w: (-count[w], w))[:limit]
+    return [{"word": w, "count": count[w], "recordings": len(recs[w])} for w in best]

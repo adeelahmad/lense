@@ -64,6 +64,12 @@ class SearchResults(ResponseModel):
     facets: SearchFacets | None = Field(None, description="with `facets=true`: counts over all the matching moments")
 
 
+class TermSuggestion(ResponseModel):
+    word: str
+    count: int = Field(description="how often it's said")
+    recordings: int = Field(description="in how many recordings")
+
+
 class Graph(ResponseModel):
     scope: str
     namespaces: list[str]

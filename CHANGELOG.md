@@ -26,6 +26,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Search: "Try …" whole words for a prefix.** Searching `interp*` finds nothing (there's no prefix search); the page
+  now offers the words said in your namespaces that start with it ("Try interpretability or interpreter"), and picking
+  one searches for it. `GET /api/v1/search/terms?prefix=` lists them, the most said first (docs/api.md).
 - **Search: saved searches keep every filter.** Save keeps a search's words and all its filters (namespace, speaker,
   emotion, recording) in Saved searches; they were kept as filter collections, which can't hold emotion or recording.
   Like saved views, they're yours, and editors can share one with the namespace it searches; the panel lists yours,

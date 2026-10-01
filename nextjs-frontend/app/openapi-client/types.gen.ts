@@ -6791,6 +6791,27 @@ export type TemplateVersionInfo = {
 };
 
 /**
+ * TermSuggestion
+ */
+export type TermSuggestion = {
+  /**
+   * Word
+   */
+  word: string;
+  /**
+   * Count
+   * how often it's said
+   */
+  count: number;
+  /**
+   * Recordings
+   * in how many recordings
+   */
+  recordings: number;
+  [key: string]: unknown | string | number;
+};
+
+/**
  * TokenPair
  */
 export type TokenPair = {
@@ -9951,6 +9972,46 @@ export type SearchTranscriptsResponses = {
 };
 
 export type SearchTranscriptsResponse = SearchTranscriptsResponses[keyof SearchTranscriptsResponses];
+
+export type SuggestTermsData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Prefix
+     * the start of a word (a trailing * is ignored)
+     */
+    prefix: string;
+    /**
+     * Ns
+     */
+    ns?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/search/terms";
+};
+
+export type SuggestTermsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SuggestTermsError = SuggestTermsErrors[keyof SuggestTermsErrors];
+
+export type SuggestTermsResponses = {
+  /**
+   * Response Search-Suggest Terms
+   * Successful Response
+   */
+  200: Array<TermSuggestion>;
+};
+
+export type SuggestTermsResponse = SuggestTermsResponses[keyof SuggestTermsResponses];
 
 export type GetGraphData = {
   body?: never;

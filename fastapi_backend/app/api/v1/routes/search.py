@@ -9,7 +9,7 @@ from app.api.media import sign_urls
 from app.domain import graph as graphmod
 from app.domain import render, store
 from app.domain import search as searchmod
-from app.schemas.search import Graph, Mention, SearchResults
+from app.schemas.search import Graph, Mention, SearchResults, TermSuggestion
 
 router = APIRouter(tags=["search"])
 
@@ -35,6 +35,22 @@ def search_transcripts(
         acl.need(acl.nsid(ns))
     res = searchmod.search(db, q, ns, speaker, emotion, recording, limit, offset, spaces=set(acl.roles), facets=facets)
     return sign_urls(res)
+
+
+@router.get("/search/terms")
+def suggest_terms(
+    acl: Acl,
+    user: CurrentUser,
+    db: Db,
+    prefix: str = Query(min_length=2, max_length=60, description="the start of a word (a trailing * is ignored)"),
+    ns: str | None = None,
+    limit: int = Query(8, ge=1, le=20),
+) -> list[TermSuggestion]:
+    """Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search
+    has no prefix search, so the web app offers these when someone types interp*."""
+    if ns:
+        acl.need(acl.nsid(ns))
+    return [TermSuggestion.model_validate(t) for t in searchmod.terms(db, prefix, set(acl.roles), ns, limit)]
 
 
 @router.get("/graph")

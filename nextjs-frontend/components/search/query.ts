@@ -61,6 +61,12 @@ export function prefixWords(text: string): string[] {
     .map((t) => t.replace(/\*+$/, ""));
 }
 
+/** The query with `word*` (a prefix typed with *) replaced by a whole word. */
+export function replacePrefix(text: string, prefix: string, word: string): string {
+  const esc = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(new RegExp(`(^|\\s)${esc}\\*+(?=\\s|$)`, "g"), (_m, lead: string) => `${lead}${word}`);
+}
+
 /** The "quoted phrases" in a query. */
 export function phrases(text: string): string[] {
   return tokens(text)

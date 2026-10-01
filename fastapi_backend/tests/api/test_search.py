@@ -99,3 +99,24 @@ def test_facets_count_every_match(client, db, cfg, folder, monkeypatch):
     monkeypatch.setattr(search, "FACET_CAP", 2)
     capped = search.search(db, "capsid", facets=True)["facets"]
     assert (capped["moments"], capped["partial"]) == (2, True)
+
+
+def test_word_suggestions_for_a_prefix(client, db, cfg, folder):
+    seed(db, cfg, folder)
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    hv, hr = login(client, "vi@x.io", "viewer password 1"), login(client, "root@x.io", "root password 1")
+    said = lambda h, **p: client.get("/api/v1/search/terms", params=p, headers=h).json()  # noqa: E731
+    capsid = said(hv, prefix="caps*")
+    assert [w["word"] for w in capsid] == ["capsid"] and capsid[0]["recordings"] == 1 and capsid[0]["count"] >= 4
+    # the namespaces you can read, or one of them; most said first
+    assert said(hv, prefix="shipm") == [] and [w["word"] for w in said(hr, prefix="shipm")] == ["shipment"]
+    assert said(hr, prefix="caps", ns="calls")[0]["recordings"] == 1
+    benchmark = said(hv, prefix="be")
+    assert [w["word"] for w in benchmark][:1] == ["benchmark"] and benchmark == sorted(benchmark, key=lambda w: -w["count"])
+    assert len(said(hv, prefix="th", limit=2)) <= 2
+    assert said(hv, prefix="capsid") == []  # the whole word itself isn't a suggestion
+    # checked like a search
+    assert client.get("/api/v1/search/terms", params={"prefix": "c"}, headers=hv).status_code == 422
+    assert client.get("/api/v1/search/terms", params={"prefix": "caps", "ns": "calls"}, headers=hv).status_code == 404
+    assert client.get("/api/v1/search/terms", params={"prefix": "caps"}).status_code == 401

@@ -10,6 +10,7 @@ import {
   parseQuery,
   phrases,
   prefixWords,
+  replacePrefix,
   savedSearchFilters,
   savedSearchHref,
   toParams,
@@ -211,5 +212,14 @@ describe("saved searches", () => {
     expect(savedSearchFilters(saved)).toBe("podcasts · Alice · Happy · Episode 12");
     expect(savedSearchFilters({ q: "x", speaker: 7, recording: 3 })).toBe("Speaker #7 · Recording #3");
     expect(savedSearchFilters({ q: "x" })).toBe("");
+  });
+});
+
+describe("prefix words", () => {
+  it("are replaced by the whole word picked", () => {
+    expect(replacePrefix("interp* models", "interp", "interpretability")).toBe("interpretability models");
+    expect(replacePrefix('evals "red team" interp**', "interp", "interpreter")).toBe('evals "red team" interpreter');
+    expect(replacePrefix("misinterp* interp*", "interp", "interpret")).toBe("misinterp* interpret");
+    expect(replacePrefix("a.b* c", "a.b", "a.bc")).toBe("a.bc c");
   });
 });

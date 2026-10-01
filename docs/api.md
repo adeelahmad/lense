@@ -272,6 +272,7 @@ recording later leaves its uploaded file in place, like any other media file.
 
 ```
 GET    /api/v1/search
+GET    /api/v1/search/terms
 GET    /api/v1/graph
 GET    /api/v1/mentions
 ```
@@ -282,6 +283,10 @@ read, best first: every word (English stemming), "quoted phrases" as written, `O
 far (`capped` when there may be more). With `facets=true` it also counts all the matching moments, whatever the page,
 by namespace, speaker, emotion and recording (`facets`: up to 50 values each, most first, and `moments`); past 20,000
 moments the counts cover 20,000 of them (`partial`).
+
+Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
+words said in the namespaces you can read (`ns` for one) that start with it, the most said first, with how often and
+in how many recordings (`limit`, default 8, at most 20); the web app offers them as "Try …".
 
 ## speakers
 

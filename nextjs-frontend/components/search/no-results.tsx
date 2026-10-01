@@ -1,11 +1,64 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Fragment, type ReactNode } from "react";
 
-import { phrases, prefixWords, type SearchFilters } from "@/components/search/query";
+import { Search } from "@/app/openapi-client";
+import { phrases, prefixWords, replacePrefix, type SearchFilters } from "@/components/search/query";
+import { data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
 
 type Hint = { key: string; node: ReactNode };
+
+/** "interp*": prefix search isn't supported, so offer whole words that start with it ("Try interpretability"). */
+function PrefixHint({
+  q,
+  word,
+  namespace,
+  onSearch,
+}: {
+  q: string;
+  word: string;
+  namespace?: string;
+  onSearch: (q: string) => void;
+}) {
+  const client = useApiClient();
+  const words = useQuery({
+    queryKey: ["search-terms", word, namespace ?? null],
+    queryFn: () => data(Search.suggestTerms({ client, query: { prefix: word, ns: namespace ?? null, limit: 5 } })),
+    enabled: word.length >= 2,
+    staleTime: 60_000,
+  });
+  const found = words.data ?? [];
+  return (
+    <>
+      <code className="font-mono">{word}*</code> — prefix search isn’t supported, so this looks for the whole word “
+      {word}
+      ”.{" "}
+      {found.length ? (
+        <>
+          Try{" "}
+          {found.map((w, i) => (
+            <Fragment key={w.word}>
+              {i > 0 && (i === found.length - 1 ? " or " : ", ")}
+              <button
+                type="button"
+                className={LINK}
+                title={`Said ${plural(w.count, "time")} in ${plural(w.recordings, "recording")}`}
+                onClick={() => onSearch(replacePrefix(q, word, w.word))}
+              >
+                {w.word}
+              </button>
+            </Fragment>
+          ))}
+          .
+        </>
+      ) : (
+        "Type the full word you mean."
+      )}
+    </>
+  );
+}
 
 const LINK = "font-medium text-fg-accent underline underline-offset-2 hover:text-blue-dark";
 
@@ -36,12 +89,7 @@ export function NoResults({
   for (const w of prefixWords(q)) {
     hints.push({
       key: `p-${w}`,
-      node: (
-        <>
-          <code className="font-mono">{w}*</code> — prefix search isn’t supported, so this looks for the whole word “{w}
-          ”. Type the full word you mean.
-        </>
-      ),
+      node: <PrefixHint q={q} word={w} namespace={filters.namespace} onSearch={onSearch} />,
     });
   }
   for (const p of phrases(q)) {

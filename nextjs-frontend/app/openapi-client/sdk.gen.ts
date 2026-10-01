@@ -219,6 +219,9 @@ import type {
   SearchTranscriptsData,
   SearchTranscriptsResponses,
   SearchTranscriptsErrors,
+  SuggestTermsData,
+  SuggestTermsResponses,
+  SuggestTermsErrors,
   GetGraphData,
   GetGraphResponses,
   GetGraphErrors,
@@ -1666,6 +1669,18 @@ export class Search {
   ) {
     return (options.client ?? client).get<SearchTranscriptsResponses, SearchTranscriptsErrors, ThrowOnError>({
       url: "/api/v1/search",
+      ...options,
+    });
+  }
+
+  /**
+   * Suggest Terms
+   * Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search
+   * has no prefix search, so the web app offers these when someone types interp*.
+   */
+  public static suggestTerms<ThrowOnError extends boolean = false>(options: Options<SuggestTermsData, ThrowOnError>) {
+    return (options.client ?? client).get<SuggestTermsResponses, SuggestTermsErrors, ThrowOnError>({
+      url: "/api/v1/search/terms",
       ...options,
     });
   }
