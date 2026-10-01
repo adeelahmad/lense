@@ -2257,8 +2257,14 @@ export type Job = {
   progress?: number | null;
   /**
    * Log
+   * the last 200 lines; GET /jobs/{jid}/log has them all
    */
   log?: Array<string> | null;
+  /**
+   * Log Total
+   * how many lines the run has logged
+   */
+  log_total?: number | null;
   [key: string]:
     | unknown
     | number
@@ -2279,6 +2285,8 @@ export type Job = {
     | number
     | null
     | Array<string>
+    | null
+    | number
     | null
     | undefined;
 };
@@ -2326,6 +2334,32 @@ export type JobList = {
     | null
     | string
     | undefined;
+};
+
+/**
+ * JobLog
+ */
+export type JobLog = {
+  /**
+   * Start
+   * the number of the first line here (0-based)
+   */
+  start: number;
+  /**
+   * Lines
+   */
+  lines: Array<string>;
+  /**
+   * Total
+   * how many lines the run has logged so far
+   */
+  total: number;
+  /**
+   * More
+   * whether there are lines after these
+   */
+  more: boolean;
+  [key: string]: unknown | number | Array<string> | boolean;
 };
 
 /**
@@ -10302,6 +10336,46 @@ export type GetJobResponses = {
 
 export type GetJobResponse = GetJobResponses[keyof GetJobResponses];
 
+export type GetJobLogData = {
+  body?: never;
+  path: {
+    /**
+     * Jid
+     */
+    jid: number;
+  };
+  query?: {
+    /**
+     * After
+     * start at this line (0-based)
+     */
+    after?: number;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/jobs/{jid}/log";
+};
+
+export type GetJobLogErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetJobLogError = GetJobLogErrors[keyof GetJobLogErrors];
+
+export type GetJobLogResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobLog;
+};
+
+export type GetJobLogResponse = GetJobLogResponses[keyof GetJobLogResponses];
+
 export type QueueStepData = {
   body?: never;
   path: {
@@ -10421,6 +10495,11 @@ export type StreamEventsData = {
      * Once
      */
     once?: boolean;
+    /**
+     * Logs
+     * follow this job only, with its new log lines as `log` events
+     */
+    logs?: number | null;
   };
   url: "/api/v1/events";
 };
@@ -10436,7 +10515,7 @@ export type StreamEventsError = StreamEventsErrors[keyof StreamEventsErrors];
 
 export type StreamEventsResponses = {
   /**
-   * `event: job` with the job as JSON data
+   * `event: job` with the job as JSON data; with `logs`, `event: log` with {job, start, lines}
    */
   200: unknown;
 };

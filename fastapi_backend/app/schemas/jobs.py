@@ -18,7 +18,15 @@ class Job(ResponseModel):
     error: str | None = None
     title: str | None = None
     progress: float | None = None
-    log: list[str] | None = None
+    log: list[str] | None = Field(None, description="the last 200 lines; GET /jobs/{jid}/log has them all")
+    log_total: int | None = Field(None, description="how many lines the run has logged")
+
+
+class JobLog(ResponseModel):
+    start: int = Field(description="the number of the first line here (0-based)")
+    lines: list[str]
+    total: int = Field(description="how many lines the run has logged so far")
+    more: bool = Field(description="whether there are lines after these")
 
 
 class JobList(ResponseModel):

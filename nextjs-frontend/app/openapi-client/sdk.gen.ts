@@ -367,6 +367,9 @@ import type {
   GetJobData,
   GetJobResponses,
   GetJobErrors,
+  GetJobLogData,
+  GetJobLogResponses,
+  GetJobLogErrors,
   QueueStepData,
   QueueStepResponses,
   QueueStepErrors,
@@ -2311,6 +2314,18 @@ export class Jobs {
   }
 
   /**
+   * Get Job Log
+   * A run's whole log, a page at a time: up to `limit` lines from line `after`, and how many there are. Runs from
+   * before whole logs were kept have their last 200 lines.
+   */
+  public static getJobLog<ThrowOnError extends boolean = false>(options: Options<GetJobLogData, ThrowOnError>) {
+    return (options.client ?? client).get<GetJobLogResponses, GetJobLogErrors, ThrowOnError>({
+      url: "/api/v1/jobs/{jid}/log",
+      ...options,
+    });
+  }
+
+  /**
    * Queue Step
    * The web app's batch buttons: queue one step for everything that needs it (``transcribe``, ``diarize``,
    * ``analyze``, ``summarize``, ``report``), or (admins) ``run``/``scan`` the configured folders.
@@ -2355,7 +2370,10 @@ export class Jobs {
   /**
    * Stream Events
    * Server-sent events: one ``job`` event per job change in namespaces you can read, from ``since`` (default: now).
-   * ``once=true`` sends what has changed and closes. Read it with fetch (it needs the Authorization header).
+   * ``once=true`` sends what has changed and closes. ``logs=<job>`` follows that one job: its changes, and each batch of
+   * new log lines as a ``log`` event ``{job, start, lines}`` (``start`` numbers the first line, so a client can tell
+   * an overlap or a gap; the first one carries up to the last 200 lines). Read it with fetch (it needs the
+   * Authorization header).
    */
   public static streamEvents<ThrowOnError extends boolean = false>(options?: Options<StreamEventsData, ThrowOnError>) {
     return (options?.client ?? client).sse.get<StreamEventsResponses, StreamEventsErrors, ThrowOnError>({

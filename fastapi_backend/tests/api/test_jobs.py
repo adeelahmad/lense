@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import base64
+import json
 
-from app.domain import ingest, jobs
+from app.domain import ingest, jobs, store
 from tests.helpers import drain, login, make_user, quiet, seed, write_docx, write_wav
 
 
@@ -90,3 +91,57 @@ def test_read_only_tokens_cannot_queue(client, db, cfg, folder):
     assert client.get("/api/v1/jobs", headers=bearer).status_code == 200
     assert client.post("/api/v1/jobs", json={"recordings": [a]}, headers=bearer).status_code == 403
     assert client.post(f"/api/v1/recordings/{a}/reprocess", headers=bearer).status_code == 403
+
+
+def test_a_runs_whole_log(client, new_client, db, cfg, folder, monkeypatch):
+    a, _b, call = seed(db, cfg, folder)
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    hv = login(client, "vi@x.io", "viewer password 1")
+    analyze = jobs.STEPS["analyze"]
+
+    def chatty(db_, cfg_, rid, say, spec=None):
+        for n in range(450):
+            say(f"line {n}")
+        analyze(db_, cfg_, rid, say, spec)
+
+    monkeypatch.setitem(jobs.STEPS, "analyze", chatty)
+    jid = jobs.enqueue(db, a, ["analyze"])
+    drain(db, cfg)
+    job = client.get(f"/api/v1/jobs/{jid}", headers=hv).json()
+    assert len(job["log"]) == 200 and job["log_total"] >= 452  # the run keeps its last 200; all are kept apart
+    whole = client.get(f"/api/v1/jobs/{jid}/log", headers=hv).json()
+    assert (whole["start"], whole["total"], whole["more"]) == (0, job["log_total"], False)
+    assert [x.split(" ", 1)[1] for x in whole["lines"][:2]] == ["line 0", "line 1"] and whole["lines"][-200:] == job["log"]
+    page = client.get(f"/api/v1/jobs/{jid}/log", params={"after": 100, "limit": 50}, headers=hv).json()
+    assert page["lines"] == whole["lines"][100:150] and page["more"]
+    end = client.get(f"/api/v1/jobs/{jid}/log", params={"after": whole["total"]}, headers=hv).json()
+    assert (end["lines"], end["more"]) == ([], False)
+
+    # the event stream follows one job, with its log lines
+    ev = client.get("/api/v1/events", params={"since": "0", "once": "true", "logs": jid}, headers=hv)
+    events = [block for block in ev.text.split("\n\n") if block.startswith("event:")]
+    assert [b.split("\n")[0] for b in events] == ["event: job", "event: log"]
+    payload = json.loads(events[1].split("data: ", 1)[1])
+    assert payload["job"] == jid and payload["start"] == whole["total"] - 200 and payload["lines"] == whole["lines"][-200:]
+    # not for a job in a namespace you can't read
+    other = jobs.enqueue(db, call, ["analyze"])
+    assert client.get(f"/api/v1/jobs/{other}/log", headers=hv).status_code == 404
+    assert client.get("/api/v1/events", params={"once": "true", "logs": other}, headers=hv).status_code == 404
+
+    # a run from before whole logs were kept: its last 200 lines
+    db.q("UPDATE $j SET log = ['old 1', 'old 2'], log_total = NONE", j=store.R("job", other))
+    db.q("DELETE job_log WHERE job = $j", j=other)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    root = login(new_client(), "root@x.io", "root password 1")
+    assert client.get(f"/api/v1/jobs/{other}/log", headers=root).json()["lines"] == ["old 1", "old 2"]
+
+
+def test_a_run_keeps_at_most_so_many_lines(db, cfg, folder, monkeypatch):
+    a = seed(db, cfg, folder)[0]
+    monkeypatch.setattr(jobs, "LOG_MAX", 30)
+    monkeypatch.setitem(jobs.STEPS, "analyze", lambda db_, cfg_, rid, say, spec=None: [say(f"n{n}") for n in range(50)])
+    jid = jobs.enqueue(db, a, ["analyze"])
+    drain(db, cfg)
+    lines, total = jobs.log_lines(db, jid, 0, 1000)
+    assert total == 30 and lines[0].endswith("n0")
+    assert "analyze done" in db.one("SELECT log FROM $j", j=store.R("job", jid))["log"][-1]  # the run's own tail goes on

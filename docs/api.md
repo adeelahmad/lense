@@ -324,12 +324,22 @@ POST   /api/v1/import/iiif
 GET    /api/v1/jobs
 POST   /api/v1/jobs
 GET    /api/v1/jobs/{jid}
+GET    /api/v1/jobs/{jid}/log
 POST   /api/v1/jobs/steps/{step}
 POST   /api/v1/jobs/{jid}/cancel
 POST   /api/v1/jobs/{jid}/retry
 GET    /api/v1/workers
 GET    /api/v1/events
 ```
+
+A run keeps its whole log (up to 100,000 lines); the job itself carries its last 200 lines (`log`) and how many there
+are (`log_total`). `GET /jobs/{jid}/log?after=&limit=` pages through it: `{start, lines, total, more}`, up to 5,000
+lines a page (runs from before whole logs were kept have their last 200 lines).
+
+`GET /events` streams `job` events: one per job change in the namespaces you can read, from `since`. With
+`logs=<jid>` it follows that one job, and each batch of its new lines comes as a `log` event
+`{job, start, lines}`: `start` numbers the first line (the first event carries up to the last 200), so a client can
+tell an overlap from a gap and fetch the gap with `GET /jobs/{jid}/log`. Lines go out about every 2 seconds.
 
 ## sources
 

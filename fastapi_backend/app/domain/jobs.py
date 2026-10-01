@@ -21,7 +21,7 @@ AFTER_IMPORT = ["analyze", "summarize", "report"]
 ACTIVE = ["queued", "running"]
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, steps, step_index, next_step, status, worker, error, attempts, created_by, "
-    "created_at, started_at, finished_at, updated_at, cancel_requested"
+    "created_at, started_at, finished_at, updated_at, cancel_requested, log_total"
 )
 
 
@@ -211,23 +211,84 @@ def claim(db, worker, can):
     return None
 
 
+LOG_TAIL = 200  # lines a run keeps on itself, for a quick look; job_log has all of them
+LOG_MAX = 100_000  # lines kept per run
+
+
+class RunLog:
+    """A run's log as it's written. Every line goes to job_log in chunks (`start` is the number of the chunk's first
+    line); the job keeps its last LOG_TAIL lines (`log`) and how many there are (`log_total`), so the event feed
+    can send what's new."""
+
+    def __init__(self, db, jid, space, tail=None, total=None):
+        self.db, self.jid, self.space = db, jid, space
+        self.tail, self.total, self.pending = list(tail or [])[-LOG_TAIL:], int(total or 0), []
+        self.lock = threading.Lock()
+
+    def say(self, line):
+        with self.lock:
+            self.tail.append(line)
+            del self.tail[:-LOG_TAIL]
+            if self.total + len(self.pending) < LOG_MAX:
+                self.pending.append(line)
+        return line
+
+    def flush(self):
+        """Write the new lines; the parameters for the job's `log = $l, log_total = $n`."""
+        with self.lock:
+            chunk, start = self.pending, self.total
+            self.pending, self.total = [], self.total + len(chunk)
+            tail, total = list(self.tail), self.total
+        if chunk:
+            self.db.q(
+                "CREATE job_log CONTENT $d",
+                d={"job": self.jid, "space": self.space, "start": start, "lines": chunk, "at": store.now()},
+            )
+        return {"l": tail, "n": total}
+
+
+def log_lines(db, jid, after=0, limit=1000):
+    """Lines of a run's log from line number `after` (0-based), at most `limit`: (lines, total). Runs from before
+    job_log have only the last LOG_TAIL lines kept on the job."""
+    chunks = db.rows("SELECT start, lines FROM job_log WHERE job = $j AND start + array::len(lines) > $a ORDER BY start", j=jid, a=after)
+    if not chunks:
+        j = db.one("SELECT log, log_total FROM $j", j=R("job", jid)) or {}
+        if j.get("log_total") is None:  # an old run
+            old = list(j.get("log") or [])
+            return old[after : after + limit], len(old)
+        return [], j["log_total"]
+    lines = [x for c in chunks for x in c["lines"]][after - chunks[0]["start"] :]
+    last = db.one("SELECT start, array::len(lines) AS n FROM job_log WHERE job = $j ORDER BY start DESC LIMIT 1", j=jid)
+    return lines[:limit], last["start"] + last["n"]
+
+
 def run_job(db, cfg_fn, job, worker, can, log=None):
     jid, rid, jr = job["id"], job["recording"], R("job", job["id"])
     steps, i = job["steps"], job.get("step_index") or 0
-    lines = list(job.get("log") or [])[-200:]
+    out = RunLog(db, jid, job.get("space"), job.get("log"), job.get("log_total"))
 
     def say(*a):
-        lines.append(time.strftime("%H:%M:%S ") + " ".join(str(x) for x in a).strip())
-        del lines[:-200]
+        line = out.say(time.strftime("%H:%M:%S ") + " ".join(str(x) for x in a).strip())
         if log:
-            log(f"[job {jid}] {lines[-1]}")
+            log(f"[job {jid}] {line}")
 
     stop = threading.Event()
 
     def beat():
-        while not stop.wait(20):
+        # new lines go out every couple of seconds (the event feed sends them on); a heartbeat at least every 20
+        last = time.monotonic()
+        while not stop.wait(2):
+            if not out.pending and time.monotonic() - last < 20:
+                continue
+            last = time.monotonic()
             try:
-                db.q("UPDATE $j SET heartbeat_at = $t, log = $l", j=jr, t=store.now(), l=lines)
+                db.q(
+                    "UPDATE $j SET heartbeat_at = $t, updated_at = $t, log = $l, log_total = $n "
+                    "WHERE status = 'running' AND (log_total ?? 0) <= $n",
+                    j=jr,
+                    t=store.now(),
+                    **out.flush(),
+                )
             except Exception:  # noqa: BLE001
                 pass
 
@@ -238,11 +299,11 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
             if i >= len(steps):
                 if db.rows(
                     "UPDATE $j SET status = 'succeeded', step_index = $i, next_step = NONE, error = NONE, finished_at = $t, "
-                    "updated_at = $t, log = $l WHERE array::len(steps) <= $i RETURN AFTER",
+                    "updated_at = $t, log = $l, log_total = $n WHERE array::len(steps) <= $i RETURN AFTER",
                     j=jr,
                     i=i,
                     t=store.now(),
-                    l=lines,
+                    **out.flush(),
                 ):
                     return "succeeded"
                 continue  # steps were added just now
@@ -252,30 +313,30 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
             if gone or (db.one("SELECT cancel_requested FROM $j", j=jr) or {}).get("cancel_requested"):
                 say("the recording was deleted" if gone else "cancelled")
                 db.q(
-                    "UPDATE $j SET status = 'cancelled', worker = NONE, finished_at = $t, updated_at = $t, log = $l",
+                    "UPDATE $j SET status = 'cancelled', worker = NONE, finished_at = $t, updated_at = $t, log = $l, log_total = $n",
                     j=jr,
                     t=store.now(),
-                    l=lines,
+                    **out.flush(),
                 )
                 return "cancelled"
             if step not in can:
                 say(f"handing {step} to a worker that can run it")
                 db.q(
-                    "UPDATE $j SET status = 'queued', step_index = $i, next_step = $s, worker = NONE, updated_at = $t, log = $l",
+                    "UPDATE $j SET status = 'queued', step_index = $i, next_step = $s, worker = NONE, updated_at = $t, log = $l, log_total = $n",
                     j=jr,
                     i=i,
                     s=step,
                     t=store.now(),
-                    l=lines,
+                    **out.flush(),
                 )
                 return "handed-off"
             db.q(
-                "UPDATE $j SET step_index = $i, next_step = $s, updated_at = $t, heartbeat_at = $t, log = $l",
+                "UPDATE $j SET step_index = $i, next_step = $s, updated_at = $t, heartbeat_at = $t, log = $l, log_total = $n",
                 j=jr,
                 i=i,
                 s=step,
                 t=store.now(),
-                l=lines,
+                **out.flush(),
             )
             if spec.get("when") and not pipelines.condition_ok(db, rid, spec["when"]):
                 say(f"{step} skipped: its condition isn't met")
@@ -290,13 +351,13 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
         failed = _spec(steps[i])["type"] if i < len(steps) else None
         say(f"{failed or 'finishing'} failed: {err}")
         db.q(
-            "UPDATE $j SET status = 'failed', error = $e, step_index = $i, next_step = $s, finished_at = $t, updated_at = $t, log = $l",
+            "UPDATE $j SET status = 'failed', error = $e, step_index = $i, next_step = $s, finished_at = $t, updated_at = $t, log = $l, log_total = $n",
             j=jr,
             e=err,
             i=i,
             s=failed,
             t=store.now(),
-            l=lines,
+            **out.flush(),
         )
         if failed == "transcribe":
             db.q("UPDATE $r SET status = 'error', error = $e", r=R("recording", rid), e=err)
@@ -387,13 +448,15 @@ def list_jobs(db, spaces=None, status=None, recording=None, limit=100):
     return _decorate(db, db.rows(q, **p))
 
 
-def changes(db, since, spaces=None):
+def changes(db, since, spaces=None, only=None):
+    """Jobs changed after `since` (in these namespaces; only job `only`, when given), oldest change first."""
     q = (
         f"SELECT {FIELDS} FROM job WHERE updated_at > $s"
         + (" AND space IN $sp" if spaces is not None else "")
+        + (" AND id = $j" if only is not None else "")
         + " ORDER BY updated_at LIMIT 200"
     )
-    return _decorate(db, db.rows(q, s=since or "", sp=sorted(spaces or [])))
+    return _decorate(db, db.rows(q, s=since or "", sp=sorted(spaces or []), j=R("job", only or 0)))
 
 
 def counts(db, spaces=None):

@@ -21,6 +21,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - `speaker` takes speaker ids. Speakers belong to one namespace, so the web app's speaker filter lists everyone
       who speaks in the namespaces in scope by name and sends every id with that name.
     - The Needs attention and Processing tab counts come from the server too.
+- **Whole job logs.** A run's Activity page shows its whole log, streaming as it's written, and downloads it all; it
+  was the last 200 lines. Runs keep up to 100,000 lines in a new `job_log` table, written in chunks every couple of
+  seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
+  `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
+  with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
 - **Fix: opening a SurrealDB server database could fail.** Opening a connection to a server creates the database if
   it's new, and two processes doing that at once (workers starting together, or tests in parallel) could hit a write
   conflict and stop with "cannot open SurrealDB". Opening now retries a conflict, as queries already did.

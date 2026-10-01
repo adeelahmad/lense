@@ -17,7 +17,7 @@ from app.api.deps import Access, Acl, AdminReader, Cfg, CurrentUser, Db, Writer,
 from app.domain import ingest, jobs, store
 from app.domain.store import DB
 from app.schemas.common import Ok
-from app.schemas.jobs import Job, JobList, JobsCreate, JobsQueued, StepQueued, WorkerInfo
+from app.schemas.jobs import Job, JobList, JobLog, JobsCreate, JobsQueued, StepQueued, WorkerInfo
 
 router = APIRouter(tags=["jobs"])
 log = logging.getLogger("lens")
@@ -67,6 +67,22 @@ def _job(db: DB, acl: Access, jid: int, role: str = "viewer") -> dict[str, Any]:
 @router.get("/jobs/{jid}")
 def get_job(jid: int, acl: Acl, user: CurrentUser, db: Db) -> Job:
     return Job.model_validate(_job(db, acl, jid))
+
+
+@router.get("/jobs/{jid}/log")
+def get_job_log(
+    jid: int,
+    acl: Acl,
+    user: CurrentUser,
+    db: Db,
+    after: int = Query(0, ge=0, description="start at this line (0-based)"),
+    limit: int = Query(1000, ge=1, le=5000),
+) -> JobLog:
+    """A run's whole log, a page at a time: up to `limit` lines from line `after`, and how many there are. Runs from
+    before whole logs were kept have their last 200 lines."""
+    _job(db, acl, jid)
+    lines, total = jobs.log_lines(db, jid, after, limit)
+    return JobLog(start=after, lines=lines, total=total, more=after + len(lines) < total)
 
 
 @router.post("/jobs/steps/{step}")
@@ -134,13 +150,31 @@ def list_workers(user: AdminReader, db: Db) -> list[WorkerInfo]:
 @router.get(
     "/events",
     response_class=StreamingResponse,
-    responses={200: {"content": {"text/event-stream": {}}, "description": "`event: job` with the job as JSON data"}},
+    responses={
+        200: {
+            "content": {"text/event-stream": {}},
+            "description": "`event: job` with the job as JSON data; with `logs`, `event: log` with {job, start, lines}",
+        }
+    },
 )
-async def stream_events(request: Request, user: CurrentUser, since: str = "", once: bool = False) -> StreamingResponse:
+async def stream_events(
+    request: Request,
+    user: CurrentUser,
+    since: str = "",
+    once: bool = False,
+    logs: int | None = Query(None, description="follow this job only, with its new log lines as `log` events"),
+) -> StreamingResponse:
     """Server-sent events: one ``job`` event per job change in namespaces you can read, from ``since`` (default: now).
-    ``once=true`` sends what has changed and closes. Read it with fetch (it needs the Authorization header)."""
+    ``once=true`` sends what has changed and closes. ``logs=<job>`` follows that one job: its changes, and each batch of
+    new log lines as a ``log`` event ``{job, start, lines}`` (``start`` numbers the first line, so a client can tell
+    an overlap or a gap; the first one carries up to the last 200 lines). Read it with fetch (it needs the
+    Authorization header)."""
     db = request.app.state.db
     spaces = None if user.admin else set(user.roles)
+    if logs is not None:
+        j = await run_in_threadpool(jobs.get, db, logs)
+        if not j or (spaces is not None and j["space"] not in spaces):
+            raise HTTPException(404, "not found")
 
     async def gen() -> AsyncIterator[str]:
         # A comment first, so clients (and proxies that hold headers until the first byte) see the stream open now
@@ -148,11 +182,19 @@ async def stream_events(request: Request, user: CurrentUser, since: str = "", on
         yield ": open\n\n"
         last = since or store.now()
         quiet = 0
+        sent: int | None = None  # log lines of the followed job sent so far
         while True:
-            rows = await run_in_threadpool(jobs.changes, db, last, spaces)
+            rows = await run_in_threadpool(jobs.changes, db, last, spaces, logs)
             for r in rows:
                 last = max(last, r.get("updated_at") or last)
                 yield f"event: job\ndata: {json.dumps(r, default=str)}\n\n"
+            if logs is not None and (rows or sent is None):
+                total = int(((await run_in_threadpool(jobs.get, db, logs)) or {}).get("log_total") or 0)
+                start = max(0, total - jobs.LOG_TAIL) if sent is None else sent
+                if total > start:
+                    lines, _ = await run_in_threadpool(jobs.log_lines, db, logs, start, 5000)
+                    yield f"event: log\ndata: {json.dumps({'job': logs, 'start': start, 'lines': lines})}\n\n"
+                sent = max(start, total)
             if once:
                 break
             quiet = 0 if rows else quiet + 1

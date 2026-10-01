@@ -116,7 +116,8 @@ A job whose next step a worker can't run goes back on the queue for one that can
 the container does the rest. Jobs can be cancelled and retried from the failed step; a job whose worker stops
 responding is retried. Steps added to a job while it runs (attaching audio does) run after its other steps: a worker
 reads the job's steps again before each step, and only finishes a job whose steps are all done.
-`GET /api/v1/events` streams job progress (server-sent events).
+`GET /api/v1/events` streams job progress (server-sent events). A run's whole log is kept (up to 100,000 lines) and
+streams to its Activity page as it's written.
 
     lens worker --steps transcribe,diarize     # e.g. on the Mac, with SURREAL_URL pointing at the server
 

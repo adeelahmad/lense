@@ -1,4 +1,5 @@
 import {
+  appendLog,
   applyCount,
   applyJobEvent,
   batchPhase,
@@ -10,9 +11,9 @@ import {
   span,
   stepStates,
   triggerOf,
+  type JobRecord,
   waitingReason,
   workerState,
-  type JobRecord,
 } from "@/components/activity/job-model";
 import { cancelSummary } from "@/components/activity/cancel-dialog";
 
@@ -285,5 +286,15 @@ describe("batches and cancelling", () => {
       kept: ["Transcribe"],
       dropped: ["Diarize", "Analyze", "Summarize", "Report"],
     });
+  });
+});
+
+describe("a run's whole log, as it streams", () => {
+  it("adds what's new and says when lines were missed", () => {
+    const have = ["a", "b", "c"];
+    expect(appendLog(have, 3, ["d", "e"])).toEqual(["a", "b", "c", "d", "e"]);
+    expect(appendLog(have, 1, ["b", "c", "d"])).toEqual(["a", "b", "c", "d"]); // overlaps what's here
+    expect(appendLog(have, 0, ["a", "b"])).toBe(have); // nothing new
+    expect(appendLog(have, 5, ["f"])).toBeNull(); // a gap: read from line 3
   });
 });

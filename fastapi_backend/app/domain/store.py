@@ -519,6 +519,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS job_status ON job FIELDS status",
     "DEFINE INDEX IF NOT EXISTS job_rec ON job FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS job_updated ON job FIELDS updated_at",
+    # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
+    "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",
     "DEFINE TABLE IF NOT EXISTS worker SCHEMALESS",
     # storage
     "DEFINE TABLE IF NOT EXISTS storage_source SCHEMALESS",

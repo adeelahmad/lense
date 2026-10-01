@@ -6494,6 +6494,74 @@
         }
       }
     },
+    "/api/v1/jobs/{jid}/log": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Job Log",
+        "description": "A run's whole log, a page at a time: up to `limit` lines from line `after`, and how many there are. Runs from\nbefore whole logs were kept have their last 200 lines.",
+        "operationId": "get_job_log",
+        "parameters": [
+          {
+            "name": "jid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Jid"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "start at this line (0-based)",
+              "default": 0,
+              "title": "After"
+            },
+            "description": "start at this line (0-based)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 5000,
+              "minimum": 1,
+              "default": 1000,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobLog"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/jobs/steps/{step}": {
       "post": {
         "tags": [
@@ -6652,7 +6720,7 @@
           "jobs"
         ],
         "summary": "Stream Events",
-        "description": "Server-sent events: one ``job`` event per job change in namespaces you can read, from ``since`` (default: now).\n``once=true`` sends what has changed and closes. Read it with fetch (it needs the Authorization header).",
+        "description": "Server-sent events: one ``job`` event per job change in namespaces you can read, from ``since`` (default: now).\n``once=true`` sends what has changed and closes. ``logs=<job>`` follows that one job: its changes, and each batch of\nnew log lines as a ``log`` event ``{job, start, lines}`` (``start`` numbers the first line, so a client can tell\nan overlap or a gap; the first one carries up to the last 200 lines). Read it with fetch (it needs the\nAuthorization header).",
         "operationId": "stream_events",
         "parameters": [
           {
@@ -6674,11 +6742,29 @@
               "default": false,
               "title": "Once"
             }
+          },
+          {
+            "name": "logs",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "follow this job only, with its new log lines as `log` events",
+              "title": "Logs"
+            },
+            "description": "follow this job only, with its new log lines as `log` events"
           }
         ],
         "responses": {
           "200": {
-            "description": "`event: job` with the job as JSON data",
+            "description": "`event: job` with the job as JSON data; with `logs`, `event: log` with {job, start, lines}",
             "content": {
               "text/event-stream": {}
             }
@@ -12478,7 +12564,20 @@
                 "type": "null"
               }
             ],
-            "title": "Log"
+            "title": "Log",
+            "description": "the last 200 lines; GET /jobs/{jid}/log has them all"
+          },
+          "log_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log Total",
+            "description": "how many lines the run has logged"
           }
         },
         "additionalProperties": true,
@@ -12539,6 +12638,41 @@
           "running"
         ],
         "title": "JobList"
+      },
+      "JobLog": {
+        "properties": {
+          "start": {
+            "type": "integer",
+            "title": "Start",
+            "description": "the number of the first line here (0-based)"
+          },
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "how many lines the run has logged so far"
+          },
+          "more": {
+            "type": "boolean",
+            "title": "More",
+            "description": "whether there are lines after these"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "start",
+          "lines",
+          "total",
+          "more"
+        ],
+        "title": "JobLog"
       },
       "JobQueued": {
         "properties": {

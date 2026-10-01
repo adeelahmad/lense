@@ -192,6 +192,16 @@ export function lineTone(text: string): LogTone {
  * "<step> done in 1.2s", "<step> failed: ...", "<step> skipped: ..." or "handing <step> to a worker that can run it".
  * Retries append to the same log, so a later "done" for a step overrides an earlier failure.
  */
+/**
+ * New lines of a run's log arrive numbered (`start` is the number of the first one): add what's new. Null when they
+ * leave a gap (lines were missed), so the caller fetches from where it got to.
+ */
+export function appendLog(lines: string[], start: number, more: string[]): string[] | null {
+  if (start > lines.length) return null;
+  if (start + more.length <= lines.length) return lines;
+  return lines.slice(0, start).concat(more);
+}
+
 export function parseJobLog(
   log: string[] | null | undefined,
   steps: unknown[] | null | undefined,

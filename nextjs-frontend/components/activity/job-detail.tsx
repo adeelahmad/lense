@@ -26,6 +26,7 @@ import {
   type StepSpec,
 } from "@/components/activity/job-model";
 import { downloadText, LogViewer } from "@/components/activity/log-viewer";
+import { useJobLog } from "@/components/activity/use-job-log";
 import {
   useJobActions,
   usePeopleNames,
@@ -164,6 +165,9 @@ export function JobDetail({ jobId }: { jobId: number }) {
   });
   const job = q.data;
   const states = useWorkerStates(workers.data, job ? [job] : []);
+  // the whole log; runs from before it was kept have the last 200 lines on the run
+  const whole = useJobLog(jobId, isActive(job?.status));
+  const log = job?.log_total == null ? job?.log : (whole ?? job?.log);
   // The single-run endpoint has no title: take it from any cached list, else from the recording.
   const listed = useMemo(() => {
     for (const [, d] of qc.getQueriesData<{ jobs?: JobRecord[] }>({
@@ -194,7 +198,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
   const templateName = (id: number) => templates.data?.find((t) => t.id === id)?.name;
 
   const specs = useMemo(() => stepSpecs(job?.steps), [job?.steps]);
-  const parsed = useMemo(() => parseJobLog(job?.log, job?.steps), [job?.log, job?.steps]);
+  const parsed = useMemo(() => parseJobLog(log, job?.steps), [log, job?.steps]);
   const stepStateList = job ? stepStates(job, parsed.byStep) : [];
 
   const rerun = useMutation({
@@ -600,7 +604,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
             lines={logLines}
             live={job.status === "running"}
             finished={finished}
-            truncated={(job.log?.length ?? 0) >= 200}
+            truncated={job.log_total == null && (job.log?.length ?? 0) >= 200}
             empty={
               job.status === "queued"
                 ? "The log streams here once it starts."
@@ -608,7 +612,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
                   ? "This step hasn’t logged anything."
                   : "No log lines."
             }
-            onDownload={() => downloadText(`run-${job.id}.log`, (job.log ?? []).join("\n") + "\n")}
+            onDownload={() => downloadText(`run-${job.id}.log`, (log ?? []).join("\n") + "\n")}
           />
           <p className="text-[12.5px] leading-snug text-fg-secondary">
             Cancel is immediate while queued; while running it stops after the current step. Retry resumes from the
