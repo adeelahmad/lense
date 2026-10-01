@@ -1,7 +1,9 @@
+import { plural } from "@/lib/format";
+
 /**
  * Share links and embeds: the player's address (/embed/<id>, with the share token and start time), the iframe
- * snippet, start times typed as m:ss, and whether a site's origin may frame the player (server.embed_frame_ancestors,
- * a CSP frame-ancestors list).
+ * snippet, start times typed as m:ss, whether a site's origin may frame the player (server.embed_frame_ancestors,
+ * a CSP frame-ancestors list), and how a link has been used (plays, the sites that embed it).
  */
 
 export const SIZES = {
@@ -136,4 +138,39 @@ export function fmtDay(d: Date | string | null | undefined): string {
   const x = typeof d === "string" ? new Date(d) : d;
   if (Number.isNaN(x.getTime())) return "—";
   return `${x.getDate()} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][x.getMonth()]} ${x.getFullYear()}`;
+}
+
+/** Whether a share link still works, or why not. */
+export type LinkState = "active" | "expired" | "revoked";
+
+export function linkState(s: { active: boolean; revoked?: boolean | null }): LinkState {
+  return s.active ? "active" : s.revoked ? "revoked" : "expired";
+}
+
+/** "https://blog.example.org" → "blog.example.org" (a port that isn't the default stays). */
+export function siteName(origin: string): string {
+  try {
+    return new URL(origin).host || origin;
+  } catch {
+    return origin;
+  }
+}
+
+/** "12 plays · last 3 Oct 2026", or "Not played yet". */
+export function playsLine(plays: number | null | undefined, playedAt?: string | null): string {
+  if (!plays) return "Not played yet";
+  return `${plural(plays, "play")}${playedAt ? ` · last ${fmtDay(playedAt)}` : ""}`;
+}
+
+/** "Embedded on blog.example.org (2 opens), news.example.com and 3 more sites"; null when no site has framed it. */
+export function embeddedLine(
+  sites: { origin: string; opens?: number | null }[] | null | undefined,
+  max = 2,
+): string | null {
+  if (!sites?.length) return null;
+  const named = sites
+    .slice(0, max)
+    .map((x) => `${siteName(x.origin)}${x.opens && x.opens > 1 ? ` (${plural(x.opens, "open")})` : ""}`);
+  const rest = sites.length - named.length;
+  return `Embedded on ${named.join(", ")}${rest ? ` and ${plural(rest, "more site")}` : ""}`;
 }

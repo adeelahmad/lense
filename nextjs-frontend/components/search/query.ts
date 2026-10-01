@@ -1,10 +1,10 @@
 /**
  * The search box: free words plus typed filters (`speaker:"Host B"`, `namespace:podcasts`, `emotion:surprise`,
- * `recording:"Episode 12"`). Typed filters become chips; the chip and the facet are one filter. The backend's rules:
+ * `recording:"Episode 12"`, `object:car`). Typed filters become chips; the chip and the facet are one filter. The backend's rules:
  * every word must appear (English stemming), "quoted phrases" as written, OR between alternatives, no prefix search.
  */
 
-export type FilterKey = "namespace" | "speaker" | "emotion" | "recording";
+export type FilterKey = "namespace" | "speaker" | "emotion" | "recording" | "object";
 
 /** Filters as the URL holds them: speaker and recording are ids, namespace a name, emotion a label. */
 export type SearchFilters = {
@@ -12,6 +12,8 @@ export type SearchFilters = {
   speaker?: number;
   emotion?: string;
   recording?: number;
+  /** A kind of object the recordings have (person, car …). */
+  object?: string;
 };
 
 /** Filters as typed in the box, by name, before they are matched to ids. */
@@ -23,8 +25,9 @@ const KEYS: Record<string, FilterKey> = {
   speaker: "speaker",
   emotion: "emotion",
   recording: "recording",
+  object: "object",
 };
-const FILTER_RX = /(?:^|\s)(namespace|ns|speaker|emotion|recording):(?:"([^"]*)"?|(\S+))/gi;
+const FILTER_RX = /(?:^|\s)(namespace|ns|speaker|emotion|recording|object):(?:"([^"]*)"?|(\S+))/gi;
 
 /** Split what was typed into the words to search for and the typed filters. */
 export function parseQuery(input: string): {
@@ -61,6 +64,12 @@ export function prefixWords(text: string): string[] {
     .map((t) => t.replace(/\*+$/, ""));
 }
 
+/** The query with `word*` (a prefix typed with *) replaced by a whole word. */
+export function replacePrefix(text: string, prefix: string, word: string): string {
+  const esc = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(new RegExp(`(^|\\s)${esc}\\*+(?=\\s|$)`, "g"), (_m, lead: string) => `${lead}${word}`);
+}
+
 /** The "quoted phrases" in a query. */
 export function phrases(text: string): string[] {
   return tokens(text)
@@ -92,6 +101,7 @@ export function fromParams(p: URLSearchParams): {
       speaker: int(p.get("speaker")),
       emotion: p.get("emotion") || undefined,
       recording: int(p.get("recording")),
+      object: p.get("object") || undefined,
     },
   };
 }
@@ -104,9 +114,45 @@ export function toParams(q: string, f: SearchFilters): string {
   if (f.speaker != null) p.set("speaker", String(f.speaker));
   if (f.emotion) p.set("emotion", f.emotion);
   if (f.recording != null) p.set("recording", String(f.recording));
+  if (f.object) p.set("object", f.object);
   return p.toString();
 }
 
 export function activeFilterCount(f: SearchFilters): number {
-  return [f.namespace, f.speaker, f.emotion, f.recording].filter((v) => v != null && v !== "").length;
+  return [f.namespace, f.speaker, f.emotion, f.recording, f.object].filter((v) => v != null && v !== "").length;
+}
+
+type Saved = {
+  q: string;
+  namespace?: string | null;
+  speaker?: number | null;
+  speaker_name?: string | null;
+  emotion?: string | null;
+  recording?: number | null;
+  recording_title?: string | null;
+  object?: string | null;
+};
+
+/** Where a saved search opens: the search page with its words and filters. */
+export function savedSearchHref(s: Saved): string {
+  return `/search?${toParams(s.q, {
+    namespace: s.namespace ?? undefined,
+    speaker: s.speaker ?? undefined,
+    emotion: s.emotion ?? undefined,
+    recording: s.recording ?? undefined,
+    object: s.object ?? undefined,
+  })}`;
+}
+
+/** "podcasts · Alice · Happy · Episode 12": a saved search's filters, by name where it has them. */
+export function savedSearchFilters(s: Saved): string {
+  return [
+    s.namespace,
+    s.speaker != null ? (s.speaker_name ?? `Speaker #${s.speaker}`) : null,
+    s.emotion,
+    s.recording != null ? (s.recording_title ?? `Recording #${s.recording}`) : null,
+    s.object ? `with ${s.object}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }

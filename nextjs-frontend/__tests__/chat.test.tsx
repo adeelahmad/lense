@@ -12,7 +12,7 @@ import {
   splitCitations,
 } from "@/components/chat/cite";
 import { parseBlocks, RichText } from "@/components/chat/rich-text";
-import { applyEvent, newTurn, stepCall } from "@/components/chat/stream";
+import { applyEvent, newTurn, savedSteps, stepCall } from "@/components/chat/stream";
 
 describe("citations", () => {
   it("splits [n], [n, m] and [n][m]", () => {
@@ -120,6 +120,27 @@ describe("the answer stream", () => {
       messageId: 5,
       notice: "This model can't use tools",
     });
+  });
+
+  it("reads the tool steps an answer was saved with", () => {
+    const steps = savedSteps([
+      { tool: "search_transcripts", args: { query: "x" }, summary: "Searched" },
+      { tool: "get_recording" },
+    ]);
+    expect(steps).toEqual([
+      { tool: "search_transcripts", args: { query: "x" }, summary: "Searched" },
+      { tool: "get_recording", args: {}, summary: "" },
+    ]);
+    expect(stepCall(steps[0])).toBe('search_transcripts(query="x")');
+    expect(savedSteps(null)).toEqual([]);
+  });
+
+  it("keeps what came before Stop, saved", () => {
+    let s = newTurn("q");
+    s = applyEvent(s, { event: "token", data: '{"text":"The shipment "}' });
+    s = applyEvent(s, { event: "stopped", data: '{"message":"Stopped"}' });
+    s = applyEvent(s, { event: "done", data: '{"message":12}' });
+    expect(s).toMatchObject({ status: "stopped", text: "The shipment ", messageId: 12 });
   });
 });
 

@@ -3,24 +3,26 @@
 import { ArrowUp, Eye, List, Table2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { RecordingSummary } from "@/app/openapi-client/types.gen";
+import type { RecordingSummary, SavedView } from "@/app/openapi-client/types.gen";
 import { rememberView } from "@/components/home/recently-viewed";
 import { isFileDrag, useSendToImport } from "@/components/import/pending";
 import { useRecordingActions } from "@/components/library/actions";
-import { BulkBar, ReprocessDialog } from "@/components/library/bulk-bar";
+import { BulkBar, DeleteDialog, MoveDialog, ReprocessDialog, TagDialog } from "@/components/library/bulk-bar";
+import { useNamespaceFields } from "@/components/fields/use-fields";
+import { collectionName } from "@/components/library/collections-model";
+import { CollectionsDialog, PlaceDialog } from "@/components/library/collections-ui";
 import { FiltersBar } from "@/components/library/filters-bar";
 import { LibraryEmpty } from "@/components/library/library-empty";
 import { LibraryTabs } from "@/components/library/library-tabs";
 import {
   NO_FILTERS,
   activeFilterCount,
-  isActiveJob,
-  matchesFilters,
-  matchesView,
-  needsAttention,
+  blockedBy,
+  libraryQuery,
+  moveTargets,
   rangeIds,
-  sortRows,
   totalDuration,
+  type FieldFilter,
   type Filters,
   type LibraryView,
   type SortDir,
@@ -29,9 +31,23 @@ import {
 } from "@/components/library/model";
 import { RecordingCards, RecordingList } from "@/components/library/recording-list";
 import { RecordingTable } from "@/components/library/recording-table";
+import { SavedViews } from "@/components/library/saved-views";
 import { SourcesStrip } from "@/components/library/sources-strip";
-import { PAGE, useLibrary, useReviewsByRecording, useWatchedSources } from "@/components/library/use-library";
+import {
+  PAGE,
+  useLibrary,
+  useLibraryCounts,
+  useReviewsByRecording,
+  useSpeakerChoices,
+  useLanguages,
+  useOrigins,
+  useObjectCounts,
+  useTagCounts,
+  useWatchedSources,
+} from "@/components/library/use-library";
+import { useCollectionTree } from "@/components/library/use-collections";
 import { useIsNarrow } from "@/components/library/use-media";
+import { fromView, viewState } from "@/components/library/views-model";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
@@ -39,6 +55,7 @@ import { Segmented } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { count, plural } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
+import { atLeast } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 const VIEW_KEY = "lens.library.view";
@@ -58,21 +75,25 @@ function useThrottled<T>(value: T, ms: number): T {
   return shown;
 }
 
+/** The value once it has stopped changing for `ms`. */
+function useDebounced<T>(value: T, ms: number): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return v;
+}
+
 function typing(t: EventTarget | null): boolean {
   const el = t as HTMLElement | null;
   return Boolean(el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable));
 }
 
-/** The Library (L1–L6): every recording you can see, across namespaces, with live job progress in its row. */
-export function LibraryScreen() {
-  const { namespace, namespaces, roleIn, can, me } = useArchive();
-  const lib = useLibrary(namespace);
-  const src = useWatchedSources(namespace);
-  const actions = useRecordingActions();
-  const toast = useToast();
-  const narrow = useIsNarrow();
-  const send = useSendToImport(namespace);
-
+/** The Library (L1–L6): every recording you can see, across namespaces, with live job progress in its row. `initial`
+ * opens it on a namespace's collection (/library?namespace=…&collection=…, as a recording's breadcrumb links). */
+export function LibraryScreen({ initial }: { initial?: { namespace: string; collection: number | null } } = {}) {
+  const { namespace, namespaces, isPartial, roleIn, can, me, setNamespace } = useArchive();
   const [layout, setLayout] = useState<"table" | "list">("table");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [view, setView] = useState<LibraryView>("all");
@@ -80,8 +101,32 @@ export function LibraryScreen() {
     key: "date",
     dir: "desc",
   });
+  // The server filters, sorts and counts; typing in the filter box waits for a pause before asking again.
+  const q = useDebounced(filters.q, 250);
+  const query = useMemo(
+    () => libraryQuery({ ...filters, q }, view, sort, namespace),
+    [filters, q, view, sort, namespace],
+  );
+  const queryKey = JSON.stringify(query);
+  const lib = useLibrary(namespace, query);
+  const counts = useLibraryCounts(namespace);
+  const src = useWatchedSources(namespace);
+  const actions = useRecordingActions();
+  const toast = useToast();
+  const narrow = useIsNarrow();
+  const send = useSendToImport(namespace);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [reprocessOpen, setReprocessOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [tagOpen, setTagOpen] = useState(false);
+  const [placeOpen, setPlaceOpen] = useState(false);
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
+  const tree = useCollectionTree(namespace);
+  const tagCounts = useTagCounts(namespace);
+  const objectCounts = useObjectCounts(namespace);
+  const origins = useOrigins(namespace);
+  const languages = useLanguages(namespace);
   const [dragging, setDragging] = useState(false);
   const lastIndex = useRef<number | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -104,20 +149,24 @@ export function LibraryScreen() {
     }
   };
 
-  // A new namespace is a new list: forget the selection and the speaker filter (names differ per namespace).
+  // A new namespace is a new list: forget the speaker, collection and field filters (each namespace has its own).
+  useEffect(() => {
+    setFilters((f) => ({ ...f, speaker: null, collection: null, field: null }));
+  }, [namespace]);
+  // Other filters, another tab or sort: a new list too, so the selection starts over.
   useEffect(() => {
     setSelected(new Set());
-    setFilters((f) => ({ ...f, speaker: null }));
     lastIndex.current = null;
-  }, [namespace]);
+  }, [queryKey]);
 
   // New rows collect behind a "3 new" pill instead of shifting the list under the cursor, unless you're at the top.
-  const seen = useRef<{ ns: string | null; ids: Set<number> } | null>(null);
+  const seen = useRef<{ key: string; ids: Set<number> } | null>(null);
   const [held, setHeld] = useState<number[]>([]);
   useEffect(() => {
-    if (!lib.recordings.isSuccess) return;
-    if (!seen.current || seen.current.ns !== namespace) {
-      seen.current = { ns: namespace, ids: new Set(lib.rows.map((r) => r.id)) };
+    // While another query's rows stand in for this one's, there is nothing new to compare.
+    if (!lib.recordings.isSuccess || lib.recordings.isPlaceholderData) return;
+    if (!seen.current || seen.current.key !== queryKey) {
+      seen.current = { key: queryKey, ids: new Set(lib.rows.map((r) => r.id)) };
       setHeld([]);
       return;
     }
@@ -135,7 +184,7 @@ export function LibraryScreen() {
       fresh.forEach((id) => known.add(id));
       setHeld([]);
     } else setHeld(fresh);
-  }, [lib.rows, lib.recordings.isSuccess, namespace]);
+  }, [lib.rows, lib.recordings.isSuccess, lib.recordings.isPlaceholderData, queryKey]);
   const showHeld = useCallback(
     (scroll = true) => {
       held.forEach((id) => seen.current?.ids.add(id));
@@ -155,22 +204,71 @@ export function LibraryScreen() {
   }, [held, showHeld]);
 
   const jobs = lib.jobsByRecording;
-  const reviewScope = useMemo(() => (namespace ? [namespace] : namespaces.map((n) => n.name)), [namespace, namespaces]);
-  const reviews = useReviewsByRecording(reviewScope);
-  const heldSet = useMemo(() => new Set(held), [held]);
-  const base = useMemo(() => lib.rows.filter((r) => !heldSet.has(r.id)), [lib.rows, heldSet]);
-  const shown = useMemo(() => {
-    const now = Date.now();
-    const rows = base.filter(
-      (r) => matchesView(r, view, jobs.get(r.id), reviews.get(r.id)) && matchesFilters(r, filters, jobs.get(r.id), now),
-    );
-    return sort.key === "date" && sort.dir === "desc" ? rows : sortRows(rows, sort.key, sort.dir);
-  }, [base, view, filters, jobs, sort, reviews]);
-  const attention = useMemo(
-    () => base.filter((r) => needsAttention(r, jobs.get(r.id), reviews.get(r.id))).length,
-    [base, jobs, reviews],
+  // voice matches and speakers are namespace-wide: only where the person has a role
+  const reviewScope = useMemo(
+    () => (namespace ? (can("viewer", namespace) ? [namespace] : []) : namespaces.map((n) => n.name)),
+    [namespace, namespaces, can],
   );
-  const processing = useMemo(() => base.filter((r) => isActiveJob(jobs.get(r.id))).length, [base, jobs]);
+  const reviews = useReviewsByRecording(reviewScope);
+  const speakers = useSpeakerChoices(reviewScope);
+  // A saved view brings back its namespace, tab, filters and sort; its speaker by name, once that namespace's
+  // speakers are known (each namespace has its own ids).
+  const [pendingSpeaker, setPendingSpeaker] = useState<{ name: string; ns: string | null } | null>(null);
+  // Its collection too, once that namespace's collections are known (it may have been deleted since); and its field.
+  const [pendingCollection, setPendingCollection] = useState<{ id: number; ns: string } | null>(null);
+  const [pendingField, setPendingField] = useState<(FieldFilter & { ns: string }) | null>(null);
+  const fieldDefs = useNamespaceFields(namespace);
+  const resourceFields = useMemo(() => (fieldDefs.data ?? []).filter((f) => f.target === "resource"), [fieldDefs.data]);
+  useEffect(() => {
+    if (!pendingField || pendingField.ns !== namespace || !fieldDefs.isSuccess) return;
+    const known = resourceFields.some((f) => f.id === pendingField.id);
+    setFilters((f) => ({ ...f, field: known ? { id: pendingField.id, value: pendingField.value } : null }));
+    setPendingField(null);
+    if (!known) toast({ title: `That field isn’t in ${namespace} now`, body: "The view shows its other filters." });
+  }, [pendingField, namespace, fieldDefs.isSuccess, resourceFields, toast]);
+  const applyView = (v: SavedView) => {
+    const s = fromView(v.state);
+    if ((v.namespace ?? null) !== namespace) setNamespace(v.namespace ?? null);
+    setFilters({ ...s.filters, collection: null, field: null });
+    setPendingField(s.filters.field && v.namespace ? { ...s.filters.field, ns: v.namespace } : null);
+    setView(s.view);
+    setSort(s.sort);
+    setPendingSpeaker(s.speaker ? { name: s.speaker, ns: v.namespace ?? null } : null);
+    setPendingCollection(
+      s.filters.collection != null && v.namespace ? { id: s.filters.collection, ns: v.namespace } : null,
+    );
+  };
+  // A link to a collection (a recording's breadcrumb) opens its namespace on it.
+  useEffect(() => {
+    if (!initial?.namespace) return;
+    setNamespace(initial.namespace);
+    if (initial.collection != null) setPendingCollection({ id: initial.collection, ns: initial.namespace });
+  }, [initial?.namespace, initial?.collection, setNamespace]);
+  useEffect(() => {
+    if (!pendingCollection || pendingCollection.ns !== namespace || !tree.isSuccess) return;
+    const name = collectionName(tree.data, pendingCollection.id);
+    setFilters((f) => ({ ...f, collection: name != null ? pendingCollection.id : null }));
+    setPendingCollection(null);
+    if (name == null)
+      toast({
+        title: `That collection isn’t in ${namespace} now`,
+        body: "The Library shows the whole namespace instead.",
+      });
+  }, [pendingCollection, namespace, tree.isSuccess, tree.data, toast]);
+  useEffect(() => {
+    if (!pendingSpeaker || pendingSpeaker.ns !== namespace || speakers.loading) return;
+    const choice = speakers.choices.find((c) => c.name === pendingSpeaker.name) ?? null;
+    setFilters((f) => ({ ...f, speaker: choice }));
+    setPendingSpeaker(null);
+    if (!choice)
+      toast({
+        title: `No one called ${pendingSpeaker.name} speaks in ${namespace ?? "your namespaces"} now`,
+        body: "The view shows everyone’s recordings instead.",
+      });
+  }, [pendingSpeaker, namespace, speakers.loading, speakers.choices, toast]);
+  const shownState = useMemo(() => viewState({ filters, view, sort }), [filters, view, sort]);
+  const heldSet = useMemo(() => new Set(held), [held]);
+  const shown = useMemo(() => lib.rows.filter((r) => !heldSet.has(r.id)), [lib.rows, heldSet]);
 
   const onSort = (key: SortKey) =>
     setSort((s) =>
@@ -201,9 +299,11 @@ export function LibraryScreen() {
   );
   const toggleAll = (on: boolean) => setSelected(on ? new Set(shown.map((r) => r.id)) : new Set());
 
+  // a recording's own role counts its collection too (an editor of a collection edits its recordings)
+  const roleOf = useCallback((r: RecordingSummary) => r.role ?? roleIn(r.namespace), [roleIn]);
   const editReason = useCallback(
-    (ns: string | null | undefined) => (can("editor", ns) ? null : needRole("editor", ns)),
-    [can],
+    (r: RecordingSummary) => (atLeast(roleOf(r), "editor") ? null : needRole("editor", r.namespace)),
+    [roleOf],
   );
   const onRetry = useCallback(
     (rec: RecordingSummary, v: StatusView) => {
@@ -216,20 +316,27 @@ export function LibraryScreen() {
     (r: RecordingSummary) =>
       rememberView({
         kind: "recording",
-        href: `/recordings/${r.id}`,
+        href: `/resources/${r.id}`,
         title: r.title || "Untitled",
       }),
     [],
   );
 
   const selectedRows = lib.rows.filter((r) => selected.has(r.id));
-  const blockedNs = [
-    ...new Set(selectedRows.filter((r) => !can("editor", r.namespace)).map((r) => r.namespace ?? "?")),
-  ];
-  const blocked = {
-    count: selectedRows.filter((r) => !can("editor", r.namespace)).length,
-    namespaces: blockedNs,
-  };
+  const blocked = blockedBy(selectedRows, (r) => atLeast(roleOf(r), "editor"));
+  const targets = moveTargets(
+    namespaces.map((n) => n.name).filter((ns) => can("editor", ns)),
+    selectedRows.map((r) => r.namespace),
+  );
+  // Collections belong to a namespace: the selection files into one only when it's all from the same one.
+  const selectedNs = [...new Set(selectedRows.map((r) => r.namespace).filter((n): n is string => Boolean(n)))];
+  const placeNs = selectedNs.length === 1 ? selectedNs[0] : null;
+  const placeReason =
+    selectedNs.length > 1
+      ? `Collections belong to one namespace: select recordings of one namespace (these are in ${selectedNs.join(", ")}).`
+      : undefined;
+  const sharedHome = new Set(selectedRows.map((r) => r.collection ?? null));
+  const placeCurrent = sharedHome.size === 1 ? [...sharedHome][0] : null;
 
   // Keyboard: J/K move between rows, X selects, Enter opens (the title link), / focuses the filter, Esc clears.
   useEffect(() => {
@@ -287,8 +394,9 @@ export function LibraryScreen() {
   const role = roleIn(namespace);
   const viewerEverywhere = !namespace && namespaces.length > 0 && !can("editor");
   const loaded = lib.recordings.isSuccess;
-  const empty = loaded && lib.rows.length === 0 && !lib.recordings.hasNextPage;
   const filtering = activeFilterCount(filters) > 0 || view !== "all";
+  const empty = loaded && !filtering && lib.rows.length === 0;
+  const matching = lib.matching ?? lib.rows.length;
   const processingNow = lib.jobsCounts.running + lib.jobsCounts.queued;
   const countLine = [
     plural(lib.total, "recording"),
@@ -347,6 +455,19 @@ export function LibraryScreen() {
           )}
         </div>
 
+        {isPartial(namespace) && (
+          <div
+            role="note"
+            className="flex items-center gap-2.5 rounded-[10px] border border-border bg-surface-neutral px-3 py-[9px] text-[13px] leading-snug text-fg-strong"
+          >
+            <Eye className="size-[15px] shrink-0" aria-hidden />
+            <span className="flex-1">
+              You see the collections of <b className="font-bold">{namespace}</b> you were given access to: their
+              recordings, search and the recordings’ pages. Ask an owner of {namespace} for a role in it to see the
+              rest.
+            </span>
+          </div>
+        )}
         {(role === "viewer" || viewerEverywhere) && (
           <div
             role="note"
@@ -384,22 +505,49 @@ export function LibraryScreen() {
                   {
                     value: "attention",
                     label: "Needs attention",
-                    count: attention || undefined,
+                    count: counts.attention ? count(counts.attention) : undefined,
                   },
                   {
                     value: "processing",
                     label: "Processing",
-                    count: processing || undefined,
+                    count: counts.processing ? count(counts.processing) : undefined,
                   },
                   {
                     value: "mine",
                     label: "Edited by me",
-                    disabledReason: "Not available yet: the archive doesn’t list recordings by who edited them.",
+                    count: counts.mine ? count(counts.mine) : undefined,
                   },
                 ]}
               />
             )}
-            <FiltersBar filters={filters} onChange={setFilters} rows={lib.rows} inputRef={filterRef} compact={narrow} />
+            <FiltersBar
+              filters={filters}
+              onChange={setFilters}
+              speakers={speakers.choices}
+              speakersLoading={speakers.loading}
+              tags={tagCounts.data ?? []}
+              objects={objectCounts.data ?? []}
+              tagsLoading={tagCounts.isPending}
+              inputRef={filterRef}
+              compact={narrow}
+              origins={origins.data ?? []}
+              languages={languages.data ?? []}
+              collections={tree.data}
+              collectionsLoading={tree.isLoading}
+              onManageCollections={() => setCollectionsOpen(true)}
+              fields={resourceFields}
+              fieldsLoading={fieldDefs.isLoading}
+              trailing={
+                <SavedViews
+                  state={shownState}
+                  namespace={namespace}
+                  onApply={applyView}
+                  originName={(k) => origins.data?.find((o) => o.origin === k)?.name ?? k}
+                  collectionName={(id) => collectionName(tree.data, id)}
+                  fieldName={(id) => resourceFields.find((f) => f.id === id)?.label ?? null}
+                />
+              }
+            />
           </>
         )}
       </div>
@@ -417,7 +565,14 @@ export function LibraryScreen() {
         </div>
       )}
 
-      <div ref={listRef} className="mt-2.5 flex min-h-0 flex-1 flex-col">
+      <div
+        ref={listRef}
+        aria-busy={lib.recordings.isPlaceholderData || undefined}
+        className={cn(
+          "mt-2.5 flex min-h-0 flex-1 flex-col transition-opacity duration-fast",
+          lib.recordings.isPlaceholderData && "opacity-60",
+        )}
+      >
         {lib.recordings.isLoading ? (
           <LibrarySkeleton />
         ) : lib.recordings.isError ? (
@@ -433,7 +588,7 @@ export function LibraryScreen() {
           >
             {(lib.recordings.error as Error).message}
           </EmptyState>
-        ) : me && !me.user.admin && Object.keys(me.roles ?? {}).length === 0 ? (
+        ) : me && !me.user.admin && Object.keys(me.roles ?? {}).length === 0 && !(me.partial ?? []).length ? (
           <EmptyState className="border-t border-border" title="No namespaces yet">
             You don’t have a role in any namespace. Ask an admin to add you, and the recordings you can see will show up
             here.
@@ -456,9 +611,7 @@ export function LibraryScreen() {
               </Button>
             }
           >
-            {lib.recordings.hasNextPage
-              ? `Filters look at the ${count(lib.rows.length)} most recent recordings loaded so far. Load more to look further back.`
-              : "Try fewer filters."}
+            Try fewer filters.
           </EmptyState>
         ) : narrow ? (
           <RecordingCards {...rowProps} />
@@ -470,12 +623,13 @@ export function LibraryScreen() {
           <RecordingList {...rowProps} />
         )}
 
-        {loaded && !empty && (lib.recordings.hasNextPage || filtering) && (
+        {loaded && !empty && matching > 0 && (lib.recordings.hasNextPage || filtering) && (
           <div className="flex flex-wrap items-center gap-3 px-4 py-4 text-[13px] text-fg-secondary md:px-6">
             <span className="tabular">
-              {filtering ? `${count(shown.length)} shown · ` : ""}
-              {count(lib.rows.length)} of {count(Math.max(lib.total, lib.rows.length))} loaded
-              {filtering && lib.recordings.hasNextPage ? " — filters and sorting apply to the loaded recordings" : ""}
+              {filtering
+                ? `${plural(matching, "recording")} ${matching === 1 ? "matches" : "match"}`
+                : plural(matching, "recording")}
+              {lib.recordings.hasNextPage ? ` · ${count(lib.rows.length)} loaded` : ""}
             </span>
             {lib.recordings.hasNextPage && (
               <Button
@@ -493,8 +647,15 @@ export function LibraryScreen() {
         <BulkBar
           selected={selected.size}
           blocked={blocked}
+          notOwner={blockedBy(selectedRows, (r) => atLeast(roleOf(r), "owner"))}
+          moveTargets={targets}
           onReprocess={() => setReprocessOpen(true)}
           onExport={(fmt) => actions.exportMany([...selected], fmt)}
+          onMove={() => setMoveOpen(true)}
+          onPlace={() => setPlaceOpen(true)}
+          placeReason={placeReason}
+          onTag={() => setTagOpen(true)}
+          onDelete={() => setDeleteOpen(true)}
           onClear={() => setSelected(new Set())}
         />
       </div>
@@ -505,6 +666,55 @@ export function LibraryScreen() {
         n={selected.size}
         withoutAudio={selectedRows.filter((r) => r.media_kind === "transcript").length}
         onConfirm={(steps) => actions.reprocess([...selected], steps)}
+      />
+      <TagDialog
+        open={tagOpen}
+        onOpenChange={setTagOpen}
+        rows={selectedRows}
+        known={(tagCounts.data ?? []).map((t) => t.tag)}
+        onConfirm={(add, remove) => actions.retag([...selected], add, remove)}
+      />
+      <MoveDialog
+        open={moveOpen}
+        onOpenChange={setMoveOpen}
+        rows={selectedRows}
+        targets={targets}
+        onConfirm={async (rows, to, opts, progress) => {
+          const moved = await actions.moveMany(rows, to, opts, progress);
+          setSelected((cur) => new Set([...cur].filter((id) => !moved.includes(id))));
+        }}
+      />
+      {placeNs && (
+        <PlaceDialog
+          ns={placeNs}
+          ids={selectedRows.map((r) => r.id)}
+          title={
+            selectedRows.length === 1
+              ? `“${selectedRows[0].title || "Untitled"}”`
+              : plural(selectedRows.length, "recording")
+          }
+          current={placeCurrent}
+          open={placeOpen}
+          onOpenChange={setPlaceOpen}
+          onDone={() => setSelected(new Set())}
+        />
+      )}
+      {namespace && (
+        <CollectionsDialog
+          ns={namespace}
+          open={collectionsOpen}
+          onOpenChange={setCollectionsOpen}
+          onPick={(id) => setFilters((f) => ({ ...f, collection: id }))}
+        />
+      )}
+      <DeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        rows={selectedRows}
+        onConfirm={async (progress) => {
+          const gone = await actions.deleteMany(selectedRows, progress);
+          setSelected((cur) => new Set([...cur].filter((id) => !gone.includes(id))));
+        }}
       />
 
       {dragging && (

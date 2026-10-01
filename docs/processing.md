@@ -4,12 +4,18 @@ How recordings move through Lens: where they come from, what each step does, and
 
 ## Steps
 
-- `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped.
-- `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. A file that fails is marked and the batch carries on.
+- `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped,
+  and so are files whose recording someone deleted or moved to another namespace (at the same path, or a copy of the same
+  file).
+- `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. A file that fails is marked and the batch carries on. For a
+  document or an image it draws the pages and reads their text instead: a PDF's own text, and OCR for scans and images
+  ([Documents and images](configuration.md#documents-and-images)).
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
   matches voiceprints against the namespace's speakers.
 - `analyze` finds entities, chapters, keywords and talk statistics; `summarize` (optional) calls any OpenAI-compatible
-  server; `report` writes static HTML per recording and per namespace, with word clouds.
+  server for a summary, key points, action items (with who will do them), topics, people, tone and importance, each
+  key point and action item with the time of the line it comes from; `report` writes static HTML per recording and
+  per namespace, with word clouds.
 
 Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
 
@@ -23,12 +29,23 @@ Formats: .txt, .md, .markdown, .mdx, .docx, .doc, .pdf, .srt, .vtt, .json (lens,
     lens import notes minutes.pdf --format text
 
 In the web app, Import takes pasted text, a chosen file or one dropped on the text box, and analyses it straight away.
+It also uploads audio, video, documents and images, which go through the namespace's pipeline like scanned files. A
+PDF is a document (its pages, to look at and search) unless you choose Transcript (its text only). "Then run" picks
+another saved pipeline for what you import.
+
+**Audio for a transcript.** A transcript can get its audio (or video) in the web app: Import → Paste's "Attach audio…",
+a transcript dropped together with the audio of the same name (`ep14-transcript.srt` and `ep14.m4a`), or "Attach audio"
+on a transcript-only recording's page. The file is uploaded and becomes the recording's media; the transcript and its
+speakers stay. Then these steps run, after anything the recording's job still had to do: transcribe (which keeps the
+transcript and draws the waveform), diarize (speakers by voice, unless the transcript named them), shots, text on screen
+and faces (video only), analyze and report. The recording takes the file's fingerprint, so scans and uploads of the
+same file find it, unless another recording in the namespace has it already.
 
 Speakers are recognised from `Name: text`, `[12:30] Name: text`, `Name (12:30): text`, Otter/Zoom/Teams exports (a
 `Name  12:30` line, then what they said), `speaker|emotion|text` lines, and the speakers in SRT/VTT and JSON. Anything
 else becomes paragraphs split into segments of about 40 words with estimated times. Markdown and MDX are reduced to text
-first: front matter or the first heading becomes the title; imports, exports, JSX and code blocks are dropped. PDFs need a
-text layer, so OCR scans first. Named speakers are reused within the namespace; generic labels (SPEAKER_00, S1, CH0)
+first: front matter or the first heading becomes the title; imports, exports, JSX and code blocks are dropped. A PDF
+imported as a transcript needs a text layer; import a scan as a document instead, and its pages are read by OCR. Named speakers are reused within the namespace; generic labels (SPEAKER_00, S1, CH0)
 become new speakers.
 
 ## Speakers and namespaces
@@ -45,7 +62,11 @@ Each voice gets a voiceprint (SpeechBrain ECAPA, up to `sample_seconds` of that 
 - Between `review_threshold` and `match_threshold`, it creates a new speaker plus a suggested merge for you to confirm.
 - Below that, it creates a new speaker.
 
-You can rename and merge speakers in the web app or the CLI (`lens speakers …`), and every merge can be undone. Speakers in different namespaces are never merged. You can link them as the same person, and with `speakers.cross_namespace: suggest` the graph shows likely voice matches as dashed edges.
+You can rename and merge speakers in the web app or the CLI (`lens speakers …`), and every merge can be undone; merges
+keep who made them and how many recordings moved. Speakers in different namespaces are never merged. You can link them
+as the same person (and unlink them), and with `speakers.cross_namespace: suggest` the graph shows likely voice matches
+as dashed edges and Speakers lists them with how alike the voices are. Saying a suggested pair is "not the same", in one
+namespace or across two, removes the suggestion for good.
 
 ## Knowledge graph
 
@@ -102,7 +123,23 @@ Imports, pipeline runs and folder scans return at once and run as jobs stored in
 `workers.inline` workers itself; more can run anywhere that reaches the database, each limited to the steps it can do.
 A job whose next step a worker can't run goes back on the queue for one that can, so a Mac can transcribe with mlx while
 the container does the rest. Jobs can be cancelled and retried from the failed step; a job whose worker stops
-responding is retried. `GET /api/v1/events` streams job progress (server-sent events).
+responding is retried. Workers heartbeat every 30 s, and every 15 s while they run a job however long its step takes,
+with their machine's load. In Activity → Workers an admin can pause a worker (it takes no new jobs; the one it has
+carries on to the end), drain it (it also hands that job back to the queue after the step it's on, so another worker
+carries on, and stays paused) or resume it. `lens worker --name mac-mini` keeps its pause across restarts; the
+server's own workers are named after its process, so they start afresh. Steps added to a job while it runs (attaching audio does) run after its other steps: a worker
+reads the job's steps again before each step, and only finishes a job whose steps are all done.
+`GET /api/v1/events` streams job progress (server-sent events). A run's whole log is kept (up to 100,000 lines) and
+streams to its Activity page as it's written.
+
+A run keeps a record of each step: when it started and finished, how long it took, how it ended (done, skipped,
+failed), its last message (or why it skipped, or its error), which worker ran it, its lines of the log, and the outputs
+it saved (with the template version and model that made them). A step with nothing to do for a recording skips
+itself and says why: no LLM is configured, it isn't a video, the speakers came with the transcript. Retrying a run
+starts the records over from the step it retries. Each finished or skipped step also adds its time to the last 25 of
+its kind (template steps per template), and `GET /jobs/{jid}` turns these into how long each step usually takes on
+that recording (scaled to its length for transcribe, diarize and the video steps) and about how long an active run
+has left.
 
     lens worker --steps transcribe,diarize     # e.g. on the Mac, with SURREAL_URL pointing at the server
 
@@ -113,7 +150,11 @@ WebDAV, or a folder on this machine. A watched folder maps a path on a source to
 patterns, audio and/or transcripts, a polling interval, how long a file must be unchanged before it is picked up, and
 whether files already there are imported (backfill). New audio is queued for the full pipeline; new transcripts are
 imported and analysed. Audio stays where it is: it is copied to a cache for processing and streamed from the source for
-playback.
+playback. A file whose recording someone deleted, or moved to another namespace, isn't imported again, even when it
+changes.
+
+Admins can also import chosen files of a source once, without watching their folder: Import → From a source, tick the
+files, then Import (`POST /api/v1/import/source`). The listing marks files that are recordings already, and where.
 
 - Credentials are encrypted in the database (AES-GCM, key from `ARCHIVE_SECRET_KEY` or `data_dir/secret.key`) and given
   to rclone in a private temporary config file per call. For Dropbox, Drive and OneDrive, paste the token from
@@ -137,7 +178,9 @@ Any step can carry a condition: `min_minutes`, `max_minutes`, `source` (audio or
 
 Templates are versioned (publish, history, diff) and rendered in a sandboxed Jinja environment. It can't reach Python
 internals, caps output size, and escapes HTML in reports. Templates see `recording`, `speakers`, `segments`,
-`transcript` (trimmed to `llm.max_chars`), `sections`, `entities`, `keywords`, `summary`, `stats` and `outputs`. A
-fresh archive starts with three: Meeting notes (prompt), Markdown transcript (export) and One-page brief (report).
+`transcript` (trimmed to `llm.max_chars`), `sections`, `entities`, `keywords`, `summary`, `stats` and `outputs`. The
+summary's `key_points` and `action_items` print as their text and have `text`, `who` (empty when not said) and `t0`
+(where the line they come from starts, in ms; none when not known); summaries made before they had times hold plain
+strings. A fresh archive starts with three: Meeting notes (prompt), Markdown transcript (export) and One-page brief (report).
 `POST /api/v1/templates/preview` renders any template, saved or not, against a recording, and with `run: true` also asks
 the model.

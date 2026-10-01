@@ -5,6 +5,7 @@
 x-backend: &backend
   build:
     context: fastapi_backend
+    target: ${LENS_TARGET:-lean}  # full: LibreOffice and Chromium, to read Office files, text, web pages and emails
     args:
       EXTRAS: ${EXTRAS:-}
   environment:

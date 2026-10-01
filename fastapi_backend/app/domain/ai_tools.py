@@ -96,9 +96,7 @@ class Toolbox:
         names = store.space_names(db)
         if self.scope.get("namespaces"):
             self.readable = {s for s in self.readable if names.get(s) in self.scope["namespaces"]}
-        self.allowed = (
-            set(recsets.resolve(db, self.readable, recordings=self.scope["recordings"])) if self.scope.get("recordings") else None
-        )
+        self.allowed = recsets.within(db, self.readable, self.scope.get("recordings"), self.scope.get("collections"))
         self.refs, self.reads, self.approvals = [], 0, []
 
     def specs(self):
@@ -113,18 +111,21 @@ class Toolbox:
             if n not in off and (can_act or not needs)
         ]
 
-    def ref(self, rid, t0, text, speaker=None, title=None, source="said"):
+    def ref(self, rid, t0, text, speaker=None, title=None, source="said", page=None):
         self.refs.append(
-            {
-                "n": len(self.refs) + 1,
-                "recording_id": rid,
-                "t0": t0,
-                "time": store.tc(t0),
-                "speaker": speaker,
-                "title": title,
-                "text": text,
-                "source": source,
-            }
+            store.clean(
+                {
+                    "n": len(self.refs) + 1,
+                    "recording_id": rid,
+                    "t0": t0,
+                    "time": store.tc(t0) if page is None else f"p. {page + 1}",
+                    "page": page,
+                    "speaker": speaker,
+                    "title": title,
+                    "text": text,
+                    "source": source,
+                }
+            )
         )
         return len(self.refs)
 
@@ -152,13 +153,14 @@ class Toolbox:
         out = []
         for h in hits:
             text = h["snippet"].replace("<mark>", "").replace("</mark>", "")
-            n = self.ref(h["recording_id"], h["t0"], text, h.get("speaker"), h.get("title"), h.get("source", "said"))
+            n = self.ref(h["recording_id"], h["t0"], text, h.get("speaker"), h.get("title"), h.get("source", "said"), h.get("page"))
+            where = {"page": h["page"] + 1} if h.get("page") is not None else {"time": store.tc(h["t0"])}
             out.append(
                 {
                     "ref": n,
                     "recording_id": h["recording_id"],
                     "title": h.get("title"),
-                    "time": store.tc(h["t0"]),
+                    **where,
                     "speaker": h.get("speaker"),
                     "source": h.get("source"),
                     "text": text,
@@ -213,8 +215,12 @@ class Toolbox:
         lines = []
         for s in d["segments"]:
             if lo <= s["t0"] <= hi and len(lines) < min(int(max_lines), 200):
-                n = self.ref(int(recording_id), s["t0"], s["text"], names.get(s["s"]), row["title"])
-                lines.append(f"[{n}] {store.tc(s['t0'])} {names.get(s['s'], 'Unknown')}: {s['text']}")
+                page = s.get("p")
+                n = self.ref(int(recording_id), s["t0"], s["text"], names.get(s["s"]), row["title"], page=page)
+                if page is None:
+                    lines.append(f"[{n}] {store.tc(s['t0'])} {names.get(s['s'], 'Unknown')}: {s['text']}")
+                else:  # a document's text, by page
+                    lines.append(f"[{n}] p. {page + 1}: {s['text']}")
         return {"title": row["title"], "lines": lines}, f"Read {len(lines)} line(s) of {row['title']}"
 
     def t_recording_outputs(self, recording_id):

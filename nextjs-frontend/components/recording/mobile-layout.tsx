@@ -5,6 +5,8 @@ import { ChevronLeft, PanelBottomOpen } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { accessLabel } from "@/components/access/model";
+import { homeText } from "@/components/library/collections-model";
 import { usePlayerState } from "@/components/player/media";
 import { PlayButton, SkipButton, SpeedMenu } from "@/components/player/transport";
 import { Waveform } from "@/components/player/waveform";
@@ -12,7 +14,14 @@ import { useWave } from "@/components/recording/audio-layout";
 import { ChapterNow } from "@/components/recording/chapters";
 import { useRec, type PanelTab } from "@/components/recording/context";
 import { Banners, HeaderActions } from "@/components/recording/header";
-import { AUDIO_TABS, MORE_TABS, PanelBody, PanelScroll, PanelTabs } from "@/components/recording/side-panel";
+import {
+  AUDIO_TABS,
+  MORE_TABS,
+  PanelBody,
+  PanelScroll,
+  PanelTabs,
+  useAudioTabs,
+} from "@/components/recording/side-panel";
 import { Transcript } from "@/components/recording/transcript";
 import { tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -34,7 +43,7 @@ const SHEET_MORE = [AUDIO_TABS.find((t) => t.value === "history")!, ...MORE_TABS
 export function MobileLayout() {
   const r = useRec();
   const { model, rec, role, state, tab, setTab } = r;
-  const [sheet, setSheet] = useState(false);
+  const [sheet, setSheet] = useState(tab === "files"); // a link to a file opens on it
   const status = (rec.status ?? "").toLowerCase();
   const word =
     state.phase === "processing" || state.phase === "analyzing" ? "Processing" : (STATUS_WORD[status] ?? status);
@@ -42,11 +51,11 @@ export function MobileLayout() {
     setTab(t);
     setSheet(true);
   };
-  // "Ask in chat" and the ⋯ menu's History switch the tab; open the sheet to show it.
+  // "Ask in chat", "Add note", "Comment", a highlight and the ⋯ menu's History switch the tab; open the sheet to show it.
   const [lastTab, setLastTab] = useState(tab);
   if (tab !== lastTab) {
     setLastTab(tab);
-    if (tab === "chat" || tab === "history" || tab === "details") setSheet(true);
+    if (["chat", "notes", "comments", "highlights", "history", "details", "files"].includes(tab)) setSheet(true);
   }
 
   return (
@@ -63,11 +72,12 @@ export function MobileLayout() {
           <h1 className="truncate text-[15px] font-bold leading-tight text-fg">{model.title}</h1>
           <p className="tabular truncate text-[12px] leading-snug text-fg-muted">
             {[
-              r.ns,
+              homeText(r.ns, rec.collection_path, true),
               role ? role[0].toUpperCase() + role.slice(1) : null,
               tc(model.durationMs),
               word,
               r.transcriptOnly ? "Transcript only" : null,
+              rec.access && rec.access !== "private" ? accessLabel(rec.access) : null,
             ]
               .filter(Boolean)
               .join(" · ")}
@@ -94,6 +104,8 @@ export function MobileLayout() {
 
 function Sheet({ tab, setTab }: { tab: PanelTab; setTab: (t: PanelTab) => void }) {
   const [full, setFull] = useState(false);
+  const counted = useAudioTabs();
+  const tabs = SHEET_TABS.map((t) => counted.find((c) => c.value === t.value) ?? t);
   const current = [...SHEET_TABS, ...SHEET_MORE].some((t) => t.value === tab) ? tab : "summary";
   return (
     <D.Content
@@ -112,14 +124,7 @@ function Sheet({ tab, setTab }: { tab: PanelTab; setTab: (t: PanelTab) => void }
       >
         <span className="h-1 w-9 rounded-[2px] bg-border" />
       </button>
-      <PanelTabs
-        tabs={SHEET_TABS}
-        more={SHEET_MORE}
-        value={current}
-        onChange={setTab}
-        idBase="sheet"
-        className="px-3"
-      />
+      <PanelTabs tabs={tabs} more={SHEET_MORE} value={current} onChange={setTab} idBase="sheet" className="px-3" />
       <PanelScroll id="sheet" tab={current} className="px-[18px]">
         <PanelBody tab={current} />
       </PanelScroll>

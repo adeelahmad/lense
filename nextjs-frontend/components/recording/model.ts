@@ -7,7 +7,7 @@ import type { Player } from "@/app/openapi-client/types.gen";
 import { speakerColor } from "@/components/ui/badge";
 import { tc } from "@/lib/format";
 
-export type MediaKind = "audio" | "video";
+export type MediaKind = "audio" | "video" | "document" | "image";
 export type FacesMode = "off" | "detect" | "recognize";
 
 export type SpeakerInfo = {
@@ -29,7 +29,14 @@ export type Segment = {
   text: string;
   emotion: string | null;
   event: string | null;
+  /** Timed words, when transcription gave them: [c0, c1, t0, t1], a character range of `text` and when it was said. */
+  words?: Word[];
+  /** A document's or an image's block of text: its page (from 0) and where it is on it. */
+  page?: number;
+  box?: Box | null;
 };
+
+export type Word = [c0: number, c1: number, t0: number, t1: number];
 
 export type Chapter = {
   idx: number;
@@ -73,6 +80,59 @@ export type FaceTrack = {
   cover: string | null;
 };
 
+/** A kind of object seen in a recording (the objects step): a person, a car, a dog … */
+export type ObjectTrack = {
+  label: string;
+  /** [from, to): ms, or page numbers from 0 on a document's or an image's pages. */
+  spans: [number, number][];
+  /** How long it's seen (ms), or on how many pages. */
+  screenMs: number;
+  firstMs: number;
+  /** How many times it was found. */
+  count: number;
+  score: number;
+  /** Signed link to the frame or page it's best seen on, and where it is there. */
+  frame: string | null;
+  box: Box | null;
+  /** [t, x, y, w, h, score]: each place it was found. */
+  boxes: [number, number, number, number, number, number][];
+  paged: boolean;
+};
+
+/** What a model that can see images said a shot or a page shows (the describe step). */
+export type Description = {
+  /** The shot, or the page (from 0). */
+  idx: number;
+  /** Where it starts and ends: ms, or on pages the page and the next. */
+  t0: number;
+  t1: number;
+  text: string;
+  model: string | null;
+  /** Signed link to the keyframe or the page it was shown. */
+  frame: string | null;
+  paged: boolean;
+};
+
+/** What the shot (or, `paged`, the page) `idx` was described as showing, if it was. */
+export function descriptionOf(list: Description[], idx: number, paged: boolean): Description | null {
+  return list.find((d) => d.idx === idx && d.paged === paged) ?? null;
+}
+
+/** A page of a document, or an image (a TIFF has one per frame). */
+export type PageInfo = {
+  idx: number;
+  width: number | null;
+  height: number | null;
+  /** Signed links to it drawn, and small; null when it couldn't be drawn. */
+  image: string | null;
+  thumb: string | null;
+  /** How its text was read: from the PDF, or by OCR; null without text. */
+  text: "pdf" | "ocr" | null;
+  chars: number;
+  /** The PDF's own name for it (iv, A-1, …) when it isn't its number. */
+  label: string | null;
+};
+
 export type PlayerModel = {
   id: number;
   title: string;
@@ -93,11 +153,19 @@ export type PlayerModel = {
     width: number | null;
     height: number | null;
     fps: number | null;
+    /** A document's or an image's pages. */
+    pages: number | null;
   };
+  /** A document's or an image's pages, in order; empty for audio and video. */
+  pages: PageInfo[];
   shots: Shot[];
   screenText: ScreenText[];
   faces: FaceTrack[];
   facesMode: FacesMode;
+  /** The namespace pixelates the faces found in the pictures visitors see. */
+  facesPixelate: boolean;
+  objects: ObjectTrack[];
+  descriptions: Description[];
   poster: string | null;
 };
 
@@ -163,11 +231,14 @@ export function normalizePlayer(raw: Player): PlayerModel {
       text: str(o.text) ?? "",
       emotion: str(o.e),
       event: str(o.v),
+      ...wordsOf(o.w, (str(o.text) ?? "").length),
+      ...(o.p == null ? {} : { page: num(o.p), box: box(o.b) }),
     };
   });
   const lastEnd = segments.reduce((m, s) => Math.max(m, s.t1), 0);
   const media = rec(r.media);
-  const kind: MediaKind = media.kind === "video" ? "video" : "audio";
+  const kind: MediaKind =
+    media.kind === "video" || media.kind === "document" || media.kind === "image" ? media.kind : "audio";
   const mode = str(r.faces_mode) as FacesMode | null;
   return {
     id: num(r.id),
@@ -216,7 +287,21 @@ export function normalizePlayer(raw: Player): PlayerModel {
       width: num(media.width) || null,
       height: num(media.height) || null,
       fps: num(media.fps) || null,
+      pages: num(media.pages) || null,
     },
+    pages: arr(r.pages).map((x, i) => {
+      const o = rec(x);
+      return {
+        idx: num(o.idx, i),
+        width: num(o.width) || null,
+        height: num(o.height) || null,
+        image: str(o.image),
+        thumb: str(o.thumb),
+        text: o.text === "pdf" || o.text === "ocr" ? o.text : null,
+        chars: num(o.chars),
+        label: str(o.label),
+      };
+    }),
     shots: arr(r.shots).map((s, i) => {
       const o = rec(s);
       return {
@@ -261,6 +346,42 @@ export function normalizePlayer(raw: Player): PlayerModel {
       };
     }),
     facesMode: mode && MODES.includes(mode) ? mode : "off",
+    facesPixelate: Boolean(r.faces_pixelate),
+    objects: arr(r.objects).map((x) => {
+      const o = rec(x);
+      return {
+        label: str(o.label) ?? "object",
+        spans: arr(o.spans)
+          .map((p) => arr(p).map((v) => num(v)))
+          .filter((p) => p.length >= 2)
+          .map((p) => [p[0], p[1]] as [number, number]),
+        screenMs: num(o.screen_ms),
+        firstMs: num(o.first_ms),
+        count: num(o.count),
+        score: num(o.score),
+        frame: str(o.frame),
+        box: box(o.box),
+        boxes: arr(o.boxes)
+          .map((b) => arr(b).map((v) => num(v)))
+          .filter((b) => b.length >= 6)
+          .map((b) => [b[0], b[1], b[2], b[3], b[4], b[5]] as [number, number, number, number, number, number]),
+        paged: Boolean(o.paged),
+      };
+    }),
+    descriptions: arr(r.descriptions)
+      .map((x) => {
+        const o = rec(x);
+        return {
+          idx: num(o.idx),
+          t0: num(o.t0),
+          t1: num(o.t1),
+          text: str(o.text) ?? "",
+          model: str(o.model),
+          frame: str(o.frame),
+          paged: Boolean(o.paged),
+        };
+      })
+      .filter((d) => d.text),
     poster: str(r.poster),
   };
 }
@@ -317,6 +438,81 @@ export function indexAt<T extends { t0: number }>(items: T[], t: number): number
 }
 
 /** The segment being spoken at `t`, or the last one before it (so a pause keeps the line lit). */
+/** A line's timed words from the API, kept only when they fit its text: `{ words }`, or nothing. */
+function wordsOf(raw: unknown, len: number): { words?: Word[] } {
+  const words = arr(raw).filter(
+    (w): w is Word =>
+      Array.isArray(w) &&
+      w.length === 4 &&
+      w.every((x) => typeof x === "number" && Number.isFinite(x)) &&
+      w[0] >= 0 &&
+      w[0] < w[1] &&
+      w[1] <= len,
+  );
+  return words.length ? { words } : {};
+}
+
+/** The word being said at `ms`: the last one to have started (-1 before the first). */
+export function wordAt(words: Word[], ms: number): number {
+  let lo = 0;
+  let hi = words.length - 1;
+  let ans = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (words[mid][2] <= ms) {
+      ans = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  return ans;
+}
+
+/** Scripts written without spaces between words (a line splits between any two characters there). */
+const NO_SPACES = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff]/;
+
+/**
+ * Where a line splits for a caret at `pos` (as the API does it): the start of the word the caret is in. Null when one
+ * part would be empty. `rest` is the second part's start, to name it ("Split before “Today…”").
+ */
+export function splitPoint(text: string, pos: number): { at: number; rest: string } | null {
+  let at = Math.max(0, Math.min(Math.round(pos), text.length));
+  if (!NO_SPACES.test(text))
+    while (at > 0 && at < text.length && !/\s/.test(text[at - 1]) && !/\s/.test(text[at])) at--;
+  const head = text.slice(0, at).trim();
+  const rest = text.slice(at).trim();
+  return head && rest ? { at, rest } : null;
+}
+
+/** Where the second line's text starts once two lines are joined (as the API joins them: with a space, without one in
+ * scripts written without spaces). */
+export function joinedAt(a: string, b: string): number {
+  const x = a.trimEnd();
+  const y = b.trimStart();
+  if (!x || !y) return x.length;
+  return x.length + (NO_SPACES.test(x[x.length - 1]) || NO_SPACES.test(y[0]) ? 0 : 1);
+}
+
+/** A DOM range over characters c0..c1 of an element's text, or null when it doesn't have them. */
+export function textRange(el: HTMLElement, c0: number, c1: number): Range | null {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  let at = 0;
+  let started = false;
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const len = n.textContent?.length ?? 0;
+    if (!started && c0 < at + len) {
+      range.setStart(n, c0 - at);
+      started = true;
+    }
+    if (started && c1 <= at + len) {
+      range.setEnd(n, c1 - at);
+      return range;
+    }
+    at += len;
+  }
+  return null;
+}
+
 export function segmentAt(segments: Segment[], t: number): number {
   return indexAt(segments, t);
 }
@@ -537,6 +733,11 @@ export function speakerStats(stats: Record<string, unknown> | null | undefined):
   });
   const total = list.reduce((a, s) => a + s.talkMs, 0);
   return list.map((s) => ({ ...s, share: total ? s.talkMs / total : 0 }));
+}
+
+/** A title as the API stores it: whitespace collapsed to single spaces, trimmed. */
+export function cleanTitle(s: string): string {
+  return s.replace(/\s+/g, " ").trim();
 }
 
 /** Emotions worth a chip: the backend writes "Unknown" (or nothing) when it couldn't tell. */

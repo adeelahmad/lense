@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { RotateCcw, ShieldCheck, Square } from "lucide-react";
+import { ChevronDown, RotateCcw, ShieldCheck, Sparkles, Square } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
@@ -16,6 +16,7 @@ import { scopeWords, type Scope } from "@/components/chat/scope";
 import { ToolSteps } from "@/components/chat/steps";
 import type { ToolStep, TurnStatus } from "@/components/chat/stream";
 import { Button } from "@/components/ui/button";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/components/ui/menu";
 import { data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
@@ -126,7 +127,12 @@ export type AnswerProps = {
   onHover: (n: number | null) => void;
   onPreview: (p: Passage) => void;
   onStop?: () => void;
+  /** Stop was pressed: the answer ends after the piece or step it's on. */
+  stopping?: boolean;
   onRetry?: () => void;
+  /** Ask the same question again with another of these models (the one that wrote this answer is left out). */
+  models?: string[];
+  onRetryWith?: (model: string) => void;
   onAddScope?: (ns: string) => void;
   onShowSources?: () => void;
   active?: boolean;
@@ -280,9 +286,35 @@ export function Answer(p: AnswerProps) {
 
       <div className="flex flex-wrap items-center gap-1.5">
         {streaming && p.onStop && (
-          <Button size="sm" variant="ghost" icon={<Square className="!size-3" />} onClick={p.onStop}>
-            Stop
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<Square className="!size-3" />}
+            onClick={p.onStop}
+            disabled={p.stopping}
+            disabledReason="Stopping after the step it’s on"
+          >
+            {p.stopping ? "Stopping…" : "Stop"}
           </Button>
+        )}
+        {!streaming && p.onRetryWith && (p.models ?? []).filter((m) => m !== p.model).length > 0 && (
+          <Menu>
+            <MenuTrigger asChild>
+              <Button size="sm" variant="ghost" icon={<Sparkles />}>
+                Try another model <ChevronDown />
+              </Button>
+            </MenuTrigger>
+            <MenuContent align="start" className="max-h-[320px] min-w-[220px] overflow-y-auto">
+              <MenuLabel>Ask again with</MenuLabel>
+              {(p.models ?? [])
+                .filter((m) => m !== p.model)
+                .map((m) => (
+                  <MenuItem key={m} onSelect={() => p.onRetryWith?.(m)}>
+                    <span className="font-mono text-[12.5px]">{m}</span>
+                  </MenuItem>
+                ))}
+            </MenuContent>
+          </Menu>
         )}
         {p.status === "done" && p.messageId != null && p.chatId != null && cites.length > 0 && !noModel && !result && (
           <Button

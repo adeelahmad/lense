@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 
 import { Chats } from "@/app/openapi-client";
+import { useStopAnswer } from "@/components/chat/data";
 import { usePlayerApi } from "@/components/player/media";
 import {
   applyChatEvent,
@@ -18,7 +19,7 @@ import {
 } from "@/components/recording/chat-model";
 import { useRec } from "@/components/recording/context";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/states";
+import { EmptyState, Skeleton } from "@/components/ui/states";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { SSEError, streamSSE } from "@/lib/api/sse";
 import { tc } from "@/lib/format";
@@ -28,7 +29,20 @@ import { cn } from "@/lib/utils";
  * Chat scoped to this recording: questions are answered from its transcript only, and each citation seeks the player.
  * The conversation is kept (it's this recording's chat in Chat too); the full chat UI lives on the Chat page.
  */
+/** The recording's chat, for people with a role in its namespace (the assistant answers from the namespace). */
 export function ChatTab() {
+  const { member, ns } = useRec();
+  if (!member)
+    return (
+      <EmptyState icon={<MessagesSquare />} title={`Chat needs a role in ${ns ?? "the namespace"}`} className="py-10">
+        You see this recording through a role on its collection. Asking the assistant about recordings needs a role in
+        the namespace: ask an owner of {ns ?? "it"}.
+      </EmptyState>
+    );
+  return <ChatPanel />;
+}
+
+function ChatPanel() {
   const { id, model, chatDraft, clearChatDraft } = useRec();
   const client = useApiClient();
   const qc = useQueryClient();
@@ -37,7 +51,9 @@ export function ChatTab() {
   const [fresh, setFresh] = useState(false);
   const [input, setInput] = useState("");
   const [answer, setAnswer] = useState<Answer | null>(null);
+  const [stopping, setStopping] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  const stopAnswer = useStopAnswer();
   const box = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
 
@@ -72,6 +88,7 @@ export function ChatTab() {
     if (!q || answer?.status === "streaming") return;
     setInput("");
     setAnswer(newAnswer(q));
+    setStopping(false);
     const ctl = new AbortController();
     abort.current = ctl;
     try {
@@ -101,7 +118,7 @@ export function ChatTab() {
       }
       setAnswer((a) => (a && a.status === "streaming" ? { ...a, status: "done" } : a));
       await qc.invalidateQueries({ queryKey: ["chat", target] });
-      setAnswer((a) => (a?.status === "done" ? null : a));
+      setAnswer((a) => (a?.status === "done" || a?.saved ? null : a)); // a saved one shows in the conversation now
     } catch (e) {
       if (ctl.signal.aborted) setAnswer((a) => (a ? { ...a, status: "stopped" } : a));
       else {
@@ -164,7 +181,25 @@ export function ChatTab() {
           m.role === "user" ? (
             <Question key={m.id} text={m.content} />
           ) : (
-            <AnswerView key={m.id} text={m.content} passages={(m.passages ?? []) as Passage[]} />
+            <div key={m.id} className="flex flex-col gap-1.5">
+              {m.notice && <p className="text-[12.5px] text-fg-muted">{m.notice}</p>}
+              {(m.steps ?? []).length > 0 && (
+                <p className="text-[12.5px] text-fg-muted">
+                  {(m.steps ?? []).map((x) => x.summary || x.tool).join(" · ")}
+                </p>
+              )}
+              {m.error ? (
+                <p className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-fg-strong">
+                  <b className="text-red-dark">No answer.</b> {m.error}
+                </p>
+              ) : (
+                <AnswerView
+                  text={m.content === "(stopped)" ? "" : m.content}
+                  passages={(m.passages ?? []) as Passage[]}
+                />
+              )}
+              {m.stopped && <p className="text-[12.5px] text-fg-muted">Stopped.</p>}
+            </div>
           ),
         )}
         {answer && (
@@ -222,10 +257,15 @@ export function ChatTab() {
             variant="secondary"
             size="md"
             icon={<Square />}
-            onClick={() => abort.current?.abort()}
+            onClick={() => {
+              setStopping(true);
+              stopAnswer(chatId, abort.current);
+            }}
+            disabled={stopping}
+            disabledReason="Stopping after the step it’s on"
             aria-label="Stop the answer"
           >
-            Stop
+            {stopping ? "Stopping…" : "Stop"}
           </Button>
         ) : (
           <Button
@@ -273,7 +313,7 @@ function AnswerView({ text, passages, streaming }: { text: string; passages: Pas
               [{p.n}]
             </sup>
           );
-        const label = `${tc(ps.t0 ?? 0)}${ps.speaker ? ` · ${ps.speaker}` : ""}`;
+        const label = `${ps.page != null ? (ps.time ?? `p. ${ps.page + 1}`) : tc(ps.t0 ?? 0)}${ps.speaker ? ` · ${ps.speaker}` : ""}`;
         const cls =
           "mx-0.5 inline-flex h-[20px] items-center rounded-pill border border-blue-border bg-blue-surface px-1.5 align-[2px] font-sans text-[11.5px] font-semibold text-blue-dark hover:bg-blue hover:text-white";
         return ps.recording_id === id ? (
@@ -290,7 +330,7 @@ function AnswerView({ text, passages, streaming }: { text: string; passages: Pas
         ) : (
           <Link
             key={i}
-            href={`/recordings/${ps.recording_id}?t=${Math.floor((ps.t0 ?? 0) / 1000)}`}
+            href={`/resources/${ps.recording_id}${ps.page != null ? `?page=${ps.page + 1}` : `?t=${Math.floor((ps.t0 ?? 0) / 1000)}`}`}
             className={cls}
             title={ps.text}
           >

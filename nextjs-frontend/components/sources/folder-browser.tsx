@@ -1,13 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Captions, ChevronRight, File, FileAudio, Folder, FolderOpen } from "lucide-react";
+import { Captions, ChevronRight, File, FileAudio, FileImage, FileType, Folder, FolderOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Sources } from "@/app/openapi-client";
 import type { BrowseEntry, Source } from "@/app/openapi-client/types.gen";
 import { TYPE_ICON } from "@/components/sources/source-icons";
-import { fileKind } from "@/components/sources/source-model";
+import { fileKind, pickupText, type SourceFileKind } from "@/components/sources/source-model";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState, Skeleton } from "@/components/ui/states";
@@ -16,6 +16,13 @@ import { bytes, shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const PAGE = 100;
+const KIND_ICON: Record<SourceFileKind, typeof File> = {
+  audio: FileAudio,
+  transcript: Captions,
+  document: FileType,
+  image: FileImage,
+  other: File,
+};
 
 /** Breadcrumbs for a path: remote paths are relative to the connection's top; local ones are absolute. */
 function crumbs(path: string, local: boolean): { label: string; path: string }[] {
@@ -69,8 +76,8 @@ export function FolderBrowser({
   });
   const entries: BrowseEntry[] = q.data ?? [];
   const files = entries.filter((e) => !e.dir);
-  const audio = files.filter((f) => fileKind(f.name) === "audio").length;
-  const transcripts = files.filter((f) => fileKind(f.name) === "transcript").length;
+  const n = (k: SourceFileKind) => files.filter((f) => fileKind(f.name) === k).length;
+  const here = { audio: n("audio"), transcripts: n("transcript"), documents: n("document"), images: n("image") };
   const Root = TYPE_ICON[source.type];
   const atRoots = local && path === "";
 
@@ -143,7 +150,7 @@ export function FolderBrowser({
             <tbody>
               {entries.slice(0, shown).map((e) => {
                 const kind = e.dir ? "dir" : fileKind(e.name);
-                const Icon = e.dir ? Folder : kind === "audio" ? FileAudio : kind === "transcript" ? Captions : File;
+                const Icon = kind === "dir" ? Folder : KIND_ICON[kind];
                 return (
                   <tr
                     key={e.path}
@@ -185,7 +192,7 @@ export function FolderBrowser({
       <div className="-mx-6 -mb-6 flex flex-wrap items-center gap-2.5 border-t border-border px-4 py-3">
         <span className="flex-1 text-[12.5px] text-fg-secondary">
           {q.isSuccess && !atRoots
-            ? `${audio} audio · ${transcripts} transcripts in this folder`
+            ? `${pickupText({ files: files.length - n("other"), ...here })} in this folder`
             : atRoots
               ? "Pick an allowed folder"
               : ""}

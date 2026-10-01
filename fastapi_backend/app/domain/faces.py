@@ -4,10 +4,16 @@ identities matched across its recordings the way voices are (auto-match, review,
 Off by default. An owner can choose detect (boxes and screen time, no identities or face descriptors) or recognize
 (identities; the purpose is recorded). Turning recognition off deletes the namespace's face descriptors. Face data can
 be deleted per person or per namespace, and is never published through IIIF unless video.publish_faces is on.
+
+An owner can also have the faces found pixelated in the pictures visitors see (public pages, embeds, share links,
+IIIF): `pixelated` makes a frame, a page or a thumbnail with its faces in coarse blocks, for a request without a role
+in the namespace. Members see the pictures as they are.
 """
 
 from __future__ import annotations
 
+import io
+import re
 from collections import defaultdict
 
 import numpy as np
@@ -23,23 +29,97 @@ def mode(db, sid):
 
 
 def set_mode(db, sid, new, purpose=None, user=None, cfg=None):
-    """off, detect or recognize. Turning faces off deletes all face data (with cfg, the crops on disk too)."""
+    """off, detect or recognize. Turning faces off deletes all face data (with cfg, the crops on disk too), and stops
+    pixelating them for visitors: there are no faces left to pixelate."""
     if new not in MODES:
         raise ValueError(f"face mode is one of {', '.join(MODES)}")
     if new == "recognize" and not (purpose or "").strip():
         raise ValueError("say what face recognition is for in this namespace")
-    db.q(
-        "UPDATE $s MERGE $p",
-        s=R("space", sid),
-        p=store.clean(
-            {"faces_mode": new, "faces_purpose": (purpose or "").strip() or None, "faces_set_by": user, "faces_set_at": store.now()}
-        ),
-    )
+    patch = {"faces_mode": new, "faces_purpose": (purpose or "").strip() or None, "faces_set_by": user, "faces_set_at": store.now()}
+    if new == "off":
+        patch["faces_pixelate"] = False
+    db.q("UPDATE $s MERGE $p", s=R("space", sid), p=store.clean(patch))
     if new != "recognize":  # descriptors only exist while recognition is on
         db.q("UPDATE face SET embedding = NONE WHERE space = $s", s=sid)
         db.q("UPDATE face_track SET embedding = NONE WHERE space = $s", s=sid)
     if new == "off":
         delete_namespace(db, cfg, sid, keep_mode=True)
+
+
+def pixelates(db, sid):
+    """Whether the namespace pixelates the faces found in the pictures visitors see."""
+    return bool((db.one("SELECT faces_pixelate FROM $s", s=R("space", sid)) or {}).get("faces_pixelate"))
+
+
+def set_pixelate(db, sid, on):
+    """Pixelate faces for visitors, or not. Needs faces detected (mode detect or recognize): pixelating goes by the
+    faces found."""
+    if on and mode(db, sid) == "off":
+        raise ValueError("pixelating faces needs them detected first (face mode detect or recognize)")
+    db.q("UPDATE $s SET faces_pixelate = $on", s=R("space", sid), on=bool(on))
+
+
+CELLS = 10  # blocks across a pixelated face: too few to know anyone by
+MARGIN = 0.2  # of the face's size around it, pixelated too (faces move between the frames they were found on)
+SAMPLED = re.compile(r"s(\d{9})\.jpg")  # a sampled frame, named by its time in ms
+PAGED = re.compile(r"(page|thumb)-(\d{4})\.jpg")  # a page drawn, or its thumbnail, numbered from 1
+
+
+def boxes_on(db, rid, name):
+    """Where the faces found are on the picture `name` of recording `rid`: [[x, y, w, h], …] as fractions of it, or
+    None when nothing was found there. A face's own crop (face-N.jpg) is all face."""
+    if name.startswith("face-"):
+        return [[0.0, 0.0, 1.0, 1.0]]
+    tracks = db.rows("SELECT boxes, paged FROM face_track WHERE recording = $r", r=rid)
+    if not tracks:
+        return None
+    if m := PAGED.fullmatch(name):
+        at = {int(m.group(2)) - 1}
+        paged = True
+    else:
+        paged, at = False, None
+        if m := SAMPLED.fullmatch(name):
+            at = {int(m.group(1))}
+        else:  # a shot's keyframe: the faces found on the sampled frames either side of it
+            shot = db.one("SELECT t0, t1 FROM shot WHERE recording = $r AND frame = $n", r=rid, n=name)
+            step = (db.one("SELECT sample_ms FROM $r", r=R("recording", rid)) or {}).get("sample_ms") or 5000
+            if shot:
+                t = shot["t0"] + min(1000, (shot["t1"] - shot["t0"]) // 4)  # where video.step_shots takes it
+                at = {b[0] for tr in tracks if not tr.get("paged") for b in tr.get("boxes") or [] if abs(b[0] - t) <= step}
+    if at is None:
+        return None
+    boxes = [b[1:5] for tr in tracks if bool(tr.get("paged")) == paged for b in tr.get("boxes") or [] if b[0] in at]
+    return boxes or None
+
+
+def pixelate(img, boxes, cells=CELLS, margin=MARGIN):
+    """The PIL image with each box (fractions of it) made into `cells` blocks across, a margin around it too."""
+    from PIL import Image
+
+    W, H = img.size
+    for x, y, w, h in boxes:
+        x0, y0 = max(0, int((x - w * margin) * W)), max(0, int((y - h * margin) * H))
+        x1, y1 = min(W, int((x + w * (1 + margin)) * W) + 1), min(H, int((y + h * (1 + margin)) * H) + 1)
+        if x1 - x0 < 2 or y1 - y0 < 2:
+            continue
+        region = img.crop((x0, y0, x1, y1))
+        small = region.resize((cells, max(1, round(cells * (y1 - y0) / (x1 - x0)))), Image.NEAREST)
+        img.paste(small.resize(region.size, Image.NEAREST), (x0, y0))
+    return img
+
+
+def pixelated(db, path, rid, name):
+    """The picture at `path` (frame `name` of recording `rid`) as a visitor gets it, a JPEG with the faces found on it
+    pixelated; None when none were found on it (it's served as it is)."""
+    boxes = boxes_on(db, rid, name)
+    if not boxes:
+        return None
+    from PIL import Image
+
+    with Image.open(path) as img:
+        out = io.BytesIO()
+        pixelate(img.convert("RGB"), boxes).save(out, "JPEG", quality=85)
+    return out.getvalue()
 
 
 def _vec(v):
@@ -104,10 +184,14 @@ def match(db, cfg, sid, prints):
     return out
 
 
-def _spans(times, step):
+PAGE_SECONDS = 5  # a face on a page weighs as much as five seconds on screen when it's matched to the namespace's faces
+
+
+def spans(times, step, bridge=2):
+    """Spans [from, to) of the times a face (or an object) was seen, bridging up to `bridge` steps where it wasn't."""
     out = []
     for t in sorted(times):
-        if out and t - out[-1][1] <= step * 2:
+        if out and t - out[-1][1] <= step * bridge:
             out[-1][1] = t + step
         else:
             out.append([t, t + step])
@@ -149,7 +233,9 @@ def clear_recording(db, cfg, rid):
         f.unlink(missing_ok=True)
 
 
-def store_tracks(db, cfg, rid, sid, dets, mode_, step, say):
+def store_tracks(db, cfg, rid, sid, dets, mode_, step, say, paged=False):
+    """Keep a recording's faces as tracks: detections followed from one frame to the next (or, recognising, grouped by
+    who they are). On a document's pages `t` counts pages, and the track says pages, not time on screen."""
     clear_recording(db, cfg, rid)
     if not dets:
         return say("no faces found")
@@ -171,7 +257,7 @@ def store_tracks(db, cfg, rid, sid, dets, mode_, step, say):
         groups[int(lab)].append(d)
     tracks = []
     for n, (lab, g) in enumerate(sorted(groups.items(), key=lambda kv: min(d["t"] for d in kv[1]))):
-        spans = _spans({d["t"] for d in g}, step)
+        sp = spans({d["t"] for d in g}, step, 0 if paged else 2)  # pages it isn't on aren't bridged
         best = max(g, key=lambda d: d["score"] * d["box"][2] * d["box"][3])
         cen = None
         if mode_ == "recognize":
@@ -180,16 +266,17 @@ def store_tracks(db, cfg, rid, sid, dets, mode_, step, say):
         tracks.append(
             {
                 "local": f"P{n + 1}",
-                "spans": spans,
-                "screen_ms": sum(b - a for a, b in spans),
-                "first_ms": spans[0][0],
+                "spans": sp,
+                "screen_ms": sum(b - a for a, b in sp),
+                "first_ms": sp[0][0],
                 "cover": _crop(cfg, rid, best, f"face-{n + 1}.jpg"),
                 "centroid": cen,
                 "boxes": [[d["t"]] + [round(x, 4) for x in d["box"]] for d in sorted(g, key=lambda d: d["t"])][:500],
                 "score": round(float(np.mean([d["score"] for d in g])), 3),
             }
         )
-    ids = match(db, cfg, sid, {t["local"]: (t["centroid"], t["screen_ms"] / 1000) for t in tracks}) if mode_ == "recognize" else {}
+    weight = (lambda t: t["screen_ms"] * PAGE_SECONDS) if paged else (lambda t: t["screen_ms"] / 1000)
+    ids = match(db, cfg, sid, {t["local"]: (t["centroid"], weight(t)) for t in tracks}) if mode_ == "recognize" else {}
     rows = [
         store.clean(
             {
@@ -204,6 +291,7 @@ def store_tracks(db, cfg, rid, sid, dets, mode_, step, say):
                 "boxes": t["boxes"],
                 "score": t["score"],
                 "method": mode_,
+                "paged": paged or None,  # its spans count pages
                 "match": ids.get(t["local"], (None, None, None))[2],
                 "embedding": _vec(t["centroid"]) if t["centroid"] is not None else None,
             }
@@ -211,11 +299,10 @@ def store_tracks(db, cfg, rid, sid, dets, mode_, step, say):
         for t in tracks
     ]
     db.q("INSERT INTO face_track $rows", rows=rows)
-    if ids:
+    if ids and not paged:  # a document has no voices
         _suggest_speakers(db, rid, sid)
-    say(
-        f"{len(tracks)} face(s) on screen" + (f", {sum(1 for x in ids.values() if x[2] == 'face')} recognised" if ids else " (detect only)")
-    )
+    where = "on its pages" if paged else "on screen"
+    say(f"{len(tracks)} face(s) {where}" + (f", {sum(1 for x in ids.values() if x[2] == 'face')} recognised" if ids else " (detect only)"))
 
 
 def _suggest_speakers(db, rid, sid):
@@ -246,9 +333,9 @@ def list_faces(db, sid):
         "SELECT record::id(id) AS id, label, name, speaker, embedding != NONE AS has_print, created_at FROM face WHERE space = $s", s=sid
     )
     stats = defaultdict(lambda: {"screen_ms": 0, "recordings": set(), "cover": None})
-    for t in db.rows("SELECT face, recording, screen_ms, cover FROM face_track WHERE space = $s AND face > 0", s=sid):
+    for t in db.rows("SELECT face, recording, screen_ms, paged, cover FROM face_track WHERE space = $s AND face > 0", s=sid):
         x = stats[t["face"]]
-        x["screen_ms"] += t.get("screen_ms") or 0
+        x["screen_ms"] += 0 if t.get("paged") else t.get("screen_ms") or 0  # a document's tracks count pages
         x["recordings"].add(t["recording"])
         x["cover"] = x["cover"] or ({"recording": t["recording"], "file": t["cover"]} if t.get("cover") else None)
     names = {r["id"]: r.get("name") or r["label"] for r in rows}

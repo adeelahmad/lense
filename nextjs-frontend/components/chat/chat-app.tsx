@@ -7,17 +7,17 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Chats, Collections } from "@/app/openapi-client";
+import { Chats } from "@/app/openapi-client";
 import type { AnswerCheck, Approval, ChatMessage, Estimate, Passage } from "@/app/openapi-client/types.gen";
 import { Answer } from "@/components/chat/answer";
 import { shortTitle } from "@/components/chat/cite";
 import { Composer, ScopeBar } from "@/components/chat/composer";
 import { ConversationList } from "@/components/chat/conversations";
-import { useApprovals, useChat, useChats, useLlmStatus } from "@/components/chat/data";
+import { useApprovals, useChat, useChats, useLlmStatus, useStopAnswer } from "@/components/chat/data";
 import { EmptyChat } from "@/components/chat/empty";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
-import { applyEvent, newTurn, type ToolStep, type TurnState } from "@/components/chat/stream";
+import { applyEvent, newTurn, savedSteps, type ToolStep, type TurnState } from "@/components/chat/stream";
 import { useRecordingIndex, useSpeakerDirectory } from "@/components/search/data";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
@@ -89,6 +89,7 @@ export function ChatApp() {
 
   const linkScope = useMemo(() => scopeFromParams(new URLSearchParams(search.toString())), [search]);
   const [draftScope, setDraftScope] = useState<Scope>(() => linkScope);
+  const [draftModel, setDraftModel] = useState<string | null>(null); // for the conversation that isn't started yet
   const [draft, setDraft] = useState(() => search.get("q") ?? "");
   const [composing, setComposing] = useState(() =>
     Boolean(search.get("q") || search.get("ns") || search.get("recording") || search.get("speaker")),
@@ -114,26 +115,11 @@ export function ChatApp() {
     if (search.get("q")) setDraft(search.get("q") ?? "");
     if (search.toString()) setDraftScope(linkScope);
   }, [search, linkScope]);
-  // A collection link (?collection=5) scopes a new conversation to its recordings as they are now.
+  // A collection link (?collection=5) starts a conversation that draws on the collection (the link's scope has it).
   const collectionId = Number(search.get("collection")) || null;
   useEffect(() => {
-    if (!collectionId) return;
-    setComposing(true);
-    data(Collections.getCollection({ client, path: { cid: collectionId } }))
-      .then((c) =>
-        setDraftScope((s) => ({
-          ...s,
-          recordings: c.recordings.map((r) => r.id),
-        })),
-      )
-      .catch((e) =>
-        toast({
-          title: "Couldn’t open the collection",
-          body: e instanceof Error ? e.message : undefined,
-          tone: "red",
-        }),
-      );
-  }, [collectionId, client, toast]);
+    if (collectionId) setComposing(true);
+  }, [collectionId]);
 
   const scope = activeId != null ? fromApiScope(chat.data?.scope) : draftScope;
   const streaming = live?.turn.status === "streaming";
@@ -163,7 +149,7 @@ export function ChatApp() {
   );
 
   const run = useCallback(
-    async (cid: number, question: string) => {
+    async (cid: number, question: string, model?: string) => {
       const ac = new AbortController();
       abortRef.current = ac;
       let turn = newTurn(question);
@@ -172,7 +158,7 @@ export function ChatApp() {
       try {
         for await (const msg of streamSSE(`/api/v1/chats/${cid}/messages`, {
           method: "POST",
-          body: { content: question },
+          body: { content: question, model },
           accessToken: session?.accessToken,
           signal: ac.signal,
         })) {
@@ -209,7 +195,7 @@ export function ChatApp() {
   );
 
   const send = useCallback(
-    async (text?: string) => {
+    async (text?: string, model?: string) => {
       const question = (text ?? draft).trim();
       if (!question || streaming) return;
       setDraft("");
@@ -219,7 +205,7 @@ export function ChatApp() {
           const created = await data(
             Chats.createChat({
               client,
-              body: { scope: toApiScope(draftScope) },
+              body: { scope: toApiScope(draftScope), model: draftModel ?? undefined },
             }),
           );
           cid = created.id;
@@ -236,12 +222,20 @@ export function ChatApp() {
           return;
         }
       }
-      void run(cid, question);
+      void run(cid, question, model);
     },
-    [activeId, client, draft, draftScope, qc, router, run, streaming, toast],
+    [activeId, client, draft, draftScope, draftModel, qc, router, run, streaming, toast],
   );
 
-  const stop = () => abortRef.current?.abort();
+  const stopAnswer = useStopAnswer();
+  const [stopping, setStopping] = useState<number | null>(null); // the conversation whose answer is stopping
+  const stop = () => {
+    setStopping(live?.chatId ?? null);
+    stopAnswer(live?.chatId, abortRef.current);
+  };
+  useEffect(() => {
+    if (!live) setStopping(null);
+  }, [live]);
 
   const newConversation = () => {
     abortRef.current?.abort();
@@ -316,7 +310,20 @@ export function ChatApp() {
     return out;
   }, [dir.speakers, index.data, scope.namespaces]);
 
-  const model = llm.known && llm.configured ? llm.model : null;
+  // the model that answers here: the conversation's choice (or the one picked before it started), else the configured one
+  const chosen = activeId != null ? (chat.data?.model ?? null) : draftModel;
+  const model = llm.known && llm.configured ? (chosen ?? llm.model) : null;
+  const pickModel = async (m: string) => {
+    const next = m === llm.model ? null : m;
+    if (activeId == null) return setDraftModel(next);
+    try {
+      await data(Chats.updateChat({ client, path: { cid: activeId }, body: { model: next } }));
+      await qc.invalidateQueries({ queryKey: ["chat", activeId] });
+      void qc.invalidateQueries({ queryKey: ["chats"] });
+    } catch (e) {
+      toast({ title: "Couldn’t change the model", body: e instanceof Error ? e.message : undefined, tone: "red" });
+    }
+  };
   const noProvider = llm.known && !llm.configured;
   const showThread = activeId != null || liveHere != null;
   const title = chat.data?.title ?? (activeId == null ? "New conversation" : "Conversation");
@@ -427,12 +434,12 @@ export function ChatApp() {
                       chatId={activeId}
                       messageId={it.a.id}
                       question={it.q?.content ?? ""}
-                      text={it.a.content}
+                      text={it.a.stopped && it.a.content === "(stopped)" ? "" : it.a.content}
                       passages={it.a.passages ?? []}
-                      status={ex?.error ? "error" : "done"}
-                      error={ex?.error}
-                      notice={ex?.notice}
-                      steps={ex?.steps}
+                      status={(ex?.error ?? it.a.error) ? "error" : it.a.stopped ? "stopped" : "done"}
+                      error={ex?.error ?? it.a.error}
+                      notice={ex?.notice ?? it.a.notice}
+                      steps={ex?.steps ?? savedSteps(it.a.steps)}
                       approvals={(approvalsFor.get(it.a.id) ?? [])
                         .filter((a) => !liveApprovalIds.has(a.id))
                         .map((a) => ({
@@ -440,10 +447,12 @@ export function ChatApp() {
                           estimate: a.estimate as Estimate | null,
                         }))}
                       scope={scope}
-                      model={model}
+                      model={it.a.model ?? model}
                       onRetry={it.q ? () => send(it.q!.content) : undefined}
+                      models={llm.models}
+                      onRetryWith={it.q ? (m) => send(it.q!.content, m) : undefined}
                       onAddScope={addScope}
-                      check={checks[it.a.id]}
+                      check={checks[it.a.id] ?? it.a.check}
                       onChecked={(c) => setChecks((x) => ({ ...x, [it.a!.id]: c }))}
                       {...answerHandlers(aKey)}
                     />
@@ -460,6 +469,8 @@ export function ChatApp() {
                       scope={scope}
                       model={model}
                       onRetry={() => send(partial.question)}
+                      models={llm.models}
+                      onRetryWith={(m) => send(partial.question, m)}
                       {...answerHandlers(aKey)}
                     />
                   ) : (
@@ -490,6 +501,7 @@ export function ChatApp() {
                   scope={scope}
                   model={model}
                   onStop={stop}
+                  stopping={stopping != null && stopping === live?.chatId}
                   onRetry={() => send(liveHere.question)}
                   onAddScope={addScope}
                   {...answerHandlers("live")}
@@ -516,6 +528,8 @@ export function ChatApp() {
               onChange={setScope}
               model={model}
               tools={llm.known ? llm.tools : null}
+              models={llm.models}
+              onModel={(m) => void pickModel(m)}
               openTick={scopeOpenTick}
             />
             <Composer

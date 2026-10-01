@@ -8,6 +8,7 @@ import {
   ChartNoAxesColumn,
   Clapperboard,
   Cpu,
+  FileType,
   Fingerprint,
   Globe,
   ScanText,
@@ -16,7 +17,9 @@ import {
   ShieldCheck,
   Sparkles,
   Terminal,
+  Upload,
   type LucideIcon,
+  KeyRound,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -43,6 +46,9 @@ const ICON: Record<SectionId, LucideIcon> = {
   video: Clapperboard,
   workers: Cpu,
   access: ShieldCheck,
+  uploads: Upload,
+  documents: FileType,
+  tokens: KeyRound,
   iiif: Globe,
   startup: Terminal,
 };

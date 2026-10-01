@@ -3,22 +3,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileAudio, FolderHeart, FolderOpen, Upload } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Collections, Metadata } from "@/app/openapi-client";
+import { useSaveAccess } from "@/components/access/hooks";
+import { ALL_PARTS, PARTS, partsText, togglePart, type AccessPart } from "@/components/access/model";
 import { BulkEditDialog } from "@/components/iiif/bulk-edit";
 import { PAGE, useCollectionItems, type CollectionItem } from "@/components/iiif/collection-data";
 import { CopyButton, usePublicIiif } from "@/components/iiif/collections";
 import { IiifPanel } from "@/components/iiif/iiif-panel";
-import { ACCESS, first, PUBLISH_BADGE, withLang, type Meta } from "@/components/iiif/metadata-model";
+import { first, PUBLISH_BADGE, withLang, type Meta } from "@/components/iiif/metadata-model";
 import { keys, useNamespaceMeta } from "@/components/iiif/queries";
 import { RIGHTS } from "@/components/iiif/rights";
-import { ChoiceCards, SegmentedChoice } from "@/components/settings/controls";
+import { SegmentedChoice } from "@/components/settings/controls";
 import { Badge } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog, Drawer } from "@/components/ui/dialog";
-import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { EmptyState, Skeleton, SkeletonRows } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
@@ -70,7 +72,7 @@ export function CollectionPage({ ns }: { ns: string }) {
   const isPublic = (root.data?.items ?? []).some((c) => c.id.endsWith(`/collection/${ns}`));
   const collectionUrl = collection.data?.id ?? root.data?.id?.replace(/\/collection$/, `/collection/${ns}`) ?? "";
   const checked = items.filter((i) => i.state);
-  const ok = checked.filter((i) => i.state === "published" || i.state === "private").length;
+  const ok = checked.filter((i) => i.state === "published" || i.state === "unpublished").length;
   const attention = checked.filter((i) => i.state === "attention").length;
   const blocked = checked.filter((i) => i.state === "draft").length;
   const isOwner = can("owner", ns);
@@ -92,7 +94,7 @@ export function CollectionPage({ ns }: { ns: string }) {
             <span className="flex flex-wrap items-center gap-2">
               <h1 className="text-[22px] font-bold leading-[1.2] text-fg">{ns}</h1>
               <Badge tone={isPublic ? "green" : "neutral"} dot>
-                {isPublic ? "Published" : "Private"}
+                {isPublic ? "Published" : "Not published"}
               </Badge>
               <span className="text-[12.5px] text-fg-muted">
                 {isPublic ? "part of the public top-level Collection" : "nothing here is public yet"}
@@ -295,7 +297,7 @@ export function CollectionPage({ ns }: { ns: string }) {
         {open && (
           <>
             <div className="flex gap-3 border-b border-border px-[18px] py-2.5 text-[12.5px]">
-              <Link href={`/recordings/${open.id}`} className="font-semibold text-fg-accent hover:underline">
+              <Link href={`/resources/${open.id}`} className="font-semibold text-fg-accent hover:underline">
                 Open recording
               </Link>
               <Link href={`/iiif/metadata/${open.id}`} className="font-semibold text-fg-accent hover:underline">
@@ -307,7 +309,7 @@ export function CollectionPage({ ns }: { ns: string }) {
         )}
       </Drawer>
       <PublishDialog item={publishing} onClose={() => setPublishing(null)} />
-      <BulkEditDialog ns={ns} open={bulk === "edit"} onClose={() => setBulk(null)} />
+      <BulkEditDialog ns={ns} open={bulk === "edit"} onClose={() => setBulk(null)} canPublish={isOwner} />
       <BulkEditDialog
         ns={ns}
         open={bulk === "unpublish" || bulk === "publish"}
@@ -350,7 +352,7 @@ function ItemRow({
         <Link href={`/iiif/metadata/${item.id}`}>Fix</Link>
       </Button>
     ) : null;
-  else if (item.state === "private")
+  else if (item.state === "unpublished")
     action = (
       <Button variant="link" size="xs" onClick={onPublish} disabled={!canPublish} disabledReason={ownerReason}>
         Publish
@@ -394,63 +396,62 @@ function ItemRow({
   );
 }
 
-/** Publish one recording: choose who gets what. */
+/** Publish one recording: make it public, and choose the parts anyone may use. */
 function PublishDialog({ item, onClose }: { item: CollectionItem | null; onClose: () => void }) {
-  const client = useApiClient();
   const qc = useQueryClient();
-  const toast = useToast();
-  const [access, setAccess] = useState("public");
-  const publish = useMutation({
-    mutationFn: (rid: number) =>
-      data(
-        Metadata.updateRecordingMetadata({
-          client,
-          path: { rid },
-          body: { set: { access } },
-        }),
-      ),
-    onSuccess: (r, rid) => {
-      qc.setQueryData(keys.meta(rid), r);
-      void qc.invalidateQueries({ queryKey: keys.iiif(rid) });
-      void qc.invalidateQueries({ queryKey: ["iiif-public"] });
-      toast({
-        title: `Published “${item?.title}”`,
-        body: ACCESS.find((a) => a.value === access)?.anon,
-        tone: "green",
-      });
-      onClose();
-    },
-  });
-  const options = ACCESS.filter((a) => a.value !== "private");
+  const [open, setOpen] = useState<AccessPart[]>(ALL_PARTS);
+  const publish = useSaveAccess(item?.id ?? 0);
+  useEffect(() => {
+    if (item) setOpen(ALL_PARTS);
+  }, [item]);
   return (
     <Dialog
       open={Boolean(item)}
       onOpenChange={(o) => !o && (publish.reset(), onClose())}
       title={`Publish “${item?.title ?? ""}”?`}
-      description="Its Manifest goes live at its IIIF address, and harvesters see it in the change feed."
+      description="It becomes public: anyone finds it, its Manifest goes live at its IIIF address, and harvesters see it in the change feed."
       actions={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" disabled={publish.isPending} onClick={() => item && publish.mutate(item.id)}>
+          <Button
+            variant="primary"
+            disabled={publish.isPending}
+            onClick={() =>
+              item &&
+              publish.mutate(
+                { access: "public", open },
+                {
+                  onSuccess: () => {
+                    void qc.invalidateQueries({ queryKey: ["iiif-public"] });
+                    onClose();
+                  },
+                },
+              )
+            }
+          >
             {publish.isPending ? "Publishing…" : "Publish"}
           </Button>
         </>
       }
     >
-      <ChoiceCards
-        label="Access"
-        size="sm"
-        value={access}
-        onChange={setAccess}
-        options={options.map((a) => ({
-          value: a.value,
-          label: a.label,
-          hint: a.hint,
-        }))}
-      />
-      <p className="text-[12.5px] leading-[1.4] text-fg-secondary">{ACCESS.find((a) => a.value === access)?.anon}</p>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1.5 text-[13px] font-bold text-fg-strong">Open to everyone</legend>
+        {PARTS.map((p) => (
+          <Checkbox
+            key={p.value}
+            checked={open.includes(p.value)}
+            onCheckedChange={(on) => setOpen((cur) => togglePart(cur, p.value, on))}
+            label={`${p.label} (${p.hint})`}
+          />
+        ))}
+      </fieldset>
+      <p className="text-[12.5px] leading-[1.4] text-fg-secondary">
+        {open.length
+          ? `${partsText(open)} open to everyone; the rest asks people to sign in with access.`
+          : "Its page and description only; everything else asks people to sign in with access."}
+      </p>
       {publish.isError && <Banner tone="error">{publish.error.message}</Banner>}
     </Dialog>
   );

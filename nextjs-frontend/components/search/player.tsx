@@ -5,7 +5,7 @@ import { ExternalLink, Pause, Play, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Recordings } from "@/app/openapi-client";
+import { Resources } from "@/app/openapi-client";
 import { recordingHref } from "@/components/search/links";
 import { IconButton } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -53,7 +53,7 @@ export function useInlinePlayer() {
       try {
         const p = await qc.fetchQuery({
           queryKey: ["player", m.recordingId],
-          queryFn: () => data(Recordings.getPlayer({ client, path: { rid: m.recordingId } })),
+          queryFn: () => data(Resources.getPlayer({ client, path: { rid: m.recordingId } })),
           staleTime: 5 * 60_000,
         });
         if (!p.audio) {

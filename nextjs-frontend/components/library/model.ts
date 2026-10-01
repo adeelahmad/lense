@@ -1,13 +1,14 @@
 /**
- * The library's view model: status + job overlay, speakers, importance, emotion mix, and the client-side filters and
- * sorting. Pure functions so they can be tested without a browser.
+ * The library's view model: status + job overlay, speakers, importance, emotion mix, and the list query that the
+ * filters, tabs and sort turn into. Pure functions so they can be tested without a browser.
  *
- * The backend lists recordings newest first (`GET /recordings?ns&limit&offset`) and can't filter or sort, so every
- * filter here runs over the rows loaded so far; the page says so when there are more to load.
+ * Filtering, sorting and counting happen on the server (`GET /recordings`), over every recording in scope; the list
+ * endpoint says how many match in its X-Total-Count header.
  */
-import type { Job, RecordingSummary } from "@/app/openapi-client/types.gen";
+import type { Job, ListRecordingsData, RecordingSummary, Speaker } from "@/app/openapi-client/types.gen";
 import type { Tone } from "@/components/ui/badge";
 import { STEP_LABEL } from "@/components/ui/loop";
+import { plural, tc } from "@/lib/format";
 
 /** Recording statuses as the backend names them, in pipeline order. */
 export const STATUSES = ["new", "transcribed", "diarized", "analyzed", "error"] as const;
@@ -199,23 +200,40 @@ export function emotionMix(emotions: Record<string, unknown> | null | undefined)
   return out;
 }
 
-// ---------- filters ----------
+// ---------- filters (answered by the server) ----------
 
 export type DateRange = "any" | "today" | "7d" | "30d" | "90d" | "1y";
 export type DurationRange = "any" | "short" | "medium" | "long" | "xlong";
-export type MediaFilter = "any" | "audio" | "video" | "transcript";
-export type LibraryView = "all" | "attention" | "processing";
+export type MediaFilter = "any" | "audio" | "video" | "transcript" | "document" | "image";
+export type LibraryView = "all" | "attention" | "processing" | "mine";
 /** Status filter values: the backend statuses plus two job states. */
 export type StatusFilter = RecordingStatus | "processing" | "failed";
+/** A speaker picked by name. Speakers belong to one namespace, so one name can stand for an id in each of several. */
+export type SpeakerFilter = { name: string; ids: number[] };
 
 export type Filters = {
   q: string;
   statuses: StatusFilter[];
-  speaker: string | null;
+  speaker: SpeakerFilter | null;
   date: DateRange;
   duration: DurationRange;
   media: MediaFilter;
+  /** Any of these tags. */
+  tags: string[];
+  /** Where they came from (GET /recordings/origins): source:<id>, upload, paste, iiif, folder or file. */
+  origins: string[];
+  /** Language codes; "none" for recordings whose language isn't known. */
+  languages: string[];
+  /** Any of these kinds of object seen in them (person, car …; the objects step). */
+  objects: string[];
+  /** A collection of the namespace shown: the recordings in it and in the collections inside it. */
+  collection: number | null;
+  /** A custom field of the namespace shown: the recordings with a value for it, or with this value. */
+  field: FieldFilter | null;
 };
+
+/** A custom field filter: its id, and the value to match (empty: any value). */
+export type FieldFilter = { id: number; value: string };
 
 export const NO_FILTERS: Filters = {
   q: "",
@@ -224,7 +242,24 @@ export const NO_FILTERS: Filters = {
   date: "any",
   duration: "any",
   media: "any",
+  tags: [],
+  origins: [],
+  languages: [],
+  objects: [],
+  collection: null,
+  field: null,
 };
+
+/** "en" → "English", "pt-BR" → "Brazilian Portuguese"; null (not known) → "Not known"; an odd code stays as it is. */
+export function languageName(code: string | null | undefined): string {
+  if (!code || code === "none") return "Not known";
+  try {
+    const name = new Intl.DisplayNames(["en"], { type: "language" }).of(code);
+    return name && name.toLowerCase() !== code.toLowerCase() ? name : code;
+  } catch {
+    return code;
+  }
+}
 
 export const DATE_LABEL: Record<DateRange, string> = {
   any: "Any time",
@@ -248,7 +283,25 @@ export const MEDIA_LABEL: Record<MediaFilter, string> = {
   audio: "Audio",
   video: "Video",
   transcript: "Transcript only",
+  document: "Document",
+  image: "Image",
 };
+
+/** How long a row is: its duration, or a document's or an image's pages ("12 pages"); "—" when not known. */
+export function lengthText(r: {
+  duration_ms?: number | null;
+  media_kind?: string | null;
+  pages?: number | null;
+}): string {
+  if (r.media_kind === "document" || r.media_kind === "image")
+    return r.pages ? `${r.pages} page${r.pages === 1 ? "" : "s"}` : "—";
+  return r.duration_ms ? tc(r.duration_ms) : "—";
+}
+
+/** Whether a row has audio or video (whose speakers can be found again by voice). */
+export function hasSound(r: { media_kind?: string | null }): boolean {
+  return r.media_kind === "audio" || r.media_kind === "video";
+}
 
 export const STATUS_FILTER_LABEL: Record<StatusFilter, string> = {
   new: "New",
@@ -267,60 +320,38 @@ export function activeFilterCount(f: Filters): number {
     (f.speaker ? 1 : 0) +
     (f.date !== "any" ? 1 : 0) +
     (f.duration !== "any" ? 1 : 0) +
-    (f.media !== "any" ? 1 : 0)
+    (f.media !== "any" ? 1 : 0) +
+    (f.tags.length ? 1 : 0) +
+    (f.origins.length ? 1 : 0) +
+    (f.languages.length ? 1 : 0) +
+    (f.objects.length ? 1 : 0) +
+    (f.collection != null ? 1 : 0) +
+    (f.field ? 1 : 0)
   );
 }
 
 const DAY = 86_400_000;
 
-function inDate(iso: string | null | undefined, range: DateRange, now: number): boolean {
-  if (range === "any") return true;
-  const t = iso ? Date.parse(iso) : NaN;
-  if (Number.isNaN(t)) return false;
-  if (range === "today") return new Date(t).toDateString() === new Date(now).toDateString();
+/** Seconds [at least, under] for each duration range. */
+const DURATION_SECONDS: Record<Exclude<DurationRange, "any">, [number | null, number | null]> = {
+  short: [null, 600],
+  medium: [600, 1800],
+  long: [1800, 3600],
+  xlong: [3600, null],
+};
+
+/** YYYY-MM-DD in this browser's time zone. */
+export function localDay(t: number): string {
+  const d = new Date(t);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** The first day a date range includes (recording dates are compared by day). */
+export function dateFrom(range: DateRange, now = Date.now()): string | undefined {
+  if (range === "any") return undefined;
+  if (range === "today") return localDay(now);
   const days = { "7d": 7, "30d": 30, "90d": 90, "1y": 365 }[range];
-  return now - t <= days * DAY;
-}
-
-function inDuration(ms: number | null | undefined, range: DurationRange): boolean {
-  if (range === "any") return true;
-  if (ms == null) return false;
-  const min = ms / 60000;
-  if (range === "short") return min < 10;
-  if (range === "medium") return min >= 10 && min < 30;
-  if (range === "long") return min >= 30 && min < 60;
-  return min >= 60;
-}
-
-/** Whether a row needs someone: it errored, its latest job failed, or voice matches wait for review. */
-export function needsAttention(rec: RecordingSummary, job?: Job, reviews = 0): boolean {
-  return (rec.status || "").toLowerCase() === "error" || job?.status === "failed" || reviews > 0;
-}
-
-export function matchesFilters(rec: RecordingSummary, f: Filters, job: Job | undefined, now = Date.now()): boolean {
-  const q = f.q.trim().toLowerCase();
-  if (q) {
-    const hay = `${rec.title ?? ""} ${rec.namespace ?? ""} ${rec.speakers ?? ""}`.toLowerCase();
-    if (!q.split(/\s+/).every((w) => hay.includes(w))) return false;
-  }
-  if (f.statuses.length) {
-    const st = (rec.status || "new").toLowerCase();
-    const ok = f.statuses.some((s) =>
-      s === "processing" ? isActiveJob(job) : s === "failed" ? job?.status === "failed" : s === st,
-    );
-    if (!ok) return false;
-  }
-  if (f.speaker && !speakerList(rec.speakers).some((s) => s.name === f.speaker)) return false;
-  if (!inDate(rec.recorded_at, f.date, now)) return false;
-  if (!inDuration(rec.duration_ms, f.duration)) return false;
-  if (f.media !== "any" && (rec.media_kind || "transcript") !== f.media) return false;
-  return true;
-}
-
-export function matchesView(rec: RecordingSummary, view: LibraryView, job: Job | undefined, reviews = 0): boolean {
-  if (view === "attention") return needsAttention(rec, job, reviews);
-  if (view === "processing") return isActiveJob(job);
-  return true;
+  return localDay(now - days * DAY);
 }
 
 // ---------- sorting ----------
@@ -328,48 +359,148 @@ export function matchesView(rec: RecordingSummary, view: LibraryView, job: Job |
 export type SortKey = "title" | "date" | "duration" | "speakers" | "status" | "importance";
 export type SortDir = "asc" | "desc";
 
-const STATUS_ORDER: Record<string, number> = {
-  error: 0,
-  new: 1,
-  transcribed: 2,
-  diarized: 3,
-  analyzed: 4,
-};
+export type LibraryQuery = NonNullable<ListRecordingsData["query"]>;
 
-function sortValue(rec: RecordingSummary, key: SortKey): string | number | null {
-  switch (key) {
-    case "title":
-      return (rec.title ?? "").toLowerCase();
-    case "date":
-      return rec.recorded_at ? Date.parse(rec.recorded_at) : null;
-    case "duration":
-      return rec.duration_ms ?? null;
-    case "speakers":
-      return speakerList(rec.speakers).length;
-    case "status":
-      return STATUS_ORDER[(rec.status || "new").toLowerCase()] ?? 5;
-    case "importance":
-      return importanceInfo(rec.importance)?.value ?? null;
+/** The list endpoint's query for these filters, tab, sort and namespace. Undefined values are left out. */
+export function libraryQuery(
+  f: Filters,
+  view: LibraryView,
+  sort: { key: SortKey; dir: SortDir },
+  ns: string | null,
+  now = Date.now(),
+): LibraryQuery {
+  const q: LibraryQuery = { sort: sort.dir === "desc" ? `-${sort.key}` : sort.key };
+  if (ns) q.ns = ns;
+  if (f.q.trim()) q.q = f.q.trim();
+  if (f.statuses.length) q.status = f.statuses;
+  if (f.speaker) q.speaker = f.speaker.ids;
+  const from = dateFrom(f.date, now);
+  if (from) q.from = from;
+  if (f.duration !== "any") {
+    const [min, max] = DURATION_SECONDS[f.duration];
+    if (min != null) q.min_duration = min;
+    if (max != null) q.max_duration = max;
   }
+  if (f.media !== "any") q.media = f.media;
+  if (f.tags.length) q.tag = f.tags;
+  if (f.origins.length) q.origin = f.origins;
+  if (f.languages.length) q.language = f.languages;
+  if (f.objects.length) q.object = f.objects;
+  if (f.collection != null) q.collection = f.collection;
+  if (f.field) {
+    q.field = f.field.id;
+    if (f.field.value.trim()) q.value = f.field.value.trim();
+  }
+  if (view === "attention") q.attention = true;
+  if (view === "processing") q.processing = true;
+  if (view === "mine") q.edited_by = "me";
+  return q;
 }
 
-/** A stable sort; rows without a value go last either way. */
-export function sortRows<T extends RecordingSummary>(rows: T[], key: SortKey, dir: SortDir): T[] {
-  const sign = dir === "asc" ? 1 : -1;
-  return rows
-    .map((r, i) => ({ r, i, v: sortValue(r, key) }))
-    .sort((a, b) => {
-      if (a.v == null && b.v == null) return a.i - b.i;
-      if (a.v == null) return 1;
-      if (b.v == null) return -1;
-      const c = typeof a.v === "string" ? a.v.localeCompare(b.v as string) : (a.v as number) - (b.v as number);
-      return c ? c * sign : a.i - b.i;
-    })
-    .map((x) => x.r);
+export type SpeakerChoice = SpeakerFilter & { recordings: number };
+
+/** The namespaces’ speakers merged by name (each namespace has its own ids), most recordings first. */
+export function speakerChoices(speakers: Pick<Speaker, "id" | "display" | "recordings">[]): SpeakerChoice[] {
+  const by = new Map<string, SpeakerChoice>();
+  for (const s of speakers) {
+    const name = s.display.trim();
+    if (!name) continue;
+    const c = by.get(name) ?? { name, ids: [], recordings: 0 };
+    c.ids.push(s.id);
+    c.recordings += s.recordings ?? 0;
+    by.set(name, c);
+  }
+  return [...by.values()].sort((a, b) => b.recordings - a.recordings || a.name.localeCompare(b.name));
 }
 
 /** Rows from index a to b inclusive, either direction: shift-click range selection. */
 export function rangeIds(ids: number[], from: number, to: number): number[] {
   const [a, b] = from < to ? [from, to] : [to, from];
   return ids.slice(Math.max(0, a), b + 1);
+}
+
+/** Selected rows in namespaces where this person lacks a role an action needs: how many, and where. */
+export function blockedBy<T extends { namespace?: string | null }>(
+  rows: readonly T[],
+  allowed: (row: T) => boolean,
+): { count: number; namespaces: string[] } {
+  const out = rows.filter((r) => !allowed(r));
+  return { count: out.length, namespaces: [...new Set(out.map((r) => r.namespace ?? "?"))] };
+}
+
+/** The toast after deleting recordings: how many went, and why the first one that didn't. */
+export function deletedToast(
+  done: number,
+  failed: readonly { title: string; message: string }[],
+): { title: string; body: string; tone: "green" | "red" } {
+  if (!failed.length)
+    return {
+      title: `Deleted ${plural(done, "recording")}`,
+      body: "The media files stay where they are, and won’t be imported again.",
+      tone: "green",
+    };
+  const total = done + failed.length;
+  const why = `${failed[0].title}: ${failed[0].message}${failed.length > 1 ? ` (and ${failed.length - 1} more)` : ""}`;
+  return {
+    title: done
+      ? `Deleted ${done} of ${plural(total, "recording")}`
+      : `Couldn’t delete ${total === 1 ? "the recording" : plural(total, "recording")}`,
+    body: why,
+    tone: "red",
+  };
+}
+
+/** Where selected recordings can move: the namespaces this person edits, other than the only one they're all in. */
+export function moveTargets(editable: readonly string[], from: readonly (string | null | undefined)[]): string[] {
+  const here = new Set(from);
+  return editable.filter((ns) => !(here.size === 1 && here.has(ns)));
+}
+
+/** The toast after moving recordings: how many went where, and why the first one that didn't. */
+export function movedToast(
+  done: number,
+  to: string,
+  failed: readonly { title: string; message: string }[],
+): { title: string; body: string; tone: "green" | "red" } {
+  if (!failed.length)
+    return {
+      title: `Moved ${plural(done, "recording")} to ${to}`,
+      body: `Analysis runs again in ${to}; their access and IIIF stay as they were.`,
+      tone: "green",
+    };
+  const total = done + failed.length;
+  return {
+    title: done
+      ? `Moved ${done} of ${plural(total, "recording")} to ${to}`
+      : `Couldn’t move ${total === 1 ? "the recording" : plural(total, "recording")}`,
+    body: `${failed[0].title}: ${failed[0].message}${failed.length > 1 ? ` (and ${failed.length - 1} more)` : ""}`,
+    tone: "red",
+  };
+}
+
+// ---------- tags ----------
+
+/** One tag as the server keeps it: whitespace collapsed. */
+export function cleanTag(t: string): string {
+  return t.split(/\s+/).filter(Boolean).join(" ");
+}
+
+/** Tags typed into one box, separated by commas or new lines; without repeats, ignoring case. */
+export function tagsFromText(text: string): string[] {
+  const out = new Map<string, string>();
+  for (const t of text.split(/[,\n]/).map(cleanTag)) if (t && !out.has(t.toLowerCase())) out.set(t.toLowerCase(), t);
+  return [...out.values()];
+}
+
+/** The tags on selected recordings, with how many of them have each; most common first. */
+export function tagsOn(rows: readonly { tags?: string[] | null }[]): { tag: string; count: number }[] {
+  const by = new Map<string, { tag: string; count: number }>();
+  for (const r of rows)
+    for (const t of r.tags ?? []) {
+      const k = t.toLowerCase();
+      const cur = by.get(k);
+      if (cur) cur.count++;
+      else by.set(k, { tag: t, count: 1 });
+    }
+  return [...by.values()].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
 }

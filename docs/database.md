@@ -67,6 +67,9 @@ single statements and for `run()` transactions (which roll back as a whole, so r
   restart, searches silently missed most segments. `DB.ready_fulltext()` rebuilds it once per process before the
   first full-text query; `tests/domain/test_search_index.py` covers it. Servers (3.x `FULLTEXT`) are unaffected.
 * **`NONE` drops fields.** Settings saved in the app are stored as JSON text, so "cleared" survives.
+* **`count()` with an `OR … = NONE` filter (embedded 2.x)** counts rows twice (`status IN $s OR status = NONE` gave
+  10 for 4 rows), although the rows themselves come back right. Totals count the selected ids instead:
+  `array::len((SELECT VALUE id FROM recording WHERE …))`, which is exact on both engines.
 
 ## Backups
 

@@ -18,6 +18,12 @@ import type {
   LogoutErrors,
   MeData,
   MeResponses,
+  UpdateMeData,
+  UpdateMeResponses,
+  UpdateMeErrors,
+  ChangePasswordData,
+  ChangePasswordResponses,
+  ChangePasswordErrors,
   ForgotPasswordData,
   ForgotPasswordResponses,
   ForgotPasswordErrors,
@@ -29,6 +35,8 @@ import type {
   CreateTokenData,
   CreateTokenResponses,
   CreateTokenErrors,
+  TokenLimitsData,
+  TokenLimitsResponses,
   RevokeTokenData,
   RevokeTokenResponses,
   RevokeTokenErrors,
@@ -56,6 +64,11 @@ import type {
   ListAuditData,
   ListAuditResponses,
   ListAuditErrors,
+  ListAllTokensData,
+  ListAllTokensResponses,
+  RevokeAnyTokenData,
+  RevokeAnyTokenResponses,
+  RevokeAnyTokenErrors,
   GetHealthData,
   GetHealthResponses,
   ReindexSearchData,
@@ -71,12 +84,108 @@ import type {
   GetNamespaceWordcloudData,
   GetNamespaceWordcloudResponses,
   GetNamespaceWordcloudErrors,
+  GetNamespaceStatsData,
+  GetNamespaceStatsResponses,
+  GetNamespaceStatsErrors,
+  ListIpGroupsData,
+  ListIpGroupsResponses,
+  ListIpGroupsErrors,
+  CreateIpGroupData,
+  CreateIpGroupResponses,
+  CreateIpGroupErrors,
+  DeleteIpGroupData,
+  DeleteIpGroupResponses,
+  DeleteIpGroupErrors,
+  UpdateIpGroupData,
+  UpdateIpGroupResponses,
+  UpdateIpGroupErrors,
+  ListNamespaceCollectionsData,
+  ListNamespaceCollectionsResponses,
+  ListNamespaceCollectionsErrors,
+  CreateNamespaceCollectionData,
+  CreateNamespaceCollectionResponses,
+  CreateNamespaceCollectionErrors,
+  DeleteNamespaceCollectionData,
+  DeleteNamespaceCollectionResponses,
+  DeleteNamespaceCollectionErrors,
+  GetNamespaceCollectionData,
+  GetNamespaceCollectionResponses,
+  GetNamespaceCollectionErrors,
+  UpdateNamespaceCollectionData,
+  UpdateNamespaceCollectionResponses,
+  UpdateNamespaceCollectionErrors,
+  ListCollectionMembersData,
+  ListCollectionMembersResponses,
+  ListCollectionMembersErrors,
+  SetCollectionMemberData,
+  SetCollectionMemberResponses,
+  SetCollectionMemberErrors,
   ListRecordingsData,
   ListRecordingsResponses,
   ListRecordingsErrors,
+  ListTagsData,
+  ListTagsResponses,
+  ListTagsErrors,
+  RetagRecordingsData,
+  RetagRecordingsResponses,
+  RetagRecordingsErrors,
+  ListOriginsData,
+  ListOriginsResponses,
+  ListOriginsErrors,
+  ListLanguagesData,
+  ListLanguagesResponses,
+  ListLanguagesErrors,
+  ListObjectsData,
+  ListObjectsResponses,
+  ListObjectsErrors,
+  PlaceRecordingsData,
+  PlaceRecordingsResponses,
+  PlaceRecordingsErrors,
+  DeleteRecordingData,
+  DeleteRecordingResponses,
+  DeleteRecordingErrors,
   GetRecordingData,
   GetRecordingResponses,
   GetRecordingErrors,
+  UpdateRecordingData,
+  UpdateRecordingResponses,
+  UpdateRecordingErrors,
+  MoveRecordingData,
+  MoveRecordingResponses,
+  MoveRecordingErrors,
+  GetRecordingAccessData,
+  GetRecordingAccessResponses,
+  GetRecordingAccessErrors,
+  UpdateRecordingAccessData,
+  UpdateRecordingAccessResponses,
+  UpdateRecordingAccessErrors,
+  ListRecordingPermissionsData,
+  ListRecordingPermissionsResponses,
+  ListRecordingPermissionsErrors,
+  AddRecordingPermissionData,
+  AddRecordingPermissionResponses,
+  AddRecordingPermissionErrors,
+  RemoveRecordingPermissionData,
+  RemoveRecordingPermissionResponses,
+  RemoveRecordingPermissionErrors,
+  ListRecordingIpGroupsData,
+  ListRecordingIpGroupsResponses,
+  ListRecordingIpGroupsErrors,
+  CloseRecordingToIpGroupData,
+  CloseRecordingToIpGroupResponses,
+  CloseRecordingToIpGroupErrors,
+  OpenRecordingToIpGroupData,
+  OpenRecordingToIpGroupResponses,
+  OpenRecordingToIpGroupErrors,
+  ListAccessRequestsData,
+  ListAccessRequestsResponses,
+  ListAccessRequestsErrors,
+  ApproveAccessRequestData,
+  ApproveAccessRequestResponses,
+  ApproveAccessRequestErrors,
+  DeclineAccessRequestData,
+  DeclineAccessRequestResponses,
+  DeclineAccessRequestErrors,
   GetPlayerData,
   GetPlayerResponses,
   GetPlayerErrors,
@@ -98,6 +207,9 @@ import type {
   CreateShareData,
   CreateShareResponses,
   CreateShareErrors,
+  RevokeShareData,
+  RevokeShareResponses,
+  RevokeShareErrors,
   ListSharesData,
   ListSharesResponses,
   ListSharesErrors,
@@ -107,27 +219,156 @@ import type {
   EditSegmentData,
   EditSegmentResponses,
   EditSegmentErrors,
+  SplitSegmentData,
+  SplitSegmentResponses,
+  SplitSegmentErrors,
+  MergeSegmentsData,
+  MergeSegmentsResponses,
+  MergeSegmentsErrors,
   ListSegmentEditsData,
   ListSegmentEditsResponses,
   ListSegmentEditsErrors,
   ListOutputsData,
   ListOutputsResponses,
   ListOutputsErrors,
+  ListNotesData,
+  ListNotesResponses,
+  ListNotesErrors,
+  CreateNoteData,
+  CreateNoteResponses,
+  CreateNoteErrors,
+  DeleteNoteData,
+  DeleteNoteResponses,
+  DeleteNoteErrors,
+  UpdateNoteData,
+  UpdateNoteResponses,
+  UpdateNoteErrors,
+  ListCommentsData,
+  ListCommentsResponses,
+  ListCommentsErrors,
+  CreateCommentData,
+  CreateCommentResponses,
+  CreateCommentErrors,
+  DeleteCommentData,
+  DeleteCommentResponses,
+  DeleteCommentErrors,
+  UpdateCommentData,
+  UpdateCommentResponses,
+  UpdateCommentErrors,
+  ListHighlightsData,
+  ListHighlightsResponses,
+  ListHighlightsErrors,
+  CreateHighlightData,
+  CreateHighlightResponses,
+  CreateHighlightErrors,
+  DeleteHighlightData,
+  DeleteHighlightResponses,
+  DeleteHighlightErrors,
+  UpdateHighlightData,
+  UpdateHighlightResponses,
+  UpdateHighlightErrors,
+  ListFilesData,
+  ListFilesResponses,
+  ListFilesErrors,
+  AddFileData,
+  AddFileResponses,
+  AddFileErrors,
+  DeleteFileData,
+  DeleteFileResponses,
+  DeleteFileErrors,
+  UpdateFileData,
+  UpdateFileResponses,
+  UpdateFileErrors,
+  DownloadFileData,
+  DownloadFileResponses,
+  DownloadFileErrors,
+  ListFileLinesData,
+  ListFileLinesResponses,
+  ListFileLinesErrors,
+  ListFieldsData,
+  ListFieldsResponses,
+  ListFieldsErrors,
+  CreateFieldData,
+  CreateFieldResponses,
+  CreateFieldErrors,
+  DeleteFieldData,
+  DeleteFieldResponses,
+  DeleteFieldErrors,
+  GetFieldData,
+  GetFieldResponses,
+  GetFieldErrors,
+  UpdateFieldData,
+  UpdateFieldResponses,
+  UpdateFieldErrors,
+  GetResourceFieldsData,
+  GetResourceFieldsResponses,
+  GetResourceFieldsErrors,
+  SaveResourceFieldsData,
+  SaveResourceFieldsResponses,
+  SaveResourceFieldsErrors,
+  GetCollectionFieldsData,
+  GetCollectionFieldsResponses,
+  GetCollectionFieldsErrors,
+  SaveCollectionFieldsData,
+  SaveCollectionFieldsResponses,
+  SaveCollectionFieldsErrors,
+  GetFileFieldsData,
+  GetFileFieldsResponses,
+  GetFileFieldsErrors,
+  SaveFileFieldsData,
+  SaveFileFieldsResponses,
+  SaveFileFieldsErrors,
   ImportTranscriptData,
   ImportTranscriptResponses,
   ImportTranscriptErrors,
+  ImportWebPageData,
+  ImportWebPageResponses,
+  ImportWebPageErrors,
   PreviewImportData,
   PreviewImportResponses,
   PreviewImportErrors,
+  ImportFromSourceData,
+  ImportFromSourceResponses,
+  ImportFromSourceErrors,
+  UploadLimitsData,
+  UploadLimitsResponses,
+  ListUploadsData,
+  ListUploadsResponses,
+  StartUploadData,
+  StartUploadResponses,
+  StartUploadErrors,
+  CancelUploadData,
+  CancelUploadResponses,
+  CancelUploadErrors,
+  GetUploadData,
+  GetUploadResponses,
+  GetUploadErrors,
+  SendChunkData,
+  SendChunkResponses,
+  SendChunkErrors,
   SearchTranscriptsData,
   SearchTranscriptsResponses,
   SearchTranscriptsErrors,
+  SuggestTermsData,
+  SuggestTermsResponses,
+  SuggestTermsErrors,
   GetGraphData,
   GetGraphResponses,
   GetGraphErrors,
   ListMentionsData,
   ListMentionsResponses,
   ListMentionsErrors,
+  ListSearchesData,
+  ListSearchesResponses,
+  CreateSearchData,
+  CreateSearchResponses,
+  CreateSearchErrors,
+  DeleteSearchData,
+  DeleteSearchResponses,
+  DeleteSearchErrors,
+  UpdateSearchData,
+  UpdateSearchResponses,
+  UpdateSearchErrors,
   ListSpeakersData,
   ListSpeakersResponses,
   ListSpeakersErrors,
@@ -146,6 +387,12 @@ import type {
   LinkSpeakerData,
   LinkSpeakerResponses,
   LinkSpeakerErrors,
+  UnlinkSpeakerData,
+  UnlinkSpeakerResponses,
+  UnlinkSpeakerErrors,
+  NotSameSpeakerData,
+  NotSameSpeakerResponses,
+  NotSameSpeakerErrors,
   ListEntitiesData,
   ListEntitiesResponses,
   ListEntitiesErrors,
@@ -225,6 +472,9 @@ import type {
   GetMediaData,
   GetMediaResponses,
   GetMediaErrors,
+  GetPdfData,
+  GetPdfResponses,
+  GetPdfErrors,
   GetFrameData,
   GetFrameResponses,
   GetFrameErrors,
@@ -282,6 +532,9 @@ import type {
   GetJobData,
   GetJobResponses,
   GetJobErrors,
+  GetJobLogData,
+  GetJobLogResponses,
+  GetJobLogErrors,
   QueueStepData,
   QueueStepResponses,
   QueueStepErrors,
@@ -293,6 +546,9 @@ import type {
   RetryJobErrors,
   ListWorkersData,
   ListWorkersResponses,
+  ControlWorkerData,
+  ControlWorkerResponses,
+  ControlWorkerErrors,
   StreamEventsData,
   StreamEventsResponses,
   StreamEventsErrors,
@@ -368,6 +624,8 @@ import type {
   CreateChatData,
   CreateChatResponses,
   CreateChatErrors,
+  ChatCapabilitiesData,
+  ChatCapabilitiesResponses,
   DeleteChatData,
   DeleteChatResponses,
   DeleteChatErrors,
@@ -380,6 +638,9 @@ import type {
   SendMessageData,
   SendMessageResponses,
   SendMessageErrors,
+  StopAnswerData,
+  StopAnswerResponses,
+  StopAnswerErrors,
   CheckMessageData,
   CheckMessageResponses,
   CheckMessageErrors,
@@ -426,6 +687,33 @@ import type {
   ExportBatchResultsData,
   ExportBatchResultsResponses,
   ExportBatchResultsErrors,
+  GetPublicHomeData,
+  GetPublicHomeResponses,
+  GetPublicCollectionData,
+  GetPublicCollectionResponses,
+  GetPublicCollectionErrors,
+  SearchPublicData,
+  SearchPublicResponses,
+  SearchPublicErrors,
+  GetPublicRecordingData,
+  GetPublicRecordingResponses,
+  GetPublicRecordingErrors,
+  RequestAccessData,
+  RequestAccessResponses,
+  RequestAccessErrors,
+  ListPendingAccessRequestsData,
+  ListPendingAccessRequestsResponses,
+  ListViewsData,
+  ListViewsResponses,
+  CreateViewData,
+  CreateViewResponses,
+  CreateViewErrors,
+  DeleteViewData,
+  DeleteViewResponses,
+  DeleteViewErrors,
+  UpdateViewData,
+  UpdateViewResponses,
+  UpdateViewErrors,
 } from "./types.gen";
 import { client } from "./client.gen";
 
@@ -527,6 +815,39 @@ export class Auth {
   }
 
   /**
+   * Update Me
+   * Change your own name.
+   */
+  public static updateMe<ThrowOnError extends boolean = false>(options: Options<UpdateMeData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateMeResponses, UpdateMeErrors, ThrowOnError>({
+      url: "/api/v1/auth/me",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Change Password
+   * Change your own password, with your current one (signed in; not with an API token). Your other sessions end
+   * and this one stays; API tokens keep working. Audited as `password.change`.
+   */
+  public static changePassword<ThrowOnError extends boolean = false>(
+    options: Options<ChangePasswordData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<ChangePasswordResponses, ChangePasswordErrors, ThrowOnError>({
+      url: "/api/v1/auth/password",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Forgot Password
    * Email a reset link. Answers the same whether or not the address has an account.
    */
@@ -571,6 +892,8 @@ export class Tokens {
 
   /**
    * Create Token
+   * A key that acts as you, with your roles (read only, or read and write). It lasts `days` (default
+   * tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400.
    */
   public static createToken<ThrowOnError extends boolean = false>(options: Options<CreateTokenData, ThrowOnError>) {
     return (options.client ?? client).post<CreateTokenResponses, CreateTokenErrors, ThrowOnError>({
@@ -584,7 +907,20 @@ export class Tokens {
   }
 
   /**
+   * Token Limits
+   * How long a new key may last: its default, the most it may get, and whether it may never expire (admins set
+   * these in the tokens settings).
+   */
+  public static tokenLimits<ThrowOnError extends boolean = false>(options?: Options<TokenLimitsData, ThrowOnError>) {
+    return (options?.client ?? client).get<TokenLimitsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/tokens/limits",
+      ...options,
+    });
+  }
+
+  /**
    * Revoke Token
+   * Revoke one of your keys. Audited as `token.revoke`.
    */
   public static revokeToken<ThrowOnError extends boolean = false>(options: Options<RevokeTokenData, ThrowOnError>) {
     return (options.client ?? client).delete<RevokeTokenResponses, RevokeTokenErrors, ThrowOnError>({
@@ -714,6 +1050,32 @@ export class Admin {
   }
 
   /**
+   * List All Tokens
+   * Everyone's API keys (admins), the latest made first: whose, what scope, when it expires and was last used.
+   */
+  public static listAllTokens<ThrowOnError extends boolean = false>(
+    options?: Options<ListAllTokensData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ListAllTokensResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/tokens",
+      ...options,
+    });
+  }
+
+  /**
+   * Revoke Any Token
+   * Revoke anyone's API key (admins): whatever uses it stops working now. Audited as `token.revoke`.
+   */
+  public static revokeAnyToken<ThrowOnError extends boolean = false>(
+    options: Options<RevokeAnyTokenData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<RevokeAnyTokenResponses, RevokeAnyTokenErrors, ThrowOnError>({
+      url: "/api/v1/admin/tokens/{token_id}",
+      ...options,
+    });
+  }
+
+  /**
    * Get Health
    * The database, the job queue, workers, storage sources and disk space at a glance.
    */
@@ -741,6 +1103,8 @@ export class Admin {
 export class Namespaces {
   /**
    * List Namespaces
+   * The namespaces you have a role in, with their counts, and those you see only some collections of (`partial`,
+   * no `role`): counted over those collections, without the namespace-wide speakers and word cloud.
    */
   public static listNamespaces<ThrowOnError extends boolean = false>(
     options?: Options<ListNamespacesData, ThrowOnError>,
@@ -796,17 +1160,319 @@ export class Namespaces {
       ...options,
     });
   }
+
+  /**
+   * Get Namespace Stats
+   * The namespace's numbers for the recordings made in a range of days (the Reports overview): how many and how long,
+   * who was heard and for how long, and the same per month. Without a range, every recording.
+   */
+  public static getNamespaceStats<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceStatsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetNamespaceStatsResponses, GetNamespaceStatsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/stats",
+      ...options,
+    });
+  }
+
+  /**
+   * List Ip Groups
+   * The namespace's IP groups (owners), and your address as the server sees it, to check the ranges against.
+   */
+  public static listIpGroups<ThrowOnError extends boolean = false>(options: Options<ListIpGroupsData, ThrowOnError>) {
+    return (options.client ?? client).get<ListIpGroupsResponses, ListIpGroupsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/ip-groups",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Ip Group
+   * Add an IP group (owners): visitors from its addresses see all of every recording in the namespace
+   * (everything), or of the recordings chosen on each. Answers with all of the namespace's groups.
+   */
+  public static createIpGroup<ThrowOnError extends boolean = false>(options: Options<CreateIpGroupData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateIpGroupResponses, CreateIpGroupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/ip-groups",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Ip Group
+   * Delete an IP group (owners): its visitors lose what it opened. Answers with the groups left.
+   */
+  public static deleteIpGroup<ThrowOnError extends boolean = false>(options: Options<DeleteIpGroupData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteIpGroupResponses, DeleteIpGroupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/ip-groups/{gid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Ip Group
+   * Rename an IP group, change its ranges or what it opens (owners). Choosing recordings again after opening
+   * everything brings back the ones chosen before.
+   */
+  public static updateIpGroup<ThrowOnError extends boolean = false>(options: Options<UpdateIpGroupData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateIpGroupResponses, UpdateIpGroupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/ip-groups/{gid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Namespace Collections
+   * The namespace's collections, depth first and by name, each with its place in the tree, how many recordings it
+   * holds (with and without the collections inside it), and what you may do with it. Someone who sees only some
+   * collections of the namespace gets those, starting from the ones they were given.
+   */
+  public static listNamespaceCollections<ThrowOnError extends boolean = false>(
+    options: Options<ListNamespaceCollectionsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<
+      ListNamespaceCollectionsResponses,
+      ListNamespaceCollectionsErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/collections",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Namespace Collection
+   * Make a collection at the top of the namespace (its editors) or inside `parent` (them, or an admin of `parent`).
+   * Its name is unique among the collections next to it, ignoring case; collections go at most 8 deep. Audited as
+   * `collection.create`.
+   */
+  public static createNamespaceCollection<ThrowOnError extends boolean = false>(
+    options: Options<CreateNamespaceCollectionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<
+      CreateNamespaceCollectionResponses,
+      CreateNamespaceCollectionErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/collections",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Namespace Collection
+   * Delete an empty collection (editors of the namespace, or an admin of it), with the roles given on it: 409 while
+   * it holds recordings or collections, or is the namespace's default. Audited as `collection.delete`.
+   */
+  public static deleteNamespaceCollection<ThrowOnError extends boolean = false>(
+    options: Options<DeleteNamespaceCollectionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<
+      DeleteNamespaceCollectionResponses,
+      DeleteNamespaceCollectionErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/collections/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Namespace Collection
+   */
+  public static getNamespaceCollection<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceCollectionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetNamespaceCollectionResponses, GetNamespaceCollectionErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/collections/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Namespace Collection
+   * Rename it, describe it, move it inside another collection of the namespace (`parent`; null: to the top) or make
+   * it the default. Editors of the namespace may do all of that; an admin of the collection all but moving it to the
+   * top or making it the default, and only into a collection they're an admin of. The recordings and collections
+   * inside it go with it. Audited as `collection.update`.
+   */
+  public static updateNamespaceCollection<ThrowOnError extends boolean = false>(
+    options: Options<UpdateNamespaceCollectionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).patch<
+      UpdateNamespaceCollectionResponses,
+      UpdateNamespaceCollectionErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/collections/{cid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Collection Members
+   * Who was given a role on the collection, then who has one through a collection it's inside (owners of the
+   * namespace, and admins of the collection). People with a role in the namespace aren't listed: theirs holds in
+   * every collection.
+   */
+  public static listCollectionMembers<ThrowOnError extends boolean = false>(
+    options: Options<ListCollectionMembersData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<ListCollectionMembersResponses, ListCollectionMembersErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/collections/{cid}/members",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Collection Member
+   * Give someone a role on the collection (and the collections inside it), change it, or (role null) take it away.
+   * They needn't have a role in the namespace: then they see just this collection. Owners of the namespace and admins
+   * of the collection. Answers with the members; audited as `collection.member`.
+   */
+  public static setCollectionMember<ThrowOnError extends boolean = false>(
+    options: Options<SetCollectionMemberData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<SetCollectionMemberResponses, SetCollectionMemberErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/collections/{cid}/members",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
-export class Recordings {
+export class Resources {
   /**
    * List Recordings
+   * Recordings you can read, newest first by default: those of the namespaces you have a role in, and of the
+   * collections you were given a role on. Filters combine with AND; the ``X-Total-Count`` header says how many match in
+   * all, so pages can be counted. Each row has your `role` on it.
    */
   public static listRecordings<ThrowOnError extends boolean = false>(
     options?: Options<ListRecordingsData, ThrowOnError>,
   ) {
     return (options?.client ?? client).get<ListRecordingsResponses, ListRecordingsErrors, ThrowOnError>({
-      url: "/api/v1/recordings",
+      url: "/api/v1/resources",
+      ...options,
+    });
+  }
+
+  /**
+   * List Tags
+   * The tags on the recordings you can read (or one namespace's), with how many recordings have each.
+   */
+  public static listTags<ThrowOnError extends boolean = false>(options?: Options<ListTagsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListTagsResponses, ListTagsErrors, ThrowOnError>({
+      url: "/api/v1/resources/tags",
+      ...options,
+    });
+  }
+
+  /**
+   * Retag Recordings
+   * Add and remove tags on several recordings at once (editors of each one's namespace).
+   */
+  public static retagRecordings<ThrowOnError extends boolean = false>(
+    options: Options<RetagRecordingsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<RetagRecordingsResponses, RetagRecordingsErrors, ThrowOnError>({
+      url: "/api/v1/resources/tags",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Origins
+   * Where the recordings you can read (or one namespace's) came from, with how many came from each: connected sources
+   * by name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files.
+   */
+  public static listOrigins<ThrowOnError extends boolean = false>(options?: Options<ListOriginsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListOriginsResponses, ListOriginsErrors, ThrowOnError>({
+      url: "/api/v1/resources/origins",
+      ...options,
+    });
+  }
+
+  /**
+   * List Languages
+   * The languages of the recordings you can read (or one namespace's), with how many are in each; null: not known.
+   */
+  public static listLanguages<ThrowOnError extends boolean = false>(
+    options?: Options<ListLanguagesData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ListLanguagesResponses, ListLanguagesErrors, ThrowOnError>({
+      url: "/api/v1/resources/languages",
+      ...options,
+    });
+  }
+
+  /**
+   * List Objects
+   * The kinds of object seen in the recordings you can read (or one namespace's), with how many recordings each is
+   * in, the most first (the objects step finds them).
+   */
+  public static listObjects<ThrowOnError extends boolean = false>(options?: Options<ListObjectsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListObjectsResponses, ListObjectsErrors, ThrowOnError>({
+      url: "/api/v1/resources/objects",
+      ...options,
+    });
+  }
+
+  /**
+   * Place Recordings
+   * Move recordings into a collection of their namespace: editors of each recording (through the namespace or the
+   * collection it's in) who are editors of the collection too. Recordings of another namespace are a 400: move them
+   * to that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update. Audited as
+   * `recording.collection`.
+   */
+  public static placeRecordings<ThrowOnError extends boolean = false>(
+    options: Options<PlaceRecordingsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<PlaceRecordingsResponses, PlaceRecordingsErrors, ThrowOnError>({
+      url: "/api/v1/resources/collection",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Recording
+   * Delete a recording (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and
+   * outputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched
+   * folders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job
+   * is running on it, this answers 409. Audited as `recording.delete`.
+   */
+  public static deleteRecording<ThrowOnError extends boolean = false>(
+    options: Options<DeleteRecordingData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<DeleteRecordingResponses, DeleteRecordingErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}",
       ...options,
     });
   }
@@ -816,7 +1482,215 @@ export class Recordings {
    */
   public static getRecording<ThrowOnError extends boolean = false>(options: Options<GetRecordingData, ThrowOnError>) {
     return (options.client ?? client).get<GetRecordingResponses, GetRecordingErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}",
+      url: "/api/v1/resources/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Recording
+   * Rename a recording or replace its tags (editors). A renamed recording's report is rebuilt with the new title.
+   */
+  public static updateRecording<ThrowOnError extends boolean = false>(
+    options: Options<UpdateRecordingData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).patch<UpdateRecordingResponses, UpdateRecordingErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Move Recording
+   * Move a recording to another namespace (owners of its namespace, editors of the new one).
+   *
+   * It keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
+   * its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and
+   * faces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and
+   * analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409
+   * when the new namespace has the same file or a job is running on it. Audited as `recording.move`.
+   */
+  public static moveRecording<ThrowOnError extends boolean = false>(options: Options<MoveRecordingData, ThrowOnError>) {
+    return (options.client ?? client).post<MoveRecordingResponses, MoveRecordingErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/move",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Recording Access
+   * Who may see the recording: public, restricted or private, the parts a public one opens, featured.
+   */
+  public static getRecordingAccess<ThrowOnError extends boolean = false>(
+    options: Options<GetRecordingAccessData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetRecordingAccessResponses, GetRecordingAccessErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/access",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Recording Access
+   * Make a recording public, restricted or private, choose what a public one opens, feature it (owners).
+   *
+   * access or open set to null follow the namespace's default again. The change is kept in the metadata history, and
+   * IIIF harvesters hear when the recording is published, changed or withdrawn.
+   */
+  public static updateRecordingAccess<ThrowOnError extends boolean = false>(
+    options: Options<UpdateRecordingAccessData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<UpdateRecordingAccessResponses, UpdateRecordingAccessErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/access",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Recording Permissions
+   * The people given permission on the recording (owners), newest first.
+   */
+  public static listRecordingPermissions<ThrowOnError extends boolean = false>(
+    options: Options<ListRecordingPermissionsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<
+      ListRecordingPermissionsResponses,
+      ListRecordingPermissionsErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/resources/{rid}/permissions",
+      ...options,
+    });
+  }
+
+  /**
+   * Add Recording Permission
+   * Give someone with an account permission on the recording (owners): they see all of it on the pages visitors see
+   * and in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission.
+   */
+  public static addRecordingPermission<ThrowOnError extends boolean = false>(
+    options: Options<AddRecordingPermissionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<AddRecordingPermissionResponses, AddRecordingPermissionErrors, ThrowOnError>(
+      {
+        url: "/api/v1/resources/{rid}/permissions",
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      },
+    );
+  }
+
+  /**
+   * Remove Recording Permission
+   * Take someone's permission on the recording away (owners). Answers with everyone who still has it.
+   */
+  public static removeRecordingPermission<ThrowOnError extends boolean = false>(
+    options: Options<RemoveRecordingPermissionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<
+      RemoveRecordingPermissionResponses,
+      RemoveRecordingPermissionErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/resources/{rid}/permissions/{account}",
+      ...options,
+    });
+  }
+
+  /**
+   * List Recording Ip Groups
+   * The namespace's IP groups (owners), each with whether visitors from its addresses see all of this recording.
+   */
+  public static listRecordingIpGroups<ThrowOnError extends boolean = false>(
+    options: Options<ListRecordingIpGroupsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<ListRecordingIpGroupsResponses, ListRecordingIpGroupsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/ip-groups",
+      ...options,
+    });
+  }
+
+  /**
+   * Close Recording To Ip Group
+   * Close the recording to an IP group again (owners).
+   */
+  public static closeRecordingToIpGroup<ThrowOnError extends boolean = false>(
+    options: Options<CloseRecordingToIpGroupData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<
+      CloseRecordingToIpGroupResponses,
+      CloseRecordingToIpGroupErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/resources/{rid}/ip-groups/{gid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Open Recording To Ip Group
+   * Open the recording to an IP group that opens chosen recordings (owners): visitors from its addresses see all of
+   * it. Answers with the namespace's groups.
+   */
+  public static openRecordingToIpGroup<ThrowOnError extends boolean = false>(
+    options: Options<OpenRecordingToIpGroupData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<OpenRecordingToIpGroupResponses, OpenRecordingToIpGroupErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/ip-groups/{gid}",
+      ...options,
+    });
+  }
+
+  /**
+   * List Access Requests
+   * Requests for access to the recording (owners), newest first; pending ones wait for an answer.
+   */
+  public static listAccessRequests<ThrowOnError extends boolean = false>(
+    options: Options<ListAccessRequestsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<ListAccessRequestsResponses, ListAccessRequestsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/requests",
+      ...options,
+    });
+  }
+
+  /**
+   * Approve Access Request
+   * Approve a request (owners): the person gets permission on the recording.
+   */
+  public static approveAccessRequest<ThrowOnError extends boolean = false>(
+    options: Options<ApproveAccessRequestData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<ApproveAccessRequestResponses, ApproveAccessRequestErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/requests/{account}/approve",
+      ...options,
+    });
+  }
+
+  /**
+   * Decline Access Request
+   * Decline a request (owners). They can ask again.
+   */
+  public static declineAccessRequest<ThrowOnError extends boolean = false>(
+    options: Options<DeclineAccessRequestData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<DeclineAccessRequestResponses, DeclineAccessRequestErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/requests/{account}/decline",
       ...options,
     });
   }
@@ -827,7 +1701,7 @@ export class Recordings {
    */
   public static getPlayer<ThrowOnError extends boolean = false>(options: Options<GetPlayerData, ThrowOnError>) {
     return (options.client ?? client).get<GetPlayerResponses, GetPlayerErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/player",
+      url: "/api/v1/resources/{rid}/player",
       ...options,
     });
   }
@@ -838,7 +1712,7 @@ export class Recordings {
    */
   public static getEmbedLink<ThrowOnError extends boolean = false>(options: Options<GetEmbedLinkData, ThrowOnError>) {
     return (options.client ?? client).get<GetEmbedLinkResponses, GetEmbedLinkErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/embed-link",
+      url: "/api/v1/resources/{rid}/embed-link",
       ...options,
     });
   }
@@ -849,7 +1723,7 @@ export class Recordings {
    */
   public static getAudio<ThrowOnError extends boolean = false>(options: Options<GetAudioData, ThrowOnError>) {
     return (options.client ?? client).get<GetAudioResponses, GetAudioErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/audio",
+      url: "/api/v1/resources/{rid}/audio",
       ...options,
     });
   }
@@ -861,7 +1735,7 @@ export class Recordings {
     options: Options<GetRecordingWordcloudData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<GetRecordingWordcloudResponses, GetRecordingWordcloudErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/wordcloud.svg",
+      url: "/api/v1/resources/{rid}/wordcloud.svg",
       ...options,
     });
   }
@@ -873,7 +1747,7 @@ export class Recordings {
     options: Options<ReprocessRecordingData, ThrowOnError>,
   ) {
     return (options.client ?? client).post<ReprocessRecordingResponses, ReprocessRecordingErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/reprocess",
+      url: "/api/v1/resources/{rid}/reprocess",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -884,21 +1758,23 @@ export class Recordings {
 
   /**
    * Revoke Shares
+   * Revoke every link that still works. Opening one shows a page saying the link isn't available.
    */
   public static revokeShares<ThrowOnError extends boolean = false>(options: Options<RevokeSharesData, ThrowOnError>) {
     return (options.client ?? client).delete<RevokeSharesResponses, RevokeSharesErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/share",
+      url: "/api/v1/resources/{rid}/share",
       ...options,
     });
   }
 
   /**
    * Create Share
-   * A read-only link to this one recording, for people without an account. Revoke with DELETE.
+   * A read-only link to this one recording, for people without an account, with a short ``/s/`` address too. Its
+   * address is only shown now. Revoke it with DELETE /shares/{id}, or every link with DELETE /share.
    */
   public static createShare<ThrowOnError extends boolean = false>(options: Options<CreateShareData, ThrowOnError>) {
     return (options.client ?? client).post<CreateShareResponses, CreateShareErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/share",
+      url: "/api/v1/resources/{rid}/share",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -908,11 +1784,24 @@ export class Recordings {
   }
 
   /**
+   * Revoke Share
+   * Revoke one link. Opening it shows a page saying the link isn't available; the others keep working.
+   */
+  public static revokeShare<ThrowOnError extends boolean = false>(options: Options<RevokeShareData, ThrowOnError>) {
+    return (options.client ?? client).delete<RevokeShareResponses, RevokeShareErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/shares/{sid}",
+      ...options,
+    });
+  }
+
+  /**
    * List Shares
+   * The recording's share links, newest first: whether each still works, how often it was played, and the sites
+   * whose pages embed it.
    */
   public static listShares<ThrowOnError extends boolean = false>(options: Options<ListSharesData, ThrowOnError>) {
     return (options.client ?? client).get<ListSharesResponses, ListSharesErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/shares",
+      url: "/api/v1/resources/{rid}/shares",
       ...options,
     });
   }
@@ -925,7 +1814,7 @@ export class Recordings {
     options: Options<ExportRecordingData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<ExportRecordingResponses, ExportRecordingErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/export.{fmt}",
+      url: "/api/v1/resources/{rid}/export.{fmt}",
       ...options,
     });
   }
@@ -936,7 +1825,7 @@ export class Recordings {
    */
   public static editSegment<ThrowOnError extends boolean = false>(options: Options<EditSegmentData, ThrowOnError>) {
     return (options.client ?? client).patch<EditSegmentResponses, EditSegmentErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/segments/{idx}",
+      url: "/api/v1/resources/{rid}/segments/{idx}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -946,13 +1835,45 @@ export class Recordings {
   }
 
   /**
+   * Split Segment
+   * Split a transcript line in two (editors): at `at`, a position in its text, moved back to the start of the word
+   * it's in. The second part starts at `t` (ms) when given, else when its first word was said (or as far into the
+   * line's time as `at` is into its text); it keeps the line's speaker unless `speaker` is sent. The lines after it
+   * move down one, with their corrections. Kept in the edit history; the recording is re-analysed afterwards.
+   */
+  public static splitSegment<ThrowOnError extends boolean = false>(options: Options<SplitSegmentData, ThrowOnError>) {
+    return (options.client ?? client).post<SplitSegmentResponses, SplitSegmentErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/segments/{idx}/split",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Merge Segments
+   * Merge a transcript line with the next one (editors): one line with both texts, from the first's start to the
+   * second's end, with the first's speaker. The lines after it move up one, with their corrections. Kept in the edit
+   * history (with where to split it again); the recording is re-analysed afterwards.
+   */
+  public static mergeSegments<ThrowOnError extends boolean = false>(options: Options<MergeSegmentsData, ThrowOnError>) {
+    return (options.client ?? client).post<MergeSegmentsResponses, MergeSegmentsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/segments/{idx}/merge",
+      ...options,
+    });
+  }
+
+  /**
    * List Segment Edits
+   * Corrections, splits and merges of the transcript, the latest first.
    */
   public static listSegmentEdits<ThrowOnError extends boolean = false>(
     options: Options<ListSegmentEditsData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<ListSegmentEditsResponses, ListSegmentEditsErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/edits",
+      url: "/api/v1/resources/{rid}/edits",
       ...options,
     });
   }
@@ -963,8 +1884,431 @@ export class Recordings {
    */
   public static listOutputs<ThrowOnError extends boolean = false>(options: Options<ListOutputsData, ThrowOnError>) {
     return (options.client ?? client).get<ListOutputsResponses, ListOutputsErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/outputs",
+      url: "/api/v1/resources/{rid}/outputs",
       ...options,
+    });
+  }
+}
+
+export class Notes {
+  /**
+   * List Notes
+   * Your notes on the recording and the ones shared on it: notes about the whole recording first, then by moment.
+   */
+  public static listNotes<ThrowOnError extends boolean = false>(options: Options<ListNotesData, ThrowOnError>) {
+    return (options.client ?? client).get<ListNotesResponses, ListNotesErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/notes",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Note
+   * Write a note about a moment (`t0`–`t1`, with the `quote` picked in the transcript) or about the whole recording.
+   * Anyone who can read the recording can; only you see it unless you share it with everyone who can read the
+   * recording, which needs editor access. Up to 500 each on a recording. Sharing is audited (`note.share`).
+   */
+  public static createNote<ThrowOnError extends boolean = false>(options: Options<CreateNoteData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateNoteResponses, CreateNoteErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/notes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Note
+   * Delete it: its writer, or for a shared note an owner of the recording (of its namespace, or an admin of its
+   * collection). Deleting a shared note is audited (`note.delete`).
+   */
+  public static deleteNote<ThrowOnError extends boolean = false>(options: Options<DeleteNoteData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteNoteResponses, DeleteNoteErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/notes/{nid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Note
+   * Change its text, or share or unshare it: its writer only. Sharing needs editor access; sharing and unsharing
+   * are audited (`note.share`, `note.unshare`).
+   */
+  public static updateNote<ThrowOnError extends boolean = false>(options: Options<UpdateNoteData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateNoteResponses, UpdateNoteErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/notes/{nid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Comments {
+  /**
+   * List Comments
+   * The resource's comments, threaded: each thread (the ones about the whole resource first, then by moment)
+   * followed by its replies, the earliest first.
+   */
+  public static listComments<ThrowOnError extends boolean = false>(options: Options<ListCommentsData, ThrowOnError>) {
+    return (options.client ?? client).get<ListCommentsResponses, ListCommentsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/comments",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Comment
+   * Comment on a moment or passage (`t0`–`t1`, with the `quote` picked in the text) or on the whole resource, or
+   * with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone who can read the resource
+   * can, up to 1,000 each on a resource.
+   */
+  public static createComment<ThrowOnError extends boolean = false>(options: Options<CreateCommentData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateCommentResponses, CreateCommentErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/comments",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Comment
+   * Delete it: its writer, or an owner of the resource (of its namespace, or an admin of its collection). A
+   * thread's first comment takes its replies with it. Audited (`comment.delete`).
+   */
+  public static deleteComment<ThrowOnError extends boolean = false>(options: Options<DeleteCommentData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteCommentResponses, DeleteCommentErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/comments/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Comment
+   * Change its text (its writer only), or resolve or reopen its thread (`resolved`, on the thread's first
+   * comment: its writer, or an editor of the resource; audited as `comment.resolve` and `comment.reopen`).
+   */
+  public static updateComment<ThrowOnError extends boolean = false>(options: Options<UpdateCommentData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateCommentResponses, UpdateCommentErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/comments/{cid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Highlights
+   * The resource's highlights, by passage, for everyone who can read it.
+   */
+  public static listHighlights<ThrowOnError extends boolean = false>(
+    options: Options<ListHighlightsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<ListHighlightsResponses, ListHighlightsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/highlights",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Highlight
+   * Mark a passage (`t0`–`t1`, with the `quote` picked in the text) in a `colour` (yellow, green, blue or red),
+   * with a `label`: editors of the resource. Up to 1,000 on a resource.
+   */
+  public static createHighlight<ThrowOnError extends boolean = false>(
+    options: Options<CreateHighlightData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<CreateHighlightResponses, CreateHighlightErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/highlights",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Highlight
+   * Delete it: editors of the resource. Audited (`highlight.delete`).
+   */
+  public static deleteHighlight<ThrowOnError extends boolean = false>(
+    options: Options<DeleteHighlightData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<DeleteHighlightResponses, DeleteHighlightErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/highlights/{hid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Highlight
+   * Change its colour or its label (an empty label clears it): editors of the resource.
+   */
+  public static updateHighlight<ThrowOnError extends boolean = false>(
+    options: Options<UpdateHighlightData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).patch<UpdateHighlightResponses, UpdateHighlightErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/highlights/{hid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Files {
+  /**
+   * List Files
+   * The resource's primary file (its audio or video, if it has one) and its supplementary files, with signed links to
+   * download them.
+   */
+  public static listFiles<ThrowOnError extends boolean = false>(options: Options<ListFilesData, ThrowOnError>) {
+    return (options.client ?? client).get<ListFilesResponses, ListFilesErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files",
+      ...options,
+    });
+  }
+
+  /**
+   * Add File
+   * Add a file as the raw request body (application/octet-stream), up to `server.max_upload_mb`. Each role takes
+   * its own types: transcripts and translations .txt .md .json .jsonl .srt .vtt .docx .doc .pdf, captions .vtt .srt,
+   * indexes those and OHMS .xml, thumbnails .jpg .png .webp .gif, attachments anything. 400 when its contents can't
+   * be read as its role. Editors; audited as `file.add`.
+   */
+  public static addFile<ThrowOnError extends boolean = false>(options: Options<AddFileData, ThrowOnError>) {
+    return (options.client ?? client).post<AddFileResponses, AddFileErrors, ThrowOnError>({
+      bodySerializer: null,
+      url: "/api/v1/resources/{rid}/files",
+      ...options,
+      headers: {
+        "Content-Type": "application/octet-stream",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete File
+   * Delete a file and the lines read from it. Editors; audited as `file.delete`.
+   */
+  public static deleteFile<ThrowOnError extends boolean = false>(options: Options<DeleteFileData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteFileResponses, DeleteFileErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update File
+   * Change a file's role, language, label or description (null clears the last three). A new role reads it again,
+   * so a file can't take a role whose type it isn't. Editors; audited as `file.update`.
+   */
+  public static updateFile<ThrowOnError extends boolean = false>(options: Options<UpdateFileData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateFileResponses, UpdateFileErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/{fid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Download File
+   * The file as it was added, to save. Accepts a bearer token or a signed link (from the list).
+   */
+  public static downloadFile<ThrowOnError extends boolean = false>(options: Options<DownloadFileData, ThrowOnError>) {
+    return (options.client ?? client).get<DownloadFileResponses, DownloadFileErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/{fid}/download",
+      ...options,
+    });
+  }
+
+  /**
+   * List File Lines
+   * The lines read from a transcript, captions, translation or index, in order.
+   */
+  public static listFileLines<ThrowOnError extends boolean = false>(options: Options<ListFileLinesData, ThrowOnError>) {
+    return (options.client ?? client).get<ListFileLinesResponses, ListFileLinesErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/{fid}/lines",
+      ...options,
+    });
+  }
+}
+
+export class Fields {
+  /**
+   * List Fields
+   * The namespace's custom fields: its own, then those of its collections (the ones you see), each in order.
+   */
+  public static listFields<ThrowOnError extends boolean = false>(options: Options<ListFieldsData, ThrowOnError>) {
+    return (options.client ?? client).get<ListFieldsResponses, ListFieldsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/fields",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Field
+   * Define a field on the namespace, or on one of its collections (`collection`). It describes the resources, the
+   * collections or the files inside (`target`); new fields are internal unless `published`. Editors; audited as
+   * `field.create`.
+   */
+  public static createField<ThrowOnError extends boolean = false>(options: Options<CreateFieldData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateFieldResponses, CreateFieldErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/fields",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Field
+   * Delete a field and every value it has. Editors of where it's defined; audited as `field.delete` with how many
+   * values went. Answers with the field as it was, `uses` saying how many values were deleted.
+   */
+  public static deleteField<ThrowOnError extends boolean = false>(options: Options<DeleteFieldData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteFieldResponses, DeleteFieldErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/fields/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Field
+   * One field, with how many items have a value for it (`uses`).
+   */
+  public static getField<ThrowOnError extends boolean = false>(options: Options<GetFieldData, ThrowOnError>) {
+    return (options.client ?? client).get<GetFieldResponses, GetFieldErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/fields/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Field
+   * Rename a field, change its options (400 for one that items have chosen), its help, whether it's published, or
+   * its place in the order. Its type and what it describes stay. Editors of where it's defined; audited as
+   * `field.update`.
+   */
+  public static updateField<ThrowOnError extends boolean = false>(options: Options<UpdateFieldData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateFieldResponses, UpdateFieldErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/fields/{fid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Resource Fields
+   * The custom fields that describe this resource (defined on its namespace and on the collections it's in), with
+   * its values.
+   */
+  public static getResourceFields<ThrowOnError extends boolean = false>(
+    options: Options<GetResourceFieldsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetResourceFieldsResponses, GetResourceFieldsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/fields",
+      ...options,
+    });
+  }
+
+  /**
+   * Save Resource Fields
+   * Set or clear (null) the resource's values for the fields named; the others keep theirs. Editors. Kept in its
+   * metadata history (so a revert puts them back) and audited as `fields.save`.
+   */
+  public static saveResourceFields<ThrowOnError extends boolean = false>(
+    options: Options<SaveResourceFieldsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<SaveResourceFieldsResponses, SaveResourceFieldsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/fields",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Collection Fields
+   * The custom fields that describe this collection (defined on the namespace, and on the collections it's inside),
+   * with its values.
+   */
+  public static getCollectionFields<ThrowOnError extends boolean = false>(
+    options: Options<GetCollectionFieldsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetCollectionFieldsResponses, GetCollectionFieldsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/collections/{cid}/fields",
+      ...options,
+    });
+  }
+
+  /**
+   * Save Collection Fields
+   * Set or clear (null) the collection's values for the fields named. Those who arrange it (editors of the namespace,
+   * admins of the collection); audited as `fields.save`.
+   */
+  public static saveCollectionFields<ThrowOnError extends boolean = false>(
+    options: Options<SaveCollectionFieldsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<SaveCollectionFieldsResponses, SaveCollectionFieldsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/collections/{cid}/fields",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get File Fields
+   * The custom fields that describe this file (defined on its resource's namespace and collections), with its
+   * values.
+   */
+  public static getFileFields<ThrowOnError extends boolean = false>(options: Options<GetFileFieldsData, ThrowOnError>) {
+    return (options.client ?? client).get<GetFileFieldsResponses, GetFileFieldsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/{fid}/fields",
+      ...options,
+    });
+  }
+
+  /**
+   * Save File Fields
+   * Set or clear (null) the file's values for the fields named. Editors of the resource; audited as `fields.save`.
+   */
+  public static saveFileFields<ThrowOnError extends boolean = false>(
+    options: Options<SaveFileFieldsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<SaveFileFieldsResponses, SaveFileFieldsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/files/{fid}/fields",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
@@ -972,13 +2316,32 @@ export class Recordings {
 export class Imports {
   /**
    * Import Transcript
-   * Import a transcript into a namespace (editors; admins may name a new namespace). Analysis is queued as a job.
+   * Import a transcript into a namespace (editors; admins may name a new namespace). The namespace's pipeline, or
+   * the one chosen (`pipeline`), is queued as a job.
    */
   public static importTranscript<ThrowOnError extends boolean = false>(
     options: Options<ImportTranscriptData, ThrowOnError>,
   ) {
     return (options.client ?? client).post<ImportTranscriptResponses, ImportTranscriptErrors, ThrowOnError>({
       url: "/api/v1/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Import Web Page
+   * Capture a web page as a document (editors; admins may name a new namespace): the namespace's pipeline, or
+   * `pipeline`, keeps the page as it is now, as a PDF (a link to a PDF is kept as it is; other pages are printed by
+   * headless Chromium), and reads it page by page. Only public addresses on ports 80 and 443 can be captured (and the
+   * networks in documents.web_networks). Audited as `import.web`.
+   */
+  public static importWebPage<ThrowOnError extends boolean = false>(options: Options<ImportWebPageData, ThrowOnError>) {
+    return (options.client ?? client).post<ImportWebPageResponses, ImportWebPageErrors, ThrowOnError>({
+      url: "/api/v1/import/web",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1001,17 +2364,141 @@ export class Imports {
       },
     });
   }
+
+  /**
+   * Import From Source
+   * Import chosen files of a storage source into a namespace now, rather than watching their folder (admins, like
+   * sources; a new namespace is created). Audio, video, documents (PDFs) and images stay on the source and run the
+   * namespace's pipeline, or `pipeline`; transcripts are imported, and PDFs, Word and text files too with
+   * `documents_as: transcript`. Each file
+   * gets a result: queued, already (the namespace has it from this source), skipped (not audio, video, a document, an
+   * image or a transcript) or error. Audited as `import.source`.
+   */
+  public static importFromSource<ThrowOnError extends boolean = false>(
+    options: Options<ImportFromSourceData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<ImportFromSourceResponses, ImportFromSourceErrors, ThrowOnError>({
+      url: "/api/v1/import/source",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Uploads {
+  /**
+   * Upload Limits
+   * What can be uploaded: the audio and video types, the largest file, the chunk size the web app sends, and the
+   * largest transcript file for POST /import.
+   */
+  public static uploadLimits<ThrowOnError extends boolean = false>(options?: Options<UploadLimitsData, ThrowOnError>) {
+    return (options?.client ?? client).get<UploadLimitsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/uploads/limits",
+      ...options,
+    });
+  }
+
+  /**
+   * List Uploads
+   * Your uploads that haven't finished, newest first: sending the same file again carries on where it stopped.
+   */
+  public static listUploads<ThrowOnError extends boolean = false>(options?: Options<ListUploadsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListUploadsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/uploads",
+      ...options,
+    });
+  }
+
+  /**
+   * Start Upload
+   * Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
+   * a transcript-only recording (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
+   * namespace's. Then send the file with PUT /uploads/{uid}.
+   * 400 for a type not in uploads.extensions, 409 when the recording has audio already, 413 over uploads.max_mb, 507
+   * when the server's disk can't hold it.
+   */
+  public static startUpload<ThrowOnError extends boolean = false>(options: Options<StartUploadData, ThrowOnError>) {
+    return (options.client ?? client).post<StartUploadResponses, StartUploadErrors, ThrowOnError>({
+      url: "/api/v1/uploads",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Cancel Upload
+   * Stop an upload and throw away what has arrived. A finished one is only forgotten: its recording stays.
+   */
+  public static cancelUpload<ThrowOnError extends boolean = false>(options: Options<CancelUploadData, ThrowOnError>) {
+    return (options.client ?? client).delete<CancelUploadResponses, CancelUploadErrors, ThrowOnError>({
+      url: "/api/v1/uploads/{uid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Upload
+   * How much of an upload has arrived (`offset`), or the recording it became.
+   */
+  public static getUpload<ThrowOnError extends boolean = false>(options: Options<GetUploadData, ThrowOnError>) {
+    return (options.client ?? client).get<GetUploadResponses, GetUploadErrors, ThrowOnError>({
+      url: "/api/v1/uploads/{uid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Send Chunk
+   * The next chunk of the file as the raw request body (application/octet-stream), starting at `offset`; it streams
+   * to disk. A chunk that breaks off is dropped whole. 409 when `offset` isn't where the upload has got to (GET it and
+   * send from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload
+   * done, with its recording and job (for `attach`, the job that runs the steps that need media); audited as `upload`.
+   */
+  public static sendChunk<ThrowOnError extends boolean = false>(options: Options<SendChunkData, ThrowOnError>) {
+    return (options.client ?? client).put<SendChunkResponses, SendChunkErrors, ThrowOnError>({
+      bodySerializer: null,
+      url: "/api/v1/uploads/{uid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/octet-stream",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Search {
   /**
    * Search Transcripts
+   * Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
+   * transcripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),
+   * best first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion
+   * filter keeps to what was said.
    */
   public static searchTranscripts<ThrowOnError extends boolean = false>(
     options: Options<SearchTranscriptsData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<SearchTranscriptsResponses, SearchTranscriptsErrors, ThrowOnError>({
       url: "/api/v1/search",
+      ...options,
+    });
+  }
+
+  /**
+   * Suggest Terms
+   * Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search
+   * has no prefix search, so the web app offers these when someone types interp*. Words are counted per namespace, so
+   * collections you were given a role on don't add any.
+   */
+  public static suggestTerms<ThrowOnError extends boolean = false>(options: Options<SuggestTermsData, ThrowOnError>) {
+    return (options.client ?? client).get<SuggestTermsResponses, SuggestTermsErrors, ThrowOnError>({
+      url: "/api/v1/search/terms",
       ...options,
     });
   }
@@ -1038,10 +2525,67 @@ export class Search {
   }
 }
 
+export class Searches {
+  /**
+   * List Searches
+   * Your saved searches, then the ones shared with namespaces you can read; the latest changed first in each.
+   */
+  public static listSearches<ThrowOnError extends boolean = false>(options?: Options<ListSearchesData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListSearchesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/searches",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Search
+   * Save a search (its words, namespace, speaker, emotion, recording and object) under a name unique among yours. Sharing it
+   * with its namespace needs editor access there.
+   */
+  public static createSearch<ThrowOnError extends boolean = false>(options: Options<CreateSearchData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateSearchResponses, CreateSearchErrors, ThrowOnError>({
+      url: "/api/v1/searches",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Search
+   * Delete it: its maker, or for a shared one an owner of its namespace. Deleting a shared one is audited.
+   */
+  public static deleteSearch<ThrowOnError extends boolean = false>(options: Options<DeleteSearchData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteSearchResponses, DeleteSearchErrors, ThrowOnError>({
+      url: "/api/v1/searches/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Search
+   * Rename it, or share or unshare it. Its maker only; sharing needs editor access to its namespace, and a search of
+   * every namespace can't be shared.
+   */
+  public static updateSearch<ThrowOnError extends boolean = false>(options: Options<UpdateSearchData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateSearchResponses, UpdateSearchErrors, ThrowOnError>({
+      url: "/api/v1/searches/{sid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
 export class Speakers {
   /**
    * List Speakers
-   * A namespace's speakers, its recent merges (undoable) and links to speakers in other namespaces.
+   * A namespace's speakers, its recent merges (undoable; who merged and how many recordings moved), links to speakers
+   * in other namespaces, and voices in other shared namespaces that are likely the same person (`cross`).
    */
   public static listSpeakers<ThrowOnError extends boolean = false>(options: Options<ListSpeakersData, ThrowOnError>) {
     return (options.client ?? client).get<ListSpeakersResponses, ListSpeakersErrors, ThrowOnError>({
@@ -1117,12 +2661,48 @@ export class Speakers {
       },
     });
   }
+
+  /**
+   * Unlink Speaker
+   * They aren't the same person after all: remove the link (editor access to both). 404 when they aren't linked.
+   * Audited as speaker.unlink.
+   */
+  public static unlinkSpeaker<ThrowOnError extends boolean = false>(options: Options<UnlinkSpeakerData, ThrowOnError>) {
+    return (options.client ?? client).post<UnlinkSpeakerResponses, UnlinkSpeakerErrors, ThrowOnError>({
+      url: "/api/v1/speakers/{sid}/unlink",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Not Same Speaker
+   * These two aren't the same person: drop the suggestion to merge them (one namespace) or link them (two), and
+   * never suggest it again. Editor access to both namespaces. Audited as speaker.not_same.
+   */
+  public static notSameSpeaker<ThrowOnError extends boolean = false>(
+    options: Options<NotSameSpeakerData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<NotSameSpeakerResponses, NotSameSpeakerErrors, ThrowOnError>({
+      url: "/api/v1/speakers/{sid}/not-same",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Entities {
   /**
    * List Entities
    * Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
+   * With `recording`, those said in it, also for someone who sees it through a role on its collection (then counted
+   * over the recordings they see).
    */
   public static listEntities<ThrowOnError extends boolean = false>(options?: Options<ListEntitiesData, ThrowOnError>) {
     return (options?.client ?? client).get<ListEntitiesResponses, ListEntitiesErrors, ThrowOnError>({
@@ -1376,13 +2956,14 @@ export class Metadata {
     options: Options<GetRecordingMetadataData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<GetRecordingMetadataResponses, GetRecordingMetadataErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/metadata",
+      url: "/api/v1/resources/{rid}/metadata",
       ...options,
     });
   }
 
   /**
    * Update Recording Metadata
+   * Save fields (null clears one) or put them back to their derived values. The access fields need an owner.
    */
   public static updateRecordingMetadata<ThrowOnError extends boolean = false>(
     options: Options<UpdateRecordingMetadataData, ThrowOnError>,
@@ -1392,7 +2973,7 @@ export class Metadata {
       UpdateRecordingMetadataErrors,
       ThrowOnError
     >({
-      url: "/api/v1/recordings/{rid}/metadata",
+      url: "/api/v1/resources/{rid}/metadata",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1412,7 +2993,7 @@ export class Metadata {
       ListRecordingMetadataHistoryErrors,
       ThrowOnError
     >({
-      url: "/api/v1/recordings/{rid}/metadata/history",
+      url: "/api/v1/resources/{rid}/metadata/history",
       ...options,
     });
   }
@@ -1432,6 +3013,8 @@ export class Metadata {
 
   /**
    * Get Namespace Metadata
+   * The namespace's description and metadata profile, for anyone who sees some of it (the profile says how its
+   * recordings are catalogued).
    */
   public static getNamespaceMetadata<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceMetadataData, ThrowOnError>,
@@ -1484,22 +3067,37 @@ export class Metadata {
 export class Video {
   /**
    * Get Media
-   * The video (or audio) file, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link.
+   * The video or audio file, with byte ranges; a document's or an image's file, to save. Accepts a bearer token, a
+   * share link (``?s=``) or a signed link.
    */
   public static getMedia<ThrowOnError extends boolean = false>(options: Options<GetMediaData, ThrowOnError>) {
     return (options.client ?? client).get<GetMediaResponses, GetMediaErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/media",
+      url: "/api/v1/resources/{rid}/media",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Pdf
+   * The PDF made of a document that isn't one (a Word file, an email, …): what its pages are drawn from, to save.
+   * Accepts a bearer token, a share link (``?s=``) or a signed link.
+   */
+  public static getPdf<ThrowOnError extends boolean = false>(options: Options<GetPdfData, ThrowOnError>) {
+    return (options.client ?? client).get<GetPdfResponses, GetPdfErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/pdf",
       ...options,
     });
   }
 
   /**
    * Get Frame
-   * A still (shot frame, text-on-screen frame or face crop).
+   * A still (shot frame, text-on-screen frame or face crop), or a document's or an image's page. Where the namespace
+   * pixelates faces, a visitor (no role in the namespace, nor a link the API signed for a member) gets the faces found
+   * on it pixelated.
    */
   public static getFrame<ThrowOnError extends boolean = false>(options: Options<GetFrameData, ThrowOnError>) {
     return (options.client ?? client).get<GetFrameResponses, GetFrameErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/frames/{name}",
+      url: "/api/v1/resources/{rid}/frames/{name}",
       ...options,
     });
   }
@@ -1510,7 +3108,7 @@ export class Video {
    */
   public static fixScreenText<ThrowOnError extends boolean = false>(options: Options<FixScreenTextData, ThrowOnError>) {
     return (options.client ?? client).patch<FixScreenTextResponses, FixScreenTextErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/ocr/{span}",
+      url: "/api/v1/resources/{rid}/ocr/{span}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1527,7 +3125,7 @@ export class Video {
     options: Options<DeleteFaceTrackData, ThrowOnError>,
   ) {
     return (options.client ?? client).delete<DeleteFaceTrackResponses, DeleteFaceTrackErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/faces/{track}",
+      url: "/api/v1/resources/{rid}/faces/{track}",
       ...options,
     });
   }
@@ -1562,7 +3160,8 @@ export class Video {
 
   /**
    * Set Namespace Faces Mode
-   * off, detect or recognize (which needs a purpose). Owners only. `reprocess` queues the namespace's videos.
+   * off, detect or recognize (which needs a purpose), and whether faces are pixelated for visitors. Owners only.
+   * `reprocess` queues the namespace's videos, documents and images (faces on their pages).
    */
   public static setNamespaceFacesMode<ThrowOnError extends boolean = false>(
     options: Options<SetNamespaceFacesModeData, ThrowOnError>,
@@ -1671,7 +3270,7 @@ export class Iiif {
     options: Options<GetRecordingIiifData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<GetRecordingIiifResponses, GetRecordingIiifErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/iiif",
+      url: "/api/v1/resources/{rid}/iiif",
       ...options,
     });
   }
@@ -1684,7 +3283,7 @@ export class Iiif {
     options: Options<GetContentStateData, ThrowOnError>,
   ) {
     return (options.client ?? client).get<GetContentStateResponses, GetContentStateErrors, ThrowOnError>({
-      url: "/api/v1/recordings/{rid}/content-state",
+      url: "/api/v1/resources/{rid}/content-state",
       ...options,
     });
   }
@@ -1727,7 +3326,9 @@ export class Iiif {
 export class Jobs {
   /**
    * List Jobs
-   * Recent jobs with counts by status, plus the latest job's step and log (for the progress bar).
+   * Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of
+   * any status), plus the latest job's step and log (for the progress bar). With `recording`, that recording's runs,
+   * also for someone who sees it through a role on its collection (then the counts are of those runs only).
    */
   public static listJobs<ThrowOnError extends boolean = false>(options?: Options<ListJobsData, ThrowOnError>) {
     return (options?.client ?? client).get<ListJobsResponses, ListJobsErrors, ThrowOnError>({
@@ -1753,10 +3354,24 @@ export class Jobs {
 
   /**
    * Get Job
+   * One run: its steps and how each went (`step_runs`), the pipeline it runs, its last log lines, and how long its
+   * steps usually take on this recording (`estimates`, `eta_seconds`).
    */
   public static getJob<ThrowOnError extends boolean = false>(options: Options<GetJobData, ThrowOnError>) {
     return (options.client ?? client).get<GetJobResponses, GetJobErrors, ThrowOnError>({
       url: "/api/v1/jobs/{jid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Job Log
+   * A run's whole log, a page at a time: up to `limit` lines from line `after`, and how many there are. Runs from
+   * before whole logs were kept have their last 200 lines.
+   */
+  public static getJobLog<ThrowOnError extends boolean = false>(options: Options<GetJobLogData, ThrowOnError>) {
+    return (options.client ?? client).get<GetJobLogResponses, GetJobLogErrors, ThrowOnError>({
+      url: "/api/v1/jobs/{jid}/log",
       ...options,
     });
   }
@@ -1795,6 +3410,7 @@ export class Jobs {
 
   /**
    * List Workers
+   * Every worker that has checked in: the steps it runs, its heartbeat and load, and whether it's paused.
    */
   public static listWorkers<ThrowOnError extends boolean = false>(options?: Options<ListWorkersData, ThrowOnError>) {
     return (options?.client ?? client).get<ListWorkersResponses, unknown, ThrowOnError>({
@@ -1804,9 +3420,25 @@ export class Jobs {
   }
 
   /**
+   * Control Worker
+   * ``pause``: the worker takes no new runs; the one it has carries on to the end. ``drain``: it also hands that run
+   * back to the queue after the step it's on, so another worker carries on, and stays paused. ``resume``: it takes runs
+   * again. A paused worker stays paused when it restarts under the same name. Audited as ``worker.<action>``.
+   */
+  public static controlWorker<ThrowOnError extends boolean = false>(options: Options<ControlWorkerData, ThrowOnError>) {
+    return (options.client ?? client).post<ControlWorkerResponses, ControlWorkerErrors, ThrowOnError>({
+      url: "/api/v1/workers/{name}/{action}",
+      ...options,
+    });
+  }
+
+  /**
    * Stream Events
    * Server-sent events: one ``job`` event per job change in namespaces you can read, from ``since`` (default: now).
-   * ``once=true`` sends what has changed and closes. Read it with fetch (it needs the Authorization header).
+   * ``once=true`` sends what has changed and closes. ``logs=<job>`` follows that one job: its changes, and each batch of
+   * new log lines as a ``log`` event ``{job, start, lines}`` (``start`` numbers the first line, so a client can tell
+   * an overlap or a gap; the first one carries up to the last 200 lines). Read it with fetch (it needs the
+   * Authorization header).
    */
   public static streamEvents<ThrowOnError extends boolean = false>(options?: Options<StreamEventsData, ThrowOnError>) {
     return (options?.client ?? client).sse.get<StreamEventsResponses, StreamEventsErrors, ThrowOnError>({
@@ -1890,7 +3522,8 @@ export class Sources {
 
   /**
    * Browse Source
-   * The folders and files at one path of a source (for local sources, no path lists the allowed roots).
+   * The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the
+   * recordings each file already is.
    */
   public static browseSource<ThrowOnError extends boolean = false>(options: Options<BrowseSourceData, ThrowOnError>) {
     return (options.client ?? client).get<BrowseSourceResponses, BrowseSourceErrors, ThrowOnError>({
@@ -2165,6 +3798,21 @@ export class Chats {
   }
 
   /**
+   * Chat Capabilities
+   * What the assistant can do, for anyone signed in: whether a language model is set up and which, whether it uses
+   * tools (and at most how many steps), and whether answers can be checked against their sources. Not the model
+   * server's address or key.
+   */
+  public static chatCapabilities<ThrowOnError extends boolean = false>(
+    options?: Options<ChatCapabilitiesData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ChatCapabilitiesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/chats/capabilities",
+      ...options,
+    });
+  }
+
+  /**
    * Delete Chat
    */
   public static deleteChat<ThrowOnError extends boolean = false>(options: Options<DeleteChatData, ThrowOnError>) {
@@ -2187,7 +3835,7 @@ export class Chats {
 
   /**
    * Update Chat
-   * Rename a conversation or change what it draws on.
+   * Rename a conversation, change what it draws on, or the model that answers in it (null: the configured one).
    */
   public static updateChat<ThrowOnError extends boolean = false>(options: Options<UpdateChatData, ThrowOnError>) {
     return (options.client ?? client).patch<UpdateChatResponses, UpdateChatErrors, ThrowOnError>({
@@ -2202,7 +3850,8 @@ export class Chats {
 
   /**
    * Send Message
-   * Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, done (the saved message id).
+   * Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
+   * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
    */
   public static sendMessage<ThrowOnError extends boolean = false>(options: Options<SendMessageData, ThrowOnError>) {
     return (options.client ?? client).sse.post<SendMessageResponses, SendMessageErrors, ThrowOnError>({
@@ -2212,6 +3861,18 @@ export class Chats {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Stop Answer
+   * Stop the answer being written in a conversation: it ends after the piece or tool step it's on, keeps what came
+   * before (saved, marked stopped) and streams `stopped`, then `done`. Works whichever server process is answering.
+   */
+  public static stopAnswer<ThrowOnError extends boolean = false>(options: Options<StopAnswerData, ThrowOnError>) {
+    return (options.client ?? client).post<StopAnswerResponses, StopAnswerErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/stop",
+      ...options,
     });
   }
 
@@ -2426,6 +4087,155 @@ export class Batches {
     return (options.client ?? client).get<ExportBatchResultsResponses, ExportBatchResultsErrors, ThrowOnError>({
       url: "/api/v1/batches/{bid}/results.{fmt}",
       ...options,
+    });
+  }
+}
+
+export class Public {
+  /**
+   * Get Public Home
+   * The home page: featured public recordings, for everyone, and the collections this visitor sees anything in.
+   */
+  public static getPublicHome<ThrowOnError extends boolean = false>(
+    options?: Options<GetPublicHomeData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<GetPublicHomeResponses, unknown, ThrowOnError>({
+      url: "/api/v1/public/home",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Public Collection
+   * A collection's page: its description and the recordings this visitor sees, newest first. Visitors see the public
+   * ones; signed-in people also see restricted ones, locked; members see all of them. A collection with nothing for
+   * this visitor answers 404, as a missing one does.
+   */
+  public static getPublicCollection<ThrowOnError extends boolean = false>(
+    options: Options<GetPublicCollectionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetPublicCollectionResponses, GetPublicCollectionErrors, ThrowOnError>({
+      url: "/api/v1/public/collections/{name}",
+      ...options,
+    });
+  }
+
+  /**
+   * Search Public
+   * Search what this visitor may see: titles of the recordings they see listed, and the lines of the transcripts
+   * they may read. Title matches come first. Restricted recordings (for signed-in people) and public ones with the
+   * transcript closed match on their title only.
+   */
+  public static searchPublic<ThrowOnError extends boolean = false>(options?: Options<SearchPublicData, ThrowOnError>) {
+    return (options?.client ?? client).get<SearchPublicResponses, SearchPublicErrors, ThrowOnError>({
+      url: "/api/v1/public/search",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Public Recording
+   * A recording's public page: what this visitor may see of it, and nothing more.
+   *
+   * Anyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title
+   * with a lock; people with a role in its namespace, given permission on the recording, or on the network of an IP
+   * group that opens it, see all of it. Everything else answers 404, as a recording that doesn't exist would.
+   */
+  public static getPublicRecording<ThrowOnError extends boolean = false>(
+    options: Options<GetPublicRecordingData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<GetPublicRecordingResponses, GetPublicRecordingErrors, ThrowOnError>({
+      url: "/api/v1/public/recordings/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Request Access
+   * Ask for access to a recording (signed in, without permission): its closed parts, or a restricted one. Asking
+   * again replaces the earlier request. The namespace's owners hear of it by email when mail is set up; they approve
+   * (which gives permission) or decline in the recording's access settings.
+   */
+  public static requestAccess<ThrowOnError extends boolean = false>(options: Options<RequestAccessData, ThrowOnError>) {
+    return (options.client ?? client).post<RequestAccessResponses, RequestAccessErrors, ThrowOnError>({
+      url: "/api/v1/public/recordings/{rid}/request",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class AccessRequests {
+  /**
+   * List Pending Access Requests
+   * Requests waiting for an answer, for recordings in the namespaces you own (all of them for admins), newest
+   * first. Each is answered in its recording's access settings.
+   */
+  public static listPendingAccessRequests<ThrowOnError extends boolean = false>(
+    options?: Options<ListPendingAccessRequestsData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ListPendingAccessRequestsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/access-requests",
+      ...options,
+    });
+  }
+}
+
+export class Views {
+  /**
+   * List Views
+   * Your views, then the ones shared with namespaces you can read; the latest changed first in each.
+   */
+  public static listViews<ThrowOnError extends boolean = false>(options?: Options<ListViewsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListViewsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/views",
+      ...options,
+    });
+  }
+
+  /**
+   * Create View
+   * Save what the Library shows under a name (unique among your views). Sharing it with its namespace needs
+   * editor access there.
+   */
+  public static createView<ThrowOnError extends boolean = false>(options: Options<CreateViewData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateViewResponses, CreateViewErrors, ThrowOnError>({
+      url: "/api/v1/views",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete View
+   * Delete it: its maker, or for a shared view an owner of its namespace. Deleting a shared view is audited.
+   */
+  public static deleteView<ThrowOnError extends boolean = false>(options: Options<DeleteViewData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteViewResponses, DeleteViewErrors, ThrowOnError>({
+      url: "/api/v1/views/{vid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update View
+   * Rename it, share or unshare it, or save what the Library shows into it. Its maker only; sharing needs editor
+   * access to its namespace, and a view of every namespace can't be shared.
+   */
+  public static updateView<ThrowOnError extends boolean = false>(options: Options<UpdateViewData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateViewResponses, UpdateViewErrors, ThrowOnError>({
+      url: "/api/v1/views/{vid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

@@ -9,7 +9,7 @@ from app.api.media import sign_urls
 from app.domain import graph as graphmod
 from app.domain import render, store
 from app.domain import search as searchmod
-from app.schemas.search import Graph, Mention, SearchResults
+from app.schemas.search import Graph, Mention, SearchResults, TermSuggestion
 
 router = APIRouter(tags=["search"])
 
@@ -26,13 +26,56 @@ def search_transcripts(
     speaker: int | None = None,
     emotion: str | None = None,
     recording: int | None = None,
+    object: str | None = Query(None, max_length=60, description="only recordings this kind of object is seen in (person, car …)"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    facets: bool = Query(
+        False,
+        description="also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object",
+    ),
 ) -> SearchResults:
+    """Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
+    transcripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),
+    best first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion
+    filter keeps to what was said."""
     if ns:
-        acl.need(acl.nsid(ns))
-    res = searchmod.search(db, q, ns, speaker, emotion, recording, limit, offset, spaces=set(acl.roles))
-    return sign_urls(res)
+        acl.scope(ns)  # 404 unless they see some of it
+    also = acl.partial_recordings()
+    res = searchmod.search(
+        db,
+        q,
+        ns,
+        speaker,
+        emotion,
+        recording,
+        limit,
+        offset,
+        spaces=set(acl.roles),
+        facets=facets,
+        also=also,
+        files=True,
+        objects=True,
+        obj=object,
+        described=True,
+    )
+    return sign_urls(res, full=True)
+
+
+@router.get("/search/terms")
+def suggest_terms(
+    acl: Acl,
+    user: CurrentUser,
+    db: Db,
+    prefix: str = Query(min_length=2, max_length=60, description="the start of a word (a trailing * is ignored)"),
+    ns: str | None = None,
+    limit: int = Query(8, ge=1, le=20),
+) -> list[TermSuggestion]:
+    """Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search
+    has no prefix search, so the web app offers these when someone types interp*. Words are counted per namespace, so
+    collections you were given a role on don't add any."""
+    if ns:
+        acl.scope(ns)
+    return [TermSuggestion.model_validate(t) for t in searchmod.terms(db, prefix, set(acl.roles), ns, limit)]
 
 
 @router.get("/graph")

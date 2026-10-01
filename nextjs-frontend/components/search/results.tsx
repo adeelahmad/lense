@@ -7,7 +7,8 @@ import { forwardRef, type KeyboardEvent } from "react";
 
 import type { SearchHit } from "@/app/openapi-client/types.gen";
 import type { HitGroup } from "@/components/search/facets";
-import { recordingHref } from "@/components/search/links";
+import { ROLE_LABEL, hitHref, type FileRole } from "@/components/recording/files-model";
+import { foundAs, onPage, recordingHref } from "@/components/search/links";
 import type { InlinePlayer } from "@/components/search/player";
 import { splitSnippet } from "@/components/search/snippet";
 import { speakerTone } from "@/components/speakers/format";
@@ -49,8 +50,16 @@ function focusSibling(from: HTMLElement, step: 1 | -1) {
 function PlayButton({ hit, player, audio }: { hit: SearchHit; player: InlinePlayer; audio: boolean | undefined }) {
   const key = String(hit.id);
   const playing = player.isPlaying(key);
-  const none = audio === false || player.noAudio.has(hit.recording_id);
-  const label = none ? "No audio — transcript only" : `${playing ? "Pause" : "Play"} from ${tc(hit.t0)}`;
+  const untimed = hit.t0 == null;
+  const paged = onPage(hit);
+  const none = untimed || paged || audio === false || player.noAudio.has(hit.recording_id);
+  const label = paged
+    ? `Nothing to play: ${(foundAs(hit) ?? "on a page").toLowerCase()}`
+    : untimed
+      ? "No time: a line of a file without times"
+      : none
+        ? "No audio — transcript only"
+        : `${playing ? "Pause" : "Play"} from ${tc(hit.t0)}`;
   const btn = (
     <button
       type="button"
@@ -63,7 +72,7 @@ function PlayButton({ hit, player, audio }: { hit: SearchHit; player: InlinePlay
           player.play({
             key,
             recordingId: hit.recording_id,
-            t0: hit.t0,
+            t0: hit.t0 ?? 0,
             title: hit.title,
             speaker: hit.speaker,
           });
@@ -83,7 +92,21 @@ function PlayButton({ hit, player, audio }: { hit: SearchHit; player: InlinePlay
       )}
     </button>
   );
-  return none ? <Tooltip content="No audio: this recording is a transcript">{btn}</Tooltip> : btn;
+  return none ? (
+    <Tooltip
+      content={
+        paged
+          ? `${foundAs(hit) ?? "On the page"}, of a document or an image`
+          : untimed
+            ? "This line's file doesn't say when it is"
+            : "No audio: this recording is a transcript"
+      }
+    >
+      {btn}
+    </Tooltip>
+  ) : (
+    btn
+  );
 }
 
 function HitRow({
@@ -98,7 +121,10 @@ function HitRow({
   audio: boolean | undefined;
 }) {
   const router = useRouter();
-  const href = recordingHref(hit.recording_id, hit.t0);
+  const href = hitHref(hit);
+  const paged = onPage(hit);
+  const untimed = hit.t0 == null || paged;
+  const at = paged ? `Page ${(hit.page ?? 0) + 1}` : hit.t0 == null ? `Line ${(hit.line ?? 0) + 1}` : tc(hit.t0);
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -110,23 +136,25 @@ function HitRow({
       else router.push(href);
     } else if (e.key === " ") {
       e.preventDefault();
-      if (audio !== false && !player.noAudio.has(hit.recording_id))
+      if (!untimed && audio !== false && !player.noAudio.has(hit.recording_id))
         player.play({
           key: String(hit.id),
           recordingId: hit.recording_id,
-          t0: hit.t0,
+          t0: hit.t0 ?? 0,
           title: hit.title,
           speaker: hit.speaker,
         });
     }
   };
+  const found = foundAs(hit);
+  const where = found ? `, ${found.toLowerCase()}` : hit.source === "file" ? `, in ${hit.file_label ?? "a file"}` : "";
   const color = speakerTone(hit.speaker_id);
   return (
     <div
       data-hit
       tabIndex={first ? 0 : -1}
       onKeyDown={onKey}
-      aria-label={`${tc(hit.t0)}${hit.speaker ? `, ${hit.speaker}` : ""}${hit.source === "screen" ? ", on screen" : ""}. Enter opens, Space plays.`}
+      aria-label={`${paged ? at : untimed ? "No time" : tc(hit.t0)}${hit.speaker ? `, ${hit.speaker}` : ""}${where}. Enter opens${untimed ? "" : ", Space plays"}.`}
       className="-mx-2 grid grid-cols-[30px_54px_minmax(0,1fr)] items-baseline gap-x-2.5 gap-y-1 rounded-sm px-2 py-1 outline-none focus-visible:bg-hl focus-visible:ring-2 focus-visible:ring-blue md:grid-cols-[30px_54px_96px_minmax(0,1fr)]"
     >
       <PlayButton hit={hit} player={player} audio={audio} />
@@ -135,11 +163,18 @@ function HitRow({
         tabIndex={-1}
         className="tabular text-[12.5px] font-semibold text-fg-secondary hover:text-fg-accent hover:underline"
       >
-        {tc(hit.t0)}
+        {at}
       </Link>
       <span className="flex min-w-0 items-center gap-[5px] text-[12px] font-semibold" style={{ color }}>
-        {hit.source === "screen" ? (
-          <span className="text-fg-secondary">On screen</span>
+        {found ? (
+          <span className="text-fg-secondary">{found}</span>
+        ) : hit.source === "file" ? (
+          <span
+            className="truncate text-fg-secondary"
+            title={`${hit.file_role ? ROLE_LABEL[hit.file_role as FileRole] : "File"}: ${hit.file_label ?? ""}`}
+          >
+            {hit.file_label ?? "A file"}
+          </span>
         ) : (
           <>
             <span aria-hidden className="size-2 shrink-0 rounded-[2px]" style={{ background: color }} />

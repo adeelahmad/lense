@@ -71,13 +71,25 @@ def create_app(cfg: dict[str, Any] | None = None, db: store.DB | None = None, ba
         allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Total-Count"],
     )
     middleware.install(app)
+    app.add_middleware(middleware.ResourcePaths)
 
     app.include_router(api_router, prefix="/api/v1")
     app.include_router(iiif_router)
     app.include_router(pages_router)
     app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
+
+    built = app.openapi
+
+    def openapi() -> dict[str, Any]:
+        """The schema, with /api/v1/resources as the recordings' canonical paths (middleware.ResourcePaths)."""
+        if not app.openapi_schema:
+            app.openapi_schema = middleware.publish_resources(built())
+        return app.openapi_schema
+
+    app.openapi = openapi  # type: ignore[method-assign]
     return app
 
 

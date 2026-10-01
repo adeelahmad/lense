@@ -7,31 +7,57 @@ share link (``?s=``) or a signed link from one of the JSON responses here.
 from __future__ import annotations
 
 import pathlib
-from collections import defaultdict
-from typing import Any
+from datetime import date
+from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query, Request
 from fastapi.responses import Response
 
-from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer, domain_errors
+from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_url, sign_urls
 from app.api.streaming import file_response, range_response
-from app.domain import analyze, auth, jobs, render, sources, store, video
+from app.domain import access as acc
+from app.domain import analyze, auth, deletion, hierarchy, ipgroups, jobs, library, moving, render, sources, store, transcript, video
+from app.domain import fields as fieldmod
+from app.domain import metadata as md
 from app.domain.store import API, DB
-from app.schemas.common import Ok
+from app.schemas.common import AccessLevel, Ok
 from app.schemas.recordings import (
+    AccessRequest,
     EmbedLink,
     JobQueued,
+    LanguageCount,
+    MediaKind,
+    NamespaceAccess,
+    ObjectCount,
+    OriginCount,
     Output,
+    Permission,
+    PermissionAdd,
+    Placed,
     Player,
     Recording,
+    RecordingAccess,
+    RecordingAccessUpdate,
+    RecordingIpGroup,
+    RecordingMove,
+    RecordingMoved,
+    RecordingSort,
+    RecordingsPlace,
+    RecordingsRetag,
+    RecordingState,
     RecordingSummary,
+    RecordingUpdate,
     ReprocessRequest,
     SegmentEdit,
+    SegmentSplit,
     SegmentUpdate,
     Share,
     ShareCreate,
     ShareLink,
+    ShareSite,
+    TagCount,
+    TagsChanged,
 )
 
 router = APIRouter(prefix="/recordings", tags=["recordings"])
@@ -50,60 +76,196 @@ def audio_link(db: DB, cfg: dict[str, Any], rid: int, share: str = "") -> str | 
     return (f"{API}/recordings/{rid}/audio" + (f"?s={share}" if share else "")) if has_audio(db, cfg, rid) else None
 
 
-@router.get("")
+TOTAL_HEADER = {"X-Total-Count": {"description": "how many recordings match the filters, on all pages", "schema": {"type": "integer"}}}
+
+
+@router.get("", responses={200: {"headers": TOTAL_HEADER}})
 def list_recordings(
     acl: Acl,
     user: CurrentUser,
     db: Db,
-    ns: str | None = None,
+    cfg: Cfg,
+    response: Response,
+    ns: str | None = Query(None, description="one namespace (default: every namespace you can read)"),
+    q: str | None = Query(None, max_length=200, description="words that must all appear in the title, the namespace or a speaker's name"),
+    status: list[RecordingState] | None = Query(
+        None,
+        description="recording statuses, or processing (a job is queued or running) and failed (the latest job failed); "
+        "repeat for several (any of them matches)",
+    ),
+    attention: bool = Query(
+        False, description="only recordings that need a person: errored, latest job failed, or a voice match to review"
+    ),
+    processing: bool = Query(False, description="only recordings with a job queued or running"),
+    speaker: list[int] | None = Query(None, description="speaker ids; repeat for several (any of them matches)"),
+    date_from: date | None = Query(None, alias="from", description="recorded on or after this day"),
+    date_to: date | None = Query(None, alias="to", description="recorded on or before this day"),
+    min_duration: int | None = Query(None, ge=0, description="at least this many seconds long"),
+    max_duration: int | None = Query(None, ge=1, description="shorter than this many seconds"),
+    media: MediaKind | None = Query(None, description="audio, video, transcript (no media), document or image"),
+    access: list[AccessLevel] | None = Query(None, description="public, restricted or private; repeat for several"),
+    featured: bool | None = Query(None, description="only featured recordings (true) or only the others (false)"),
+    tag: list[str] | None = Query(None, description="tags (ignoring case); repeat for several (any of them matches)"),
+    origin: list[str] | None = Query(
+        None,
+        description="where they came from: source:<id> (a connected source), upload, paste, iiif, folder (the archive's "
+        "own folders) or file; repeat for several",
+    ),
+    language: list[str] | None = Query(
+        None, description="language codes (ignoring case), none for recordings whose language isn't known; repeat for several"
+    ),
+    object: list[str] | None = Query(
+        None, description="kinds of object seen in it (person, car, dog …; ignoring case); repeat for several (any of them matches)"
+    ),
+    edited_by: Literal["me"] | None = Query(
+        None, description="me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)"
+    ),
+    collection: int | None = Query(None, description="a collection: the recordings in it and in the collections inside it"),
+    field: int | None = Query(None, description="a custom field (of resources): the recordings with a value for it, or with `value`"),
+    value: str | None = Query(
+        None,
+        max_length=200,
+        description="with `field`: text that its value contains, the number, a date it starts with (1998, 1998-05), "
+        "true/false, or one of its options",
+    ),
+    sort: RecordingSort = Query("-date", description="date, title, duration, speakers, status or importance; prefix - for descending"),
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ) -> list[RecordingSummary]:
-    if ns:
-        acl.need(acl.nsid(ns))
-    spaces = [acl.nsid(ns)] if ns else acl.spaces()
-    rows = db.rows(
-        "SELECT record::id(id) AS id, title, recorded_at, duration_ms, status, error, source, stats, summary, space, media "
-        f"FROM recording WHERE space IN $s ORDER BY recorded_at DESC LIMIT {int(limit)} START {int(offset)}",
-        s=spaces,
-    )
-    ids = [r["id"] for r in rows]
-    apps: dict[int, list[int]] = defaultdict(list)
-    for a in db.rows("SELECT recording, speaker FROM appearance WHERE recording IN $r", r=ids) if rows else []:
-        apps[a["recording"]].append(a["speaker"])
-    names, spaces_n = render.speaker_names(db, [x for v in apps.values() for x in v]), store.space_names(db)
-    posters = (
-        {x["recording"]: x.get("frame") for x in db.rows("SELECT recording, frame FROM shot WHERE recording IN $r AND idx = 0", r=ids)}
-        if rows
-        else {}
-    )
-    out = []
-    for r in rows:
-        st, sm = r.pop("stats", None) or {}, r.pop("summary", None) or {}
-        r["media_kind"] = (r.pop("media", None) or {}).get("kind") or ("audio" if r.get("source") == "audio" else "transcript")
-        r["poster"] = f"{API}/recordings/{r['id']}/frames/{posters[r['id']]}" if posters.get(r["id"]) else None
-        out.append(
-            {
-                **r,
-                "namespace": spaces_n.get(r["space"]),
-                "emotions": st.get("emotions", {}),
-                "words": st.get("words"),
-                "importance": sm.get("importance"),
-                "sentiment": sm.get("sentiment"),
-                "speakers": ",".join(dict.fromkeys(names.get(x, "?") for x in apps.get(r["id"], []))),
-            }
+    """Recordings you can read, newest first by default: those of the namespaces you have a role in, and of the
+    collections you were given a role on. Filters combine with AND; the ``X-Total-Count`` header says how many match in
+    all, so pages can be counted. Each row has your `role` on it."""
+    spaces, within = acl.scope(ns)
+    cols = None
+    if collection is not None:
+        c = db.one("SELECT space FROM $r", r=R("collection", collection))
+        if not c or (c["space"] not in spaces and collection not in within.get(c["space"], [])):
+            raise HTTPException(404, "not found")
+        cols = hierarchy.subtree(db, c["space"], collection)
+    by_field = None
+    if field is not None:
+        try:
+            f = fieldmod.get(db, field)
+        except KeyError:
+            raise HTTPException(404, "not found") from None
+        if f["target"] != "resource" or (f["space"] not in spaces and f["space"] not in within):
+            raise HTTPException(404, "not found")
+        by_field = fieldmod.filter_condition(f, value)
+    with domain_errors():
+        rows, total = library.list_recordings(
+            db,
+            spaces,
+            within=within,
+            sort=sort,
+            limit=limit,
+            offset=offset,
+            q=q,
+            status=status,
+            attention=attention,
+            processing=processing,
+            speakers=speaker,
+            date_from=date_from,
+            date_to=date_to,
+            min_duration=min_duration,
+            max_duration=max_duration,
+            media=media,
+            access=access,
+            featured=featured,
+            tags=tag,
+            origins=origin,
+            languages=language,
+            edited=library.edited_by(db, user.email) if edited_by and user else None,
+            collections=cols,
+            cfg=cfg,
+            field=by_field,
+            objects=object,
         )
-    return [RecordingSummary.model_validate(x) for x in sign_urls(out)]
+    response.headers["X-Total-Count"] = str(total)
+    for r in rows:
+        r["role"] = acl.role_in(r["space"], r.get("collection"))
+    return [RecordingSummary.model_validate(x) for x in sign_urls(rows, full=True)]
+
+
+@router.get("/tags")
+def list_tags(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(None, description="one namespace")) -> list[TagCount]:
+    """The tags on the recordings you can read (or one namespace's), with how many recordings have each."""
+    spaces, within = acl.scope(ns)
+    return [TagCount.model_validate(t) for t in library.tag_counts(db, spaces, within)]
+
+
+@router.get("/origins")
+def list_origins(
+    acl: Acl, user: CurrentUser, db: Db, cfg: Cfg, ns: str | None = Query(None, description="one namespace")
+) -> list[OriginCount]:
+    """Where the recordings you can read (or one namespace's) came from, with how many came from each: connected sources
+    by name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files."""
+    spaces, within = acl.scope(ns)
+    return [OriginCount.model_validate(o) for o in library.Origins(db, cfg).counts(spaces, within)]
+
+
+@router.get("/languages")
+def list_languages(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(None, description="one namespace")) -> list[LanguageCount]:
+    """The languages of the recordings you can read (or one namespace's), with how many are in each; null: not known."""
+    spaces, within = acl.scope(ns)
+    return [LanguageCount.model_validate(x) for x in library.language_counts(db, spaces, within)]
+
+
+@router.get("/objects")
+def list_objects(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(None, description="one namespace")) -> list[ObjectCount]:
+    """The kinds of object seen in the recordings you can read (or one namespace's), with how many recordings each is
+    in, the most first (the objects step finds them)."""
+    spaces, within = acl.scope(ns)
+    return [ObjectCount.model_validate(x) for x in library.object_counts(db, spaces, within)]
+
+
+@router.post("/collection")
+def place_recordings(body: RecordingsPlace, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Placed:
+    """Move recordings into a collection of their namespace: editors of each recording (through the namespace or the
+    collection it's in) who are editors of the collection too. Recordings of another namespace are a 400: move them
+    to that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update. Audited as
+    `recording.collection`."""
+    for rid in dict.fromkeys(body.recordings):
+        acl.recording(rid, "editor")
+    try:
+        c = hierarchy.get(db, body.collection)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    acl.need_in(c["space"], c["id"], "editor")
+    with domain_errors():
+        moved = hierarchy.place(db, body.recordings, body.collection)
+    for rid in moved:
+        md.touched(db, cfg, rid)
+    if moved:
+        auth.audit(db, user.as_audit(), "recording.collection", f"collection:{c['id']}", {"recordings": moved, "name": c["name"]})
+    return Placed(moved=len(moved))
+
+
+@router.post("/tags")
+def retag_recordings(body: RecordingsRetag, acl: Acl, user: Writer, db: Db) -> TagsChanged:
+    """Add and remove tags on several recordings at once (editors of each one's namespace)."""
+    for rid in dict.fromkeys(body.recordings):
+        acl.recording(rid, "editor")
+    with domain_errors():
+        return TagsChanged(changed=library.retag(db, body.recordings, body.add, body.remove))
 
 
 @router.get("/{rid}")
 def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     r = acl.recording(rid)
     space = db.one("SELECT name FROM $s", s=R("space", r["space"])) or {}
-    d = {k: v for k, v in r.items() if k not in ("envelope", "stats", "summary")}
+    d = {k: v for k, v in r.items() if k not in ("envelope", "stats", "summary", "access_parts")}
+    a = acc.of(db, rid)
+    d.update(access=a["access"], open=a["open"], featured=a["featured"], access_inherited=a["inherited"])
     d.update(
-        id=rid, namespace=space.get("name"), summary=r.get("summary"), stats=render.recording_stats(db, rid), role=acl.roles.get(r["space"])
+        id=rid,
+        namespace=space.get("name"),
+        summary=r.get("summary"),
+        stats=render.recording_stats(db, rid),
+        role=acl.role_in(r["space"], r.get("collection")),
     )
+    steps = hierarchy.path(db, r["collection"]) if r.get("collection") is not None else []
+    seen = acl.visible(r["space"]) if acl.user and acl.rank_in(r["space"], r.get("collection")) else None
+    d["collection_path"] = [s for s in steps if seen is None or s["id"] in seen]  # only the collections they see
     rep = pathlib.Path(cfg["data_dir"]) / "reports" / (space.get("name") or "_") / f"{render.slug(r.get('title'))}-{rid}.html"
     d["report_url"] = f"/reports/{space.get('name')}/{rep.name}" if rep.exists() else None
     apps = db.rows("SELECT speaker, method, score FROM appearance WHERE recording = $r", r=rid)
@@ -112,14 +274,224 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
         {"id": a["speaker"], "name": names.get(a["speaker"], "?"), "method": a.get("method"), "score": a.get("score")} for a in apps
     ]
     d["jobs"] = jobs.list_jobs(db, recording=rid, limit=5)
-    return Recording.model_validate(sign_urls(d))
+    d["attached_to"] = _attached_to(acl, db, r.get("attached_to"))
+    return Recording.model_validate(sign_urls(d, full=True))
+
+
+def _attached_to(acl: Access, db: DB, link: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The email an attachment came from, with its title, when the caller may see that email."""
+    if not link or not link.get("resource"):
+        return None
+    try:
+        email = acl.recording(int(link["resource"]))
+    except HTTPException:
+        return None  # deleted since, or not theirs to see
+    return {"resource": int(link["resource"]), "file": link.get("file"), "title": email.get("title")}
+
+
+@router.patch("/{rid}")
+def update_recording(rid: int, body: RecordingUpdate, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Recording:
+    """Rename a recording or replace its tags (editors). A renamed recording's report is rebuilt with the new title."""
+    rec = acl.recording(rid, "editor")
+    if body.title is None and body.tags is None:
+        raise HTTPException(400, "send a title or tags")
+    with domain_errors():
+        if body.tags is not None:
+            library.set_tags(db, rid, body.tags)
+        if body.title is not None:
+            before, after = library.rename(db, cfg, rid, body.title)
+            if before != after:
+                auth.audit(db, user.as_audit(), "recording.rename", f"recording:{rid}", {"from": before, "to": after})
+                if rec.get("analyzed_at"):
+                    jobs.enqueue(db, rid, ["report"], by=user.email)
+    return get_recording(rid, acl, db, cfg)
+
+
+@router.delete("/{rid}")
+def delete_recording(rid: int, acl: Acl, user: Writer, db: Db, cfg: Cfg, request: Request, tasks: BackgroundTasks) -> Ok:
+    """Delete a recording (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and
+    outputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched
+    folders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job
+    is running on it, this answers 409. Audited as `recording.delete`."""
+    acl.recording(rid, "owner")
+    try:
+        with domain_errors():
+            gone = deletion.delete(db, cfg, rid, user.email)
+    except deletion.Running as e:
+        raise HTTPException(409, str(e)) from None
+    auth.audit(db, user.as_audit(), "recording.delete", f"recording:{rid}", gone)
+    request.app.state.graph_cache.clear()
+    if gone.get("namespace"):
+        tasks.add_task(render.refresh_overview, db, cfg, gone["namespace"])
+    return Ok()
+
+
+@router.post("/{rid}/move")
+def move_recording(
+    rid: int, body: RecordingMove, acl: Acl, user: Writer, db: Db, cfg: Cfg, request: Request, tasks: BackgroundTasks
+) -> RecordingMoved:
+    """Move a recording to another namespace (owners of its namespace, editors of the new one).
+
+    It keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
+    its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and
+    faces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and
+    analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409
+    when the new namespace has the same file or a job is running on it. Audited as `recording.move`."""
+    acl.recording(rid, "owner")
+    dst = acl.namespace(body.namespace.strip(), "editor")
+    try:
+        with domain_errors():
+            done = moving.move(db, cfg, rid, dst, body.rediarize, body.revoke_shares, user.email, body.collection)
+    except (deletion.Running, moving.Conflict) as e:
+        raise HTTPException(409, str(e)) from None
+    auth.audit(db, user.as_audit(), "recording.move", f"recording:{rid}", {k: v for k, v in done.items() if k != "job"})
+    request.app.state.graph_cache.clear()
+    tasks.add_task(render.refresh_overview, db, cfg, done["from"])
+    return RecordingMoved(
+        namespace=done["to"], collection=done["collection"], job=done["job"], pinned=done["pinned"], shares_revoked=done["shares_revoked"]
+    )
+
+
+def _access(db: DB, rid: int) -> RecordingAccess:
+    a = acc.of(db, rid)
+    space = (db.one("SELECT space FROM $r", r=R("recording", rid)) or {}).get("space")
+    level, open_ = acc.namespace_defaults(db, [space]).get(space, ("private", list(acc.PARTS)))
+    return RecordingAccess.model_validate({**a, "default": NamespaceAccess.model_validate({"access": level, "open": open_})})
+
+
+@router.get("/{rid}/access")
+def get_recording_access(rid: int, acl: Acl, user: CurrentUser, db: Db) -> RecordingAccess:
+    """Who may see the recording: public, restricted or private, the parts a public one opens, featured."""
+    acl.recording(rid)
+    return _access(db, rid)
+
+
+@router.put("/{rid}/access")
+def update_recording_access(rid: int, body: RecordingAccessUpdate, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> RecordingAccess:
+    """Make a recording public, restricted or private, choose what a public one opens, feature it (owners).
+
+    access or open set to null follow the namespace's default again. The change is kept in the metadata history, and
+    IIIF harvesters hear when the recording is published, changed or withdrawn."""
+    acl.recording(rid, "owner")
+    sent = body.model_fields_set
+    if not sent:
+        raise HTTPException(400, "send access, open or featured")
+    patch = {k: getattr(body, k) for k in sent if getattr(body, k) is not None}
+    reset = [k for k in sent if getattr(body, k) is None]
+    with domain_errors():
+        md.save(db, cfg, rid, patch, reset, user.email)
+    auth.audit(db, user.as_audit(), "recording.access", f"recording:{rid}", {k: getattr(body, k) for k in sorted(sent)})
+    return _access(db, rid)
+
+
+@router.get("/{rid}/permissions")
+def list_recording_permissions(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[Permission]:
+    """The people given permission on the recording (owners), newest first."""
+    acl.recording(rid, "owner")
+    return [Permission.model_validate(p) for p in acc.people(db, rid)]
+
+
+@router.post("/{rid}/permissions")
+def add_recording_permission(rid: int, body: PermissionAdd, acl: Acl, user: Writer, db: Db) -> list[Permission]:
+    """Give someone with an account permission on the recording (owners): they see all of it on the pages visitors see
+    and in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission."""
+    r = acl.recording(rid, "owner")
+    acct = auth.find_account(db, body.email)
+    if not acct or acct.get("disabled"):
+        raise HTTPException(404, "No account uses that address. An admin can create one.")
+    if auth.allows(auth.roles(db, acct), r["space"]):
+        raise HTTPException(400, "They have a role in this namespace, so they already see all of it.")
+    acc.give(db, rid, acct["id"], user.email)
+    auth.audit(db, user.as_audit(), "recording.permission.give", f"recording:{rid}", {"email": acct["email"]})
+    return [Permission.model_validate(p) for p in acc.people(db, rid)]
+
+
+@router.delete("/{rid}/permissions/{account}")
+def remove_recording_permission(rid: int, account: int, acl: Acl, user: Writer, db: Db) -> list[Permission]:
+    """Take someone's permission on the recording away (owners). Answers with everyone who still has it."""
+    acl.recording(rid, "owner")
+    if not acc.take(db, rid, account):
+        raise HTTPException(404, "not found")
+    email = (auth.get_account(db, account) or {}).get("email")
+    auth.audit(db, user.as_audit(), "recording.permission.take", f"recording:{rid}", {"email": email})
+    return [Permission.model_validate(p) for p in acc.people(db, rid)]
+
+
+def _ip_groups(db: DB, rid: int, space: int) -> list[RecordingIpGroup]:
+    return [
+        RecordingIpGroup(id=g["id"], name=g["name"], ranges=g["ranges"], everything=bool(g.get("everything")), opens=g["opens"])
+        for g in ipgroups.for_recording(db, rid, space)
+    ]
+
+
+@router.get("/{rid}/ip-groups")
+def list_recording_ip_groups(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[RecordingIpGroup]:
+    """The namespace's IP groups (owners), each with whether visitors from its addresses see all of this recording."""
+    r = acl.recording(rid, "owner")
+    return _ip_groups(db, rid, r["space"])
+
+
+def _choose(rid: int, gid: int, on: bool, acl: Acl, user: Any, db: DB) -> list[RecordingIpGroup]:
+    r = acl.recording(rid, "owner")
+    with domain_errors():
+        changed = ipgroups.choose(db, gid, r["space"], rid, on)
+        name = ipgroups.get(db, gid)["name"]
+    if not on and not changed:
+        raise HTTPException(404, "that IP group doesn't open this recording")
+    if changed:
+        action = "recording.ip_group.open" if on else "recording.ip_group.close"
+        auth.audit(db, user.as_audit(), action, f"recording:{rid}", {"id": gid, "name": name})
+    return _ip_groups(db, rid, r["space"])
+
+
+@router.put("/{rid}/ip-groups/{gid}")
+def open_recording_to_ip_group(rid: int, gid: int, acl: Acl, user: Writer, db: Db) -> list[RecordingIpGroup]:
+    """Open the recording to an IP group that opens chosen recordings (owners): visitors from its addresses see all of
+    it. Answers with the namespace's groups."""
+    return _choose(rid, gid, True, acl, user, db)
+
+
+@router.delete("/{rid}/ip-groups/{gid}")
+def close_recording_to_ip_group(rid: int, gid: int, acl: Acl, user: Writer, db: Db) -> list[RecordingIpGroup]:
+    """Close the recording to an IP group again (owners)."""
+    return _choose(rid, gid, False, acl, user, db)
+
+
+@router.get("/{rid}/requests")
+def list_access_requests(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[AccessRequest]:
+    """Requests for access to the recording (owners), newest first; pending ones wait for an answer."""
+    acl.recording(rid, "owner")
+    return [AccessRequest.model_validate(x) for x in acc.requests(db, rids=[rid])]
+
+
+def _decide(rid: int, account: int, approve: bool, acl: Acl, user: Any, db: DB) -> list[AccessRequest]:
+    acl.recording(rid, "owner")
+    req = acc.request_of(db, rid, account)
+    if not acc.decide(db, rid, account, approve, user.email):
+        raise HTTPException(404, "no request waits for an answer")
+    email = (auth.get_account(db, account) or {}).get("email")
+    action = "recording.request.approve" if approve else "recording.request.decline"
+    auth.audit(db, user.as_audit(), action, f"recording:{rid}", {"email": email, "message": (req or {}).get("message")})
+    return [AccessRequest.model_validate(x) for x in acc.requests(db, rids=[rid])]
+
+
+@router.post("/{rid}/requests/{account}/approve")
+def approve_access_request(rid: int, account: int, acl: Acl, user: Writer, db: Db) -> list[AccessRequest]:
+    """Approve a request (owners): the person gets permission on the recording."""
+    return _decide(rid, account, True, acl, user, db)
+
+
+@router.post("/{rid}/requests/{account}/decline")
+def decline_access_request(rid: int, account: int, acl: Acl, user: Writer, db: Db) -> list[AccessRequest]:
+    """Decline a request (owners). They can ask again."""
+    return _decide(rid, account, False, acl, user, db)
 
 
 @router.get("/{rid}/player")
 def get_player(rid: int, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Player:
     """Player data. Works with a share link (``?s=``) as well as signed in; media links in it are signed."""
-    acl.recording(rid, share=s)
-    return sign_urls(render.player_data(db, rid, audio_link(db, cfg, rid, s)))
+    rec = acl.recording(rid, share=s)
+    return sign_urls(render.player_data(db, rid, audio_link(db, cfg, rid, s)), full=acl.member(rec))
 
 
 @router.get("/{rid}/embed-link")
@@ -183,39 +555,57 @@ def reprocess_recording(rid: int, acl: Acl, user: Writer, db: Db, body: Reproces
 
 @router.post("/{rid}/share")
 def create_share(rid: int, acl: Acl, user: Writer, db: Db, body: ShareCreate | None = None) -> ShareLink:
-    """A read-only link to this one recording, for people without an account. Revoke with DELETE."""
+    """A read-only link to this one recording, for people without an account, with a short ``/s/`` address too. Its
+    address is only shown now. Revoke it with DELETE /shares/{id}, or every link with DELETE /share."""
     acl.recording(rid, "editor")
-    raw = auth.create_share(db, rid, user.id, (body or ShareCreate()).days)
-    auth.audit(db, user.as_audit(), "share.create", f"recording:{rid}")
-    return ShareLink(token=raw, embed=f"/embed/{rid}?s={raw}")
+    link = auth.create_share(db, rid, user.id, (body or ShareCreate()).days)
+    auth.audit(db, user.as_audit(), "share.create", f"recording:{rid}", {"link": link["id"]})
+    return ShareLink(id=link["id"], token=link["token"], embed=f"/embed/{rid}?s={link['token']}", short=f"/s/{link['short']}")
 
 
 @router.delete("/{rid}/share")
 def revoke_shares(rid: int, acl: Acl, user: Writer, db: Db) -> Ok:
+    """Revoke every link that still works. Opening one shows a page saying the link isn't available."""
     acl.recording(rid, "editor")
-    auth.revoke_shares(db, rid)
-    auth.audit(db, user.as_audit(), "share.revoke", f"recording:{rid}")
+    n = auth.revoke_shares(db, rid, user.email)
+    auth.audit(db, user.as_audit(), "share.revoke", f"recording:{rid}", {"links": n})
+    return Ok()
+
+
+@router.delete("/{rid}/shares/{sid}")
+def revoke_share(
+    rid: int, acl: Acl, user: Writer, db: Db, sid: str = Path(pattern=r"^[0-9a-f]{10,64}$", description="the link's id")
+) -> Ok:
+    """Revoke one link. Opening it shows a page saying the link isn't available; the others keep working."""
+    acl.recording(rid, "editor")
+    if not auth.revoke_share(db, rid, sid, user.email):
+        raise HTTPException(404, "no such link")
+    auth.audit(db, user.as_audit(), "share.revoke", f"recording:{rid}", {"link": sid})
     return Ok()
 
 
 @router.get("/{rid}/shares")
 def list_shares(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[Share]:
+    """The recording's share links, newest first: whether each still works, how often it was played, and the sites
+    whose pages embed it."""
     acl.recording(rid, "editor")
     people = {a["id"]: a["email"] for a in db.rows("SELECT record::id(id) AS id, email FROM account")}
-    now = store.now()
-    rows = db.rows(
-        "SELECT record::id(id) AS id, created_by, created_at, expires_at, revoked FROM share_link WHERE recording = $r ORDER BY created_at DESC",
-        r=rid,
-    )
     return [
         Share(
-            id=str(r["id"])[:10],
+            id=str(r["key"])[:10],
             created_by=people.get(r.get("created_by")),
             created_at=r.get("created_at"),
             expires_at=r.get("expires_at"),
-            active=not r.get("revoked") and (r.get("expires_at") or "") >= now,
+            active=auth.share_live(r),
+            revoked=bool(r.get("revoked")),
+            revoked_by=r.get("revoked_by"),
+            revoked_at=r.get("revoked_at"),
+            short=bool(r.get("short")),
+            plays=r.get("plays") or 0,
+            played_at=r.get("played_at"),
+            embedded_on=[ShareSite(**x) for x in r["sites"]],
         )
-        for r in rows
+        for r in auth.shares(db, rid)
     ]
 
 
@@ -261,16 +651,61 @@ def edit_segment(rid: int, idx: int, body: SegmentUpdate, acl: Acl, user: Writer
     if not patch:
         raise HTTPException(400, "change the text or the speaker")
     db.q("UPDATE $s MERGE $p", s=sr, p=patch)
-    edit = {"recording": rid, "idx": idx, "before": seg, "after": patch, "by": user.email, "at": store.now()}
+    edit = {
+        "recording": rid,
+        "idx": idx,
+        "before": seg,
+        "after": patch,
+        "by": user.email,
+        "at": store.now(),
+        "n": db.next_id("segment_edit"),
+    }
     db.q("CREATE segment_edit CONTENT $d", d=store.clean(edit))
     auth.audit(db, user.as_audit(), "transcript.edit", f"recording:{rid}", {"segment": idx})
     return JobQueued(job=jobs.enqueue(db, rid, ["analyze", "report"], by=user.email))
 
 
+def _changed(db: DB, rid: int, idx: int, kind: str, done: dict[str, Any], user: Any) -> JobQueued:
+    """Keep a split or merge in the edit history and the audit log, and analyse the recording again."""
+    edit = {"recording": rid, "idx": idx, "kind": kind, **done, "by": user.email, "at": store.now(), "n": db.next_id("segment_edit")}
+    db.q("CREATE segment_edit CONTENT $d", d=store.clean(edit))
+    auth.audit(db, user.as_audit(), f"transcript.{kind}", f"recording:{rid}", {"segment": idx})
+    return JobQueued(job=jobs.enqueue(db, rid, ["analyze", "report"], by=user.email))
+
+
+@router.post("/{rid}/segments/{idx}/split")
+def split_segment(rid: int, idx: int, body: SegmentSplit, acl: Acl, user: Writer, db: Db) -> JobQueued:
+    """Split a transcript line in two (editors): at `at`, a position in its text, moved back to the start of the word
+    it's in. The second part starts at `t` (ms) when given, else when its first word was said (or as far into the
+    line's time as `at` is into its text); it keeps the line's speaker unless `speaker` is sent. The lines after it
+    move down one, with their corrections. Kept in the edit history; the recording is re-analysed afterwards."""
+    rec = acl.recording(rid, "editor")
+    if body.speaker is not None:
+        row = db.one("SELECT space FROM $s", s=R("speaker", body.speaker))
+        if not row or row["space"] != rec["space"]:
+            raise HTTPException(400, "that speaker isn't in this namespace")
+    with domain_errors():
+        done = transcript.split(db, rid, idx, body.at, body.t, body.speaker, "speaker" in body.model_fields_set)
+    return _changed(db, rid, idx, "split", done, user)
+
+
+@router.post("/{rid}/segments/{idx}/merge")
+def merge_segments(rid: int, idx: int, acl: Acl, user: Writer, db: Db) -> JobQueued:
+    """Merge a transcript line with the next one (editors): one line with both texts, from the first's start to the
+    second's end, with the first's speaker. The lines after it move up one, with their corrections. Kept in the edit
+    history (with where to split it again); the recording is re-analysed afterwards."""
+    acl.recording(rid, "editor")
+    with domain_errors():
+        done = transcript.merge(db, rid, idx)
+    return _changed(db, rid, idx, "merge", done, user)
+
+
 @router.get("/{rid}/edits")
 def list_segment_edits(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[SegmentEdit]:
+    """Corrections, splits and merges of the transcript, the latest first."""
     acl.recording(rid)
-    return db.rows("SELECT idx, before, after, by, at FROM segment_edit WHERE recording = $r ORDER BY at DESC", r=rid)
+    rows = db.rows("SELECT idx, kind, before, after, by, at, n FROM segment_edit WHERE recording = $r ORDER BY at DESC, n DESC", r=rid)
+    return [SegmentEdit(**{k: v for k, v in e.items() if k != "n"}) for e in rows]  # n: their order within a second
 
 
 @router.get("/{rid}/outputs")

@@ -3,7 +3,8 @@ import type { Estimate, Passage } from "@/app/openapi-client/types.gen";
 /**
  * One question's answer as it streams from POST /chats/{id}/messages. The backend sends server-sent events:
  * `step` (a tool the assistant used), `approval` (work waiting for the person), `notice`, `passages` (the numbered
- * excerpts), `token` (answer text), `error` and `done` (the saved message id).
+ * excerpts), `token` (answer text), `error`, `stopped` (Stop was pressed: what came is saved, marked stopped) and
+ * `done` (the saved message id).
  */
 
 export type ToolStep = {
@@ -99,15 +100,24 @@ export function applyEvent(s: TurnState, ev: { event: string; data: string }): T
         status: "error",
         error: str(o.message, "The model didn't answer."),
       };
+    case "stopped":
+      return { ...s, status: "stopped" };
     case "done":
       return {
         ...s,
-        status: s.status === "error" ? "error" : "done",
+        status: s.status === "error" || s.status === "stopped" ? s.status : "done",
         messageId: typeof o.message === "number" ? o.message : s.messageId,
       };
     default:
       return s;
   }
+}
+
+/** Tool steps as an answer was saved with them (GET /chats/{id}), in the shape the live stream gives. */
+export function savedSteps(
+  steps: { tool: string; args?: Record<string, unknown>; summary?: string }[] | null | undefined,
+): ToolStep[] {
+  return (steps ?? []).map((s) => ({ tool: s.tool, args: s.args ?? {}, summary: s.summary ?? "" }));
 }
 
 /** A short plain-words line for a tool call, when the backend's summary is missing. */

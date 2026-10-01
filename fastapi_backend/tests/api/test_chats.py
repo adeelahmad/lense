@@ -6,7 +6,8 @@ import json
 
 import pytest
 
-from app.domain import ai_tools, auth, store
+from app.domain import ai_tools, auth, chat, store
+from app.domain import llm as llm_mod
 from tests import fake_llm
 from tests.api._assist import Assist, sse, start_llm
 from tests.helpers import drain, login, make_user, seed
@@ -137,6 +138,10 @@ def test_tools_approvals_and_checking(app, db, cfg, folder, new_client, llm):
     chk = c.post(f"/api/v1/chats/{cid}/messages/{mid}/check", headers=h).json()
     assert (chk["claims"], chk["supported"]) == (2, 1)  # the invented claim is flagged
     assert c.post(f"/api/v1/chats/{cid}/messages/{mid - 1}/check", headers=h).status_code == 404  # the question, not an answer
+    # reopened, the answer still has the tools it used and its source check
+    reopened = c.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]
+    assert [x["tool"] for x in reopened[-1]["steps"]] == ["search_transcripts", "run_template"] and reopened[0]["steps"] == []
+    assert reopened[-1]["steps"][0]["args"] == {"query": "Dyno Therapeutics"} and reopened[-1]["check"] == chk
     box = ai_tools.Toolbox(db, cfg, {"id": 99, "email": "v"}, {store.ns_id(db, "pods")}, set(), {"recordings": [s.a]}, None)
     assert "run_template" not in [t["function"]["name"] for t in box.specs()]  # viewers get read tools only
     assert "error" in box.call("read_transcript", {"recording_id": s.b})[0]  # outside the conversation's scope
@@ -145,3 +150,158 @@ def test_tools_approvals_and_checking(app, db, cfg, folder, new_client, llm):
     ev = sse(cv.post(f"/api/v1/chats/{vid}/messages", headers=hv, json={"content": "capsid"}).text)
     assert "notice" in ev  # fell back to search-and-answer
     assert ev["passages"][0]
+    assert cv.get(f"/api/v1/chats/{vid}", headers=hv).json()["messages"][-1]["notice"] == ev["notice"][0]["message"]  # kept too
+
+
+def test_capabilities_for_everyone(client, new_client, db, cfg, folder, llm):
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    hv = login(client, "vi@x.io", "viewer password 1")
+    caps = client.get("/api/v1/chats/capabilities", headers=hv).json()
+    assert caps == {"configured": True, "model": "fake", "tools": True, "max_steps": 6, "check": True, "models": ["fake", "fake-large"]}
+    assert "base_url" not in json.dumps(caps) and new_client().get("/api/v1/chats/capabilities").status_code == 401
+    admin = new_client()
+    assert (
+        admin.put("/api/v1/settings/llm", headers=login(admin, "root@x.io", "root password 1"), json={"base_url": None}).status_code == 200
+    )
+    caps = client.get("/api/v1/chats/capabilities", headers=hv).json()
+    assert (caps["configured"], caps["model"], caps["tools"], caps["check"]) == (False, None, False, False)
+
+
+def test_stopping_an_answer(plain, client, new_client, db, cfg, folder, llm, monkeypatch):
+    seed(db, cfg, folder)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor", "calls": "editor"})
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    h = login(client, "ed@x.io", "editor password 1")
+    other = new_client()
+    hv = login(other, "vi@x.io", "viewer password 1")
+    cid = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    assert client.post(f"/api/v1/chats/{cid}/stop", headers=h).json() == {"ok": True, "stopping": False}  # nothing to stop
+    assert other.post(f"/api/v1/chats/{cid}/stop", headers=hv).status_code == 404  # someone else's
+    monkeypatch.setattr(chat.Answering, "EVERY", 0)
+
+    def stream(*_a, **_k):  # the person presses Stop after the first piece
+        yield "The shipment "
+        assert chat.request_stop(db, cid)
+        yield "leaves on Friday [1]."
+        yield " And more."
+
+    monkeypatch.setattr(llm_mod, "stream_chat", stream)
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does the shipment leave?"}).text)
+    assert "".join(e["text"] for e in ev["token"]) == "The shipment leaves on Friday [1]." and "stopped" in ev
+    saved = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]
+    assert (saved["id"], saved["content"], saved["stopped"]) == (ev["done"][0]["message"], "The shipment leaves on Friday [1].", True)
+    assert saved["passages"] and client.post(f"/api/v1/chats/{cid}/stop", headers=h).json()["stopping"] is False
+
+    # a later question isn't stopped by the earlier request
+    monkeypatch.setattr(llm_mod, "stream_chat", lambda *a, **k: iter(["Friday [1]."]))
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Again?"}).text)
+    assert "stopped" not in ev and client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]["stopped"] is False
+
+    # why there's no answer is kept with it
+    def broken(*_a, **_k):
+        raise llm_mod.LLMError("429 from the LLM server")
+        yield  # a generator, like the real one
+
+    monkeypatch.setattr(llm_mod, "stream_chat", broken)
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Once more?"}).text)
+    last = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]
+    assert (ev["error"][0]["message"], last["content"], last["error"]) == (
+        "429 from the LLM server",
+        "(no answer)",
+        "429 from the LLM server",
+    )
+
+
+def test_stopping_between_tool_steps(client, db, cfg, folder, llm, monkeypatch):
+    seed(db, cfg, folder)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    h = login(client, "ed@x.io", "editor password 1")
+    cid = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
+
+    def tool_loop(*_a, **_k):  # Stop is pressed while the second tool runs: the model isn't asked again
+        yield "step", {"tool": "search_transcripts", "args": {"query": "shipment"}, "summary": "Searched"}
+        chat.request_stop(db, cid)
+        yield "step", {"tool": "get_recording", "args": {"id": 1}, "summary": "Opened"}
+        raise AssertionError("asked the model again after Stop")
+
+    monkeypatch.setattr(chat, "tool_answer", tool_loop)
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "And the samples?"}).text)
+    # the step that was running finishes and is shown; then it stops
+    assert [s["tool"] for s in ev["step"]] == ["search_transcripts", "get_recording"] and "token" not in ev and "stopped" in ev
+    saved = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]
+    assert (saved["content"], saved["stopped"], ev["done"][0]["message"]) == ("(stopped)", True, saved["id"])
+
+
+def test_choosing_the_model(plain, client, new_client, db, cfg, folder, llm):
+    llm_mod._MODELS.clear()
+    seed(db, cfg, folder)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor", "calls": "editor"})
+    h = login(client, "ed@x.io", "editor password 1")
+    admin = new_client()
+    ha = login(admin, "root@x.io", "root password 1")
+    assert client.post("/api/v1/chats", headers=h, json={"model": "nope"}).status_code == 400
+    cid = client.post("/api/v1/chats", headers=h, json={"model": "fake-large"}).json()["id"]
+    assert client.get("/api/v1/chats", headers=h).json()[0]["model"] == "fake-large"
+
+    # the conversation's model answers in it; one question can ask another (Retry with another model)
+    llm.seen.clear()
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does the shipment leave?"}).text)
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does the shipment leave?", "model": "fake"}).text)
+    assert [b["model"] for b in llm.seen] == ["fake-large", "fake"]
+    msgs = client.get(f"/api/v1/chats/{cid}", headers=h).json()
+    assert ([m["model"] for m in msgs["messages"] if m["role"] == "assistant"], msgs["model"]) == (["fake-large", "fake"], "fake-large")
+    bad = client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Again?", "model": "gpt-9"})
+    assert bad.status_code == 400 and "isn't one of the models" in bad.json()["detail"]
+    assert client.patch(f"/api/v1/chats/{cid}", headers=h, json={"model": None}).status_code == 200
+    assert client.get(f"/api/v1/chats/{cid}", headers=h).json()["model"] is None
+
+    # admins can narrow (or widen) the choice; a conversation whose model was taken away falls back to the configured one
+    assert admin.put("/api/v1/settings/llm", headers=ha, json={"chat_models": "fake-large"}).status_code == 400
+    assert admin.put("/api/v1/settings/llm", headers=ha, json={"chat_models": [" "]}).status_code == 400
+    assert admin.put("/api/v1/settings/llm", headers=ha, json={"chat_models": ["fake-mini", "fake-mini"]}).status_code == 200
+    assert client.get("/api/v1/chats/capabilities", headers=h).json()["models"] == ["fake", "fake-mini"]
+    assert client.patch(f"/api/v1/chats/{cid}", headers=h, json={"model": "fake-large"}).status_code == 400
+    db.q("UPDATE $c SET model = 'fake-large'", c=store.R("chat", cid))
+    llm.seen.clear()
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "And now?"}).text)
+    assert [b["model"] for b in llm.seen] == ["fake"]
+
+
+def test_scoped_by_a_collection(plain, client, new_client, db, cfg, folder):
+    """A conversation can draw on saved collections: their recordings as they are when it answers."""
+    from app.domain import recsets
+
+    a, b, call = seed(db, cfg, folder)
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    hv, he = login(client, "vi@x.io", "viewer password 1"), login(new_client(), "ed@x.io", "editor password 1")
+    fixed = client.post("/api/v1/collections", headers=hv, json={"name": "Episode 2", "recordings": [b]}).json()["id"]
+    mine_only = client.post("/api/v1/collections", headers=he, json={"name": "Private", "recordings": [a]}).json()["id"]
+    shared = client.post("/api/v1/collections", headers=he, json={"name": "Capsid talk", "filter": {"q": "capsid"}, "shared": True}).json()[
+        "id"
+    ]
+
+    # only collections you can see: yours, or shared
+    assert client.post("/api/v1/chats", headers=hv, json={"scope": {"collections": [mine_only]}}).status_code == 404
+    assert client.post("/api/v1/chats", headers=hv, json={"scope": {"collections": [999]}}).status_code == 404
+    cid = client.post("/api/v1/chats", headers=hv, json={"scope": {"collections": [fixed]}}).json()["id"]
+    assert client.get(f"/api/v1/chats/{cid}", headers=hv).json()["scope"] == {"collections": [fixed]}
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=hv, json={"content": "Dyno Therapeutics capsid"}).text)
+    assert {p["recording_id"] for p in ev["passages"][0]} == {b}
+
+    # a collection is read when it answers: what's added later counts
+    recsets.update(db, fixed, recordings=[a, b])
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=hv, json={"content": "Dyno Therapeutics capsid"}).text)
+    assert {p["recording_id"] for p in ev["passages"][0]} == {a, b}
+    # several collections together, narrowed by recordings too; within what you can read
+    both = {"collections": [fixed, shared], "recordings": [a]}
+    assert client.patch(f"/api/v1/chats/{cid}", headers=hv, json={"scope": both}).status_code == 200
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=hv, json={"content": "capsid"}).text)
+    assert {p["recording_id"] for p in ev["passages"][0]} == {a}
+    assert call not in recsets.within(db, {store.ns_id(db, "pods")}, collections=[shared])
+    # a deleted collection adds nothing
+    client.delete(f"/api/v1/collections/{fixed}", headers=hv)
+    assert recsets.within(db, {store.ns_id(db, "pods")}, collections=[fixed]) == set()
+    assert client.patch(f"/api/v1/chats/{cid}", headers=hv, json={"scope": {"collections": [fixed]}}).status_code == 404

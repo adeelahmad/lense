@@ -32,7 +32,18 @@ import { needRole, useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 type Kind = "template" | "pipeline" | "steps";
-const STEP_ORDER = ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "report"];
+const STEP_ORDER = [
+  "transcribe",
+  "diarize",
+  "shots",
+  "ocr",
+  "faces",
+  "objects",
+  "describe",
+  "analyze",
+  "summarize",
+  "report",
+];
 
 /** "Run on…": pick the work — a pipeline, one template, or reprocess steps. */
 function WorkPicker({

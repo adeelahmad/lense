@@ -1,7 +1,23 @@
-import type { ApiToken, Job, RecordingSummary, Source, Speaker, Watch } from "@/app/openapi-client/types.gen";
+import type {
+  AccessRequest,
+  ApiToken,
+  Job,
+  RecordingSummary,
+  Source,
+  Speaker,
+  Watch,
+} from "@/app/openapi-client/types.gen";
 import { buildAttention, greeting } from "@/components/home/attention";
 import { latestJobs } from "@/components/library/model";
-import { cloudSizes, monthlyBuckets, overview, rangeBounds, rangeLabel, talkTime } from "@/components/reports/model";
+import {
+  cloudSizes,
+  monthBars,
+  rangeBounds,
+  rangeLabel,
+  rangeQuery,
+  talkTime,
+  undatedNote,
+} from "@/components/reports/model";
 import { htmlName, isTemplateReport, prepareReportHtml } from "@/components/reports/report-html";
 
 const NOW = Date.parse("2026-09-30T12:00:00Z");
@@ -183,6 +199,34 @@ describe("needs attention", () => {
     expect(items.find((i) => i.key === "token-1")?.title).toBe("API token “ci” expires in 3 days");
   });
 
+  it("asks owners to answer requests for access", () => {
+    const requests = [
+      {
+        recording: 12,
+        title: "Episode 13",
+        namespace: "podcasts",
+        account: 7,
+        email: "ana@example.org",
+        name: "Ana",
+        message: "For my thesis on capsids.",
+        at: new Date(NOW - 3_600_000).toISOString(),
+        status: "pending",
+      },
+      { recording: 13, account: 8, email: "bo@example.org", status: "approved" },
+    ] as AccessRequest[];
+    const items = buildAttention({ latestJobs: new Map(), recent: [], nsById: new Map(), requests, now: NOW });
+    expect(items).toEqual([
+      {
+        key: "request-12-7",
+        kind: "gate",
+        title: "Ana asked for access to Episode 13",
+        meta: "“For my thesis on capsids.” · 1 hour ago · podcasts",
+        action: { label: "Review", do: { type: "link", href: "/resources/12#access" } },
+        namespace: "podcasts",
+      },
+    ]);
+  });
+
   it("greets by the time of day", () => {
     expect(greeting(new Date(2026, 8, 30, 9))).toBe("Good morning");
     expect(greeting(new Date(2026, 8, 30, 14))).toBe("Good afternoon");
@@ -192,40 +236,6 @@ describe("needs attention", () => {
 
 describe("namespace overview numbers", () => {
   const now = new Date(2026, 8, 30, 12);
-  const recs = [
-    {
-      id: 1,
-      space: 1,
-      media_kind: "audio",
-      recorded_at: new Date(2026, 8, 12).toISOString(),
-      duration_ms: 3_600_000,
-      speakers: "Host A,Host B",
-    },
-    {
-      id: 2,
-      space: 1,
-      media_kind: "audio",
-      recorded_at: new Date(2026, 8, 2).toISOString(),
-      duration_ms: 1_800_000,
-      speakers: "Host A",
-    },
-    {
-      id: 3,
-      space: 1,
-      media_kind: "audio",
-      recorded_at: new Date(2026, 5, 20).toISOString(),
-      duration_ms: 600_000,
-      speakers: "Ravi",
-    },
-    {
-      id: 4,
-      space: 1,
-      media_kind: "audio",
-      recorded_at: new Date(2025, 11, 1).toISOString(),
-      duration_ms: 60_000,
-      speakers: "Old",
-    },
-  ] as RecordingSummary[];
 
   it("builds the ranges and their labels", () => {
     const six = rangeBounds("6m", now);
@@ -234,19 +244,41 @@ describe("namespace overview numbers", () => {
     expect(rangeLabel(rangeBounds("12m", now))).toBe("Oct 2025 – Sep 2026");
     expect(rangeLabel(rangeBounds("ytd", now))).toBe("Jan – Sep 2026");
     expect(rangeLabel(rangeBounds("all", now, new Date(2025, 11, 1).toISOString()))).toBe("Dec 2025 – Sep 2026");
+    // the stats' first day is a local date, whatever the time zone
+    expect(rangeLabel(rangeBounds("all", now, "2025-12-01"))).toBe("Dec 2025 – Sep 2026");
+    expect(rangeLabel(rangeBounds("all", now, null))).toBe("Until Sep 2026");
   });
 
-  it("counts recordings, audio and speakers per month, empty months included", () => {
-    const b = rangeBounds("6m", now);
-    const months = monthlyBuckets(recs, b);
-    expect(months.map((m) => m.label)).toEqual(["Apr", "May", "Jun", "Jul", "Aug", "Sep"]);
-    expect(months.map((m) => m.recordings)).toEqual([0, 0, 1, 0, 0, 2]);
-    expect(months[5].ms).toBe(5_400_000);
-    expect(overview(recs, b)).toEqual({
-      recordings: 3,
-      ms: 6_000_000,
-      speakers: 3,
-    });
+  it("asks the stats for whole months up to today", () => {
+    expect(rangeQuery("6m", now)).toEqual({ from: "2026-04-01", to: "2026-09-30" });
+    expect(rangeQuery("12m", now)).toEqual({ from: "2025-10-01", to: "2026-09-30" });
+    expect(rangeQuery("ytd", now)).toEqual({ from: "2026-01-01", to: "2026-09-30" });
+    expect(rangeQuery("all", now)).toEqual({});
+  });
+
+  it("draws the server's months, the latest 24", () => {
+    const months = monthBars([
+      { month: "2026-04", recordings: 0, ms: 0 },
+      { month: "2026-05" },
+      { month: "2026-06", recordings: 1, ms: 600_000 },
+    ]);
+    expect(months.map((m) => [m.key, m.label, m.year, m.recordings, m.ms])).toEqual([
+      ["2026-04", "Apr", 2026, 0, 0],
+      ["2026-05", "May", 2026, 0, 0],
+      ["2026-06", "Jun", 2026, 1, 600_000],
+    ]);
+    const long = Array.from({ length: 30 }, (_, i) => ({
+      month: `${2024 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`,
+    }));
+    expect(monthBars(long).map((m) => m.key)).toEqual(long.slice(-24).map((m) => m.month));
+    expect(monthBars(undefined)).toEqual([]);
+  });
+
+  it("explains recordings without a date", () => {
+    expect(undatedNote(0, "all")).toBeNull();
+    expect(undatedNote(1, "all")).toBe("1 recording has no date: counted above, but in no month.");
+    expect(undatedNote(3, "6m")).toBe("3 recordings have no date, so they aren’t in any date range.");
+    expect(undatedNote(1, "ytd")).toBe("1 recording has no date, so it isn’t in any date range.");
   });
 
   it("formats talk time and sizes the entity cloud", () => {

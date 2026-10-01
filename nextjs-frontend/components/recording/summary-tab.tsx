@@ -237,7 +237,7 @@ function SummaryBlock({
   regenDisabled?: string;
   pending?: boolean;
 }) {
-  const { speakers } = useRec();
+  const { speakers, paged, where } = useRec();
   const api = usePlayerApi();
   const colorOf = (who: string | null | undefined) =>
     who ? [...speakers.values()].find((s) => s.name.toLowerCase() === who.toLowerCase())?.color : undefined;
@@ -299,11 +299,11 @@ function SummaryBlock({
                 {it.t != null ? (
                   <button
                     type="button"
-                    aria-label={`Play from ${tc(it.t)}`}
+                    aria-label={paged ? `Go to ${where(it.t)}` : `Play from ${tc(it.t)}`}
                     onClick={() => api.seek(it.t as number, { manual: true })}
                     className="tabular rounded-[6px] bg-surface-neutral px-[7px] py-1 text-[11.5px] font-semibold leading-none text-fg-strong hover:bg-border"
                   >
-                    {tc(it.t)}
+                    {where(it.t)}
                   </button>
                 ) : (
                   <span />

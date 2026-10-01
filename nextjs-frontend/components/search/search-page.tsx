@@ -1,16 +1,16 @@
 "use client";
 
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookmarkPlus, MessagesSquare, Play, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Collections, Search, Speakers } from "@/app/openapi-client";
-import type { SearchResults } from "@/app/openapi-client/types.gen";
+import { Search, Searches, Speakers } from "@/app/openapi-client";
+import type { SavedSearch, SearchResults } from "@/app/openapi-client/types.gen";
 import { useRecordingIndex } from "@/components/search/data";
 import { FacetPanel } from "@/components/search/facet-panel";
-import { computeFacets, groupByRecording } from "@/components/search/facets";
+import { fromServer, groupByRecording } from "@/components/search/facets";
 import { hasMedia } from "@/components/search/links";
 import { NoResults } from "@/components/search/no-results";
 import { InlinePlayerBar, useInlinePlayer } from "@/components/search/player";
@@ -31,6 +31,7 @@ import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/states";
+import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { count, plural } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
@@ -63,6 +64,7 @@ export function SearchPage() {
   const router = useRouter();
   const client = useApiClient();
   const qc = useQueryClient();
+  const toast = useToast();
   const { namespaces, can } = useArchive();
   const { q, filters } = useMemo(() => fromParams(new URLSearchParams(params.toString())), [params]);
   const [draft, setDraft] = useState(q);
@@ -103,8 +105,11 @@ export function SearchPage() {
             speaker: filters.speaker,
             emotion: filters.emotion,
             recording: filters.recording,
+            object: filters.object,
             limit: PAGE,
             offset: pageParam,
+            // without filters, the first page brings the facets too
+            facets: nFilters === 0 && pageParam === 0,
           },
         }),
       ),
@@ -119,7 +124,7 @@ export function SearchPage() {
   // Facets and "without filters" counts come from the words alone.
   const base = useQuery({
     queryKey: ["search-base", q],
-    queryFn: () => data(Search.searchTranscripts({ client, query: { q, limit: PAGE } })),
+    queryFn: () => data(Search.searchTranscripts({ client, query: { q, limit: PAGE, facets: true } })),
     enabled: enabled && nFilters > 0,
     staleTime: 30_000,
   });
@@ -127,13 +132,14 @@ export function SearchPage() {
   const baseData = nFilters > 0 ? base.data : first;
   const hits = useMemo(() => results.data?.pages.flatMap((p) => p.hits) ?? [], [results.data]);
   const groups = useMemo(() => groupByRecording(hits), [hits]);
-  const facets = useMemo(() => (baseData ? computeFacets(baseData.hits) : null), [baseData]);
+  const facets = useMemo(() => (baseData?.facets ? fromServer(baseData.facets) : null), [baseData]);
   const total = first?.total ?? 0;
 
   const labels = useMemo(() => {
     const out: Partial<Record<keyof SearchFilters, string>> = {};
     if (filters.namespace) out.namespace = filters.namespace;
     if (filters.emotion) out.emotion = filters.emotion;
+    if (filters.object) out.object = filters.object;
     if (filters.speaker != null) {
       const hit = [...(baseData?.hits ?? []), ...hits].find((h) => h.speaker_id === filters.speaker);
       out.speaker = hit?.speaker ?? `Speaker #${filters.speaker}`;
@@ -184,6 +190,7 @@ export function SearchPage() {
       else issues.push(`You have no namespace called “${typed.namespace}”.`);
     }
     if (typed.emotion) next.emotion = normalizeEmotion(typed.emotion);
+    if (typed.object) next.object = typed.object.trim().toLowerCase();
     if (typed.recording) {
       const want = typed.recording.toLowerCase();
       const all = index.data ?? [];
@@ -209,7 +216,7 @@ export function SearchPage() {
     setDraft(text);
   };
 
-  const chips: Chip[] = (["namespace", "speaker", "emotion", "recording"] as const)
+  const chips: Chip[] = (["namespace", "speaker", "emotion", "recording", "object"] as const)
     .filter((k) => filters[k] != null && filters[k] !== "")
     .map((k) => ({
       key: k,
@@ -218,13 +225,18 @@ export function SearchPage() {
     }));
 
   const saved = useQuery({
-    queryKey: ["collections"],
-    queryFn: () => data(Collections.listCollections({ client })),
+    queryKey: ["saved-searches"],
+    queryFn: () => data(Searches.listSearches({ client })),
     staleTime: 60_000,
   });
-  const savedSearches = saved.data
-    ? saved.data.filter((c) => c.kind === "filter" && typeof (c.filter as { q?: unknown } | null)?.q === "string")
-    : null;
+  const forget = useMutation({
+    mutationFn: (s: SavedSearch) => data(Searches.deleteSearch({ client, path: { sid: s.id } })),
+    onSuccess: (_r, s) => {
+      void qc.invalidateQueries({ queryKey: ["saved-searches"] });
+      toast({ title: `“${s.name}” deleted` });
+    },
+    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t delete the saved search", body: e.message }),
+  });
 
   const chatHref = `/chat?${new URLSearchParams({ q, ...(filters.namespace ? { ns: filters.namespace } : {}), ...(filters.speaker != null ? { speaker: String(filters.speaker) } : {}), ...(filters.recording != null ? { recording: String(filters.recording) } : {}) })}`;
   const runHref = `/batches/new?${new URLSearchParams({ q, from: "search", ...(filters.namespace ? { ns: filters.namespace } : {}), ...(filters.speaker != null ? { speaker: String(filters.speaker) } : {}), ...(filters.recording != null ? { recordings: String(filters.recording) } : {}) })}`;
@@ -242,12 +254,14 @@ export function SearchPage() {
       filters={filters}
       labels={labels}
       loading={enabled && !facets && (results.isLoading || base.isLoading)}
-      partial={(baseData?.total ?? 0) > (baseData?.hits.length ?? 0)}
+      partial={Boolean(baseData?.facets?.partial)}
       onToggle={(k, v) => {
         setFilter(k, v);
         setFiltersOpen(false);
       }}
-      saved={savedSearches}
+      saved={saved.data ?? null}
+      onDeleteSaved={(s) => forget.mutate(s)}
+      deletingSaved={forget.isPending ? (forget.variables?.id ?? null) : null}
     />
   );
 
@@ -417,7 +431,7 @@ export function SearchPage() {
               q={q}
               filters={filters}
               labels={labels}
-              baseTotal={nFilters > 0 ? (base.data?.total ?? null) : 0}
+              baseTotal={nFilters > 0 ? (base.data?.facets?.moments ?? base.data?.total ?? null) : 0}
               nsRecordings={namespaces.find((n) => n.name === filters.namespace)?.recordings as number | undefined}
               onSearch={(nq) => go(nq, filters)}
               onClearFilter={clearFilter}

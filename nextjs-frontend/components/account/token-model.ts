@@ -38,10 +38,18 @@ export const SCOPE_LABEL: Record<string, string> = {
   write: "Read & write",
 };
 
-/** Validates the "Expires after (days)" field like the backend (0–3650, whole days). */
-export function daysError(raw: string): string | null {
-  if (!raw.trim()) return "Enter a number of days (0 never expires)";
+/** How long keys may last (GET /tokens/limits; admins set them). */
+export type TokenLimits = { default_days: number; max_days: number; never_expire: boolean };
+export const NO_LIMITS: TokenLimits = { default_days: 90, max_days: 3650, never_expire: true };
+
+/** Validates the "Expires after (days)" field like the backend: whole days up to the most a key may last, and 0
+ * (never) only when keys may never expire. */
+export function daysError(raw: string, limits: TokenLimits = NO_LIMITS): string | null {
+  const never = limits.never_expire;
+  const range = `Use whole days from ${never ? 0 : 1} to ${limits.max_days}${never ? " (0 never expires)" : ""}`;
+  if (!raw.trim()) return never ? "Enter a number of days (0 never expires)" : "Enter a number of days";
   const n = Number(raw);
-  if (!Number.isInteger(n) || n < 0 || n > 3650) return "Use whole days from 0 to 3650 (0 never expires)";
+  if (!Number.isInteger(n) || n < 0 || n > limits.max_days) return range;
+  if (n === 0 && !never) return `Keys have to expire: use 1 to ${limits.max_days} days`;
   return null;
 }

@@ -77,14 +77,21 @@ export function Segmented({
   value,
   onChange,
   className,
+  label,
 }: {
   items: { value: string; label: ReactNode; icon?: ReactNode }[];
   value: string;
   onChange: (v: string) => void;
   className?: string;
+  /** What the choice is, for screen readers. */
+  label?: string;
 }) {
   return (
-    <div role="radiogroup" className={cn("inline-flex rounded-pill bg-surface-neutral p-1", className)}>
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className={cn("inline-flex rounded-pill bg-surface-neutral p-1", className)}
+    >
       {items.map((it) => (
         <button
           key={it.value}

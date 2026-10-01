@@ -8,10 +8,13 @@ import { keyToAction } from "@/components/player/keys";
 import { PlayerProvider, usePlayerApi, usePlayerState } from "@/components/player/media";
 import { AudioLayout } from "@/components/recording/audio-layout";
 import { RecordingProvider, type PanelTab, type RecordingCtx } from "@/components/recording/context";
+import { DocumentLayout } from "@/components/recording/document/document-layout";
+import { pageAt, pageRef, parsePage } from "@/components/recording/document/model";
 import { usePlayer, useRecording, useRecordingJobs } from "@/components/recording/hooks";
 import { pageState } from "@/components/recording/jobs";
 import { MobileLayout } from "@/components/recording/mobile-layout";
 import { adjacentTurnStart, findInSegments, groupTurns, segmentAt, type EntityRef } from "@/components/recording/model";
+import type { NoteDraft } from "@/components/recording/notes-model";
 import { RecordingSkeleton } from "@/components/recording/skeleton";
 import { RecordingDialogs, type DialogState } from "@/components/recording/dialogs";
 import { VideoLayout, type VideoCommand } from "@/components/recording/video/video-layout";
@@ -26,7 +29,19 @@ import { useMediaQuery } from "@/components/player/use-media-query";
  * The recording page (R1–R9, VR1–VR3): loads the recording, its player data and jobs, derives the page state, and
  * renders the audio or the video layout (desktop or phone) around one media clock.
  */
-export function RecordingPage({ id, start }: { id: number; start: number | null }) {
+export function RecordingPage({
+  id,
+  start,
+  focus = null,
+  page = null,
+}: {
+  id: number;
+  start: number | null;
+  /** A file to open the Files tab on (?file=&line=). */
+  focus?: { file: number; line: number | null } | null;
+  /** A document's page to open on (?page=, from 1). */
+  page?: string | null;
+}) {
   const rec = useRecording(id);
   const jobs = useRecordingJobs(id);
   const state = useMemo(() => pageState(rec.data ?? {}, jobs.data ?? []), [rec.data, jobs.data]);
@@ -80,6 +95,8 @@ export function RecordingPage({ id, start }: { id: number; start: number | null 
       key={id}
       id={id}
       start={start}
+      focus={focus}
+      page={page}
       rec={rec.data}
       model={player.data}
       state={state}
@@ -92,7 +109,8 @@ function PlayerShell(props: Omit<InnerProps, "turns" | "speakers">) {
   const [announcement, setAnnouncement] = useState("");
   const turns = useMemo(() => groupTurns(props.model.segments), [props.model.segments]);
   const speakers = useMemo(() => new Map(props.model.speakers.map((s) => [s.key, s])), [props.model.speakers]);
-  // The current line is announced only when someone seeks, never during playback.
+  // The current line is announced only when someone seeks, never during playback (a document's: with its page).
+  const paged = props.model.media.kind === "document" || props.model.media.kind === "image";
   const onSeek = useCallback(
     (ms: number, manual: boolean) => {
       if (!manual) return;
@@ -100,9 +118,10 @@ function PlayerShell(props: Omit<InnerProps, "turns" | "speakers">) {
       const seg = i >= 0 ? props.model.segments[i] : null;
       const who = seg?.speaker ? speakers.get(seg.speaker)?.name : null;
       const text = seg ? (seg.text.length > 140 ? `${seg.text.slice(0, 137)}…` : seg.text) : "";
-      setAnnouncement(`${tc(ms)}${who ? `, ${who}` : ""}${text ? `: ${text}` : ""}`);
+      const at = paged ? pageRef(props.model.pages, pageAt(props.model.segments, ms)) : tc(ms);
+      setAnnouncement(`${at}${who ? `, ${who}` : ""}${text ? `: ${text}` : ""}`);
     },
-    [props.model.segments, speakers],
+    [props.model.segments, props.model.pages, paged, speakers],
   );
   const hasMedia = Boolean(props.model.audio);
   return (
@@ -123,6 +142,8 @@ function PlayerShell(props: Omit<InnerProps, "turns" | "speakers">) {
 type InnerProps = {
   id: number;
   start: number | null;
+  focus: RecordingCtx["fileFocus"];
+  page: string | null;
   rec: RecordingCtx["rec"];
   model: RecordingCtx["model"];
   state: RecordingCtx["state"];
@@ -131,23 +152,36 @@ type InnerProps = {
   speakers: RecordingCtx["speakers"];
 };
 
-function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerProps) {
+function Inner({ id, start, focus, page, rec, model, state, jobs, turns, speakers }: InnerProps) {
   const api = usePlayerApi();
   const { hasMedia } = usePlayerState();
-  const { roleIn, can } = useArchive();
+  const { roleIn, can, admin } = useArchive();
   const ns = rec.namespace ?? model.namespace;
   const role = rec.role ?? roleIn(ns);
   const canEdit = role === "editor" || role === "owner" || can("editor", ns);
+  const canEditNamespace = can("editor", ns);
+  const member = admin || roleIn(ns) !== undefined;
   const video = model.media.kind === "video";
+  const paged = model.media.kind === "document" || model.media.kind === "image";
   const compact = useMediaQuery("(max-width: 1023px)");
+  const where = useCallback(
+    (ms: number) => (paged ? pageRef(model.pages, pageAt(model.segments, ms)) : tc(ms)),
+    [paged, model.pages, model.segments],
+  );
+  const startPage = paged ? parsePage(page, model.pages.length || model.media.pages || 1) : null;
 
   const [findOpen, setFindOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [hitIndex, setHitIndex] = useState(0);
   const hits = useMemo(() => findInSegments(model.segments, query), [model.segments, query]);
   const [selected, select] = useState<EntityRef | null>(null);
-  const [tab, setTab] = useState<PanelTab>(video ? (compact ? "transcript" : "text") : "summary");
+  const [tab, setTab] = useState<PanelTab>(
+    focus ? "files" : paged ? "pages" : video ? (compact ? "transcript" : "text") : "summary",
+  );
   const [chatDraft, setChatDraft] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState<NoteDraft | null>(null);
+  const [commentDraft, setCommentDraft] = useState<NoteDraft | null>(null);
+  const [highlightFocus, setHighlightFocus] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const videoCmd = useRef<((c: VideoCommand) => void) | null>(null);
@@ -159,6 +193,11 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
     started.current = true;
     api.seek(start * 1000, { manual: true });
   }, [api, start]);
+
+  // #access (Home's "Needs attention" and access request emails link that way) opens the access settings.
+  useEffect(() => {
+    if (window.location.hash === "#access") setDialog({ kind: "access" });
+  }, []);
 
   const value = useMemo<RecordingCtx>(
     () => ({
@@ -172,7 +211,12 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
       ns,
       role,
       canEdit,
-      transcriptOnly: !model.audio,
+      canEditNamespace,
+      member,
+      transcriptOnly: !model.audio && !paged,
+      paged,
+      where,
+      startPage,
       find: {
         open: findOpen,
         query,
@@ -185,16 +229,38 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
       entity: { selected, select },
       tab,
       setTab,
+      fileFocus: focus,
       chatDraft,
       askInChat: (quote) => {
         setChatDraft(quote);
         setTab("chat");
       },
       clearChatDraft: () => setChatDraft(null),
+      noteDraft,
+      addNote: (draft) => {
+        setNoteDraft(draft);
+        setTab("notes");
+      },
+      clearNoteDraft: () => setNoteDraft(null),
+      commentDraft,
+      addComment: (draft) => {
+        setCommentDraft(draft);
+        setTab("comments");
+      },
+      clearCommentDraft: () => setCommentDraft(null),
+      highlightFocus,
+      focusHighlight: (hid) => {
+        setHighlightFocus(hid);
+        if (hid != null) setTab("highlights");
+      },
       editing,
       setEditing,
       openReprocess: () => setDialog({ kind: "reprocess" }),
       openShare: (startMs) => setDialog({ kind: "share", startMs }),
+      openRename: () => setDialog({ kind: "rename" }),
+      openAccess: () => setDialog({ kind: "access" }),
+      openAttach: () => setDialog({ kind: "attach" }),
+      openCollection: () => setDialog({ kind: "collection" }),
     }),
     [
       id,
@@ -207,19 +273,29 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
       ns,
       role,
       canEdit,
+      canEditNamespace,
+      member,
+      paged,
+      where,
+      startPage,
       findOpen,
       query,
       hits,
       hitIndex,
       selected,
       tab,
+      focus,
       chatDraft,
+      noteDraft,
+      commentDraft,
+      highlightFocus,
       editing,
     ],
   );
 
-  // Player shortcuts (handoff): Space, J/L, ←/→, ↑/↓, /; video adds , . Shift+←/→ C F T.
+  // Player shortcuts (handoff): Space, J/L, ←/→, ↑/↓, /; video adds , . Shift+←/→ C F T. A document's are its own.
   useEffect(() => {
+    if (paged) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
       const a = keyToAction(e, video ? "video" : "audio");
@@ -254,18 +330,20 @@ function Inner({ id, start, rec, model, state, jobs, turns, speakers }: InnerPro
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [api, hasMedia, turns, video]);
+  }, [api, hasMedia, turns, video, paged]);
 
   return (
     <RecordingProvider value={value}>
-      {video ? (
+      {paged ? (
+        <DocumentLayout compact={compact} />
+      ) : video ? (
         <VideoLayout compact={compact} onCommand={(fn) => (videoCmd.current = fn)} />
       ) : compact ? (
         <MobileLayout />
       ) : (
         <AudioLayout />
       )}
-      {!video && model.audio && <AudioElement src={model.audio} />}
+      {!video && !paged && model.audio && <AudioElement src={model.audio} />}
       <RecordingDialogs state={dialog} onClose={() => setDialog(null)} />
     </RecordingProvider>
   );

@@ -3,6 +3,8 @@
  * ("SPEAKER_00 = Host A", one per line) that becomes the API's `speakers` string ("SPEAKER_00=Host A,...").
  * Pure functions, tested in __tests__/import-files.test.ts.
  */
+import type { UploadLimits } from "@/app/openapi-client/types.gen";
+import { bytes } from "@/lib/format";
 
 /** Transcript types the importer reads (the backend's IMPORT_EXT). */
 export const TRANSCRIPT_EXT = [
@@ -19,14 +21,77 @@ export const TRANSCRIPT_EXT = [
   ".vtt",
 ];
 const AUDIO_EXT = [".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".wma", ".aif", ".aiff", ".amr", ".weba"];
-const VIDEO_EXT = [".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v", ".mpg", ".mpeg"];
+const VIDEO_EXT = [".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v", ".mpg", ".mpeg", ".3gp"];
+/** Documents and images (the backend's DOCUMENT_EXT and IMAGE_EXT): uploaded in pieces, their pages drawn and read.
+ * Documents other than PDFs are made into PDFs on the server first: Office and OpenDocument files by LibreOffice;
+ * text, Markdown, saved web pages and emails by Chromium (or LibreOffice). */
+const OFFICE_EXT = [".doc", ".docx", ".odt", ".rtf", ".ppt", ".pptx", ".odp", ".xls", ".xlsx", ".ods"];
+const TEXT_DOC_EXT = [".txt", ".text", ".md", ".markdown", ".mdx"];
+const PAGE_EXT = [".html", ".htm"];
+const EMAIL_EXT = [".eml", ".msg"];
+export const DOCUMENT_EXT = [".pdf", ...OFFICE_EXT, ...TEXT_DOC_EXT, ...PAGE_EXT, ...EMAIL_EXT];
+export const IMAGE_EXT = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp"];
+/** What a document is, in words (the backend's convert.WORDS). */
+const DOCUMENT_NAME: Record<string, string> = {
+  ".pdf": "PDF document",
+  ".doc": "Word document",
+  ".docx": "Word document",
+  ".odt": "OpenDocument text",
+  ".rtf": "RTF document",
+  ".ppt": "PowerPoint presentation",
+  ".pptx": "PowerPoint presentation",
+  ".odp": "OpenDocument presentation",
+  ".xls": "Excel spreadsheet",
+  ".xlsx": "Excel spreadsheet",
+  ".ods": "OpenDocument spreadsheet",
+  ".txt": "Text document",
+  ".text": "Text document",
+  ".md": "Markdown document",
+  ".markdown": "Markdown document",
+  ".mdx": "MDX document",
+  ".html": "Web page",
+  ".htm": "Web page",
+  ".eml": "Email",
+  ".msg": "Outlook email",
+};
 
 export const SUPPORTED_LIST = "txt, md, mdx, docx, doc, pdf, srt, vtt, json, jsonl";
 
-/** The upload limit when the server doesn't tell us (settings → server.max_upload_mb defaults to 50). */
-export const DEFAULT_MAX_MB = 50;
+/** What the server accepts until GET /uploads/limits answers: the defaults of Settings → Uploads and
+ * server.max_upload_mb. */
+export const DEFAULT_LIMITS: UploadLimits = {
+  max_mb: 4096,
+  extensions: [
+    ".aac",
+    ".amr",
+    ".avi",
+    ".bmp",
+    ".flac",
+    ".gif",
+    ".jpeg",
+    ".jpg",
+    ".m4a",
+    ".m4v",
+    ".mkv",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".ogg",
+    ".opus",
+    ".png",
+    ".tif",
+    ".tiff",
+    ".wav",
+    ".webm",
+    ".webp",
+    ...DOCUMENT_EXT,
+  ].sort(),
+  chunk_mb: 8,
+  transcript_mb: 50,
+  convert: { office: true, pages: true, msg: false },
+};
 
-export type FileKind = "transcript" | "audio" | "video" | "unsupported";
+export type FileKind = "transcript" | "audio" | "video" | "document" | "image" | "unsupported";
 
 export function extOf(name: string): string {
   const i = name.lastIndexOf(".");
@@ -38,12 +103,56 @@ export function stemOf(name: string): string {
   return i > 0 ? name.slice(0, i) : name;
 }
 
+/** What a file becomes: a document (PDFs, Office files, text, Markdown, web pages, emails; unless someone chooses a
+ * transcript, see canBeTranscript), an image, a transcript (subtitles and JSON), audio or video. */
 export function kindOf(name: string): FileKind {
   const ext = extOf(name);
+  if (DOCUMENT_EXT.includes(ext)) return "document";
+  if (IMAGE_EXT.includes(ext)) return "image";
   if (TRANSCRIPT_EXT.includes(ext)) return "transcript";
   if (AUDIO_EXT.includes(ext)) return "audio";
   if (VIDEO_EXT.includes(ext)) return "video";
   return "unsupported";
+}
+
+/** Files that go up in pieces as they are (audio, video, documents and images); transcripts are read first. */
+export function isUpload(kind: FileKind): boolean {
+  return kind === "audio" || kind === "video" || kind === "document" || kind === "image";
+}
+
+/** The audio and video types the server takes (for a picker of media only). */
+export function mediaTypes(limits: UploadLimits): string {
+  return limits.extensions.filter((e) => AUDIO_EXT.includes(e) || VIDEO_EXT.includes(e)).join(",");
+}
+
+/** A document that can be imported as a transcript instead (its text only): a PDF, a Word, text or Markdown file. */
+export function canBeTranscript(name: string): boolean {
+  const ext = extOf(name);
+  return DOCUMENT_EXT.includes(ext) && TRANSCRIPT_EXT.includes(ext);
+}
+
+/** Why this server can't read a document (null when it can, or for a PDF): what it would need. */
+export function conversionProblem(name: string, limits: UploadLimits = DEFAULT_LIMITS): string | null {
+  const ext = extOf(name);
+  const can = limits.convert;
+  if (!DOCUMENT_EXT.includes(ext) || ext === ".pdf" || !can) return null;
+  if (OFFICE_EXT.includes(ext))
+    return can.office ? null : "Reading it needs LibreOffice on the server (the lens:full image).";
+  if (ext === ".msg") return can.msg ? null : "Reading Outlook emails needs the extract-msg package on the server.";
+  return can.pages ? null : "Reading it needs Chromium or LibreOffice on the server (the lens:full image).";
+}
+
+/** What a file becomes unless someone chooses otherwise: a document where this server can read it as one, else the
+ * transcript it can be. */
+export function defaultKind(name: string, limits: UploadLimits = DEFAULT_LIMITS): FileKind {
+  const kind = kindOf(name);
+  return kind === "document" && conversionProblem(name, limits) && canBeTranscript(name) ? "transcript" : kind;
+}
+
+/** What a file to upload is, in words: "Video", "Audio", "PDF document", "Word document", "Email", "Image". */
+export function uploadKindName(kind: FileKind, name?: string): string {
+  if (kind === "document") return DOCUMENT_NAME[extOf(name ?? "")] ?? "Document";
+  return kind === "video" ? "Video" : kind === "image" ? "Image" : "Audio";
 }
 
 const FORMAT_NAME: Record<string, string> = {
@@ -78,37 +187,77 @@ export function titleFromName(name: string): string {
 }
 
 export type Problem = {
-  code: "unsupported" | "audio" | "too-large" | "unreadable" | "empty";
+  code: "unsupported" | "too-large" | "unreadable" | "empty";
   title: string;
   body: string;
 };
 
-/** Why a file can't be imported before we even send it; null when it can be tried. */
-export function localProblem(file: { name: string; size: number }, maxMb = DEFAULT_MAX_MB): Problem | null {
-  const kind = kindOf(file.name);
+const MB = 1024 * 1024;
+
+/** Why a file can't be imported before we even send it (as `kind`: what it is, or the transcript it's read as); null
+ * when it can be tried. */
+export function localProblem(
+  file: { name: string; size: number },
+  limits: UploadLimits = DEFAULT_LIMITS,
+  kind: FileKind = kindOf(file.name),
+): Problem | null {
   const ext = extOf(file.name);
-  if (kind === "audio" || kind === "video") {
-    return {
-      code: "audio",
-      title: `${kind === "video" ? "Video" : "Audio"} can’t be uploaded here yet`,
-      body: "Put it in a watched folder instead: sources pick up audio and video, and have no size limit. Transcripts can be imported here.",
-    };
+  if (isUpload(kind)) {
+    const convert = kind === "document" ? conversionProblem(file.name, limits) : null;
+    if (convert)
+      return {
+        code: "unsupported",
+        title: `This server can’t read ${uploadKindName(kind, file.name).toLowerCase()}s`,
+        body: canBeTranscript(file.name) ? `${convert} Import it as a transcript instead.` : convert,
+      };
+    if (!limits.extensions.includes(ext))
+      return {
+        code: "unsupported",
+        title: `${ext.slice(1).toUpperCase()} files can’t be uploaded here`,
+        body: `This server takes ${limits.extensions.map((e) => e.slice(1)).join(", ")}. Convert it to one of those, or ask an admin to allow ${ext} files in Settings → Uploads.`,
+      };
+    if (file.size > limits.max_mb * MB)
+      return {
+        code: "too-large",
+        title: `Too large to upload here (limit ${bytes(limits.max_mb * MB)})`,
+        body:
+          kind === "audio" || kind === "video"
+            ? "Put it in a watched folder instead — sources have no size limit — or compress it to m4a or opus."
+            : "Split it into smaller files, or ask an admin to raise the limit in Settings → Uploads.",
+      };
+    return null;
   }
   if (kind === "unsupported") {
     return {
       code: "unsupported",
       title: `${ext ? ext.slice(1).toUpperCase() : "These"} files can’t be imported`,
-      body: `Save it as .docx, .pdf or plain text and drop it again. Supported transcripts: ${SUPPORTED_LIST}.`,
+      body: `Save it as .docx, .pdf or plain text and drop it again. Supported: documents (PDF, Office, text, web pages, emails), images, audio, video, and transcripts (${SUPPORTED_LIST}).`,
     };
   }
-  if (file.size > maxMb * 1024 * 1024) {
+  if (file.size > limits.transcript_mb * MB) {
     return {
       code: "too-large",
-      title: `Too large to upload here (limit ${maxMb} MB)`,
+      title: `Too large to upload here (limit ${limits.transcript_mb} MB)`,
       body: "Put it in a watched folder instead — sources have no size limit — or split it into smaller files.",
     };
   }
   return null;
+}
+
+/** A file as `kind`: uploads (audio, video, documents, images) are ready as they are; transcripts are read first (the
+ * preview); a file that can't be imported is blocked, with why. */
+export function asKind(
+  file: { name: string; size: number },
+  kind: FileKind,
+  limits: UploadLimits,
+): { kind: FileKind; status: "ready" | "reading" | "blocked"; problem?: Problem; preview: undefined } {
+  const problem = localProblem(file, limits, kind);
+  return {
+    kind,
+    status: problem ? "blocked" : isUpload(kind) ? "ready" : "reading",
+    problem: problem ?? undefined,
+    preview: undefined,
+  };
 }
 
 /** What the server said when it couldn't read a transcript, as a problem card. */
@@ -119,7 +268,7 @@ export function readProblem(message: string, name: string): Problem {
       ? {
           code: "empty",
           title: "This PDF has no text to import",
-          body: "It may be a scan. Export the text (or a .docx) from wherever it was typed and drop that instead.",
+          body: "It may be a scan. Import it as a document instead: its pages are kept and read by OCR.",
         }
       : {
           code: "empty",
@@ -223,9 +372,53 @@ export function fileToBase64(file: Blob): Promise<string> {
   });
 }
 
+/** "Then run": the namespace's own pipeline (value "", the default), then every saved pipeline. */
+export function pipelineOptions(
+  namespaceDefault: string,
+  pipelines: { id: number; name: string }[],
+): { value: string; label: string }[] {
+  return [
+    { value: "", label: `${namespaceDefault} (the namespace’s)` },
+    ...pipelines.map((p) => ({ value: String(p.id), label: p.name })),
+  ];
+}
+
+/** Files of a source that can be imported: audio, video, documents, images and transcripts (not folders or others). */
+export function importable(entry: { name: string; dir: boolean }): boolean {
+  return !entry.dir && !entry.name.startsWith(".") && kindOf(entry.name) !== "unsupported";
+}
+
+/** What importing chosen files of a source did, in one line: "2 imported · 1 already here · 1 skipped". */
+export function sourceImportSummary(results: { status: string }[]): string {
+  const n = (s: string) => results.filter((r) => r.status === s).length;
+  return [
+    n("queued") ? `${n("queued")} imported` : null,
+    n("already") ? `${n("already")} already here` : null,
+    n("skipped") ? `${n("skipped")} skipped` : null,
+    n("error") ? `${n("error")} failed` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export function namespaceNameProblem(name: string): string | null {
   if (!name) return "Choose a namespace.";
   return /^[a-z0-9][a-z0-9_-]{0,40}$/.test(name)
     ? null
     : "Use lowercase letters, digits, - and _ (up to 41 characters), starting with a letter or digit.";
+}
+
+/** Why a web address can't be captured as it's typed (null when it can be tried): the server checks the rest. */
+export function webAddressProblem(text: string): string | null {
+  const t = text.trim();
+  if (!t) return "Give the page’s address.";
+  let u: URL;
+  try {
+    u = new URL(t);
+  } catch {
+    return "That isn’t a web address: it starts with https:// or http://.";
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return "Only web pages can be captured: https:// or http://.";
+  if (u.username || u.password) return "Leave the user name and password out of the address.";
+  return null;
 }

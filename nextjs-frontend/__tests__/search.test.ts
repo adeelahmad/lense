@@ -1,6 +1,6 @@
 import type { SearchHit } from "@/app/openapi-client/types.gen";
-import { computeFacets, groupByRecording } from "@/components/search/facets";
-import { recordingHref } from "@/components/search/links";
+import { fromServer, groupByRecording } from "@/components/search/facets";
+import { foundAs, onPage, recordingHref } from "@/components/search/links";
 import {
   activeFilterCount,
   filterToken,
@@ -10,6 +10,9 @@ import {
   parseQuery,
   phrases,
   prefixWords,
+  replacePrefix,
+  savedSearchFilters,
+  savedSearchHref,
   toParams,
 } from "@/components/search/query";
 import { decodeEntities, snippetText, splitSnippet } from "@/components/search/snippet";
@@ -136,16 +139,50 @@ describe("facets and groups", () => {
     }),
   ];
 
-  it("counts values and tells same-named speakers apart", () => {
-    const f = computeFacets(hits);
+  it("shows the server's counts and tells same-named speakers apart", () => {
+    const f = fromServer({
+      moments: 3,
+      partial: false,
+      namespaces: [
+        { name: "podcasts", count: 2 },
+        { name: "customer-calls", count: 1 },
+      ],
+      speakers: [
+        { id: 2, name: "Alice", namespace: "podcasts", count: 1 },
+        { id: 1, name: "Bob", namespace: "podcasts", count: 1 },
+        { id: 5, name: "Alice", namespace: "customer-calls", count: 1 },
+      ],
+      emotions: [
+        { name: "Neutral", count: 1 },
+        { name: "Surprise", count: 1 },
+      ],
+      recordings: [
+        { id: 1, title: "Episode 12", count: 2 },
+        { id: 3, title: null, count: 1 },
+      ],
+    });
     expect(f.namespaces.map((x) => [x.key, x.count])).toEqual([
       ["podcasts", 2],
       ["customer-calls", 1],
     ]);
     expect(f.speakers.find((s) => s.key === "2")?.sub).toBe("podcasts");
     expect(f.speakers.find((s) => s.key === "1")?.sub).toBeUndefined();
-    expect(f.emotions.map((e) => e.key).sort()).toEqual(["Neutral", "Surprise"]);
-    expect(f.recordings[0]).toMatchObject({ key: "1", count: 2, id: 1 });
+    expect(f.emotions.map((e) => e.key)).toEqual(["Neutral", "Surprise"]);
+    expect(f.recordings).toEqual([
+      { key: "1", id: 1, label: "Episode 12", count: 2 },
+      { key: "3", id: 3, label: "Recording 3", count: 1 },
+    ]);
+    expect(fromServer({ moments: 0, partial: false })).toEqual({
+      namespaces: [],
+      speakers: [],
+      emotions: [],
+      recordings: [],
+      objects: [],
+    });
+    // kinds of object, counted in recordings, named as the resource page names them
+    expect(fromServer({ moments: 1, partial: false, objects: [{ name: "cell phone", count: 2 }] }).objects).toEqual([
+      { key: "cell phone", label: "Cell phone", count: 2 },
+    ]);
   });
 
   it("groups by recording in rank order with moments in time order", () => {
@@ -155,7 +192,69 @@ describe("facets and groups", () => {
   });
 
   it("links to the moment in whole seconds", () => {
-    expect(recordingHref(12, 869_400)).toBe("/recordings/12?t=869");
-    expect(recordingHref(12, 0)).toBe("/recordings/12");
+    expect(recordingHref(12, 869_400)).toBe("/resources/12?t=869");
+    expect(recordingHref(12, 0)).toBe("/resources/12");
+  });
+
+  it("says where what wasn't said was found: on screen, on a page, seen, or what a shot or page shows", () => {
+    expect(foundAs({ source: "said", page: null })).toBeNull();
+    expect(foundAs({ source: "screen", page: null })).toBe("On screen");
+    expect(foundAs({ source: "page", page: 2 })).toBe("On the page");
+    expect(foundAs({ source: "object", page: null })).toBe("Seen on screen");
+    expect(foundAs({ source: "object", page: 0 })).toBe("Seen on the page");
+    expect(foundAs({ source: "described", page: null })).toBe("What the shot shows");
+    expect(foundAs({ source: "described", page: 1 })).toBe("What the page shows");
+    expect(foundAs({ source: "file", page: null })).toBeNull();
+    expect([onPage({ source: "described", page: 1 }), onPage({ source: "described", page: null })]).toEqual([
+      true,
+      false,
+    ]);
+  });
+});
+
+describe("saved searches", () => {
+  const saved = {
+    q: '"capsid model" OR exploit',
+    namespace: "podcasts",
+    speaker: 2,
+    speaker_name: "Alice",
+    emotion: "Happy",
+    recording: 12,
+    recording_title: "Episode 12",
+  };
+  it("open the search page with every filter", () => {
+    expect(savedSearchHref(saved)).toBe(
+      "/search?q=%22capsid+model%22+OR+exploit&ns=podcasts&speaker=2&emotion=Happy&recording=12",
+    );
+    expect(savedSearchHref({ q: "capsid" })).toBe("/search?q=capsid");
+  });
+  it("say their filters by name", () => {
+    expect(savedSearchFilters(saved)).toBe("podcasts · Alice · Happy · Episode 12");
+    expect(savedSearchFilters({ q: "x", speaker: 7, recording: 3 })).toBe("Speaker #7 · Recording #3");
+    expect(savedSearchFilters({ q: "x" })).toBe("");
+  });
+});
+
+describe("the object filter", () => {
+  it("is typed, kept in the address and saved", () => {
+    expect(parseQuery('harbour object:car speaker:"Host B"')).toEqual({
+      text: "harbour",
+      typed: { object: "car", speaker: "Host B" },
+    });
+    const p = toParams("harbour", { object: "cell phone" });
+    expect(p).toBe("q=harbour&object=cell+phone");
+    expect(fromParams(new URLSearchParams(p)).filters).toEqual({ object: "cell phone" });
+    expect(activeFilterCount({ object: "car", namespace: "pods" })).toBe(2);
+    expect(savedSearchHref({ q: "harbour", object: "car" })).toBe("/search?q=harbour&object=car");
+    expect(savedSearchFilters({ q: "harbour", namespace: "pods", object: "car" })).toBe("pods · with car");
+  });
+});
+
+describe("prefix words", () => {
+  it("are replaced by the whole word picked", () => {
+    expect(replacePrefix("interp* models", "interp", "interpretability")).toBe("interpretability models");
+    expect(replacePrefix('evals "red team" interp**', "interp", "interpreter")).toBe('evals "red team" interpreter');
+    expect(replacePrefix("misinterp* interp*", "interp", "interpret")).toBe("misinterp* interpret");
+    expect(replacePrefix("a.b* c", "a.b", "a.bc")).toBe("a.bc c");
   });
 });

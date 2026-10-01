@@ -10,8 +10,9 @@ soundtrack, and three more steps look at the picture. Each step skips itself for
   - Engines: Tesseract (installed in the Docker image), Apple Vision on a Mac (`pip install -e ".[mac-ocr]"`, run it
     in a worker on the Mac), or RapidOCR.
   - On-screen text is searchable (results say whether a hit was said or shown), cited by chat, and correctable
-    (`PATCH /api/v1/recordings/<id>/ocr/<span>`).
-- `faces`: detects faces in the sampled frames.
+    (`PATCH /api/v1/resources/<id>/ocr/<span>`).
+- `faces`: detects faces in the sampled frames, and on the pages of documents and images, where a face's track says
+  which pages it's on rather than its time on screen ([API](api.md#documents-and-images)).
   - Where a namespace allows it, faces are grouped per recording and matched against that namespace's people, the way
     voices are: auto-match, review, or new.
   - When a face is on screen while one speaker talks, the app suggests they're the same person.
@@ -25,13 +26,20 @@ Faces are biometric data, so they are off by default. A namespace owner chooses:
 - `detect`: boxes and screen time, but no identities and no face descriptors kept.
 - `recognize`: identities. This requires a stated purpose, which is recorded with who set it.
 
-`PUT /api/v1/namespaces/<ns>/faces/mode` sets the mode.
+`PUT /api/v1/namespaces/<ns>/faces/mode` sets the mode; with `reprocess` it queues the faces step for the namespace's
+videos, documents and images.
 
 - Leaving recognition deletes the namespace's face descriptors.
 - Turning faces off deletes all face data.
 - Owners can delete one person's face data or a whole namespace's.
 - Every change is audited.
 - Face crops follow the recording's access rules, and faces never go into IIIF unless `video.publish_faces` is on.
+- An owner can have the faces found **pixelated for visitors** (`pixelate` on the same call): in the pictures a
+  request without a role in the namespace gets (public pages, embeds, share links, IIIF), each face found becomes a
+  few blocks, a margin around it too, on frames, keyframes, pages and thumbnails. Members see the pictures as they are,
+  signed in or through the links the API signs for them (marked `full=1`, signed with the rest). It goes by the
+  faces found, so it needs detection on; turning faces off turns it off too. Faces missed by the detector, and tracks
+  an editor marked as not a face, aren't pixelated.
 
 A published video recording becomes a IIIF Video on a Canvas with its width, height and duration. It gets a thumbnail,
 a "Text on screen" annotation layer targeting `#xywh=…&t=…`, and its shots as a Range.

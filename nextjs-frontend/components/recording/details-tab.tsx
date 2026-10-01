@@ -7,12 +7,16 @@ import {
   FileVideo,
   Film,
   GitCommitHorizontal,
+  Globe,
+  Mail,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { uploadKindName } from "@/components/import/files";
 import { useRec } from "@/components/recording/context";
+import { emailRows, renditionNote, webRows, type EmailInfo } from "@/components/recording/document/model";
 import { sourceLabel, transcriptOrigin } from "@/components/recording/labels";
 import { Button } from "@/components/ui/button";
 import { absolute, bytes, count, plural, tc } from "@/lib/format";
@@ -21,7 +25,7 @@ type Row = [string, ReactNode, boolean?];
 
 /** Details tab (Recording Pages §2): file, streams, provenance and processing — what the recording row records. */
 export function DetailsTab() {
-  const { rec, model } = useRec();
+  const { rec, model, paged } = useRec();
   const video = model.media.kind === "video";
   const src = sourceLabel(rec);
   // Pasted transcripts have no file name ("paste:<hash>" is an internal key); uploads drop their "upload:" prefix.
@@ -32,16 +36,41 @@ export function DetailsTab() {
         .split(/[\\/]/)
         .pop()
         ?.replace(/^upload:/, "") || null;
+  const ocrPages = model.pages.filter((p) => p.text === "ocr").length;
   const file: Row[] = [
     ["Name", name, true],
-    ["Kind", video ? "Video" : model.audio ? "Audio" : "Transcript only (no audio)"],
-    ["Duration", tc(model.durationMs)],
+    [
+      "Kind",
+      model.media.kind === "document"
+        ? uploadKindName("document", name ?? "")
+        : model.media.kind === "image"
+          ? "Image"
+          : video
+            ? "Video"
+            : model.audio
+              ? "Audio"
+              : "Transcript only (no audio)",
+    ],
+    paged ? ["Pages", count(model.pages.length)] : ["Duration", tc(model.durationMs)],
     ["Size", rec.size ? bytes(rec.size) : null],
-    ["Transcript", [plural(model.segments.length, "line"), transcriptOrigin(rec.engine)].filter(Boolean).join(" · ")],
+    paged
+      ? [
+          "Text",
+          [plural(model.segments.length, "block"), ocrPages ? `${plural(ocrPages, "page")} read by OCR` : null]
+            .filter(Boolean)
+            .join(" · "),
+        ]
+      : [
+          "Transcript",
+          [plural(model.segments.length, "line"), transcriptOrigin(rec.engine)].filter(Boolean).join(" · "),
+        ],
     ["Language", rec.language && !["none", "nospeech"].includes(rec.language) ? rec.language.toUpperCase() : null],
   ];
   const media: Row[] = [
-    ["Frame size", model.media.width && model.media.height ? `${model.media.width}×${model.media.height}` : null],
+    [
+      paged ? "Page size" : "Frame size",
+      model.media.width && model.media.height ? `${model.media.width}×${model.media.height}` : null,
+    ],
     ["Frame rate", model.media.fps ? `${Math.round(model.media.fps * 100) / 100} fps` : null],
     [
       "Channels",
@@ -64,7 +93,11 @@ export function DetailsTab() {
   const processing: Row[] = [
     [
       "Transcribe",
-      rec.transcribed_at ? `${transcriptOrigin(rec.engine) ?? "done"} · ${absolute(rec.transcribed_at)}` : "not run",
+      rec.transcribed_at
+        ? [renditionNote(rec.rendition), transcriptOrigin(rec.engine) ?? "done", absolute(rec.transcribed_at)]
+            .filter(Boolean)
+            .join(" · ")
+        : "not run",
     ],
     [
       "Diarize",
@@ -111,9 +144,28 @@ export function DetailsTab() {
       </div>
       <Group icon={video ? FileVideo : model.audio ? FileAudio : FileText} title="File" rows={file} />
       {(video || rec.channels) && <Group icon={Film} title={video ? "Video and audio" : "Audio"} rows={media} />}
+      {rec.email && <Group icon={Mail} title="Email" rows={emailRows(rec.email as EmailInfo, absolute)} />}
+      {rec.web && (
+        <Group
+          icon={Globe}
+          title="Web page"
+          rows={webRows(rec.web, absolute).map(
+            ([k, v]): Row => (/^https?:\/\//.test(v) ? [k, <WebLink key={k} href={v} />, true] : [k, v]),
+          )}
+        />
+      )}
       <Group icon={GitCommitHorizontal} title="Provenance" rows={provenance} />
       <Group icon={Workflow} title="Processing" rows={processing} />
     </>
+  );
+}
+
+/** A web address that opens in a new tab. */
+function WebLink({ href }: { href: string }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-fg-accent hover:underline">
+      {href}
+    </a>
   );
 }
 

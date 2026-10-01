@@ -1,9 +1,10 @@
 """IIIF: each recording is a Presentation 3.0 Manifest, each namespace a Collection. Also Content Search 2.0,
 Content State 1.0 links, Change Discovery 1.0 and importing IIIF audio published elsewhere.
 
-What a Manifest carries depends on the recording's access (see metadata.ACCESS): open resources are plain links;
-protected ones carry IIIF Authorization Flow 2.0 probe services (see iiif_auth), and transcript layers are only
-published when the transcript is open.
+IIIF publishes public recordings (see access.py and docs/access.md). A public recording's open parts are plain links;
+closed ones carry IIIF Authorization Flow 2.0 probe services (see iiif_auth), transcript layers are only published
+when the transcript is open, and chapters only when the index is. Restricted and private recordings are left out of
+collections unless the requester may read them.
 """
 
 from __future__ import annotations
@@ -20,7 +21,22 @@ import urllib.parse
 import urllib.request
 from collections import Counter
 
-from . import ingest, metadata as md, pipelines, render, settings, speakers as spk, store
+from . import (
+    access as acc,
+    convert,
+    deletion,
+    documents,
+    fields as fieldmod,
+    files as filemod,
+    hierarchy,
+    ingest,
+    metadata as md,
+    pipelines,
+    render,
+    settings,
+    speakers as spk,
+    store,
+)
 
 R = store.R
 P3 = "http://iiif.io/api/presentation/3/context.json"
@@ -28,7 +44,6 @@ SEARCH2 = "http://iiif.io/api/search/2/context.json"
 AUTH2 = "http://iiif.io/api/auth/2/context.json"
 DISCOVERY1 = "http://iiif.io/api/discovery/1/context.json"
 JSONLD = 'application/ld+json;profile="http://iiif.io/api/presentation/3/context.json"'
-OPEN_TRANSCRIPT = ("public", "transcript")
 LAYERS = {
     "transcript": "Transcript",
     "speakers": "Speakers",
@@ -67,7 +82,7 @@ def site_label(cfg, base):
     return (cfg["iiif"].get("provider") or {}).get("name") or urllib.parse.urlsplit(base).netloc or "Lens Archive"
 
 
-def probe_service(cfg, base, rid, what):
+def probe_service(cfg, base, rid, what, heading="Sign in to listen"):
     site = site_label(cfg, base)
     return {
         "id": f"{base}/iiif/auth/probe/{rid}/{what}",
@@ -78,7 +93,7 @@ def probe_service(cfg, base, rid, what):
                 "type": "AuthAccessService2",
                 "profile": "active",
                 "label": lm(f"Sign in to {site}", "en"),
-                "heading": lm("Sign in to listen", "en"),
+                "heading": lm(heading, "en"),
                 "note": lm(f"{site} requires an account with access to this collection.", "en"),
                 "confirmLabel": lm("Sign in", "en"),
                 "service": [
@@ -88,6 +103,58 @@ def probe_service(cfg, base, rid, what):
             }
         ],
     }
+
+
+def page_canvases(m, pages):
+    """A document's or an image's pages as canvases: {page: (canvas id, width, height)}. A page that couldn't be drawn
+    has no size of its own, so it gets an A4-shaped one."""
+    return {p["idx"]: (f"{m}/canvas/{p['idx'] + 1}", p.get("width") or 1000, p.get("height") or 1414) for p in pages}
+
+
+def _xywh(box, w, h):
+    return f"{round(box[0] * w)},{round(box[1] * h)},{max(1, round(box[2] * w))},{max(1, round(box[3] * h))}"
+
+
+def target(m, canvases, page, box, t0, t1):
+    """Where a piece of text is: a document's page (the place on it, when known), else a moment of the recording."""
+    if page is not None and page in canvases:
+        cid, w, h = canvases[page]
+        return f"{cid}#xywh={_xywh(box, w, h)}" if box else cid
+    return f"{m}/canvas/1#t={_t(t0)},{_t(t1)}"
+
+
+def _page_canvas(cfg, base, m, rid, p, canvases, locked, layers):
+    """One page of a document or an image: its image (behind a probe when the media isn't open), its thumbnail, and the
+    text and other layers on it."""
+    cid, w, h = canvases[p["idx"]]
+    n = p["idx"] + 1
+    items = []
+    if p.get("image"):
+        body = {"id": f"{m}/pages/{n}.jpg", "type": "Image", "format": "image/jpeg", "width": w, "height": h}
+        if locked:
+            body["service"] = [probe_service(cfg, base, rid, f"page{n}", "Sign in to see this")]
+        items = [{"id": f"{cid}/page/1/image", "type": "Annotation", "motivation": "painting", "body": body, "target": cid}]
+    out = {
+        "id": cid,
+        "type": "Canvas",
+        "label": lm(f"Page {p.get('label') or n}", "en"),
+        "width": w,
+        "height": h,
+        "items": [{"id": f"{cid}/page/1", "type": "AnnotationPage", "items": items}],
+        "annotations": [{"id": f"{m}/annotations/{k}?page={n}", "type": "AnnotationPage", "label": lm(LAYERS[k], "en")} for k in layers],
+    }
+    if p.get("thumb") and not locked:
+        tw = min(cfg["documents"]["thumb_pixels"], w) if w >= h else round(w * min(cfg["documents"]["thumb_pixels"], h) / h)
+        out["thumbnail"] = [
+            {
+                "id": f"{m}/frames/{p['thumb'].rsplit('/', 1)[-1]}",
+                "type": "Image",
+                "format": "image/jpeg",
+                "width": tw,
+                "height": round(h * tw / w),
+            }
+        ]
+    return _prune(out)
 
 
 def _pairs(meta, rec, ns):
@@ -126,17 +193,20 @@ def manifest(db, cfg, rid, base):
     if not rec:
         raise KeyError(rid)
     meta = md.effective(db, cfg, rid)
-    level = meta.get("access") or "private"
+    a = acc.of(db, rid)
     ns = (db.one("SELECT name FROM $s", s=R("space", rec["space"])) or {}).get("name")
     d = render.player_data(db, rid)
     m, lang, tlang = f"{base}/iiif/{rid}", cfg["iiif"].get("default_language") or "none", _lang(rec)
     canvas, dur = f"{m}/canvas/1", max(round((d["duration_ms"] or 0) / 1000, 3), 0.001)
     layers = set(cfg["iiif"].get("layers") or [])
-    audio_locked, text_locked = level != "public", level not in OPEN_TRANSCRIPT
+    audio_locked, text_locked = not acc.is_open(a, "media"), not acc.is_open(a, "transcript")
     has_audio = rec.get("source") == "audio" and bool(rec.get("remote") or render.has_audio(db, cfg, rid))
     title = md.first(meta.get("label")) or d["title"]
     media = rec.get("media") or {}
     is_video = media.get("kind") == "video" and media.get("width")
+    paged = rec.get("source") in documents.KINDS  # a document's or an image's pages are its canvases
+    pages = documents.pages(db, rid) if paged else []
+    canvases = page_canvases(m, pages)
     items = []
     if has_audio:
         ext = pathlib.PurePosixPath((rec.get("remote") or {}).get("path") or rec.get("path") or "").suffix.lower()
@@ -160,14 +230,32 @@ def manifest(db, cfg, rid, base):
     )
     if text_locked:
         vtt["service"] = [probe_service(cfg, base, rid, "transcript")]
-    annotations = [
-        {
-            "id": f"{canvas}/captions",
-            "type": "AnnotationPage",
-            "items": [{"id": f"{canvas}/captions/1", "type": "Annotation", "motivation": "supplementing", "body": vtt, "target": canvas}],
-        }
-    ]
-    faces_published = bool(is_video and cfg["video"].get("publish_faces") and level == "public" and d.get("faces_mode") != "off")
+    # a document's text has no times for captions: it's on its pages
+    captions = (
+        []
+        if paged
+        else [{"id": f"{canvas}/captions/1", "type": "Annotation", "motivation": "supplementing", "body": vtt, "target": canvas}]
+    )
+    kept = filemod.of(db, rid)
+    for f in kept:  # supplementary transcripts, captions and translations that say when their lines are, as WebVTT
+        if f["role"] in ("transcript", "captions", "translation") and f.get("timed"):
+            body = _prune(
+                {
+                    "id": f"{m}/files/{f['id']}.vtt",
+                    "type": "Text",
+                    "format": "text/vtt",
+                    "label": lm(_file_label(f), lang),
+                    "language": f.get("language"),
+                }
+            )
+            if not _file_open(a, f):
+                body["service"] = [probe_service(cfg, base, rid, f"vtt{f['id']}")]
+            n = len(captions) + 1
+            captions.append(
+                {"id": f"{canvas}/captions/{n}", "type": "Annotation", "motivation": "supplementing", "body": body, "target": canvas}
+            )
+    annotations = [{"id": f"{canvas}/captions", "type": "AnnotationPage", "items": captions}] if captions else []
+    faces_published = bool(is_video and cfg["video"].get("publish_faces") and not audio_locked and d.get("faces_mode") != "off")
     if not text_locked:
         annotations += [
             {"id": f"{m}/annotations/{k}", "type": "AnnotationPage", "label": lm(v, "en")}
@@ -198,14 +286,72 @@ def manifest(db, cfg, rid, base):
                 }
             ]
             cv["thumbnail"] = thumb
-    contexts = ([AUTH2] if (audio_locked and has_audio) or text_locked else []) + ([] if text_locked else [SEARCH2]) + [P3]
+    doc_layers = [k for k in ("transcript", "entities") if k in layers and not text_locked]
+    page_items = [_page_canvas(cfg, base, m, rid, p, canvases, audio_locked, doc_layers) for p in pages]
+    if page_items and page_items[0].get("thumbnail"):
+        thumb = page_items[0]["thumbnail"]  # a document's first page stands for it
+    pic = next((f for f in kept if f["role"] == "thumbnail"), None)
+    if pic and not audio_locked:  # a thumbnail added to the resource stands for it
+        thumb = [{"id": f"{m}/files/{pic['id']}", "type": "Image", "format": filemod.served_type(pic)}]
+    renderings = (
+        []
+        if text_locked
+        else [
+            {
+                "id": f"{m}/transcript.{k}",
+                "type": "Text",
+                "label": lm(v[1].replace("Transcript", "Text") if paged else v[1], "en"),
+                "format": v[0],
+            }
+            for k, v in DOWNLOADS.items()
+            if not (paged and k in ("vtt", "srt"))  # a document's text has no times
+        ]
+    )
+    if paged and (rec.get("remote") or rec.get("path")):  # the document or image itself, to save
+        name = pathlib.PurePosixPath((rec.get("remote") or {}).get("path") or rec.get("path") or "").name
+        made = rec["source"] == "document" and convert.needs(name) and convert.rendition_path(cfg, rid).is_file()
+        what = "image" if rec["source"] == "image" else convert.word(name) if convert.needs(name) else "PDF"
+        own = [
+            {
+                "id": f"{m}/media",
+                "type": "Image" if rec["source"] == "image" else "Text",
+                "label": lm(f"The {what}", "en"),
+                "format": documents.content_type(name) or "application/octet-stream",
+            }
+        ]
+        if made:  # and the PDF it's read from
+            own.append({"id": f"{m}/pdf", "type": "Text", "label": lm("The PDF", "en"), "format": "application/pdf"})
+        for r in own:
+            if audio_locked:
+                r["service"] = [probe_service(cfg, base, rid, "audio", "Sign in to see this")]
+        renderings[:0] = own
+    for f in kept:  # every supplementary file, to download; the ones that need permission behind sign-in
+        r = _prune(
+            {
+                "id": f"{m}/files/{f['id']}",
+                "type": file_type(f),
+                "label": lm(_file_label(f), lang),
+                "format": filemod.served_type(f),
+                "language": f.get("language"),
+            }
+        )
+        if not _file_open(a, f):
+            r["service"] = [probe_service(cfg, base, rid, f"file{f['id']}")]
+        renderings.append(r)
+    locked_files = any(not _file_open(a, f) for f in kept)
+    contexts = (
+        ([AUTH2] if (audio_locked and (has_audio or paged)) or text_locked or locked_files else [])
+        + ([] if text_locked else [SEARCH2])
+        + [P3]
+    )
     out = {
         "@context": contexts if len(contexts) > 1 else P3,
         "id": f"{m}/manifest",
         "type": "Manifest",
         "label": meta.get("label") or lm(title, lang),
         "summary": meta.get("summary"),
-        "metadata": _pairs(meta, rec, ns),
+        "metadata": _pairs(meta, rec, ns)
+        + fieldmod.published_pairs(fieldmod.applying(db, rec["space"], "resource", rec.get("collection")), rec),
         "rights": meta.get("rights"),
         "requiredStatement": {"label": lm("Attribution", "en"), "value": meta["attribution"]} if meta.get("attribution") else None,
         "provider": _provider(meta, base),
@@ -214,9 +360,7 @@ def manifest(db, cfg, rid, base):
         "homepage": [
             {"id": meta.get("homepage") or f"{base}/#/rec/{rid}", "type": "Text", "label": lm(title, lang), "format": "text/html"}
         ],
-        "rendering": None
-        if text_locked
-        else [{"id": f"{m}/transcript.{k}", "type": "Text", "label": lm(v[1], "en"), "format": v[0]} for k, v in DOWNLOADS.items()],
+        "rendering": renderings or None,
         "seeAlso": [
             {
                 "id": f"{m}/record.json",
@@ -233,11 +377,11 @@ def manifest(db, cfg, rid, base):
                 "profile": "http://www.openarchives.org/OAI/2.0/oai_dc/",
             },
         ],
-        "partOf": [{"id": f"{base}/iiif/collection/{ns}", "type": "Collection"}],
+        "partOf": [{"id": collection_url(base, ns, rec.get("collection")), "type": "Collection"}],
         "service": None
         if text_locked
         else [{"id": f"{m}/search", "type": "SearchService2", "service": [{"id": f"{m}/autocomplete", "type": "AutoCompleteService2"}]}],
-        "items": [cv],
+        "items": page_items if paged else [cv],
     }
     structures = []
     if is_video and d.get("shots"):
@@ -257,7 +401,7 @@ def manifest(db, cfg, rid, base):
                 ],
             }
         )
-    if "chapters" in layers and d["sections"]:
+    if "chapters" in layers and d["sections"] and acc.is_open(a, "index"):
         structures.insert(
             0,
             {
@@ -269,24 +413,80 @@ def manifest(db, cfg, rid, base):
                         "id": f"{m}/range/{k + 1}",
                         "type": "Range",
                         "label": lm(s.get("title") or f"Part {k + 1}", lang),
-                        "items": [{"id": f"{canvas}#t={_t(s['t0'])},{_t(s['t1'])}", "type": "Canvas"}],
+                        "items": [
+                            {
+                                "id": canvases[d["segments"][s["seg0"]]["p"]][0]
+                                if paged and s["seg0"] < len(d["segments"]) and d["segments"][s["seg0"]].get("p") in canvases
+                                else f"{canvas}#t={_t(s['t0'])},{_t(s['t1'])}",
+                                "type": "Canvas",
+                            }
+                        ],
                     }
                     for k, s in enumerate(d["sections"])
                 ],
             },
         )
+    if acc.is_open(a, "index"):  # indexes added to the resource, as tables of contents
+        for f in kept:
+            entries = (
+                [x for x in filemod.lines_of(db, f["id"]) if x.get("t0") is not None] if f["role"] == "index" and f.get("timed") else []
+            )
+            if entries:
+                structures.append(
+                    {
+                        "id": f"{m}/range/file{f['id']}",
+                        "type": "Range",
+                        "label": lm(_file_label(f), lang),
+                        "items": [
+                            {
+                                "id": f"{m}/range/file{f['id']}-{k + 1}",
+                                "type": "Range",
+                                "label": lm(x.get("title") or x["text"][:120], lang),
+                                "items": [
+                                    {"id": f"{canvas}#t={_t(x['t0'])}" + (f",{_t(x['t1'])}" if x.get("t1") else ""), "type": "Canvas"}
+                                ],
+                            }
+                            for k, x in enumerate(entries)
+                        ],
+                    }
+                )
     if structures:
         out["structures"] = structures
     return _prune(out)
 
 
-def annotation_page(db, cfg, rid, base, layer):
-    rec = db.one("SELECT language FROM $r", r=R("recording", rid)) or {}
+def _file_label(f):
+    return f.get("label") or f"{filemod.LABELS.get(f['role'], 'File')}: {f['name']}"
+
+
+def _file_open(a, f):
+    """Whether everyone may have a supplementary file: the part its role follows is open (attachments never are)."""
+    part = filemod.PART.get(f["role"])
+    return bool(part and acc.is_open(a, part))
+
+
+def file_type(f):
+    """The IIIF type of a supplementary file, from its media type."""
+    t = (f.get("content_type") or "").lower()
+    kind = t.split("/", 1)[0]
+    if kind in ("image", "audio", "video"):
+        return {"image": "Image", "audio": "Sound", "video": "Video"}[kind]
+    text = kind == "text" or t in ("application/pdf", "application/msword", "application/x-subrip") or "wordprocessingml" in t
+    return "Text" if text else "Dataset"
+
+
+def annotation_page(db, cfg, rid, base, layer, page=None):
+    """A layer's annotations. A document's or an image's target the place on their page; `page` (from 1) keeps to one
+    page's."""
+    rec = db.one("SELECT language, source FROM $r", r=R("recording", rid)) or {}
     d = render.player_data(db, rid)
     m = f"{base}/iiif/{rid}"
     canvas, tlang = f"{m}/canvas/1", _lang(rec)
     names, items = {s["key"]: s["name"] for s in d["speakers"]}, []
     segs = d["segments"]
+    canvases = page_canvases(m, documents.pages(db, rid)) if rec.get("source") in documents.KINDS else {}
+    where = lambda s: target(m, canvases, s.get("p"), s.get("b"), s["t0"], s["t1"])  # noqa: E731
+    on = lambda s: page is None or s.get("p") == page - 1  # noqa: E731
     if layer == "transcript":
         items = [
             {
@@ -294,9 +494,10 @@ def annotation_page(db, cfg, rid, base, layer):
                 "type": "Annotation",
                 "motivation": "supplementing",
                 "body": _prune({"type": "TextualBody", "value": s["text"], "format": "text/plain", "language": tlang}),
-                "target": f"{canvas}#t={_t(s['t0'])},{_t(s['t1'])}",
+                "target": where(s),
             }
             for i, s in enumerate(segs)
+            if on(s)
         ]
     elif layer == "speakers":
         turns = []
@@ -349,61 +550,121 @@ def annotation_page(db, cfg, rid, base, layer):
         n = 0
         for e in d["entities"]:
             for i in e["segs"]:
-                if i < len(segs):
+                if i < len(segs) and on(segs[i]):
                     items.append(
                         {
                             "id": f"{m}/annotations/entities/a{n}",
                             "type": "Annotation",
                             "motivation": "tagging",
                             "body": {"type": "TextualBody", "value": e["name"], "purpose": "tagging"},
-                            "target": f"{canvas}#t={_t(segs[i]['t0'])},{_t(segs[i]['t1'])}",
+                            "target": where(segs[i]),
                         }
                     )
                     n += 1
     else:
         raise KeyError(layer)
-    return {"@context": P3, "id": f"{m}/annotations/{layer}", "type": "AnnotationPage", "label": lm(LAYERS[layer], "en"), "items": items}
+    own = f"{m}/annotations/{layer}" + (f"?page={page}" if page is not None else "")
+    return {"@context": P3, "id": own, "type": "AnnotationPage", "label": lm(LAYERS[layer], "en"), "items": items}
 
 
-def collection(db, cfg, sid, base, readable=None):
-    """A namespace as a Collection: published recordings, plus private ones the requester may read."""
-    ns = md.namespace(db, sid)
-    meta = ns["meta"]
-    items = []
-    for r in db.rows("SELECT record::id(id) AS id, title, recorded_at FROM recording WHERE space = $s ORDER BY recorded_at", s=sid):
-        eff = md.effective(db, cfg, r["id"])
-        if (eff.get("access") or "private") != "private" or (readable is not None and sid in readable):
-            items.append(
-                _prune(
-                    {
-                        "id": f"{base}/iiif/{r['id']}/manifest",
-                        "type": "Manifest",
-                        "label": eff.get("label") or lm(r["title"]),
-                        "navDate": eff.get("navDate"),
-                    }
-                )
-            )
+def collection_url(base, ns, cid=None):
+    """A namespace's Collection, or one of its collections'."""
+    return f"{base}/iiif/collection/{ns}" + (f"/{cid}" if cid is not None else "")
+
+
+def _shown(db, sid, readable, granted):
+    """The namespace's recordings a requester sees in its Collections, oldest first: its public ones, and the others the
+    requester may read: all of them in the `readable` namespaces (a role there, or an IP group that opens everything),
+    and the `granted` recordings (permission given on them, or an IP group that opens them)."""
+    rows = db.rows(
+        "SELECT record::id(id) AS id, space, collection, title, recorded_at, access, access_parts, featured FROM recording "
+        "WHERE space = $s ORDER BY recorded_at",
+        s=sid,
+    )
+    access = acc.many(db, rows)
+    return [r for r in rows if acc.published(access[r["id"]]) or (readable is not None and sid in readable) or r["id"] in granted]
+
+
+def _branches(db, base, ns, sid, shown, parent):
+    """The collections directly inside `parent` (None: the namespace's top) holding something the requester sees."""
+    counts = Counter(r.get("collection") for r in shown)
+    return [
+        {"id": collection_url(base, ns, n["id"]), "type": "Collection", "label": lm(n["name"])}
+        for n in hierarchy.tree(db, sid, counts)
+        if n["total"] and (n["depth"] == 0 if parent is None else n.get("parent") == parent)
+    ]
+
+
+def _frame(meta, base, ns, id_, label, summary, part_of, items, pairs=None):
+    """A Collection with what it has from its namespace's description: rights, attribution and provider; `pairs` are a
+    collection's published custom fields."""
     return _prune(
         {
             "@context": P3,
-            "id": f"{base}/iiif/collection/{ns['name']}",
+            "id": id_,
             "type": "Collection",
-            "label": meta.get("label") or lm(ns["name"]),
-            "summary": meta.get("summary"),
-            "metadata": meta.get("metadata"),
+            "label": label,
+            "summary": summary,
+            "metadata": (meta.get("metadata") if id_ == collection_url(base, ns) else None) or pairs or None,
             "rights": meta.get("rights"),
             "requiredStatement": {"label": lm("Attribution", "en"), "value": meta["attribution"]} if meta.get("attribution") else None,
             "provider": _provider(meta, base),
-            "partOf": [{"id": f"{base}/iiif/collection", "type": "Collection"}],
+            "partOf": [{"id": part_of, "type": "Collection"}],
             "items": items,
         }
     )
 
 
-def root_collection(db, cfg, base, readable=None):
+def collection(db, cfg, sid, base, readable=None, granted=frozenset()):
+    """A namespace as a Collection of its collections: those holding a recording the requester sees (see _shown)."""
+    ns = md.namespace(db, sid)
+    shown = _shown(db, sid, readable, granted)
+    items = _branches(db, base, ns["name"], sid, shown, None)
+    meta = ns["meta"]
+    url = collection_url(base, ns["name"])
+    return _frame(meta, base, ns["name"], url, meta.get("label") or lm(ns["name"]), meta.get("summary"), f"{base}/iiif/collection", items)
+
+
+def subcollection(db, cfg, sid, cid, base, readable=None, granted=frozenset()):
+    """One of a namespace's collections as a Collection: the collections inside it holding something the requester
+    sees, then its own recordings the requester sees, oldest first. KeyError for a collection of another namespace."""
+    c = hierarchy.get(db, cid)
+    if c["space"] != sid:
+        raise KeyError(cid)
+    ns = md.namespace(db, sid)
+    shown = _shown(db, sid, readable, granted)
+    items = _branches(db, base, ns["name"], sid, shown, c["id"])
+    for r in (r for r in shown if r.get("collection") == c["id"]):
+        eff = md.effective(db, cfg, r["id"])
+        items.append(
+            _prune(
+                {
+                    "id": f"{base}/iiif/{r['id']}/manifest",
+                    "type": "Manifest",
+                    "label": eff.get("label") or lm(r["title"]),
+                    "navDate": eff.get("navDate"),
+                }
+            )
+        )
+    part_of = collection_url(base, ns["name"], c.get("parent"))
+    row = db.one("SELECT fields FROM $r", r=R("collection", c["id"])) or {}
+    return _frame(
+        ns["meta"],
+        base,
+        ns["name"],
+        collection_url(base, ns["name"], c["id"]),
+        lm(c["name"]),
+        lm(c["description"]) if c.get("description") else None,
+        part_of,
+        items,
+        fieldmod.published_pairs(fieldmod.applying(db, sid, "collection", c.get("parent")), row),
+    )
+
+
+def root_collection(db, cfg, base, readable=None, granted=frozenset()):
     items = []
     for s in db.rows("SELECT record::id(id) AS id, name FROM space ORDER BY name"):
-        c = collection(db, cfg, s["id"], base, readable)
+        c = collection(db, cfg, s["id"], base, readable, granted)
         if c.get("items"):
             items.append({"id": c["id"], "type": "Collection", "label": c["label"]})
     return {"@context": P3, "id": f"{base}/iiif/collection", "type": "Collection", "label": lm(site_label(cfg, base)), "items": items}
@@ -422,29 +683,32 @@ def search(db, base, q, rids, page_url, page=0):
         if not db.ready_fulltext():
             raise LookupError("no full-text index on this engine")
         rows = db.rows(
-            "SELECT recording, idx, t0, t1, text FROM segment WHERE text @1@ $q AND recording IN $r LIMIT 2000",
+            "SELECT recording, idx, t0, t1, text, page, box FROM segment WHERE text @1@ $q AND recording IN $r LIMIT 2000",
             q=" ".join(words),
             r=list(rids),
         )
     except Exception:  # noqa: BLE001 - no full-text index on this engine
         rows = [
             s
-            for s in db.rows("SELECT recording, idx, t0, t1, text FROM segment WHERE recording IN $r", r=list(rids))
+            for s in db.rows("SELECT recording, idx, t0, t1, text, page, box FROM segment WHERE recording IN $r", r=list(rids))
             if all(w in s["text"].lower() for w in words)
         ]
     rows.sort(key=lambda s: (s["recording"], s["idx"]))
     total, rows = len(rows), rows[page * PAGE : (page + 1) * PAGE]
     rx = re.compile(r"\b(" + "|".join(re.escape(w) for w in words) + r")[\w'’-]*", re.I)
-    items, marks = [], []
+    items, marks, paged = [], [], {}
     for s in rows:
-        aid = f"{base}/iiif/{s['recording']}/annotations/transcript/a{s['idx']}"
+        m = f"{base}/iiif/{s['recording']}"
+        if s.get("page") is not None and s["recording"] not in paged:  # a document's pages, once per document
+            paged[s["recording"]] = page_canvases(m, documents.pages(db, s["recording"]))
+        aid = f"{m}/annotations/transcript/a{s['idx']}"
         items.append(
             {
                 "id": aid,
                 "type": "Annotation",
                 "motivation": "supplementing",
                 "body": {"type": "TextualBody", "value": s["text"], "format": "text/plain"},
-                "target": f"{base}/iiif/{s['recording']}/canvas/1#t={_t(s['t0'])},{_t(s['t1'])}",
+                "target": target(m, paged.get(s["recording"], {}), s.get("page"), s.get("box"), s["t0"], s["t1"]),
             }
         )
         for hit in rx.finditer(s["text"]):
@@ -688,19 +952,63 @@ def parse_manifest(j):
     }
 
 
+NESTED_FETCHES = 50  # Collections inside a Collection read while looking for its Manifests
+MANIFESTS_MAX = 1000
+
+
+def manifests_in(j, limit=MANIFESTS_MAX, log=print):
+    """The Manifests a Collection holds, in its order, with those of the Collections inside it (Lens nests its own),
+    at most hierarchy.MAX_DEPTH deep and NESTED_FETCHES Collections read: ([{id, label, path}], how many Collections
+    were followed, whether it stopped early). `path` names the Collections a Manifest is in below this one."""
+    out, followed, cut = [], [0], [False]
+
+    def walk(c, depth, trail):
+        for x in c.get("items") or []:
+            if len(out) >= limit:
+                cut[0] = True
+                return
+            kind, xid = x.get("type"), x.get("id")
+            if kind == "Manifest" and xid:
+                out.append({"id": xid, "type": "Manifest", "label": _text(x.get("label")), "path": trail})
+            elif kind == "Collection" and xid:
+                if depth >= hierarchy.MAX_DEPTH or followed[0] >= NESTED_FETCHES:
+                    cut[0] = True
+                    continue
+                followed[0] += 1
+                try:
+                    sub = x if x.get("items") is not None else fetch_json(xid)
+                except (ValueError, OSError) as e:
+                    log(f"  {xid}: {e}")
+                    continue
+                walk(sub, depth + 1, [*trail, _text(x.get("label")) or _text(sub.get("label")) or xid])
+
+    walk(j, 0, [])
+    return out, followed[0], cut[0]
+
+
 def preview(url):
+    """What a Manifest (its canvases) or a Collection (its Manifests, also in the Collections inside it) holds."""
     j = fetch_json(url)
     if j.get("type") == "Collection" and _version(j) == 3:
-        items = [{"id": x.get("id"), "type": x.get("type"), "label": _text(x.get("label"))} for x in j.get("items") or []]
-        return {"type": "Collection", "id": j.get("id"), "label": _text(j.get("label")), "total": len(items), "items": items[:200]}
+        items, followed, cut = manifests_in(j)
+        return {
+            "type": "Collection",
+            "id": j.get("id"),
+            "label": _text(j.get("label")),
+            "total": len(items),
+            "collections": followed,
+            "more": cut,
+            "items": items[:200],
+        }
     if j.get("type") not in ("Manifest", "sc:Manifest") and j.get("@type") not in ("sc:Manifest",):
         raise ValueError("that isn't a IIIF Manifest or Collection")
     return parse_manifest(j)
 
 
-def import_manifest(db, cfg, url, ns, keep_transcripts=True, user=None, log=print):
+def import_manifest(db, cfg, url, ns, keep_transcripts=True, user=None, log=print, collection=None):
     p = parse_manifest(fetch_json(url))
     sid, rids = store.ns_id(db, ns), []
+    home = store.home(db, sid, collection)
     audio_ext = {
         "audio/mp4": ".m4a",
         "audio/mpeg": ".mp3",
@@ -735,6 +1043,7 @@ def import_manifest(db, cfg, url, ns, keep_transcripts=True, user=None, log=prin
         title = c["label"] or p["label"] or "Imported recording"
         if len(usable) > 1 and not c["label"]:
             title = f"{title} ({n})"
+        deletion.forget(db, sid, fp)  # imported on purpose: a deleted recording may come back
         rid = db.next_id("recording")
         dur = int((c.get("duration") or (c["audio"] or {}).get("duration") or 0) * 1000) or None
         db.q(
@@ -743,6 +1052,7 @@ def import_manifest(db, cfg, url, ns, keep_transcripts=True, user=None, log=prin
             d=store.clean(
                 {
                     "space": sid,
+                    "collection": home,
                     "fingerprint": fp,
                     "fp_key": f"{sid}:{fp}",
                     "title": title[:200],
@@ -798,15 +1108,16 @@ def import_manifest(db, cfg, url, ns, keep_transcripts=True, user=None, log=prin
     return rids
 
 
-def import_url(db, cfg, url, ns, keep_transcripts=True, user=None, limit=50, log=print):
+def import_url(db, cfg, url, ns, keep_transcripts=True, user=None, limit=50, log=print, collection=None):
+    """A Manifest, or the first `limit` Manifests of a Collection (with those of the Collections inside it), into a
+    collection of the namespace (its default when None)."""
     j = fetch_json(url)
     if j.get("type") == "Collection":
         rids = []
-        for x in (j.get("items") or [])[:limit]:
-            if x.get("type") == "Manifest" and x.get("id"):
-                try:
-                    rids += import_manifest(db, cfg, x["id"], ns, keep_transcripts, user, log)
-                except (ValueError, OSError) as e:
-                    log(f"  {x['id']}: {e}")
+        for x in manifests_in(j, limit, log)[0]:
+            try:
+                rids += import_manifest(db, cfg, x["id"], ns, keep_transcripts, user, log, collection)
+            except (ValueError, OSError) as e:
+                log(f"  {x['id']}: {e}")
         return rids
-    return import_manifest(db, cfg, url, ns, keep_transcripts, user, log)
+    return import_manifest(db, cfg, url, ns, keep_transcripts, user, log, collection)

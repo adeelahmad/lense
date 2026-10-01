@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import datetime as dt
+import json
+import pathlib
 import shutil
 import socket
 import subprocess
@@ -9,8 +12,10 @@ import time
 
 import pytest
 
-from app.domain import sources
-from tests.helpers import drain, login, make_user
+from app.domain import deletion, pipelines, sources, store
+from tests.helpers import drain, login, make_user, write_wav
+
+R = store.R
 
 needs_rclone = pytest.mark.skipif(not shutil.which("rclone"), reason="rclone is not installed")
 
@@ -107,7 +112,7 @@ def test_watch_preview_counts_files(client, db, folder):
     h = login(client, "root@x.io", "root password 1")
     sid = client.post("/api/v1/sources", json={"name": "inbox", "type": "local"}, headers=h).json()["id"]
     r = client.post("/api/v1/watches/preview", json={"source": sid, "path": str(inbox)}, headers=h)
-    assert r.json() == {"files": 2, "audio": 0, "transcripts": 2}
+    assert r.json() == {"files": 2, "audio": 0, "transcripts": 2, "documents": 0, "images": 0}
     r = client.post("/api/v1/watches/preview", json={"source": sid, "path": str(inbox), "exclude": ["*.srt"]}, headers=h)
     assert r.json()["transcripts"] == 1
 
@@ -171,7 +176,7 @@ def test_sources_and_watches_without_rclone(client, new_client, db, cfg, folder)
     assert client.post("/api/v1/watches", json={**body, "kinds": "video"}, headers=h).status_code == 422
     assert client.post("/api/v1/watches", json={**body, "steps": ["juggle"]}, headers=h).status_code == 400
     w = client.get("/api/v1/watches", headers=h).json()
-    assert [(x["id"], x["namespace"], x["source_name"], x["stable_seconds"], x["kinds"]) for x in w] == [(wid, "calls", "inbox", 0, "both")]
+    assert [(x["id"], x["namespace"], x["source_name"], x["stable_seconds"], x["kinds"]) for x in w] == [(wid, "calls", "inbox", 0, "all")]
     assert [x["id"] for x in client.get("/api/v1/watches", headers=ho).json()] == [wid]  # owners of the namespace see it
     assert client.get("/api/v1/watches", headers=he).json() == []  # others don't
     assert client.patch(f"/api/v1/watches/{wid}", json={"poll_minutes": 30, "enabled": False}, headers=h).status_code == 200
@@ -188,3 +193,90 @@ def test_sources_and_watches_without_rclone(client, new_client, db, cfg, folder)
     assert client.get("/api/v1/watches", headers=h).json() == []
     actions = [a["action"] for a in client.get("/api/v1/audit", headers=h).json()]
     assert {"source.create", "source.update", "source.delete", "watch.create"} <= set(actions)
+
+
+def _lsjson_without_rclone(monkeypatch):
+    """rclone's lsjson for local sources, where rclone isn't installed (CI): the same JSON, from the disk."""
+    if shutil.which("rclone"):
+        return
+
+    def run(db, cfg, src, argv, timeout=300):
+        args = argv("src")
+        base = pathlib.Path(args[-1].split(":", 1)[1])
+        found = sorted(base.rglob("*") if "-R" in args else base.iterdir())
+        return json.dumps(
+            [
+                {
+                    "Path": str(p.relative_to(base)),
+                    "Name": p.name,
+                    "Size": -1 if p.is_dir() else p.stat().st_size,
+                    "ModTime": dt.datetime.fromtimestamp(p.stat().st_mtime, dt.UTC).isoformat(),
+                    "IsDir": p.is_dir(),
+                }
+                for p in found
+                if not ("--files-only" in args and p.is_dir())
+            ]
+        )
+
+    monkeypatch.setattr(sources, "run", run)
+
+
+def test_importing_chosen_files_of_a_source(client, new_client, db, cfg, folder, monkeypatch):
+    _lsjson_without_rclone(monkeypatch)
+    inbox = folder / "inbox" / "shows"
+    inbox.mkdir(parents=True)
+    (inbox / "call1.txt").write_text("Ann: from a chosen file.\nBen: great.\nAnn: bye.")
+    write_wav(inbox / "ep1.wav")
+    (inbox / "notes.xyz").write_text("not a transcript")
+    (inbox / "later.txt").write_text("Cy: not chosen.\nDi: fine.\nCy: ok.")
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    h, he = login(client, "root@x.io", "root password 1"), login(new_client(), "ed@x.io", "editor password 1")
+    sid = client.post("/api/v1/sources", json={"name": "inbox", "type": "local"}, headers=h).json()["id"]
+    quick = pipelines.create(db, "Quick look", ["analyze", "report"], "", "root@x.io")
+    url = "/api/v1/import/source"
+    pick = [str(inbox / n) for n in ("call1.txt", "ep1.wav", "notes.xyz", "gone.mp3")]
+    body = {"source": sid, "paths": pick, "namespace": "pods", "pipeline": quick}
+
+    # admins, like sources; known sources and pipelines; only inside sources.local_roots
+    assert client.post(url, json=body, headers=he).status_code == 403
+    assert client.post(url, json={**body, "source": 999}, headers=h).status_code == 400
+    assert client.post(url, json={**body, "pipeline": 999}, headers=h).status_code == 400
+    assert client.post(url, json={**body, "paths": ["/etc/passwd"]}, headers=h).status_code == 400
+    assert client.post(url, json={**body, "paths": []}, headers=h).status_code == 422
+
+    r = client.post(url, json=body, headers=h)
+    assert r.status_code == 200, r.text
+    got = {pathlib.Path(x["path"]).name: x for x in r.json()["results"]}
+    assert {n: x["status"] for n, x in got.items()} == {
+        "call1.txt": "queued",
+        "ep1.wav": "queued",
+        "notes.xyz": "skipped",
+        "gone.mp3": "error",
+    }
+    call, ep = got["call1.txt"]["recording"], got["ep1.wav"]["recording"]
+    rec = db.one("SELECT source, remote, path, title FROM $r", r=R("recording", ep))
+    assert rec["source"] == "audio" and rec["remote"] == {"source": sid, "path": str(inbox / "ep1.wav")} and rec["title"] == "ep1"
+    steps = [s["type"] for s in db.one("SELECT steps FROM $j", j=R("job", got["ep1.wav"]["job"]))["steps"]]
+    assert steps == ["analyze", "report"]  # the chosen pipeline
+    assert db.values("SELECT VALUE detail.files FROM audit_log WHERE action = 'import.source'") == [2]
+
+    # browsing says which files are recordings already; choosing them again changes nothing
+    listing = {e["name"]: e for e in client.get(f"/api/v1/sources/{sid}/browse", params={"path": str(inbox)}, headers=h).json()}
+    assert listing["call1.txt"]["imported"] == [{"recording": call, "namespace": "pods"}] and listing["later.txt"]["imported"] == []
+    again = client.post(url, json={**body, "paths": pick[:2]}, headers=h).json()["results"]
+    assert [(x["status"], x["recording"]) for x in again] == [("already", call), ("already", ep)]
+    # another namespace can have it too; one deleted before comes back when chosen
+    other = client.post(url, json={**body, "paths": pick[:1], "namespace": "calls"}, headers=h).json()["results"]
+    assert other[0]["status"] == "queued"
+    drain(db, cfg)
+    deletion.delete(db, cfg, call, {"email": "root@x.io"})
+    back = client.post(url, json={**body, "paths": pick[:1]}, headers=h).json()["results"]
+    assert back[0]["status"] == "queued" and back[0]["recording"] != call
+    # into a chosen collection of the namespace; one of another namespace is a 404, and makes no namespace
+    shelf = client.post("/api/v1/namespaces/pods/collections", json={"name": "From the inbox"}, headers=h).json()["id"]
+    assert client.post(url, json={**body, "namespace": "fresh", "collection": shelf}, headers=h).status_code == 404
+    assert db.values("SELECT VALUE id FROM space WHERE name = 'fresh'") == []
+    later = client.post(url, json={**body, "paths": [str(inbox / "later.txt")], "collection": shelf}, headers=h).json()["results"]
+    assert later[0]["status"] == "queued", later
+    assert db.one("SELECT collection FROM $r", r=R("recording", later[0]["recording"]))["collection"] == shelf

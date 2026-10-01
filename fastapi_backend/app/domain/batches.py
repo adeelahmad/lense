@@ -14,7 +14,7 @@ from . import jobs, llm, pipelines, recsets, store, templates
 
 R = store.R
 SECONDS = {"transcribe": 0.12, "diarize": 0.05, "shots": 0.03}  # per second of media
-PER_FRAME = {"ocr": 0.4, "faces": 0.2}  # per sampled frame
+PER_FRAME = {"ocr": 0.4, "faces": 0.2, "objects": 0.2, "describe": 1.0}  # per sampled frame (describe: per shot)
 PER_RECORDING = {"analyze": 1.0, "report": 0.5, "export": 1.0}
 
 
@@ -172,7 +172,10 @@ def continue_run(db, bid, user):
     b = get(db, bid)
     rest = [i for i in b["recordings"] if i not in set(b["started"])]
     for rid in rest:
-        jobs.enqueue(db, rid, b["steps"], by=user, batch=b["id"])
+        try:
+            jobs.enqueue(db, rid, b["steps"], by=user, batch=b["id"])
+        except KeyError:  # deleted since the run was planned
+            continue
     db.q("UPDATE $r SET started = $s, status = 'running'", r=R("batch", b["id"]), s=b["recordings"])
     return len(rest)
 
@@ -200,9 +203,14 @@ def cancel(db, bid):
 
 def retry_failed(db, bid):
     ids = db.values("SELECT VALUE record::id(id) FROM job WHERE batch = $b AND status = 'failed'", b=int(bid))
+    done = 0
     for jid in ids:
-        jobs.retry(db, jid)
-    return len(ids)
+        try:
+            jobs.retry(db, jid)
+            done += 1
+        except ValueError:  # its recording was deleted
+            continue
+    return done
 
 
 def results(db, bid, key=None):

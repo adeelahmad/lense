@@ -9,9 +9,26 @@ import { count } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-/** The top bar's namespace picker. Only namespaces the person has a role in exist for them. */
+/** "SOME": the chip of a namespace someone sees only some collections of. */
+function SomeChip({ className }: { className?: string }) {
+  return (
+    <span
+      title="You see some of its collections"
+      className={cn(
+        "inline-flex h-[22px] items-center rounded-pill border border-border bg-background px-2 text-[11px] font-bold uppercase tracking-[.04em] text-fg-secondary",
+        className,
+      )}
+    >
+      Some
+    </span>
+  );
+}
+
+/** The top bar's namespace picker: the namespaces the person has a role in, and those they see some collections of.
+ * Others don't exist for them. */
 export function NamespaceSwitcher() {
-  const { namespaces, namespace, setNamespace, roleIn } = useArchive();
+  const { namespaces: full, partialNamespaces, namespace, setNamespace, roleIn, isPartial } = useArchive();
+  const namespaces = [...full, ...partialNamespaces].sort((a, b) => a.name.localeCompare(b.name));
   const [open, setOpen] = useState(false);
   const role = roleIn(namespace);
   return (
@@ -32,6 +49,7 @@ export function NamespaceSwitcher() {
           <span className="truncate text-[14px] font-bold leading-tight text-fg">{namespace ?? "All namespaces"}</span>
         </span>
         {role && <RoleChip role={role} className="hidden lg:inline-flex" />}
+        {isPartial(namespace) && <SomeChip className="hidden lg:inline-flex" />}
         <ChevronsUpDown className="size-4 shrink-0 text-fg-muted" />
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-1.5">
@@ -65,7 +83,7 @@ export function NamespaceSwitcher() {
                       {name ? `${count(ns?.recordings as number)} recordings` : `${namespaces.length} you can see`}
                     </span>
                   </span>
-                  {name && <RoleChip role={roleIn(name)} />}
+                  {name && (isPartial(name) ? <SomeChip /> : <RoleChip role={roleIn(name)} />)}
                   {on && <Check className="size-4 text-blue" />}
                 </button>
               </li>

@@ -16,6 +16,7 @@ dependencies = [
     "jinja2>=3.1",
     "pypdf>=4",
     "pillow>=10",
+    "markdown>=3.5",
     "cryptography>=42",
 ]
 
@@ -30,9 +31,15 @@ pyannote = ["pyannote.audio"]
 faces = ["opencv-python-headless"]
 mac-ocr = ["pyobjc-framework-Vision; sys_platform == 'darwin'"]  # Apple Vision; a no-op elsewhere
 rapidocr = ["rapidocr_onnxruntime"]
+doctr = ["python-doctr>=1.0"]  # docTR (Apache-2.0) on PyTorch: several GB
 insightface = ["insightface", "onnxruntime"]
+# Objects: YOLOX on ONNX Runtime (Apache-2.0; the model is a YOLOX .onnx file). Ultralytics YOLO also works if
+# installed by hand (pip install ultralytics): it's AGPL-3.0, so it isn't an extra here.
+objects = ["onnxruntime"]
 # Checking IIIF manifests against the official schema
 validate = ["jsonschema"]
+# Outlook .msg emails (extract-msg is GPL-3.0; .eml needs nothing)
+msg = ["extract-msg"]
 
 [project.scripts]
 lens = "app.cli:main"
@@ -55,6 +62,8 @@ dev = [
     "coveralls>=4.0.1,<5",
     "mkdocs-material>=9.6.9",
     "mkdocs-material[imaging]>=9.6.9",
+    "onnxruntime>=1.18",  # the objects tests run a small YOLOX-shaped model
+    "onnx>=1.16",  # ... which they build
 ]
 
 [tool.hatch.build.targets.wheel]

@@ -1,5 +1,7 @@
 import {
+  DEFAULT_LIMITS,
   formatName,
+  importable,
   initialMapping,
   isUntimed,
   kindOf,
@@ -8,14 +10,17 @@ import {
   mappingParam,
   namespaceNameProblem,
   parseMapping,
+  pipelineOptions,
   readProblem,
+  sourceImportSummary,
   titleFromName,
 } from "@/components/import/files";
 
 describe("what a dropped file is", () => {
   it("sorts files by extension", () => {
     expect(kindOf("ep14-transcript.SRT")).toBe("transcript");
-    expect(kindOf("notes.docx")).toBe("transcript");
+    expect(kindOf("notes.docx")).toBe("document"); // or a transcript, if chosen
+    expect(kindOf("ep14.json")).toBe("transcript");
     expect(kindOf("ep14.m4a")).toBe("audio");
     expect(kindOf("clip.mov")).toBe("video");
     expect(kindOf("townhall.pages")).toBe("unsupported");
@@ -23,16 +28,35 @@ describe("what a dropped file is", () => {
   });
 
   it("says why a file can't be imported before sending it", () => {
-    expect(localProblem({ name: "ep14.m4a", size: 1 })?.code).toBe("audio");
     expect(localProblem({ name: "townhall.pages", size: 1 })).toMatchObject({
       code: "unsupported",
       title: "PAGES files can’t be imported",
     });
-    expect(localProblem({ name: "big.srt", size: 60 * 1024 * 1024 }, 50)).toMatchObject({
+    expect(localProblem({ name: "big.srt", size: 60 * 1024 * 1024 })).toMatchObject({
       code: "too-large",
       title: "Too large to upload here (limit 50 MB)",
     });
     expect(localProblem({ name: "ok.srt", size: 1024 })).toBeNull();
+  });
+
+  it("uploads audio and video within the server's limits", () => {
+    const MB = 1024 * 1024;
+    expect(localProblem({ name: "ep14.m4a", size: 200 * MB })).toBeNull();
+    expect(localProblem({ name: "town hall.MOV", size: 3 * 1024 * MB })).toBeNull();
+    expect(localProblem({ name: "huge.mkv", size: 5000 * MB })).toMatchObject({
+      code: "too-large",
+      title: "Too large to upload here (limit 4.0 GB)",
+    });
+    const strict = { ...DEFAULT_LIMITS, max_mb: 100, extensions: [".mp3", ".wav"] };
+    expect(localProblem({ name: "ep14.m4a", size: 1 }, strict)).toMatchObject({
+      code: "unsupported",
+      title: "M4A files can’t be uploaded here",
+      body: "This server takes mp3, wav. Convert it to one of those, or ask an admin to allow .m4a files in Settings → Uploads.",
+    });
+    expect(localProblem({ name: "big.wav", size: 101 * MB }, strict)?.title).toBe(
+      "Too large to upload here (limit 100.0 MB)",
+    );
+    expect(localProblem({ name: "notes.srt", size: 60 * MB }, { ...strict, transcript_mb: 80 })).toBeNull();
   });
 
   it("turns the server's parse errors into problem cards", () => {
@@ -54,6 +78,25 @@ describe("what a dropped file is", () => {
     expect(isUntimed("markdown")).toBe(true);
     expect(isUntimed("vtt")).toBe(false);
     expect(titleFromName("interview_09 p09.docx")).toBe("interview 09 p09");
+  });
+
+  it("offers the namespace's pipeline first, then every saved one", () => {
+    expect(pipelineOptions("Standard pipeline", [{ id: 4, name: "Quick look" }])).toEqual([
+      { value: "", label: "Standard pipeline (the namespace’s)" },
+      { value: "4", label: "Quick look" },
+    ]);
+  });
+
+  it("chooses files of a source that can be imported, and sums up what happened", () => {
+    expect(importable({ name: "ep1.m4a", dir: false })).toBe(true);
+    expect(importable({ name: "notes.docx", dir: false })).toBe(true);
+    expect(importable({ name: "shows", dir: true })).toBe(false);
+    expect(importable({ name: "notes.xyz", dir: false })).toBe(false);
+    expect(importable({ name: ".hidden.mp3", dir: false })).toBe(false);
+    expect(
+      sourceImportSummary([{ status: "queued" }, { status: "queued" }, { status: "already" }, { status: "skipped" }]),
+    ).toBe("2 imported · 1 already here · 1 skipped");
+    expect(sourceImportSummary([{ status: "error" }])).toBe("1 failed");
   });
 
   it("checks namespace names like the backend", () => {

@@ -7,19 +7,21 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
 import type { Job, RecordingSummary } from "@/app/openapi-client/types.gen";
+import { AccessBadge } from "@/components/access/access-fields";
 import {
   EmotionCell,
   ImportanceCell,
   MediaIcon,
   SpeakersCell,
   StatusCell,
+  TagsCell,
   TextBadge,
 } from "@/components/library/cells";
-import { statusView, type SortDir, type SortKey } from "@/components/library/model";
+import { lengthText, statusView, type SortDir, type SortKey } from "@/components/library/model";
 import { Checkbox } from "@/components/ui/field";
 import { Menu, MenuContent, MenuLabel, MenuTrigger } from "@/components/ui/menu";
 import { SortTh, THead, Th } from "@/components/ui/table";
-import { shortDate, tc } from "@/lib/format";
+import { shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type RowProps = {
@@ -32,7 +34,8 @@ export type RowProps = {
   onToggleAll: (on: boolean) => void;
   onRetry: (rec: RecordingSummary, view: ReturnType<typeof statusView>) => void;
   /** Why this person can't retry or reprocess in the row's namespace, or null when they can. */
-  editReason: (ns: string | null | undefined) => string | null;
+  /** Why this person can't change a recording (its namespace's role and its collection's), or null when they can. */
+  editReason: (r: RecordingSummary) => string | null;
   onOpen?: (rec: RecordingSummary) => void;
 };
 
@@ -44,7 +47,7 @@ export function rowClick(e: MouseEvent, open: () => void) {
 }
 
 type Col = {
-  key: "date" | "duration" | "speakers" | "emotion" | "importance";
+  key: "date" | "duration" | "speakers" | "emotion" | "importance" | "tags";
   label: string;
   width: number;
   sort?: SortKey;
@@ -68,7 +71,7 @@ const COLUMNS: Col[] = [
     width: 70,
     sort: "duration",
     right: true,
-    cell: (r) => (r.duration_ms ? tc(r.duration_ms) : "—"),
+    cell: (r) => lengthText(r),
     cls: "tabular text-right text-fg-secondary",
   },
   {
@@ -91,6 +94,13 @@ const COLUMNS: Col[] = [
     width: 150,
     sort: "importance",
     cell: (r) => <ImportanceCell importance={r.importance} sentiment={r.sentiment} />,
+    cls: "min-w-0",
+  },
+  {
+    key: "tags",
+    label: "Tags",
+    width: 150,
+    cell: (r) => <TagsCell tags={r.tags} />,
     cls: "min-w-0",
   },
 ];
@@ -242,7 +252,7 @@ export function RecordingTable({
             const sel = selected.has(r.id);
             const open = () => {
               onOpen?.(r);
-              router.push(`/recordings/${r.id}`);
+              router.push(`/resources/${r.id}`);
             };
             return (
               <tr
@@ -266,7 +276,7 @@ export function RecordingTable({
                   <span className="flex min-w-0 flex-col gap-[3px]">
                     <span className="flex min-w-0 items-center gap-2">
                       <Link
-                        href={`/recordings/${r.id}`}
+                        href={`/resources/${r.id}`}
                         data-row-link
                         onClick={() => onOpen?.(r)}
                         className="truncate text-[13.5px] font-semibold leading-tight text-fg hover:underline"
@@ -278,6 +288,9 @@ export function RecordingTable({
                     <span className="flex items-center gap-[5px] whitespace-nowrap text-[12px] leading-none text-fg-muted">
                       <MediaIcon kind={r.media_kind} />
                       {r.namespace}
+                      {r.access && r.access !== "private" && (
+                        <AccessBadge value={r} compact className="text-fg-muted" />
+                      )}
                     </span>
                   </span>
                 </td>
@@ -286,7 +299,7 @@ export function RecordingTable({
                   <StatusCell
                     view={view}
                     onRetry={() => onRetry(r, view)}
-                    retryDisabledReason={editReason(r.namespace) ?? undefined}
+                    retryDisabledReason={editReason(r) ?? undefined}
                   />
                 </td>
                 {afterStatus.map((c) => cell(c, r))}

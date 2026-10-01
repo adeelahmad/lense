@@ -131,12 +131,16 @@ def envelope(x, bins=1600):
 
 
 def scan(db, cfg, only=None, log=print):
+    from . import deletion
+
     exts = {e.lower() for e in cfg["audio"]["extensions"]}
-    stats = {"new": 0, "known": 0, "changed": 0, "duplicate": 0}
+    stats = {"new": 0, "known": 0, "changed": 0, "duplicate": 0, "deleted": 0}
     for name, spec in cfg["namespaces"].items():
         if only and name != only:
             continue
         nid = store.ns_id(db, name)
+        home = store.default_collection(db, nid)  # where new files go
+        gone_paths, gone_fps = deletion.gone(db, nid)  # recordings someone deleted stay deleted
         for root in spec["paths"]:
             rootp = pathlib.Path(root)
             if not rootp.exists():
@@ -152,7 +156,13 @@ def scan(db, cfg, only=None, log=print):
                 if row and row.get("size") == st.st_size and abs((row.get("mtime") or 0) - st.st_mtime) < 1:
                     stats["known"] += 1
                     continue
+                if not row and str(p) in gone_paths:
+                    stats["deleted"] += 1
+                    continue
                 fp = fingerprint(p)
+                if not row and fp in gone_fps:
+                    stats["deleted"] += 1
+                    continue
                 dup = db.one("SELECT record::id(id) AS id, path FROM recording WHERE space = $s AND fingerprint = $f LIMIT 1", s=nid, f=fp)
                 if dup and dup["path"] != str(p) and pathlib.Path(store.resolve_path(cfg, dup["path"])).exists():
                     stats["duplicate"] += 1
@@ -184,6 +194,7 @@ def scan(db, cfg, only=None, log=print):
                     d=store.clean(
                         {
                             "space": nid,
+                            "collection": home,
                             "path": str(p),
                             "source": "audio",
                             "fingerprint": fp,
@@ -349,6 +360,8 @@ def segment_rows(rid, nid, segs):
                     "event": s.get("event"),
                     "lang": s.get("lang"),
                     "words": s.get("words"),
+                    "page": s.get("page"),  # a document's or an image's page (domain/documents.py)
+                    "box": s.get("box"),
                 }
             )
         )
@@ -381,6 +394,12 @@ def audio_path(db, cfg, rec):
 
         return str(sources.cached_copy(db, cfg, rec["remote"]["source"], rec["remote"]["path"]))
     return store.resolve_path(cfg, rec.get("path"))
+
+
+def add_envelope(db, cfg, rid):
+    """The waveform of media attached to a recording whose transcript was imported before."""
+    rec = db.one("SELECT path, source, remote FROM $r", r=store.R("recording", rid))
+    db.q("UPDATE $r SET envelope = $e", r=store.R("recording", rid), e=envelope(decode(audio_path(db, cfg, rec))))
 
 
 def transcribe_one(db, cfg, rid, log=print, engine=None):
@@ -615,7 +634,7 @@ def _timed(segs):
     for i, s in enumerate(segs):  # untimed lines get a speaking-rate estimate
         n = len(s["text"].split())
         if s["t0"] is None:
-            s["t0"] = t
+            s["t0"], s["guessed"] = t, True
         nxt = next((x["t0"] for x in segs[i + 1 :] if x["t0"] is not None), None)
         s["t1"] = nxt if nxt is not None and nxt > s["t0"] else s["t0"] + n * 385
         t = s["t1"] + 250
@@ -709,7 +728,8 @@ FORMATS = ("auto", "text", "markdown", "mdx", "json", "jsonl", "srt", "vtt")
 
 
 def read_text_transcript(raw, fmt="auto", name=None):
-    """Transcript text in any supported shape: pasted, or read from a file."""
+    """Transcript text in any supported shape: pasted, or read from a file. {segments, speakers, title, timed}; lines
+    that don't say when they are get a speaking-rate estimate, and `timed` is false when every line got one."""
     raw = raw.lstrip("\ufeff")
     fmt = fmt or "auto"
     if fmt == "auto":
@@ -735,7 +755,7 @@ def read_text_transcript(raw, fmt="auto", name=None):
         if fmt == "jsonl" or (raw.lstrip()[:1] == "{" and "\n{" in raw.strip()):
             rows = [json.loads(l) for l in raw.splitlines() if l.strip()]
             if rows and "start_ms" in rows[0] and ("raw_text" in rows[0] or "index" in rows[0]):
-                return {"segments": stitch_chunks(rows), "speakers": {}, "title": None}
+                return {"segments": stitch_chunks(rows), "speakers": {}, "title": None, "timed": True}
             segs = [_generic(r) for r in rows]
         else:
             j = json.loads(raw)
@@ -752,11 +772,13 @@ def read_text_transcript(raw, fmt="auto", name=None):
     t = 0
     for s in segs:
         if s.get("t0") is None:
-            s["t0"] = t
+            s["t0"], s["guessed"] = t, True
         if s.get("t1") is None:
             s["t1"] = s["t0"] + 385 * len(s["text"].split())
         t = s["t1"]
-    return {"segments": segs, "speakers": speakers, "title": title}
+    guessed = [s.pop("guessed", False) for s in segs]
+    # timed: whether it says when its lines are, rather than every time being a speaking-rate estimate
+    return {"segments": segs, "speakers": speakers, "title": title, "timed": bool(segs) and not all(guessed)}
 
 
 def sniff(raw):
@@ -789,13 +811,15 @@ def read_transcript(path, fmt="auto"):
     return read_text_transcript(p.read_text(encoding="utf-8-sig", errors="replace"), fmt, p.name)
 
 
-def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engine):
-    from . import speakers as spk
+def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engine, collection=None):
+    from . import deletion, speakers as spk
 
     segs = t["segments"]
     if not segs:
         raise SystemExit("no transcript text found")
     nid = store.ns_id(db, ns)
+    home = store.home(db, nid, collection)  # KeyError for a collection of another namespace
+    deletion.forget(db, nid, fp, src)  # imported on purpose: a deleted recording may come back
     dur, ch, env = (None, None, None)
     if audio:
         dur, ch = probe(audio)
@@ -809,7 +833,7 @@ def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engi
         db.q(
             "CREATE $r CONTENT $d",
             r=store.R("recording", rid),
-            d={"space": nid, "fingerprint": fp, "fp_key": f"{nid}:{fp}", "status": "new", "created_at": store.now()},
+            d={"space": nid, "collection": home, "fingerprint": fp, "fp_key": f"{nid}:{fp}", "status": "new", "created_at": store.now()},
         )
     write_transcript(
         db,
@@ -839,8 +863,9 @@ def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engi
     return rid
 
 
-def import_transcript(db, cfg, ns, tpath, audio=None, title=None, speaker_names=None, fmt="auto", log=print):
-    """A transcript file (txt, md, mdx, docx, doc, pdf, json, jsonl, srt, vtt), optionally with its audio."""
+def import_transcript(db, cfg, ns, tpath, audio=None, title=None, speaker_names=None, fmt="auto", log=print, collection=None):
+    """A transcript file (txt, md, mdx, docx, doc, pdf, json, jsonl, srt, vtt), optionally with its audio, into a
+    collection of the namespace (default: its default collection)."""
     src = pathlib.Path(audio or tpath)
     t = read_transcript(tpath, fmt)
     st = src.stat()
@@ -856,11 +881,12 @@ def import_transcript(db, cfg, ns, tpath, audio=None, title=None, speaker_names=
         audio,
         speaker_names,
         "import:" + pathlib.Path(tpath).suffix.lstrip("."),
+        collection,
     )
 
 
-def import_text(db, cfg, ns, text, title=None, fmt="auto", speaker_names=None, name=None):
-    """Pasted text, or text piped in on the command line."""
+def import_text(db, cfg, ns, text, title=None, fmt="auto", speaker_names=None, name=None, collection=None):
+    """Pasted text, or text piped in on the command line, into a collection of the namespace (default: its default)."""
     if not (text or "").strip():
         raise SystemExit("nothing to import")
     t = read_text_transcript(text, fmt, name)
@@ -878,4 +904,5 @@ def import_text(db, cfg, ns, text, title=None, fmt="auto", speaker_names=None, n
         None,
         speaker_names,
         "import:paste",
+        collection,
     )

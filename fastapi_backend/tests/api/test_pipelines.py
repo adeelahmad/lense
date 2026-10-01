@@ -75,6 +75,19 @@ def test_pipelines_versions_and_runs(client, new_client, db, cfg):
     drain(db, cfg)
     job = db.one("SELECT status, log FROM $j", j=store.R("job", r.json()["job"]))
     assert job["status"] == "succeeded" and "summarize skipped" in " ".join(job["log"])
+    # the run names its pipeline and the version it pinned; each step says how it went and what it saved
+    run = client.get(f"/api/v1/jobs/{r.json()['job']}", headers=he).json()
+    assert run["pipeline"] == {"id": pid, "version": 3, "name": "Notes"} and run["title"] == "Courier call"
+    assert [(s["outcome"], s.get("note")) for s in run["step_runs"]] == [
+        ("done", "analysed"),
+        ("done", "saved output meeting_notes"),
+        ("skipped", "its condition isn't met"),
+    ]
+    made = run["step_runs"][1]["outputs"]
+    assert made == [{"key": "meeting_notes", "template": tl["Meeting notes"], "version": 1, "model": "fake"}]
+    assert run["step_runs"][0]["outputs"] == []
+    listed = client.get("/api/v1/jobs", params={"recording": pods}, headers=he).json()["jobs"]
+    assert listed[0]["pipeline"]["name"] == "Notes" and listed[0].get("step_runs") is None  # the list stays light
     out = db.one("SELECT * FROM output WHERE recording = $r AND key = 'meeting_notes'", r=pods)
     assert out["value"]["tldr"] == "Capsid samples ship Friday."
     assert [x["name"] for x in client.get("/api/v1/pipelines", headers=h).json()["pipelines"]] == ["Notes"]

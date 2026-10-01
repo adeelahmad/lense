@@ -29,7 +29,7 @@ export function downloadText(name: string, text: string) {
 
 /**
  * The log viewer: a terminal (Aladdin) with a toolbar. Streaming while the step runs (it follows the end unless you
- * scroll up), then "Streaming stopped". The server keeps the last 200 lines of each run.
+ * scroll up), then "Streaming stopped". Runs from before whole logs were kept have their last 200 lines (`truncated`).
  */
 export function LogViewer({
   heading,
@@ -64,11 +64,7 @@ export function LogViewer({
         <h2 className="flex-1 text-[13px] font-bold text-fg">{heading}</h2>
         <span className="flex items-center gap-1.5 text-[12px] font-medium text-fg-muted">
           {live && <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-blue" />}
-          {live
-            ? "Streaming · updates every 2 s"
-            : finished
-              ? "Streaming stopped · run finished"
-              : "Streams here once it starts"}
+          {live ? "Streaming" : finished ? "Streaming stopped · run finished" : "Streams here once it starts"}
           {truncated ? " · last 200 lines" : ""}
         </span>
         {onDownload && (

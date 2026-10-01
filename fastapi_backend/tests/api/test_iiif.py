@@ -7,13 +7,14 @@ import json
 import re
 import shutil
 import threading
+import urllib.parse
 from unittest import mock
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.domain import analyze, iiif, iiif_auth, ingest, metadata
-from tests.helpers import drain, login, make_user, quiet, seed, write_wav
+from tests.helpers import drain, login, make_user, manifests, quiet, seed, write_wav
 
 BASE = "https://127.0.0.1"
 VIEWER = "https://viewer.example"
@@ -35,8 +36,8 @@ class Env:
         analyze.analyze_pending(db, cfg, log=quiet)
         rights = "https://creativecommons.org/licenses/by/4.0/"
         metadata.save(db, cfg, self.clip, {"access": "public", "rights": rights, "attribution": "Courtesy of the lab"})
-        metadata.save(db, cfg, self.pub, {"access": "transcript"})
-        metadata.save(db, cfg, self.call, {"access": "signed-in"})  # self.locked stays private
+        metadata.save(db, cfg, self.pub, {"access": "public", "open": ["transcript", "index"]})  # media closed
+        metadata.save(db, cfg, self.call, {"access": "restricted"})  # self.locked stays private
         make_user(db, "root@x.io", "root password 1", admin=True)
         self.vi = make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
 
@@ -88,14 +89,23 @@ def test_manifests_collections_search_state_discovery(env):
     assert man["items"][0]["annotations"][0]["items"][0]["body"]["format"] == "text/vtt"
     assert man["service"][0]["type"] == "SearchService2"
     assert anon.get(f"/iiif/{env.locked}/manifest").status_code == 404  # private
-    locked = anon.get(f"/iiif/{env.call}/manifest").json()  # signed-in: transcript-only, text locked
+    assert anon.get(f"/iiif/{env.call}/manifest").status_code == 404  # restricted: not published
+    # public with every part closed: the manifest, its content behind the IIIF sign-in, no chapters
+    metadata.save(env.db, env.cfg, env.call, {"access": "public", "open": []})
+    locked = anon.get(f"/iiif/{env.call}/manifest").json()
     assert iiif.validate(locked) == []
     assert locked["@context"][0] == iiif.AUTH2
     assert locked["items"][0]["annotations"][0]["items"][0]["body"]["service"][0]["type"] == "AuthProbeService2"
-    assert "service" not in locked  # no open search on a locked transcript
+    assert "service" not in locked  # no open search on a closed transcript
+    assert "structures" not in locked and "structures" in anon.get(f"/iiif/{env.pub}/manifest").json()
     coll = anon.get("/iiif/collection/pods").json()
     assert iiif.validate(coll) == []
-    assert {x["id"] for x in coll["items"]} == {f"{BASE}/iiif/{env.pub}/manifest", f"{BASE}/iiif/{env.clip}/manifest"}
+    # the namespace lists its collections (General holds them all); each lists its manifests
+    assert [(x["type"], x["label"]) for x in coll["items"]] == [("Collection", {"none": ["General"]})]
+    general = anon.get(urllib.parse.urlsplit(coll["items"][0]["id"]).path).json()
+    assert iiif.validate(general) == [] and general["partOf"][0]["id"] == f"{BASE}/iiif/collection/pods"
+    assert set(manifests(anon.get, "/iiif/collection/pods")) == {f"{BASE}/iiif/{env.pub}/manifest", f"{BASE}/iiif/{env.clip}/manifest"}
+    assert anon.get(f"/iiif/{env.pub}/manifest").json()["partOf"][0]["id"] == general["id"]
     assert f"{BASE}/iiif/collection/pods" in [x["id"] for x in anon.get("/iiif/collection").json()["items"]]
     assert len(anon.get(f"/iiif/{env.pub}/annotations/transcript").json()["items"]) == 6
     assert anon.get(f"/iiif/{env.call}/annotations/transcript").status_code == 404
@@ -108,7 +118,7 @@ def test_manifests_collections_search_state_discovery(env):
     assert "<dc:rights>http://creativecommons.org/licenses/by/4.0/</dc:rights>" in anon.get(f"/iiif/{env.clip}/dc.xml").text
     assert anon.get(f"/iiif/{env.pub}/transcript.vtt").text.startswith("WEBVTT")
     assert anon.get(f"/iiif/{env.call}/transcript.vtt").status_code == 401
-    assert anon.get(f"/iiif/{env.pub}/audio").status_code == 401  # transcript level: audio needs sign-in
+    assert anon.get(f"/iiif/{env.pub}/audio").status_code == 401  # media closed: audio needs sign-in
     r = anon.get(f"/iiif/{env.clip}/audio", headers={"Range": "bytes=0-9"})
     assert (r.status_code, r.content) == (206, env.wav.read_bytes()[:10])
 
@@ -133,7 +143,7 @@ def test_manifests_collections_search_state_discovery(env):
 
 
 def test_authorization_flow(env):
-    metadata.save(env.db, env.cfg, env.clip, {"access": "signed-in"})
+    metadata.save(env.db, env.cfg, env.clip, {"access": "public", "open": ["transcript", "index"]})
     anon = env.client()
     probe = f"/iiif/auth/probe/{env.clip}/audio"
     r = anon.get(probe)
@@ -262,5 +272,27 @@ def test_import_from_iiif(env):
         assert meta["related"][0]["id"] == f"{base}/manifest.json"
         again = c.post("/api/v1/import/iiif", headers=h, json={"url": f"{base}/manifest.json", "namespace": "oral", "wait": True})
         assert again.json()["recordings"] == []  # no duplicates
+        # a Collection's Manifests are found in the Collections inside it too (Lens nests its own), referenced or embedded
+        talks = {"@context": iiif.P3, "id": f"{base}/talks.json", "type": "Collection", "label": {"en": ["Talks"]}}
+        talks["items"] = [{"id": f"{base}/manifest.json", "type": "Manifest", "label": {"en": ["Oral history 7"]}}]
+        top = {"@context": iiif.P3, "id": f"{base}/top.json", "type": "Collection", "label": {"en": ["Everything"]}}
+        top["items"] = [
+            {"id": f"{base}/talks.json", "type": "Collection", "label": {"en": ["Talks"]}},
+            {"id": f"{base}/gone.json", "type": "Collection", "label": {"en": ["Gone"]}},  # can't be read: skipped
+            {"id": f"{base}/inline", "type": "Collection", "label": {"en": ["Inline"]}, "items": []},
+        ]
+        (site / "talks.json").write_text(json.dumps(talks))
+        (site / "top.json").write_text(json.dumps(top))
+        pv = c.post("/api/v1/import/iiif/preview", headers=h, json={"url": f"{base}/top.json"}).json()
+        assert (pv["total"], pv["collections"], pv["more"]) == (1, 3, False)
+        assert pv["items"] == [{"id": f"{base}/manifest.json", "type": "Manifest", "label": "Oral history 7", "path": ["Talks"]}]
+        assert c.post("/api/v1/namespaces", headers=h, json={"name": "oral2"}).status_code == 200
+        shelf = c.post("/api/v1/namespaces/oral2/collections", headers=h, json={"name": "From elsewhere"}).json()["id"]
+        wrong = {"url": f"{base}/top.json", "namespace": "oral", "collection": shelf, "wait": True}
+        assert c.post("/api/v1/import/iiif", headers=h, json=wrong).status_code == 404  # a collection of another namespace
+        r = c.post("/api/v1/import/iiif", headers=h, json={**wrong, "namespace": "oral2"})
+        assert r.status_code == 200, r.text
+        [rid2] = r.json()["recordings"]
+        assert c.get(f"/api/v1/recordings/{rid2}", headers=h).json()["collection"] == shelf
     finally:
         srv.shutdown()

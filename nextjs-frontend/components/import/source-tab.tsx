@@ -5,14 +5,19 @@ import { ChevronRight, Folder, HardDriveDownload } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { Sources } from "@/app/openapi-client";
+import { Imports, Sources } from "@/app/openapi-client";
 import type { BrowseEntry } from "@/app/openapi-client/types.gen";
-import { kindOf } from "@/components/import/files";
+import { canBeTranscript, importable, kindOf, pipelineOptions, sourceImportSummary } from "@/components/import/files";
 import { fileIcon } from "@/components/import/upload-tab";
+import { useNamespacePipeline } from "@/components/import/use-import";
+import { CollectionField } from "@/components/library/collections-ui";
 import { sourceTypeLabel } from "@/components/library/source-labels";
+import { pickupText } from "@/components/sources/source-model";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Select } from "@/components/ui/field";
+import { Segmented } from "@/components/ui/tabs";
 import { EmptyState, SkeletonRows } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -22,6 +27,8 @@ const KIND_NOTE: Record<string, string> = {
   transcript: "Transcript",
   audio: "Audio",
   video: "Video",
+  document: "Document",
+  image: "Image",
   unsupported: "",
 };
 
@@ -34,8 +41,8 @@ function crumbs(path: string): { label: string; path: string }[] {
 }
 
 /**
- * Import I3 (from a source), admins only. Browse a connected source; the backend imports from sources by watching a
- * folder (optionally backfilling what's there), so that's the action here. Picking single files isn't possible yet.
+ * Import I3 (from a source), admins only. Browse a connected source, then import the files you choose now, or watch the
+ * folder so new files come in on their own. Files that are recordings already say where.
  */
 export function SourceTab({ namespace, namespaces }: { namespace: string | null; namespaces: string[] }) {
   const client = useApiClient();
@@ -49,6 +56,12 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
   const [sid, setSid] = useState<number | null>(null);
   const [path, setPath] = useState("");
   const [watchOpen, setWatchOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
+  const open = (p: string) => {
+    setPath(p);
+    setChosen(new Set());
+  };
 
   useEffect(() => {
     if (sid == null && sources.data?.length) setSid(sources.data[0].id);
@@ -114,7 +127,7 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
           value={String(sid ?? "")}
           onChange={(e) => {
             setSid(Number(e.target.value));
-            setPath("");
+            open("");
           }}
           options={sources.data.map((s) => ({
             value: String(s.id),
@@ -125,13 +138,13 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
           aria-label="Folder"
           className="flex min-w-0 flex-wrap items-center gap-1 text-[13px] font-medium text-fg-secondary"
         >
-          <button type="button" className="hover:text-fg hover:underline" onClick={() => setPath("")}>
+          <button type="button" className="hover:text-fg hover:underline" onClick={() => open("")}>
             {src?.name ?? "Top"}
           </button>
           {crumbs(path).map((c) => (
             <span key={c.path} className="flex items-center gap-1">
               <ChevronRight className="size-3.5" aria-hidden />
-              <button type="button" className="hover:text-fg hover:underline" onClick={() => setPath(c.path)}>
+              <button type="button" className="hover:text-fg hover:underline" onClick={() => open(c.path)}>
                 {c.label}
               </button>
             </span>
@@ -167,18 +180,27 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
                     status: "ready",
                     problem: undefined,
                   });
+              const where = (e.imported ?? []).map((x) => x.namespace);
               const row = (
                 <>
                   <Icon className="size-4 shrink-0 text-fg-secondary" aria-hidden />
                   <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-fg">{e.name}</span>
+                  {where.length > 0 && (
+                    <Badge tone="green" className="hidden shrink-0 sm:inline-flex">
+                      In {where.join(", ")}
+                    </Badge>
+                  )}
                   <span className="tabular w-20 shrink-0 text-right text-[12px] text-fg-muted">
                     {e.dir ? "" : bytes(e.size)}
                   </span>
                   <span className="hidden w-28 shrink-0 text-[12px] text-fg-muted sm:block">
                     {e.modified ? relative(e.modified) : ""}
                   </span>
-                  <span className="w-24 shrink-0 text-[12px] font-medium text-fg-muted">
-                    {kind ? KIND_NOTE[kind] : "Folder"}
+                  <span className="w-24 shrink-0 truncate text-[12px] font-medium text-fg-muted">
+                    {where.length > 0 && <span className="text-green-dark sm:hidden">In {where.join(", ")}</span>}
+                    <span className={where.length > 0 ? "hidden sm:inline" : undefined}>
+                      {kind ? KIND_NOTE[kind] : "Folder"}
+                    </span>
                   </span>
                 </>
               );
@@ -187,13 +209,29 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
                   {e.dir ? (
                     <button
                       type="button"
-                      onClick={() => setPath(e.path)}
+                      onClick={() => open(e.path)}
                       className="flex h-[42px] w-full items-center gap-2.5 px-4 text-left hover:bg-surface md:px-5"
                     >
                       {row}
                     </button>
+                  ) : importable(e) ? (
+                    <div className="flex h-[42px] items-center gap-2.5 px-4 md:px-5">
+                      <Checkbox
+                        checked={chosen.has(e.path)}
+                        aria-label={`Choose ${e.name}${where.length ? ` (in ${where.join(", ")} already)` : ""}`}
+                        onCheckedChange={(on) =>
+                          setChosen((c) => {
+                            const next = new Set(c);
+                            if (on) next.add(e.path);
+                            else next.delete(e.path);
+                            return next;
+                          })
+                        }
+                      />
+                      {row}
+                    </div>
                   ) : (
-                    <div className="flex h-[42px] items-center gap-2.5 px-4 md:px-5">{row}</div>
+                    <div className="flex h-[42px] items-center gap-2.5 px-4 pl-[46px] md:px-5 md:pl-[48px]">{row}</div>
                   )}
                 </li>
               );
@@ -202,20 +240,18 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
         )}
       </div>
       <div className="flex flex-wrap items-center gap-2.5 border-t border-border px-4 py-3.5 md:px-5">
-        <span className="min-w-0 flex-1 text-[13px] leading-snug text-fg-secondary">
-          {path === ""
-            ? "Open a folder to watch it."
-            : counts.data
-              ? `${plural(counts.data.files, "file")} to pick up here and below: ${counts.data.audio} audio, ${counts.data.transcripts} transcripts.`
-              : counts.isError
-                ? (counts.error as Error).message
-                : "Counting files…"}{" "}
-          <span className="text-fg-muted">
-            Picking single files isn’t available yet — watching a folder imports what’s there.
-          </span>
+        <span className="min-w-0 flex-1 text-[13px] leading-snug text-fg-secondary" aria-live="polite">
+          {chosen.size
+            ? `${plural(chosen.size, "file")} chosen.`
+            : path === ""
+              ? "Open a folder to import files from it or to watch it."
+              : counts.data
+                ? `To pick up here and below: ${pickupText(counts.data)}. Choose files to import them now, or watch the folder.`
+                : counts.isError
+                  ? (counts.error as Error).message
+                  : "Counting files…"}
         </span>
         <Button
-          variant="primary"
           size="sm"
           disabled={path === ""}
           disabledReason="Open a folder first"
@@ -223,7 +259,33 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
         >
           Watch this folder…
         </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          disabled={!chosen.size}
+          disabledReason="Choose files first"
+          onClick={() => setImportOpen(true)}
+        >
+          {chosen.size ? `Import ${plural(chosen.size, "file")}…` : "Import files…"}
+        </Button>
       </div>
+      {sid != null && (
+        <ImportChosenDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          source={sid}
+          paths={[...chosen]}
+          defaultNs={namespace ?? namespaces[0] ?? ""}
+          namespaces={namespaces}
+          onDone={(summary) => {
+            setChosen(new Set());
+            void qc.invalidateQueries({ queryKey: ["browse", sid, path] });
+            void qc.invalidateQueries({ queryKey: ["recordings"] });
+            void qc.invalidateQueries({ queryKey: ["jobs"] });
+            toast({ title: "Imported from the source", body: summary, tone: "green" });
+          }}
+        />
+      )}
       {sid != null && (
         <WatchDialog
           open={watchOpen}
@@ -244,6 +306,136 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
         />
       )}
     </div>
+  );
+}
+
+/** Import the chosen files now: into which namespace, and what runs after. */
+function ImportChosenDialog({
+  open,
+  onOpenChange,
+  source,
+  paths,
+  defaultNs,
+  namespaces,
+  onDone,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  source: number;
+  paths: string[];
+  defaultNs: string;
+  namespaces: string[];
+  onDone: (summary: string) => void;
+}) {
+  const client = useApiClient();
+  const [ns, setNs] = useState(defaultNs);
+  const [pipelineId, setPipelineId] = useState<number | null>(null);
+  const [collectionId, setCollectionId] = useState<number | null>(null);
+  const [docsAs, setDocsAs] = useState<"document" | "transcript">("document");
+  const either = paths.filter((p) => canBeTranscript(p)).length; // PDFs, Word and text files: documents or transcripts
+  const pipeline = useNamespacePipeline(ns || null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (open) {
+      setNs(defaultNs);
+      setDocsAs("document");
+      setError(null);
+    }
+  }, [open, defaultNs]);
+  useEffect(() => setCollectionId(null), [ns]);
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Import ${plural(paths.length, "file")}?`}
+      description="Audio, video, documents and images stay on the source: they’re copied for processing and shown from there. Transcripts are imported. Files a namespace has from this source already are left as they are."
+      actions={
+        <>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            disabled={busy || !ns}
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                const r = await data(
+                  Imports.importFromSource({
+                    client,
+                    body: {
+                      source,
+                      paths,
+                      namespace: ns,
+                      pipeline: pipelineId,
+                      collection: collectionId,
+                      documents_as: docsAs,
+                    },
+                  }),
+                );
+                onOpenChange(false);
+                onDone(sourceImportSummary(r.results));
+              } catch (e) {
+                setError((e as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? "Importing…" : `Import ${plural(paths.length, "file")}`}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-bold text-fg-strong">Into namespace</span>
+          <Select value={ns} onChange={(e) => setNs(e.target.value)} options={namespaces} />
+        </label>
+        <CollectionField
+          ns={ns || null}
+          value={collectionId}
+          onChange={setCollectionId}
+          id="source-import-collection"
+        />
+        {either > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-bold text-fg-strong">
+              Import {either === 1 ? "the PDF, Word or text file" : `the ${either} PDF, Word and text files`} as
+            </span>
+            <Segmented
+              label="Import PDF, Word and text files as"
+              items={[
+                { value: "document", label: "Documents" },
+                { value: "transcript", label: "Transcripts" },
+              ]}
+              value={docsAs}
+              onChange={(v) => setDocsAs(v as "document" | "transcript")}
+            />
+            <span className="text-[12.5px] text-fg-muted">
+              {docsAs === "document"
+                ? "Their pages, to look at and search; scans are read by OCR."
+                : "Only their text, as transcripts without media."}
+            </span>
+          </div>
+        )}
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-bold text-fg-strong">Then run</span>
+          <Select
+            value={pipelineId == null ? "" : String(pipelineId)}
+            onChange={(e) => setPipelineId(e.target.value ? Number(e.target.value) : null)}
+            options={pipelineOptions(pipeline.name, pipeline.pipelines)}
+          />
+        </label>
+        {error && (
+          <p className="text-[13px] text-red-dark" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    </Dialog>
   );
 }
 

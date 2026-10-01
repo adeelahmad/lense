@@ -12,6 +12,7 @@ import {
   stepLabel,
   stepNotes,
   toggleStep,
+  visualNotes,
   type JobInfo,
   type StepKey,
 } from "@/components/recording/jobs";
@@ -103,6 +104,76 @@ describe("step loop", () => {
     expect(notes[2].notes).toEqual(["analysed"]);
     const s = loopSteps(j, notes);
     expect(s.map((x) => x.sub)).toEqual(["skipped", "0.1 s", "38 s", "skipped", "5.1 s"]);
+    expect(s.map((x) => x.state)).toEqual(["skipped", "done", "done", "skipped", "done"]);
+  });
+  it("takes notes and times from the run's records of its steps", () => {
+    const j = job({
+      status: "running",
+      step_index: 2,
+      steps: ["transcribe", "diarize", "analyze"],
+      step_runs: [
+        { outcome: "skipped", note: "an imported transcript has nothing to transcribe", seconds: 0 },
+        { outcome: "done", note: "3 speakers", seconds: 4.5 },
+        { outcome: "running", started_at: "2026-09-30T10:00:05+00:00" },
+      ],
+      log: ["10:00:00 not used when the run has records"],
+    });
+    expect(stepNotes(j)).toEqual([
+      { seconds: 0, notes: ["an imported transcript has nothing to transcribe"], skipped: true },
+      { seconds: 4.5, notes: ["3 speakers"], skipped: false },
+      { seconds: null, notes: [], skipped: false },
+    ]);
+    expect(loopSteps(j, stepNotes(j)).map((x) => x.sub)).toEqual(["skipped", "4.5 s", "running"]);
+  });
+  it("reads any step's skip line in an older log", () => {
+    const j = job({
+      status: "succeeded",
+      step_index: 2,
+      steps: ["summarize", "report"],
+      log: ["10:00:00 summarize skipped: no LLM is configured", "10:00:01 wrote it", "10:00:01 report done in 0.4s"],
+    });
+    expect(stepNotes(j).map((n) => [n.skipped, n.seconds, n.notes])).toEqual([
+      [true, null, ["summarize skipped: no LLM is configured"]],
+      [false, 0.4, ["wrote it"]],
+    ]);
+  });
+  it("says why text on screen or objects weren't read, and when faces found none", () => {
+    const j = job({
+      status: "succeeded",
+      step_index: 3,
+      steps: ["shots", "ocr", "faces", "objects"],
+      step_runs: [
+        { outcome: "done", note: "3 shot(s), 3 sampled frame(s)", seconds: 0.5 },
+        {
+          outcome: "skipped",
+          note: 'docTR isn\'t installed (pip install "lens[doctr]"; it brings PyTorch)',
+          seconds: 0,
+        },
+        { outcome: "done", note: "no faces found", seconds: 0.2 },
+        { outcome: "skipped", note: "object detection is off (video.object_engine)", seconds: 0 },
+      ],
+    });
+    expect(visualNotes(j)).toEqual({
+      ocrWhy: 'docTR isn\'t installed (pip install "lens[doctr]"; it brings PyTorch)',
+      noFaces: true,
+      objectsWhy: "object detection is off (video.object_engine)",
+    });
+    // from an older log's skip lines; read text needs no note
+    const old = job({
+      status: "succeeded",
+      step_index: 1,
+      steps: ["ocr"],
+      log: ["10:00:00 ocr skipped: OCR is off (video.ocr_engine)"],
+    });
+    expect(visualNotes(old).ocrWhy).toBe("OCR is off (video.ocr_engine)");
+    const read = job({
+      status: "succeeded",
+      step_index: 1,
+      steps: ["ocr"],
+      step_runs: [{ outcome: "done", note: "12 line(s)" }],
+    });
+    expect(visualNotes(read)).toEqual({ ocrWhy: null, noFaces: false, objectsWhy: null });
+    expect(visualNotes(undefined)).toEqual({ ocrWhy: null, noFaces: false, objectsWhy: null });
   });
   it("says a queued job is waiting for a worker", () => {
     expect(loopSteps(job({ status: "queued", step_index: 2, started_at: "x" }))[2].sub).toBe("waiting for a worker");
@@ -189,6 +260,16 @@ describe("page state", () => {
 });
 
 describe("reprocess picker (R9)", () => {
+  it("offers describing to videos, documents and images, not to audio", () => {
+    const keys = (o: { video: boolean; hasAudio: boolean; paged?: boolean }) => reprocessOptions(o).map((x) => x.key);
+    expect(keys({ video: true, hasAudio: true })).toContain("describe");
+    expect(keys({ video: false, hasAudio: false, paged: true })).toContain("describe");
+    expect(keys({ video: false, hasAudio: true })).not.toContain("describe");
+    expect(toggleStep(new Set<StepKey>(), "shots", true, reprocessOptions({ video: true, hasAudio: true }))).toContain(
+      "describe",
+    ); // it reads the shots' keyframes
+  });
+
   const audio = reprocessOptions({ video: false, hasAudio: true });
   const transcript = reprocessOptions({ video: false, hasAudio: false });
   it("offers the backend's steps; video steps only for videos", () => {
@@ -199,6 +280,19 @@ describe("reprocess picker (R9)", () => {
       "shots",
       "ocr",
       "faces",
+      "objects",
+      "describe",
+      "analyze",
+      "summarize",
+      "report",
+    ]);
+    // a document's or an image's pages: faces, objects and descriptions, not shots or text on screen
+    expect(reprocessOptions({ video: false, hasAudio: false, paged: true }).map((o) => o.key)).toEqual([
+      "transcribe",
+      "diarize",
+      "faces",
+      "objects",
+      "describe",
       "analyze",
       "summarize",
       "report",

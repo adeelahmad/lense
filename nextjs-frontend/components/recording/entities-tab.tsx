@@ -21,7 +21,6 @@ import { useRecordingEntities } from "@/components/recording/hooks";
 import { fold, type EntityRef } from "@/components/recording/model";
 import { Label } from "@/components/ui/panel";
 import { EmptyState, Skeleton } from "@/components/ui/states";
-import { tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const ENTITY_GROUPS: {
@@ -67,7 +66,7 @@ export function groupEntities(
  * mentions ● on the waveform and jumps to the first; the chevron opens it in the graph.
  */
 export function EntitiesTab() {
-  const { model, id, entity } = useRec();
+  const { model, id, entity, where } = useRec();
   const api = usePlayerApi();
   const list = useRecordingEntities(id, model.entities.length > 0);
   const groups = useMemo(() => groupEntities(model.entities), [model.entities]);
@@ -152,7 +151,7 @@ export function EntitiesTab() {
                     title={
                       on
                         ? "Hide its mentions on the timeline"
-                        : `Show mentions on the timeline${first ? ` and go to ${tc(first.t0)}` : ""}`
+                        : `Show mentions on the timeline${first ? ` and go to ${where(first.t0)}` : ""}`
                     }
                   >
                     <span className="min-w-0 flex-1 truncate text-fg">{e.name}</span>

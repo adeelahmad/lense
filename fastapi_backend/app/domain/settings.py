@@ -17,7 +17,7 @@ import re
 import secrets
 import threading
 
-from . import store
+from . import convert, ipgroups, objects, store
 
 R = store.R
 EDITABLE = {
@@ -45,8 +45,15 @@ EDITABLE = {
         "face_match_threshold",
         "face_review_threshold",
         "publish_faces",
+        # the model files (yolox_model, ultralytics_model) are startup settings only, like yunet_model
+        "object_engine",
+        "object_min_score",
     ),
-    "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies"),
+    "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
+    "uploads": None,
+    "tokens": None,
+    # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
+    "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
 SECRETS = {"llm": ("api_key",)}
 ENUMS = {
@@ -58,10 +65,23 @@ ENUMS = {
     ("analysis", "entities"): {"rules", "spacy"},
     ("search", "stemming"): {"english", "none"},
     ("reports", "audio"): {"link", "embed", "none"},
-    ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "none"},
+    ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "none"},
+    ("video", "object_engine"): {"yolox", "ultralytics", "off"},
 }
 ENV_OVERRIDES = {("server", "allowed_hosts"): "ARCHIVE_ALLOWED_HOSTS"}
+# The types uploads.extensions may name: what the folder scans import, a few more that ffmpeg reads, and documents and
+# images.
+UPLOAD_TYPES = frozenset([*store.MEDIA_EXT, ".aif", ".aiff", ".wma", ".mpg", ".mpeg", ".3gp", *store.DOCUMENT_EXT, *store.IMAGE_EXT])
+UPLOAD_RANGES = {"max_mb": (1, 1_000_000), "chunk_mb": (1, 64), "expire_hours": (1, 720)}
+DOCUMENT_RANGES = {
+    "page_pixels": (800, 6000),
+    "thumb_pixels": (120, 800),
+    "ocr_below_chars": (0, 5000),
+    "max_pages": (1, 50_000),
+    "convert_seconds": (10, 3600),
+}
+TOKEN_DAYS = (1, 3650)
 VIEWER_URL = re.compile(r"^https?://[^\s]+$")
 _KEYS, _KL = {}, threading.Lock()
 
@@ -166,6 +186,8 @@ def view(db, base):
         "secret_key": "ARCHIVE_SECRET_KEY" if os.environ.get("ARCHIVE_SECRET_KEY") else "data_dir/secret.key",
         "rclone": base["sources"].get("rclone") or "rclone on PATH",
         "local_roots": base["sources"].get("local_roots") or [],
+        **convert.bootstrap(base),
+        "yolox_model": objects.yolox_model(base) or "not found",
     }
     return out
 
@@ -190,6 +212,41 @@ def _check(section, key, value, default):
         ):
             raise ValueError("iiif.viewers is a list of {name, url} with an http(s) URL; the URL may use {manifest} and {content_state}")
         return value
+    if (section, key) == ("server", "trusted_proxies"):
+        return ipgroups.proxies(value)
+    if (section, key) == ("llm", "vision_model"):
+        if value is not None and not (isinstance(value, str) and len(value.strip()) <= 200):
+            raise ValueError("llm.vision_model is a model's name")
+        return (value or "").strip() or None
+    if (section, key) == ("llm", "describe_max"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1000):
+            raise ValueError("llm.describe_max is a whole number from 1 to 1000")
+        return value
+    if (section, key) == ("llm", "chat_models"):
+        names = [v.strip() for v in value] if isinstance(value, list) and all(isinstance(v, str) for v in value) else None
+        if names is None or not all(names) or len(names) > 50 or any(len(n) > 200 for n in names):
+            raise ValueError("llm.chat_models is a list of up to 50 model names")
+        return list(dict.fromkeys(names))
+    if section == "uploads":
+        return _upload_setting(key, value)
+    if (section, key) == ("documents", "attachment_resources"):
+        if not isinstance(value, bool):
+            raise ValueError("documents.attachment_resources is true or false")
+        return value
+    if section == "documents":
+        lo, hi = DOCUMENT_RANGES[key]
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"documents.{key} is a whole number from {lo} to {hi}")
+        return value
+    if (section, key) == ("video", "object_min_score"):
+        if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0.05 <= value <= 0.95):
+            raise ValueError("video.object_min_score is a number from 0.05 to 0.95")
+        return float(value)
+    if section == "tokens" and key != "never_expire":
+        lo, hi = TOKEN_DAYS
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"tokens.{key} is a whole number of days from {lo} to {hi}")
+        return value
     if default is None or value is None:
         return value
     if isinstance(default, bool):
@@ -209,6 +266,21 @@ def _check(section, key, value, default):
         ok = True
     if not ok:
         raise ValueError(f"{section}.{key} should be {type(default).__name__}")
+    return value
+
+
+def _upload_setting(key, value):
+    if key == "extensions":
+        ok = isinstance(value, list) and value and all(isinstance(x, str) for x in value)
+        exts = sorted({"." + x.strip().lower().lstrip(".") for x in value}) if ok else []
+        if not exts or any(e not in UPLOAD_TYPES for e in exts):
+            raise ValueError(
+                f"uploads.extensions is a list of audio, video, document and image types from: {', '.join(sorted(UPLOAD_TYPES))}"
+            )
+        return exts
+    lo, hi = UPLOAD_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"uploads.{key} is a whole number from {lo} to {hi}")
     return value
 
 
@@ -237,6 +309,8 @@ def save(db, base, section, changes, user=None):
         r = data.get("review_threshold", defaults["review_threshold"])
         if not (0 <= r <= m <= 1):
             raise ValueError("thresholds must satisfy 0 ≤ review ≤ match ≤ 1")
+    if section == "tokens" and data.get("default_days", defaults["default_days"]) > data.get("max_days", defaults["max_days"]):
+        raise ValueError("tokens.default_days can't be more than tokens.max_days")
     if (
         section == "server"
         and "allowed_hosts" in data

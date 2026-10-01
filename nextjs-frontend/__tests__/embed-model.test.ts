@@ -1,11 +1,15 @@
 import {
   embedUrl,
+  embeddedLine,
   fmtDay,
   formatStart,
   iframeSnippet,
+  linkState,
   normalizeOrigin,
   originAllowed,
   parseStart,
+  playsLine,
+  siteName,
   withStart,
 } from "@/components/sharing/embed-model";
 
@@ -67,5 +71,43 @@ describe("embed origins", () => {
   });
   it("writes dates like the design", () => {
     expect(fmtDay(new Date(2026, 9, 30))).toBe("30 Oct 2026");
+  });
+});
+
+describe("how a share link has been used", () => {
+  it("says whether it still works, or why not", () => {
+    expect(linkState({ active: true })).toBe("active");
+    expect(linkState({ active: false, revoked: true })).toBe("revoked");
+    expect(linkState({ active: false, revoked: false })).toBe("expired");
+    expect(linkState({ active: false })).toBe("expired");
+  });
+  it("counts plays", () => {
+    expect(playsLine(0)).toBe("Not played yet");
+    expect(playsLine(undefined, "2026-10-03T10:00:00+00:00")).toBe("Not played yet");
+    expect(playsLine(1)).toBe("1 play");
+    expect(playsLine(12, "2026-10-03T10:00:00+00:00")).toBe("12 plays · last 3 Oct 2026");
+  });
+  it("names the sites that embed it", () => {
+    expect(siteName("https://blog.example.org")).toBe("blog.example.org");
+    expect(siteName("https://intranet.example.net:8443")).toBe("intranet.example.net:8443");
+    expect(siteName("not a url")).toBe("not a url");
+    expect(embeddedLine([])).toBeNull();
+    expect(embeddedLine(undefined)).toBeNull();
+    expect(embeddedLine([{ origin: "https://blog.example.org", opens: 1 }])).toBe("Embedded on blog.example.org");
+    expect(
+      embeddedLine([
+        { origin: "https://blog.example.org", opens: 2 },
+        { origin: "http://news.example.com:8080", opens: 1 },
+        { origin: "https://a.example", opens: 5 },
+        { origin: "https://b.example", opens: 1 },
+      ]),
+    ).toBe("Embedded on blog.example.org (2 opens), news.example.com:8080 and 2 more sites");
+    expect(
+      embeddedLine([
+        { origin: "https://a.example", opens: 1 },
+        { origin: "https://b.example", opens: 1 },
+        { origin: "https://c.example", opens: 1 },
+      ]),
+    ).toBe("Embedded on a.example, b.example and 1 more site");
   });
 });

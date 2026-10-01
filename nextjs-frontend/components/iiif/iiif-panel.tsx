@@ -1,16 +1,18 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Check, ChevronDown, ChevronRight, Copy, ExternalLink, Lock, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { Iiif, Metadata } from "@/app/openapi-client";
+import { Iiif } from "@/app/openapi-client";
+import { AccessFields } from "@/components/access/access-fields";
+import { useSaveAccess } from "@/components/access/hooks";
+import { accessPatch, type AccessValue } from "@/components/access/model";
 import { isUnreachable } from "@/components/errors/error-states";
 import { includedFrom, momentLabel, parseClock, schemaProblem } from "@/components/iiif/iiif-model";
 import { FIELD_ANCHOR } from "@/components/iiif/metadata-editor";
 import {
-  ACCESS,
   FIELD_LABEL,
   profileProblems,
   PUBLISH_BADGE,
@@ -18,14 +20,8 @@ import {
   type Field,
   type Problem,
 } from "@/components/iiif/metadata-model";
-import {
-  keys,
-  useNamespaceMeta,
-  useRecordingBrief,
-  useRecordingIiif,
-  useRecordingMeta,
-} from "@/components/iiif/queries";
-import { ChoiceCards, SegmentedChoice } from "@/components/settings/controls";
+import { useNamespaceMeta, useRecordingBrief, useRecordingIiif, useRecordingMeta } from "@/components/iiif/queries";
+import { SegmentedChoice } from "@/components/settings/controls";
 import { Badge } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -51,8 +47,6 @@ async function copyText(text: string): Promise<boolean> {
  * The same panel serves the Recording page's IIIF tab and the IIIF section of Share.
  */
 export function IiifPanel({ recordingId }: { recordingId: number }) {
-  const client = useApiClient();
-  const qc = useQueryClient();
   const toast = useToast();
   const { can, admin } = useArchive();
   const panel = useRecordingIiif(recordingId);
@@ -62,27 +56,7 @@ export function IiifPanel({ recordingId }: { recordingId: number }) {
   const profile = useNamespaceMeta(ns).data?.profile;
   const [jsonOpen, setJsonOpen] = useState(false);
 
-  const setAccess = useMutation({
-    mutationFn: (access: string) =>
-      data(
-        Metadata.updateRecordingMetadata({
-          client,
-          path: { rid: recordingId },
-          body: { set: { access } },
-        }),
-      ),
-    onSuccess: (r, access) => {
-      qc.setQueryData(keys.meta(recordingId), r);
-      void qc.invalidateQueries({ queryKey: keys.iiif(recordingId) });
-      void qc.invalidateQueries({ queryKey: keys.history(recordingId) });
-      toast({
-        title: access === "private" ? "Unpublished" : "Access changed",
-        body: ACCESS.find((a) => a.value === access)?.anon,
-        tone: "green",
-      });
-    },
-    onError: (e) => toast({ title: "Couldn’t change access", body: e.message, tone: "red" }),
-  });
+  const setAccess = useSaveAccess(recordingId);
 
   if (panel.isPending)
     return (
@@ -117,7 +91,7 @@ export function IiifPanel({ recordingId }: { recordingId: number }) {
   const badge = PUBLISH_BADGE[state];
   const included = includedFrom(p.json);
   const canPublish = can("owner", ns);
-  const current = ACCESS.find((a) => a.value === p.access) ?? ACCESS[3];
+  const accessValue: AccessValue = { access: p.access, open: p.open, featured: Boolean(p.featured) };
 
   return (
     <div className="flex flex-col gap-3.5 px-[18px] py-4">
@@ -235,23 +209,21 @@ export function IiifPanel({ recordingId }: { recordingId: number }) {
 
       <div className="flex flex-col gap-1.5">
         <b className="text-[12px] font-bold text-fg-secondary">Access</b>
-        <ChoiceCards
-          label="Access"
+        <AccessFields
           size="sm"
-          columns={2}
-          value={p.access}
-          onChange={(v) => v !== p.access && setAccess.mutate(v)}
+          value={accessValue}
+          onChange={(v) => {
+            const patch = accessPatch(accessValue, v);
+            if (Object.keys(patch).length) setAccess.mutate(patch);
+          }}
           disabled={!canPublish || setAccess.isPending}
           disabledReason={!canPublish ? needRole("owner", ns) : undefined}
-          options={ACCESS.map((a) => ({
-            value: a.value,
-            label: a.label,
-            hint: a.hint,
-            disabled: a.value !== "private" && p.access === "private" && metaProblems.length > 0,
-            reason: `Fix ${metaProblems.length} problem${metaProblems.length === 1 ? "" : "s"} in the metadata first`,
-          }))}
+          publishBlocked={
+            metaProblems.length
+              ? `Fix ${metaProblems.length} problem${metaProblems.length === 1 ? "" : "s"} in the metadata first`
+              : undefined
+          }
         />
-        <p className="text-[12px] leading-[1.4] text-fg-secondary">{current.anon}</p>
       </div>
 
       <Validation

@@ -61,7 +61,21 @@ describe("settings fields", () => {
       error: "Use 1 or less",
     });
     expect(parse(spec("llm.base_url"), "  ")).toEqual({ value: null });
+    // the models people may pick in Chat: one per line (empty: whatever the server lists)
+    expect(parse(spec("llm.chat_models"), "gpt-x\n\n  claude-y  \n")).toEqual({ value: ["gpt-x", "claude-y"] });
+    expect(parse(spec("llm.chat_models"), "")).toEqual({ value: [] });
     expect(parse(spec("video.frame_width"), "480")).toEqual({ value: 480 });
+  });
+
+  it("offers every OCR engine the server takes, docTR among them", () => {
+    expect(spec("video.ocr_engine").options?.map((o) => o.value)).toEqual([
+      "auto",
+      "tesseract",
+      "apple-vision",
+      "rapidocr",
+      "doctr",
+      "none",
+    ]);
   });
 
   it("checks rules across fields", () => {
@@ -74,6 +88,8 @@ describe("settings fields", () => {
       "speakers.review_threshold": "Thresholds must satisfy 0 ≤ review ≤ match ≤ 1",
     });
     expect(crossErrors({ "server.allowed_hosts": [] })["server.allowed_hosts"]).toMatch(/at least one host/);
+    expect(crossErrors({ "uploads.extensions": [] })).toEqual({ "uploads.extensions": "Pick at least one type" });
+    expect(crossErrors({ "uploads.extensions": [".mp3"] })).toEqual({});
     expect(crossErrors({ "server.allowed_hosts": ["https://a.org"] })["server.allowed_hosts"]).toMatch(
       /isn’t a host name/,
     );
@@ -154,6 +170,12 @@ describe("settings fields", () => {
       message: "Transcribe.engine must be one of: mlx-whisper, sensevoice, whisper",
     });
     expect(serverError("iiif", "iiif.viewers should be list").field).toBeNull();
+    expect(
+      serverError("server", "server.trusted_proxies: frontend isn't an address or a range like 10.0.0.0/8"),
+    ).toEqual({
+      field: "server.trusted_proxies",
+      message: "Server.trusted_proxies: frontend isn't an address or a range like 10.0.0.0/8",
+    });
   });
 
   it("summarises changes for the review dialog", () => {
@@ -223,7 +245,7 @@ describe("audit log", () => {
     expect(targetText("space:2", "member.set", look)).toBe("customer-calls");
     expect(targetText("recording:12", "share.revoke", look)).toBe("Recording 12");
     expect(targetHref("server", "settings.save", look)).toBe("/settings/access");
-    expect(targetHref("recording:12", "x", look)).toBe("/recordings/12");
+    expect(targetHref("recording:12", "x", look)).toBe("/resources/12");
     expect(detailText(entries[0], look)).toBe("Session length, Allowed hosts");
     expect(detailText(entries[3], look)).toBe("API key (changed), Timeout");
     expect(detailText(entries[1], look)).toBe("Sam Whitaker → viewer");
@@ -324,6 +346,13 @@ describe("account", () => {
     expect(daysError("90")).toBeNull();
     expect(daysError("4000")).toMatch(/0 to 3650/);
     expect(daysError("1.5")).toMatch(/whole days/);
+    // within what admins allow
+    const lim = { default_days: 30, max_days: 60, never_expire: false };
+    expect(daysError("60", lim)).toBeNull();
+    expect(daysError("61", lim)).toBe("Use whole days from 1 to 60");
+    expect(daysError("0", lim)).toBe("Keys have to expire: use 1 to 60 days");
+    expect(daysError("", lim)).toBe("Enter a number of days");
+    expect(daysError("0", { ...lim, never_expire: true })).toBeNull();
   });
 
   it("summarises roles for the account menu", () => {
@@ -331,6 +360,10 @@ describe("account", () => {
       "Editor in podcasts · Viewer in customer-calls",
     );
     expect(rolesSummary(false, {})).toBe("No namespaces yet");
+    expect(rolesSummary(false, { podcasts: "viewer" }, ["research"])).toBe(
+      "Viewer in podcasts · Some collections of research",
+    );
+    expect(rolesSummary(false, {}, ["research"])).toBe("Some collections of research");
     expect(rolesSummary(true, {})).toMatch(/Platform admin/);
     expect(
       rolesSummary(false, {

@@ -5,22 +5,19 @@ import { useRouter } from "next/navigation";
 import { useRef } from "react";
 
 import type { RecordingSummary } from "@/app/openapi-client/types.gen";
+import { AccessBadge } from "@/components/access/access-fields";
 import { MediaIcon } from "@/components/library/cells";
-import { speakerList, statusView } from "@/components/library/model";
+import { lengthText, speakerList, statusView } from "@/components/library/model";
 import { rowClick, type RowProps } from "@/components/library/recording-table";
 import { Badge, speakerColor } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/field";
 import { Tooltip } from "@/components/ui/tooltip";
-import { shortDate, tc } from "@/lib/format";
+import { shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 function meta(r: RecordingSummary, compactDate = false) {
   const date = shortDate(r.recorded_at);
-  return [
-    r.namespace,
-    compactDate ? date.replace(/, \d\d:\d\d$/, "").replace(/ \d{4}$/, "") : date,
-    r.duration_ms ? tc(r.duration_ms) : "—",
-  ]
+  return [r.namespace, compactDate ? date.replace(/, \d\d:\d\d$/, "").replace(/ \d{4}$/, "") : date, lengthText(r)]
     .filter(Boolean)
     .join(" · ");
 }
@@ -38,7 +35,7 @@ export function RecordingList({ rows, jobs, reviews, selected, onToggle, onOpen 
         const spk = speakerList(r.speakers).slice(0, 3);
         const open = () => {
           onOpen?.(r);
-          router.push(`/recordings/${r.id}`);
+          router.push(`/resources/${r.id}`);
         };
         return (
           <li
@@ -77,7 +74,7 @@ export function RecordingList({ rows, jobs, reviews, selected, onToggle, onOpen 
             </span>
             <span className="flex min-w-0 items-baseline gap-2.5">
               <Link
-                href={`/recordings/${r.id}`}
+                href={`/resources/${r.id}`}
                 data-row-link
                 onClick={() => onOpen?.(r)}
                 className="truncate text-[13.5px] font-semibold leading-none text-fg hover:underline"
@@ -137,7 +134,7 @@ export function RecordingCards({ rows, jobs, reviews, selected, onOpen }: RowPro
         return (
           <li key={r.id} data-row-id={r.id} className={cn("border-b border-border", selected.has(r.id) && "bg-hl")}>
             <Link
-              href={`/recordings/${r.id}`}
+              href={`/resources/${r.id}`}
               data-row-link
               onClick={() => onOpen?.(r)}
               className="flex flex-col gap-[7px] px-4 py-3 active:bg-surface"
@@ -151,6 +148,7 @@ export function RecordingCards({ rows, jobs, reviews, selected, onOpen }: RowPro
               <span className="tabular flex items-center gap-2 text-[12.5px] leading-none text-fg-muted">
                 <MediaIcon kind={r.media_kind} className="size-[13px]" />
                 <span className="truncate">{meta(r, true)}</span>
+                {r.access && r.access !== "private" && <AccessBadge value={r} compact className="text-fg-muted" />}
                 <span className="flex-1" />
                 {spk.map((s) => (
                   <span

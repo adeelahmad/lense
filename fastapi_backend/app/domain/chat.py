@@ -1,7 +1,7 @@
 """Questions answered from the archive, with numbered citations to the exact moments.
 
 Retrieval is keyword-first over the full-text index (English stemming), limited to the namespaces the asker can read
-and to the conversation's scope (namespaces, recordings, speakers, dates). Each hit is widened to its neighbouring
+and to the conversation's scope (namespaces, recordings, collections, speakers, dates). Each hit is widened to its neighbouring
 lines and numbered; the model is told to answer only from those excerpts and cite them as [n]. With no model
 configured, the best passages come back on their own.
 """
@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from collections import Counter, defaultdict
 
-from . import llm, render, store
+from . import llm, recsets, render, store
 
 R = store.R
 STOP = set(
@@ -44,7 +45,8 @@ def scope_filter(db, spaces, scope):
     if scope.get("namespaces"):
         sp &= {sid for sid, name in store.space_names(db).items() if name in scope["namespaces"]}
     where, p = ["space IN $sp"], {"sp": sorted(sp)}
-    recs = [int(r) for r in scope["recordings"]] if scope.get("recordings") else None
+    kept = recsets.within(db, sp, scope.get("recordings"), scope.get("collections"))
+    recs = sorted(kept) if kept is not None else None
     if scope.get("from") or scope.get("to"):
         q = (
             "SELECT VALUE record::id(id) FROM recording WHERE space IN $sp"
@@ -97,7 +99,7 @@ def retrieve(db, question, spaces, scope=None, k=8):
     passages = []
     for rid, idxs in wanted.items():
         segs = db.rows(
-            "SELECT idx, t0, t1, speaker, text FROM segment WHERE recording = $r AND idx IN $i ORDER BY idx",
+            "SELECT idx, t0, t1, speaker, text, page FROM segment WHERE recording = $r AND idx IN $i ORDER BY idx",
             r=rid,
             i=sorted(i for i in idxs if i >= 0),
         )
@@ -126,18 +128,25 @@ def retrieve(db, question, spaces, scope=None, k=8):
     for n, x in enumerate(passages, 1):
         rec = recs.get(x["recording_id"], {})
         first = x["segs"][0]
+        page = first.get("page")  # a document's text is on pages, without speakers
         out.append(
-            {
-                "n": n,
-                "recording_id": x["recording_id"],
-                "title": rec.get("title"),
-                "namespace": spaces_n.get(rec.get("space")),
-                "recorded_at": rec.get("recorded_at"),
-                "t0": first["t0"],
-                "time": store.tc(first["t0"]),
-                "speaker": names.get(first.get("speaker")),
-                "text": "\n".join(f"{names.get(s.get('speaker'), 'Unknown')}: {s['text']}" for s in x["segs"]),
-            }
+            store.clean(
+                {
+                    "n": n,
+                    "recording_id": x["recording_id"],
+                    "title": rec.get("title"),
+                    "namespace": spaces_n.get(rec.get("space")),
+                    "recorded_at": rec.get("recorded_at"),
+                    "t0": first["t0"],
+                    "time": store.tc(first["t0"]) if page is None else f"p. {page + 1}",
+                    "page": page,
+                    "speaker": names.get(first.get("speaker")),
+                    "text": "\n".join(
+                        s["text"] if s.get("page") is not None else f"{names.get(s.get('speaker'), 'Unknown')}: {s['text']}"
+                        for s in x["segs"]
+                    ),
+                }
+            )
         )
     if not (scope or {}).get("speakers"):  # text shown on screen in videos
         seen = Counter()
@@ -209,7 +218,7 @@ def cited(text, passages):
 
 
 # ---------- conversations ----------
-def create(db, account, title=None, scope=None):
+def create(db, account, title=None, scope=None, model=None):
     cid = db.next_id("chat")
     db.q(
         "CREATE $r CONTENT $d",
@@ -219,6 +228,7 @@ def create(db, account, title=None, scope=None):
                 "account": account,
                 "title": (title or "New conversation")[:120],
                 "scope": scope or {},
+                "model": model,
                 "created_at": store.now(),
                 "updated_at": store.now(),
             }
@@ -228,25 +238,91 @@ def create(db, account, title=None, scope=None):
 
 
 def get(db, cid, account):
-    c = db.one("SELECT record::id(id) AS id, account, title, scope, created_at, updated_at FROM $r", r=R("chat", cid))
+    c = db.one("SELECT record::id(id) AS id, account, title, scope, model, created_at, updated_at FROM $r", r=R("chat", cid))
     if not c or c["account"] != account:
         raise KeyError(cid)
     return c
 
 
 def history(db, cid):
-    return db.rows("SELECT record::id(id) AS id, role, content, passages, created_at FROM chat_message WHERE chat = $c ORDER BY id", c=cid)
+    return db.rows(
+        "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped, steps ?? [] AS steps, "
+        "notice, error, check, model FROM chat_message WHERE chat = $c ORDER BY id",
+        c=cid,
+    )
 
 
-def add(db, cid, role, content, passages=None):
+def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None, model=None):
+    """Save a message; an answer keeps the tool steps it took, any notice (e.g. the model can't use tools) and error."""
     mid = db.next_id("chat_message")
     db.q(
         "CREATE $r CONTENT $d",
         r=R("chat_message", mid),
-        d=store.clean({"chat": cid, "role": role, "content": content, "passages": passages, "created_at": store.now()}),
+        d=store.clean(
+            {
+                "chat": cid,
+                "role": role,
+                "content": content,
+                "passages": passages,
+                "created_at": store.now(),
+                "stopped": stopped or None,
+                "steps": steps or None,
+                "notice": notice,
+                "error": error,
+                "model": model,
+            }
+        ),
     )
     db.q("UPDATE $r SET updated_at = $t", r=R("chat", cid), t=store.now())
     return mid
+
+
+def model_choices(cfg):
+    """The models people may pick: the configured one first, then llm.chat_models, or (when that's empty) whatever
+    the model server lists. Just the configured one when the server's list can't be had."""
+    if not llm.configured(cfg):
+        return []
+    listed = list(cfg["llm"].get("chat_models") or [])
+    if not listed:
+        try:
+            listed = llm.list_models(cfg)
+        except llm.LLMError:
+            listed = []
+    return list(dict.fromkeys([cfg["llm"]["model"], *listed]))
+
+
+def check_model(cfg, model):
+    """A model someone picked, if it's one they may (ValueError otherwise); None for the configured one."""
+    if model is None or model == cfg["llm"].get("model"):
+        return None
+    if model not in model_choices(cfg):
+        raise ValueError(f"{model} isn't one of the models you can pick here")
+    return model
+
+
+class Answering:
+    """An answer being written in a conversation. Stopping it (POST /chats/{cid}/stop, from any server process) sets a
+    flag on the conversation, which the answer looks at between pieces and tool steps, at most every half second."""
+
+    EVERY = 0.5
+
+    def __init__(self, db, cid):
+        self.db, self.r, self.last, self.stopped = db, R("chat", cid), 0.0, False
+        db.q("UPDATE $r SET answering = true, stop_requested = false", r=self.r)
+
+    def stop_requested(self, force=False):
+        if not self.stopped and (force or time.monotonic() - self.last >= self.EVERY):
+            self.last = time.monotonic()
+            self.stopped = bool((self.db.one("SELECT stop_requested FROM $r", r=self.r) or {}).get("stop_requested"))
+        return self.stopped
+
+    def end(self):
+        self.db.q("UPDATE $r SET answering = false, stop_requested = false", r=self.r)
+
+
+def request_stop(db, cid):
+    """Ask the answer being written in a conversation to stop; False when none is."""
+    return bool(db.rows("UPDATE $r SET stop_requested = true WHERE answering = true RETURN id", r=R("chat", cid)))
 
 
 TOOL_SYSTEM = (
@@ -255,12 +331,12 @@ TOOL_SYSTEM = (
 )
 
 
-def tool_answer(cfg, toolbox, question, history=(), max_steps=6):
+def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None):
     """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text). Raises llm.ToolsUnsupported."""
     msgs = [{"role": "system", "content": TOOL_SYSTEM}] + [{"role": m["role"], "content": m["content"]} for m in list(history)[-6:]]
     msgs.append({"role": "user", "content": question})
     for _ in range(max_steps):
-        msg = llm.chat_message(cfg, msgs, tools=toolbox.specs())
+        msg = llm.chat_message(cfg, msgs, tools=toolbox.specs(), model=model)
         if not msg["tool_calls"]:
             yield "answer", msg["content"]
             return

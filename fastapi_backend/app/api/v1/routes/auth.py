@@ -20,9 +20,12 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
     Me,
+    MeUpdate,
+    PasswordChange,
     RefreshRequest,
     ResetPasswordRequest,
     SetupRequest,
+    TokenLimits,
     TokenPair,
     UserPublic,
 )
@@ -90,7 +93,31 @@ def logout(body: RefreshRequest, db: Db) -> Ok:
 def me(user: CurrentUser, db: Db) -> Me:
     names = store.space_names(db)
     roles: dict[str, Any] = {names.get(k, str(k)): v for k, v in user.roles.items()}
-    return Me(user=UserPublic(**(auth.active_account(db, user.id) or {})), roles=roles, via=user.via, scope=user.scope)
+    partial = sorted(names.get(k, str(k)) for k in user.collections if k not in user.roles)
+    return Me(user=UserPublic(**(auth.active_account(db, user.id) or {})), roles=roles, partial=partial, via=user.via, scope=user.scope)
+
+
+@router.patch("/me")
+def update_me(body: MeUpdate, user: Writer, db: Db) -> Me:
+    """Change your own name."""
+    with domain_errors():
+        auth.rename_account(db, user.id, body.name)
+    return me(user, db)
+
+
+@router.post("/password")
+def change_password(body: PasswordChange, user: CurrentUser, db: Db) -> Ok:
+    """Change your own password, with your current one (signed in; not with an API token). Your other sessions end
+    and this one stays; API tokens keep working. Audited as `password.change`."""
+    if user.via != "access":
+        raise HTTPException(403, "sign in to change your password; API tokens can't")
+    key = f"password|{user.id}"
+    if auth.throttled(key):
+        raise HTTPException(429, "too many attempts; try again in a few minutes")
+    with domain_errors():
+        auth.change_password(db, user.id, body.current_password, body.new_password, user.sid, key)
+    auth.audit(db, user.as_audit(), "password.change", f"account:{user.id}")
+    return Ok()
 
 
 @router.post("/password/forgot")
@@ -115,17 +142,28 @@ def list_tokens(user: CurrentUser, db: Db) -> list[ApiToken]:
     return auth.list_tokens(db, user.id)
 
 
+@tokens.get("/limits")
+def token_limits(user: CurrentUser, cfg: Cfg) -> TokenLimits:
+    """How long a new key may last: its default, the most it may get, and whether it may never expire (admins set
+    these in the tokens settings)."""
+    return TokenLimits(**auth.token_limits(cfg))
+
+
 @tokens.post("")
-def create_token(body: ApiTokenCreate, user: Writer, db: Db) -> ApiTokenCreated:
+def create_token(body: ApiTokenCreate, user: Writer, db: Db, cfg: Cfg) -> ApiTokenCreated:
+    """A key that acts as you, with your roles (read only, or read and write). It lasts `days` (default
+    tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400."""
     if user.via != "access":
         raise HTTPException(403, "create tokens while signed in")
     with domain_errors():
-        tid, raw = auth.create_token(db, user.id, body.name, body.scope, body.days)
+        tid, raw = auth.create_token(db, user.id, body.name, body.scope, auth.token_days(cfg, body.days))
     auth.audit(db, user.as_audit(), "token.create", f"api_token:{tid}")
     return ApiTokenCreated(id=tid, token=raw)
 
 
 @tokens.delete("/{token_id}")
 def revoke_token(token_id: int, user: Writer, db: Db) -> Ok:
-    auth.revoke_token(db, user.id, token_id)
+    """Revoke one of your keys. Audited as `token.revoke`."""
+    if auth.revoke_token(db, user.id, token_id):
+        auth.audit(db, user.as_audit(), "token.revoke", f"api_token:{token_id}")
     return Ok()

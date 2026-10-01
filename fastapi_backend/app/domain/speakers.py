@@ -373,7 +373,9 @@ def rename(db, sid, name):
     db.q("UPDATE $r SET name = $n", r=R("speaker", sid), n=(name or "").strip() or None)
 
 
-def merge(db, src, dst):
+def merge(db, src, dst, by=None):
+    """Fold speaker `src` into `dst`; returns the merge id (undo it with undo()). The merge keeps who made it and how
+    many recordings and lines moved."""
     a, b = db.one("SELECT * FROM $r", r=R("speaker", src)), db.one("SELECT * FROM $r", r=R("speaker", dst))
     if not a or not b or src == dst:
         raise ValueError("pick two different speakers")
@@ -415,7 +417,19 @@ def merge(db, src, dst):
         "dstr": R("speaker", dst),
         "mr": R("merge", mid),
         "patch": patch,
-        "m": {"from_id": src, "into_id": dst, "space": a["space"], "snapshot": snap, "at": store.now(), "undone": False},
+        "m": store.clean(
+            {
+                "from_id": src,
+                "into_id": dst,
+                "space": a["space"],
+                "snapshot": snap,
+                "at": store.now(),
+                "undone": False,
+                "by": by,
+                "segments": len(snap["segments"]),
+                "recordings": len(set(db.values("SELECT VALUE recording FROM segment WHERE speaker = $s", s=src))),
+            }
+        ),
     }
     if patch:
         stmts.append("UPDATE $dstr MERGE $patch")
@@ -426,7 +440,7 @@ def merge(db, src, dst):
     return mid
 
 
-def undo(db, merge_id):
+def undo(db, merge_id, by=None):
     m = db.one("SELECT * FROM $r", r=R("merge", merge_id))
     if not m or m.get("undone"):
         raise ValueError("nothing to undo")
@@ -438,7 +452,7 @@ def undo(db, merge_id):
         "UPDATE $apps SET speaker = $src",
         "UPDATE mentions SET speaker = $src WHERE in IN $segs",
         "UPDATE $dstr MERGE $dpatch",
-        "UPDATE $mr SET undone = true",
+        "UPDATE $mr SET undone = true, undone_by = $by, undone_at = $t",
     ]
     params = {
         "src": src,
@@ -449,6 +463,8 @@ def undo(db, merge_id):
         "segs": [R("segment", i) for i in sn["segments"]],
         "apps": [R("appearance", i) for i in sn["appearances"]],
         "dpatch": {"embedding": d.get("embedding"), "n_obs": d.get("n_obs"), "name": d.get("name")},
+        "by": by,
+        "t": store.now(),
     }
     for k, (x, y) in enumerate(sn.get("moved_links", [])):
         stmts.append(f"DELETE same_as WHERE in = $ma{k} AND out = $mb{k}")
@@ -473,6 +489,41 @@ def link(db, a, b):
         db.q("RELATE $x->same_as->$y", x=x, y=y)
 
 
+def unlink(db, a, b):
+    """Undo link(): the two are no longer the same person. False when they weren't linked."""
+    x, y = R("speaker", min(a, b)), R("speaker", max(a, b))
+    return bool(db.rows("DELETE same_as WHERE in = $x AND out = $y RETURN BEFORE", x=x, y=y))
+
+
+def _pair(a, b):
+    return R("not_same", f"{min(a, b)}-{max(a, b)}")
+
+
+def not_same(db, a, b, by=None):
+    """Someone says these two speakers aren't the same person (in one namespace or two): drop the suggestion and never
+    make it again."""
+    if a == b:
+        raise ValueError("pick two different speakers")
+    if not db.one("SELECT id FROM $r", r=R("speaker", a)) or not db.one("SELECT id FROM $r", r=R("speaker", b)):
+        raise KeyError("speaker")
+    db.run(
+        [
+            "DELETE suggestion WHERE (speaker = $a AND candidate = $b) OR (speaker = $b AND candidate = $a)",
+            "UPSERT $p CONTENT $d",
+        ],
+        a=a,
+        b=b,
+        p=_pair(a, b),
+        d=store.clean({"a": min(a, b), "b": max(a, b), "by": by, "at": store.now()}),
+    )
+
+
+def _dismissed(db, ids):
+    """Pairs among these speakers that someone said aren't the same, as (a, b) with a < b."""
+    rows = db.rows("SELECT a, b FROM not_same WHERE a IN $ids OR b IN $ids", ids=sorted(ids)) if ids else []
+    return {(r["a"], r["b"]) for r in rows}
+
+
 def list_speakers(db, nid):
     sp = db.rows("SELECT record::id(id) AS id, label, name, embedding != NONE AS has_voice FROM speaker WHERE space = $s", s=nid)
     talk = {
@@ -487,9 +538,9 @@ def list_speakers(db, nid):
         for r in db.rows("SELECT speaker, recording FROM segment WHERE space = $s AND speaker > 0 GROUP BY speaker, recording", s=nid)
     )
     names = {r["id"]: r.get("name") or r["label"] for r in sp}
-    sug = {}
+    sug, no = {}, _dismissed(db, list(names))
     for g in db.rows("SELECT speaker, candidate, score FROM suggestion WHERE space = $s", s=nid):
-        if g["candidate"] in names:
+        if g["candidate"] in names and (min(g["speaker"], g["candidate"]), max(g["speaker"], g["candidate"])) not in no:
             sug.setdefault(g["speaker"], []).append({"id": g["candidate"], "name": names[g["candidate"]], "score": round(g["score"], 3)})
     out = [
         {
@@ -508,8 +559,10 @@ def list_speakers(db, nid):
     return sorted(out, key=lambda x: (-x["talk_ms"], x["id"]))
 
 
-def cross_namespace_matches(db, cfg, nids):
-    """Likely same voice in two different namespaces: shown as edges, never merged."""
+def cross_namespace_matches(db, cfg, nids, only=None):
+    """Likely same voice in two different namespaces (of `nids`; with `only`, pairs with one side in that namespace):
+    shown as edges and suggestions, never merged. Pairs someone said aren't the same, or linked already, are left out.
+    (a, b, score), a < b."""
     rows = (
         db.rows("SELECT record::id(id) AS id, space, embedding FROM speaker WHERE space IN $s AND embedding != NONE", s=list(nids))
         if nids
@@ -519,8 +572,17 @@ def cross_namespace_matches(db, cfg, nids):
     hi, out = cfg["speakers"]["match_threshold"], []
     for i, (a, na, ea) in enumerate(rows):
         for b, nb, eb in rows[i + 1 :]:
-            if na != nb and ea.shape == eb.shape:
+            if na != nb and ea.shape == eb.shape and (only is None or only in (na, nb)):
                 sc = float(np.dot(ea, eb))
                 if sc >= hi:
-                    out.append((a, b, sc))
-    return out
+                    out.append((min(a, b), max(a, b), sc))
+    if not out:
+        return out
+    ids = {x for a, b, _ in out for x in (a, b)}
+    skip = _dismissed(db, ids) | {
+        (min(r["a"], r["b"]), max(r["a"], r["b"]))
+        for r in db.rows(
+            "SELECT record::id(in) AS a, record::id(out) AS b FROM same_as WHERE in IN $r OR out IN $r", r=[R("speaker", i) for i in ids]
+        )
+    }
+    return [m for m in out if (m[0], m[1]) not in skip]

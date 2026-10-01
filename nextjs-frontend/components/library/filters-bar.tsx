@@ -1,22 +1,28 @@
 "use client";
 
-import { BookmarkPlus, Check, ChevronDown, Search, X } from "lucide-react";
-import { forwardRef, useMemo, useState, type ReactNode } from "react";
+import { Check, ChevronDown, FolderTree, Search, X } from "lucide-react";
+import { forwardRef, useState, type ReactNode } from "react";
 
-import type { RecordingSummary } from "@/app/openapi-client/types.gen";
+import type { CollectionNode, FieldDef } from "@/app/openapi-client/types.gen";
+import { fieldFilterLabel } from "@/components/fields/fields-model";
+import { collectionName } from "@/components/library/collections-model";
 import {
   DATE_LABEL,
   DURATION_LABEL,
   MEDIA_LABEL,
   STATUS_FILTER_LABEL,
-  speakerList,
+  languageName,
   type DateRange,
   type DurationRange,
+  type FieldFilter,
   type Filters,
   type MediaFilter,
+  type SpeakerChoice,
   type StatusFilter,
 } from "@/components/library/model";
+import { objectName } from "@/components/recording/objects-model";
 import { Button } from "@/components/ui/button";
+import { Input, Select } from "@/components/ui/field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { count } from "@/lib/format";
@@ -73,19 +79,20 @@ function Chip({
   );
 }
 
-/** A chip for a filter the backend can't answer yet: visible, disabled, and says why. */
-function DisabledChip({ label, reason }: { label: string; reason: string }) {
+/** A chip that can't be used yet: visible, disabled, and says why. */
+function OffChip({ label, reason }: { label: string; reason: string }) {
   return (
     <Tooltip content={reason}>
-      <span
-        tabIndex={0}
-        role="button"
+      <button
+        type="button"
         aria-disabled
-        className={cn(chipBase, chipOff, "cursor-not-allowed pl-[11px] pr-2 opacity-50 hover:bg-background")}
+        aria-label={`${label}: ${reason}`}
+        onClick={(e) => e.preventDefault()}
+        className={cn(chipBase, chipOff, "cursor-not-allowed gap-[5px] pl-[11px] pr-2 opacity-50 hover:bg-background")}
       >
         {label}
         <ChevronDown className="size-[13px]" aria-hidden />
-      </span>
+      </button>
     </Tooltip>
   );
 }
@@ -184,29 +191,128 @@ export const FilterInput = forwardRef<
   );
 });
 
-/** Library filters: namespace, status, speaker, date, duration and media, plus the ones the backend can't do yet. */
+/** Pick a custom field and the value to match: an option, yes or no, or text it contains (empty: any value). */
+function FieldFilterForm({
+  fields,
+  current,
+  onApply,
+}: {
+  fields: FieldDef[];
+  current: FieldFilter | null;
+  onApply: (f: FieldFilter) => void;
+}) {
+  const [id, setId] = useState(current?.id ?? fields[0]?.id ?? 0);
+  const [value, setValue] = useState(current?.value ?? "");
+  const f = fields.find((x) => x.id === id) ?? fields[0];
+  if (!f) return null;
+  const choices =
+    f.type === "boolean"
+      ? [
+          { value: "true", label: "Yes" },
+          { value: "false", label: "No" },
+        ]
+      : f.type === "choice" || f.type === "choices"
+        ? (f.options ?? []).map((o) => ({ value: o, label: o }))
+        : null;
+  return (
+    <form
+      className="flex flex-col gap-2 p-1"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onApply({ id: f.id, value });
+      }}
+    >
+      <Select
+        aria-label="Field"
+        size="sm"
+        value={String(f.id)}
+        onChange={(e) => {
+          setId(Number(e.target.value));
+          setValue("");
+        }}
+        options={fields.map((x) => ({ value: String(x.id), label: x.label }))}
+      />
+      {choices ? (
+        <Select
+          aria-label={`Value of ${f.label}`}
+          size="sm"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          options={[{ value: "", label: "Any value" }, ...choices]}
+        />
+      ) : (
+        <Input
+          aria-label={`Value of ${f.label}`}
+          className="h-8 text-[13px]"
+          value={value}
+          placeholder={f.type === "date" ? "Any value, or 1998, 1998-05…" : "Any value, or text it contains"}
+          onChange={(e) => setValue(e.target.value)}
+        />
+      )}
+      <Button type="submit" size="xs" variant="primary" className="self-end">
+        Show these
+      </Button>
+    </form>
+  );
+}
+
+/**
+ * Library filters: namespace, collection, field, source, status, speaker, date, duration, language, media, tags and
+ * the kinds of object seen (once any have been).
+ */
 export function FiltersBar({
   filters,
   onChange,
-  rows,
+  speakers,
+  speakersLoading,
+  tags,
+  tagsLoading,
   inputRef,
   compact,
+  trailing,
+  origins = [],
+  languages = [],
+  collections,
+  collectionsLoading,
+  onManageCollections,
+  fields,
+  fieldsLoading,
+  objects = [],
 }: {
   filters: Filters;
   onChange: (f: Filters) => void;
-  rows: RecordingSummary[];
+  /** Everyone who speaks in the namespaces in scope, by name, most recordings first. */
+  speakers: SpeakerChoice[];
+  speakersLoading?: boolean;
+  /** The tags in use in scope, most used first. */
+  tags: { tag: string; recordings: number }[];
+  tagsLoading?: boolean;
   inputRef: React.Ref<HTMLInputElement>;
   compact?: boolean;
+  /** At the end of the bar: saved views. */
+  trailing?: ReactNode;
+  /** Where the recordings in scope came from (GET /recordings/origins), most first. */
+  origins?: { origin: string; name: string; recordings: number }[];
+  /** Their languages (GET /recordings/languages), most first; null is "not known". */
+  languages?: { language?: string | null; recordings: number }[];
+  /** The namespace's collections, depth first (none without a namespace). */
+  collections?: CollectionNode[];
+  collectionsLoading?: boolean;
+  /** Open the dialog that arranges them. */
+  onManageCollections?: () => void;
+  /** The custom fields that describe the namespace's resources (none without a namespace). */
+  fields?: FieldDef[];
+  fieldsLoading?: boolean;
+  /** The kinds of object seen in the recordings in scope (GET /recordings/objects), most first. */
+  objects?: { object: string; recordings: number }[];
 }) {
-  const { namespaces, namespace, setNamespace } = useArchive();
+  const { namespaces: full, partialNamespaces, namespace, setNamespace, isPartial } = useArchive();
+  const namespaces = [...full, ...partialNamespaces].sort((a, b) => a.name.localeCompare(b.name));
   const [spkQuery, setSpkQuery] = useState("");
+  const [tagQuery, setTagQuery] = useState("");
+  const [objectQuery, setObjectQuery] = useState("");
+  const tagOn = (t: string) => filters.tags.some((x) => x.toLowerCase() === t.toLowerCase());
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
-
-  const speakers = useMemo(() => {
-    const n = new Map<string, number>();
-    for (const r of rows) for (const s of speakerList(r.speakers)) n.set(s.name, (n.get(s.name) ?? 0) + 1);
-    return [...n.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [rows]);
 
   const statusLabel =
     filters.statuses.length === 1 ? STATUS_FILTER_LABEL[filters.statuses[0]] : `${filters.statuses.length} statuses`;
@@ -240,10 +346,136 @@ export function FiltersBar({
           </div>
         )}
       </Chip>
-      <DisabledChip
-        label="Source"
-        reason="Not available yet: the recordings list doesn’t say which source each recording came from."
-      />
+      {namespace ? (
+        <Chip
+          label={`Collection: ${collectionName(collections, filters.collection) ?? "all"}`}
+          active={filters.collection != null}
+          onClear={() => set({ collection: null })}
+          width={280}
+        >
+          {(close) => (
+            <div>
+              <div role="menu" aria-label="Collection" className="max-h-72 overflow-y-auto">
+                {[null, ...(collections ?? [])].map((c) => (
+                  <Option
+                    key={c?.id ?? "*"}
+                    on={(c?.id ?? null) === filters.collection}
+                    onClick={() => {
+                      set({ collection: c?.id ?? null });
+                      close();
+                    }}
+                  >
+                    <span
+                      className="flex items-center justify-between gap-2"
+                      style={{ paddingLeft: c ? Math.min(c.depth ?? 0, 6) * 14 : 0 }}
+                    >
+                      <span className="truncate">{c ? c.name : `All of ${namespace}`}</span>
+                      {c && (
+                        <span className="tabular text-[12px] font-normal text-fg-muted">{count(c.total ?? 0)}</span>
+                      )}
+                    </span>
+                  </Option>
+                ))}
+                {!collections?.length && (
+                  <p className="px-2.5 py-3 text-[13px] text-fg-muted">
+                    {collectionsLoading ? "Loading collections…" : "No collections yet."}
+                  </p>
+                )}
+              </div>
+              {onManageCollections && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    close();
+                    onManageCollections();
+                  }}
+                  className="mt-1 flex h-9 w-full items-center gap-2.5 rounded-sm border-t border-border px-2.5 text-left text-[13.5px] font-semibold text-fg-accent hover:bg-surface-neutral"
+                >
+                  <FolderTree className="size-4" aria-hidden />
+                  Manage collections…
+                </button>
+              )}
+            </div>
+          )}
+        </Chip>
+      ) : (
+        <OffChip label="Collection" reason="Pick a namespace first: each has its own collections." />
+      )}
+      {!namespace ? (
+        <OffChip label="Field" reason="Pick a namespace first: each has its own fields." />
+      ) : fields?.length ? (
+        <Chip
+          label={
+            filters.field
+              ? fieldFilterLabel({
+                  label: fields.find((f) => f.id === filters.field?.id)?.label ?? "Field",
+                  value: filters.field.value,
+                })
+              : "Field"
+          }
+          active={Boolean(filters.field)}
+          onClear={() => set({ field: null })}
+          width={260}
+        >
+          {(close) => (
+            <FieldFilterForm
+              fields={fields}
+              current={filters.field}
+              onApply={(field) => {
+                set({ field });
+                close();
+              }}
+            />
+          )}
+        </Chip>
+      ) : (
+        <OffChip
+          label="Field"
+          reason={
+            fieldsLoading
+              ? "Loading the fields…"
+              : `No custom fields describe resources in ${namespace} yet: Manage collections → Fields of ${namespace}`
+          }
+        />
+      )}
+      <Chip
+        label={
+          filters.origins.length === 1
+            ? `Source: ${origins.find((o) => o.origin === filters.origins[0])?.name ?? "1 source"}`
+            : filters.origins.length
+              ? `Source: ${filters.origins.length} sources`
+              : "Source"
+        }
+        active={filters.origins.length > 0}
+        onClear={() => set({ origins: [] })}
+        width={240}
+      >
+        {() => (
+          <div role="menu" aria-label="Source" className="max-h-64 overflow-y-auto">
+            {origins.map((o) => {
+              const on = filters.origins.includes(o.origin);
+              return (
+                <Option
+                  key={o.origin}
+                  multi
+                  on={on}
+                  onClick={() =>
+                    set({
+                      origins: on ? filters.origins.filter((x) => x !== o.origin) : [...filters.origins, o.origin],
+                    })
+                  }
+                >
+                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                    <span className="truncate">{o.name}</span>
+                    <span className="tabular text-[12px] font-normal text-fg-muted">{count(o.recordings)}</span>
+                  </span>
+                </Option>
+              );
+            })}
+            {!origins.length && <p className="px-2.5 py-3 text-[13px] text-fg-muted">No recordings yet.</p>}
+          </div>
+        )}
+      </Chip>
       <Chip
         label={filters.statuses.length ? `Status: ${statusLabel}` : "Status"}
         active={filters.statuses.length > 0}
@@ -272,47 +504,55 @@ export function FiltersBar({
           </div>
         )}
       </Chip>
-      <Chip
-        label={filters.speaker ? `Speaker: ${filters.speaker}` : "Speaker"}
-        active={Boolean(filters.speaker)}
-        onClear={() => set({ speaker: null })}
-        width={260}
-      >
-        {(close) => (
-          <div>
-            <input
-              value={spkQuery}
-              onChange={(e) => setSpkQuery(e.target.value)}
-              placeholder="Find a speaker"
-              aria-label="Find a speaker"
-              className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-none focus:border-blue"
-            />
-            <div role="menu" className="max-h-64 overflow-y-auto">
-              {speakers
-                .filter(([name]) => name.toLowerCase().includes(spkQuery.trim().toLowerCase()))
-                .slice(0, 50)
-                .map(([name, n]) => (
-                  <Option
-                    key={name}
-                    on={filters.speaker === name}
-                    onClick={() => {
-                      set({ speaker: filters.speaker === name ? null : name });
-                      close();
-                    }}
-                  >
-                    <span className="flex items-center justify-between gap-2">
-                      {name}
-                      <span className="tabular text-[12px] font-normal text-fg-muted">{n}</span>
-                    </span>
-                  </Option>
-                ))}
-              {!speakers.length && (
-                <p className="px-2.5 py-3 text-[13px] text-fg-muted">No speakers in the loaded recordings.</p>
-              )}
+      {isPartial(namespace) ? (
+        <OffChip label="Speaker" reason={`Speakers are listed for people with a role in ${namespace}`} />
+      ) : (
+        <Chip
+          label={filters.speaker ? `Speaker: ${filters.speaker.name}` : "Speaker"}
+          active={Boolean(filters.speaker)}
+          onClear={() => set({ speaker: null })}
+          width={260}
+        >
+          {(close) => (
+            <div>
+              <input
+                value={spkQuery}
+                onChange={(e) => setSpkQuery(e.target.value)}
+                placeholder="Find a speaker"
+                aria-label="Find a speaker"
+                className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-none focus:border-blue"
+              />
+              <div role="menu" className="max-h-64 overflow-y-auto">
+                {speakers
+                  .filter((s) => s.name.toLowerCase().includes(spkQuery.trim().toLowerCase()))
+                  .slice(0, 50)
+                  .map((s) => (
+                    <Option
+                      key={s.name}
+                      on={filters.speaker?.name === s.name}
+                      onClick={() => {
+                        set({
+                          speaker: filters.speaker?.name === s.name ? null : { name: s.name, ids: s.ids },
+                        });
+                        close();
+                      }}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        {s.name}
+                        <span className="tabular text-[12px] font-normal text-fg-muted">{count(s.recordings)}</span>
+                      </span>
+                    </Option>
+                  ))}
+                {!speakers.length && (
+                  <p className="px-2.5 py-3 text-[13px] text-fg-muted">
+                    {speakersLoading ? "Loading speakers…" : "No speakers yet."}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </Chip>
+          )}
+        </Chip>
+      )}
       <Chip
         label={filters.date === "any" ? "Date" : `Date: ${DATE_LABEL[filters.date].toLowerCase()}`}
         active={filters.date !== "any"}
@@ -343,12 +583,45 @@ export function FiltersBar({
           />
         )}
       </Chip>
-      <DisabledChip
-        label="Language"
-        reason="Not available yet: the recordings list doesn’t include each recording’s language."
-      />
       <Chip
-        label={filters.media === "any" ? "Audio / text" : MEDIA_LABEL[filters.media]}
+        label={
+          filters.languages.length === 1
+            ? `Language: ${languageName(filters.languages[0])}`
+            : filters.languages.length
+              ? `Language: ${filters.languages.length} languages`
+              : "Language"
+        }
+        active={filters.languages.length > 0}
+        onClear={() => set({ languages: [] })}
+        width={220}
+      >
+        {() => (
+          <div role="menu" aria-label="Language" className="max-h-64 overflow-y-auto">
+            {languages.map((l) => {
+              const code = l.language ?? "none";
+              const on = filters.languages.includes(code);
+              return (
+                <Option
+                  key={code}
+                  multi
+                  on={on}
+                  onClick={() =>
+                    set({ languages: on ? filters.languages.filter((x) => x !== code) : [...filters.languages, code] })
+                  }
+                >
+                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                    <span className="truncate">{languageName(l.language)}</span>
+                    <span className="tabular text-[12px] font-normal text-fg-muted">{count(l.recordings)}</span>
+                  </span>
+                </Option>
+              );
+            })}
+            {!languages.length && <p className="px-2.5 py-3 text-[13px] text-fg-muted">No recordings yet.</p>}
+          </div>
+        )}
+      </Chip>
+      <Chip
+        label={filters.media === "any" ? "Kind" : MEDIA_LABEL[filters.media]}
         active={filters.media !== "any"}
         onClear={() => set({ media: "any" })}
         width={200}
@@ -362,7 +635,115 @@ export function FiltersBar({
           />
         )}
       </Chip>
-      <DisabledChip label="Tags" reason="Not available yet: recordings can’t be tagged." />
+      <Chip
+        label={
+          filters.tags.length === 1
+            ? `Tag: ${filters.tags[0]}`
+            : filters.tags.length
+              ? `${filters.tags.length} tags`
+              : "Tags"
+        }
+        active={filters.tags.length > 0}
+        onClear={() => set({ tags: [] })}
+        width={240}
+      >
+        {() => (
+          <div>
+            {tags.length > 8 && (
+              <input
+                value={tagQuery}
+                onChange={(e) => setTagQuery(e.target.value)}
+                placeholder="Find a tag"
+                aria-label="Find a tag"
+                className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-none focus:border-blue"
+              />
+            )}
+            <div role="menu" aria-label="Tags" className="max-h-64 overflow-y-auto">
+              {tags
+                .filter((t) => t.tag.toLowerCase().includes(tagQuery.trim().toLowerCase()))
+                .slice(0, 100)
+                .map((t) => (
+                  <Option
+                    key={t.tag}
+                    multi
+                    on={tagOn(t.tag)}
+                    onClick={() =>
+                      set({
+                        tags: tagOn(t.tag)
+                          ? filters.tags.filter((x) => x.toLowerCase() !== t.tag.toLowerCase())
+                          : [...filters.tags, t.tag],
+                      })
+                    }
+                  >
+                    <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                      <span className="truncate">{t.tag}</span>
+                      <span className="tabular text-[12px] font-normal text-fg-muted">{count(t.recordings)}</span>
+                    </span>
+                  </Option>
+                ))}
+              {!tags.length && (
+                <p className="px-2.5 py-3 text-[13px] text-fg-muted">
+                  {tagsLoading ? "Loading tags…" : "No tags yet. Select recordings and choose Tag."}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </Chip>
+      {(objects.length > 0 || filters.objects.length > 0) && (
+        <Chip
+          label={
+            filters.objects.length === 1
+              ? `Object: ${objectName(filters.objects[0])}`
+              : filters.objects.length
+                ? `${filters.objects.length} objects`
+                : "Objects"
+          }
+          active={filters.objects.length > 0}
+          onClear={() => set({ objects: [] })}
+          width={240}
+        >
+          {() => (
+            <div>
+              {objects.length > 8 && (
+                <input
+                  value={objectQuery}
+                  onChange={(e) => setObjectQuery(e.target.value)}
+                  placeholder="Find an object"
+                  aria-label="Find an object"
+                  className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-none focus:border-blue"
+                />
+              )}
+              <div role="menu" aria-label="Objects" className="max-h-64 overflow-y-auto">
+                {objects
+                  .filter((o) => o.object.includes(objectQuery.trim().toLowerCase()))
+                  .map((o) => {
+                    const on = filters.objects.includes(o.object);
+                    return (
+                      <Option
+                        key={o.object}
+                        multi
+                        on={on}
+                        onClick={() =>
+                          set({
+                            objects: on
+                              ? filters.objects.filter((x) => x !== o.object)
+                              : [...filters.objects, o.object],
+                          })
+                        }
+                      >
+                        <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                          <span className="truncate">{objectName(o.object)}</span>
+                          <span className="tabular text-[12px] font-normal text-fg-muted">{count(o.recordings)}</span>
+                        </span>
+                      </Option>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </Chip>
+      )}
     </>
   );
 
@@ -371,6 +752,7 @@ export function FiltersBar({
       <div className="flex flex-col gap-2.5">
         <FilterInput ref={inputRef} value={filters.q} onChange={(q) => set({ q })} />
         <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none]">{chips}</div>
+        {trailing && <div className="flex flex-wrap gap-1.5">{trailing}</div>}
       </div>
     );
   }
@@ -379,15 +761,7 @@ export function FiltersBar({
       <FilterInput ref={inputRef} value={filters.q} onChange={(q) => set({ q })} className="w-[214px]" />
       {chips}
       <span className="flex-1" />
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled
-        disabledReason="Not available yet: saved views need somewhere on the server to keep them."
-        icon={<BookmarkPlus />}
-      >
-        Save view
-      </Button>
+      {trailing}
     </div>
   );
 }

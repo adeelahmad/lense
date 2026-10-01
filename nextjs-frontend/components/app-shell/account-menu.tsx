@@ -20,13 +20,15 @@ const NEXT: Record<ThemeChoice, ThemeChoice> = {
 };
 const ITEM = "h-[38px] rounded-sm text-[14px] font-medium";
 
-/** "Editor in podcasts · Viewer in customer-calls", or the admin line. */
-export function rolesSummary(admin: boolean, roles: Record<string, string>): string {
+/** "Editor in podcasts · Viewer in customer-calls · Some collections of research", or the admin line. */
+export function rolesSummary(admin: boolean, roles: Record<string, string>, partial: readonly string[] = []): string {
   if (admin) return "Platform admin · owner of every namespace";
-  const list = Object.entries(roles);
+  const list = [
+    ...Object.entries(roles).map(([ns, r]) => `${r[0].toUpperCase()}${r.slice(1)} in ${ns}`),
+    ...partial.map((ns) => `Some collections of ${ns}`),
+  ];
   if (!list.length) return "No namespaces yet";
-  const shown = list.slice(0, 3).map(([ns, r]) => `${r[0].toUpperCase()}${r.slice(1)} in ${ns}`);
-  return shown.join(" · ") + (list.length > 3 ? ` · +${list.length - 3} more` : "");
+  return list.slice(0, 3).join(" · ") + (list.length > 3 ? ` · +${list.length - 3} more` : "");
 }
 
 /** Name, roles, profile and password, API tokens, appearance, shortcuts, sign out (Access AC4). */
@@ -59,7 +61,7 @@ export function AccountMenu({ name, email }: { name?: string | null; email: stri
           </div>
         </div>
         <div className="px-2.5 pb-1 pt-2 text-[12px] leading-normal text-fg-secondary">
-          {me ? rolesSummary(admin, roles) : <Skeleton className="my-[3px] h-3 w-44" />}
+          {me ? rolesSummary(admin, roles, me.partial ?? []) : <Skeleton className="my-[3px] h-3 w-44" />}
         </div>
         <MenuItem asChild className={ITEM}>
           <Link href="/account">

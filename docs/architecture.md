@@ -5,15 +5,15 @@ Lens is three processes around one database:
 ```
  browser ──► Next.js (nextjs-frontend) ──server-side, Bearer token──► FastAPI (fastapi_backend) ──► SurrealDB
     │            │  NextAuth session (encrypted cookie)                    ▲
-    │            └─ rewrites /api/v1, /iiif, /embed, /reports, /static ────┘
-    └── <audio>/<img> load signed media links through the same rewrites
+    │            └─ proxies /api/v1, /iiif, /embed, /s, /reports, /static ─┘
+    └── <audio>/<img> load signed media links through the same proxy
                                                    lens worker ×N ─────────► SurrealDB (job queue)
 ```
 
 | Piece | What it does |
 |---|---|
 | **Next.js** (`nextjs-frontend/`) | The web app. Auth.js (NextAuth v5) keeps the session; server components and server actions call the API with the session's access token through the generated, typed client. |
-| **FastAPI** (`fastapi_backend/app/`) | The HTTP API under `/api/v1`, IIIF endpoints under `/iiif`, the embeddable player at `/embed/<id>` and stored reports at `/reports/...`. |
+| **FastAPI** (`fastapi_backend/app/`) | The HTTP API under `/api/v1`, IIIF endpoints under `/iiif`, the embeddable player at `/embed/<id>` (and `/s/<code>`, a share link's short address) and stored reports at `/reports/...`. |
 | **Workers** (`lens worker`) | Run queued jobs: transcription, diarisation, video analysis, entity extraction, LLM steps and reports. Any number, on any machine that reaches the database; each can be limited to the steps it can run (for example mlx transcription on a Mac). |
 | **SurrealDB** | Everything: recordings, transcripts, speakers, the knowledge graph (as graph edges), full-text indexes, jobs, accounts and settings. |
 
@@ -37,8 +37,9 @@ fastapi_backend/
       iiif.py, pages.py  IIIF protocol endpoints; embed player and reports (HTML)
     schemas/             Pydantic request and response models, one module per area
     domain/              the processing engine: store (SurrealDB), ingest, speakers, analyze,
-                         entities, graph, search, video, faces, iiif, metadata, pipelines,
-                         templates, llm, chat, batches, jobs, sources, settings, auth, render
+                         entities, graph, search, video, faces, documents, iiif, metadata,
+                         pipelines, templates, llm, chat, batches, jobs, sources, settings, auth,
+                         render
   tests/                 api/ (HTTP) and domain/ (engine) tests, pytest
 ```
 
@@ -69,18 +70,24 @@ you have no role in behaves as if it didn't exist: its recordings, search hits, 
 
 Imports, pipeline runs and folder scans return at once and queue jobs in SurrealDB. `lens worker` processes claim jobs
 atomically, heartbeat while running and hand a job back to the queue when its next step is one they can't run. A job
-whose worker stops responding is retried up to `workers.max_attempts`. `GET /api/v1/events` streams job progress as
-server-sent events.
+whose worker stops responding is retried up to `workers.max_attempts`. Admins can pause a worker (it takes no new
+jobs), drain it (it also hands its job back after the step it's on) and resume it; the flag lives on the worker's
+record, so it holds across restarts. `GET /api/v1/events` streams job progress as server-sent events.
 
 In development the API can run workers in-process (`RUN_BACKGROUND=true` or `workers.inline > 0`); the Docker setups
 run a separate `worker` service.
 
 ## Media
 
-Audio, video, frames and word clouds are loaded by `<audio>`, `<video>` and `<img>` tags, which can't send an
-`Authorization` header. The API therefore returns **signed links** (`?exp=…&sig=…`, HMAC over the path and expiry)
+Audio, video, frames, the pages of documents and images, and word clouds are loaded by `<audio>`, `<video>` and `<img>`
+tags, and supplementary files are
+downloaded through links, none of which can send an `Authorization` header. The API therefore returns **signed links** (`?exp=…&sig=…`, HMAC over the path and expiry)
 in every response that contains media, and only to callers who may read that recording. Media endpoints accept a
 signed link, a share link (`?s=…`) or a bearer token. Byte ranges are supported so players can seek.
+
+Only links the server writes are signed: in API responses, the fields that hold links (`media.LINK_KEYS`); in the
+embed and report pages, links to the recordings the page is about. Text that people or models write (a title, a
+transcript line, metadata, a chat answer) is never signed, however much it looks like a link.
 
 ## Design decisions
 

@@ -2,6 +2,7 @@ import type { RecordingSummary, Speaker } from "@/app/openapi-client/types.gen";
 import { planFromParams } from "@/components/batches/plan";
 import { keywords } from "@/components/chat/keywords";
 import {
+  collectionsLabel,
   datesLabel,
   fromApiScope,
   hoursShort,
@@ -10,6 +11,7 @@ import {
   scopeFromParams,
   scopeWords,
   toApiScope,
+  toggleCollection,
 } from "@/components/chat/scope";
 import { describeCollection } from "@/components/collections/describe";
 import { lastHeard, reviewPairs } from "@/components/speakers/derive";
@@ -68,6 +70,22 @@ describe("chat scope", () => {
       speakers: [3],
     });
     expect(isEverything(fromApiScope({}))).toBe(true);
+  });
+
+  it("draws on collections, as the server reads them when it answers", () => {
+    const s = toggleCollection(toggleCollection({ namespaces: ["podcasts"] }, 5), 9);
+    expect(s.collections).toEqual([5, 9]);
+    expect(toApiScope(s)).toEqual({ namespaces: ["podcasts"], collections: [5, 9] });
+    expect(toggleCollection(toggleCollection(s, 5), 9).collections).toBeUndefined();
+    expect(fromApiScope({ collections: ["5"] })).toEqual({ collections: [5] });
+    expect(isEverything({ collections: [5] })).toBe(false);
+    expect(scopeFromParams(new URLSearchParams("collection=5"))).toEqual({ collections: [5] });
+    expect(scopeWords({ collections: [5] })).toBe("all your namespaces (one collection)");
+    expect(scopeWords({ namespaces: ["podcasts"], collections: [5, 9] })).toBe("podcasts (2 collections)");
+    const names = new Map([[5, "Capsid talk"]]);
+    expect(collectionsLabel([5], names)).toBe("Capsid talk");
+    expect(collectionsLabel([5, 9, 11], names)).toBe("Capsid talk and 2 more");
+    expect(collectionsLabel([9], names)).toBe("a removed collection");
   });
 
   it("reads links from Search and recordings", () => {

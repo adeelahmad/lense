@@ -1,11 +1,13 @@
 "use client";
 
-import { Download, FolderInput, RefreshCw, Tag, Trash2, X, type LucideIcon } from "lucide-react";
+import { Download, FolderInput, FolderTree, RefreshCw, Tag, Trash2, X, type LucideIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { EXPORT_FORMATS, type ExportFormat } from "@/components/library/actions";
+import { hasSound, tagsFromText, tagsOn } from "@/components/library/model";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { Checkbox, Field, Input, Select } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { count, plural } from "@/lib/format";
@@ -50,28 +52,51 @@ function BarButton({
   );
 }
 
-/**
- * Library L2: the floating bulk bar. Actions you can't take in one of the selected namespaces are disabled with a count;
- * Move, Tag and Delete have no backend yet and say so.
- */
+/** Library L2: the floating bulk bar. Actions you can't take in one of the selected namespaces are disabled with a count. */
 export function BulkBar({
   selected,
   blocked,
+  notOwner,
+  moveTargets,
   onReprocess,
   onExport,
+  onMove,
+  onPlace,
+  placeReason,
+  onTag,
+  onDelete,
   onClear,
 }: {
   selected: number;
   /** How many selected recordings are in namespaces where this person can't edit, and where. */
   blocked: { count: number; namespaces: string[] };
+  /** The same for owning: only owners move and delete. */
+  notOwner: { count: number; namespaces: string[] };
+  /** Namespaces the selection can move to. */
+  moveTargets: string[];
   onReprocess: () => void;
   onExport: (fmt: ExportFormat) => void;
+  onMove: () => void;
+  /** File them in a collection of their namespace. */
+  onPlace?: () => void;
+  /** Why they can't be (besides roles): they're from several namespaces. */
+  placeReason?: string;
+  onTag: () => void;
+  onDelete: () => void;
   onClear: () => void;
 }) {
   if (!selected) return null;
   const roleReason = blocked.count
     ? `You’re a viewer in ${blocked.namespaces.join(", ")}: ${count(blocked.count)} of ${count(selected)} selected can’t be changed. Ask an owner for editor access.`
     : undefined;
+  const deleteReason = notOwner.count
+    ? `Only owners delete recordings. You don’t own ${notOwner.namespaces.join(", ")}: ${count(notOwner.count)} of ${count(selected)} selected can’t be deleted.`
+    : undefined;
+  const moveReason = notOwner.count
+    ? `Only owners move recordings out of their namespace. You don’t own ${notOwner.namespaces.join(", ")}: ${count(notOwner.count)} of ${count(selected)} selected can’t be moved.`
+    : !moveTargets.length
+      ? "There’s no other namespace you edit to move them to."
+      : undefined;
   return (
     <div className="pointer-events-none sticky bottom-5 z-30 mt-4 flex justify-center px-4">
       <div
@@ -83,12 +108,16 @@ export function BulkBar({
           {count(selected)} selected
         </span>
         <BarButton icon={RefreshCw} label="Reprocess" onClick={onReprocess} disabledReason={roleReason} />
-        <BarButton
-          icon={FolderInput}
-          label="Move"
-          disabledReason="Not available yet: recordings can’t be moved between namespaces."
-        />
-        <BarButton icon={Tag} label="Tag" disabledReason="Not available yet: recordings can’t be tagged." />
+        <BarButton icon={FolderInput} label="Move" onClick={onMove} disabledReason={moveReason} />
+        {onPlace && (
+          <BarButton
+            icon={FolderTree}
+            label="Collection"
+            onClick={onPlace}
+            disabledReason={roleReason ?? placeReason}
+          />
+        )}
+        <BarButton icon={Tag} label="Tag" onClick={onTag} disabledReason={roleReason} />
         <Menu>
           <MenuTrigger className={actionCls}>
             <Download aria-hidden />
@@ -103,12 +132,7 @@ export function BulkBar({
             ))}
           </MenuContent>
         </Menu>
-        <BarButton
-          icon={Trash2}
-          label="Delete"
-          danger
-          disabledReason="Not available yet: recordings can’t be deleted from the app."
-        />
+        <BarButton icon={Trash2} label="Delete" danger onClick={onDelete} disabledReason={deleteReason} />
         <button
           type="button"
           onClick={onClear}
@@ -228,6 +252,317 @@ export function ReprocessDialog({
           );
         })}
       </fieldset>
+    </Dialog>
+  );
+}
+
+/** Confirm deleting recordings (owners): what goes with them, and that their media files stay. */
+export function DeleteDialog({
+  open,
+  onOpenChange,
+  rows,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  rows: readonly { id: number; title?: string | null }[];
+  /** Deletes them, reporting how many are done so far. */
+  onConfirm: (onProgress: (n: number) => void) => Promise<unknown>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(0);
+  useEffect(() => {
+    if (open) {
+      setBusy(false);
+      setDone(0);
+    }
+  }, [open]);
+  const n = rows.length;
+  const name = (r: { id: number; title?: string | null }) => r.title || `Recording ${r.id}`;
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => !busy && onOpenChange(o)}
+      title={n === 1 ? `Delete “${name(rows[0])}”?` : `Delete ${plural(n, "recording")}?`}
+      description="Their transcripts and analysis, chapters, reports and outputs, shares and permissions go with them. This can’t be undone."
+      actions={
+        <>
+          <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            disabled={busy || !n}
+            onClick={async () => {
+              setBusy(true);
+              await onConfirm(setDone);
+              setBusy(false);
+              onOpenChange(false);
+            }}
+          >
+            {busy
+              ? `Deleting… ${count(done)} of ${count(n)}`
+              : n === 1
+                ? "Delete recording"
+                : `Delete ${plural(n, "recording")}`}
+          </Button>
+        </>
+      }
+    >
+      {n > 1 && (
+        <ul aria-label="Recordings to delete" className="flex flex-col gap-1 text-[13.5px] text-fg">
+          {rows.slice(0, 5).map((r) => (
+            <li key={r.id} className="truncate">
+              {name(r)}
+            </li>
+          ))}
+          {n > 5 && <li className="text-fg-muted">and {plural(n - 5, "more", "more")}</li>}
+        </ul>
+      )}
+      <p className="rounded-md bg-surface px-3 py-2.5 text-[12.5px] leading-[1.45] text-fg-secondary">
+        The media files stay where they are, and scans and watched folders won’t import them again. Importing one on
+        purpose brings it back.
+      </p>
+    </Dialog>
+  );
+}
+
+type MoveRow = { id: number; title?: string | null; namespace?: string | null; media_kind?: string | null };
+
+/**
+ * Move recordings to another namespace (owners where they are, editors there). Their access and IIIF stay as they
+ * were; speakers are matched by name there, or identified again from their voices; share links keep working unless
+ * revoked (docs/api.md).
+ */
+export function MoveDialog({
+  open,
+  onOpenChange,
+  rows,
+  targets,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  rows: readonly MoveRow[];
+  targets: readonly string[];
+  /** Moves them, reporting how many are done so far. */
+  onConfirm: (
+    rows: readonly MoveRow[],
+    to: string,
+    opts: { rediarize: boolean; revokeShares: boolean },
+    onProgress: (n: number) => void,
+  ) => Promise<unknown>;
+}) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const [rediarize, setRediarize] = useState(false);
+  const [revokeShares, setRevokeShares] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(0);
+  useEffect(() => {
+    if (open) {
+      setPicked(null);
+      setRediarize(false);
+      setRevokeShares(false);
+      setBusy(false);
+      setDone(0);
+    }
+  }, [open]);
+  const to = picked && targets.includes(picked) ? picked : (targets[0] ?? "");
+  const moving = rows.filter((r) => r.namespace !== to);
+  const already = rows.length - moving.length;
+  const withAudio = moving.filter(hasSound).length;
+  const from = [...new Set(moving.map((r) => r.namespace ?? "?"))].join(", ");
+  const n = moving.length;
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => !busy && onOpenChange(o)}
+      title={
+        rows.length === 1
+          ? `Move “${rows[0].title || `Recording ${rows[0].id}`}”`
+          : `Move ${plural(rows.length, "recording")}`
+      }
+      description="Their transcripts, media, outputs and permissions go with them."
+      actions={
+        <>
+          <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            disabled={busy || !n || !to}
+            disabledReason={!n ? `They’re already in ${to}` : undefined}
+            onClick={async () => {
+              setBusy(true);
+              await onConfirm(moving, to, { rediarize, revokeShares }, setDone);
+              setBusy(false);
+              onOpenChange(false);
+            }}
+          >
+            {busy ? `Moving… ${count(done)} of ${count(n)}` : `Move ${plural(n, "recording")}`}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <Field
+          label="To"
+          hint={already ? `${plural(already, "recording")} already there stay as they are.` : undefined}
+        >
+          {(f) => (
+            <Select
+              id={f.id}
+              aria-describedby={f.describedBy}
+              value={to}
+              onChange={(e) => setPicked(e.target.value)}
+              options={targets.map((t) => ({ value: t, label: t }))}
+            />
+          )}
+        </Field>
+        <Tooltip content={!withAudio ? "Only recordings with audio have voices to identify" : undefined}>
+          <span className="w-fit">
+            <Checkbox
+              checked={rediarize && withAudio > 0}
+              disabled={!withAudio || busy}
+              onCheckedChange={setRediarize}
+              label={
+                <span className="flex flex-col">
+                  <span className="text-[13.5px] font-semibold text-fg">Identify speakers again from their voices</span>
+                  <span className="text-[12px] text-fg-muted">
+                    Against {to || "the new namespace"}’s voiceprints. Otherwise speakers are matched by name.
+                  </span>
+                </span>
+              }
+            />
+          </span>
+        </Tooltip>
+        <Checkbox
+          checked={revokeShares}
+          disabled={busy}
+          onCheckedChange={setRevokeShares}
+          label={
+            <span className="flex flex-col">
+              <span className="text-[13.5px] font-semibold text-fg">Stop their share links working</span>
+              <span className="text-[12px] text-fg-muted">Otherwise links already sent keep working.</span>
+            </span>
+          }
+        />
+        <p className="rounded-md bg-surface px-3 py-2.5 text-[12.5px] leading-[1.45] text-fg-secondary">
+          Their access and IIIF manifests stay as they are: what they had from {from || "their namespace"} is kept on
+          each recording. Analysis runs again in {to || "the new namespace"} to find their entities, and{" "}
+          {from || "their namespace"}’s scans and watched folders won’t import them again.
+        </p>
+      </div>
+    </Dialog>
+  );
+}
+
+/** Add tags to the selected recordings, and take off tags they have (editors). */
+export function TagDialog({
+  open,
+  onOpenChange,
+  rows,
+  known,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  rows: readonly { id: number; tags?: string[] | null }[];
+  /** Tags already in use, to suggest. */
+  known: readonly string[];
+  onConfirm: (add: string[], remove: string[]) => Promise<boolean>;
+}) {
+  const [text, setText] = useState("");
+  const [off, setOff] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (open) {
+      setText("");
+      setOff([]);
+      setBusy(false);
+    }
+  }, [open]);
+  const add = tagsFromText(text);
+  const have = tagsOn(rows);
+  const isOff = (t: string) => off.some((x) => x.toLowerCase() === t.toLowerCase());
+  const n = rows.length;
+  const nothing = !add.length && !off.length;
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => !busy && onOpenChange(o)}
+      title={`Tag ${plural(n, "recording")}`}
+      description="Tags help find recordings in the Library: filter by them, or see them in the Tags column."
+      actions={
+        <>
+          <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            disabled={busy || nothing}
+            disabledReason={nothing ? "Add a tag, or pick one to take off" : undefined}
+            onClick={async () => {
+              setBusy(true);
+              const ok = await onConfirm(add, off);
+              setBusy(false);
+              if (ok) onOpenChange(false);
+            }}
+          >
+            {busy ? "Saving…" : "Save tags"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <Field label="Add" hint="Separate tags with commas">
+          {(f) => (
+            <>
+              <Input
+                id={f.id}
+                aria-describedby={f.describedBy}
+                list={`${f.id}-known`}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="board, Q3 review"
+                autoComplete="off"
+              />
+              <datalist id={`${f.id}-known`}>
+                {known.slice(0, 50).map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
+            </>
+          )}
+        </Field>
+        {have.length > 0 && (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 text-[13px] font-bold text-fg-strong">Take off</legend>
+            <div className="flex flex-wrap gap-1.5">
+              {have.map((t) => (
+                <button
+                  key={t.tag}
+                  type="button"
+                  aria-pressed={isOff(t.tag)}
+                  onClick={() =>
+                    setOff(isOff(t.tag) ? off.filter((x) => x.toLowerCase() !== t.tag.toLowerCase()) : [...off, t.tag])
+                  }
+                  className={cn(
+                    "inline-flex h-7 items-center gap-1 rounded-pill border px-2.5 text-[12.5px] font-medium transition-colors duration-fast",
+                    isOff(t.tag)
+                      ? "border-red-border bg-red-surface text-red-dark line-through"
+                      : "border-border bg-surface-neutral text-fg-secondary hover:bg-surface",
+                  )}
+                >
+                  {t.tag}
+                  <span className="text-fg-muted">{n > 1 ? `${t.count}/${n}` : ""}</span>
+                  <X aria-hidden className="size-3" />
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
+      </div>
     </Dialog>
   );
 }

@@ -11,7 +11,7 @@ from jinja2 import StrictUndefined, TemplateSyntaxError, UndefinedError
 from jinja2.exceptions import SecurityError
 from jinja2.sandbox import SandboxedEnvironment
 
-from . import render, store
+from . import analyze, render, store
 
 R = store.R
 KINDS = ("prompt", "report", "export")
@@ -115,7 +115,7 @@ def context(db, cfg, rid):
         "sections": [{"title": x["title"], "time": store.tc(x["t0"]), "t0": x["t0"]} for x in d["sections"]],
         "entities": [{"name": e["name"], "type": e["type"], "mentions": len(e["segs"])} for e in d["entities"]],
         "keywords": [w for w, _ in d["keywords"]],
-        "summary": rec.get("summary") or {},
+        "summary": analyze.summary_view(rec.get("summary")),
         "stats": stats,
         "outputs": outputs,
     }

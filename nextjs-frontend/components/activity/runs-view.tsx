@@ -12,6 +12,9 @@ import {
   canRetry,
   isActive,
   jobPhase,
+  pipelineKey,
+  pipelineLabel,
+  pipelineOptions,
   reconcileOrder,
   shortWhen,
   stepSpecs,
@@ -37,7 +40,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/menu";
 import { EmptyState, SkeletonRows } from "@/components/ui/states";
 import { Table, Td, Th, THead, Tr } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
-import { Tooltip } from "@/components/ui/tooltip";
 import { data, useApiClient } from "@/lib/api/browser";
 import { absolute } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
@@ -115,12 +117,15 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
     ns: string;
     worker: string;
     trigger: string;
-  }>({ ns: "", worker: "", trigger: "" });
+    pipeline: string;
+  }>({ ns: "", worker: "", trigger: "", pipeline: "" });
   const [open, setOpen] = useState<Set<number>>(new Set());
   const [cancelling, setCancelling] = useState<JobRecord | null>(null);
+  const nsFilter = filters.ns || namespace || "";
   const list = useJobList({
     status: status === "all" ? undefined : status,
     limit: 200,
+    namespace: nsFilter, // on the server, so the counts and the 200 rows are that namespace's
   });
   const batches = useQuery({
     queryKey: ["batches"],
@@ -159,7 +164,6 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
       }),
   });
 
-  const nsFilter = filters.ns || namespace || "";
   const jobs = list.jobs;
   const total = Object.values(list.counts).reduce((a, n) => a + n, 0);
 
@@ -168,18 +172,20 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
     const batchIds = new Set(((batches.data ?? []) as BatchInfo[]).map((b) => b.id));
     const out: Item[] = jobs
       .filter((j) => !(status === "all" && j.batch != null && batchIds.has(j.batch)))
-      .filter((j) => !nsFilter || spaces[j.space ?? -1] === nsFilter)
       .filter((j) => !filters.worker || j.worker === filters.worker)
       .filter((j) => !filters.trigger || j.created_by === filters.trigger)
+      .filter((j) => !filters.pipeline || pipelineKey(j.pipeline) === filters.pipeline)
       .map((j) => ({ id: `j${j.id}`, at: j.created_at ?? "", job: j }));
-    if (status === "all" && !filters.worker && !filters.trigger)
+    if (status === "all" && !filters.worker && !filters.trigger && !filters.pipeline)
+      // with a namespace chosen, only batches with runs in it (a batch can span namespaces)
       for (const b of (batches.data ?? []) as BatchInfo[])
-        out.push({ id: `b${b.id}`, at: b.created_at ?? "", batch: b });
+        if (!nsFilter || jobs.some((j) => j.batch === b.id))
+          out.push({ id: `b${b.id}`, at: b.created_at ?? "", batch: b });
     return out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
-  }, [jobs, batches.data, status, nsFilter, filters.worker, filters.trigger, spaces]);
+  }, [jobs, batches.data, status, nsFilter, filters.worker, filters.trigger, filters.pipeline]);
 
   // Keep what is on screen still while scrolled down; new runs wait behind a pill.
-  const filterKey = `${status}|${nsFilter}|${filters.worker}|${filters.trigger}`;
+  const filterKey = `${status}|${nsFilter}|${filters.worker}|${filters.trigger}|${filters.pipeline}`;
   const [shown, setShown] = useState<{ key: string; order: string[] }>({
     key: "",
     order: [],
@@ -218,10 +224,12 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
   };
   const workerOptions = [...new Set(jobs.map((j) => j.worker).filter(Boolean) as string[])].sort();
   const triggerOptions = [...new Set(jobs.map((j) => j.created_by).filter(Boolean) as string[])].sort();
+  const pipelineChoices = pipelineOptions(jobs);
   const activeFilters = [
     filters.ns,
     filters.worker && `worker ${filters.worker}`,
     filters.trigger && triggerOf(filters.trigger, names, me?.user.email).label,
+    filters.pipeline && (pipelineChoices.find((o) => o.value === filters.pipeline)?.label ?? "a pipeline"),
   ].filter(Boolean);
 
   const jobAction = (j: JobRecord, big = false) => {
@@ -350,7 +358,7 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                       },
                       ...namespaces.map((n) => ({
                         value: n.name,
-                        label: n.name,
+                        label: `${n.name} · ${list.perNamespace[n.name] ?? 0} ${list.perNamespace[n.name] === 1 ? "run" : "runs"}`,
                       })),
                     ]}
                   />
@@ -381,24 +389,19 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                 </label>
                 <label className="flex flex-col gap-1.5 text-[13px] font-bold text-fg-strong">
                   Pipeline
-                  <Tooltip content="Runs don’t report which pipeline version they pinned yet">
-                    <span tabIndex={0}>
-                      <Select
-                        className="h-8 text-[13px]"
-                        disabled
-                        value=""
-                        options={[{ value: "", label: "Not available yet" }]}
-                        aria-label="Pipeline (not available yet)"
-                      />
-                    </span>
-                  </Tooltip>
+                  <Select
+                    className="h-8 text-[13px]"
+                    value={filters.pipeline}
+                    onChange={(e) => setFilters((f) => ({ ...f, pipeline: e.target.value }))}
+                    options={[{ value: "", label: "Any pipeline or version" }, ...pipelineChoices]}
+                  />
                 </label>
                 {activeFilters.length > 0 && (
                   <Button
                     variant="link"
                     size="sm"
                     className="self-start"
-                    onClick={() => setFilters({ ns: "", worker: "", trigger: "" })}
+                    onClick={() => setFilters({ ns: "", worker: "", trigger: "", pipeline: "" })}
                   >
                     Clear filters
                   </Button>
@@ -620,7 +623,8 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                               {j.title ?? `Recording ${j.recording}`}
                             </Link>
                             <span className="truncate text-[12px] text-fg-muted">
-                              Run #{j.id} · {specs.length} {specs.length === 1 ? "step" : "steps"}
+                              Run #{j.id} · {pipelineLabel(j.pipeline) ? `${pipelineLabel(j.pipeline)} · ` : ""}
+                              {specs.length} {specs.length === 1 ? "step" : "steps"}
                               {j.batch != null ? ` · batch #${j.batch}` : ""}
                             </span>
                           </div>

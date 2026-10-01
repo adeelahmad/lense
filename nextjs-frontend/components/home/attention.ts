@@ -1,9 +1,18 @@
 /**
  * Home's "Needs attention": only what the person can act on, each linking to where it gets fixed. Built from failed
  * jobs, recordings in error, unreachable sources and failing watched folders (admins/owners), voice matches to review
- * (editors) and API tokens about to expire. Resolved items drop out on their own because the data no longer has them.
+ * (editors), requests for access to answer (owners) and API tokens about to expire. Resolved items drop out on their
+ * own because the data no longer has them.
  */
-import type { ApiToken, Job, RecordingSummary, Source, Speaker, Watch } from "@/app/openapi-client/types.gen";
+import type {
+  AccessRequest,
+  ApiToken,
+  Job,
+  RecordingSummary,
+  Source,
+  Speaker,
+  Watch,
+} from "@/app/openapi-client/types.gen";
 import { stepLabel } from "@/components/library/model";
 import { sourceTypeLabel } from "@/components/library/source-labels";
 import { relative, shortDate } from "@/lib/format";
@@ -45,6 +54,7 @@ export function buildAttention(input: {
   sources?: Source[];
   watches?: Watch[];
   reviews?: { namespace: string; speakers: Speaker[] }[];
+  requests?: AccessRequest[];
   tokens?: ApiToken[];
   now?: number;
 }): AttentionItem[] {
@@ -134,6 +144,21 @@ export function buildAttention(input: {
         label: "Review",
         do: { type: "link", href: "/speakers", namespace: r.namespace },
       },
+    });
+  }
+
+  // Someone asked for access to a recording in a namespace this person owns: they decide in its access settings.
+  for (const r of input.requests ?? []) {
+    if (r.status !== "pending") continue;
+    out.push({
+      key: `request-${r.recording}-${r.account}`,
+      kind: "gate",
+      title: `${r.name || r.email} asked for access to ${r.title || `recording ${r.recording}`}`,
+      meta: [r.message ? `“${short(r.message, 70)}”` : null, r.at ? relative(r.at, now) : null, r.namespace]
+        .filter(Boolean)
+        .join(" · "),
+      action: { label: "Review", do: { type: "link", href: `/resources/${r.recording}#access` } },
+      namespace: r.namespace ?? null,
     });
   }
 

@@ -19,6 +19,12 @@ export type SettingsView = Record<string, SectionView> & {
     secret_key?: string;
     rclone?: string;
     local_roots?: string[];
+    soffice?: string;
+    chromium?: string;
+    /** Networks web pages may be captured from besides the public internet (documents.web_networks). */
+    web_networks?: string[];
+    /** The YOLOX model the objects step uses, or "not found". */
+    yolox_model?: string;
   } & Record<string, unknown>;
 };
 
@@ -66,6 +72,9 @@ export type SectionId =
   | "video"
   | "workers"
   | "access"
+  | "uploads"
+  | "documents"
+  | "tokens"
   | "iiif"
   | "startup";
 
@@ -128,9 +137,9 @@ export const SECTIONS: SectionSpec[] = [
   },
   {
     id: "video",
-    label: "Video, OCR and faces",
+    label: "Video, OCR, faces and objects",
     backend: ["video"],
-    description: "Shots and keyframes, text on screen, and faces in video recordings.",
+    description: "Shots and keyframes, text on screen, faces, and objects in videos, documents and images.",
   },
   {
     id: "workers",
@@ -142,7 +151,29 @@ export const SECTIONS: SectionSpec[] = [
     id: "access",
     label: "Access & embedding",
     backend: ["server"],
-    description: "Who can reach the server, which sites may embed the player, and how long sessions last.",
+    description:
+      "Who can reach the server, how it tells visitors’ addresses, which sites may embed the player, and how long sessions last.",
+  },
+  {
+    id: "uploads",
+    label: "Uploads",
+    backend: ["uploads"],
+    description:
+      "Audio and video people upload in the web app: which types, how large, and how long an unfinished upload waits.",
+  },
+  {
+    id: "documents",
+    label: "Documents",
+    backend: ["documents"],
+    description:
+      "How documents and images are drawn and read, and how Word and other Office files, text, web pages and emails are made into PDFs to read.",
+  },
+  {
+    id: "tokens",
+    label: "API keys",
+    backend: ["tokens"],
+    description:
+      "How long the API keys people make for scripts and other apps last, and everyone’s keys, to revoke any of them.",
   },
   {
     id: "iiif",
@@ -167,11 +198,37 @@ export const WORKER_STEPS = [
   "shots",
   "ocr",
   "faces",
+  "objects",
+  "describe",
   "analyze",
   "summarize",
   "llm",
   "report",
   "export",
+];
+
+/** What uploads.extensions may name (the backend's UPLOAD_TYPES, in app/domain/settings.py). */
+export const UPLOAD_TYPES = [
+  ".m4a",
+  ".mp3",
+  ".wav",
+  ".flac",
+  ".ogg",
+  ".opus",
+  ".aac",
+  ".amr",
+  ".aif",
+  ".aiff",
+  ".wma",
+  ".mp4",
+  ".m4v",
+  ".mov",
+  ".mkv",
+  ".webm",
+  ".avi",
+  ".mpg",
+  ".mpeg",
+  ".3gp",
 ];
 
 export const LAYERS: Opt[] = [
@@ -415,6 +472,33 @@ export const FIELDS: FieldSpec[] = [
     mono: true,
     nullable: true,
   },
+  {
+    section: "llm",
+    key: "chat_models",
+    label: "Models people can pick in Chat",
+    kind: "lines",
+    mono: true,
+    hint: "One per line. Empty: whatever the server lists. The model above is always offered",
+  },
+  {
+    section: "llm",
+    key: "vision_model",
+    label: "Model that can see images",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "none",
+    hint: "Describes each page and shot (the Describe step). Lens can't tell which models see: choose one that does",
+  },
+  {
+    section: "llm",
+    key: "describe_max",
+    label: "Pages or shots described at most",
+    kind: "int",
+    min: 1,
+    max: 1000,
+    hint: "Of a resource, in order: each is a request to the model",
+  },
   { section: "llm", key: "api_key", label: "API key", kind: "secret" },
   {
     section: "llm",
@@ -595,6 +679,7 @@ export const FIELDS: FieldSpec[] = [
         hint: "Mac workers only",
       },
       { value: "rapidocr", label: "RapidOCR", hint: "CPU or CUDA · slides" },
+      { value: "doctr", label: "docTR", hint: "PyTorch · scans and photos" },
       { value: "none", label: "Off", hint: "no text on screen" },
     ],
   },
@@ -613,7 +698,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 0,
     max: 100,
-    hint: "Lines below are kept but flagged",
+    hint: "Lines on frames read with less confidence are left out",
   },
   {
     section: "video",
@@ -650,6 +735,27 @@ export const FIELDS: FieldSpec[] = [
     label: "Publish faces in IIIF",
     kind: "switch",
     hint: "People on screen, for public video recordings only",
+  },
+  {
+    section: "video",
+    key: "object_engine",
+    label: "Object detector",
+    kind: "select",
+    options: [
+      { value: "yolox", label: "YOLOX on ONNX Runtime (Apache-2.0)" },
+      { value: "ultralytics", label: "Ultralytics YOLO (AGPL-3.0)" },
+      { value: "off", label: "Off" },
+    ],
+    hint: "Finds people, vehicles, animals and everyday things on frames and pages",
+  },
+  {
+    section: "video",
+    key: "object_min_score",
+    label: "Object confidence",
+    kind: "number",
+    min: 0.05,
+    max: 0.95,
+    hint: "Objects the detector is less sure of are left out",
   },
   // Workers
   {
@@ -711,6 +817,14 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "server",
+    key: "trusted_proxies",
+    label: "Trusted proxies",
+    kind: "lines",
+    mono: true,
+    hint: "The web app’s address (and other proxies in front of the server), one per line: their X-Forwarded-For names the visitor, for IP groups",
+  },
+  {
+    section: "server",
     key: "session_hours",
     label: "Session length (days)",
     kind: "days",
@@ -726,10 +840,120 @@ export const FIELDS: FieldSpec[] = [
   {
     section: "server",
     key: "max_upload_mb",
-    label: "Largest upload (MB)",
+    label: "Largest transcript file (MB)",
     kind: "int",
     min: 1,
     max: 1_000_000,
+    hint: "Audio and video have their own limit, under Uploads",
+  },
+  // Uploads
+  // API keys
+  {
+    section: "tokens",
+    key: "default_days",
+    label: "A new key lasts (days)",
+    kind: "int",
+    min: 1,
+    max: 3650,
+  },
+  {
+    section: "tokens",
+    key: "max_days",
+    label: "At most (days)",
+    kind: "int",
+    min: 1,
+    max: 3650,
+  },
+  {
+    section: "tokens",
+    key: "never_expire",
+    label: "Allow keys that never expire",
+    kind: "switch",
+    hint: "Off: every key expires. Keys made before a change keep their expiry; revoke them below.",
+  },
+  {
+    section: "uploads",
+    key: "max_mb",
+    label: "Largest audio or video file (MB)",
+    kind: "int",
+    min: 1,
+    max: 1_000_000,
+  },
+  {
+    section: "uploads",
+    key: "chunk_mb",
+    label: "Piece size (MB)",
+    kind: "int",
+    min: 1,
+    max: 64,
+    hint: "How much the web app sends per request; keep it under the body limit of any proxy in front of the server",
+  },
+  {
+    section: "uploads",
+    key: "expire_hours",
+    label: "Keep unfinished uploads for (hours)",
+    kind: "int",
+    min: 1,
+    max: 720,
+    hint: "After the last piece arrived; then what arrived is deleted",
+  },
+  {
+    section: "uploads",
+    key: "extensions",
+    label: "Types people can upload",
+    kind: "checks",
+    options: UPLOAD_TYPES.map((e) => ({ value: e, label: e.slice(1) })),
+  },
+  // Documents
+  {
+    section: "documents",
+    key: "page_pixels",
+    label: "Page size (pixels, longest side)",
+    kind: "int",
+    min: 800,
+    max: 6000,
+    hint: "How large each page is drawn to look at",
+  },
+  {
+    section: "documents",
+    key: "thumb_pixels",
+    label: "Thumbnail size (pixels)",
+    kind: "int",
+    min: 120,
+    max: 800,
+  },
+  {
+    section: "documents",
+    key: "ocr_below_chars",
+    label: "Read a page by OCR below (characters)",
+    kind: "int",
+    min: 0,
+    max: 5000,
+    hint: "Pages with less text than this are scans: their text is read from the picture",
+  },
+  {
+    section: "documents",
+    key: "max_pages",
+    label: "Pages read, at most",
+    kind: "int",
+    min: 1,
+    max: 50000,
+  },
+  {
+    section: "documents",
+    key: "convert_seconds",
+    label: "Time to make a PDF (seconds)",
+    kind: "int",
+    min: 10,
+    max: 3600,
+    hint: "For a Word or other Office file, text, a web page or an email; longer and its job fails",
+  },
+  {
+    section: "documents",
+    key: "attachment_resources",
+    label: "Make an email’s attachments resources of their own",
+    kind: "switch",
+    hint: "Documents, images, audio, video and emails attached to an email; they’re kept as its files either way",
   },
   // IIIF & metadata
   {
@@ -927,6 +1151,10 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const fr = n("video.face_review_threshold");
   if (typeof fm === "number" && typeof fr === "number" && fr > fm)
     e["video.face_review_threshold"] = "The review threshold can’t be above auto-match";
+  const dd = n("tokens.default_days");
+  const md = n("tokens.max_days");
+  if (typeof dd === "number" && typeof md === "number" && dd > md)
+    e["tokens.default_days"] = "A new key can’t last longer than the most a key may last";
   const mn = n("diarize.min_speakers");
   const mx = n("diarize.max_speakers");
   if (typeof mn === "number" && typeof mx === "number" && mn > mx)
@@ -945,6 +1173,8 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   );
   if (badOrigin)
     e["server.embed_frame_ancestors"] = `“${badOrigin}” isn’t an origin like https://blog.example.org or 'self'`;
+  const types = values["uploads.extensions"] as string[] | undefined;
+  if (types && !types.length) e["uploads.extensions"] = "Pick at least one type";
   const gaz = values["analysis.gazetteer"] as string[] | undefined;
   const g = gaz ? gazetteerErrors(gaz) : null;
   if (g) e["analysis.gazetteer"] = g;
@@ -1001,6 +1231,7 @@ export function why(c: Change): string | null {
   const id = fieldId(c.field);
   if (id === "server.session_hours") return "Applies from each person’s next sign-in or session refresh.";
   if (id === "server.allowed_hosts") return "Requests to any other host name are refused.";
+  if (id === "server.trusted_proxies") return "IP groups match the address these proxies report for each visitor.";
   if (id === "server.embed_frame_ancestors") {
     const before = (c.before as string[]) ?? [];
     const after = (c.after as string[]) ?? [];

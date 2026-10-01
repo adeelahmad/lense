@@ -94,12 +94,15 @@ def test_source(sid: int, user: AdminWriter, db: Db, cfg: Cfg) -> SourceHealth:
 
 @router.get("/sources/{sid}/browse")
 def browse_source(sid: int, user: AdminReader, db: Db, cfg: Cfg, path: str = "") -> list[BrowseEntry]:
-    """The folders and files at one path of a source (for local sources, no path lists the allowed roots)."""
+    """The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the
+    recordings each file already is."""
     _source(db, sid)
     try:
-        return sources.browse(db, cfg, sid, path)
+        entries = sources.browse(db, cfg, sid, path)
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e)) from None
+    have = sources.imported(db, sid, [e["path"] for e in entries if not e["dir"]])
+    return [BrowseEntry(**e, imported=have.get(e["path"], [])) for e in entries]
 
 
 @router.get("/watches")
@@ -135,7 +138,13 @@ def preview_watch(body: WatchPreviewRequest, user: AdminWriter, db: Db, cfg: Cfg
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e)) from None
     kinds = Counter(sources.kind_of(cfg, body.model_dump(exclude_unset=True, include={"kinds", "include", "exclude"}), f) for f in files)
-    return WatchPreview(files=kinds["audio"] + kinds["transcript"], audio=kinds["audio"], transcripts=kinds["transcript"])
+    return WatchPreview(
+        files=sum(n for k, n in kinds.items() if k),
+        audio=kinds["audio"],
+        transcripts=kinds["transcript"],
+        documents=kinds["document"],
+        images=kinds["image"],
+    )
 
 
 @router.patch("/watches/{wid}")

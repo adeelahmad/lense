@@ -6,18 +6,17 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 
-import { Entities, Recordings, Speakers } from "@/app/openapi-client";
-import type { RecordingSummary } from "@/app/openapi-client/types.gen";
+import { Entities, Namespaces, Resources } from "@/app/openapi-client";
 import { statusView, totalDuration } from "@/components/library/model";
 import { MonthBars, SpeakerBars } from "@/components/reports/month-bars";
 import {
   RANGE_LABEL,
   cloudSizes,
-  isoDay,
-  monthlyBuckets,
-  overview,
+  monthBars,
   rangeBounds,
   rangeLabel,
+  rangeQuery,
+  undatedNote,
   type ReportRange,
 } from "@/components/reports/model";
 import {
@@ -38,27 +37,26 @@ import { count, shortDate, tc } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-const MAX_PAGES = 10;
+type Days = { from?: string; to?: string };
 
-/** Every recording of a namespace (1,000 per request), for the monthly numbers. */
-function useNamespaceRecordings(ns: string) {
+/** The namespace's numbers for the range: totals, months and top speakers (GET /namespaces/{name}/stats). */
+function useStats(ns: string, days: Days | null) {
   const client = useApiClient();
   return useQuery({
-    queryKey: ["recordings", "report", ns],
-    queryFn: async () => {
-      const out: RecordingSummary[] = [];
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const rows = await data(
-          Recordings.listRecordings({
-            client,
-            query: { ns, limit: 1000, offset: page * 1000 },
-          }),
-        );
-        out.push(...rows);
-        if (rows.length < 1000) break;
-      }
-      return out;
-    },
+    queryKey: ["namespace-stats", ns, days?.from ?? null, days?.to ?? null],
+    queryFn: () => data(Namespaces.getNamespaceStats({ client, path: { name: ns }, query: { ...days, top: 5 } })),
+    enabled: days !== null,
+    staleTime: 60_000,
+  });
+}
+
+/** The range's 25 latest recordings, for the table. */
+function useLatest(ns: string, days: Days | null) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["recordings", "report", ns, days?.from ?? null, days?.to ?? null],
+    queryFn: () => data(Resources.listRecordings({ client, query: { ns, ...days, sort: "-date", limit: 25 } })),
+    enabled: days !== null,
     staleTime: 60_000,
   });
 }
@@ -87,16 +85,13 @@ export function NamespaceOverview({ ns, onNamespace }: { ns: string; onNamespace
   useEffect(() => setNow(new Date()), []);
   useEffect(() => lightOnPrint(), []);
 
-  const recs = useNamespaceRecordings(ns);
-  const oldest = recs.data?.length ? recs.data[recs.data.length - 1].recorded_at : null;
-  const bounds = useMemo(() => (now ? rangeBounds(range, now, oldest) : null), [range, now, oldest]);
-  const speakers = useQuery({
-    queryKey: ["speakers", ns],
-    queryFn: () => data(Speakers.listSpeakers({ client, query: { ns } })),
-    staleTime: 60_000,
-  });
+  const days = useMemo(() => (now ? rangeQuery(range, now) : null), [range, now]);
+  const stats = useStats(ns, days);
+  const latest = useLatest(ns, days);
+  const totals = stats.data;
+  const bounds = useMemo(() => (now ? rangeBounds(range, now, totals?.first) : null), [range, now, totals?.first]);
   const entities = useQuery({
-    queryKey: ["entities", "report", ns, bounds?.from?.toISOString() ?? "all"],
+    queryKey: ["entities", "report", ns, days?.from ?? "all"],
     queryFn: () =>
       data(
         Entities.listEntities({
@@ -105,21 +100,20 @@ export function NamespaceOverview({ ns, onNamespace }: { ns: string; onNamespace
             namespaces: ns,
             limit: 10,
             sort: "mentions",
-            ...(bounds?.from ? { date_from: isoDay(bounds.from), date_to: isoDay(bounds.to) } : {}),
+            ...(days?.from ? { date_from: days.from, date_to: days.to } : {}),
           },
         }),
       ),
-    enabled: Boolean(bounds),
+    enabled: days !== null,
     staleTime: 60_000,
   });
 
-  const months = useMemo(() => (bounds && recs.data ? monthlyBuckets(recs.data, bounds) : []), [bounds, recs.data]);
-  const totals = useMemo(() => (bounds && recs.data ? overview(recs.data, bounds) : null), [bounds, recs.data]);
-  const top = (speakers.data?.speakers ?? [])
-    .map((s) => ({ name: s.display, ms: s.talk_ms ?? 0 }))
-    .filter((s) => s.ms > 0)
-    .sort((a, b) => b.ms - a.ms)
-    .slice(0, 5);
+  const months = useMemo(() => monthBars(totals?.months), [totals?.months]);
+  const top = (totals?.top_speakers ?? [])
+    .map((s) => ({ name: s.name ?? `Speaker ${s.id}`, ms: s.talk_ms ?? 0 }))
+    .filter((s) => s.ms > 0);
+  const note = undatedNote(totals?.undated, range);
+  const everything = namespaces.find((n) => n.name === ns)?.recordings ?? 0;
   const cloud = cloudSizes(
     (entities.data?.items ?? [])
       .map((i) => ({
@@ -128,9 +122,7 @@ export function NamespaceOverview({ ns, onNamespace }: { ns: string; onNamespace
       }))
       .filter((i) => i.name),
   );
-  const inRange = (recs.data ?? []).filter(
-    (r) => bounds && r.recorded_at && Date.parse(r.recorded_at) >= (bounds.from?.getTime() ?? 0),
-  );
+  const inRange = latest.data ?? [];
 
   const html = async (mode: "open" | "download") => {
     try {
@@ -150,14 +142,14 @@ export function NamespaceOverview({ ns, onNamespace }: { ns: string; onNamespace
     }
   };
 
-  const loading = recs.isLoading || !bounds;
+  const loading = stats.isLoading || !days;
   return (
     <div
       id="report-print"
       className="report-print flex flex-col gap-[18px] rounded-md border border-border bg-background px-4 py-5 md:px-6 md:py-[22px]"
     >
       <div className="flex flex-wrap items-center gap-2.5">
-        <h2 className="min-w-0 flex-1 text-[22px] font-bold leading-tight text-fg">
+        <h2 className="min-w-0 flex-1 basis-full text-[22px] font-bold leading-tight text-fg sm:basis-0">
           <Menu>
             <MenuTrigger
               className="inline-flex max-w-full items-center gap-1 rounded-sm hover:bg-surface-neutral print:hidden"
@@ -223,13 +215,13 @@ export function NamespaceOverview({ ns, onNamespace }: { ns: string; onNamespace
         </Button>
       </div>
 
-      {recs.isError ? (
+      {stats.isError ? (
         <EmptyState
           tone="error"
           title="Couldn’t load this namespace"
-          actions={<Button onClick={() => recs.refetch()}>Try again</Button>}
+          actions={<Button onClick={() => stats.refetch()}>Try again</Button>}
         >
-          {(recs.error as Error).message}
+          {(stats.error as Error).message}
         </EmptyState>
       ) : (
         <>
@@ -241,12 +233,13 @@ export function NamespaceOverview({ ns, onNamespace }: { ns: string; onNamespace
               label="of audio"
             />
             <Kpi loading={loading} value={count(totals?.speakers)} label="speakers" />
-            <Kpi loading={entities.isLoading || !bounds} value={count(entities.data?.total)} label="entities" />
+            <Kpi loading={entities.isLoading || !days} value={count(entities.data?.total)} label="entities" />
           </div>
+          {note && <p className="-mt-2 text-[12.5px] text-fg-muted">{note}</p>}
 
           {!loading && totals?.recordings === 0 ? (
             <EmptyState title={`Nothing recorded in ${ns} in this range`}>
-              {recs.data?.length
+              {everything
                 ? "Pick a longer range to see earlier months."
                 : "Recordings show up here once they’re imported and analysed."}
             </EmptyState>
@@ -254,16 +247,13 @@ export function NamespaceOverview({ ns, onNamespace }: { ns: string; onNamespace
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
               {loading ? <Skeleton className="h-[200px] rounded-md" /> : <MonthBars months={months} />}
               <div className="flex flex-col gap-2">
-                <h3 className="flex items-baseline gap-2 text-[13px] font-bold leading-none text-fg">
-                  Top speakers
-                  {range !== "all" && <span className="text-[11.5px] font-medium text-fg-muted">all time</span>}
-                </h3>
-                {speakers.isLoading ? (
+                <h3 className="text-[13px] font-bold leading-none text-fg">Top speakers</h3>
+                {loading ? (
                   <Skeleton className="w-3/4" />
                 ) : top.length ? (
                   <SpeakerBars rows={top} />
                 ) : (
-                  <p className="text-[13px] text-fg-muted">No speaker has talk time yet.</p>
+                  <p className="text-[13px] text-fg-muted">No one has talk time in this range.</p>
                 )}
                 <h3 className="mt-2.5 text-[13px] font-bold leading-none text-fg">Top entities</h3>
                 {entities.isLoading ? (
@@ -320,7 +310,7 @@ export function NamespaceOverview({ ns, onNamespace }: { ns: string; onNamespace
                     </tr>
                   </thead>
                   <tbody>
-                    {inRange.slice(0, 25).map((r) => {
+                    {inRange.map((r) => {
                       const v = statusView(r);
                       return (
                         <tr key={r.id} className="border-b border-border">
@@ -349,9 +339,10 @@ export function NamespaceOverview({ ns, onNamespace }: { ns: string; onNamespace
                   </tbody>
                 </table>
               </div>
-              {inRange.length > 25 && (
+              {(totals?.recordings ?? 0) > inRange.length && (
                 <p className="text-[12.5px] text-fg-muted">
-                  The 25 most recent of {count(inRange.length)} in this range. The Library lists them all.
+                  The {inRange.length} most recent of {count(totals?.recordings)} in this range. The Library lists them
+                  all.
                 </p>
               )}
             </div>

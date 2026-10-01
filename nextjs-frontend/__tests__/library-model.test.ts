@@ -1,31 +1,32 @@
-import type { Job, RecordingSummary } from "@/app/openapi-client/types.gen";
+import type { Job } from "@/app/openapi-client/types.gen";
 import {
+  blockedBy,
+  cleanTag,
+  deletedToast,
+  moveTargets,
+  movedToast,
+  tagsFromText,
+  tagsOn,
   NO_FILTERS,
+  activeFilterCount,
+  dateFrom,
   elapsed,
   emotionMix,
   importanceInfo,
   isUnnamedSpeaker,
+  languageName,
   latestJobs,
-  matchesFilters,
-  matchesView,
+  libraryQuery,
+  localDay,
   rangeIds,
-  sortRows,
+  speakerChoices,
   speakerList,
   statusView,
   totalDuration,
 } from "@/components/library/model";
+import { atLeast } from "@/lib/roles";
 
 const NOW = Date.parse("2026-09-30T12:00:00Z");
-
-function rec(p: Partial<RecordingSummary> & { id: number }): RecordingSummary {
-  return {
-    space: 1,
-    media_kind: "audio",
-    namespace: "podcasts",
-    status: "analyzed",
-    ...p,
-  } as RecordingSummary;
-}
 
 function job(p: Partial<Job> & { id: number }): Job {
   return { status: "succeeded", steps: [], ...p } as Job;
@@ -114,7 +115,6 @@ describe("statusView", () => {
     expect(statusView({ status: "new" }, job({ id: 1, status: "queued", step_index: 0 }), NOW, 2).sub?.text).toBe(
       "Waiting for a worker",
     );
-    expect(matchesView(rec({ id: 9 }), "attention", undefined, 1)).toBe(true);
   });
 
   it("offers Reprocess for a recording in error without a failed job", () => {
@@ -178,77 +178,131 @@ describe("importance and emotions", () => {
   });
 });
 
-describe("filters", () => {
-  const rows = [
-    rec({
-      id: 1,
-      title: "Episode 13 — When evals saturate",
-      speakers: "Host A,Host B",
-      recorded_at: "2026-09-30T09:02:00Z",
-      duration_ms: 52 * 60000,
-    }),
-    rec({
-      id: 2,
-      title: "Renewal call — Ostrava Metals",
-      namespace: "customer-calls",
-      speakers: "Dana Kovář,Speaker 2",
-      status: "transcribed",
-      recorded_at: "2026-09-12T08:41:00Z",
-      duration_ms: 22 * 60000,
-    }),
-    rec({
-      id: 3,
-      title: "Interview 07",
-      namespace: "research-interviews",
-      media_kind: "transcript",
-      status: "error",
-      recorded_at: "2026-05-01T10:00:00Z",
-      duration_ms: 65 * 60000,
-    }),
-  ];
-  const f = (p: Partial<typeof NO_FILTERS>) =>
-    rows.filter((r) => matchesFilters(r, { ...NO_FILTERS, ...p }, undefined, NOW)).map((r) => r.id);
+describe("the list query", () => {
+  const byDate = { key: "date", dir: "desc" } as const;
 
-  it("matches every word of the query in title, namespace or speakers", () => {
-    expect(f({ q: "renewal ostrava" })).toEqual([2]);
-    expect(f({ q: "host a" })).toEqual([1]);
-    expect(f({ q: "research" })).toEqual([3]);
+  it("asks for everything, newest first, when nothing is set", () => {
+    expect(libraryQuery(NO_FILTERS, "all", byDate, null, NOW)).toEqual({ sort: "-date" });
+    expect(libraryQuery(NO_FILTERS, "all", { key: "title", dir: "asc" }, "podcasts", NOW)).toEqual({
+      sort: "title",
+      ns: "podcasts",
+    });
   });
 
-  it("filters by status, speaker, date, duration and media", () => {
-    expect(f({ statuses: ["error", "transcribed"] })).toEqual([2, 3]);
-    expect(f({ speaker: "Dana Kovář" })).toEqual([2]);
-    expect(f({ date: "today" })).toEqual([1]);
-    expect(f({ date: "30d" })).toEqual([1, 2]);
-    expect(f({ duration: "medium" })).toEqual([2]);
-    expect(f({ duration: "xlong" })).toEqual([3]);
-    expect(f({ media: "transcript" })).toEqual([3]);
+  it("turns each filter into its parameter", () => {
+    const q = libraryQuery(
+      {
+        q: "  renewal ostrava ",
+        statuses: ["error", "processing"],
+        speaker: { name: "Dana Kovář", ids: [4, 19] },
+        date: "30d",
+        duration: "medium",
+        media: "transcript",
+        tags: ["board", "Q3"],
+        origins: ["upload", "source:4"],
+        languages: ["en", "none"],
+        objects: ["car", "dog"],
+        collection: 12,
+        field: { id: 7, value: " Lecture " },
+      },
+      "all",
+      { key: "duration", dir: "desc" },
+      null,
+      NOW,
+    );
+    expect(q).toEqual({
+      sort: "-duration",
+      q: "renewal ostrava",
+      status: ["error", "processing"],
+      speaker: [4, 19],
+      from: localDay(NOW - 30 * 86_400_000),
+      min_duration: 600,
+      max_duration: 1800,
+      media: "transcript",
+      tag: ["board", "Q3"],
+      origin: ["upload", "source:4"],
+      language: ["en", "none"],
+      object: ["car", "dog"],
+      collection: 12,
+      field: 7,
+      value: "Lecture",
+    });
+    // a field with any value
+    expect(libraryQuery({ ...NO_FILTERS, field: { id: 7, value: " " } }, "all", byDate, "pods", NOW)).toEqual({
+      sort: "-date",
+      ns: "pods",
+      field: 7,
+    });
   });
 
-  it("uses the job for the processing and failed statuses and views", () => {
-    const running = job({ id: 9, recording: 1, status: "running" });
-    expect(matchesFilters(rows[0], { ...NO_FILTERS, statuses: ["processing"] }, running, NOW)).toBe(true);
-    expect(matchesFilters(rows[1], { ...NO_FILTERS, statuses: ["processing"] }, undefined, NOW)).toBe(false);
-    expect(matchesView(rows[0], "processing", running)).toBe(true);
-    expect(matchesView(rows[2], "attention", undefined)).toBe(true);
-    expect(matchesView(rows[1], "attention", job({ id: 4, status: "failed" }))).toBe(true);
-    expect(matchesView(rows[1], "attention", undefined)).toBe(false);
+  it("asks for the recordings you edited on Edited by me", () => {
+    expect(libraryQuery(NO_FILTERS, "mine", byDate, "podcasts", NOW)).toEqual({
+      sort: "-date",
+      ns: "podcasts",
+      edited_by: "me",
+    });
+  });
+
+  it("names languages", () => {
+    expect(languageName("en")).toBe("English");
+    expect(languageName("de")).toBe("German");
+    expect(languageName("pt-BR")).toBe("Brazilian Portuguese");
+    expect(languageName(null)).toBe("Not known");
+    expect(languageName("none")).toBe("Not known");
+    expect(languageName("zz-not-a-code!")).toBe("zz-not-a-code!");
+  });
+
+  it("leaves out the open end of a duration range", () => {
+    expect(libraryQuery({ ...NO_FILTERS, duration: "short" }, "all", byDate, null, NOW)).toMatchObject({
+      max_duration: 600,
+    });
+    expect(libraryQuery({ ...NO_FILTERS, duration: "short" }, "all", byDate, null, NOW)).not.toHaveProperty(
+      "min_duration",
+    );
+    expect(libraryQuery({ ...NO_FILTERS, duration: "xlong" }, "all", byDate, null, NOW)).toEqual({
+      sort: "-date",
+      min_duration: 3600,
+    });
+  });
+
+  it("asks for the tabs' recordings", () => {
+    expect(libraryQuery(NO_FILTERS, "attention", byDate, null, NOW)).toEqual({ sort: "-date", attention: true });
+    expect(libraryQuery(NO_FILTERS, "processing", byDate, null, NOW)).toEqual({ sort: "-date", processing: true });
+  });
+
+  it("counts date ranges in local days", () => {
+    expect(dateFrom("any", NOW)).toBeUndefined();
+    expect(dateFrom("today", NOW)).toBe(localDay(NOW));
+    expect(dateFrom("7d", NOW)).toBe(localDay(NOW - 7 * 86_400_000));
+    expect(dateFrom("1y", NOW)).toBe(localDay(NOW - 365 * 86_400_000));
+    expect(localDay(new Date(2026, 0, 5, 23, 59).getTime())).toBe("2026-01-05");
+  });
+
+  it("counts active filters", () => {
+    expect(activeFilterCount(NO_FILTERS)).toBe(0);
+    expect(activeFilterCount({ ...NO_FILTERS, q: " x ", media: "video", speaker: { name: "A", ids: [1] } })).toBe(3);
+    expect(activeFilterCount({ ...NO_FILTERS, collection: 3 })).toBe(1);
   });
 });
 
-describe("sorting and selection", () => {
-  const rows = [
-    rec({ id: 1, title: "b", duration_ms: 5 }),
-    rec({ id: 2, title: "A", duration_ms: null }),
-    rec({ id: 3, title: "c", duration_ms: 9 }),
-  ];
-
-  it("sorts either way, with missing values last", () => {
-    expect(sortRows(rows, "title", "asc").map((r) => r.id)).toEqual([2, 1, 3]);
-    expect(sortRows(rows, "duration", "desc").map((r) => r.id)).toEqual([3, 1, 2]);
-    expect(sortRows(rows, "duration", "asc").map((r) => r.id)).toEqual([1, 3, 2]);
+describe("speaker choices", () => {
+  it("merges speakers by name across namespaces, most recordings first", () => {
+    const choices = speakerChoices([
+      { id: 1, display: "Alice", recordings: 3 },
+      { id: 2, display: "Bob", recordings: 5 },
+      { id: 7, display: "Alice", recordings: 4 },
+      { id: 8, display: "  ", recordings: 9 },
+      { id: 9, display: "Carol" },
+    ]);
+    expect(choices).toEqual([
+      { name: "Alice", ids: [1, 7], recordings: 7 },
+      { name: "Bob", ids: [2], recordings: 5 },
+      { name: "Carol", ids: [9], recordings: 0 },
+    ]);
   });
+});
 
+describe("selection", () => {
   it("selects a range in either direction", () => {
     expect(rangeIds([10, 11, 12, 13], 3, 1)).toEqual([11, 12, 13]);
     expect(rangeIds([10, 11, 12, 13], 0, 1)).toEqual([10, 11]);
@@ -265,5 +319,90 @@ describe("durations", () => {
     expect(totalDuration(12 * 60000)).toBe("12 min");
     expect(totalDuration(84 * 60000)).toBe("1.4 h");
     expect(totalDuration(96 * 3.6e6)).toBe("96 h");
+  });
+});
+
+describe("roles", () => {
+  it("compares them", () => {
+    expect(atLeast("owner", "editor")).toBe(true);
+    expect(atLeast("editor", "editor")).toBe(true);
+    expect(atLeast("viewer", "editor")).toBe(false);
+    expect(atLeast(undefined, "viewer")).toBe(false);
+    expect(atLeast("admin", "viewer")).toBe(false); // collection roles reach recordings as owner
+  });
+});
+
+describe("deleting from the Library", () => {
+  it("says which selected recordings a role short blocks, and where", () => {
+    const rows = [{ namespace: "pods" }, { namespace: "calls" }, { namespace: "calls" }, { namespace: null }];
+    expect(blockedBy(rows, (r) => r.namespace === "pods")).toEqual({ count: 3, namespaces: ["calls", "?"] });
+    expect(blockedBy(rows, () => true)).toEqual({ count: 0, namespaces: [] });
+    // each recording's own role: an editor of its collection may change it in a namespace they only view
+    const mine = [
+      { namespace: "pods", role: "editor" },
+      { namespace: "pods", role: "viewer" },
+    ];
+    expect(blockedBy(mine, (r) => r.role === "editor")).toEqual({ count: 1, namespaces: ["pods"] });
+  });
+
+  it("sums up what went, and why the rest didn't", () => {
+    expect(deletedToast(3, [])).toEqual({
+      title: "Deleted 3 recordings",
+      body: "The media files stay where they are, and won’t be imported again.",
+      tone: "green",
+    });
+    const busy = { title: "Board call", message: "A job is working on it." };
+    expect(deletedToast(2, [busy])).toEqual({
+      title: "Deleted 2 of 3 recordings",
+      body: "Board call: A job is working on it.",
+      tone: "red",
+    });
+    expect(deletedToast(0, [busy])).toMatchObject({ title: "Couldn’t delete the recording" });
+    expect(deletedToast(0, [busy, busy])).toMatchObject({
+      title: "Couldn’t delete 2 recordings",
+      body: "Board call: A job is working on it. (and 1 more)",
+    });
+  });
+});
+
+describe("moving from the Library", () => {
+  it("offers the namespaces this person edits, but not the only one the selection is in", () => {
+    expect(moveTargets(["calls", "pods", "research"], ["pods", "pods"])).toEqual(["calls", "research"]);
+    expect(moveTargets(["calls", "pods"], ["pods", "calls"])).toEqual(["calls", "pods"]); // from both: either
+    expect(moveTargets(["pods"], ["pods"])).toEqual([]);
+  });
+
+  it("sums up what moved where, and why the rest didn't", () => {
+    expect(movedToast(2, "calls", [])).toEqual({
+      title: "Moved 2 recordings to calls",
+      body: "Analysis runs again in calls; their access and IIIF stay as they were.",
+      tone: "green",
+    });
+    const same = { title: "Board call", message: "calls already has the same file." };
+    expect(movedToast(1, "calls", [same])).toEqual({
+      title: "Moved 1 of 2 recordings to calls",
+      body: "Board call: calls already has the same file.",
+      tone: "red",
+    });
+    expect(movedToast(0, "calls", [same])).toMatchObject({ title: "Couldn’t move the recording" });
+  });
+});
+
+describe("tags", () => {
+  it("reads tags typed into one box", () => {
+    expect(cleanTag("  Q3   review ")).toBe("Q3 review");
+    expect(tagsFromText(" board, Q3  review,\nBoard ,, ")).toEqual(["board", "Q3 review"]);
+    expect(tagsFromText("")).toEqual([]);
+  });
+
+  it("counts the tags on selected recordings, ignoring case", () => {
+    expect(tagsOn([{ tags: ["board", "Q3"] }, { tags: ["Board"] }, { tags: null }, {}])).toEqual([
+      { tag: "board", count: 2 },
+      { tag: "Q3", count: 1 },
+    ]);
+  });
+
+  it("counts a tags filter once", () => {
+    expect(activeFilterCount({ ...NO_FILTERS, tags: ["a", "b"] })).toBe(1);
   });
 });

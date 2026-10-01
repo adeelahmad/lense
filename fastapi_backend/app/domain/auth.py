@@ -128,6 +128,35 @@ def update_account(db, uid, name=None, admin=None, disabled=None, password=None)
         db.q("DELETE login_session WHERE account = $a", a=uid)
 
 
+def change_password(db, uid, current, new, keep_sid=None, key=""):
+    """Someone changes their own password: the current one first. Their other sessions end (this one, keep_sid, stays)
+    and so do reset links they asked for. Wrong current passwords count towards the sign-in throttle (key)."""
+    u = get_account(db, uid)
+    if not u or not verify_password(current, u.get("pw") or ""):
+        with _FL:
+            _FAILS.setdefault(key, []).append(time.time())
+        raise ValueError("Your current password is wrong.")
+    if new == current:
+        raise ValueError("The new password is the same as the current one.")
+    db.q("UPDATE $r SET pw = $p", r=R("account", uid), p=hash_password(new))
+    db.run(
+        ["DELETE login_session WHERE account = $a AND sid != $keep", "DELETE password_reset WHERE account = $a"],
+        a=uid,
+        keep=keep_sid or "",
+    )
+
+
+def rename_account(db, uid, name):
+    """Someone changes their own name (whitespace collapsed, at most 80 characters)."""
+    n = " ".join((name or "").split())
+    if not n:
+        raise ValueError("Your name can't be empty.")
+    if len(n) > 80:
+        raise ValueError("A name has at most 80 characters.")
+    db.q("UPDATE $r SET name = $n", r=R("account", uid), n=n)
+    return n
+
+
 # ---------- sessions (refresh tokens) and API tokens ----------
 # The web app signs in through NextAuth: the API hands out a short-lived JWT access token (see app.core.security) and a
 # long-lived refresh token. Only the refresh token's hash is stored, one row per signed-in device; every refresh
@@ -222,6 +251,23 @@ def finish_reset(db, raw, password):
     return row["account"]
 
 
+def token_limits(cfg):
+    """How long API keys may last (tokens settings): {default_days, max_days, never_expire}."""
+    t = {**store.DEFAULTS["tokens"], **(cfg.get("tokens") or {})}
+    return {"default_days": int(t["default_days"]), "max_days": int(t["max_days"]), "never_expire": bool(t["never_expire"])}
+
+
+def token_days(cfg, days):
+    """The lifetime a new key gets: `days`, or the default when None; 0 never expires. ValueError past the limits."""
+    lim = token_limits(cfg)
+    days = lim["default_days"] if days is None else int(days)
+    if days == 0 and not lim["never_expire"]:
+        raise ValueError(f"API keys have to expire: choose 1 to {lim['max_days']} days.")
+    if days > lim["max_days"]:
+        raise ValueError(f"API keys can last at most {lim['max_days']} days.")
+    return days
+
+
 def create_token(db, uid, name, scope="read", days=90):
     if scope not in ("read", "write"):
         raise ValueError("scope is read or write")
@@ -265,7 +311,25 @@ def list_tokens(db, uid):
 
 
 def revoke_token(db, uid, tid):
-    db.q("DELETE api_token WHERE account = $a AND id = $r", a=uid, r=R("api_token", tid))
+    """Revoke one of this person's keys; whether there was one."""
+    return bool(db.rows("DELETE api_token WHERE account = $a AND id = $r RETURN BEFORE", a=uid, r=R("api_token", tid)))
+
+
+def all_tokens(db):
+    """Everyone's keys (admins): the key's fields with its owner's email, the latest made first."""
+    people = {a["id"]: a["email"] for a in db.rows("SELECT record::id(id) AS id, email FROM account")}
+    rows = db.rows("SELECT record::id(id) AS id, account, name, scope, prefix, created_at, expires_at, last_used_at FROM api_token")
+    return sorted(
+        ({**r, "email": people.get(r["account"])} for r in rows), key=lambda r: (r.get("created_at") or "", r["id"]), reverse=True
+    )
+
+
+def drop_token(db, tid):
+    """Revoke any key (admins); its owner, or None when there's no such key."""
+    row = db.one("SELECT account FROM $r", r=R("api_token", tid))
+    if row:
+        db.q("DELETE $r", r=R("api_token", tid))
+    return row["account"] if row else None
 
 
 # ---------- roles ----------
@@ -316,25 +380,119 @@ def members(db, sid):
 
 
 # ---------- share links (read-only access to one recording, revocable) ----------
+# Each link has a token (?s=) and a short code (/s/<code>): 10 characters without look-alikes, about 58 bits. Only
+# their hashes are kept, so a link's address is shown once, when it's made.
+SHORT = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz"
+SHORT_LEN = 10
+EMBED_SITES = 50  # sites remembered per link; pages on more than that still play, they just aren't listed
+
+
 def create_share(db, rid, uid, days=30):
-    raw = secrets.token_urlsafe(24)
+    """A new link: {id, token, short}."""
+    raw, code = secrets.token_urlsafe(24), "".join(secrets.choice(SHORT) for _ in range(SHORT_LEN))
+    key = sha(raw)
     db.q(
         "CREATE $r CONTENT $d",
-        r=R("share_link", sha(raw)),
-        d={"recording": rid, "created_by": uid, "created_at": store.now(), "expires_at": _later(24 * days), "revoked": False},
+        r=R("share_link", key),
+        d={
+            "recording": rid,
+            "created_by": uid,
+            "created_at": store.now(),
+            "expires_at": _later(24 * days),
+            "revoked": False,
+            "short": sha(code),
+            "plays": 0,
+        },
     )
-    return raw
+    return {"id": key[:10], "token": raw, "short": code}
+
+
+def find_share(db, raw):
+    """The link a token or a short code belongs to, whatever its state ({key, recording, expires_at, revoked}), or None."""
+    if not raw:
+        return None
+    q = "SELECT record::id(id) AS key, recording, expires_at, revoked FROM "
+    if len(raw) == SHORT_LEN:
+        return db.one(q + "share_link WHERE short = $h LIMIT 1", h=sha(raw))
+    return db.one(q + "$r", r=R("share_link", sha(raw)))
+
+
+def share_live(s):
+    """Not revoked and not expired."""
+    return bool(s) and not s.get("revoked") and (s.get("expires_at") or "") >= store.now()
 
 
 def share_ok(db, raw, rid):
-    if not raw:
+    s = find_share(db, raw)
+    return share_live(s) and s["recording"] == rid
+
+
+def revoke_shares(db, rid, by=None):
+    """Revoke the recording's links that still work; how many there were."""
+    t = store.now()
+    return len(
+        db.rows(
+            "UPDATE share_link SET revoked = true, revoked_at = $t, revoked_by = $b "
+            "WHERE recording = $r AND revoked != true AND expires_at >= $t RETURN id",
+            r=rid,
+            t=t,
+            b=by,
+        )
+    )
+
+
+def revoke_share(db, rid, sid, by=None):
+    """Revoke one of the recording's links, by the id GET /shares gives it (the start of its key). False if it has no
+    such link; revoking one that's already revoked changes nothing."""
+    keys = [k for k in db.values("SELECT VALUE record::id(id) FROM share_link WHERE recording = $r", r=rid) if str(k).startswith(sid)]
+    if len(keys) != 1:
         return False
-    s = db.one("SELECT recording, expires_at, revoked FROM $r", r=R("share_link", sha(raw)))
-    return bool(s and s["recording"] == rid and not s.get("revoked") and s["expires_at"] >= store.now())
+    db.q(
+        "UPDATE $s SET revoked = true, revoked_at = $t, revoked_by = $b WHERE revoked != true",
+        s=R("share_link", keys[0]),
+        t=store.now(),
+        b=by,
+    )
+    return True
 
 
-def revoke_shares(db, rid):
-    db.q("UPDATE share_link SET revoked = true WHERE recording = $r", r=rid)
+def share_played(db, key):
+    """The link's player started playing (once per page load)."""
+    db.q("UPDATE $s SET plays = (plays ?? 0) + 1, played_at = $t", s=R("share_link", key), t=store.now())
+
+
+def share_embedded(db, s, site):
+    """The link's player was opened in a frame on `site` (an origin): counted per site."""
+    e = R("share_embed", f"{s['key'][:32]}-{sha(site)[:32]}")
+    if (
+        not db.one("SELECT id FROM $e", e=e)
+        and len(db.values("SELECT VALUE id FROM share_embed WHERE share = $k", k=s["key"])) >= EMBED_SITES
+    ):
+        return
+    t = store.now()
+    db.q(
+        "UPSERT $e SET share = $k, recording = $r, origin = $o, opens = (opens ?? 0) + 1, first_at = first_at ?? $t, last_at = $t",
+        e=e,
+        k=s["key"],
+        r=s["recording"],
+        o=site,
+        t=t,
+    )
+
+
+def shares(db, rid):
+    """The recording's links, newest first, with their plays and the sites that embed them (most recent first)."""
+    rows = db.rows(
+        "SELECT record::id(id) AS key, created_by, created_at, expires_at, revoked ?? false AS revoked, revoked_at, "
+        "revoked_by, plays ?? 0 AS plays, played_at, short FROM share_link WHERE recording = $r ORDER BY created_at DESC",
+        r=rid,
+    )
+    sites = {}
+    for e in db.rows("SELECT share, origin, opens, last_at FROM share_embed WHERE recording = $r ORDER BY last_at DESC", r=rid):
+        sites.setdefault(e["share"], []).append({"origin": e["origin"], "opens": e.get("opens") or 0, "last_at": e.get("last_at")})
+    for r in rows:
+        r["sites"] = sites.get(r["key"], [])
+    return rows
 
 
 def audit(db, user, action, target=None, detail=None):

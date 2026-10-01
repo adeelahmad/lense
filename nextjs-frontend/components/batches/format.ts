@@ -35,7 +35,7 @@ export function confirmNumber(expected: string | null | undefined): string {
 }
 
 /** What a run would need that a transcript-only recording can't give: audio and video steps. */
-export const MEDIA_STEPS = new Set(["transcribe", "diarize", "shots", "ocr", "faces"]);
+export const MEDIA_STEPS = new Set(["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe"]);
 
 /** True when every recording is transcript-only and every step needs media: nothing can run. */
 export function nothingRunnable(est: Pick<Estimate, "by_kind" | "recordings">, steps: { type?: unknown }[]): boolean {

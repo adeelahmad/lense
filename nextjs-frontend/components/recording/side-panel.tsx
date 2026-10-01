@@ -7,8 +7,14 @@ import { ChatTab } from "@/components/recording/chat-tab";
 import { useRec, type PanelTab } from "@/components/recording/context";
 import { DetailsTab } from "@/components/recording/details-tab";
 import { EntitiesTab } from "@/components/recording/entities-tab";
+import { FilesTab } from "@/components/recording/files-tab";
 import { HistoryTab } from "@/components/recording/history-tab";
+import { CommentsTab } from "@/components/recording/comments-tab";
+import { openThreads } from "@/components/recording/comments-model";
+import { HighlightsTab } from "@/components/recording/highlights-tab";
+import { useComments, useNotes } from "@/components/recording/hooks";
 import { IiifTab, MetadataTab } from "@/components/recording/iiif-tab";
+import { NotesTab } from "@/components/recording/notes-tab";
 import { SpeakersTab } from "@/components/recording/speakers-tab";
 import { SummaryTab } from "@/components/recording/summary-tab";
 import { fitTabs } from "@/components/recording/tab-fit";
@@ -28,10 +34,24 @@ export const AUDIO_TABS: TabDef[] = [
   { value: "speakers", label: "Speakers" },
   { value: "entities", label: "Entities" },
   { value: "chat", label: "Chat" },
-  { value: "notes", label: "Notes", disabled: "Notes aren't available yet" },
+  { value: "notes", label: "Notes" },
+  { value: "comments", label: "Comments" },
   { value: "history", label: "History" },
 ];
+/** The tabs with their counts: how many notes you see, and how many comment threads are open. */
+export function useAudioTabs(): TabDef[] {
+  const { id } = useRec();
+  const notes = useNotes(id);
+  const comments = useComments(id);
+  const n = notes.data?.length ?? 0;
+  const open = openThreads(comments.data ?? []);
+  return AUDIO_TABS.map((t) =>
+    t.value === "notes" && n ? { ...t, count: n } : t.value === "comments" && open ? { ...t, count: open } : t,
+  );
+}
 export const MORE_TABS: TabDef[] = [
+  { value: "highlights", label: "Highlights" },
+  { value: "files", label: "Files" },
   { value: "metadata", label: "Metadata" },
   { value: "iiif", label: "IIIF" },
   { value: "details", label: "Details" },
@@ -228,6 +248,12 @@ export function PanelBody({ tab }: { tab: PanelTab }) {
       return <EntitiesTab />;
     case "chat":
       return <ChatTab />;
+    case "notes":
+      return <NotesTab />;
+    case "comments":
+      return <CommentsTab />;
+    case "highlights":
+      return <HighlightsTab />;
     case "history":
       return <HistoryTab />;
     case "metadata":
@@ -236,6 +262,8 @@ export function PanelBody({ tab }: { tab: PanelTab }) {
       return <IiifTab />;
     case "details":
       return <DetailsTab />;
+    case "files":
+      return <FilesTab />;
     default:
       return null;
   }
@@ -269,13 +297,14 @@ export function PanelScroll({
   );
 }
 
-/** Desktop side panel (488px): Summary · Speakers · Entities · Chat · Notes · History, and More (…). */
+/** Desktop side panel (488px): Summary · Speakers · Entities · Chat · Notes · Comments · History, and More (…). */
 export function SidePanel() {
   const { tab, setTab } = useRec();
+  const tabs = useAudioTabs();
   const current = [...AUDIO_TABS, ...MORE_TABS].some((t) => t.value === tab) ? tab : "summary";
   return (
     <aside aria-label="Recording panels" className="flex min-h-0 min-w-0 flex-col border-l border-border bg-background">
-      <PanelTabs tabs={AUDIO_TABS} more={MORE_TABS} value={current} onChange={setTab} idBase="side" />
+      <PanelTabs tabs={tabs} more={MORE_TABS} value={current} onChange={setTab} idBase="side" />
       <PanelScroll id="side" tab={current}>
         <PanelBody tab={current} />
       </PanelScroll>

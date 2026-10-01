@@ -16,7 +16,7 @@
 </head>
 <body>
 <h1>{{ d.title }} <small>{{ d.namespace }}</small></h1>
-<div id="player"></div>
+<div id="player"{% if played %} data-played="{{ played }}"{% endif %}></div>
 <script type="application/json" id="player-data">{{ data|safe }}</script>
 <script src="/static/player.js"></script>
 <script src="/static/embed.js"></script>

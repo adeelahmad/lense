@@ -16,8 +16,9 @@ import { useCallback, useRef, useState } from "react";
 import { usePlayerApi, usePlayerState, usePlayerTick } from "@/components/player/media";
 import { PlayButton, SpeedMenu } from "@/components/player/transport";
 import { useRec } from "@/components/recording/context";
-import { useNamespaceFaces } from "@/components/recording/hooks";
 import { segmentAt } from "@/components/recording/model";
+import { useFaceColors } from "@/components/recording/video/face-colors";
+import { boxesAt, objectName } from "@/components/recording/objects-model";
 import { faceBoxAt, fineTime, frameMs, textAt } from "@/components/recording/video/model";
 import { Tooltip } from "@/components/ui/tooltip";
 import { tc } from "@/lib/format";
@@ -26,38 +27,20 @@ import { cn } from "@/lib/utils";
 export type Overlays = { captions: boolean; faces: boolean; text: boolean };
 export type VideoLayoutMode = "side" | "stacked" | "theatre";
 
-/** Face colours follow the linked speaker where there is one (same person, same colour), else the order people appear. */
-export function useFaceColors() {
-  const { model, ns } = useRec();
-  const faces = useNamespaceFaces(ns, model.facesMode === "recognize");
-  return useCallback(
-    (i: number) => {
-      const fid = model.faces[i]?.face;
-      const linked = fid
-        ? (
-            (faces.data?.faces ?? []) as {
-              id: number;
-              speaker?: number | null;
-            }[]
-          ).find((f) => f.id === fid)?.speaker
-        : null;
-      const spk = linked != null ? model.speakers.find((s) => s.id === linked) : null;
-      return spk ? spk.color : `var(--spk-${((model.speakers.length + i) % 8) + 1})`;
-    },
-    [model.faces, model.speakers, faces.data],
-  );
-}
-
 /**
- * The video with its overlays (VR1): faces (blue, labelled boxes), text on screen (dashed gold boxes) and captions from
- * the transcript. Overlays redraw a few times a second from the player clock, not per frame.
+ * The video with its overlays (VR1): faces (blue, labelled boxes), text on screen (dashed gold boxes), the kind of
+ * object chosen in the Objects tab (green boxes) and captions from the transcript. Overlays redraw a few times a
+ * second from the player clock, not per frame.
  */
 export function VideoStage({
   overlays,
+  object = null,
   maxHeight = "62vh",
   className,
 }: {
   overlays: Overlays;
+  /** The kind of object whose boxes to draw (chosen in the Objects tab). */
+  object?: string | null;
   maxHeight?: string;
   className?: string;
 }) {
@@ -71,6 +54,8 @@ export function VideoStage({
       ? model.faces.map((f, i) => ({ f, i, box: faceBoxAt(f, time) })).filter((x) => x.box)
       : [];
   const texts = overlays.text ? textAt(model.screenText, time) : [];
+  const track = object ? model.objects.find((o) => o.label === object) : undefined;
+  const things = track ? boxesAt(track, time) : [];
   const si = overlays.captions ? segmentAt(model.segments, time) : -1;
   const seg = si >= 0 && time <= model.segments[si].t1 + 800 ? model.segments[si] : null;
   const who = seg?.speaker ? speakers.get(seg.speaker)?.name : null;
@@ -124,6 +109,18 @@ export function VideoStage({
                 style={{ background: color(i) }}
               >
                 {model.facesMode === "recognize" ? f.name : "Face"}
+              </span>
+            </div>
+          ))}
+          {things.map((b, i) => (
+            <div
+              key={i}
+              data-object={track!.label}
+              className="absolute rounded-[4px] border-2 border-[var(--aladdin-green)]"
+              style={box(b)}
+            >
+              <span className="absolute -left-0.5 -top-[22px] h-5 whitespace-nowrap rounded-[4px_4px_4px_0] bg-[var(--aladdin-green)] px-1.5 text-[11px] font-bold leading-5 text-white">
+                {objectName(track!.label)}
               </span>
             </div>
           ))}

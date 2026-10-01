@@ -4,7 +4,10 @@
  * Pure helpers used by the metadata editor and the IIIF panel: validation mirroring the backend, what changed, and
  * plain-words descriptions of history entries.
  */
+import { partsText, type Access, type AccessPart } from "@/components/access/model";
 import { RIGHTS_RX, rightsShort } from "@/components/iiif/rights";
+
+export { ACCESS, PARTS, partsText, type Access, type AccessPart } from "@/components/access/model";
 
 export type LangMap = Record<string, string[]>;
 export type Person = {
@@ -26,7 +29,6 @@ export type Provider = {
   logo?: string | null;
 };
 export type Related = { id: string; label?: string | null };
-export type Access = "public" | "transcript" | "signed-in" | "private";
 
 export type Meta = {
   label?: LangMap | null;
@@ -44,6 +46,8 @@ export type Meta = {
   homepage?: string | null;
   related?: Related[] | null;
   access?: Access | null;
+  open?: AccessPart[] | null;
+  featured?: boolean | null;
 };
 
 export type Field = keyof Meta;
@@ -63,6 +67,8 @@ export const FIELDS: Field[] = [
   "homepage",
   "related",
   "access",
+  "open",
+  "featured",
 ];
 
 export const FIELD_LABEL: Record<Field, string> = {
@@ -81,6 +87,8 @@ export const FIELD_LABEL: Record<Field, string> = {
   homepage: "Related link (homepage)",
   related: "Related links",
   access: "Access",
+  open: "Open to everyone",
+  featured: "Featured",
 };
 
 /** Which IIIF / Dublin Core property each field feeds, as shown next to the section titles. */
@@ -99,38 +107,6 @@ export const FIELD_MAPS: Partial<Record<Field, string>> = {
   metadata: "metadata[]",
   language: "dc:language",
 };
-
-export const ACCESS: {
-  value: Access;
-  label: string;
-  hint: string;
-  anon: string;
-}[] = [
-  {
-    value: "public",
-    label: "Public",
-    hint: "anyone",
-    anon: "Anyone gets everything: metadata, transcript, captions and audio.",
-  },
-  {
-    value: "transcript",
-    label: "Transcript open",
-    hint: "audio after sign-in",
-    anon: "Anonymous people get metadata, transcript and captions. Audio asks them to sign in (IIIF Authorization Flow).",
-  },
-  {
-    value: "signed-in",
-    label: "Signed-in",
-    hint: "members sign in",
-    anon: "Anonymous people get the metadata only. Transcript and audio ask them to sign in.",
-  },
-  {
-    value: "private",
-    label: "Private",
-    hint: "not published",
-    anon: "Not published: the Manifest is only visible to people with a role in this namespace.",
-  },
-];
 
 export const LANG_RX = /^(none|[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})*)$/;
 const URI_RX = /^https?:\/\/[^\s<>"]+$/;
@@ -260,26 +236,28 @@ export function dirtyFields(original: Meta, draft: Meta): Field[] {
   return FIELDS.filter((f) => !same(original[f], draft[f]));
 }
 
-/** The `set` body for saving: each changed field's value, or null to clear it. */
+/** The `set` body for saving: each changed field's value, or null to clear it. No open parts is a value of its own. */
 export function patchFor(draft: Meta, fields: Field[]): Partial<Record<Field, unknown>> {
-  return Object.fromEntries(fields.map((f) => [f, isEmpty(draft[f]) ? null : draft[f]]));
+  return Object.fromEntries(
+    fields.map((f) => [f, f === "open" ? (draft.open ?? null) : isEmpty(draft[f]) ? null : draft[f]]),
+  );
 }
 
-export type PublishState = "draft" | "private" | "published" | "attention";
+export type PublishState = "draft" | "unpublished" | "published" | "attention";
 
 /**
- * Draft (not published, with problems that block publishing) · private (not published) · published ·
- * needs attention (published, with validation problems).
+ * IIIF publishes public recordings; restricted and private ones aren't published. Draft (not published, with
+ * problems that block publishing) · not published · published · needs attention (published, with validation problems).
  */
 export function publishState(access: string | null | undefined, problems: number): PublishState {
-  if (!access || access === "private") return problems ? "draft" : "private";
+  if (access !== "public") return problems ? "draft" : "unpublished";
   return problems ? "attention" : "published";
 }
 
 export const PUBLISH_BADGE: Record<PublishState, { label: string; tone: "neutral" | "green" | "gate"; hint: string }> =
   {
     draft: { label: "Draft", tone: "neutral", hint: "not published yet" },
-    private: { label: "Private", tone: "neutral", hint: "not published" },
+    unpublished: { label: "Not published", tone: "neutral", hint: "restricted or private" },
     published: {
       label: "Published",
       tone: "green",
@@ -313,12 +291,17 @@ export function describeChange(field: string, a: unknown, b: unknown): string {
   const f = field as Field;
   const label = FIELD_LABEL[f] ?? field;
   if (b === undefined && a !== undefined) return `${label}: back to the derived value`;
+  // no open parts is a choice ("Nothing"), not a cleared field
+  if (f === "open" && Array.isArray(b))
+    return `Open to everyone: ${a == null ? "default" : partsText(a as string[])} → ${partsText(b as string[])}`;
   if (b === null || (isEmpty(b) && !isEmpty(a))) return `${label} cleared`;
   switch (f) {
     case "rights":
       return `Rights: ${rightsShort(a as string)} → ${rightsShort(b as string)}`;
     case "access":
       return `Access: ${(a as string) || "default"} → ${b as string}`;
+    case "featured":
+      return b ? "Featured" : "No longer featured";
     case "navDate":
       return `Date: ${String(a ?? "none").slice(0, 10)} → ${String(b).slice(0, 10)}`;
     case "subjects":

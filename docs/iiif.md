@@ -7,11 +7,28 @@ can open them, and harvesters can follow them.
   - The transcript comes as WebVTT captions plus per-line annotations; speakers and entities come as tagging annotations.
   - Chapters become the table of contents (Ranges).
   - Downloads (`rendering`): vtt, srt, txt, md and json.
+  - Supplementary files ([API](api.md#files)): every one is a download (`rendering`, at `/iiif/<id>/files/<file>`).
+    Transcripts, captions and translations that say when their lines are also come as WebVTT captions
+    (`/iiif/<id>/files/<file>.vtt`, whatever their format), an index as a table of contents (a Range), and a thumbnail
+    as the Manifest's thumbnail. Files that need permission sit behind the Authorization Flow; attachments always do.
   - A schema.org record and a Dublin Core record, linked with `seeAlso`.
-- **Collections:** `/iiif/collection` and `/iiif/collection/<namespace>`.
+- **Documents and images** ([API](api.md#documents-and-images)): a Canvas per page, each with its page drawn as an
+  Image (`/iiif/<id>/pages/<n>.jpg`, from 1) and its size; the first page is the thumbnail.
+  - The text is annotations on the page, each targeting where its block is (`canvas/<n>#xywh=…`), one page at a time
+    (`/iiif/<id>/annotations/transcript?page=<n>`). Content Search hits target their block on the page.
+  - Downloads: txt, md and json (no captions: a document's text has no times), and the file itself (`/iiif/<id>/media`,
+    "The PDF", "The image", "The Word document", …) with the PDF made of a document that isn't one
+    (`/iiif/<id>/pdf`). Sections become Ranges that start on their page's Canvas.
+  - The schema.org record is a `DigitalDocument` or an `ImageObject`, the Dublin Core type `Text` or `StillImage`.
+  - With the media closed, each page's image has its own probe (`/iiif/auth/probe/<id>/page<n>`, "Sign in to see
+    this"), the file sits behind the audio's probe, and there's no thumbnail.
+- **Collections:** `/iiif/collection` lists the namespaces, `/iiif/collection/<namespace>` the namespace's top
+  collections, and `/iiif/collection/<namespace>/<id>` one collection: the collections inside it, then its recordings'
+  Manifests, oldest first. Each is a Collection with its parent as `partOf`, and a Manifest is `partOf` the collection
+  it lives in. Collections show only what the requester may see: one with nothing visible inside it is left out.
 - **Content Search 2.0:** `/iiif/<id>/search` and `/autocomplete`, plus `/iiif/collection/<namespace>/search`. Hits come
   with highlighting (TextQuoteSelector).
-- **Content State 1.0:** `GET /api/v1/recordings/<id>/content-state?t0=&t1=` gives a link to an exact moment, encoded the
+- **Content State 1.0:** `GET /api/v1/resources/<id>/content-state?t0=&t1=` gives a link to an exact moment, encoded the
   way the spec requires, that compatible viewers open.
 - **Change Discovery 1.0:** `/iiif/discovery/activity`, a feed of Create, Update and Delete events for published
   recordings.
@@ -21,15 +38,18 @@ can open them, and harvesters can follow them.
   - A successful probe returns a short-lived signed link, so playback doesn't depend on third-party cookies.
   - `/iiif/auth/logout` revokes the tokens.
 - **Import:** `POST /api/v1/import/iiif` (admins) takes a Presentation 3 Manifest or Collection from another server.
+  - A Collection's Manifests are found in the Collections inside it too (at most 8 deep and 50 Collections read).
   - It copies the audio, keeps WebVTT captions as the transcript (speakers included), and maps the metadata.
+  - The recordings go into the collection of the namespace you choose (its default unless you pick one).
   - It then queues the namespace's pipeline, skipping transcription.
 
-Access decides what is published. It's set per recording, with a default per namespace:
+A recording's access decides what is published ([Access](access.md)). It's set per recording, with a default per
+namespace, and only owners change it:
 
-- `public`: everything is open.
-- `transcript`: the transcript is open; the audio needs sign-in.
-- `signed-in`: the metadata is open; the audio and transcript need sign-in.
-- `private` (the default): not published at all.
+- `public`: published. Its open parts (media, transcript, index) are plain links; closed ones sit behind the
+  Authorization Flow. Chapters are ranges when the index is open.
+- `restricted` and `private` (the default): not published. The manifest answers 404 unless the request carries
+  permission, and collections leave the recording out.
 
 Set `iiif.base_url` to the stable public HTTPS address, since identifiers are built from it. Put the server behind
 HTTPS before publishing: the authorization flow requires it, and its cookie is `SameSite=None; Secure`. Other IIIF
@@ -38,15 +58,16 @@ viewers also need the public host in `server.allowed_hosts`. `iiif.viewers` hold
 
 **Metadata.** Viewers show label, summary (in several languages), label/value pairs, rights (a Creative Commons or
 RightsStatements.org URI), attribution, provider, date, languages, creators, contributors, subjects (optionally linked
-to authorities such as Wikidata), identifiers and related links.
+to authorities such as Wikidata), identifiers and related links. Published custom fields ([API](api.md#fields)) are
+label/value pairs too: a resource's in its Manifest, a collection's in its Collection; internal ones never are.
 
 - Values that aren't set come from the recording itself: its title, date, language, speakers, main topics and summary.
-- A namespace profile sets required fields, defaults, controlled vocabularies and the default access.
+- A namespace profile sets required fields, defaults, controlled vocabularies, and the default access and open parts.
 - Every change is kept and can be reverted. Bulk edits report what would change before applying.
 
 Manifests are checked against IIIF's Presentation 3 JSON Schema, bundled from IIIF's presentation-validator. This needs
-`pip install jsonschema`. `GET /api/v1/recordings/<id>/iiif` returns the manifest link, its access level, the validation
-result and the viewer links.
+`pip install jsonschema`. `GET /api/v1/resources/<id>/iiif` returns the manifest link, the recording's access, open
+parts and whether it's published, the validation result and the viewer links.
 
 ## Embedding the player
 
@@ -54,7 +75,7 @@ result and the viewer links.
 <iframe src="https://lens.example.org/embed/12?s=<share token>&t=90" style="width:100%;height:560px;border:0"></iframe>
 ```
 
-The embed needs a share link (`?s=…`, from `POST /api/v1/recordings/<id>/share`, which can be revoked) or a signed link from `GET /api/v1/recordings/<id>/embed-link` (which expires). Only `/embed/<id>` may be framed, and only by origins listed in `server.embed_frame_ancestors`. A host page can drive it:
+The embed needs a share link (`?s=…`, from `POST /api/v1/resources/<id>/share`, which can be revoked) or a signed link from `GET /api/v1/resources/<id>/embed-link` (which expires). A share link's short address (`https://lens.example.org/s/<code>?t=90`) works as the `src` too. Only `/embed/<id>` and `/s/<code>` may be framed, and only by origins listed in `server.embed_frame_ancestors`. An expired or revoked link shows a neutral "This link isn't available" page in the frame (status 410). Share links count their plays and remember the sites that frame them (`GET /api/v1/resources/<id>/shares`). A host page can drive it:
 
 ```js
 frame.contentWindow.postMessage({ type: 'archive:seek', t: 90, play: true }, '*')

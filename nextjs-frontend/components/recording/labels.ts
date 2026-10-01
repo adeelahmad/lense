@@ -42,7 +42,12 @@ export function sourceLabel(rec: {
   path?: string | null;
   remote?: { source?: number; path?: string } | null;
   source?: string | null;
-}): { text: string; title: string; remote: boolean; file: boolean } | null {
+  web?: { url: string; final?: string | null } | null;
+}): { text: string; title: string; remote: boolean; file: boolean; href?: string } | null {
+  if (rec.web?.url) {
+    const at = rec.web.final || rec.web.url;
+    return { text: `Captured from ${webHost(at)}`, title: at, remote: true, file: false, href: at };
+  }
   const path = rec.path ?? "";
   if (rec.remote?.path)
     return {
@@ -92,4 +97,13 @@ export function failureImpact(step: string | null, done: string[], partial = fal
 
 function listJoin(xs: string[]): string {
   return xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+}
+
+/** A web address's host, for a label: "example.org" (the address itself when it isn't one). */
+export function webHost(url: string): string {
+  try {
+    return new URL(url).host || url;
+  } catch {
+    return url;
+  }
 }

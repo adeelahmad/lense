@@ -7,7 +7,10 @@ export type Passage = {
   n: number;
   recording_id: number;
   t0?: number | null;
+  /** When it was said ("12:34"), or for a document its page ("p. 3"). */
   time?: string | null;
+  /** A document's or an image's page it's on (from 0). */
+  page?: number | null;
   speaker?: string | null;
   title?: string | null;
   text: string;
@@ -21,6 +24,8 @@ export type Answer = {
   notice: string | null;
   error: string | null;
   steps: string[];
+  /** The server saved it (it's in the conversation now). */
+  saved?: boolean;
 };
 
 export const newAnswer = (question: string): Answer => ({
@@ -68,8 +73,14 @@ export function applyChatEvent(a: Answer, ev: { event: string; data: string }): 
         status: "error",
         error: typeof o.message === "string" ? o.message : "The model didn't answer.",
       };
+    case "stopped":
+      return { ...a, status: "stopped" };
     case "done":
-      return { ...a, status: a.status === "error" ? "error" : "done" };
+      return {
+        ...a,
+        status: a.status === "error" || a.status === "stopped" ? a.status : "done",
+        saved: typeof o.message === "number" || a.saved,
+      };
     default:
       return a;
   }

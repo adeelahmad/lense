@@ -10,11 +10,15 @@ import {
   Download,
   Ellipsis,
   ExternalLink,
+  Files,
   FileText,
   Folder,
+  FolderTree,
+  Globe,
   Keyboard,
   Link2,
   ListChecks,
+  Paperclip,
   Pencil,
   RefreshCw,
   RotateCw,
@@ -22,10 +26,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
+import { AccessBadge } from "@/components/access/access-fields";
+import { libraryHref } from "@/components/library/collections-model";
 import { usePlayerApi } from "@/components/player/media";
 import { useRec } from "@/components/recording/context";
+import { pageAt, pagesSummary } from "@/components/recording/document/model";
 import { useExport, usePipelines, useRecordingActions } from "@/components/recording/hooks";
 import { isActive, readyBefore, shortError, stepLabel, loopSteps } from "@/components/recording/jobs";
 import { Badge, StatusChip } from "@/components/ui/badge";
@@ -36,14 +43,13 @@ import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { absolute, shortDate, tc } from "@/lib/format";
 import { EXPORTS, failureImpact, sourceLabel } from "@/components/recording/labels";
-import { needRole, useArchive } from "@/lib/hooks/session";
+import { needRole } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 /** Header (R1): breadcrumb, title, actions, the meta line, and the running / failed banners. */
 export function RecordingHeader() {
   const r = useRec();
-  const { rec, model, ns, transcriptOnly } = r;
-  const { setNamespace } = useArchive();
+  const { rec, model, ns, transcriptOnly, canEdit, openRename, openAccess } = r;
   const pipelines = usePipelines();
   const source = sourceLabel(rec);
   const pipeline = pipelines.data?.pipelines.find((p) => ns && p.namespaces?.includes(ns));
@@ -51,16 +57,15 @@ export function RecordingHeader() {
 
   return (
     <header className="flex flex-col gap-2 border-b border-border px-6 py-3.5">
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[12px] font-medium text-fg-muted">
-        <Link href="/library" className="text-fg-secondary hover:text-fg hover:underline">
+      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-fg-muted">
+        <Link href="/library" className="shrink-0 text-fg-secondary hover:text-fg hover:underline">
           Library
         </Link>
-        <ChevronRight aria-hidden className="size-3" />
+        <ChevronRight aria-hidden className="size-3 shrink-0" />
         {ns ? (
           <Link
-            href="/library"
-            onClick={() => setNamespace(ns)}
-            className="hover:text-fg hover:underline"
+            href={libraryHref(ns)}
+            className="shrink-0 hover:text-fg hover:underline"
             aria-label={`${ns} in the Library`}
           >
             {ns}
@@ -68,18 +73,35 @@ export function RecordingHeader() {
         ) : (
           <span>Recording</span>
         )}
+        {ns &&
+          (rec.collection_path ?? []).map((c) => (
+            <Fragment key={c.id}>
+              <ChevronRight aria-hidden className="size-3 shrink-0" />
+              <Link
+                href={libraryHref(ns, c.id)}
+                className="min-w-0 truncate hover:text-fg hover:underline"
+                aria-label={`The ${c.name} collection in the Library`}
+              >
+                {c.name}
+              </Link>
+            </Fragment>
+          ))}
       </nav>
       <div className="flex items-center gap-4">
         <h1 className="flex min-w-0 items-center gap-2 text-[24px] font-bold leading-[1.2] tracking-[-.015em] text-fg">
           <span className="truncate" title={model.title}>
             {model.title}
           </span>
-          <Tooltip content="Renaming recordings isn't available yet">
+          <Tooltip content={canEdit ? "Rename" : needRole("editor", ns)}>
             <button
               type="button"
               aria-label="Rename recording"
-              aria-disabled
-              className="grid size-7 shrink-0 cursor-not-allowed place-items-center rounded-sm text-fg-muted opacity-60"
+              aria-disabled={!canEdit || undefined}
+              onClick={canEdit ? openRename : undefined}
+              className={cn(
+                "grid size-7 shrink-0 place-items-center rounded-sm text-fg-muted",
+                canEdit ? "hover:bg-surface-neutral hover:text-fg" : "cursor-not-allowed opacity-60",
+              )}
             >
               <Pencil className="size-[15px]" />
             </button>
@@ -99,12 +121,44 @@ export function RecordingHeader() {
             {shortDate(rec.recorded_at, true)}
           </time>
         )}
-        <Meta icon={<Clock3 />}>{tc(model.durationMs)}</Meta>
-        {source && (
-          <Meta icon={source.remote ? <Cloud /> : <FileText />}>
-            <span className={cn("max-w-[320px] truncate", source.file && "font-mono text-[12px]")} title={source.title}>
-              {source.text}
+        {r.paged ? (
+          <Meta icon={<Files />}>{pagesSummary(model.pages, model.media.kind === "image" ? "image" : "document")}</Meta>
+        ) : (
+          <Meta icon={<Clock3 />}>{tc(model.durationMs)}</Meta>
+        )}
+        {rec.attached_to && (
+          <Meta icon={<Paperclip />}>
+            <span>
+              Attached to{" "}
+              <Link
+                href={`/resources/${rec.attached_to.resource}`}
+                className="font-semibold text-fg-accent hover:underline"
+              >
+                {rec.attached_to.title || "an email"}
+              </Link>
             </span>
+          </Meta>
+        )}
+        {source && (
+          <Meta icon={source.href ? <Globe /> : source.remote ? <Cloud /> : <FileText />}>
+            {source.href ? (
+              <a
+                href={source.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="max-w-[320px] truncate font-semibold text-fg-accent hover:underline"
+                title={source.title}
+              >
+                {source.text}
+              </a>
+            ) : (
+              <span
+                className={cn("max-w-[320px] truncate", source.file && "font-mono text-[12px]")}
+                title={source.title}
+              >
+                {source.text}
+              </span>
+            )}
           </Meta>
         )}
         <Meta icon={<Workflow />}>
@@ -116,6 +170,7 @@ export function RecordingHeader() {
           </span>
         </Meta>
         <StatusChip status={status} label={status ? status[0].toUpperCase() + status.slice(1) : "Unknown"} />
+        <AccessBadge value={rec} onClick={openAccess} />
         {transcriptOnly && <Badge tone="neutral">Transcript only</Badge>}
       </div>
       <Banners />
@@ -135,10 +190,10 @@ function Meta({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 export function HeaderActions({ compact }: { compact?: boolean }) {
   const r = useRec();
   const api = usePlayerApi();
-  const { canEdit, ns, openShare } = r;
+  const { canEdit, ns, openShare, paged } = r;
   return (
     <div className="flex items-center gap-2">
-      {!compact && (
+      {!compact && !paged && (
         <Button
           variant="secondary"
           size="sm"
@@ -156,8 +211,10 @@ export function HeaderActions({ compact }: { compact?: boolean }) {
 }
 
 export function ExportMenu({ trigger }: { trigger?: ReactNode }) {
-  const { id, model, rec } = useRec();
+  const { id, model, rec, paged } = useRec();
   const exp = useExport(id);
+  // a document's text has no times for subtitles
+  const formats = paged ? EXPORTS.filter(([fmt]) => fmt !== "srt" && fmt !== "vtt") : EXPORTS;
   return (
     <Menu>
       <MenuTrigger asChild>
@@ -168,8 +225,8 @@ export function ExportMenu({ trigger }: { trigger?: ReactNode }) {
         )}
       </MenuTrigger>
       <MenuContent>
-        <MenuLabel>Download the transcript</MenuLabel>
-        {EXPORTS.map(([fmt, label]) => (
+        <MenuLabel>{paged ? "Download the text" : "Download the transcript"}</MenuLabel>
+        {formats.map(([fmt, label]) => (
           <MenuItem key={fmt} onSelect={() => exp.mutate({ fmt, title: model.title })} shortcut={`.${fmt}`}>
             {label}
           </MenuItem>
@@ -261,11 +318,13 @@ function MoreMenu({ compact }: { compact?: boolean }) {
   const latest = r.jobs[0];
   const copy = async (withTime: boolean) => {
     const t = Math.floor(api.now() / 1000);
-    const url = `${window.location.origin}/recordings/${r.id}${withTime && t > 0 ? `?t=${t}` : ""}`;
+    const page = r.paged ? pageAt(r.model.segments, api.now()) + 1 : 0; // a document's: the page with the text in view
+    const at = r.paged ? (page > 1 ? `?page=${page}` : "") : t > 0 ? `?t=${t}` : "";
+    const url = `${window.location.origin}/resources/${r.id}${withTime ? at : ""}`;
     try {
       await navigator.clipboard.writeText(url);
       toast({
-        title: withTime ? `Link at ${tc(t * 1000)} copied` : "Link copied",
+        title: withTime ? `Link at ${r.paged ? `page ${page}` : tc(t * 1000)} copied` : "Link copied",
         tone: "green",
       });
     } catch {
@@ -284,15 +343,31 @@ function MoreMenu({ compact }: { compact?: boolean }) {
           Copy link
         </MenuItem>
         <MenuItem icon={<Copy />} onSelect={() => void copy(true)}>
-          Copy link at the current time
+          {r.paged ? "Copy link to this page" : "Copy link at the current time"}
+        </MenuItem>
+        <MenuItem icon={<FolderTree />} disabled={!r.canEdit || !r.ns} onSelect={r.openCollection}>
+          Move to collection…
         </MenuItem>
         {compact && (
           <>
-            <MenuItem icon={<CodeXml />} onSelect={() => r.openShare(Math.floor(api.now()) || undefined)}>
-              Share / Embed
-            </MenuItem>
+            {!r.paged && (
+              <MenuItem icon={<CodeXml />} onSelect={() => r.openShare(Math.floor(api.now()) || undefined)}>
+                Share / Embed
+              </MenuItem>
+            )}
             <MenuItem icon={<RefreshCw />} disabled={!r.canEdit} onSelect={r.openReprocess}>
               Reprocess…
+            </MenuItem>
+            <MenuItem icon={<Pencil />} disabled={!r.canEdit} onSelect={r.openRename}>
+              Rename…
+            </MenuItem>
+            {r.transcriptOnly && (
+              <MenuItem icon={<Paperclip />} disabled={!r.canEdit} onSelect={r.openAttach}>
+                Attach audio…
+              </MenuItem>
+            )}
+            <MenuItem icon={<Globe />} onSelect={r.openAccess}>
+              Access…
             </MenuItem>
             <MenuItem icon={<RotateCw />} onSelect={() => r.setTab("history")}>
               History

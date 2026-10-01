@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Pipelines, Sources } from "@/app/openapi-client";
 import type { Watch } from "@/app/openapi-client/types.gen";
-import { splitPatterns } from "@/components/sources/source-model";
+import { pickupText, splitPatterns, WATCH_KINDS, type WatchKinds } from "@/components/sources/source-model";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Field, Input, Select, Switch } from "@/components/ui/field";
@@ -15,17 +15,24 @@ import { data, useApiClient } from "@/lib/api/browser";
 import { count } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 
-const WATCH_STEPS = ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "report"];
-const PICK = [
-  { value: "audio", label: "Audio" },
-  { value: "transcripts", label: "Transcripts" },
-  { value: "both", label: "Both" },
+const WATCH_STEPS = [
+  "transcribe",
+  "diarize",
+  "shots",
+  "ocr",
+  "faces",
+  "objects",
+  "describe",
+  "analyze",
+  "summarize",
+  "report",
 ];
+const PICK = WATCH_KINDS.map(({ value, label }) => ({ value, label }));
 
 type Run = "default" | "pipeline" | "steps";
 type Form = {
   namespace: string;
-  kinds: "audio" | "transcripts" | "both";
+  kinds: WatchKinds;
   poll: string;
   stable: string;
   include: string;
@@ -41,7 +48,7 @@ function initial(watch: Watch | null | undefined, ns: string): Form {
   const w = watch as (Watch & { pipeline?: number | null }) | null | undefined;
   return {
     namespace: w?.namespace ?? ns,
-    kinds: (w?.kinds as Form["kinds"]) ?? "both",
+    kinds: w?.kinds ?? "all",
     poll: String(w?.poll_minutes ?? 5),
     stable: String(w?.stable_seconds ?? 30),
     include: (w?.include ?? []).join(", "),
@@ -369,19 +376,14 @@ export function WatchEditor({
           />
           <span className="flex-1" />
           <span className="tabular text-[12.5px] font-semibold text-fg-accent" aria-live="polite">
-            {preview.isFetching
-              ? "Counting…"
-              : p
-                ? `${count(p.files)} ${p.files === 1 ? "file" : "files"} · ${count(p.audio)} audio · ${count(p.transcripts)} transcripts`
-                : preview.error
-                  ? "Couldn’t count the files"
-                  : ""}
+            {preview.isFetching ? "Counting…" : p ? pickupText(p) : preview.error ? "Couldn’t count the files" : ""}
           </span>
         </div>
       )}
       {!editing && !f.backfill && p && p.files > 0 && (
         <p className="-mt-2 text-[12.5px] text-fg-muted">
-          Without backfill, the {count(p.files)} files there now are marked skipped; only new ones are imported.
+          Without backfill, {p.files === 1 ? "the file there now is" : `the ${count(p.files)} files there now are`}{" "}
+          marked skipped; only new ones are imported.
         </p>
       )}
 

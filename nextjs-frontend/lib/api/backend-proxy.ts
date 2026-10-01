@@ -1,7 +1,8 @@
 import { apiBaseUrl } from "@/lib/api/client";
 
 /**
- * Serves the FastAPI backend's paths on this origin: /api/v1, /embed, /iiif, /reports and /static.
+ * Serves the FastAPI backend's paths on this origin: /api/v1, /embed, /s (short share links), /iiif, /reports and
+ * /static.
  *
  * The API hands out relative signed media links (`/api/v1/recordings/12/audio?exp=..&sig=..`), so proxying them
  * makes <audio>, <video> and <img> work, and lets the browser call the API (including server-sent event streams)

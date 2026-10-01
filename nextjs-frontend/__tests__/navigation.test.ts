@@ -26,7 +26,8 @@ describe("navigation", () => {
   it("matches the active section", () => {
     expect(isActive("/", "/")).toBe(true);
     expect(isActive("/library", "/")).toBe(false);
-    expect(isActive("/recordings/12", "/library")).toBe(true);
+    expect(isActive("/resources/12", "/library")).toBe(true);
+    expect(isActive("/recordings/12", "/library")).toBe(true); // the old address, on its way to /resources
     expect(isActive("/speakers/4", "/speakers")).toBe(true);
     expect(isActive("/speakersx", "/speakers")).toBe(false);
   });

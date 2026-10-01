@@ -4,28 +4,40 @@ import { FolderOpen, Upload } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { namespaceNameProblem, parseMapping, titleFromName } from "@/components/import/files";
+import {
+  isUpload,
+  namespaceNameProblem,
+  parseMapping,
+  pipelineOptions,
+  titleFromName,
+} from "@/components/import/files";
 import { ImportQueue } from "@/components/import/import-queue";
 import { PasteTab } from "@/components/import/paste-tab";
 import { chooseFiles, defaultImportNamespace, isFileDrag, takeFiles } from "@/components/import/pending";
 import { SourceTab } from "@/components/import/source-tab";
-import { FileDetail, FileList, ProblemCard, audioTwinOf } from "@/components/import/upload-tab";
+import { WebTab } from "@/components/import/web-tab";
+import { FileDetail, FileList, MediaDetail, ProblemCard } from "@/components/import/upload-tab";
+import { pairTwins } from "@/components/import/upload-model";
 import {
   fileBody,
+  isMedia,
   useImportFiles,
   useImportQueue,
   useNamespacePipeline,
   useNamespaceSpeakers,
+  useUnfinishedUploads,
+  type QueueJob,
 } from "@/components/import/use-import";
+import { CollectionField } from "@/components/library/collections-ui";
 import { LibraryTabs } from "@/components/library/library-tabs";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/states";
-import { plural } from "@/lib/format";
+import { bytes, plural } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-type Tab = "upload" | "paste" | "source";
+type Tab = "upload" | "paste" | "web" | "source";
 const NEW_NS = "\u0000new";
 
 /** Where the import goes: a namespace you can edit, or (admins) a new one. */
@@ -93,21 +105,55 @@ function NamespaceField({
   );
 }
 
+/** What runs once the import lands: the namespace's pipeline unless another is chosen. */
+function PipelineField({
+  value,
+  onChange,
+  namespaceDefault,
+  pipelines,
+}: {
+  value: number | null;
+  onChange: (v: number | null) => void;
+  namespaceDefault: string;
+  pipelines: { id: number; name: string }[];
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[13px] font-bold text-fg-strong" id="import-pipeline-label">
+        Then run
+      </span>
+      <Select
+        aria-labelledby="import-pipeline-label"
+        value={value == null ? "" : String(value)}
+        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+        options={pipelineOptions(namespaceDefault, pipelines)}
+      />
+    </div>
+  );
+}
+
 /** Import (I1–I5): upload transcripts, paste text or watch a folder of a source. Nothing is saved before the preview. */
 export function ImportScreen() {
   const { namespaces, namespace: topNs, can, admin, me } = useArchive();
   const params = useSearchParams();
   const router = useRouter();
   const initialTab = (params.get("tab") as Tab) || "upload";
-  const [tab, setTab] = useState<Tab>(["upload", "paste", "source"].includes(initialTab) ? initialTab : "upload");
+  const [tab, setTab] = useState<Tab>(
+    ["upload", "paste", "web", "source"].includes(initialTab) ? initialTab : "upload",
+  );
   const editable = useMemo(() => namespaces.filter((n) => can("editor", n.name)).map((n) => n.name), [namespaces, can]);
   const [ns, setNs] = useState("");
   const files = useImportFiles();
   const queue = useImportQueue();
+  const unfinished = useUnfinishedUploads(files.items.some((i) => isUpload(i.kind)));
   const directory = useNamespaceSpeakers(ns || null);
   const pipeline = useNamespacePipeline(ns || null);
   const [selected, setSelected] = useState<string | null>(null);
   const [over, setOver] = useState(false);
+  const [pipelineId, setPipelineId] = useState<number | null>(null);
+  // null: the namespace's default collection (each namespace has its own)
+  const [collectionId, setCollectionId] = useState<number | null>(null);
+  useEffect(() => setCollectionId(null), [ns]);
 
   // Default namespace (once): the top bar's, if you can import there, else your busiest one.
   const defaulted = useRef(false);
@@ -150,7 +196,9 @@ export function ImportScreen() {
         : needRole("editor", ns);
   const ready = items.filter((i) => i.status === "ready");
   const reading = items.filter((i) => i.status === "reading").length;
-  const mappingProblem = ready.find((i) => parseMapping(i.mapping, i.preview?.speakers ?? []).errors.length);
+  const mappingProblem = ready.find(
+    (i) => !isUpload(i.kind) && parseMapping(i.mapping, i.preview?.speakers ?? []).errors.length,
+  );
   const importReason =
     nsReason ??
     (!ready.length
@@ -161,20 +209,48 @@ export function ImportScreen() {
         ? `Fix the speaker mapping of ${mappingProblem.file.name}`
         : null);
   const current = items.find((i) => i.id === selected) ?? null;
+  // a transcript dropped with its audio: the audio becomes its media, not a recording of its own
+  const pairs = pairTwins(ready.map((i) => ({ id: i.id, name: i.file.name, media: isMedia(i.kind) })));
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const twinOf = new Map([...pairs].map(([t, m]) => [m, byId.get(t)]));
 
-  const nsControl = <NamespaceField value={ns} onChange={setNs} options={editable} admin={admin} />;
+  const nsControl = (
+    <div className="flex flex-col gap-3">
+      <NamespaceField value={ns} onChange={setNs} options={editable} admin={admin} />
+      <CollectionField ns={ns || null} value={collectionId} onChange={setCollectionId} id="import-collection" />
+    </div>
+  );
+  const pipelineControl = (
+    <PipelineField
+      value={pipelineId}
+      onChange={setPipelineId}
+      namespaceDefault={pipeline.name}
+      pipelines={pipeline.pipelines}
+    />
+  );
 
   const importFiles = () => {
     const target = ns;
     void queue.send(
-      ready.map((it) => ({
-        key: it.id,
-        name: it.file.name,
-        title: it.title.trim() || titleFromName(it.file.name),
-        namespace: target,
-        kind: "file" as const,
-        body: () => fileBody(it, target),
-      })),
+      ready
+        .filter((it) => !twinOf.has(it.id))
+        .map((it): QueueJob => {
+          const base = {
+            key: it.id,
+            name: it.file.name,
+            title: it.title.trim() || titleFromName(it.file.name),
+            namespace: target,
+          };
+          const twin = pairs.get(it.id);
+          return isUpload(it.kind)
+            ? { ...base, kind: "media", file: it.file, pipeline: pipelineId, collection: collectionId }
+            : {
+                ...base,
+                kind: "file",
+                body: () => fileBody(it, target, pipelineId, collectionId),
+                audio: twin ? byId.get(twin)?.file : undefined,
+              };
+        }),
     );
     files.clear();
   };
@@ -205,7 +281,7 @@ export function ImportScreen() {
 
       {queue.queue.length > 0 ? (
         <div className="px-4 py-5 md:px-6">
-          <ImportQueue queue={queue.queue} onMore={queue.reset} />
+          <ImportQueue queue={queue.queue} onMore={queue.reset} onPause={queue.pause} onResume={queue.resume} />
         </div>
       ) : (
         <>
@@ -220,6 +296,13 @@ export function ImportScreen() {
                   count: items.length || undefined,
                 },
                 { value: "paste", label: "Paste" },
+                files.limits.convert?.web === false
+                  ? {
+                      value: "web",
+                      label: "Web page",
+                      disabledReason: "Capturing web pages needs Chromium on the server (the lens:full image).",
+                    }
+                  : { value: "web", label: "Web page" },
                 admin
                   ? { value: "source", label: "From a source" }
                   : {
@@ -235,6 +318,7 @@ export function ImportScreen() {
             <PasteTab
               namespace={ns || null}
               namespaceControl={nsControl}
+              pipelineControl={pipelineControl}
               directory={directory.data}
               blockReason={nsReason}
               onImport={(b) =>
@@ -251,10 +335,24 @@ export function ImportScreen() {
                       title: b.title,
                       speakers: b.speakers,
                       format: "auto" as const,
+                      pipeline: pipelineId,
+                      collection: collectionId,
                     }),
+                    audio: b.audio ?? undefined,
                   },
                 ])
               }
+            />
+          )}
+
+          {tab === "web" && (
+            <WebTab
+              namespace={ns || null}
+              namespaceControl={nsControl}
+              pipelineControl={pipelineControl}
+              blockReason={nsReason}
+              pipeline={pipelineId}
+              collection={collectionId}
             />
           )}
 
@@ -288,10 +386,11 @@ export function ImportScreen() {
                     <FolderOpen className="size-6" aria-hidden />
                   </span>
                   <div className="flex flex-col gap-1.5">
-                    <h2 className="text-[17px] font-bold text-fg">Drop transcripts here</h2>
+                    <h2 className="text-[17px] font-bold text-fg">Drop transcripts, audio or video here</h2>
                     <p className="max-w-md text-[14px] leading-normal text-fg-secondary">
-                      txt, md, mdx, docx, doc, pdf, srt, vtt, json or jsonl, up to {files.maxMb} MB each. You’ll see how
-                      each one was read before anything is saved.
+                      Transcripts (txt, md, mdx, docx, doc, pdf, srt, vtt, json or jsonl) up to{" "}
+                      {files.limits.transcript_mb} MB each: you’ll see how each one was read before anything is saved.
+                      Audio and video up to {bytes(files.limits.max_mb * 1024 * 1024)} each.
                     </p>
                   </div>
                   <div className="flex flex-wrap justify-center gap-2">
@@ -303,7 +402,8 @@ export function ImportScreen() {
                     </Button>
                   </div>
                   <p className="text-[12.5px] text-fg-muted">
-                    Audio and video come in through watched folders (Sources), which have no size limit.
+                    Audio, video, PDFs and images go up in pieces: if the connection drops, they carry on where they
+                    stopped.
                   </p>
                 </div>
               </div>
@@ -314,20 +414,36 @@ export function ImportScreen() {
                     <FileList items={items} selected={selected} onSelect={setSelected} onAdd={files.add} />
                   </div>
                   <div className="min-w-0 px-4 py-4 md:px-6 md:py-[18px]">
-                    {current?.status === "ready" ? (
+                    {current?.status === "ready" && isUpload(current.kind) ? (
+                      <MediaDetail
+                        it={current}
+                        onPatch={(p) => files.patch(current.id, p)}
+                        onKind={(k) => files.setKind(current, k)}
+                        namespace={ns || null}
+                        namespaceControl={nsControl}
+                        pipelineControl={pipelineControl}
+                        pieceMb={files.limits.chunk_mb}
+                        unfinished={unfinished.data ?? []}
+                        twinOf={twinOf.get(current.id)?.file.name}
+                        limits={files.limits}
+                      />
+                    ) : current?.status === "ready" ? (
                       <FileDetail
                         it={current}
                         onPatch={(p) => files.patch(current.id, p)}
+                        onKind={(k) => files.setKind(current, k)}
                         namespace={ns || null}
                         namespaceControl={nsControl}
-                        pipeline={pipeline.name}
+                        pipelineControl={pipelineControl}
                         directory={directory.data}
-                        audioTwin={audioTwinOf(current, items)}
+                        audioTwin={pairs.has(current.id) ? byId.get(pairs.get(current.id) ?? "")?.file.name : undefined}
+                        limits={files.limits}
                       />
                     ) : current?.problem ? (
                       <ProblemCard
                         it={current}
                         className="max-w-[520px]"
+                        onKind={(k) => files.setKind(current, k)}
                         onRemove={() => files.remove(current.id)}
                         onReplace={(fs) => {
                           if (!fs.length) return;

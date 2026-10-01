@@ -1,9 +1,7 @@
 /**
- * Reports: date ranges, monthly buckets and the numbers on the namespace overview (RP1). Pure functions, tested in
- * __tests__/reports-model.test.ts. The backend has no report aggregates, so these are computed from the recordings list.
+ * Reports: date ranges, the months on the namespace overview (RP1) and formatting. Pure functions, tested in
+ * __tests__/home-reports.test.ts. The numbers themselves come from GET /namespaces/{name}/stats.
  */
-import type { RecordingSummary } from "@/app/openapi-client/types.gen";
-import { speakerList } from "@/components/library/model";
 
 export type ReportRange = "6m" | "12m" | "ytd" | "all";
 
@@ -16,11 +14,17 @@ export const RANGE_LABEL: Record<ReportRange, string> = {
 
 export type Bounds = { from: Date | null; to: Date };
 
+/** A day ("2025-12-01", read as a local date) or a timestamp. */
+function when(iso: string): Date {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : new Date(iso);
+}
+
 /** The first day of the earliest month in range, and now. "All time" starts at the oldest recording. */
 export function rangeBounds(range: ReportRange, now: Date, oldest?: string | null): Bounds {
   const to = now;
   if (range === "all") {
-    const t = oldest ? new Date(oldest) : null;
+    const t = oldest ? when(oldest) : null;
     return {
       from: t && !Number.isNaN(t.getTime()) ? new Date(t.getFullYear(), t.getMonth(), 1) : null,
       to,
@@ -48,11 +52,10 @@ export function rangeLabel(b: Bounds): string {
     : `${MON[f.getMonth()]} ${f.getFullYear()} – ${MON[to.getMonth()]} ${to.getFullYear()}`;
 }
 
-export function inBounds(iso: string | null | undefined, b: Bounds): boolean {
-  if (!iso) return false;
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return false;
-  return (!b.from || t >= b.from.getTime()) && t <= b.to.getTime() + 60_000;
+/** The days to ask the stats for: from the first day of the range's first month to today; none for "All time". */
+export function rangeQuery(range: ReportRange, now: Date): { from?: string; to?: string } {
+  const b = rangeBounds(range, now);
+  return range === "all" || !b.from ? {} : { from: isoDay(b.from), to: isoDay(now) };
 }
 
 export type MonthBucket = {
@@ -63,54 +66,24 @@ export type MonthBucket = {
   ms: number;
 };
 
-/** One bucket per calendar month from `from` to `to` (inclusive), empty months included. */
-export function monthlyBuckets(recs: RecordingSummary[], b: Bounds, maxMonths = 24): MonthBucket[] {
-  const start =
-    b.from ??
-    (() => {
-      const ts = recs.map((r) => Date.parse(r.recorded_at ?? "")).filter((t) => !Number.isNaN(t));
-      const t = ts.length ? new Date(Math.min(...ts)) : b.to;
-      return new Date(t.getFullYear(), t.getMonth(), 1);
-    })();
-  const out: MonthBucket[] = [];
-  const cur = new Date(start.getFullYear(), start.getMonth(), 1);
-  while (cur <= b.to) {
-    out.push({
-      key: `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`,
-      label: MON[cur.getMonth()],
-      year: cur.getFullYear(),
-      recordings: 0,
-      ms: 0,
-    });
-    cur.setMonth(cur.getMonth() + 1);
-  }
-  const trimmed = out.slice(-maxMonths);
-  const idx = new Map(trimmed.map((m, i) => [m.key, i]));
-  for (const r of recs) {
-    if (!inBounds(r.recorded_at, b)) continue;
-    const d = new Date(r.recorded_at as string);
-    const i = idx.get(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-    if (i == null) continue;
-    trimmed[i].recordings += 1;
-    trimmed[i].ms += r.duration_ms ?? 0;
-  }
-  return trimmed;
+/** The stats' months ("2026-04", empty ones included) as bars: the latest `max` of them. */
+export function monthBars(
+  months: { month: string; recordings?: number | null; ms?: number | null }[] | null | undefined,
+  max = 24,
+): MonthBucket[] {
+  return (months ?? []).slice(-max).map((m) => {
+    const [year, month] = m.month.split("-").map(Number);
+    return { key: m.month, label: MON[month - 1] ?? m.month, year, recordings: m.recordings ?? 0, ms: m.ms ?? 0 };
+  });
 }
 
-export type Overview = { recordings: number; ms: number; speakers: number };
-
-/** Headline numbers for the recordings in range; speakers are the distinct names that appear in them. */
-export function overview(recs: RecordingSummary[], b: Bounds): Overview {
-  const names = new Set<string>();
-  let n = 0;
-  let ms = 0;
-  for (const r of recs) {
-    if (!inBounds(r.recorded_at, b)) continue;
-    n++;
-    ms += r.duration_ms ?? 0;
-    for (const s of speakerList(r.speakers)) names.add(s.name);
-  }
-  return { recordings: n, ms, speakers: names.size };
+/** Why the totals and the Library's count can differ: recordings without a date. */
+export function undatedNote(undated: number | null | undefined, range: ReportRange): string | null {
+  if (!undated) return null;
+  const n = undated === 1 ? "1 recording has" : `${undated} recordings have`;
+  return range === "all"
+    ? `${n} no date: counted above, but in no month.`
+    : `${n} no date, so ${undated === 1 ? "it isn’t" : "they aren’t"} in any date range.`;
 }
 
 /** "51 h", "2 h", "51 m", "40 s": talk time for the speakers list. */

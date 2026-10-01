@@ -1,9 +1,10 @@
 """Storage sources through rclone, and the folders on them that the archive watches.
 
 A source is one connection: S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV, or a folder on
-this machine (only inside sources.local_roots). A watch maps a folder on a source to a namespace: new audio becomes a
-recording queued for the whole pipeline; new transcripts are imported and queued for analysis. Credentials are stored
-encrypted and handed to rclone in a private temporary config file per call; OAuth tokens rclone refreshes are saved.
+this machine (only inside sources.local_roots). A watch maps a folder on a source to a namespace: new audio, video,
+documents (PDFs) and images become resources queued for the whole pipeline, their files staying on the source; new
+transcripts are imported and queued for analysis. Credentials are stored encrypted and handed to rclone in a private
+temporary config file per call; OAuth tokens rclone refreshes are saved.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ import shutil
 import subprocess
 import tempfile
 
-from . import ingest, jobs, settings, store
+from . import convert, deletion, ingest, jobs, settings, store
 
 R = store.R
 BACKENDS = {
@@ -47,9 +48,18 @@ BACKENDS = {
     "local": {"label": "Folder on this machine", "fields": {}, "secrets": []},
 }
 OBSCURED = {"pass"}  # rclone wants these obscured in its config file
+SKIPPED = "not audio, video, a document, an image or a transcript"
 TRANSCRIPT_EXT = {".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".srt", ".vtt", ".json", ".jsonl"}
+# what a watched folder picks up (its `kinds`): the first three are from before documents, and read PDFs as transcripts
+TAKES = {
+    "audio": {"audio"},
+    "transcripts": {"transcript"},
+    "both": {"audio", "transcript"},
+    "documents": {"document", "image"},
+    "all": {"audio", "transcript", "document", "image"},
+}
 WATCH = {
-    "kinds": "both",
+    "kinds": "all",
     "poll_minutes": 5,
     "stable_seconds": 30,
     "backfill": False,
@@ -339,8 +349,8 @@ def list_sources(db):
 # ---------- watched folders ----------
 def _check_watch(opts):
     out = {k: opts[k] for k in WATCH if k in opts}
-    if out.get("kinds", "both") not in ("audio", "transcripts", "both"):
-        raise ValueError("kinds is audio, transcripts or both")
+    if out.get("kinds", WATCH["kinds"]) not in TAKES:
+        raise ValueError(f"kinds is one of: {', '.join(TAKES)}")
     if not isinstance(out.get("poll_minutes", 5), int) or out.get("poll_minutes", 5) < 1:
         raise ValueError("poll_minutes must be a whole number of at least 1")
     if not isinstance(out.get("stable_seconds", 30), int) or out.get("stable_seconds", 30) < 0:
@@ -405,29 +415,35 @@ def _when(s):
     return t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
 
 
-def _ingest(db, cfg, src, w, f, kind):
+def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collection=None):
+    """One file of a source becomes a resource in namespace `space` (in `collection`, else the namespace's default),
+    and its processing is queued: (id, job). Audio, video, documents and images stay on the source; a transcript is
+    imported from it."""
     title, shown = pathlib.PurePosixPath(f["path"]).stem, f"{src['name']}:{f['path']}"
     if kind == "transcript":
-        ns = (db.one("SELECT name FROM $s", s=R("space", w["space"])) or {})["name"]
-        rid = ingest.import_transcript(db, cfg, ns, cached_copy(db, cfg, src["id"], f["path"]), title=title, log=lambda *a: None)
+        ns = (db.one("SELECT name FROM $s", s=R("space", space)) or {})["name"]
+        rid = ingest.import_transcript(
+            db, cfg, ns, cached_copy(db, cfg, src["id"], f["path"]), title=title, log=lambda *a: None, collection=collection
+        )
         db.q("UPDATE $r SET path = $p, remote = $m", r=R("recording", rid), p=shown, m={"source": src["id"], "path": f["path"]})
-        jobs.enqueue(db, rid, w.get("steps") or None, by=f"watch:{w['id']}", pipeline=w.get("pipeline"))
-        return rid
+        return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
     fp = "rclone-" + hashlib.sha1(f"{src['id']}:{f['path']}:{f['size']}:{f['modified']}".encode()).hexdigest()[:24]
-    known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{w['space']}:{fp}")
+    known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{space}:{fp}")
     if known:
-        return known["id"]
+        return known["id"], None
     rid = db.next_id("recording")
     db.q(
         "CREATE $r CONTENT $d",
         r=R("recording", rid),
         d={
-            "space": w["space"],
+            "space": space,
+            "collection": store.home(db, space, collection),
             "path": shown,
             "remote": {"source": src["id"], "path": f["path"]},
-            "source": "audio",
+            "source": kind,  # audio (and video), document or image
+            **({} if kind == "audio" else {"media": {"kind": kind}}),
             "fingerprint": fp,
-            "fp_key": f"{w['space']}:{fp}",
+            "fp_key": f"{space}:{fp}",
             "title": title,
             "recorded_at": _when(f["modified"]).isoformat(timespec="seconds"),
             "size": f["size"],
@@ -435,16 +451,34 @@ def _ingest(db, cfg, src, w, f, kind):
             "created_at": store.now(),
         },
     )
-    jobs.enqueue(db, rid, w.get("steps") or None, by=f"watch:{w['id']}", pipeline=w.get("pipeline"))
-    return rid
+    return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
+
+
+def file_kind(cfg, name, documents_as="document"):
+    """'audio' (audio and video), 'document', 'image', 'transcript', or None for a file Lens doesn't import. A file
+    that can be either a document or a transcript (a PDF, a Word or text file) is a document unless `documents_as`
+    says 'transcript', or the server can't make a PDF of it (then it's read as a transcript)."""
+    p = pathlib.PurePosixPath(name)
+    ext = p.suffix.lower()
+    if p.name.startswith("."):
+        return None
+    if ext in {e.lower() for e in cfg["audio"]["extensions"]}:
+        return "audio"
+    if ext in store.DOCUMENT_EXT:
+        if ext in TRANSCRIPT_EXT and (documents_as == "transcript" or convert.unavailable(cfg, name)):
+            return "transcript"
+        return None if convert.unavailable(cfg, name) else "document"
+    if ext in store.IMAGE_EXT:
+        return "image"
+    return "transcript" if ext in TRANSCRIPT_EXT else None
 
 
 def kind_of(cfg, w, f):
-    """'audio', 'transcript', or None when a watched folder should ignore the file."""
-    p = pathlib.PurePosixPath(f["path"])
-    ext = p.suffix.lower()
-    kind = "audio" if ext in {e.lower() for e in cfg["audio"]["extensions"]} else "transcript" if ext in TRANSCRIPT_EXT else None
-    if not kind or p.name.startswith(".") or (w.get("kinds") or "both") not in ("both", "audio" if kind == "audio" else "transcripts"):
+    """'audio', 'document', 'image', 'transcript', or None when a watched folder should ignore the file. The kinds
+    from before documents (audio, transcripts, both) read PDFs, Word and text files as transcripts, as they did."""
+    kinds = w.get("kinds") or WATCH["kinds"]
+    kind = file_kind(cfg, f["path"], "transcript" if kinds in ("transcripts", "both") else "document")
+    if kind not in TAKES.get(kinds, ()):
         return None
     rel = f.get("rel", f["path"])
     if (w.get("include") and not any(fnmatch.fnmatch(rel, g) for g in w["include"])) or any(
@@ -463,6 +497,7 @@ def poll_watch(db, cfg, wid, log=print):
     src = get(db, w["source"])
     first, now = not w.get("last_scan_at"), dt.datetime.now(dt.timezone.utc)
     known = {r["path"]: r for r in db.rows("SELECT path, size, modified, status FROM remote_file WHERE watch = $w", w=wid)}
+    gone = deletion.gone_remote(db, w["space"])  # recordings someone deleted stay deleted
     stats = {"seen": 0, "new": 0, "waiting": 0, "skipped": 0, "errors": 0}
     for f in list_files(db, cfg, src, w["path"]):
         kind = kind_of(cfg, w, f)
@@ -474,7 +509,7 @@ def poll_watch(db, cfg, wid, log=print):
             continue
         key = R("remote_file", f"{wid}-{hashlib.sha1(f['path'].encode()).hexdigest()[:20]}")
         row = {"watch": wid, "path": f["path"], "size": f["size"], "modified": f["modified"], "seen_at": store.now()}
-        if first and not w.get("backfill"):
+        if (first and not w.get("backfill")) or (src["id"], f["path"]) in gone:
             db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "skipped"})
             stats["skipped"] += 1
         elif (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0):
@@ -482,7 +517,7 @@ def poll_watch(db, cfg, wid, log=print):
             stats["waiting"] += 1
         else:
             try:
-                rid = _ingest(db, cfg, src, w, f, kind)
+                rid, _job = _ingest(db, cfg, src, f, kind, w["space"], f"watch:{wid}", w.get("steps"), w.get("pipeline"))
                 db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "queued", "recording": rid})
                 stats["new"] += 1
             except Exception as e:  # noqa: BLE001 - one bad file must not stop the scan
@@ -498,6 +533,60 @@ def poll_watch(db, cfg, wid, log=print):
         s=stats,
     )
     return stats
+
+
+def imported(db, sid, paths):
+    """Which of these files of a source are recordings already, and where: {path: [{recording, namespace}]}."""
+    names = store.space_names(db)
+    out = {}
+    for r in db.rows(
+        "SELECT record::id(id) AS id, space, remote.path AS path FROM recording WHERE remote.source = $s AND remote.path IN $p",
+        s=sid,
+        p=list(paths),
+    ):
+        out.setdefault(r["path"], []).append({"recording": r["id"], "namespace": names.get(r["space"], "")})
+    return out
+
+
+def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None, documents_as="document"):
+    """Chosen files of a source, imported into namespace `space` (into `collection`, else its default) now rather than
+    watched: audio, video, documents and images stay on the source and run the pipeline (the namespace's, or
+    `pipeline`); transcripts are imported, and PDFs, Word and text files too when `documents_as` is 'transcript'. One
+    result per path:
+    queued (with the recording and job), already (it's a recording of the namespace from this source), skipped (a
+    kind of file Lens doesn't import; a folder) or error. Choosing a file on purpose brings back one deleted before."""
+    src = get(db, sid)
+    folders = {}
+    for path in paths:
+        p = check_path(cfg, src, path)
+        parent = str(pathlib.PurePosixPath(p).parent)
+        folders.setdefault("" if parent in (".", "/") and src["type"] != "local" else parent, []).append(p)
+    have = imported(db, sid, [p for ps in folders.values() for p in ps])
+    ns = store.space_names(db).get(space)
+    results = []
+    for folder, wanted in folders.items():
+        try:
+            listing = {e["path"]: e for e in browse(db, cfg, sid, folder)}
+        except (ValueError, RuntimeError) as e:
+            results += [{"path": p, "status": "error", "detail": str(e)[:300]} for p in wanted]
+            continue
+        for p in wanted:
+            f, kind = listing.get(p), file_kind(cfg, p, documents_as)
+            mine = [x for x in have.get(p, []) if x["namespace"] == ns]
+            if f is None:
+                results.append({"path": p, "status": "error", "detail": "not found"})
+            elif f["dir"] or not kind:
+                results.append({"path": p, "status": "skipped", "detail": SKIPPED})
+            elif mine:
+                results.append({"path": p, "status": "already", "recording": mine[0]["recording"]})
+            else:
+                try:
+                    deletion.forget(db, space, path=f"{src['name']}:{p}")  # chosen on purpose: it may come back
+                    rid, job = _ingest(db, cfg, src, f, kind, space, by, None, pipeline, collection)
+                    results.append(store.clean({"path": p, "status": "queued", "recording": rid, "job": job}))
+                except Exception as e:  # noqa: BLE001 - one bad file must not stop the rest
+                    results.append({"path": p, "status": "error", "detail": f"{type(e).__name__}: {e}"[:300]})
+    return results
 
 
 def poll_due(db, cfg, log=print):

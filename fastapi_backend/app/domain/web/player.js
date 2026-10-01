@@ -65,8 +65,14 @@
     segs.forEach(s => { talk[s.s || '-'] = (talk[s.s || '-'] || 0) + (s.t1 - s.t0); });
     const tmax = Math.max(1, ...Object.values(talk));
     const sm = d.summary;
+    // a summary item: a string (older summaries) or {text, who, t0}; one with a time plays from there
+    const listItem = a => {
+      const o = typeof a === 'string' ? { text: a } : (a || {});
+      const who = o.who ? ' (' + esc(o.who) + ')' : '';
+      return '<li>' + (o.t0 != null ? '<a href="#" data-t="' + (+o.t0) + '">' + esc(o.text || '') + '</a>' + who + '<time>' + tc(o.t0) + '</time>' : esc(o.text || '') + who) + '</li>';
+    };
     ix.innerHTML = '<div class="ap-ixgrid">' +
-      (sm ? '<section class="ap-wide"><h4>Summary</h4><p>' + esc(sm.summary) + '</p>' + (sm.action_items && sm.action_items.length ? '<h5>Follow-ups</h5><ul>' + sm.action_items.map(a => '<li>' + esc(a) + '</li>').join('') + '</ul>' : '') + '</section>' : '') +
+      (sm ? '<section class="ap-wide"><h4>Summary</h4><p>' + esc(sm.summary) + '</p>' + [['key_points', 'Key points'], ['action_items', 'Follow-ups']].map(([k, title]) => (sm[k] || []).length ? '<h5>' + title + '</h5><ul class="ap-list">' + sm[k].map(listItem).join('') + '</ul>' : '').join('') + '</section>' : '') +
       '<section><h4>Sections</h4><ol class="ap-list">' + (d.sections || []).map(s => '<li><a href="#" data-t="' + s.t0 + '">' + esc(s.title) + '</a><time>' + tc(s.t0) + '</time></li>').join('') + '</ol></section>' +
       '<section><h4>Speakers</h4><p class="ap-hint">Select a name to jump to their next turn.</p>' + Object.keys(talk).sort((a, b) => talk[b] - talk[a]).map(k =>
         '<button class="ap-spk" data-s="' + esc(k) + '"><span><i style="background:' + colorOf(k === '-' ? null : k) + '"></i>' + esc(k === '-' ? 'Unattributed' : nameOf(k)) + '</span><b style="width:' + (100 * talk[k] / tmax).toFixed(1) + '%;background:' + colorOf(k === '-' ? null : k) + '"></b><small>' + tc(talk[k]) + '</small></button>').join('') + '</section>' +

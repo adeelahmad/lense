@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 
@@ -35,6 +36,31 @@ def _post(cfg, payload):
         raise LLMError(f"{e.code} from the LLM server: {e.read().decode('utf-8', 'replace')[:300]}") from None
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         raise LLMError(f"can't reach the LLM server at {l['base_url']}: {e}") from None
+
+
+_MODELS = {}  # base_url -> (when, names): the server's list, kept a minute
+
+
+def list_models(cfg, ttl=60):
+    """The models the server offers (GET /models), kept for `ttl` seconds."""
+    l = cfg["llm"]
+    if not configured(cfg):
+        return []
+    url = l["base_url"].rstrip("/")
+    hit = _MODELS.get(url)
+    if hit and time.monotonic() - hit[0] < ttl:
+        return hit[1]
+    headers = {}
+    key = l.get("api_key") or (os.environ.get(l["api_key_env"]) if l.get("api_key_env") else None)
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url + "/models", headers=headers), timeout=10) as r:
+            names = sorted({str(m["id"]) for m in json.load(r).get("data") or [] if isinstance(m, dict) and m.get("id")})
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError, AttributeError) as e:
+        raise LLMError(f"can't list the models at {l['base_url']}: {e}") from None
+    _MODELS[url] = (time.monotonic(), names)
+    return names
 
 
 def _content(j):

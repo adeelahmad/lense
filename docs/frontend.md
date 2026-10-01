@@ -9,6 +9,8 @@ system). NextAuth holds the session; every screen talks to the API through the g
 nextjs-frontend/
   app/
     (auth)/                 sign in, first-run setup, password reset
+    (public)/explore/       pages for visitors, no sign-in needed (docs/access.md): the home page,
+                            collections/[ns], search, recordings/[id]
     (app)/                  every signed-in screen, inside the app shell
       page.tsx              Home
       library/ import/ reports/ recordings/[id]/
@@ -51,14 +53,15 @@ four-colour loop (Transcribe blue, Diarize red, Analyze green, Summarize and Rep
 ## Data
 
 * Client components use `useApiClient()` with React Query and the generated SDK; `data()` unwraps a call and throws
-  `ApiError` with the API's message. Server components use `getApiClient()`.
+  `ApiError` with the API's message, and `page()` unwraps a list call into `{items, total}` (the total comes from the
+  `X-Total-Count` header). Server components use `getApiClient()`.
 * Streams (job events, chat answers) use `streamSSE()` with the session's access token.
 * Media links in API responses are signed relative URLs; the proxy serves them from the app's origin, so they work in
   `<audio>`, `<video>` and `<img>`.
 
 ## The proxy
 
-`/api/v1`, `/embed`, `/iiif`, `/reports` and `/static` are forwarded to `API_BASE_URL` by route handlers at request
+`/api/v1`, `/embed`, `/s` (short share links), `/iiif`, `/reports` and `/static` are forwarded to `API_BASE_URL` by route handlers at request
 time (bodies, byte ranges and event streams pass straight through). Because it runs per request, one build works
 against any API; `next.config` rewrites would have fixed the API address at build time.
 

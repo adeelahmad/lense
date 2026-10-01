@@ -149,10 +149,12 @@ describe("changes", () => {
     ).toBe("Access: private → public; Date: none → 2026-09-12");
   });
 
-  it("tells draft, private, published and needs attention apart", () => {
-    expect(publishState("private", 0)).toBe("private");
+  it("tells draft, not published, published and needs attention apart", () => {
+    expect(publishState("private", 0)).toBe("unpublished");
+    expect(publishState("restricted", 0)).toBe("unpublished");
     expect(publishState(undefined, 2)).toBe("draft");
-    expect(publishState("transcript", 0)).toBe("published");
+    expect(publishState("restricted", 2)).toBe("draft");
+    expect(publishState("public", 0)).toBe("published");
     expect(publishState("public", 1)).toBe("attention");
   });
 });

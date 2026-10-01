@@ -14,18 +14,49 @@ import { NamespaceSwitcher } from "@/components/app-shell/namespace-switcher";
 import { Nav } from "@/components/app-shell/nav";
 import { Shortcuts } from "@/components/app-shell/shortcuts";
 import { Button, IconButton } from "@/components/ui/button";
+import { EmptyState, Skeleton } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
 import type { SessionUser } from "@/lib/auth/tokens";
 import { useArchive } from "@/lib/hooks/session";
 
 const COLLAPSED = "lens.nav.collapsed";
+// The pages that show a namespace someone sees only some collections of: everything else covers whole namespaces.
+const PARTIAL_OK = ["/library", "/search", "/resources", "/recordings", "/account"];
+
+/** In place of a page about whole namespaces, when the namespace picked is one the person sees only part of. */
+function PartialNamespace({ ns, onAll }: { ns: string; onAll: () => void }) {
+  return (
+    <div className="px-4 py-6 md:px-6">
+      <EmptyState
+        title={`You see some collections of ${ns}`}
+        actions={
+          <>
+            <Button asChild variant="primary">
+              <Link href="/library">Open them in the Library</Link>
+            </Button>
+            <Button variant="secondary" onClick={onAll}>
+              Show all namespaces
+            </Button>
+          </>
+        }
+      >
+        This page covers whole namespaces, and you were given access to some collections of {ns}: their recordings are
+        in the Library and in search. Ask an owner of {ns} for a role in it to see the rest.
+      </EmptyState>
+    </div>
+  );
+}
 
 /** The signed-in frame: nav rail, top bar (namespace, ⌘K, activity, import, alerts, account) and the page. */
 export function AppShell({ user, children }: { user: SessionUser; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
-  const { namespaces, namespace, can, admin } = useArchive();
+  const { namespaces, partialNamespaces, namespace, setNamespace, isPartial, can, admin, loaded } = useArchive();
+  const wide = !PARTIAL_OK.some((p) => pathname === p || pathname.startsWith(`${p}/`)); // a page about whole namespaces
+  // until the namespaces are known, a namespace-wide page can't tell whether the one picked is seen only in part
+  const waiting = wide && Boolean(namespace) && !loaded;
+  const partialHere = wide && isPartial(namespace);
   const client = useApiClient();
 
   useEffect(() => {
@@ -61,11 +92,11 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
   }, []);
   useEffect(() => setMobileOpen(false), [pathname]);
   // Recording pages collapse the nav to icons to give the transcript room (Recording R1); the toggle still opens it.
-  const autoCollapse = pathname.startsWith("/recordings/");
+  const autoCollapse = pathname.startsWith("/resources/") || pathname.startsWith("/recordings/");
   const [peek, setPeek] = useState(false);
   useEffect(() => setPeek(false), [pathname]);
 
-  const recordings = namespaces
+  const recordings = [...namespaces, ...partialNamespaces]
     .filter((n) => !namespace || n.name === namespace)
     .reduce((a, n) => a + ((n.recordings as number) ?? 0), 0);
   const reviews = useQuery({
@@ -74,7 +105,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
       const r = await data(Speakers.listSpeakers({ client, query: { ns: namespace as string } }));
       return (r.speakers ?? []).filter((s) => (s.suggestions ?? []).length > 0).length;
     },
-    enabled: Boolean(namespace),
+    enabled: Boolean(namespace) && can("viewer", namespace), // speakers are the namespace's members' only
     staleTime: 60_000,
   });
   const counts = { recordings, reviews: reviews.data };
@@ -143,7 +174,16 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
           <AccountMenu name={user.name} email={user.email} />
         </header>
         <main id="main" className="min-w-0 flex-1">
-          {children}
+          {waiting ? (
+            <div className="flex flex-col gap-3 px-4 py-6 md:px-6" aria-busy="true" aria-label="Loading">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="w-2/3" />
+            </div>
+          ) : partialHere && namespace ? (
+            <PartialNamespace ns={namespace} onAll={() => setNamespace(null)} />
+          ) : (
+            children
+          )}
         </main>
       </div>
       <Shortcuts />

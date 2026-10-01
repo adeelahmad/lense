@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
 import { useRecordingIndex } from "@/components/search/data";
-import { MergeHistory, OtherNamespaces, useVoiceSuggestions } from "@/components/speakers/history";
+import { MergeHistory, OtherNamespaces } from "@/components/speakers/history";
 import { useNamespaceSpeakers } from "@/components/speakers/parts";
 import { lastHeard, reviewPairs } from "@/components/speakers/derive";
 import { Registry } from "@/components/speakers/registry";
@@ -36,7 +36,6 @@ export function SpeakersPage() {
     : "registry";
   const dir = useNamespaceSpeakers(ns);
   const index = useRecordingIndex();
-  const voice = useVoiceSuggestions(ns ?? "");
 
   const set = (k: string, v: string | null) => {
     const p = new URLSearchParams(params.toString());
@@ -52,10 +51,8 @@ export function SpeakersPage() {
     [speakers, index.data, ns],
   );
   const links = dir.data?.links ?? [];
-  const linkCount =
-    links.length +
-    voice.suggestions.filter((s) => !links.some((l) => [l.a, l.b].includes(s.a.id) && [l.a, l.b].includes(s.b.id)))
-      .length;
+  const cross = dir.data?.cross ?? [];
+  const linkCount = links.length + cross.length;
 
   if (!namespaces.length)
     return (
@@ -148,7 +145,7 @@ export function SpeakersPage() {
         )}
         {dir.data && ns && tab === "review" && <ReviewQueue pairs={pairs} ns={ns} />}
         {dir.data && ns && tab === "history" && <MergeHistory merges={dir.data.merges} ns={ns} />}
-        {dir.data && ns && tab === "links" && <OtherNamespaces links={links} ns={ns} />}
+        {dir.data && ns && tab === "links" && <OtherNamespaces links={links} cross={cross} />}
       </div>
     </div>
   );

@@ -1,10 +1,11 @@
 """IIIF: Presentation 3.0 manifests and collections, Content Search 2.0, Change Discovery, open media, and the
 Authorization Flow 2.0 services other IIIF viewers use to play restricted recordings.
 
-What a recording publishes follows its `access` metadata: public (everything), transcript (text open, audio needs an
-account), signed-in (a manifest whose content needs an account) or private (absent unless you have a role in its
-namespace). Restricted content is open to a bearer token with a role in the namespace, a link signed by the probe
-service, or the IIIF access cookie set by the sign-in page below.
+What a recording publishes follows its access (docs/access.md): a public recording's manifest is open, and so are the
+parts it opens (media, transcript, index); restricted and private recordings answer 404 unless the request has
+permission: a role in their namespace, permission given on the recording, or an address in an IP group that opens it.
+Closed content is open to the same, a link signed by the probe service, or the IIIF access cookie set by the sign-in
+page below.
 
 The sign-in page (the access service) is opened by a viewer on another site in a new tab. It authenticates with its own
 email/password form (throttled like the API's sign-in) and, on success, sets the IIIF access cookie (HttpOnly,
@@ -23,13 +24,16 @@ import urllib.parse
 from html import escape as html_escape
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import Cfg, Db, OptionalUser, Principal, client_ip, get_cfg, get_db
+from app.api.deps import Cfg, Db, OptionalUser, Principal, client_ip, get_cfg, get_db, network
 from app.api.v1.routes.recordings import serve_audio
-from app.domain import auth, iiif, iiif_auth, render, store, video
+from app.api.v1.routes.video import serve_document
+from app.domain import access as acc
+from app.domain import auth, convert, documents, faces, iiif, iiif_auth, render, store, video
+from app.domain import files as filemod
 from app.domain import metadata as md
 from app.domain.store import DB, R
 
@@ -59,29 +63,95 @@ def _roles(user: Principal | None) -> dict[int, str]:
     return user.roles if user else {}
 
 
-def _rec(db: DB, cfg: Config, user: Principal | None, rid: int) -> tuple[dict[str, Any], str]:
-    """A recording's IIIF description is public unless the recording is private; private ones need a role."""
+def _permitted(db: DB, user: Principal | None, rid: int, space: int) -> bool:
+    """A role in the recording's namespace, or permission given on the recording (docs/access.md)."""
+    return acc.permitted(db, _roles(user), user.id if user else None, rid, space)
+
+
+def _account_permitted(db: DB, acct: dict[str, Any], rid: int, space: int) -> bool:
+    """The same, for the account behind an IIIF access token or cookie."""
+    return acc.permitted(db, auth.roles(db, acct), acct["id"], rid, space)
+
+
+def _member(request: Request, db: DB, user: Principal | None, space: int) -> bool:
+    """A role in the namespace: the requester's, or the IIIF access cookie's account's."""
+    if auth.allows(_roles(user), space):
+        return True
+    acct, _ = iiif_auth.cookie_account(db, request.cookies.get(iiif_auth.COOKIE))
+    return bool(acct and auth.allows(auth.roles(db, acct), space))
+
+
+def _picture(db: DB, rec: dict[str, Any], rid: int, name: str, path: pathlib.Path, member: bool) -> Response:
+    """A frame or a page: where the namespace pixelates faces, visitors get the faces found on it pixelated."""
+    if not member and faces.pixelates(db, rec["space"]):
+        data = faces.pixelated(db, path, rid, name)
+        if data is not None:
+            return Response(data, media_type="image/jpeg", headers={"Vary": "Authorization, Cookie"})
+    return FileResponse(path, media_type="image/jpeg")
+
+
+def _readable(request: Request, db: DB, user: Principal | None) -> set[int]:
+    """The namespaces whose recordings the requester sees all of: a role there, or an IP group that opens everything."""
+    return set(_roles(user)) | set(network(request, db).spaces)
+
+
+def _granted(request: Request, db: DB, user: Principal | None) -> frozenset[int]:
+    """The recordings given to the requester, and those an IP group opens to their address."""
+    return acc.granted(db, user.id if user else None) | frozenset(network(request, db).recordings)
+
+
+PART = {"audio": "media", "transcript": "transcript"}  # what the probe and content routes call each part
+FILE_WHAT = re.compile(r"(file|vtt)(\d+)")  # a supplementary file (file<id>), or one read as WebVTT (vtt<id>)
+PAGE_WHAT = re.compile(r"page(\d+)")  # a document's or an image's page (page<n>, from 1): opens with the media
+
+
+def _part(db: DB, rid: int, what: str) -> str | None:
+    """The part (access.PARTS) that opens `what` to everyone: audio and transcript, or a supplementary file's (by its
+    role; None for attachments, which never are). KeyError for anything else."""
+    if what in PART:
+        return PART[what]
+    if PAGE_WHAT.fullmatch(what):
+        return "media"
+    m = FILE_WHAT.fullmatch(what)
+    f = db.one("SELECT role, recording FROM $r", r=R("resource_file", int(m.group(2)))) if m else None
+    if not f or f.get("recording") != rid:
+        raise KeyError(what)
+    return filemod.PART.get(f["role"])
+
+
+def _allowed(request: Request, db: DB, cfg: Config, user: Principal | None, rec: dict[str, Any], rid: int, what: str | None = None) -> bool:
+    """Permission, however it arrives: the requester's (a role in the namespace, permission given on the recording, or
+    an IP group their address is in), the IIIF access cookie's account's, or, for content, a link the probe service
+    signed for it."""
+    if _permitted(db, user, rid, rec["space"]) or network(request, db).opens(rid, rec["space"]):
+        return True
+    q = request.query_params
+    if what and q.get("sig") and iiif.signed_ok(cfg, rid, what, q.get("exp"), q.get("sig")):
+        return True
+    acct, _ = iiif_auth.cookie_account(db, request.cookies.get(iiif_auth.COOKIE))
+    return bool(acct and _account_permitted(db, acct, rid, rec["space"]))
+
+
+def _rec(
+    request: Request, db: DB, cfg: Config, user: Principal | None, rid: int, what: str | None = None
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """A recording's IIIF resources are public when the recording is; otherwise they need permission (_allowed), and
+    look absent without it. `what` is the content asked for (audio or transcript), which a signed link may open."""
     rec = db.one("SELECT space, source, path, remote, size FROM $r", r=R("recording", rid))
     if not rec:
         raise HTTPException(404, "not found")
-    level = md.access_of(db, cfg, rid)
-    if level == "private" and not auth.allows(_roles(user), rec["space"]):
+    a = acc.of(db, rid)
+    if not acc.published(a) and not _allowed(request, db, cfg, user, rec, rid, what):
         raise HTTPException(404, "not found")
-    return rec, level
+    return rec, a
 
 
 def _content_ok(
-    request: Request, db: DB, cfg: Config, user: Principal | None, rec: dict[str, Any], rid: int, level: str, what: str
+    request: Request, db: DB, cfg: Config, user: Principal | None, rec: dict[str, Any], rid: int, a: dict[str, Any], what: str
 ) -> bool:
-    if (what == "audio" and level == "public") or (what == "transcript" and level in iiif.OPEN_TRANSCRIPT):
-        return True
-    q = request.query_params
-    if q.get("sig") and iiif.signed_ok(cfg, rid, what, q.get("exp"), q.get("sig")):
-        return True
-    if auth.allows(_roles(user), rec["space"]):
-        return True
-    acct, _ = iiif_auth.cookie_account(db, request.cookies.get(iiif_auth.COOKIE))
-    return bool(acct and auth.allows(auth.roles(db, acct), rec["space"]))
+    """A part open to everyone, or permission (_allowed)."""
+    part = _part(db, rid, what)
+    return bool(part and acc.is_open(a, part)) or _allowed(request, db, cfg, user, rec, rid, what)
 
 
 def _ld(doc: dict[str, Any], status: int = 200) -> JSONResponse:
@@ -99,25 +169,35 @@ def _nsid(db: DB, name: str) -> int:
 # ---------- collections and change discovery ----------
 @router.get("/iiif/collection")
 def iiif_root_collection(request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
-    return _ld(iiif.root_collection(db, cfg, base_url(request, cfg), set(_roles(user))))
+    return _ld(iiif.root_collection(db, cfg, base_url(request, cfg), _readable(request, db, user), _granted(request, db, user)))
 
 
 @router.get("/iiif/collection/{name}")
 def iiif_collection(name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
-    return _ld(iiif.collection(db, cfg, _nsid(db, name), base_url(request, cfg), set(_roles(user))))
+    sid = _nsid(db, name)
+    return _ld(iiif.collection(db, cfg, sid, base_url(request, cfg), _readable(request, db, user), _granted(request, db, user)))
 
 
 @router.get("/iiif/collection/{name}/search")
 def iiif_collection_search(name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg, q: str = "", page: int = 0) -> JSONResponse:
     sid = _nsid(db, name)
-    rids = [
-        r
-        for r in db.values("SELECT VALUE record::id(id) FROM recording WHERE space = $s", s=sid)
-        if md.access_of(db, cfg, r) in iiif.OPEN_TRANSCRIPT or auth.allows(_roles(user), sid)
-    ]
+    rows = db.rows("SELECT record::id(id) AS id, space, access, access_parts, featured FROM recording WHERE space = $s", s=sid)
+    readable, granted = sid in _readable(request, db, user), _granted(request, db, user)
+    rids = [rid for rid, a in acc.many(db, rows).items() if readable or rid in granted or acc.is_open(a, "transcript")]
     base = base_url(request, cfg)
     url = f"{base}/iiif/collection/{name}/search?q={urllib.parse.quote(q)}" + (f"&page={page}" if page else "")
     return _ld(iiif.search(db, base, q, rids, url, page))
+
+
+@router.get("/iiif/collection/{name}/{cid}")
+def iiif_subcollection(name: str, cid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
+    """One of a namespace's collections: the collections inside it and its recordings the requester sees."""
+    sid = _nsid(db, name)
+    try:
+        doc = iiif.subcollection(db, cfg, sid, cid, base_url(request, cfg), _readable(request, db, user), _granted(request, db, user))
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    return _ld(doc)
 
 
 @router.get("/iiif/discovery/activity")
@@ -171,27 +251,50 @@ def iiif_probe(rid: int, what: str, request: Request, db: Db, cfg: Cfg) -> JSONR
         return JSONResponse(iiif_auth.probe_result(*a, **k), media_type="application/ld+json")
 
     rec = db.one("SELECT space, path, remote, source, media FROM $r", r=R("recording", rid))
-    if not rec or what not in ("audio", "transcript"):
+    try:
+        part = _part(db, rid, what) if rec else None
+    except KeyError:
+        rec = None
+    if not rec:
         return result(404, heading="Not found")
-    level = md.access_of(db, cfg, rid)
-    if (what == "audio" and level == "public") or (what == "transcript" and level in iiif.OPEN_TRANSCRIPT):
+    if part and acc.is_open(acc.of(db, rid), part):
         return result(200)
     h = request.headers.get("authorization", "")
     acct = iiif_auth.token_account(db, h[7:].strip() if h.lower().startswith("bearer ") else "")
-    if acct and level != "private" and auth.allows(auth.roles(db, acct), rec["space"]):
+    if (acct and _account_permitted(db, acct, rid, rec["space"])) or network(request, db).opens(rid, rec["space"]):
         base = base_url(request, cfg)
-        if what == "audio":
-            ext = pathlib.PurePosixPath((rec.get("remote") or {}).get("path") or rec.get("path") or "").suffix.lower()
+        name = pathlib.PurePosixPath((rec.get("remote") or {}).get("path") or rec.get("path") or "").name
+        if PAGE_WHAT.fullmatch(what):
+            sig = iiif.sign(cfg, rid, what)
+            loc = {"id": f"{base}/iiif/{rid}/pages/{what[4:]}.jpg?{sig}", "type": "Image", "format": "image/jpeg"}
+        elif what == "audio" and rec.get("source") in documents.KINDS:  # the document or image itself
+            sig = iiif.sign(cfg, rid, "audio")
+            kind = "Image" if rec["source"] == "image" else "Text"
+            loc = {
+                "id": f"{base}/iiif/{rid}/media?{sig}",
+                "type": kind,
+                "format": documents.content_type(name) or "application/octet-stream",
+            }
+        elif what == "audio":
+            ext = pathlib.PurePosixPath(name).suffix.lower()
             sig = iiif.sign(cfg, rid, "audio")
             loc = {"id": f"{base}/iiif/{rid}/audio?{sig}", "type": "Sound", "format": render.AUDIO_TYPES.get(ext, "audio/mpeg")}
             if (rec.get("media") or {}).get("kind") == "video":
                 loc = {"id": f"{base}/iiif/{rid}/media?{sig}", "type": "Video", "format": video.VIDEO_TYPES.get(ext, "video/mp4")}
-        else:
+        elif what == "transcript":
             sig = iiif.sign(cfg, rid, "transcript")
             loc = {"id": f"{base}/iiif/{rid}/transcript.vtt?{sig}", "type": "Text", "format": "text/vtt"}
+        else:
+            kind, fid = FILE_WHAT.fullmatch(what).groups()  # type: ignore[union-attr]  # _part checked it
+            f = filemod.get(db, rid, int(fid))
+            sig = iiif.sign(cfg, rid, what)
+            if kind == "vtt":
+                loc = {"id": f"{base}/iiif/{rid}/files/{fid}.vtt?{sig}", "type": "Text", "format": "text/vtt"}
+            else:
+                loc = {"id": f"{base}/iiif/{rid}/files/{fid}?{sig}", "type": iiif.file_type(f), "format": filemod.served_type(f)}
         return result(302, loc)
     if acct:
-        return result(403, heading="No access", note="Your account doesn't have access to this collection.")
+        return result(403, heading="No access", note="Your account doesn't have access to this recording.")
     return result(401, heading="Sign in to listen", note="This recording needs an account with access to its collection.")
 
 
@@ -278,16 +381,24 @@ def iiif_logout(request: Request, db: Db, cfg: Cfg) -> HTMLResponse:
 # ---------- one recording ----------
 @router.get("/iiif/{rid}/manifest")
 def iiif_manifest(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
-    _rec(db, cfg, user, rid)
+    _rec(request, db, cfg, user, rid)
     return _ld(iiif.manifest(db, cfg, rid, base_url(request, cfg)))
 
 
 @router.get("/iiif/{rid}/annotations/{layer}")
-def iiif_annotations(rid: int, layer: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
-    rec, level = _rec(db, cfg, user, rid)
-    if layer not in iiif.LAYERS or not _content_ok(request, db, cfg, user, rec, rid, level, "transcript"):
+def iiif_annotations(
+    rid: int,
+    layer: str,
+    request: Request,
+    user: OptionalUser,
+    db: Db,
+    cfg: Cfg,
+    page: int | None = Query(None, ge=1, description="a document's page (from 1): only the annotations on it"),
+) -> JSONResponse:
+    rec, a = _rec(request, db, cfg, user, rid, "transcript")
+    if layer not in iiif.LAYERS or not _content_ok(request, db, cfg, user, rec, rid, a, "transcript"):
         raise HTTPException(404, "not found")
-    return _ld(iiif.annotation_page(db, cfg, rid, base_url(request, cfg), layer))
+    return _ld(iiif.annotation_page(db, cfg, rid, base_url(request, cfg), layer, page))
 
 
 def _ns_name(db: DB, space: int) -> str | None:
@@ -296,30 +407,71 @@ def _ns_name(db: DB, space: int) -> str | None:
 
 @router.get("/iiif/{rid}/record.json")
 def iiif_record(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
-    """schema.org AudioObject (or VideoObject) for search engines and harvesters."""
-    _rec(db, cfg, user, rid)
-    base, row = base_url(request, cfg), db.one("SELECT duration_ms, space FROM $r", r=R("recording", rid))
+    """schema.org AudioObject (VideoObject, DigitalDocument, ImageObject) for search engines and harvesters."""
+    _rec(request, db, cfg, user, rid)
+    base, row = base_url(request, cfg), db.one("SELECT duration_ms, space, collection, source, media FROM $r", r=R("recording", rid))
+    row["kind"] = render.kind(row)
     ns = _ns_name(db, row["space"])
-    urls = {"manifest": f"{base}/iiif/{rid}/manifest", "collection": f"{base}/iiif/collection/{ns}", "page": f"{base}/#/rec/{rid}"}
+    urls = {
+        "manifest": f"{base}/iiif/{rid}/manifest",
+        "collection": iiif.collection_url(base, ns, row.get("collection")),
+        "page": f"{base}/#/rec/{rid}",
+    }
     return JSONResponse(md.schema_org(md.effective(db, cfg, rid), row, urls), media_type="application/ld+json")
 
 
 @router.get("/iiif/{rid}/dc.xml")
 def iiif_dublin_core(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
-    _rec(db, cfg, user, rid)
-    base, row = base_url(request, cfg), db.one("SELECT space, path FROM $r", r=R("recording", rid))
+    _rec(request, db, cfg, user, rid)
+    base, row = base_url(request, cfg), db.one("SELECT space, path, collection, source, media FROM $r", r=R("recording", rid))
     ns = _ns_name(db, row["space"])
-    fmt = render.AUDIO_TYPES.get(pathlib.Path(row.get("path") or "").suffix.lower())
-    urls = {"manifest": f"{base}/iiif/{rid}/manifest", "collection": f"{base}/iiif/collection/{ns}"}
-    return Response(md.dublin_core(md.effective(db, cfg, rid), {"format": fmt}, urls), media_type="application/xml")
+    kind = render.kind(row)
+    path = row.get("path") or ""
+    fmt = documents.content_type(path) if kind in documents.KINDS else render.AUDIO_TYPES.get(pathlib.Path(path).suffix.lower())
+    urls = {"manifest": f"{base}/iiif/{rid}/manifest", "collection": iiif.collection_url(base, ns, row.get("collection"))}
+    return Response(md.dublin_core(md.effective(db, cfg, rid), {"format": fmt, "kind": kind}, urls), media_type="application/xml")
 
 
 @router.get("/iiif/{rid}/audio")
 def iiif_audio(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
-    rec, level = _rec(db, cfg, user, rid)
-    if not _content_ok(request, db, cfg, user, rec, rid, level, "audio"):
+    rec, a = _rec(request, db, cfg, user, rid, "audio")
+    if not _content_ok(request, db, cfg, user, rec, rid, a, "audio"):
         raise HTTPException(401, "sign in through the viewer to play this recording")
-    return serve_audio(db, cfg, db.one("SELECT * FROM $r", r=R("recording", rid)), rid, request)
+    full = db.one("SELECT * FROM $r", r=R("recording", rid))
+    if full.get("source") in documents.KINDS:  # a document or an image: its file, to save
+        return serve_document(db, cfg, full)
+    return serve_audio(db, cfg, full, rid, request)
+
+
+@router.get("/iiif/{rid}/pdf", response_class=FileResponse, responses={200: {"content": {"application/pdf": {}}}})
+def iiif_pdf(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> FileResponse:
+    """The PDF made of a document that isn't one (a Word file, an email, …), to save. It opens with the media part,
+    like the document itself, and with the link the document's probe service signed."""
+    rec, a = _rec(request, db, cfg, user, rid, "audio")
+    if not _content_ok(request, db, cfg, user, rec, rid, a, "audio"):
+        raise HTTPException(401, "sign in through the viewer to see this")
+    path = convert.rendition_path(cfg, rid)
+    if rec.get("source") != "document" or not path.is_file():
+        raise HTTPException(404, "not found")
+    stem = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "document")).stem or "document"
+    return FileResponse(path, media_type="application/pdf", filename=f"{stem}.pdf", headers=filemod.HEADERS)
+
+
+@router.get("/iiif/{rid}/pages/{name}", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})
+def iiif_page(rid: int, name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
+    """A document's or an image's page, drawn (`<n>.jpg`, from 1). It opens with the media part, or with the link the
+    page's probe service signed."""
+    m = re.fullmatch(r"(\d+)\.jpg", name)
+    if not m or int(m.group(1)) < 1:
+        raise HTTPException(404, "not found")
+    what = f"page{int(m.group(1))}"
+    rec, a = _rec(request, db, cfg, user, rid, what)
+    path = video.frames_dir(cfg, rid) / documents.page_name(int(m.group(1)) - 1)
+    if not path.is_file():
+        raise HTTPException(404, "not found")
+    if not _content_ok(request, db, cfg, user, rec, rid, a, what):
+        raise HTTPException(401, "sign in through the viewer to see this")
+    return _picture(db, rec, rid, path.name, path, _member(request, db, user, rec["space"]))
 
 
 @router.get("/iiif/{rid}/media")
@@ -328,39 +480,66 @@ def iiif_media(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg)
 
 
 @router.get("/iiif/{rid}/frames/{name}")
-def iiif_frame(rid: int, name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> FileResponse:
-    rec, level = _rec(db, cfg, user, rid)
+def iiif_frame(rid: int, name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
+    rec, a = _rec(request, db, cfg, user, rid, "audio")
     p = video.frames_dir(cfg, rid) / name
-    if not FRAME_RX.fullmatch(name) or not p.is_file() or not _content_ok(request, db, cfg, user, rec, rid, level, "audio"):
+    if not FRAME_RX.fullmatch(name) or not p.is_file() or not _content_ok(request, db, cfg, user, rec, rid, a, "audio"):
         raise HTTPException(404, "not found")
-    if name.startswith("face-") and not cfg["video"].get("publish_faces") and not auth.allows(_roles(user), rec["space"]):
+    member = _member(request, db, user, rec["space"])
+    if name.startswith("face-") and not cfg["video"].get("publish_faces") and not member:
         raise HTTPException(404, "not found")
-    return FileResponse(p, media_type="image/jpeg")
+    return _picture(db, rec, rid, name, p, member)
 
 
 @router.get("/iiif/{rid}/transcript.{fmt}")
 def iiif_transcript(rid: int, fmt: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
-    rec, level = _rec(db, cfg, user, rid)
+    rec, a = _rec(request, db, cfg, user, rid, "transcript")
     if fmt not in iiif.DOWNLOADS:
         raise HTTPException(404, "not found")
-    if not _content_ok(request, db, cfg, user, rec, rid, level, "transcript"):
+    if not _content_ok(request, db, cfg, user, rec, rid, a, "transcript"):
         raise HTTPException(401, "sign in through the viewer to read this transcript")
     text = render.export_text(render.player_data(db, rid), fmt)
     return Response(text, media_type=iiif.DOWNLOADS[fmt][0] + "; charset=utf-8")
 
 
+@router.get("/iiif/{rid}/files/{name}", response_class=Response)
+def iiif_file(rid: int, name: str, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
+    """A supplementary file as it was added (`<id>`), or a transcript, captions, translation or index that says when its
+    lines are as WebVTT (`<id>.vtt`). Open to everyone with the part its role follows (attachments never are)."""
+    m = re.fullmatch(r"(\d+)(\.vtt)?", name)
+    if not m:
+        raise HTTPException(404, "not found")
+    fid, vtt = int(m.group(1)), bool(m.group(2))
+    what = f"{'vtt' if vtt else 'file'}{fid}"
+    try:
+        f = filemod.get(db, rid, fid)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    rec, a = _rec(request, db, cfg, user, rid, what)
+    if vtt and not (f["role"] in filemod.PARSED and f.get("timed")):
+        raise HTTPException(404, "not found")
+    if not _content_ok(request, db, cfg, user, rec, rid, a, what):
+        raise HTTPException(401, "sign in through the viewer to open this file")
+    if vtt:
+        return Response(filemod.as_vtt(db, f), media_type="text/vtt; charset=utf-8")
+    path = filemod.path_of(cfg, f)
+    if not path.is_file():
+        raise HTTPException(404, "not found")
+    return FileResponse(path, media_type=filemod.served_type(f), filename=f["name"], headers=filemod.HEADERS)
+
+
 @router.get("/iiif/{rid}/search")
 def iiif_search(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg, q: str = "", page: int = 0) -> JSONResponse:
-    rec, level = _rec(db, cfg, user, rid)
+    rec, a = _rec(request, db, cfg, user, rid, "transcript")
     base = base_url(request, cfg)
-    rids = [rid] if _content_ok(request, db, cfg, user, rec, rid, level, "transcript") else []
+    rids = [rid] if _content_ok(request, db, cfg, user, rec, rid, a, "transcript") else []
     url = f"{base}/iiif/{rid}/search?q={urllib.parse.quote(q)}" + (f"&page={page}" if page else "")
     return _ld(iiif.search(db, base, q, rids, url, page))
 
 
 @router.get("/iiif/{rid}/autocomplete")
 def iiif_autocomplete(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg, q: str = "") -> JSONResponse:
-    rec, level = _rec(db, cfg, user, rid)
-    rids = [rid] if _content_ok(request, db, cfg, user, rec, rid, level, "transcript") else []
+    rec, a = _rec(request, db, cfg, user, rid, "transcript")
+    rids = [rid] if _content_ok(request, db, cfg, user, rec, rid, a, "transcript") else []
     url = f"{base_url(request, cfg)}/iiif/{rid}/autocomplete?q={urllib.parse.quote(q)}"
     return _ld(iiif.autocomplete(db, q, rids, url))

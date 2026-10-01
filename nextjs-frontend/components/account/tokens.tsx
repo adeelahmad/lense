@@ -179,7 +179,14 @@ function NewTokenDialog({
   const client = useApiClient();
   const [name, setName] = useState("");
   const [scope, setScope] = useState("read");
-  const [days, setDays] = useState("90");
+  const [days, setDays] = useState("");
+  const limitsQ = useQuery({
+    queryKey: ["tokens", "limits"],
+    queryFn: () => data(Tokens.tokenLimits({ client })),
+    staleTime: 0, // admins change them
+  });
+  const limits = limitsQ.data ?? null;
+  const shown = days || (limits ? String(limits.default_days) : "");
   const create = useMutation({
     mutationFn: () =>
       data(
@@ -188,7 +195,7 @@ function NewTokenDialog({
           body: {
             name: name.trim(),
             scope: scope as "read" | "write",
-            days: Number(days),
+            days: Number(shown),
           },
         }),
       ),
@@ -197,15 +204,15 @@ function NewTokenDialog({
         token: r.token,
         name: name.trim(),
         scope,
-        days: Number(days),
+        days: Number(shown),
       });
       setName("");
       setScope("read");
-      setDays("90");
+      setDays("");
     },
   });
   const nameError = name.trim() ? (name.trim().length > 80 ? "Use at most 80 characters" : null) : null;
-  const dError = daysError(days);
+  const dError = limits ? daysError(shown, limits) : "Loading how long keys may last…";
   const ready = name.trim() && !nameError && !dError;
 
   return (
@@ -261,8 +268,12 @@ function NewTokenDialog({
         </div>
         <Field
           label="Expires after (days)"
-          hint={dError ? undefined : expiresOn(Number(days))}
-          error={days.trim() ? dError : null}
+          hint={
+            dError || !limits
+              ? undefined
+              : `${expiresOn(Number(shown))} · at most ${limits.max_days} days${limits.never_expire ? ", or 0 for never" : ""}`
+          }
+          error={shown.trim() && limits ? dError : null}
         >
           {(f) => (
             <Input
@@ -270,7 +281,7 @@ function NewTokenDialog({
               aria-describedby={f.describedBy}
               invalid={f.invalid}
               inputMode="numeric"
-              value={days}
+              value={shown}
               onChange={(e) => setDays(e.target.value)}
             />
           )}

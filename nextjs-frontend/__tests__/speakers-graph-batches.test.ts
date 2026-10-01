@@ -20,7 +20,14 @@ import {
   type GraphEdge,
   type GraphNode,
 } from "@/components/graph/model";
-import { isUnnamed, monthLabel, speakerInitials, talkByMonth, talkTime } from "@/components/speakers/format";
+import {
+  isUnnamed,
+  mergeDetail,
+  monthLabel,
+  speakerInitials,
+  talkByMonth,
+  talkTime,
+} from "@/components/speakers/format";
 
 describe("speaker formatting", () => {
   it("reads talk time like the registry", () => {
@@ -53,6 +60,16 @@ describe("speaker formatting", () => {
       { month: "2026-09", ms: 1500 },
     ]);
     expect(monthLabel("2026-09")).toBe("Sep");
+  });
+});
+
+describe("merge history", () => {
+  it("says who merged, how many recordings moved, and who undid it", () => {
+    expect(mergeDetail({ by: "ann@x.io", recordings: 3 }, "14 Sep")).toBe("14 Sep · by ann@x.io · 3 recordings moved");
+    expect(
+      mergeDetail({ by: "ann@x.io", recordings: 1, undone: true, undone_by: "bob@x.io" }, "14 Sep", "15 Sep"),
+    ).toBe("14 Sep · by ann@x.io · 1 recording moved · undone by bob@x.io, 15 Sep");
+    expect(mergeDetail({ undone: true }, "14 Sep")).toBe("14 Sep · undone"); // from before these were kept
   });
 });
 

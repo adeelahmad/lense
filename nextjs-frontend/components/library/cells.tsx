@@ -1,6 +1,6 @@
 "use client";
 
-import { FileAudio, FileText, FileVideo } from "lucide-react";
+import { BookOpenText, FileAudio, FileImage, FileText, FileVideo } from "lucide-react";
 
 import { Badge, EmotionBar, speakerColor } from "@/components/ui/badge";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -13,11 +13,16 @@ const SUB_TONE = {
   gold: "text-gold-dark",
 };
 
-/** Audio, video or transcript-only: the small icon before the namespace. */
+const MEDIA_ICON = { video: FileVideo, audio: FileAudio, document: BookOpenText, image: FileImage } as const;
+const MEDIA_WORD = { video: "Video", audio: "Audio", document: "Document", image: "Image" } as const;
+
+/** Audio, video, transcript-only, document or image: the small icon before the namespace. */
 export function MediaIcon({ kind, className }: { kind: string | null | undefined; className?: string }) {
-  const Icon = kind === "video" ? FileVideo : kind === "audio" ? FileAudio : FileText;
-  const label = kind === "video" ? "Video" : kind === "audio" ? "Audio" : "Transcript only";
-  return <Icon aria-label={label} role="img" className={cn("size-3 shrink-0", className)} />;
+  const k = kind && kind in MEDIA_ICON ? (kind as keyof typeof MEDIA_ICON) : null;
+  const Icon = k ? MEDIA_ICON[k] : FileText;
+  return (
+    <Icon aria-label={k ? MEDIA_WORD[k] : "Transcript only"} role="img" className={cn("size-3 shrink-0", className)} />
+  );
 }
 
 /** "Text" marks transcript-only recordings (no audio). */
@@ -177,6 +182,25 @@ export function ImportanceCell({ importance, sentiment }: { importance: unknown;
         </>
       )}
       {tone && <span className="truncate">{imp ? `· ${tone}` : tone}</span>}
+    </span>
+  );
+}
+
+/** A recording's tags as small chips; the rest as a count, all of them in the title. */
+export function TagsCell({ tags }: { tags: string[] | null | undefined }) {
+  const list = tags ?? [];
+  if (!list.length) return <span className="text-fg-muted">—</span>;
+  return (
+    <span className="flex min-w-0 items-center gap-1 overflow-hidden" title={list.join(", ")}>
+      {list.slice(0, 2).map((t) => (
+        <span
+          key={t}
+          className="max-w-[96px] shrink-0 truncate rounded-pill border border-border bg-surface-neutral px-2 py-px text-[11.5px] font-medium text-fg-secondary"
+        >
+          {t}
+        </span>
+      ))}
+      {list.length > 2 && <span className="shrink-0 text-[11.5px] text-fg-muted">+{list.length - 2}</span>}
     </span>
   );
 }

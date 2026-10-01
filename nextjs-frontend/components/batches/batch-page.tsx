@@ -353,7 +353,7 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
                       {g.g}
                     </span>
                     <Link
-                      href={j.recording != null ? `/recordings/${j.recording}` : "#"}
+                      href={j.recording != null ? `/resources/${j.recording}` : "#"}
                       className="truncate font-semibold text-fg hover:text-fg-accent hover:underline"
                     >
                       <span className="sr-only">{g.label}: </span>

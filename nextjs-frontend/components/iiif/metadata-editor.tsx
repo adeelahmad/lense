@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Metadata } from "@/app/openapi-client";
 import type { MetadataEdit } from "@/app/openapi-client/types.gen";
+import { AccessFields } from "@/components/access/access-fields";
+import { ALL_PARTS, type Access, type AccessValue } from "@/components/access/model";
 import { isUnreachable } from "@/components/errors/error-states";
 import {
   DateLanguages,
@@ -21,7 +23,6 @@ import {
   type SetMeta,
 } from "@/components/iiif/metadata-fields";
 import {
-  ACCESS,
   conflictingFields,
   describeEdit,
   dirtyFields,
@@ -89,7 +90,7 @@ const SECTIONS: { id: string; label: string; fields: Field[] }[] = [
     fields: ["identifiers", "homepage", "related"],
   },
   { id: "md-pairs", label: "Label / value pairs", fields: ["metadata"] },
-  { id: "md-access", label: "Access", fields: ["access"] },
+  { id: "md-access", label: "Access", fields: ["access", "open", "featured"] },
 ];
 
 export const FIELD_ANCHOR: Record<Field, string> = Object.fromEntries(
@@ -385,8 +386,16 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
     "md-access": (
       <>
         <AccessEditor
-          value={access}
-          onChange={(v) => set("access", v as Meta["access"])}
+          value={{
+            access: (draft.access ?? "private") as Access,
+            open: draft.open ?? ALL_PARTS,
+            featured: Boolean(draft.featured),
+          }}
+          onChange={(v) => {
+            if (v.access !== draft.access) set("access", v.access);
+            if (JSON.stringify(v.open) !== JSON.stringify(draft.open ?? ALL_PARTS)) set("open", v.open);
+            if (v.featured !== Boolean(draft.featured)) set("featured", v.featured);
+          }}
           canPublish={canPublish}
           ns={ns}
           problems={problems.length}
@@ -409,7 +418,7 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
   const problemLine = problems.length ? (
     <span className="text-[12.5px] font-medium text-red-dark">
       ✕ {problems.length} problem{problems.length === 1 ? "" : "s"}
-      {access === "private" ? " block publishing" : ""}
+      {access !== "public" ? " block publishing" : ""}
     </span>
   ) : (
     <span className="text-[12.5px] text-fg-muted">{required.length ? "all required ✓" : "no problems"}</span>
@@ -542,7 +551,7 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2.5 border-b border-border px-4 py-3.5 sm:px-6">
         <div className="flex min-w-0 flex-1 basis-full flex-col gap-1 sm:basis-auto">
           <span className="truncate text-[12px] font-medium text-fg-muted">
-            <Link href={`/recordings/${recordingId}`} className="hover:underline">
+            <Link href={`/resources/${recordingId}`} className="hover:underline">
               {rec.data?.title ?? `Recording ${recordingId}`}
             </Link>{" "}
             · Metadata
@@ -642,7 +651,8 @@ function dropLang(map: LangMap | null | undefined, lang: string): LangMap | null
   return Object.keys(out).length ? out : null;
 }
 
-/** Access: public · transcript open · signed-in · private. Publishing is for owners, and needs no open problems. */
+/** Access: public, restricted or private, what a public recording opens, featured. Publishing is for owners, and
+ * needs no open problems. */
 function AccessEditor({
   value,
   onChange,
@@ -651,38 +661,27 @@ function AccessEditor({
   problems,
   fromProfile,
 }: {
-  value: string;
-  onChange: (v: string) => void;
+  value: AccessValue;
+  onChange: (v: AccessValue) => void;
   canPublish: boolean;
   ns: string | null;
   problems: number;
   fromProfile: boolean;
 }) {
-  const current = ACCESS.find((a) => a.value === value) ?? ACCESS[3];
   return (
     <div className="flex flex-col gap-2">
-      <SectionHead title="Access" maps="what IIIF publishes" />
-      <ChoiceCards
-        label="Access"
+      <SectionHead title="Access" maps="who sees it · what IIIF publishes" />
+      <AccessFields
         size="sm"
-        columns={4}
-        className="max-sm:!grid-cols-2"
         value={value}
         onChange={onChange}
         disabled={!canPublish}
         disabledReason={needRole("owner", ns)}
-        options={ACCESS.map((a) => ({
-          value: a.value,
-          label: a.label,
-          hint: a.hint,
-          disabled: a.value !== "private" && problems > 0 && value === "private",
-          reason: `Fix ${problems} problem${problems === 1 ? "" : "s"} before publishing`,
-        }))}
+        publishBlocked={problems ? `Fix ${problems} problem${problems === 1 ? "" : "s"} before publishing` : undefined}
       />
-      <p className="text-[12px] leading-[1.4] text-fg-secondary">
-        {current.anon}
-        {fromProfile ? " This comes from the namespace’s default access." : ""}
-      </p>
+      {fromProfile && (
+        <p className="text-[12px] leading-[1.4] text-fg-muted">This comes from the namespace’s default access.</p>
+      )}
     </div>
   );
 }

@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
  * Text on screen (VR1): lines grouped by shot, with the frame and each line's box. Click a line to seek; editors
  * correct a line in place (E, or the pencil). Corrections are searchable and logged; the machine reading is kept.
  */
-export function ScreenTextTab({ noEngine }: { noEngine?: boolean }) {
+export function ScreenTextTab({ why }: { why?: string | null }) {
   const { model, id, canEdit, ns } = useRec();
   const api = usePlayerApi();
   const { time } = usePlayerState();
@@ -35,13 +35,13 @@ export function ScreenTextTab({ noEngine }: { noEngine?: boolean }) {
   const curShot = shotAt(model.shots, time);
 
   if (!model.screenText.length)
-    return noEngine ? (
+    return why ? (
       <div
         className="rounded-md border border-gold-border bg-gold-surface p-3.5 text-[13px] leading-normal text-fg-strong"
         role="status"
       >
-        <b className="text-fg">Text on screen isn&apos;t set up.</b> No OCR engine is configured, so slides and captions
-        aren&apos;t read. Admins choose Tesseract, Apple Vision (on a Mac worker) or RapidOCR in Settings.
+        <b className="text-fg">Text on screen wasn&apos;t read:</b> {why}. Admins choose the OCR engine (Tesseract,
+        Apple Vision on a Mac worker, RapidOCR or docTR) in Settings.
       </div>
     ) : (
       <EmptyState icon={<ScanText />} title="No text on screen" className="py-10">

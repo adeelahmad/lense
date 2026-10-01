@@ -1,34 +1,29 @@
 "use client";
 
-import {
-  ChevronDown,
-  ChevronUp,
-  Link2,
-  LocateFixed,
-  MessagesSquare,
-  Pencil,
-  Search,
-  Share2,
-  StickyNote,
-  X,
-} from "lucide-react";
+import { LocateFixed, Pencil, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { prefersReducedMotion, usePlayerApi, usePlayerState } from "@/components/player/media";
 import { useRec } from "@/components/recording/context";
 import { EditProvider, EditToolbar, useEdit } from "@/components/recording/edit";
+import { FindBar } from "@/components/recording/find-bar";
 import { transcriptOrigin } from "@/components/recording/labels";
-import { useNamespaceFaces, useSpeakerDirectory } from "@/components/recording/hooks";
+import { commentsAt, highlightRanges, type HighlightRange } from "@/components/recording/comments-model";
+import {
+  useComments,
+  useHighlights,
+  useNamespaceFaces,
+  useNotes,
+  useSpeakerDirectory,
+} from "@/components/recording/hooks";
 import { currentStep } from "@/components/recording/jobs";
-import { segmentAt } from "@/components/recording/model";
+import { segmentAt, textRange, wordAt, type Segment } from "@/components/recording/model";
+import { notesAt } from "@/components/recording/notes-model";
+import { SelectionToolbar } from "@/components/recording/selection-toolbar";
 import { TurnView, type Unsure } from "@/components/recording/turn";
-import { ShareMoment } from "@/components/iiif/iiif-panel";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
 import { EmptyState, Skeleton } from "@/components/ui/states";
-import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
-import { tc } from "@/lib/format";
 import { needRole } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +79,41 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
     return m;
   }, [find.hits]);
   const currentHit = find.hits[find.index] ?? null;
+  useSpokenWord(box, model.segments);
+  // Turns that notes are about get a mark that opens the Notes tab.
+  const notes = useNotes(r.id).data;
+  const noteCounts = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const t of notes?.length ? turns : []) {
+      const n = notesAt(notes ?? [], t.t0, t.t1).length;
+      if (n) m.set(t.key, n);
+    }
+    return m;
+  }, [notes, turns]);
+  const { setTab, focusHighlight } = r;
+  const openNotes = useCallback(() => setTab("notes"), [setTab]);
+  // Turns with comment threads get a mark that opens the Comments tab.
+  const comments = useComments(r.id).data;
+  const commentCounts = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const t of comments?.length ? turns : []) {
+      const n = commentsAt(comments ?? [], t.t0, t.t1).length;
+      if (n) m.set(t.key, n);
+    }
+    return m;
+  }, [comments, turns]);
+  const openComments = useCallback(() => setTab("comments"), [setTab]);
+  // Highlighted passages are marked in their colour, by segment.
+  const highlights = useHighlights(r.id).data;
+  const highlightsBySeg = useMemo(() => {
+    const m = new Map<number, HighlightRange[]>();
+    if (!highlights?.length) return m;
+    for (const s of model.segments) {
+      const ranges = highlightRanges(s, highlights);
+      if (ranges.length) m.set(s.idx, ranges);
+    }
+    return m;
+  }, [highlights, model.segments]);
   const entityNames = useMemo(() => {
     const m = new Map<number, string[]>();
     for (const e of model.entities) for (const s of e.segs) m.set(s, [...(m.get(s) ?? []), e.name]);
@@ -267,6 +297,12 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
               entityNames={entityNames}
               unsure={t.speaker ? (unsure.get(t.speaker) ?? null) : null}
               onScreen={Boolean(t.speaker && onScreen.has(t.speaker))}
+              notes={noteCounts.get(t.key)}
+              onNotes={openNotes}
+              comments={commentCounts.get(t.key)}
+              onComments={openComments}
+              highlights={highlightsBySeg}
+              onHighlight={focusHighlight}
               editing={editing}
               editTarget={edit?.target ?? null}
               onSeek={onSeek}
@@ -349,228 +385,35 @@ function FollowButton({
   );
 }
 
-/** "/" opens it: matches are highlighted in the text and marked ▲ on the waveform. */
-function FindBar() {
-  const { find } = useRec();
-  const input = useRef<HTMLInputElement>(null);
+/**
+ * The word being said gets a highlight, in lines whose words are timed (the CSS Custom Highlight API, so the text isn't
+ * re-rendered as the words go by; browsers without it keep the line's tint).
+ */
+function useSpokenWord(box: React.RefObject<HTMLDivElement | null>, segments: Segment[]) {
+  const api = usePlayerApi();
   useEffect(() => {
-    input.current?.focus();
-    input.current?.select();
-  }, [find.open]);
-  const n = find.hits.length;
-  const go = (d: number) => n && find.setIndex((find.index + d + n) % n);
-  return (
-    <div className="flex min-w-0 flex-1 items-center gap-2" role="search">
-      <span className="relative min-w-0 flex-1">
-        <Search
-          aria-hidden
-          className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-muted"
-        />
-        <input
-          ref={input}
-          type="search"
-          value={find.query}
-          placeholder="Find in the transcript"
-          aria-label="Find in the transcript"
-          onChange={(e) => {
-            find.setQuery(e.target.value);
-            find.setIndex(0);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              go(e.shiftKey ? -1 : 1);
-            } else if (e.key === "Escape") {
-              e.preventDefault();
-              find.setOpen(false);
-              find.setQuery("");
-            }
-          }}
-          className="h-8 w-full rounded-sm border border-border bg-background pl-8 pr-2 text-[13px] text-fg outline-none placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)]"
-        />
-      </span>
-      <span role="status" className="tabular min-w-[64px] whitespace-nowrap text-[12px] text-fg-muted">
-        {find.query.trim().length < 2 ? "" : n ? `${find.index + 1} of ${n}` : "No matches"}
-      </span>
-      <button
-        type="button"
-        aria-label="Previous match (Shift+Enter)"
-        disabled={!n}
-        onClick={() => go(-1)}
-        className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral disabled:opacity-40"
-      >
-        <ChevronUp className="size-4" />
-      </button>
-      <button
-        type="button"
-        aria-label="Next match (Enter)"
-        disabled={!n}
-        onClick={() => go(1)}
-        className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral disabled:opacity-40"
-      >
-        <ChevronDown className="size-4" />
-      </button>
-      <button
-        type="button"
-        aria-label="Close find (Esc)"
-        onClick={() => {
-          find.setOpen(false);
-          find.setQuery("");
-        }}
-        className="grid size-7 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral"
-      >
-        <X className="size-4" />
-      </button>
-    </div>
-  );
-}
-
-/** The time of a character inside a line, spread evenly over the line's duration (there are no word timings). */
-export function timeAtOffset(seg: { t0: number; t1: number; text: string }, offset: number): number {
-  const f = seg.text.length ? Math.max(0, Math.min(1, offset / seg.text.length)) : 0;
-  return Math.round(seg.t0 + (seg.t1 - seg.t0) * f);
-}
-
-/** Selecting transcript text offers Copy link at that moment, Ask in chat (with the quote) and Add note. */
-function SelectionToolbar({ box }: { box: React.RefObject<HTMLDivElement | null> }) {
-  const { id, model, askInChat } = useRec();
-  const toast = useToast();
-  const [sel, setSel] = useState<{
-    x: number;
-    y: number;
-    t: number;
-    end: number;
-    quote: string;
-  } | null>(null);
-  const [moment, setMoment] = useState<{ t0: number; t1: number } | null>(null);
-  useEffect(() => {
-    const onChange = () => {
-      const s = window.getSelection();
-      const container = box.current;
-      if (!s || s.isCollapsed || !s.rangeCount || !container) return setSel(null);
-      const range = s.getRangeAt(0);
-      if (!container.contains(range.commonAncestorContainer)) return setSel(null);
-      const quote = s.toString().trim();
-      if (quote.length < 2) return setSel(null);
-      const startEl = (
-        range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement
-      ) as HTMLElement | null;
-      const segEl = startEl?.closest<HTMLElement>("[data-seg]");
-      const seg = segEl ? model.segments[Number(segEl.dataset.seg)] : null;
-      let offset = 0;
-      if (segEl && seg) {
-        const pre = document.createRange();
-        pre.selectNodeContents(segEl);
-        pre.setEnd(range.startContainer, range.startOffset);
-        offset = pre.toString().length;
-      }
-      const endEl = (
-        range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement
-      ) as HTMLElement | null;
-      const endSegEl = endEl?.closest<HTMLElement>("[data-seg]");
-      const endSeg = endSegEl ? model.segments[Number(endSegEl.dataset.seg)] : null;
-      let endOffset = 0;
-      if (endSegEl && endSeg) {
-        const pre = document.createRange();
-        pre.selectNodeContents(endSegEl);
-        pre.setEnd(range.endContainer, range.endOffset);
-        endOffset = pre.toString().length;
-      }
-      const rect = range.getBoundingClientRect();
-      const t = seg ? timeAtOffset(seg, offset) : 0;
-      setSel({
-        x: rect.left + rect.width / 2,
-        y: rect.top,
-        t,
-        end: endSeg ? Math.max(t, timeAtOffset(endSeg, endOffset)) : t,
-        quote,
-      });
+    if (typeof CSS === "undefined" || !CSS.highlights || typeof Highlight === "undefined") return;
+    if (!segments.some((s) => s.words)) return;
+    const hl = new Highlight();
+    CSS.highlights.set("lens-word", hl);
+    let last = "";
+    const paint = (ms: number) => {
+      const i = segmentAt(segments, ms);
+      const words = segments[i]?.words;
+      const w = words ? wordAt(words, ms) : -1;
+      const key = w < 0 ? "" : `${i}:${w}`;
+      if (key === last) return;
+      last = key;
+      hl.clear();
+      const el = words && w >= 0 ? box.current?.querySelector<HTMLElement>(`[data-seg="${i}"]`) : null;
+      const range = el && words ? textRange(el, words[w][0], words[w][1]) : null;
+      if (range) hl.add(range);
     };
-    document.addEventListener("selectionchange", onChange);
-    const hide = () => setSel(null);
-    const el = box.current;
-    el?.addEventListener("scroll", hide);
+    paint(api.now());
+    const off = api.subscribe(paint);
     return () => {
-      document.removeEventListener("selectionchange", onChange);
-      el?.removeEventListener("scroll", hide);
+      off();
+      CSS.highlights.delete("lens-word");
     };
-  }, [box, model.segments]);
-  const momentDialog = (
-    <Dialog
-      open={moment != null}
-      onOpenChange={(o) => !o && setMoment(null)}
-      title="Share a moment"
-      description="A IIIF link that opens this time range in Lens Archive and in any viewer that supports content state."
-    >
-      {moment && <ShareMoment recordingId={id} initial={moment} />}
-    </Dialog>
-  );
-  if (!sel) return momentDialog;
-  const secs = Math.floor(sel.t / 1000);
-  const copy = async () => {
-    const url = `${window.location.origin}/recordings/${id}?t=${secs}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast({ title: `Link at ${tc(sel.t)} copied`, tone: "green" });
-    } catch {
-      toast({ title: "Couldn't copy the link", body: url, tone: "red" });
-    }
-  };
-  return (
-    <>
-      {momentDialog}
-      <div
-        role="toolbar"
-        aria-label="Selection actions"
-        onMouseDown={(e) => e.preventDefault()}
-        className="fixed z-[60] flex -translate-x-1/2 -translate-y-[calc(100%+10px)] gap-0.5 whitespace-nowrap rounded-[10px] bg-fg p-1 text-[12.5px] font-semibold text-background shadow-3"
-        style={{
-          left: Math.max(180, Math.min(sel.x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 180)),
-          top: Math.max(70, sel.y),
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => void copy()}
-          className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
-        >
-          <Link2 className="size-3.5" /> Copy link at {tc(sel.t)}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMoment({
-              t0: Math.floor(sel.t / 1000),
-              t1: Math.max(Math.floor(sel.t / 1000) + 1, Math.ceil(sel.end / 1000)),
-            });
-            window.getSelection()?.removeAllRanges();
-            setSel(null);
-          }}
-          className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
-        >
-          <Share2 className="size-3.5" /> IIIF link
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            askInChat(`> “${sel.quote.length > 400 ? `${sel.quote.slice(0, 397)}…` : sel.quote}” (${tc(sel.t)})\n\n`);
-            window.getSelection()?.removeAllRanges();
-            setSel(null);
-          }}
-          className="flex h-[30px] items-center gap-1.5 rounded-[7px] px-2.5 hover:bg-white/15"
-        >
-          <MessagesSquare className="size-3.5" /> Ask in chat
-        </button>
-        <Tooltip content="Notes aren't available yet">
-          <button
-            type="button"
-            aria-disabled
-            className="flex h-[30px] cursor-not-allowed items-center gap-1.5 rounded-[7px] px-2.5 opacity-50"
-          >
-            <StickyNote className="size-3.5" /> Add note
-          </button>
-        </Tooltip>
-      </div>
-    </>
-  );
+  }, [api, box, segments]);
 }

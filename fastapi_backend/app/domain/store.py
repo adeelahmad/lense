@@ -110,14 +110,21 @@ def labels():
     return {"palette": PALETTE, "emoji": EMOJI, "events": EVENT_EMOJI, "speakers": SPEAKER_COLORS}
 
 
+# Audio and video the folder scans import, and the types uploads accept unless changed.
+MEDIA_EXT = (".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".mp4", ".webm", ".amr", ".mov", ".mkv", ".m4v", ".avi")
+# documents and images, which uploads also accept (domain/documents.py): PDFs, and files made into PDFs to read
+# (domain/convert.py): Office and OpenDocument files, text and Markdown, saved web pages, and emails
+OFFICE_EXT = (".doc", ".docx", ".odt", ".rtf", ".ppt", ".pptx", ".odp", ".xls", ".xlsx", ".ods")
+TEXT_EXT = (".txt", ".text", ".md", ".markdown", ".mdx")
+PAGE_EXT = (".html", ".htm")
+EMAIL_EXT = (".eml", ".msg")
+DOCUMENT_EXT = (".pdf", *OFFICE_EXT, *TEXT_EXT, *PAGE_EXT, *EMAIL_EXT)
+IMAGE_EXT = (".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp")
 DEFAULTS = {
     "data_dir": "./archive-data",
     "database": {"url": None, "namespace": "archive", "database": "main", "user": "root", "password": "root"},
     "namespaces": {},
-    "audio": {
-        "extensions": [".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".mp4", ".webm", ".amr", ".mov", ".mkv", ".m4v", ".avi"],
-        "path_map": {},
-    },
+    "audio": {"extensions": list(MEDIA_EXT), "path_map": {}},
     "transcribe": {
         "engine": "sensevoice",
         "device": "auto",
@@ -142,7 +149,18 @@ DEFAULTS = {
         "cross_namespace": "suggest",
     },
     "analysis": {"entities": "rules", "spacy_model": "en_core_web_sm", "gazetteer": []},
-    "llm": {"base_url": None, "model": None, "api_key_env": None, "max_chars": 24000, "timeout": 300},
+    # chat_models: the models people may pick in Chat; empty: whatever the model server lists (docs/configuration.md)
+    "llm": {
+        "base_url": None,
+        "model": None,
+        "api_key_env": None,
+        "max_chars": 24000,
+        "timeout": 300,
+        "chat_models": [],
+        # a model the admin knows can see images: it describes pages and shots (the describe step); none, none are
+        "vision_model": None,
+        "describe_max": 50,  # pages or shots of a resource described at most
+    },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {"stemming": "english"},
     "server": {
@@ -153,13 +171,47 @@ DEFAULTS = {
         "max_upload_mb": 50,
         "session_hours": 168,
         "secure_cookies": False,
+        # proxies whose X-Forwarded-For names the visitor's address, for IP groups (docs/configuration.md)
+        "trusted_proxies": ["127.0.0.0/8", "::1/128"],
+    },
+    # how long API keys last (docs/configuration.md): what a new key gets, the most it may get, and whether keys may
+    # never expire
+    "tokens": {"default_days": 90, "max_days": 365, "never_expire": False},
+    # audio, video, documents and images uploaded in the web app, in pieces (docs/configuration.md); transcript files use
+    # server.max_upload_mb
+    "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT + DOCUMENT_EXT + IMAGE_EXT), "chunk_mb": 8, "expire_hours": 24},
+    # documents and images (docs/configuration.md): how large their pages are drawn, when a page is read by OCR, and
+    # how many pages are read at most
+    "documents": {
+        "page_pixels": 2000,
+        "thumb_pixels": 360,
+        "ocr_below_chars": 25,
+        "max_pages": 2000,
+        "convert_seconds": 300,
+        "attachment_resources": True,
+        "soffice": None,
+        "chromium": None,
+        "web_networks": [],
     },
     "workers": {
         "inline": 1,
         "poll_seconds": 2,
         "stale_minutes": 15,
         "max_attempts": 3,
-        "steps": ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "llm", "report", "export"],
+        "steps": [
+            "transcribe",
+            "diarize",
+            "shots",
+            "ocr",
+            "faces",
+            "objects",
+            "describe",
+            "analyze",
+            "summarize",
+            "llm",
+            "report",
+            "export",
+        ],
     },
     # video: sampling, shot detection, OCR and faces. Model paths are bootstrap-only (the app can't point at arbitrary files).
     # the chat assistant's tools, and the double check before batch runs
@@ -188,6 +240,10 @@ DEFAULTS = {
         "face_match_threshold": 0.45,
         "face_review_threshold": 0.3,
         "publish_faces": False,
+        "object_engine": "yolox",
+        "yolox_model": None,
+        "ultralytics_model": None,
+        "object_min_score": 0.4,
     },
     # rclone and local_roots are bootstrap-only on purpose: the web app must not be able to pick an executable
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
@@ -327,11 +383,21 @@ class DB:
     def _open(self):
         from surrealdb import Surreal
 
-        c = Surreal(self.url)
-        if not self.embedded:
-            c.signin(self._creds)
-        c.use(*self._target)
-        return c
+        attempt = 0
+        while True:
+            c = Surreal(self.url)
+            try:
+                if not self.embedded:
+                    c.signin(self._creds)
+                c.use(*self._target)  # on a server this creates the database, and two at once can conflict
+                return c
+            except Exception as e:  # noqa: BLE001
+                with contextlib.suppress(Exception):
+                    c.close()
+                if attempt == RETRIES or not _retryable(e):
+                    raise
+                _backoff(attempt)
+                attempt += 1
 
     @contextlib.contextmanager
     def conn(self):
@@ -406,7 +472,7 @@ class DB:
             with self._text_lock:
                 if not self._text_ready:
                     t = time.time()
-                    for index, table in (("segment_text", "segment"), ("ocr_text", "ocr_span")):
+                    for index, table in TEXT_INDEXES:
                         self.q(f"REBUILD INDEX IF EXISTS {index} ON {table}")
                     self._text_ready = True
                     logging.getLogger("lens").info("rebuilt the embedded full-text index in %.1fs", time.time() - t)
@@ -430,11 +496,23 @@ SCHEMA = [
     # uniqueness is enforced on single "<space>:<value>" key fields instead.
     "DEFINE TABLE IF NOT EXISTS space SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS space_name ON space FIELDS name UNIQUE",
+    # a namespace's collections (domain/hierarchy.py): every recording lives in one; key is "<space>:<parent>:<name>"
+    "DEFINE TABLE IF NOT EXISTS collection SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS collection_space ON collection FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS collection_parent ON collection FIELDS parent",
+    "DEFINE INDEX IF NOT EXISTS collection_key ON collection FIELDS key UNIQUE",
+    # roles people were given on collections (hierarchy.give): id "<collection>-<account>"
+    "DEFINE TABLE IF NOT EXISTS collection_role SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS collection_role_account ON collection_role FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS collection_role_collection ON collection_role FIELDS collection",
     "DEFINE TABLE IF NOT EXISTS recording SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS recording_space ON recording FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS recording_collection ON recording FIELDS collection",
     "DEFINE INDEX IF NOT EXISTS recording_fp ON recording FIELDS fp_key UNIQUE",
     "DEFINE INDEX IF NOT EXISTS recording_path ON recording FIELDS path",
     "DEFINE INDEX IF NOT EXISTS recording_status ON recording FIELDS status",
+    "DEFINE INDEX IF NOT EXISTS recording_access ON recording FIELDS access",
+    "DEFINE INDEX IF NOT EXISTS recording_featured ON recording FIELDS featured",
     "DEFINE TABLE IF NOT EXISTS segment SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_rec ON segment FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS segment_space ON segment FIELDS space",
@@ -447,6 +525,8 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS appearance_spk ON appearance FIELDS speaker",
     "DEFINE TABLE IF NOT EXISTS same_as TYPE RELATION IN speaker OUT speaker",
     "DEFINE TABLE IF NOT EXISTS suggestion SCHEMALESS",
+    # pairs of speakers someone said aren't the same person: never suggested again (not_same:⟨a-b⟩, a < b)
+    "DEFINE TABLE IF NOT EXISTS not_same SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS merge SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS section SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS section_rec ON section FIELDS recording",
@@ -469,6 +549,24 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS membership SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS membership_account ON membership FIELDS account",
     "DEFINE INDEX IF NOT EXISTS membership_space ON membership FIELDS space",
+    # permission on one recording for someone without a role in its namespace (docs/access.md): permission:<rid>-<account>
+    "DEFINE TABLE IF NOT EXISTS permission SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS permission_account ON permission FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS permission_recording ON permission FIELDS recording",
+    # someone asking for permission on a recording: access_request:<rid>-<account>, the latest request only
+    "DEFINE TABLE IF NOT EXISTS access_request SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS access_request_recording ON access_request FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS access_request_status ON access_request FIELDS status",
+    # the path, fingerprint and remote file of a recording deleted from a namespace or moved out of it, which that
+    # namespace's scans and watched folders skip (domain/deletion.py)
+    "DEFINE TABLE IF NOT EXISTS gone_recording SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS gone_recording_space ON gone_recording FIELDS space",
+    # address ranges whose visitors see all of a namespace's recordings, or chosen ones (docs/access.md): ip_group:<n>
+    "DEFINE TABLE IF NOT EXISTS ip_group SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS ip_group_space ON ip_group FIELDS space",
+    # audio and video arriving in pieces (docs/api.md, Uploads): upload:<random id>
+    "DEFINE TABLE IF NOT EXISTS upload SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS upload_account ON upload FIELDS account",
     "DEFINE TABLE IF NOT EXISTS login_session SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS login_session_account ON login_session FIELDS account",
     "DEFINE INDEX IF NOT EXISTS login_session_sid ON login_session FIELDS sid",
@@ -479,6 +577,11 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS api_token_account ON api_token FIELDS account",
     "DEFINE TABLE IF NOT EXISTS share_link SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS share_link_rec ON share_link FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS share_link_short ON share_link FIELDS short",
+    # sites whose pages framed a share link's player (share_embed:⟨link-site⟩): opens and when
+    "DEFINE TABLE IF NOT EXISTS share_embed SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS share_embed_rec ON share_embed FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS share_embed_share ON share_embed FIELDS share",
     "DEFINE TABLE IF NOT EXISTS audit_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS audit_at ON audit_log FIELDS at",
     # background work
@@ -486,6 +589,11 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS job_status ON job FIELDS status",
     "DEFINE INDEX IF NOT EXISTS job_rec ON job FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS job_updated ON job FIELDS updated_at",
+    # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
+    "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",
+    # the last few times each kind of step took, for estimates (jobs.estimates): step_stat:<type> and :<type:template>
+    "DEFINE TABLE IF NOT EXISTS step_stat SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS worker SCHEMALESS",
     # storage
     "DEFINE TABLE IF NOT EXISTS storage_source SCHEMALESS",
@@ -536,9 +644,46 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS face_track_rec ON face_track FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS face_track_face ON face_track FIELDS face",
     "DEFINE TABLE IF NOT EXISTS face_suggestion SCHEMALESS",
+    # objects: one row per kind of object on a recording (app/domain/objects.py)
+    "DEFINE TABLE IF NOT EXISTS object_track SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS object_track_rec ON object_track FIELDS recording",
+    # what a model that can see images says a page or a shot shows (descriptions.py)
+    "DEFINE TABLE IF NOT EXISTS description SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS description_rec ON description FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS face_merge SCHEMALESS",
     # collections, batch runs, assistant approvals
     "DEFINE TABLE IF NOT EXISTS saved_collection SCHEMALESS",
+    # saved views of the Library (app/domain/views.py)
+    "DEFINE TABLE IF NOT EXISTS saved_view SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS saved_view_account ON saved_view FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS saved_view_space ON saved_view FIELDS space",
+    # notes on recordings, yours or shared with everyone who can read it (app/domain/notes.py)
+    "DEFINE TABLE IF NOT EXISTS note SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS note_rec ON note FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS note_account ON note FIELDS account",
+    # comments on resources, threaded, by everyone who can read them (app/domain/comments.py)
+    "DEFINE TABLE IF NOT EXISTS comment SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS comment_rec ON comment FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS comment_parent ON comment FIELDS parent",
+    # passages of resources marked in colour by their editors (app/domain/highlights.py)
+    "DEFINE TABLE IF NOT EXISTS highlight SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS highlight_rec ON highlight FIELDS recording",
+    # custom metadata fields defined on namespaces and collections (app/domain/fields.py); key: "<space>:<collection>:<target>:<name>"
+    "DEFINE TABLE IF NOT EXISTS field SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS field_space ON field FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS field_collection ON field FIELDS collection",
+    "DEFINE INDEX IF NOT EXISTS field_key ON field FIELDS key UNIQUE",
+    # a resource's supplementary files, and the lines parsed from its transcripts, captions and indexes (app/domain/files.py)
+    "DEFINE TABLE IF NOT EXISTS resource_file SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS resource_file_rec ON resource_file FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS resource_file_space ON resource_file FIELDS space",
+    # the pages of documents and images, drawn and read (app/domain/documents.py): page:⟨<resource>-<index>⟩
+    "DEFINE TABLE IF NOT EXISTS page SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS page_rec ON page FIELDS recording",
+    "DEFINE TABLE IF NOT EXISTS file_line SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS file_line_file ON file_line FIELDS file",
+    "DEFINE INDEX IF NOT EXISTS file_line_rec ON file_line FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS file_line_space ON file_line FIELDS space",
     "DEFINE INDEX IF NOT EXISTS saved_collection_owner ON saved_collection FIELDS account",
     "DEFINE TABLE IF NOT EXISTS batch SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_batch ON job FIELDS batch",
@@ -552,13 +697,23 @@ def _analyzer(cfg):
     return f"DEFINE ANALYZER IF NOT EXISTS archive_text TOKENIZERS class FILTERS lowercase, ascii{stem}"
 
 
+# the full-text indexes, each on the `text` of its table: transcripts, text on screen, and lines of supplementary files
+TEXT_INDEXES = (
+    ("segment_text", "segment"),
+    ("ocr_text", "ocr_span"),
+    ("file_text", "file_line"),
+    ("object_text", "object_track"),
+    ("description_text", "description"),
+)
+
+
 def _text_index(db):
     # SurrealDB 3 spells full-text indexes FULLTEXT; 2.x (and the embedded engine) spell them SEARCH.
     found = None
     for kw in ("FULLTEXT", "SEARCH"):
         try:
-            db.q(f"DEFINE INDEX IF NOT EXISTS segment_text ON segment FIELDS text {kw} ANALYZER archive_text BM25 HIGHLIGHTS")
-            db.q(f"DEFINE INDEX IF NOT EXISTS ocr_text ON ocr_span FIELDS text {kw} ANALYZER archive_text BM25 HIGHLIGHTS")
+            for index, table in TEXT_INDEXES:
+                db.q(f"DEFINE INDEX IF NOT EXISTS {index} ON {table} FIELDS text {kw} ANALYZER archive_text BM25 HIGHLIGHTS")
             return kw
         except Exception:  # noqa: BLE001
             continue
@@ -574,16 +729,29 @@ def connect(cfg):
     for name, spec in cfg["namespaces"].items():
         sid = ns_id(db, name)
         db.q("UPDATE $r SET graph = $g", r=R("space", sid), g=spec["graph"])
+    migrate(db)
     return db
+
+
+def _migrations():
+    from . import access, hierarchy  # each step lives with the code it serves
+
+    return [access.migrate_legacy, hierarchy.migrate_homes]
+
+
+def migrate(db):
+    """Data rewrites that run once per database, in order. The last one done is kept in seq:migrations; each step is
+    safe to repeat, so two processes starting together, or a start that stops half way, do no harm."""
+    done = int((db.one("SELECT n FROM $r", r=R("seq", "migrations")) or {}).get("n") or 0)
+    for n, step in enumerate(_migrations(), 1):
+        if n > done:
+            step(db)
+            db.q("UPSERT $r SET n = $n", r=R("seq", "migrations"), n=n)
 
 
 def reindex(db, cfg):
     """Rebuild the full-text index, e.g. after changing search.stemming."""
-    for s in (
-        "REMOVE INDEX IF EXISTS segment_text ON segment",
-        "REMOVE INDEX IF EXISTS ocr_text ON ocr_span",
-        "REMOVE ANALYZER IF EXISTS archive_text",
-    ):
+    for s in [f"REMOVE INDEX IF EXISTS {index} ON {table}" for index, table in TEXT_INDEXES] + ["REMOVE ANALYZER IF EXISTS archive_text"]:
         try:
             db.q(s)
         except Exception:  # noqa: BLE001
@@ -603,7 +771,51 @@ def ns_id(db, name, create=True):
         raise SystemExit(f"namespace names use lowercase letters, digits, - and _: {name!r}")
     sid = db.next_id("space")
     db.q("CREATE $r CONTENT $d", r=R("space", sid), d={"name": name, "graph": "shared"})
+    default_collection(db, sid)
     return sid
+
+
+DEFAULT_COLLECTION = "General"
+
+
+def collection_key(sid, parent, name):
+    """What makes a collection's name unique: its namespace, its parent and the name, ignoring case."""
+    return f"{sid}:{parent or 0}:{' '.join(str(name).split()).casefold()}"
+
+
+def default_collection(db, sid):
+    """The namespace's default collection, where recordings nobody placed go: made ("General") when it has none."""
+    row = db.one("SELECT default_collection FROM $r", r=R("space", sid)) or {}
+    cid = row.get("default_collection")
+    if cid is not None and db.one("SELECT record::id(id) AS id FROM $r", r=R("collection", cid)):
+        return cid
+    key = collection_key(sid, None, DEFAULT_COLLECTION)
+    found = db.one("SELECT record::id(id) AS id FROM collection WHERE key = $k LIMIT 1", k=key)
+    if found:
+        cid = found["id"]
+    else:
+        cid = db.next_id("collection")
+        try:
+            db.q(
+                "CREATE $r CONTENT $d",
+                r=R("collection", cid),
+                d={"space": sid, "name": DEFAULT_COLLECTION, "key": key, "created_at": now()},
+            )
+        except Exception:  # noqa: BLE001 - another process made it first
+            cid = db.one("SELECT record::id(id) AS id FROM collection WHERE key = $k LIMIT 1", k=key)["id"]
+    db.q("UPDATE $r SET default_collection = $c", r=R("space", sid), c=cid)
+    return cid
+
+
+def home(db, sid, collection=None):
+    """The collection a new recording in namespace `sid` goes into: `collection` (KeyError unless it's one of the
+    namespace's), else the namespace's default."""
+    if collection is None:
+        return default_collection(db, sid)
+    row = db.one("SELECT space FROM $r", r=R("collection", int(collection)))
+    if not row or row["space"] != sid:
+        raise KeyError(collection)
+    return int(collection)
 
 
 def space_names(db):

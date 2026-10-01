@@ -16,7 +16,7 @@
   <section class="rp-card rp-summary">
     <h2>Summary</h2>
     <p>{{ d.summary.summary }}</p>
-    {% if d.summary.action_items %}<h2>Follow-ups</h2><ul>{% for a in d.summary.action_items %}<li>{{ a }}</li>{% endfor %}</ul>{% endif %}
+    {% for key, title in (('key_points', 'Key points'), ('action_items', 'Follow-ups')) if d.summary[key] %}<h2>{{ title }}</h2><ul>{% for a in d.summary[key] %}<li>{% if a is mapping %}{{ a.text }}{% if a.who %} ({{ a.who }}){% endif %}{% if a.t0 is not none %} <span class="rp-num">{{ a.t0|tc }}</span>{% endif %}{% else %}{{ a }}{% endif %}</li>{% endfor %}</ul>{% endfor %}
     <p class="rp-tags">Topics: {{ d.summary.topics|join(', ') }}. Overall tone: {{ d.summary.sentiment }}. Importance {{ d.summary.importance }} of 5.</p>
   </section>
   {% endif %}

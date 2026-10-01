@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 
-from app.domain import settings, store
+from app.domain import pipelines, settings, store
 from tests.helpers import login, make_user, seed, write_pdf
 
 
@@ -62,3 +62,20 @@ def test_upload_limit(client, db, cfg):
     r = client.post("/api/v1/import", headers=h, json={"namespace": "notes", "filename": "x.txt", "data": data})
     assert (r.status_code, r.json()["detail"]) == (413, "files up to 0 MB")
     assert client.post("/api/v1/import/preview", headers=h, json={"filename": "x.txt", "data": data}).status_code == 413
+
+
+def test_choosing_the_pipeline_that_runs_after(client, db, cfg, folder):
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    h = login(client, "ed@x.io", "editor password 1")
+    quick = pipelines.create(db, "Quick look", ["analyze", "report"], "", "root@x.io")
+    text = "[00:01] Ann: Hi there.\n[00:04] Ben: Hello.\n[00:07] Ann: Bye."
+    before = len(db.values("SELECT VALUE id FROM recording"))
+    r = client.post("/api/v1/import", headers=h, json={"namespace": "pods", "text": text, "pipeline": 999})
+    assert (r.status_code, r.json()["detail"]) == (400, "there's no such pipeline")
+    assert len(db.values("SELECT VALUE id FROM recording")) == before  # refused before anything is saved
+    job = client.post("/api/v1/import", headers=h, json={"namespace": "pods", "text": text, "pipeline": quick}).json()["job"]
+    row = db.one("SELECT steps, pipeline FROM $j", j=store.R("job", job))
+    assert [s["type"] for s in row["steps"]] == ["analyze", "report"] and row["pipeline"]["name"] == "Quick look"
+    # without one, the namespace's (here the standard one)
+    job = client.post("/api/v1/import", headers=h, json={"namespace": "pods", "text": text + "\n[00:09] Ben: Later."}).json()["job"]
+    assert [s["type"] for s in db.one("SELECT steps FROM $j", j=store.R("job", job))["steps"]] == pipelines.STANDARD

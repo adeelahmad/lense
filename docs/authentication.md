@@ -26,7 +26,8 @@ Sign out ──► POST /api/v1/auth/logout (ends the session on the API too)
 * **Refresh tokens** are random, stored only as hashes, one session per signed-in device, valid for
   `server.session_hours`. Each refresh rotates the token. A rotated token that comes back within 60 seconds is
   accepted (two tabs refreshing at once); after that it ends the whole session, because it was probably copied.
-* Changing a password or disabling an account ends all of that person's sessions.
+* An admin changing someone's password, a reset link, or disabling an account ends all of that person's sessions.
+  Changing your own password (with your current one) ends your other sessions and keeps the one you used.
 
 | Endpoint | |
 |---|---|
@@ -34,6 +35,8 @@ Sign out ──► POST /api/v1/auth/logout (ends the session on the API too)
 | `POST /api/v1/auth/setup` | first admin, with the setup code |
 | `POST /api/v1/auth/login` · `/refresh` · `/logout` | token pairs |
 | `GET /api/v1/auth/me` | the account, roles by namespace, and how the caller authenticated |
+| `PATCH /api/v1/auth/me` | change your own name |
+| `POST /api/v1/auth/password` | change your own password with your current one (signed in, not with an API token); wrong guesses are throttled like sign-ins; audited as `password.change` |
 | `POST /api/v1/auth/password/forgot` · `/reset` | email a one-time reset link (60 minutes); answers the same for unknown emails |
 
 Reset emails go through the SMTP server in `MAIL_*`; without one, the link is written to the API log.
@@ -41,18 +44,25 @@ Reset emails go through the SMTP server in `MAIL_*`; without one, the link is wr
 ## API tokens
 
 For scripts and integrations: `POST /api/v1/tokens` (while signed in) returns `la_…` once. Tokens are **read** or
-**write** scoped, expire after `days` (0: never) and can be revoked.
+**write** scoped, act with their maker's roles, and expire after `days`: by default `tokens.default_days`, at most
+`tokens.max_days`, and never (`0`) only where `tokens.never_expire` allows ([Configuration](configuration.md#api-keys);
+`GET /api/v1/tokens/limits` says what's allowed). Their maker revokes them, and admins can revoke anyone's
+(`/api/v1/admin/tokens`); both are audited as `token.revoke`.
 
 ```bash
-curl -H "Authorization: Bearer la_…" https://lens.example.org/api/v1/recordings
+curl -H "Authorization: Bearer la_…" https://lens.example.org/api/v1/resources
 ```
 
 ## Share links and signed links
 
-* **Share links** give read-only access to one recording's player and embed, expire, and can be revoked:
-  `POST/DELETE /api/v1/recordings/<id>/share`.
+* **Share links** give read-only access to one recording's player and embed, and expire. Each has a short address
+  too (`/s/<code>`). Editors see how often each was played and which sites embed it, and revoke one link or all of
+  them: `POST/DELETE /api/v1/resources/<id>/share`, `GET /api/v1/resources/<id>/shares`,
+  `DELETE /api/v1/resources/<id>/shares/<link id>`. Only hashes of the token and the code are stored. A link that
+  no longer works opens a neutral "This link isn't available" page (status 410), the same whatever went wrong, so it
+  never tells whether a recording exists.
 * **Signed links** are what the API puts in responses for media (`?exp=&sig=`); see [Architecture](architecture.md#media).
-  `GET /api/v1/recordings/<id>/embed-link` returns a signed `/embed/<id>` link for people who can read the recording.
+  `GET /api/v1/resources/<id>/embed-link` returns a signed `/embed/<id>` link for people who can read the recording.
 
 ## IIIF viewers
 

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Namespaces, Pipelines, Users } from "@/app/openapi-client";
+import { IpGroupsSection } from "@/components/access/ip-groups";
 import { AdminFrame, usePeople } from "@/components/admin/admin-frame";
 import { roleLabel, type Role } from "@/components/admin/people-model";
 import { isUnreachable } from "@/components/errors/error-states";
@@ -189,7 +190,7 @@ function CreateNamespace({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** One namespace: its members (Admin AD3, owners) and its settings (graph, default pipeline). */
+/** One namespace: its members (Admin AD3, owners), its IP groups and its settings (graph, default pipeline). */
 export function NamespaceDetail({ ns }: { ns: string }) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -296,155 +297,158 @@ export function NamespaceDetail({ ns }: { ns: string }) {
       ownersToo
     >
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,820px)_minmax(0,1fr)]">
-        <section className="flex flex-col gap-3.5 rounded-md border border-border bg-background px-4 py-5 sm:px-6">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-[20px] font-bold leading-tight text-fg">Members of {ns}</h2>
-            <p className="text-[13px] leading-[1.4] text-fg-secondary">
-              {admin ? "As a platform admin you own every namespace." : "You’re an owner here."} Only people who already
-              have an account can be added; admins create accounts.
-            </p>
-          </div>
-          {!isOwner ? (
-            <Banner tone="info">{needRole("owner", ns)}.</Banner>
-          ) : (
-            <form
-              className="grid items-start gap-2.5 sm:grid-cols-[minmax(0,1fr)_150px_auto]"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (validEmail) setMember.mutate({ email: email.trim(), role });
-              }}
-            >
-              <Field label="Add by email" error={addError}>
-                {(f) => (
-                  <Input
-                    id={f.id}
-                    aria-describedby={f.describedBy}
-                    invalid={f.invalid}
-                    type="email"
-                    value={email}
-                    onChange={(e) => (setEmail(e.target.value), setAddError(null))}
-                  />
-                )}
-              </Field>
-              <Field label="Role">
-                {(f) => (
-                  <Select
-                    id={f.id}
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as Role)}
-                    options={["viewer", "editor", "owner"].map((r) => ({
-                      value: r,
-                      label: roleLabel(r as Role),
-                    }))}
-                  />
-                )}
-              </Field>
-              <Button type="submit" className="sm:mt-[22px]" disabled={!validEmail || setMember.isPending}>
-                Add
-              </Button>
-            </form>
-          )}
-          {members.isPending && isOwner ? (
-            <SkeletonRows rows={3} />
-          ) : members.isError ? (
-            <EmptyState
-              tone="error"
-              icon={<UsersIcon />}
-              title={isUnreachable(members.error) ? "Can’t reach the server" : "Couldn’t load the members"}
-              actions={<Button onClick={() => members.refetch()}>Try again</Button>}
-            >
-              {members.error.message}
-            </EmptyState>
-          ) : (
-            <ul className="flex flex-col">
-              {admins.map((p) => (
-                <li
-                  key={`a${p.id}`}
-                  className="grid grid-cols-[32px_minmax(0,1fr)_150px_80px] items-center gap-3 border-t border-border py-2"
-                >
-                  <Avatar name={p.name || p.email} size={32} className="border border-border" />
-                  <span className="flex min-w-0 flex-col gap-[3px]">
-                    <b className="truncate text-[13.5px] font-semibold leading-tight">
-                      {p.name || p.email}
-                      {p.id === me?.user.id ? " (you)" : ""}
-                    </b>
-                    <span className="truncate text-[12px] leading-none text-fg-muted">Platform admin</span>
-                  </span>
-                  <Tooltip content="Platform admins own every namespace">
-                    <span className="flex h-8 items-center rounded-sm border border-border bg-surface px-2.5 text-[13px] font-medium text-fg-muted">
-                      Owner
-                    </span>
-                  </Tooltip>
-                  <span />
-                </li>
-              ))}
-              {rows.map((m) => {
-                const self = m.account === me?.user.id;
-                return (
+        <div className="flex min-w-0 flex-col gap-5">
+          <section className="flex flex-col gap-3.5 rounded-md border border-border bg-background px-4 py-5 sm:px-6">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-[20px] font-bold leading-tight text-fg">Members of {ns}</h2>
+              <p className="text-[13px] leading-[1.4] text-fg-secondary">
+                {admin ? "As a platform admin you own every namespace." : "You’re an owner here."} Only people who
+                already have an account can be added; admins create accounts.
+              </p>
+            </div>
+            {!isOwner ? (
+              <Banner tone="info">{needRole("owner", ns)}.</Banner>
+            ) : (
+              <form
+                className="grid items-start gap-2.5 sm:grid-cols-[minmax(0,1fr)_150px_auto]"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (validEmail) setMember.mutate({ email: email.trim(), role });
+                }}
+              >
+                <Field label="Add by email" error={addError}>
+                  {(f) => (
+                    <Input
+                      id={f.id}
+                      aria-describedby={f.describedBy}
+                      invalid={f.invalid}
+                      type="email"
+                      value={email}
+                      onChange={(e) => (setEmail(e.target.value), setAddError(null))}
+                    />
+                  )}
+                </Field>
+                <Field label="Role">
+                  {(f) => (
+                    <Select
+                      id={f.id}
+                      value={role}
+                      onChange={(e) => setRole(e.target.value as Role)}
+                      options={["viewer", "editor", "owner"].map((r) => ({
+                        value: r,
+                        label: roleLabel(r as Role),
+                      }))}
+                    />
+                  )}
+                </Field>
+                <Button type="submit" className="sm:mt-[22px]" disabled={!validEmail || setMember.isPending}>
+                  Add
+                </Button>
+              </form>
+            )}
+            {members.isPending && isOwner ? (
+              <SkeletonRows rows={3} />
+            ) : members.isError ? (
+              <EmptyState
+                tone="error"
+                icon={<UsersIcon />}
+                title={isUnreachable(members.error) ? "Can’t reach the server" : "Couldn’t load the members"}
+                actions={<Button onClick={() => members.refetch()}>Try again</Button>}
+              >
+                {members.error.message}
+              </EmptyState>
+            ) : (
+              <ul className="flex flex-col">
+                {admins.map((p) => (
                   <li
-                    key={m.account}
+                    key={`a${p.id}`}
                     className="grid grid-cols-[32px_minmax(0,1fr)_150px_80px] items-center gap-3 border-t border-border py-2"
                   >
-                    <Avatar name={m.name || m.email} size={32} className="border border-border" />
+                    <Avatar name={p.name || p.email} size={32} className="border border-border" />
                     <span className="flex min-w-0 flex-col gap-[3px]">
                       <b className="truncate text-[13.5px] font-semibold leading-tight">
-                        {m.name || m.email}
-                        {self ? " (you)" : ""}
+                        {p.name || p.email}
+                        {p.id === me?.user.id ? " (you)" : ""}
                       </b>
-                      <span className="truncate text-[12px] leading-none text-fg-muted">{m.email}</span>
+                      <span className="truncate text-[12px] leading-none text-fg-muted">Platform admin</span>
                     </span>
-                    <Tooltip content={self ? "You can’t change your own role here" : undefined}>
-                      <span className="relative">
-                        <select
-                          aria-label={`${m.name || m.email}’s role`}
-                          value={m.role}
-                          disabled={self || !isOwner || setMember.isPending}
-                          onChange={(e) =>
-                            setMember.mutate({
-                              account: m.account,
-                              role: e.target.value as Role,
-                            })
-                          }
-                          className={cn(
-                            "h-8 w-full appearance-none rounded-sm border border-border pl-2.5 pr-7 text-[13px] font-medium outline-none focus:border-blue",
-                            self ? "bg-surface text-fg-muted" : "bg-background text-fg",
-                          )}
-                        >
-                          {["viewer", "editor", "owner"].map((r) => (
-                            <option key={r} value={r}>
-                              {roleLabel(r as Role)}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown
-                          aria-hidden
-                          className="pointer-events-none absolute right-2 top-1/2 size-[13px] -translate-y-1/2 text-fg-secondary"
-                        />
+                    <Tooltip content="Platform admins own every namespace">
+                      <span className="flex h-8 items-center rounded-sm border border-border bg-surface px-2.5 text-[13px] font-medium text-fg-muted">
+                        Owner
                       </span>
                     </Tooltip>
-                    <span className="text-right">
-                      {!self && isOwner && (
-                        <Button
-                          variant="danger-ghost"
-                          size="xs"
-                          onClick={() => setMember.mutate({ account: m.account, role: null })}
-                          aria-label={`Remove ${m.name || m.email}`}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </span>
+                    <span />
                   </li>
-                );
-              })}
-              {!rows.length && !admins.length && (
-                <li className="border-t border-border py-3 text-[13px] text-fg-muted">
-                  No members yet. Add people by their email.
-                </li>
-              )}
-            </ul>
-          )}
-        </section>
+                ))}
+                {rows.map((m) => {
+                  const self = m.account === me?.user.id;
+                  return (
+                    <li
+                      key={m.account}
+                      className="grid grid-cols-[32px_minmax(0,1fr)_150px_80px] items-center gap-3 border-t border-border py-2"
+                    >
+                      <Avatar name={m.name || m.email} size={32} className="border border-border" />
+                      <span className="flex min-w-0 flex-col gap-[3px]">
+                        <b className="truncate text-[13.5px] font-semibold leading-tight">
+                          {m.name || m.email}
+                          {self ? " (you)" : ""}
+                        </b>
+                        <span className="truncate text-[12px] leading-none text-fg-muted">{m.email}</span>
+                      </span>
+                      <Tooltip content={self ? "You can’t change your own role here" : undefined}>
+                        <span className="relative">
+                          <select
+                            aria-label={`${m.name || m.email}’s role`}
+                            value={m.role}
+                            disabled={self || !isOwner || setMember.isPending}
+                            onChange={(e) =>
+                              setMember.mutate({
+                                account: m.account,
+                                role: e.target.value as Role,
+                              })
+                            }
+                            className={cn(
+                              "h-8 w-full appearance-none rounded-sm border border-border pl-2.5 pr-7 text-[13px] font-medium outline-none focus:border-blue",
+                              self ? "bg-surface text-fg-muted" : "bg-background text-fg",
+                            )}
+                          >
+                            {["viewer", "editor", "owner"].map((r) => (
+                              <option key={r} value={r}>
+                                {roleLabel(r as Role)}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown
+                            aria-hidden
+                            className="pointer-events-none absolute right-2 top-1/2 size-[13px] -translate-y-1/2 text-fg-secondary"
+                          />
+                        </span>
+                      </Tooltip>
+                      <span className="text-right">
+                        {!self && isOwner && (
+                          <Button
+                            variant="danger-ghost"
+                            size="xs"
+                            onClick={() => setMember.mutate({ account: m.account, role: null })}
+                            aria-label={`Remove ${m.name || m.email}`}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
+                {!rows.length && !admins.length && (
+                  <li className="border-t border-border py-3 text-[13px] text-fg-muted">
+                    No members yet. Add people by their email.
+                  </li>
+                )}
+              </ul>
+            )}
+          </section>
+          <IpGroupsSection ns={ns} isOwner={isOwner} admin={admin} />
+        </div>
 
         <section className="flex flex-col gap-3.5 rounded-md border border-border bg-background px-4 py-5 sm:px-6">
           <h2 className="text-[17px] font-bold leading-tight text-fg">Settings</h2>

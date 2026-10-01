@@ -22,6 +22,8 @@ class ImportRequest(ImportPreviewRequest):
     namespace: str = Field("", description="created if it doesn't exist (admins only)")
     title: str | None = None
     speakers: str | None = Field(None, description='rename speakers on the way in: "S1=Alice,S2=Bob"')
+    pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's (GET /pipelines)")
+    collection: int | None = Field(None, description="a collection of the namespace to put it in; default: its default collection")
 
 
 class ImportResult(ResponseModel):
@@ -43,3 +45,35 @@ class ImportPreview(ResponseModel):
     duration_ms: int
     speakers: list[str]
     preview: list[PreviewLine]
+
+
+class SourceImportRequest(RequestModel):
+    source: int
+    paths: list[str] = Field(min_length=1, max_length=500, description="files of the source, as browsing it lists them")
+    namespace: str
+    pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's")
+    collection: int | None = Field(None, description="a collection of the namespace to put them in; default: its default collection")
+    documents_as: Literal["document", "transcript"] = Field(
+        "document",
+        description="PDFs, Word and text files become documents (their pages kept and read), or transcripts (their text only)",
+    )
+
+
+class WebImportRequest(RequestModel):
+    url: str = Field(min_length=1, max_length=2000, description="the page's address, http:// or https://")
+    namespace: str = Field(description="a namespace you edit; admins may name a new one")
+    title: str | None = Field(None, max_length=200, description="default: the page's own title, once it's captured")
+    pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's")
+    collection: int | None = Field(None, description="a collection of the namespace to put it in; default: its default collection")
+
+
+class SourceImportResult(ResponseModel):
+    path: str
+    status: Literal["queued", "already", "skipped", "error"]
+    recording: int | None = None
+    job: int | None = None
+    detail: str | None = None
+
+
+class SourceImport(ResponseModel):
+    results: list[SourceImportResult]

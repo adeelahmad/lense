@@ -29,7 +29,7 @@ export const fetchWithReauth: typeof fetch = async (input, init) => {
  * rewrites to the API, with the session's access token. Use with the generated SDK and React Query:
  *
  *   const client = useApiClient();
- *   useQuery({ queryKey: ["recordings"], queryFn: () => data(Recordings.listRecordings({ client })) });
+ *   useQuery({ queryKey: ["recordings"], queryFn: () => data(Resources.listRecordings({ client })) });
  */
 export function useApiClient(): Client {
   const { data: session } = useSession();
@@ -70,9 +70,10 @@ function message(body: unknown, status: number): string {
   return `Request failed (${status})`;
 }
 
-/** Unwrap a generated SDK call: returns the data or throws ApiError (so React Query sees failures). */
-export async function data<T>(call: Promise<{ data?: T; error?: unknown; response?: Response }>): Promise<T> {
-  let r: { data?: T; error?: unknown; response?: Response };
+type Result<T> = { data?: T; error?: unknown; response?: Response };
+
+async function unwrap<T>(call: Promise<Result<T>>): Promise<{ data: T; response: Response }> {
+  let r: Result<T>;
   try {
     r = await call;
   } catch {
@@ -80,5 +81,20 @@ export async function data<T>(call: Promise<{ data?: T; error?: unknown; respons
   }
   const status = r.response?.status ?? 0;
   if (r.error !== undefined || !r.response?.ok) throw new ApiError(status, message(r.error, status), r.error);
-  return r.data as T;
+  return { data: r.data as T, response: r.response };
+}
+
+/** Unwrap a generated SDK call: returns the data or throws ApiError (so React Query sees failures). */
+export async function data<T>(call: Promise<Result<T>>): Promise<T> {
+  return (await unwrap(call)).data;
+}
+
+/** A page of a list endpoint, with how many match in all (its X-Total-Count header). */
+export type Page<T> = { items: T[]; total: number };
+
+/** Unwrap a list call that counts its matches in the X-Total-Count header. */
+export async function page<T>(call: Promise<Result<T[]>>): Promise<Page<T>> {
+  const { data: items, response } = await unwrap(call);
+  const total = Number.parseInt(response.headers.get("x-total-count") ?? "", 10);
+  return { items, total: Number.isNaN(total) ? items.length : total };
 }

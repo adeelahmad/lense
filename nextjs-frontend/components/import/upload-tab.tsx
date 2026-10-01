@@ -3,9 +3,11 @@
 import {
   Captions,
   FileAudio,
+  FileImage,
   FileJson,
   FileScan,
   FileText,
+  FileType,
   FileVideo,
   FileX,
   Loader2,
@@ -15,10 +17,21 @@ import {
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
-import type { SpeakerDirectory } from "@/app/openapi-client/types.gen";
-import { extOf, formatName, isUntimed, kindOf, stemOf } from "@/components/import/files";
+import type { SpeakerDirectory, Upload as UploadT, UploadLimits } from "@/app/openapi-client/types.gen";
+import {
+  canBeTranscript,
+  extOf,
+  formatName,
+  isUntimed,
+  isUpload,
+  kindOf,
+  uploadKindName,
+  type FileKind,
+} from "@/components/import/files";
 import { MappingField, PreviewLines } from "@/components/import/mapping";
 import { chooseFiles, isFileDrag } from "@/components/import/pending";
+import { pieceCount, resumeFrom, sentShare } from "@/components/import/upload-model";
+import { ImportAs } from "@/components/import/import-as";
 import type { Item } from "@/components/import/use-import";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,11 +71,13 @@ const TONE = {
   },
 };
 
-export function fileIcon(it: Pick<Item, "file" | "status" | "problem">): LucideIcon {
+export function fileIcon(it: Pick<Item, "file" | "status" | "problem"> & { kind?: FileKind }): LucideIcon {
   const ext = extOf(it.file.name);
-  const kind = kindOf(it.file.name);
+  const kind = it.kind ?? kindOf(it.file.name);
   if (kind === "audio") return FileAudio;
   if (kind === "video") return FileVideo;
+  if (kind === "document") return FileType;
+  if (kind === "image") return FileImage;
   if (kind === "unsupported") return FileX;
   if (it.problem?.code === "empty" && ext === ".pdf") return FileScan;
   if (ext === ".srt" || ext === ".vtt") return Captions;
@@ -74,12 +89,11 @@ export function fileIcon(it: Pick<Item, "file" | "status" | "problem">): LucideI
 export function fileMeta(it: Item): string {
   if (it.status === "reading") return `Reading… · ${bytes(it.file.size)}`;
   if (it.problem) {
-    if (it.problem.code === "audio")
-      return `${it.kind === "video" ? "Video" : "Audio"} · ${bytes(it.file.size)} — can’t upload here`;
     if (it.problem.code === "unsupported") return "Unsupported file type";
     if (it.problem.code === "too-large") return `${bytes(it.file.size)} — over the upload limit`;
     return it.problem.title;
   }
+  if (isUpload(it.kind)) return `${uploadKindName(it.kind, it.file.name)} · ${bytes(it.file.size)} · ready to upload`;
   const pv = it.preview;
   if (!pv) return bytes(it.file.size);
   const parts = [formatName(pv.format).replace(/ \(\.\w+\)$/, ""), plural(pv.segments, "segment")];
@@ -169,7 +183,7 @@ export function FileList({
       >
         <Upload className="size-4 shrink-0 text-blue" aria-hidden />
         <span>
-          {items.length ? "Drop more files, or " : "Drop transcripts here, or "}
+          {items.length ? "Drop more files, or " : "Drop transcripts, audio, video, PDFs or images here, or "}
           <button
             type="button"
             className="font-semibold text-blue underline-offset-2 hover:underline"
@@ -210,11 +224,14 @@ export function ProblemCard({
   it,
   onRemove,
   onReplace,
+  onKind,
   className,
 }: {
   it: Item;
   onRemove: () => void;
   onReplace: (files: File[]) => void;
+  /** A PDF read as a transcript can be imported as a document instead. */
+  onKind?: (kind: FileKind) => void;
   className?: string;
 }) {
   const { admin } = useArchive();
@@ -223,7 +240,8 @@ export function ProblemCard({
   const Icon = fileIcon(it);
   const red = it.status === "blocked";
   const kindLabel = extOf(it.file.name).slice(1).toUpperCase() || "File";
-  const source = p.code === "audio" || p.code === "too-large";
+  const source = p.code === "too-large";
+  const mediaType = p.code === "unsupported" && isUpload(it.kind);
   return (
     <div
       className={cn("flex flex-col gap-3.5 rounded-lg border border-border bg-background p-5", className)}
@@ -269,6 +287,16 @@ export function ProblemCard({
             Choose another file
           </Button>
         )}
+        {mediaType && admin && (
+          <Button asChild size="sm" variant="ghost">
+            <Link href="/settings/uploads">Upload settings</Link>
+          </Button>
+        )}
+        {onKind && it.kind === "transcript" && canBeTranscript(it.file.name) && (
+          <Button size="sm" variant="primary" onClick={() => onKind("document")}>
+            Import as a document
+          </Button>
+        )}
         <Button size="sm" variant="ghost" onClick={onRemove}>
           {red ? "Remove" : "Skip file"}
         </Button>
@@ -281,17 +309,21 @@ export function ProblemCard({
 export function FileDetail({
   it,
   onPatch,
+  onKind,
   namespace,
   namespaceControl,
-  pipeline,
+  pipelineControl,
   directory,
   audioTwin,
+  limits,
 }: {
   it: Item;
   onPatch: (p: Partial<Item>) => void;
+  onKind?: (kind: FileKind) => void;
+  limits?: UploadLimits;
   namespace: string | null;
   namespaceControl: ReactNode;
-  pipeline: string;
+  pipelineControl: ReactNode;
   directory: SpeakerDirectory | undefined;
   audioTwin?: string;
 }) {
@@ -307,6 +339,7 @@ export function FileDetail({
           Parsed
         </Badge>
       </div>
+      {onKind && <ImportAs it={it} onKind={onKind} limits={limits} />}
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Stat k="Format" v={formatName(pv.format)} />
         <Stat k="Speakers found" v={count(pv.speakers.length)} />
@@ -327,15 +360,7 @@ export function FileDetail({
           <Input value={it.title} onChange={(e) => onPatch({ title: e.target.value })} maxLength={200} />
         </label>
         {namespaceControl}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[13px] font-bold text-fg-strong">Then run</span>
-          <span
-            className="flex h-10 items-center truncate rounded-sm border border-dashed border-border bg-surface px-3.5 text-[14px] text-fg-secondary"
-            title="Imports run the namespace’s pipeline. Change which one in Pipelines."
-          >
-            {pipeline}
-          </span>
-        </div>
+        {pipelineControl}
       </div>
       {isUntimed(pv.format) && (
         <p className="flex gap-2.5 rounded-[10px] border border-gold-border bg-gold-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-strong">
@@ -348,21 +373,93 @@ export function FileDetail({
       )}
       {audioTwin && (
         <p className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-secondary">
-          <b className="font-bold text-fg-strong">{audioTwin}</b> from this upload has the same name, but audio can’t be
-          attached here yet — the transcript is imported on its own.
+          <b className="font-bold text-fg-strong">{audioTwin}</b> from this upload has the same name: it becomes this
+          transcript’s audio, uploaded once the transcript is in. The transcript and its speakers stay as they are.
         </p>
       )}
     </div>
   );
 }
 
-/** An audio file in the upload whose name matches this transcript ("ep14.m4a" for "ep14-transcript.srt"). */
-export function audioTwinOf(it: Item, items: Item[]): string | undefined {
-  const norm = (s: string) =>
-    stemOf(s)
-      .toLowerCase()
-      .replace(/[-_ ]*(transcript|captions|subtitles|subs)$/, "");
-  const me = norm(it.file.name);
-  return items.find((x) => x !== it && (x.kind === "audio" || x.kind === "video") && norm(x.file.name) === me)?.file
-    .name;
+/** The right pane for audio or video: what will be sent, its title and where it goes. An earlier upload of the same
+ * file that stopped part-way is carried on. */
+export function MediaDetail({
+  it,
+  onPatch,
+  onKind,
+  namespace,
+  namespaceControl,
+  pipelineControl,
+  pieceMb,
+  unfinished,
+  twinOf,
+  limits,
+}: {
+  it: Item;
+  onPatch: (p: Partial<Item>) => void;
+  onKind?: (kind: FileKind) => void;
+  limits?: UploadLimits;
+  namespace: string | null;
+  namespaceControl: ReactNode;
+  pipelineControl: ReactNode;
+  pieceMb: number;
+  unfinished: UploadT[];
+  /** The transcript this file goes with: it becomes that transcript's audio. */
+  twinOf?: string;
+}) {
+  const Icon = fileIcon(it);
+  const earlier = namespace && !twinOf ? resumeFrom(unfinished, it.file, namespace) : null;
+  const pieces = pieceCount(it.file.size, pieceMb);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2.5">
+        <Icon className="size-[18px] text-fg-secondary" aria-hidden />
+        <h2 className="min-w-0 flex-1 truncate text-[15px] font-bold text-fg">{it.file.name}</h2>
+        <Badge tone="neutral" dot>
+          Ready to upload
+        </Badge>
+      </div>
+      {onKind && <ImportAs it={it} onKind={onKind} limits={limits} />}
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
+        <Stat k="Type" v={`${uploadKindName(it.kind, it.file.name)} (${extOf(it.file.name).slice(1)})`} />
+        <Stat k="Size" v={bytes(it.file.size)} />
+        <Stat k="Sent in" v={pieces === 1 ? "one piece" : `${count(pieces)} pieces`} />
+      </div>
+      {twinOf && (
+        <p className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-secondary">
+          It goes with <b className="font-bold text-fg-strong">{twinOf}</b> from this upload: it becomes that
+          transcript’s audio rather than a recording of its own.
+        </p>
+      )}
+      {(it.kind === "document" || it.kind === "image") && (
+        <p className="text-[13px] leading-[1.5] text-fg-secondary">
+          {it.kind === "document"
+            ? "Its pages are drawn to look at and their text is read"
+            : "It’s kept to look at and its text is read"}{" "}
+          (by OCR where there’s no text layer), so search finds it.
+        </p>
+      )}
+      <p className="text-[13px] leading-[1.5] text-fg-secondary">
+        {earlier ? (
+          <>
+            <b className="font-bold text-fg-strong">
+              An earlier upload of this file stopped at {Math.round(sentShare(earlier.offset, earlier.size) * 100)}%.
+            </b>{" "}
+            Importing carries on from there.
+          </>
+        ) : (
+          <>Sent in pieces: if the connection drops, the upload carries on where it stopped.</>
+        )}{" "}
+        What runs next starts once it has arrived.
+      </p>
+      <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr]">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-bold text-fg-strong">Title</span>
+          <Input value={it.title} onChange={(e) => onPatch({ title: e.target.value })} maxLength={200} />
+        </label>
+        {namespaceControl}
+        {pipelineControl}
+      </div>
+    </div>
+  );
 }

@@ -132,3 +132,74 @@ def test_people_on_screen(env):
     assert not list(video.frames_dir(env.cfg, rid).glob("face-*.jpg"))  # turning faces off deletes the crops too
     actions = [a["action"] for a in c.get("/api/v1/audit", headers=h).json()]
     assert {"faces.mode", "face.merge", "face.merge.undo", "face.delete", "face.not_a_face"} <= set(actions)
+
+
+def test_faces_are_pixelated_for_visitors(env, new_client):
+    """Where the namespace says so, visitors (public pages, embeds, share links, IIIF) get the faces found pixelated;
+    members, and the links the API signs for them, get the pictures as they are."""
+    c, h, he, rid, db, cfg = env.c, env.h, env.he, env.rid, env.db, env.cfg
+    anon = new_client()
+    r = c.put("/api/v1/namespaces/pods/faces/mode", headers=h, json={"pixelate": True})
+    assert (r.status_code, r.json()["detail"]) == (400, "pixelating faces needs them detected first (face mode detect or recognize)")
+    c.put("/api/v1/namespaces/pods/faces/mode", headers=h, json={"mode": "detect", "reprocess": True})
+    drain(db, cfg)
+    assert c.put("/api/v1/namespaces/pods/faces/mode", headers=he, json={"pixelate": True}).status_code == 403  # owners
+    assert c.put("/api/v1/namespaces/pods/faces/mode", headers=h, json={}).status_code == 400
+    assert c.put("/api/v1/namespaces/pods/faces/mode", headers=h, json={"pixelate": True}).status_code == 200
+    assert c.get("/api/v1/namespaces/pods/faces", headers=h).json()["pixelate"] is True
+    metadata.save(db, cfg, rid, {"access": "public"})
+
+    # the public page's poster (a shot's keyframe): in blocks for a visitor, as it is for a member
+    d = video.frames_dir(cfg, rid)
+    original = (d / "shot0000.jpg").read_bytes()
+    blocks = faces.pixelated(db, d / "shot0000.jpg", rid, "shot0000.jpg")
+    assert blocks and blocks != original  # FakeFaces finds a face on every frame
+    poster = anon.get(f"/api/v1/public/recordings/{rid}").json()["media"]["poster"]
+    assert "full=" not in poster
+    seen = anon.get(poster)
+    assert (seen.status_code, seen.content == blocks, seen.headers["vary"]) == (200, True, "Authorization")
+    assert c.get(poster, headers=h).content == original  # a member, through a visitor's link
+    assert c.get(poster, headers=he).content == original
+    p = c.get(f"/api/v1/recordings/{rid}/player", headers=he).json()
+    assert p["faces_pixelate"] is True and "full=1" in p["poster"]
+    assert anon.get(p["poster"]).content == original  # the link the API signed for a member
+    assert anon.get(p["poster"].replace("full=1", "")).status_code == 401  # the signature covers the mark
+
+    # IIIF: the same, by the requester's role; a sampled frame too
+    assert anon.get(f"/iiif/{rid}/frames/shot0000.jpg").content == blocks
+    assert c.get(f"/iiif/{rid}/frames/shot0000.jpg", headers=he).content == original
+    sampled = faces.pixelated(db, d / "s000003000.jpg", rid, "s000003000.jpg")
+    assert sampled and anon.get(f"/iiif/{rid}/frames/s000003000.jpg").content == sampled
+    assert anon.get(f"/iiif/{rid}/frames/face-1.jpg").status_code == 404  # crops aren't published anyway
+    assert c.get(f"/iiif/{rid}/frames/face-1.jpg", headers=h).content == (d / "face-1.jpg").read_bytes()
+
+    # an image's page (and its thumbnail) the same way
+    import io
+
+    from PIL import Image
+
+    out = io.BytesIO()
+    Image.radial_gradient("L").convert("RGB").resize((400, 300)).save(out, format="PNG")  # not flat: blocks show
+    data = out.getvalue()
+    up = c.post("/api/v1/uploads", headers=he, json={"namespace": "pods", "filename": "crowd.png", "size": len(data)}).json()
+    img = c.put(f"/api/v1/uploads/{up['id']}?offset=0", headers={**he, "Content-Type": "application/octet-stream"}, content=data).json()
+    drain(db, cfg)
+    rid2 = img["recording"]
+    metadata.save(db, cfg, rid2, {"access": "public"})
+    d2 = video.frames_dir(cfg, rid2)
+    plain, page = (d2 / "page-0001.jpg").read_bytes(), anon.get(f"/api/v1/public/recordings/{rid2}").json()["media"]["pages"][0]
+    blocked = faces.pixelated(db, d2 / "page-0001.jpg", rid2, "page-0001.jpg")
+    assert blocked and blocked != plain
+    assert anon.get(page["image"]).content == blocked and c.get(page["image"], headers=he).content == plain
+    assert anon.get(page["thumb"]).content == faces.pixelated(db, d2 / "thumb-0001.jpg", rid2, "thumb-0001.jpg")
+    assert anon.get(f"/iiif/{rid2}/pages/1.jpg").content == blocked
+    assert c.get(f"/iiif/{rid2}/pages/1.jpg", headers=he).content == plain
+
+    # off again: the pictures as they are; and faces off takes pixelating with it
+    assert c.put("/api/v1/namespaces/pods/faces/mode", headers=h, json={"pixelate": False}).status_code == 200
+    assert anon.get(poster).content == original
+    c.put("/api/v1/namespaces/pods/faces/mode", headers=h, json={"pixelate": True})
+    c.put("/api/v1/namespaces/pods/faces/mode", headers=h, json={"mode": "off"})
+    assert c.get("/api/v1/namespaces/pods/faces", headers=h).json()["pixelate"] is False
+    audited = [a for a in c.get("/api/v1/audit", headers=h).json() if a["action"] == "faces.mode"]
+    assert any((a.get("detail") or {}).get("pixelate") is True for a in audited), audited[:2]

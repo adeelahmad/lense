@@ -2,15 +2,25 @@
 
 ## Chat
 
-Conversations belong to one person and can be scoped to namespaces, recordings, speakers and dates.
+Conversations belong to one person and can be scoped to namespaces, recordings, collections, speakers and dates. A
+collection in the scope is read each time the assistant answers, so it draws on the collection's recordings as they are
+then.
 
 - **Retrieval:** the question's keywords go through the full-text index (English stemming), limited to namespaces the
   person can read. Hits are widened to their neighbouring lines and numbered.
 - **Answers:** the model answers only from those excerpts and cites them as [n]. Each citation carries the recording
   and timestamp.
 - **Streaming:** answers arrive over server-sent events: `passages`, then `token`s, then `done`.
+- **Stopping:** Stop asks the server to end the answer after the piece or tool step it's on (whichever server process
+  is writing it); what came before is saved, marked stopped. A model call already under way finishes first.
+- **Reopening:** a conversation's answers keep the tools the assistant used (and with what), any notice (the model
+  couldn't use tools), the error when there was no answer, and their latest source check.
 - **Changed access:** old citations are filtered by the person's current access when a conversation is reopened.
-- **No model configured:** chat returns the best-matching passages instead.
+- **Choosing the model:** a conversation can use any model an admin offers (`llm.chat_models`, else whatever the model
+  server lists); Try another model asks a question again with a different one. Each answer records the model that
+  wrote it.
+- **No model configured:** chat returns the best-matching passages instead. Anyone signed in can see whether a model
+  is set up, and which (`GET /chats/capabilities`), so the app says so before the first question.
 
 Retrieval is keyword-based for now; vector search is not built yet.
 

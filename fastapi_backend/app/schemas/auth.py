@@ -48,6 +48,9 @@ class TokenPair(ResponseModel):
 class Me(ResponseModel):
     user: UserPublic
     roles: dict[str, Role] = Field(description="namespace name -> role")
+    partial: list[str] = Field(
+        default_factory=list, description="namespaces you have no role in but see some collections of (roles on collections)"
+    )
     via: Literal["access", "token"]
     scope: Literal["read", "write"]
 
@@ -61,10 +64,32 @@ class ResetPasswordRequest(RequestModel):
     password: str
 
 
+class PasswordChange(RequestModel):
+    current_password: str
+    new_password: str = Field(description="at least 10 characters")
+
+
+class MeUpdate(RequestModel):
+    name: str = Field(min_length=1, max_length=80, description="whitespace is collapsed")
+
+
 class ApiTokenCreate(RequestModel):
     name: str = "token"
     scope: Literal["read", "write"] = "read"
-    days: int = Field(90, ge=0, le=3650, description="0: never expires")
+    days: int | None = Field(
+        None,
+        ge=0,
+        le=3650,
+        description="how long it lasts; default: tokens.default_days; 0: never expires, when tokens.never_expire allows",
+    )
+
+
+class TokenLimits(ResponseModel):
+    """How long API keys may last, set by admins (the tokens settings)."""
+
+    default_days: int
+    max_days: int
+    never_expire: bool = Field(description="keys may be made that never expire (days: 0)")
 
 
 class ApiToken(ResponseModel):
@@ -75,6 +100,13 @@ class ApiToken(ResponseModel):
     created_at: str
     expires_at: str | None = None
     last_used_at: str | None = None
+
+
+class AccountToken(ApiToken):
+    """Anyone's key, for admins."""
+
+    account: int
+    email: str | None = None
 
 
 class ApiTokenCreated(ResponseModel):

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 
 import { Admin, Metadata } from "@/app/openapi-client";
+import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
@@ -232,6 +233,17 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <div className="border-t border-border py-3.5">
             <F ctx={ctx} id="video.publish_faces" />
           </div>
+          <Sub>Objects</Sub>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="video.object_engine" />
+            <F ctx={ctx} id="video.object_min_score" />
+          </div>
+          <p className="text-[12.5px] text-fg-muted">
+            YOLOX model:{" "}
+            <code className="break-all font-mono text-fg-secondary">{ctx.view.bootstrap?.yolox_model ?? "—"}</code>{" "}
+            (video.yolox_model, a startup setting; the lens:full image has one). Ultralytics is installed separately and
+            is AGPL-3.0: a server that lets others use it must offer them its source.
+          </p>
           <p className="text-[12.5px] text-fg-muted">
             Whether a namespace detects or recognises faces is set by its owner. How long face data is kept isn’t
             configurable yet.
@@ -263,6 +275,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
         <>
           <F ctx={ctx} id="server.allowed_hosts" />
           <F ctx={ctx} id="server.embed_frame_ancestors" />
+          <F ctx={ctx} id="server.trusted_proxies" />
           <div className="grid items-end gap-3 sm:grid-cols-2">
             <F ctx={ctx} id="server.session_hours" />
             <div className="pb-2.5">
@@ -270,6 +283,51 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             </div>
           </div>
           <F ctx={ctx} id="server.max_upload_mb" />
+        </>
+      );
+    case "tokens":
+      return (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="tokens.default_days" />
+            <F ctx={ctx} id="tokens.max_days" />
+          </div>
+          <F ctx={ctx} id="tokens.never_expire" />
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            People make API keys on their API tokens page; a key acts as them, with their roles. These limits apply to
+            new keys.
+          </p>
+          <AllTokens />
+        </>
+      );
+    case "uploads":
+      return (
+        <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <F ctx={ctx} id="uploads.max_mb" />
+            <F ctx={ctx} id="uploads.chunk_mb" />
+            <F ctx={ctx} id="uploads.expire_hours" />
+          </div>
+          <F ctx={ctx} id="uploads.extensions" />
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            Uploads arrive in pieces and carry on where they stopped if the connection drops. Finished files are kept in
+            the server’s data folder, under uploads. Transcript files have their own limit, under Access &amp;
+            embedding; watched folders have no limit.
+          </p>
+        </>
+      );
+    case "documents":
+      return (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="documents.page_pixels" />
+            <F ctx={ctx} id="documents.thumb_pixels" />
+            <F ctx={ctx} id="documents.ocr_below_chars" />
+            <F ctx={ctx} id="documents.max_pages" />
+          </div>
+          <F ctx={ctx} id="documents.convert_seconds" />
+          <F ctx={ctx} id="documents.attachment_resources" />
+          <Converters view={ctx.view} />
         </>
       );
     case "iiif":
@@ -291,6 +349,11 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
     <>
       <F ctx={ctx} id="llm.base_url" />
       <F ctx={ctx} id="llm.model" />
+      <F ctx={ctx} id="llm.chat_models" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="llm.vision_model" />
+        <F ctx={ctx} id="llm.describe_max" />
+      </div>
       <SecretSetting
         key={ctx.view.llm?.updated_at ?? "none"}
         label="API key"
@@ -552,6 +615,33 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
   );
 }
 
+/** Which programs this server makes PDFs with (set at startup): what it can read without them, and with them. */
+function Converters({ view }: { view: SettingsView }) {
+  const b = view.bootstrap ?? {};
+  const missing = (v?: string) => !v || v === "not installed";
+  const rows: [string, string | undefined, string][] = [
+    ["LibreOffice", b.soffice, "Word, PowerPoint and spreadsheet files, OpenDocument and RTF"],
+    ["Chromium", b.chromium, "text, Markdown, saved web pages and emails (LibreOffice does them too, plainer)"],
+  ];
+  return (
+    <div className="flex flex-col gap-1.5 rounded-md border border-border bg-surface p-3.5">
+      <b className="text-[13.5px] font-bold text-fg">Making PDFs</b>
+      <ul className="flex flex-col gap-1 text-[13px] leading-[1.45] text-fg-secondary">
+        {rows.map(([name, path, what]) => (
+          <li key={name}>
+            <b className="font-semibold text-fg">{name}</b>:{" "}
+            {missing(path) ? "not installed" : <code className="font-mono text-[12px]">{path}</code>} · {what}
+          </li>
+        ))}
+      </ul>
+      <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+        PDFs and images are read without either. The lens:full image has both; their paths are set at startup
+        (documents.soffice, documents.chromium).
+      </p>
+    </div>
+  );
+}
+
 function Startup({ view }: { view: SettingsView }) {
   const b = view.bootstrap ?? {};
   const rows: [string, ReactNode][] = [
@@ -564,6 +654,13 @@ function Startup({ view }: { view: SettingsView }) {
         : "a key file in the data folder (secret.key)",
     ],
     ["rclone", b.rclone ?? "—"],
+    ["LibreOffice", b.soffice ?? "—"],
+    ["Chromium", b.chromium ?? "—"],
+    [
+      "Web capture",
+      b.web_networks?.length ? `public addresses and ${b.web_networks.join(" · ")}` : "public addresses only",
+    ],
+    ["YOLOX model", b.yolox_model ?? "—"],
     ["Watchable folders", b.local_roots?.length ? b.local_roots.join(" · ") : "none: local folders can’t be watched"],
   ];
   return (

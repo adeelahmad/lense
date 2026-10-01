@@ -5,6 +5,8 @@ import {
   ariaTimeText,
   axisTicks,
   chapterAt,
+  cleanTitle,
+  descriptionOf,
   entityRanges,
   findInSegments,
   fold,
@@ -162,7 +164,9 @@ describe("normalizePlayer", () => {
       width: 1920,
       height: 1080,
       fps: 30,
+      pages: null,
     });
+    expect(m.pages).toEqual([]);
     expect(m.screenText[0]).toMatchObject({
       id: "ocr:1",
       box: [0.1, 0.1, 0.2, 0.05],
@@ -177,6 +181,8 @@ describe("normalizePlayer", () => {
       cover: "/c.jpg",
     });
     expect(m.facesMode).toBe("recognize");
+    expect(m.facesPixelate).toBe(false);
+    expect(normalizePlayer({ ...PLAYER, faces_pixelate: true } as Player).facesPixelate).toBe(true);
   });
 
   it("never throws on missing or odd fields", () => {
@@ -186,9 +192,35 @@ describe("normalizePlayer", () => {
     expect(m.durationMs).toBe(0);
   });
 
+  it("reads what each shot or page was described as showing", () => {
+    const m = normalizePlayer({
+      ...PLAYER,
+      descriptions: [
+        { idx: 0, t0: 0, t1: 3000, text: "A dark blue screen.", model: "llava", frame: "/f/0.jpg" },
+        { idx: 1, t0: 3000, t1: 6000, text: "", model: "llava" }, // nothing said: left out
+        { idx: 0, t0: 0, t1: 1, text: "A white page.", model: "llava", paged: true },
+      ],
+    } as Player);
+    expect(m.descriptions).toEqual([
+      { idx: 0, t0: 0, t1: 3000, text: "A dark blue screen.", model: "llava", frame: "/f/0.jpg", paged: false },
+      { idx: 0, t0: 0, t1: 1, text: "A white page.", model: "llava", frame: null, paged: true },
+    ]);
+    expect(descriptionOf(m.descriptions, 0, false)?.text).toBe("A dark blue screen.");
+    expect(descriptionOf(m.descriptions, 0, true)?.text).toBe("A white page.");
+    expect(descriptionOf(m.descriptions, 1, false)).toBeNull();
+    expect(normalizePlayer({ id: 5 } as Player).descriptions).toEqual([]);
+  });
+
   it("stretches the duration to the last line when the stored one is short", () => {
     const m = normalizePlayer({ ...PLAYER, duration_ms: 1000 } as Player);
     expect(m.durationMs).toBe(17440);
+  });
+});
+
+describe("cleanTitle", () => {
+  it("collapses whitespace the way the API stores titles", () => {
+    expect(cleanTitle("  Capsid   design\nepisode ")).toBe("Capsid design episode");
+    expect(cleanTitle(" \t ")).toBe("");
   });
 });
 
@@ -413,6 +445,26 @@ describe("summaries", () => {
       { label: "Importance", value: "3 of 5" },
     ]);
   });
+  it("reads the Summarize step's timed items, in ms", () => {
+    const d = summaryDoc({
+      summary: "They read the card.",
+      key_points: [{ text: "The model beat the benchmark", t0: 12_000 }, { text: "No time" }],
+      topics: ["evals"],
+      action_items: [{ text: "Send the samples", who: "Alice", t0: 83_400 }, "Older, a string"],
+      people: [],
+      sentiment: "Happy",
+      importance: 4,
+    });
+    expect(d.sections.map((s) => s.title)).toEqual(["Key points", "Action items"]);
+    expect(d.sections[0].items).toEqual([
+      { text: "The model beat the benchmark", who: null, due: null, t: 12_000 },
+      { text: "No time", who: null, due: null, t: null },
+    ]);
+    expect(d.sections[1].items).toEqual([
+      { text: "Send the samples", who: "Alice", due: null, t: 83_400 },
+      { text: "Older, a string" },
+    ]);
+  });
   it("reads Meeting notes, in the design's section order", () => {
     const d = summaryDoc({
       open_questions: ["Would scores change?"],
@@ -482,6 +534,12 @@ describe("recording chat", () => {
     expect(a.status).toBe("done");
     expect(a.text).toBe("They were surprised [1].");
     expect(a.passages[0].t0).toBe(6795);
+  });
+  it("keeps what came before Stop, and knows it was saved", () => {
+    let a = applyChatEvent(newAnswer("q"), { event: "token", data: JSON.stringify({ text: "Friday " }) });
+    a = applyChatEvent(a, { event: "stopped", data: "{}" });
+    a = applyChatEvent(a, { event: "done", data: JSON.stringify({ message: 4 }) });
+    expect([a.status, a.text, a.saved]).toEqual(["stopped", "Friday ", true]);
   });
   it("keeps errors", () => {
     const a = applyChatEvent(

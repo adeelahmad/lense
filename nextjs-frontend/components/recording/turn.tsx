@@ -1,9 +1,10 @@
 "use client";
 
-import { ScanFace } from "lucide-react";
+import { MessageSquare, ScanFace, StickyNote } from "lucide-react";
 import Link from "next/link";
 import { memo, type MouseEvent, type ReactNode } from "react";
 
+import { highlightRuns, type HighlightRange } from "@/components/recording/comments-model";
 import type { EditTarget } from "@/components/recording/edit";
 import { SegmentEditor, ReassignMenu } from "@/components/recording/edit";
 import {
@@ -14,6 +15,7 @@ import {
   type SpeakerInfo,
   type Turn,
 } from "@/components/recording/model";
+import { HighlightMark } from "@/components/recording/highlight-mark";
 import { EmotionChip, EventChip } from "@/components/ui/badge";
 import { tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -34,6 +36,12 @@ export const TurnView = memo(function TurnView({
   entityNames,
   unsure,
   onScreen,
+  notes,
+  onNotes,
+  comments,
+  onComments,
+  highlights,
+  onHighlight,
   editing,
   editTarget,
   onSeek,
@@ -52,6 +60,15 @@ export const TurnView = memo(function TurnView({
   unsure: Unsure | null;
   /** Video: this voice's face is on screen in the recording. */
   onScreen?: boolean;
+  /** How many of the notes you see are about this turn's moments; the mark opens the Notes tab. */
+  notes?: number;
+  onNotes?: () => void;
+  /** How many comment threads are about this turn's moments; the mark opens the Comments tab. */
+  comments?: number;
+  onComments?: () => void;
+  /** Highlighted passages, by segment index; a click on one opens it in the Highlights tab. */
+  highlights?: Map<number, HighlightRange[]>;
+  onHighlight?: (id: number) => void;
   editing: boolean;
   /** The segment being edited, if it's in this turn. */
   editTarget: EditTarget | null;
@@ -107,6 +124,28 @@ export const TurnView = memo(function TurnView({
             <ScanFace aria-hidden className="size-[11px]" /> on screen
           </span>
         )}
+        {notes ? (
+          <button
+            type="button"
+            onClick={onNotes}
+            aria-label={`${notes} ${notes === 1 ? "note" : "notes"} about this, open Notes`}
+            title="Open Notes"
+            className="inline-flex h-[18px] items-center gap-[3px] rounded-pill bg-surface-neutral px-1.5 text-[10.5px] font-semibold leading-none text-fg-secondary hover:bg-border hover:text-fg"
+          >
+            <StickyNote aria-hidden className="size-[11px]" /> {notes}
+          </button>
+        ) : null}
+        {comments ? (
+          <button
+            type="button"
+            onClick={onComments}
+            aria-label={`${comments} comment ${comments === 1 ? "thread" : "threads"} about this, open Comments`}
+            title="Open Comments"
+            className="inline-flex h-[18px] items-center gap-[3px] rounded-pill bg-surface-neutral px-1.5 text-[10.5px] font-semibold leading-none text-fg-secondary hover:bg-border hover:text-fg"
+          >
+            <MessageSquare aria-hidden className="size-[11px]" /> {comments}
+          </button>
+        ) : null}
         {editing && <ReassignMenu turn={turn} current={speaker} />}
         {unsure && (
           <span
@@ -141,6 +180,8 @@ export const TurnView = memo(function TurnView({
               hits={hits.get(i)}
               currentStart={currentHit?.seg === i ? currentHit.start : null}
               names={entityNames.get(i)}
+              hls={highlights?.get(i)}
+              onHighlight={onHighlight}
               onClick={click(s)}
               editing={editing}
             />
@@ -184,6 +225,8 @@ function SegmentText({
   hits,
   currentStart,
   names,
+  hls,
+  onHighlight,
   onClick,
   editing,
 }: {
@@ -192,6 +235,8 @@ function SegmentText({
   hits?: { start: number; end: number }[];
   currentStart: number | null;
   names?: string[];
+  hls?: HighlightRange[];
+  onHighlight?: (id: number) => void;
   onClick: (e: MouseEvent) => void;
   editing: boolean;
 }) {
@@ -202,7 +247,11 @@ function SegmentText({
     })),
     ...(names?.length ? entityRanges(seg.text, names) : []),
   ];
-  const runs = ranges.length ? splitRuns(seg.text, ranges) : [{ text: seg.text, kind: null }];
+  const runs = hls?.length
+    ? highlightRuns(seg.text, ranges, hls)
+    : ranges.length
+      ? splitRuns(seg.text, ranges).map((r) => ({ ...r, hl: null }))
+      : [{ text: seg.text, kind: null, hl: null }];
   let chips: ReactNode = null;
   if (showEmotion(seg.emotion) || seg.event) {
     chips = (
@@ -228,28 +277,33 @@ function SegmentText({
           active && "bg-hl py-0.5",
         )}
       >
-        {runs.map((r, i) =>
-          r.kind === "entity" ? (
-            <span key={i} className="underline decoration-fg-muted decoration-dotted underline-offset-4">
-              {r.text}
-            </span>
-          ) : r.kind === "hit" || r.kind === "hit-current" ? (
-            <mark
-              key={i}
-              data-hit={r.kind === "hit-current" ? "current" : undefined}
-              className={cn(
-                "rounded-[3px] text-fg",
-                r.kind === "hit-current"
-                  ? "bg-gold-surface shadow-[0_0_0_2px_var(--aladdin-gold)]"
-                  : "bg-hl-word shadow-[0_0_0_2px_var(--hl-word)]",
-              )}
-            >
-              {r.text}
-            </mark>
+        {runs.map((r, i) => {
+          const run =
+            r.kind === "entity" ? (
+              <span className="underline decoration-fg-muted decoration-dotted underline-offset-4">{r.text}</span>
+            ) : r.kind === "hit" || r.kind === "hit-current" ? (
+              <mark
+                data-hit={r.kind === "hit-current" ? "current" : undefined}
+                className={cn(
+                  "rounded-[3px] text-fg",
+                  r.kind === "hit-current"
+                    ? "bg-gold-surface shadow-[0_0_0_2px_var(--aladdin-gold)]"
+                    : "bg-hl-word shadow-[0_0_0_2px_var(--hl-word)]",
+                )}
+              >
+                {r.text}
+              </mark>
+            ) : (
+              <span>{r.text}</span>
+            );
+          return r.hl ? (
+            <HighlightMark key={i} hl={r.hl} onOpen={onHighlight}>
+              {run}
+            </HighlightMark>
           ) : (
-            <span key={i}>{r.text}</span>
-          ),
-        )}
+            <span key={i}>{run}</span>
+          );
+        })}
         {chips}
       </span>{" "}
     </>

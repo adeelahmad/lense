@@ -4,8 +4,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useCallback } from "react";
 
-import { Jobs, Recordings } from "@/app/openapi-client";
+import { Jobs, Resources } from "@/app/openapi-client";
 import { useToast } from "@/components/ui/toast";
+import { deletedToast, hasSound, movedToast } from "@/components/library/model";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
 
@@ -50,7 +51,9 @@ export async function downloadWithToken(url: string, token: string | undefined, 
   setTimeout(() => URL.revokeObjectURL(href), 10_000);
 }
 
-/** Retry a failed job, reprocess recordings and export transcripts; each refreshes the library and says what happened. */
+/**
+ * Retry a failed job, reprocess, export and delete recordings; each refreshes the library and says what happened.
+ */
 export function useRecordingActions() {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -93,7 +96,7 @@ export function useRecordingActions() {
                 jobs: [
                   (
                     await data(
-                      Recordings.reprocessRecording({
+                      Resources.reprocessRecording({
                         client,
                         path: { rid: recordings[0] },
                         body: steps?.length ? { steps } : undefined,
@@ -154,5 +157,86 @@ export function useRecordingActions() {
     [toast, token],
   );
 
-  return { retryJob, reprocess, exportMany };
+  /** Delete recordings one by one (owners). Returns the ids that went. */
+  const deleteMany = useCallback(
+    async (recs: readonly { id: number; title?: string | null }[], onProgress?: (n: number) => void) => {
+      const gone: number[] = [];
+      const failed: { title: string; message: string }[] = [];
+      for (const r of recs) {
+        try {
+          await data(Resources.deleteRecording({ client, path: { rid: r.id } }));
+          gone.push(r.id);
+          qc.removeQueries({ queryKey: ["recording", r.id] });
+        } catch (e) {
+          failed.push({ title: r.title || `Recording ${r.id}`, message: (e as Error).message });
+        }
+        onProgress?.(gone.length + failed.length);
+      }
+      toast(deletedToast(gone.length, failed));
+      refresh();
+      void qc.invalidateQueries({ queryKey: ["namespaces"] });
+      return gone;
+    },
+    [client, qc, refresh, toast],
+  );
+
+  /** Move recordings to another namespace one by one (owners where they are, editors there). Returns the ids moved. */
+  const moveMany = useCallback(
+    async (
+      recs: readonly { id: number; title?: string | null; namespace?: string | null; media_kind?: string | null }[],
+      to: string,
+      opts: { rediarize: boolean; revokeShares: boolean },
+      onProgress?: (n: number) => void,
+    ) => {
+      const moved: number[] = [];
+      const failed: { title: string; message: string }[] = [];
+      for (const r of recs) {
+        try {
+          await data(
+            Resources.moveRecording({
+              client,
+              path: { rid: r.id },
+              body: {
+                namespace: to,
+                rediarize: opts.rediarize && hasSound(r),
+                revoke_shares: opts.revokeShares,
+              },
+            }),
+          );
+          moved.push(r.id);
+          void qc.invalidateQueries({ queryKey: ["recording", r.id] });
+        } catch (e) {
+          failed.push({ title: r.title || `Recording ${r.id}`, message: (e as Error).message });
+        }
+        onProgress?.(moved.length + failed.length);
+      }
+      toast(movedToast(moved.length, to, failed));
+      refresh();
+      void qc.invalidateQueries({ queryKey: ["namespaces"] });
+      return moved;
+    },
+    [client, qc, refresh, toast],
+  );
+
+  /** Add and remove tags on recordings (editors). */
+  const retag = useCallback(
+    async (recordings: number[], add: string[], remove: string[]) => {
+      try {
+        const { changed } = await data(Resources.retagRecordings({ client, body: { recordings, add, remove } }));
+        toast({
+          title: changed ? `Tags changed on ${plural(changed, "recording")}` : "Their tags were already like that",
+          tone: "green",
+        });
+        refresh();
+        void qc.invalidateQueries({ queryKey: ["recording-tags"] });
+        return true;
+      } catch (e) {
+        toast({ title: "Couldn’t change the tags", body: (e as Error).message, tone: "red" });
+        return false;
+      }
+    },
+    [client, qc, refresh, toast],
+  );
+
+  return { retryJob, reprocess, exportMany, deleteMany, moveMany, retag };
 }

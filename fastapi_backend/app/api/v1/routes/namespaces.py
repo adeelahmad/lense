@@ -1,18 +1,29 @@
-"""Namespaces: the ones you can read (with counts), creating them (admins) and their settings (owners)."""
+"""Namespaces: the ones you can read (with counts), creating them (admins), their settings and IP groups (owners)."""
 
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from datetime import date
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 
-from app.api.deps import Acl, AdminWriter, CurrentUser, Db, Writer
+from app.api.deps import Acl, AdminWriter, CurrentUser, Db, Writer, domain_errors, visitor_address
 from app.api.media import sign_urls
-from app.domain import analyze, auth, pipelines, render, store
-from app.domain.store import API
+from app.domain import analyze, auth, ipgroups, library, pipelines, render, store
+from app.domain.store import API, DB
 from app.schemas.common import Created, Ok
-from app.schemas.namespaces import Namespace, NamespaceCreate, NamespaceUpdate
+from app.schemas.namespaces import (
+    IpGroup,
+    IpGroupCreate,
+    IpGroups,
+    IpGroupUpdate,
+    Namespace,
+    NamespaceCreate,
+    NamespaceStats,
+    NamespaceUpdate,
+)
 
 router = APIRouter(prefix="/namespaces", tags=["namespaces"])
 
@@ -20,10 +31,13 @@ R = store.R
 
 
 @router.get("")
-def list_namespaces(user: CurrentUser, db: Db) -> list[Namespace]:
-    rm = user.roles
+def list_namespaces(acl: Acl, user: CurrentUser, db: Db) -> list[Namespace]:
+    """The namespaces you have a role in, with their counts, and those you see only some collections of (`partial`,
+    no `role`): counted over those collections, without the namespace-wide speakers and word cloud."""
+    rm, part = user.roles, acl.partial()
     agg: dict[int, dict[str, int]] = defaultdict(lambda: {"recordings": 0, "ms": 0, "analyzed": 0, "errors": 0})
-    for r in db.rows("SELECT space, status, duration_ms FROM recording WHERE space IN $s", s=sorted(rm)):
+    cond, p = library.in_scope(rm, part)
+    for r in db.rows(f"SELECT space, status, duration_ms FROM recording WHERE {cond}", **p):
         a = agg[r["space"]]
         a["recordings"] += 1
         a["ms"] += r.get("duration_ms") or 0
@@ -35,13 +49,14 @@ def list_namespaces(user: CurrentUser, db: Db) -> list[Namespace]:
             **s,
             **agg[s["id"]],
             "speakers": speakers_n.get(s["id"], 0),
-            "role": rm[s["id"]],
-            "wordcloud": f"{API}/namespaces/{s['name']}/wordcloud.svg",
+            "role": rm.get(s["id"]),
+            "partial": s["id"] not in rm,
+            "wordcloud": f"{API}/namespaces/{s['name']}/wordcloud.svg" if s["id"] in rm else None,
         }
         for s in db.rows("SELECT record::id(id) AS id, name, graph FROM space ORDER BY name")
-        if s["id"] in rm
+        if s["id"] in rm or s["id"] in part
     ]
-    return [Namespace.model_validate(x) for x in sign_urls(out)]
+    return [Namespace.model_validate(x) for x in sign_urls(out, full=True)]
 
 
 @router.post("")
@@ -84,3 +99,84 @@ def get_namespace_wordcloud(name: str, acl: Acl, db: Db) -> Response:
     else:
         sid = acl.namespace(name)
     return Response(render.wordcloud_svg(analyze.ns_keywords(db, sid, 80), label=f"Word cloud for {name}"), media_type="image/svg+xml")
+
+
+@router.get("/{name}/stats")
+def get_namespace_stats(
+    name: str,
+    acl: Acl,
+    user: CurrentUser,
+    db: Db,
+    date_from: date | None = Query(None, alias="from", description="recorded on or after this day"),
+    date_to: date | None = Query(None, alias="to", description="recorded on or before this day"),
+    top: int = Query(5, ge=1, le=50, description="how many speakers in `top_speakers`"),
+) -> NamespaceStats:
+    """The namespace's numbers for the recordings made in a range of days (the Reports overview): how many and how long,
+    who was heard and for how long, and the same per month. Without a range, every recording."""
+    sid = acl.namespace(name)
+    with domain_errors():
+        return NamespaceStats(**library.namespace_stats(db, sid, date_from, date_to, top))
+
+
+# ---------- IP groups (docs/access.md) ----------
+def _ip_groups(request: Request, db: DB, sid: int) -> IpGroups:
+    addr = visitor_address(request)
+    fields = ("id", "name", "ranges", "everything", "by", "at", "updated_by", "updated_at")
+    return IpGroups(
+        address=str(addr) if addr else None,
+        groups=[
+            IpGroup(
+                **{k: g.get(k) for k in fields},
+                chosen=len(g.get("recordings") or []),
+                here=ipgroups.within(addr, g["ranges"]),
+            )
+            for g in ipgroups.groups(db, sid)
+        ],
+    )
+
+
+def _ip_group_detail(g: dict[str, Any]) -> dict[str, Any]:
+    return {"id": g["id"], "name": g["name"], "ranges": g["ranges"], "everything": g["everything"]}
+
+
+@router.get("/{name}/ip-groups")
+def list_ip_groups(name: str, request: Request, acl: Acl, user: CurrentUser, db: Db) -> IpGroups:
+    """The namespace's IP groups (owners), and your address as the server sees it, to check the ranges against."""
+    return _ip_groups(request, db, acl.namespace(name, "owner"))
+
+
+@router.post("/{name}/ip-groups")
+def create_ip_group(name: str, body: IpGroupCreate, request: Request, acl: Acl, user: Writer, db: Db) -> IpGroups:
+    """Add an IP group (owners): visitors from its addresses see all of every recording in the namespace
+    (everything), or of the recordings chosen on each. Answers with all of the namespace's groups."""
+    sid = acl.namespace(name, "owner")
+    with domain_errors():
+        g = ipgroups.create(db, sid, body.name, body.ranges, body.everything, user.email)
+    auth.audit(db, user.as_audit(), "namespace.ip_group.create", f"space:{sid}", _ip_group_detail(g))
+    return _ip_groups(request, db, sid)
+
+
+@router.patch("/{name}/ip-groups/{gid}")
+def update_ip_group(name: str, gid: int, body: IpGroupUpdate, request: Request, acl: Acl, user: Writer, db: Db) -> IpGroups:
+    """Rename an IP group, change its ranges or what it opens (owners). Choosing recordings again after opening
+    everything brings back the ones chosen before."""
+    sid = acl.namespace(name, "owner")
+    changes = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None}
+    if not changes:
+        raise HTTPException(400, "send name, ranges or everything")
+    with domain_errors():
+        before = ipgroups.get(db, gid, sid)
+        g = ipgroups.update(db, gid, sid, changes, user.email)
+    detail = {k: {"from": before[k], "to": g[k]} for k in ("name", "ranges", "everything") if before[k] != g[k]}
+    auth.audit(db, user.as_audit(), "namespace.ip_group.update", f"space:{sid}", {"id": gid, **detail})
+    return _ip_groups(request, db, sid)
+
+
+@router.delete("/{name}/ip-groups/{gid}")
+def delete_ip_group(name: str, gid: int, request: Request, acl: Acl, user: Writer, db: Db) -> IpGroups:
+    """Delete an IP group (owners): its visitors lose what it opened. Answers with the groups left."""
+    sid = acl.namespace(name, "owner")
+    with domain_errors():
+        g = ipgroups.delete(db, gid, sid)
+    auth.audit(db, user.as_audit(), "namespace.ip_group.delete", f"space:{sid}", _ip_group_detail(g))
+    return _ip_groups(request, db, sid)

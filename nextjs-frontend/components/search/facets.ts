@@ -1,4 +1,5 @@
-import type { SearchHit } from "@/app/openapi-client/types.gen";
+import type { SearchFacets, SearchHit } from "@/app/openapi-client/types.gen";
+import { objectName } from "@/components/recording/objects-model";
 
 /** One value of a facet with how many moments have it. */
 export type FacetValue = {
@@ -14,57 +15,34 @@ export type Facets = {
   speakers: FacetValue[];
   emotions: FacetValue[];
   recordings: FacetValue[];
+  /** Kinds of object seen in the recordings, counted in recordings rather than moments. */
+  objects: FacetValue[];
 };
 
-function tally(values: { key: string; label: string; sub?: string; id?: number }[]): FacetValue[] {
-  const m = new Map<string, FacetValue>();
-  for (const v of values) {
-    const cur = m.get(v.key);
-    if (cur) cur.count += 1;
-    else m.set(v.key, { ...v, count: 1 });
-  }
-  return [...m.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-}
-
 /**
- * Facet counts from a set of hits. Speakers are namespace-scoped, so two people with the same name in different
- * namespaces stay apart and show their namespace.
+ * The server's counts over every matching moment (`facets=true`) as the panel shows them. A speaker's namespace shows
+ * only when two people with that name are listed.
  */
-export function computeFacets(hits: SearchHit[]): Facets {
-  const speakers = tally(
-    hits
-      .filter((h) => h.speaker_id != null)
-      .map((h) => ({
-        key: String(h.speaker_id),
-        id: h.speaker_id as number,
-        label: h.speaker || `Speaker ${h.speaker_id}`,
-        sub: h.namespace ?? undefined,
-      })),
-  );
+export function fromServer(f: SearchFacets): Facets {
   const names = new Map<string, number>();
-  for (const s of speakers) names.set(s.label, (names.get(s.label) ?? 0) + 1);
+  for (const s of f.speakers ?? []) names.set(s.name, (names.get(s.name) ?? 0) + 1);
   return {
-    namespaces: tally(
-      hits
-        .filter((h) => h.namespace)
-        .map((h) => ({
-          key: h.namespace as string,
-          label: h.namespace as string,
-        })),
-    ),
-    speakers: speakers.map((s) => ((names.get(s.label) ?? 0) > 1 ? s : { ...s, sub: undefined })),
-    emotions: tally(
-      hits
-        .filter((h) => h.emotion && h.emotion !== "Unknown")
-        .map((h) => ({ key: h.emotion as string, label: h.emotion as string })),
-    ),
-    recordings: tally(
-      hits.map((h) => ({
-        key: String(h.recording_id),
-        id: h.recording_id,
-        label: h.title || `Recording ${h.recording_id}`,
-      })),
-    ),
+    namespaces: (f.namespaces ?? []).map((n) => ({ key: n.name, label: n.name, count: n.count })),
+    speakers: (f.speakers ?? []).map((s) => ({
+      key: String(s.id),
+      id: s.id,
+      label: s.name,
+      count: s.count,
+      sub: (names.get(s.name) ?? 0) > 1 ? (s.namespace ?? undefined) : undefined,
+    })),
+    emotions: (f.emotions ?? []).map((e) => ({ key: e.name, label: e.name, count: e.count })),
+    recordings: (f.recordings ?? []).map((r) => ({
+      key: String(r.id),
+      id: r.id,
+      label: r.title || `Recording ${r.id}`,
+      count: r.count,
+    })),
+    objects: (f.objects ?? []).map((o) => ({ key: o.name, label: objectName(o.name), count: o.count })),
   };
 }
 
@@ -76,7 +54,7 @@ export type HitGroup = {
   hits: SearchHit[];
 };
 
-/** Hits grouped by recording, in the order their best hit ranks; hits inside a group in time order. */
+/** Hits grouped by recording, in the order their best hit ranks; hits inside a group in time order (untimed last). */
 export function groupByRecording(hits: SearchHit[]): HitGroup[] {
   const groups = new Map<number, HitGroup>();
   for (const h of hits) {
@@ -93,6 +71,8 @@ export function groupByRecording(hits: SearchHit[]): HitGroup[] {
     }
     g.hits.push(h);
   }
-  for (const g of groups.values()) g.hits.sort((a, b) => a.t0 - b.t0);
+  // lines of files without times come after the moments, in their order
+  const at = (h: SearchHit) => h.t0 ?? Number.MAX_SAFE_INTEGER;
+  for (const g of groups.values()) g.hits.sort((a, b) => at(a) - at(b) || (a.line ?? 0) - (b.line ?? 0));
   return [...groups.values()];
 }

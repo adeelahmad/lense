@@ -1,0 +1,177 @@
+"""Making documents into PDFs safely: the HTML Lens prints keeps text and structure and nothing that fetches or runs;
+the proxy the browser goes through serves Lens's page and refuses everything else; emails are read with their
+attachments and inline images."""
+
+from __future__ import annotations
+
+import base64
+import http.client
+import json
+import sys
+import time
+from email.message import EmailMessage
+
+import pytest
+
+from app.domain import convert, netguard
+from tests import fake_chromium
+
+PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+
+
+def test_html_is_cleaned_of_anything_that_fetches_or_runs():
+    dirty = (
+        '<p style="color:red" onclick="steal()">Hello <b>there</b> &amp; &lt;you&gt;</p>'
+        "<script>alert(1)</script><style>body{background:url(http://x/y)}</style>"
+        '<img src="http://169.254.169.254/latest/meta-data/"><img src="data:image/png;base64,AAAA" alt="pixel">'
+        '<a href="javascript:steal()">bad</a> <a href="https://example.org/a">good</a>'
+        '<div style="background-image: url(http://x/y)">styled</div><iframe src="http://x/"><p>inside</p></iframe>'
+        "<custom-tag>kept text</custom-tag><svg><text>drawn</text></svg>"
+    )
+    clean = convert.clean_html(dirty)
+    assert '<p style="color:red">Hello <b>there</b> &amp; &lt;you&gt;</p>' in clean
+    assert "script" not in clean and "alert" not in clean and "url(" not in clean and "background" not in clean
+    assert "169.254" not in clean and '<img src="data:image/png;base64,AAAA" alt="pixel">' in clean
+    assert "<a>bad</a>" in clean and '<a href="https://example.org/a">good</a>' in clean
+    assert "<div>styled</div>" in clean and "inside" not in clean and "drawn" not in clean
+    assert "kept text" in clean and "custom-tag" not in clean
+
+
+def test_text_markdown_and_saved_pages_become_pages_of_ours():
+    assert convert.decode("café".encode()) == "café" and convert.decode("café".encode("cp1252")) == "café"
+    assert convert.decode(b"\xef\xbb\xbfbom") == "bom" and convert.decode("hi".encode("utf-16")) == "hi"
+    page = convert.text_page("Line one\n  <b>not bold</b>", "Notes")
+    assert "<title>Notes</title>" in page and "&lt;b&gt;not bold&lt;/b&gt;" in page
+    md = convert.markdown_page("# The harbour\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n<script>x</script>", "Report")
+    assert "<h1>The harbour</h1>" in md and "<td>1</td>" in md and "<script>" not in md
+    mdx = convert.markdown_page("import X from './x'\n\n# Title\n\n<Callout>Said</Callout>", "MDX", mdx=True)
+    assert "import" not in mdx and "<h1>Title</h1>" in mdx and "Said" in mdx
+    page, title = convert.web_page(
+        b'<html><head><meta charset="windows-1252"><title>Saved \xe9t\xe9</title></head><body><p>Body</p></body></html>'
+    )
+    assert title == "Saved été" and "<p>Body</p>" in page
+    assert (convert.needs("a.DOCX"), convert.needs("a.pdf"), convert.needs("a.mp3")) == (True, False, False)
+    assert (convert.word("x.pptx"), convert.word("x.eml"), convert.content_type("x.odt")) == (
+        "PowerPoint presentation",
+        "email",
+        "application/vnd.oasis.opendocument.text",
+    )
+
+
+def _email(folder):
+    m = EmailMessage()
+    m["Subject"] = "Harbour report"
+    m["From"] = "Mara Keane <mara@example.org>"
+    m["To"] = "tom@example.org, Ann <ann@example.org>"
+    m["Date"] = "Tue, 29 Sep 2026 09:30:00 +0100"
+    m.set_content("The ships arrived at dawn.")
+    m.add_alternative(
+        '<p>The <b>ships</b> arrived at dawn.</p><img src="cid:logo@x"><img src="http://127.0.0.1:9/track.png">', subtype="html"
+    )
+    m.get_payload()[1].add_related(PNG, "image", "png", cid="<logo@x>")
+    m.add_attachment(b"%PDF-1.4 fake", maintype="application", subtype="pdf", filename="manifest.pdf")
+    m.add_attachment(b"notes", maintype="application", subtype="octet-stream", filename="data.xyz")
+    path = folder / "harbour.eml"
+    path.write_bytes(m.as_bytes())
+    return path
+
+
+def test_an_email_is_read_with_its_attachments_and_inline_images(folder):
+    e = convert.read_eml(_email(folder))
+    assert (e["subject"], e["from"], e["date"]) == ("Harbour report", "Mara Keane <mara@example.org>", "2026-09-29T09:30:00+01:00")
+    assert e["to"] == "tom@example.org, Ann <ann@example.org>" and "<b>ships</b>" in e["html"]
+    assert [(p["name"], p["attached"]) for p in e["parts"]] == [("manifest.pdf", True), ("data.xyz", True)]
+    assert [(p["cid"], p["type"]) for p in e["inline"]] == [("logo@x", "image/png")]
+    page, attachments = convert.email_page(e)
+    assert "data:image/png;base64," in page and "127.0.0.1:9" not in page  # the logo written in, the tracker gone
+    assert "<h1>Harbour report</h1>" in page and "29 September 2026, 09:30 +0100" in page
+    assert [a["name"] for a in attachments] == ["manifest.pdf", "data.xyz"]  # the inline logo isn't an attachment
+    assert "manifest.pdf (1 KB)" in page
+
+
+def test_the_proxy_serves_lens_page_and_refuses_everything_else():
+    with netguard.Guard({netguard.DOCUMENT_URL: (b"<p>hi</p>", "text/html; charset=utf-8")}) as g:
+        port = int(g.url.rsplit(":", 1)[1])
+
+        def ask(method, target):
+            c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            c.putrequest(method, target, skip_host=True, skip_accept_encoding=True)
+            c.endheaders()
+            r = c.getresponse()
+            out = (r.status, r.getheader("Content-Security-Policy"), r.read())
+            c.close()
+            return out
+
+        status, csp, body = ask("GET", netguard.DOCUMENT_URL)
+        assert (status, body) == (200, b"<p>hi</p>") and "script-src" not in csp and "default-src 'none'" in csp
+        assert ask("GET", "http://169.254.169.254/latest/meta-data/")[0] == 403
+        assert ask("CONNECT", "example.org:443")[0] == 403
+        assert ask("POST", netguard.DOCUMENT_URL)[0] == 403
+        assert g.refused == ["GET http://169.254.169.254/latest/meta-data/", "CONNECT example.org:443", "POST http://document.lens/"]
+        assert g.args() == [f"--proxy-server={g.url}", "--proxy-bypass-list=<-loopback>"]
+    env = netguard.nowhere_env({"HTTPS_PROXY": "http://corp:3128", "no_proxy": "localhost", "PATH": "/bin"})
+    assert env["HTTPS_PROXY"] == env["http_proxy"] == "http://127.0.0.1:9" and "no_proxy" not in env and env["PATH"] == "/bin"
+
+
+def test_what_the_server_can_convert(cfg, monkeypatch):
+    monkeypatch.setattr(convert, "soffice", lambda cfg: None)
+    monkeypatch.setattr(convert, "chromium", lambda cfg: None)
+    assert convert.capabilities(cfg) == {"office": False, "pages": False, "msg": False, "web": False}
+    assert convert.unavailable(cfg, "a.pdf") is None and convert.unavailable(cfg, "a.mp3") is None
+    assert convert.unavailable(cfg, "a.docx") == "converting Word documents needs LibreOffice on the server (the lens:full image)"
+    assert "Chromium or LibreOffice" in convert.unavailable(cfg, "a.eml")
+    monkeypatch.setattr(convert, "chromium", lambda cfg: "/usr/bin/chromium")
+    monkeypatch.setattr(convert, "_has_msg", lambda: False)
+    assert convert.capabilities(cfg) == {"office": False, "pages": True, "msg": False, "web": True}
+    assert convert.unavailable(cfg, "a.md") is None and "extract-msg" in convert.unavailable(cfg, "a.msg")
+    assert convert.bootstrap(cfg)["chromium"] == "/usr/bin/chromium"
+
+
+def test_chromium_runs_without_its_sandbox_only_where_it_cant_have_one(tmp_path, monkeypatch):
+    stuck = fake_chromium.make(tmp_path / "stuck", "no-userns")
+    able = fake_chromium.make(tmp_path / "able", "able")
+    broken = fake_chromium.make(tmp_path / "broken", "broken")
+    monkeypatch.setattr(convert.os, "geteuid", lambda: 1000)
+    convert.no_sandbox.cache_clear()
+    try:
+        assert (convert.no_sandbox(stuck), convert.no_sandbox(able)) == (True, False)  # tried on an empty page
+        with netguard.Guard() as g:
+            convert.print_pdf(stuck, g, netguard.DOCUMENT_URL, tmp_path / "a.pdf", 30)
+            assert (tmp_path / "a.pdf").read_bytes().startswith(b"%PDF")
+            with pytest.raises(ValueError, match="Chromium couldn't print it .*It broke"):
+                convert.print_pdf(broken, g, netguard.DOCUMENT_URL, tmp_path / "b.pdf", 30)
+        monkeypatch.setattr(convert.os, "geteuid", lambda: 0)
+        convert.no_sandbox.cache_clear()
+        assert convert.no_sandbox(able) is True  # as root it never starts one
+    finally:
+        convert.no_sandbox.cache_clear()
+
+
+def test_chromium_reaches_no_d_bus_and_keeps_webrtc_to_the_proxy(tmp_path, monkeypatch):
+    """Chromium asks D-Bus services things on its main thread and waits for the answers, so it gets no bus (nor does the
+    probe for its sandbox); full Chromium takes its WebRTC policy from the profile, not from the switch."""
+    slow = fake_chromium.make(tmp_path / "chromium", "slow-bus")
+    monkeypatch.setenv("DBUS_SYSTEM_BUS_ADDRESS", "unix:path=/run/dbus/system_bus_socket")
+    monkeypatch.setattr(convert.os, "geteuid", lambda: 1000)
+    convert.no_sandbox.cache_clear()
+    try:
+        assert convert.no_sandbox(slow) is False  # it printed the empty page, in good time
+        with netguard.Guard() as g:
+            convert.print_pdf(slow, g, netguard.DOCUMENT_URL, tmp_path / "a.pdf", 20)
+    finally:
+        convert.no_sandbox.cache_clear()
+    prefs = json.loads((tmp_path / "a.pdf").read_text().split("\n", 1)[1])
+    assert prefs == {"webrtc": {"ip_handling_policy": "disable_non_proxied_udp"}}
+
+
+def test_chromium_that_never_answers_is_stopped_in_time(tmp_path, monkeypatch):
+    """The --print-to-pdf of some builds never finishes; over the pipe a Chromium that doesn't answer is given up on,
+    saying so, and doesn't outlive it."""
+    mute = tmp_path / "mute"
+    mute.write_text(f"#!{sys.executable}\nimport sys, time\nprint('[1:1:WARNING:x.cc(1)] Waiting.', file=sys.stderr)\ntime.sleep(60)\n")
+    mute.chmod(0o755)
+    monkeypatch.setattr(convert, "no_sandbox", lambda exe: True)
+    started = time.monotonic()
+    with netguard.Guard() as g, pytest.raises(ValueError, match=r"took longer than 2 s .*it last said: .*Waiting\."):
+        convert.print_pdf(str(mute), g, netguard.DOCUMENT_URL, tmp_path / "a.pdf", 2)
+    assert time.monotonic() - started < 10

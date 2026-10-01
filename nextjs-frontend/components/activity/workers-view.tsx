@@ -1,15 +1,26 @@
 "use client";
 
-import { Cpu, Pause, Server } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowRightLeft, Cpu, Pause, Play, Server } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { Jobs } from "@/app/openapi-client";
 import type { WorkerInfo } from "@/app/openapi-client/types.gen";
-import { stepLabel, stepSpecs, type JobRecord, type WorkerState } from "@/components/activity/job-model";
+import {
+  pauseNote,
+  stepLabel,
+  stepSpecs,
+  workerLoad,
+  type JobRecord,
+  type WorkerState,
+} from "@/components/activity/job-model";
 import { useJobList, useWorkerSettings, useWorkerStates, useWorkers } from "@/components/activity/use-activity";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
+import { useToast } from "@/components/ui/toast";
+import { data, useApiClient } from "@/lib/api/browser";
 import { relative } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
@@ -17,8 +28,30 @@ import { cn } from "@/lib/utils";
 const BADGE: Record<WorkerState, { tone: "intent" | "neutral" | "gate"; word: string }> = {
   busy: { tone: "intent", word: "Busy" },
   idle: { tone: "neutral", word: "Idle" },
+  paused: { tone: "neutral", word: "Paused" },
   silent: { tone: "gate", word: "Silent" },
 };
+
+type Action = "pause" | "drain" | "resume";
+
+/** Pause, drain or resume a worker (admins), then show what it does now. */
+function useWorkerControl() {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: ({ name, action }: { name: string; action: Action }) =>
+      data(Jobs.controlWorker({ client, path: { name, action } })),
+    onSuccess: (w, v) => {
+      void qc.invalidateQueries({ queryKey: ["workers"] });
+      toast({
+        title: { pause: `${v.name} paused`, drain: `Draining ${v.name}`, resume: `${v.name} resumed` }[v.action],
+        body: v.action === "resume" ? "It takes runs again." : (pauseNote(w) ?? undefined),
+      });
+    },
+    onError: (e: Error, v) => toast({ tone: "red", title: `Couldn’t ${v.action} ${v.name}`, body: e.message }),
+  });
+}
 
 function WorkerCard({
   w,
@@ -26,12 +59,14 @@ function WorkerCard({
   jobs,
   staleMinutes,
   maxAttempts,
+  control,
 }: {
   w: WorkerInfo;
   state: WorkerState;
   jobs: JobRecord[];
   staleMinutes: number;
   maxAttempts: number;
+  control: ReturnType<typeof useWorkerControl>;
 }) {
   const current = w.current != null ? jobs.find((j) => j.id === Number(w.current)) : undefined;
   const steps = w.steps ?? [];
@@ -62,6 +97,10 @@ function WorkerCard({
         ? `Silent ${quietMin} min — any job it held goes back on the queue (up to ${maxAttempts} attempts).`
         : `Silent ${quietMin ?? "?"} min. After ${staleMinutes} min its job goes back on the queue.`;
   else now = "Nothing running";
+  const busy = w.current != null && w.current !== "";
+  const note = pauseNote(w);
+  const pending = control.isPending && control.variables?.name === w.name;
+  const act = (action: Action) => control.mutate({ name: w.name, action });
 
   return (
     <article
@@ -96,18 +135,41 @@ function WorkerCard({
         ))}
       </div>
       <div className="flex flex-col gap-1.5">
-        <div className="label-caps">Now · can take {canTake} queued</div>
+        <div className="label-caps">Now · {w.paused ? "takes no new runs" : `can take ${canTake} queued`}</div>
         <div className="text-[13px] leading-snug text-fg-strong">{now}</div>
+        {note && <div className="text-[12.5px] leading-snug text-fg-secondary">{note}</div>}
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-1.5">
+        <div className="label-caps">Load</div>
+        <div className="tabular text-[13px] leading-snug text-fg-strong">{workerLoad(w)}</div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {w.paused ? (
+          <Button variant="secondary" size="sm" icon={<Play />} disabled={pending} onClick={() => act("resume")}>
+            Resume
+          </Button>
+        ) : (
+          <Button variant="secondary" size="sm" icon={<Pause />} disabled={pending} onClick={() => act("pause")}>
+            Pause
+          </Button>
+        )}
         <Button
-          variant="secondary"
+          variant="ghost"
           size="sm"
-          icon={<Pause />}
-          disabled
-          disabledReason="Workers can’t be paused from the app yet"
+          icon={<ArrowRightLeft />}
+          disabled={pending || !busy || Boolean(w.draining) || state === "silent"}
+          disabledReason={
+            w.draining
+              ? "Already handing its run back"
+              : state === "silent"
+                ? `It’s silent: its run goes back on the queue after ${staleMinutes} min anyway`
+                : !busy
+                  ? "It isn’t running anything to hand back"
+                  : undefined
+          }
+          onClick={() => act("drain")}
         >
-          Pause
+          Drain
         </Button>
       </div>
     </article>
@@ -121,6 +183,7 @@ export function WorkersView() {
   const list = useJobList({ limit: 200 });
   const states = useWorkerStates(workers.data, list.jobs);
   const { staleMinutes, maxAttempts } = useWorkerSettings();
+  const control = useWorkerControl();
 
   if (!admin)
     return (
@@ -169,13 +232,16 @@ export function WorkersView() {
             jobs={list.jobs}
             staleMinutes={staleMinutes}
             maxAttempts={maxAttempts}
+            control={control}
           />
         ))}
       </div>
       <p className="max-w-[900px] text-[13px] leading-normal text-fg-secondary">
         Steps each worker runs are shown as chips. A worker that stays silent past {staleMinutes} min (Settings →
-        Workers) has its job retried on another worker, up to {maxAttempts} attempts. Workers can’t be paused or drained
-        from the app yet.
+        Workers) has its job retried on another worker, up to {maxAttempts} attempts. Pause stops a worker taking new
+        runs; the one it has carries on to the end. Drain also hands that run back to the queue after the step it’s on,
+        for another worker to carry on. A paused worker stays paused when it restarts under the same name (the server’s
+        own workers are named after its process, so they start afresh).
       </p>
     </div>
   );

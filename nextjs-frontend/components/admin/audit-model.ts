@@ -27,7 +27,7 @@ const PREFIX: [RegExp, Group][] = [
   [/^(source\.|watch\.|import)/, "sources"],
   [/^(share\.|embed)/, "sharing"],
   [
-    /^(metadata\.|speaker\.|entity\.|mention\.|transcript\.|ocr\.|face\.|faces\.|batch\.|assistant\.|recording\.|collection\.)/,
+    /^(metadata\.|speaker\.|entity\.|mention\.|transcript\.|ocr\.|face\.|faces\.|batch\.|assistant\.|recording\.|collection\.|file\.|field\.|fields\.)/,
     "content",
   ],
 ];
@@ -78,7 +78,7 @@ export function targetHref(target: string | null | undefined, action: string, lo
   }
   const m = target.match(/^([a-z_]+):(\d+)$/);
   if (!m) return /^https?:\/\//.test(target) ? target : null;
-  if (m[1] === "recording") return `/recordings/${m[2]}`;
+  if (m[1] === "recording") return `/resources/${m[2]}`;
   if (m[1] === "space" && look.namespaces[Number(m[2])]) return `/admin/namespaces/${look.namespaces[Number(m[2])]}`;
   return null;
 }

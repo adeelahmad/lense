@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { Metadata } from "@/app/openapi-client";
+import { ALL_PARTS, PARTS, togglePart, type AccessPart } from "@/components/access/model";
 import { isUnreachable } from "@/components/errors/error-states";
 import { useCollectionItems } from "@/components/iiif/collection-data";
 import {
@@ -22,7 +23,7 @@ import { keys, useNamespaceMeta, type NamespaceProfile } from "@/components/iiif
 import { RIGHTS, rightsShort } from "@/components/iiif/rights";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
-import { Input, Select, Switch } from "@/components/ui/field";
+import { Checkbox, Input, Select, Switch } from "@/components/ui/field";
 import { EmptyState, SkeletonRows } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -66,6 +67,7 @@ type Draft = {
   defaults: Meta;
   vocabularies: { subjects: string[]; language: string[] };
   default_access: string;
+  default_open: AccessPart[];
 };
 
 function fromProfile(p: NamespaceProfile | undefined): Draft {
@@ -78,7 +80,8 @@ function fromProfile(p: NamespaceProfile | undefined): Draft {
       subjects: p?.vocabularies?.subjects ?? [],
       language: p?.vocabularies?.language ?? [],
     },
-    default_access: p?.default_access ?? "private",
+    default_access: ACCESS.some((a) => a.value === p?.default_access) ? (p?.default_access as string) : "private",
+    default_open: p?.default_open ?? ALL_PARTS,
   };
 }
 
@@ -141,6 +144,7 @@ export function ProfileEditor({ ns }: { ns: string }) {
               defaults: Object.fromEntries(Object.entries(d.defaults).filter(([, v]) => !isEmpty(v))),
               vocabularies: Object.fromEntries(Object.entries(d.vocabularies).filter(([, v]) => v.length)),
               default_access: d.default_access,
+              default_open: d.default_open,
             },
           },
         }),
@@ -150,7 +154,7 @@ export function ProfileEditor({ ns }: { ns: string }) {
       void qc.invalidateQueries({ queryKey: ["metadata"] });
       toast({
         title: "Profile saved",
-        body: "Recordings that now miss a required field show it as a problem; nothing was unpublished.",
+        body: "Recordings that now miss a required field show it as a problem. Recordings without their own access follow the default.",
         tone: "green",
       });
     },
@@ -188,7 +192,7 @@ export function ProfileEditor({ ns }: { ns: string }) {
     ? Object.fromEntries(EDITABLE_DEFAULTS.map((f) => [f, defaultError(f, d.defaults)]).filter(([, e]) => e))
     : {};
   const newlyRequired = d ? d.required.filter((f) => !loaded.required.includes(f)) : [];
-  const published = items.filter((i) => i.meta && i.meta.meta.access && i.meta.meta.access !== "private");
+  const published = items.filter((i) => i.meta?.meta.access === "public");
   const affected = (f: Field) => published.filter((i) => isEmpty(i.meta?.meta[f])).length;
   const up = (patch: Partial<Draft>) => setDraft((x) => (x ? { ...x, ...patch } : x));
   const move = (i: number, dir: number) => {
@@ -377,6 +381,26 @@ export function ProfileEditor({ ns }: { ns: string }) {
                 {ACCESS.find((a) => a.value === d.default_access)?.anon} Applies to recordings without their own access.
               </span>
             </div>
+            {d.default_access === "public" && (
+              <div className="grid items-start gap-2 sm:grid-cols-[180px_minmax(0,1fr)]">
+                <span className="text-[13px] font-bold text-fg-strong">Open to everyone</span>
+                <div
+                  className="flex flex-wrap gap-x-5 gap-y-2"
+                  role="group"
+                  aria-label="Parts open to everyone by default"
+                >
+                  {PARTS.map((p) => (
+                    <Checkbox
+                      key={p.value}
+                      checked={d.default_open.includes(p.value)}
+                      onCheckedChange={(on) => up({ default_open: togglePart(d.default_open, p.value, on) })}
+                      disabled={!isOwner}
+                      label={`${p.label} (${p.hint})`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
             {newlyRequired.map((f) =>
               affected(f) ? (
                 <div

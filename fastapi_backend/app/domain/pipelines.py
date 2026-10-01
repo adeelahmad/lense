@@ -11,8 +11,8 @@ import re
 from . import llm, render, sources, store, templates
 
 R = store.R
-STANDARD = ["transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "report"]
-TYPES = {"transcribe", "diarize", "shots", "ocr", "faces", "analyze", "summarize", "llm", "report", "export"}
+STANDARD = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "summarize", "report"]
+TYPES = {"transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "summarize", "llm", "report", "export"}
 KEYS = {"type", "name", "when", "template", "version", "key", "filename", "destination", "model", "force"}
 WHEN = {"min_minutes": (int, float), "max_minutes": (int, float), "source": str, "languages": list}
 KEY_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")

@@ -9,12 +9,13 @@ import math
 import os
 import pathlib
 import re
+import threading
 import urllib.parse
 from collections import Counter, defaultdict
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from . import analyze, graph as graphmod, speakers as spk, store
+from . import analyze, graph as graphmod, speakers as spk, store, transcript
 
 HERE = pathlib.Path(__file__).parent
 WEB_DIR = HERE / "web"
@@ -101,12 +102,31 @@ def recording_stats(db, rid):
     return st
 
 
+def _line(s):
+    """A transcript line for the player; `w` holds its timed words as [c0, c1, t0, t1] when transcription gave them, and
+    a document's or an image's blocks have their page (`p`, from 0) and where they are on it (`b`, [x, y, w, h])."""
+    line = {
+        "t0": s["t0"],
+        "t1": s["t1"],
+        "s": f"s{s['speaker']}" if s.get("speaker") else None,
+        "text": s["text"],
+        "e": s.get("emotion"),
+        "v": s.get("event"),
+    }
+    if s.get("page") is not None:
+        line.update(p=s["page"], b=s.get("box"))
+    w = transcript.align(s["text"], transcript.words(s))
+    return {**line, "w": w} if w else line
+
+
 def player_data(db, rid, audio=None):
     rec = db.one("SELECT * FROM $r", r=store.R("recording", rid))
     if not rec:
         raise KeyError(rid)
     segs = db.rows(
-        "SELECT record::id(id) AS id, idx, t0, t1, speaker, text, emotion, event FROM segment WHERE recording = $r ORDER BY idx", r=rid
+        "SELECT record::id(id) AS id, idx, t0, t1, speaker, text, emotion, event, words, page, box FROM segment WHERE recording = $r "
+        "ORDER BY idx",
+        r=rid,
     )
     order = list(dict.fromkeys(s["speaker"] for s in segs if s.get("speaker")))
     names = speaker_names(db, order)
@@ -146,17 +166,7 @@ def player_data(db, rid, audio=None):
         "duration_ms": rec.get("duration_ms") or (segs[-1]["t1"] if segs else 0),
         "audio": audio,
         "speakers": [{"key": f"s{i}", "id": i, "name": names.get(i, f"Speaker {i}"), "color": color_of(i)} for i in order],
-        "segments": [
-            {
-                "t0": s["t0"],
-                "t1": s["t1"],
-                "s": f"s{s['speaker']}" if s.get("speaker") else None,
-                "text": s["text"],
-                "e": s.get("emotion"),
-                "v": s.get("event"),
-            }
-            for s in segs
-        ],
+        "segments": [_line(s) for s in segs],
         "sections": db.rows("SELECT idx, seg0, seg1, t0, t1, title FROM section WHERE recording = $r ORDER BY idx", r=rid),
         "entities": entities,
         "keywords": analyze.keywords(db, rid, 40) if rec.get("analyzed_at") else [],
@@ -167,17 +177,48 @@ def player_data(db, rid, audio=None):
     }
 
 
+def kind(rec):
+    """What a resource is: audio, video, transcript (text without media), document or image."""
+    src = rec.get("source")
+    if src in ("document", "image"):
+        return src
+    if src != "audio":
+        return "transcript"
+    return "video" if (rec.get("media") or {}).get("kind") == "video" else "audio"
+
+
+def frame_link(rid, name):
+    return f"{store.API}/recordings/{rid}/frames/{name}" if name else None
+
+
 def visual(db, rid, rec):
-    """Shots, text on screen and people on screen for a video recording."""
+    """Shots, text on screen and people on screen for a video recording; the pages of a document or an image."""
     media = rec.get("media") or {}
+    k = kind(rec)
     out = {
-        "media": {"kind": media.get("kind") or "audio", "width": media.get("width"), "height": media.get("height"), "fps": media.get("fps")}
+        "media": store.clean(
+            {
+                "kind": "audio" if k == "transcript" else k,
+                "width": media.get("width"),
+                "height": media.get("height"),
+                "fps": media.get("fps"),
+                "pages": media.get("pages"),
+            }
+        )
     }
+    if k in ("document", "image"):
+        from . import documents
+
+        out["pages"] = [
+            {**p, "image": frame_link(rid, p.get("image")), "thumb": frame_link(rid, p.get("thumb"))} for p in documents.pages(db, rid)
+        ]
+        out["poster"] = out["pages"][0]["thumb"] if out["pages"] else None
+        # their spans and boxes count pages, from 0
+        return {**out, **_faces(db, rid, rec), **_objects(db, rid), **_descriptions(db, rid)}
     if media.get("kind") != "video":
         return out
-    from . import faces
 
-    frame = lambda name: f"{store.API}/recordings/{rid}/frames/{name}" if name else None  # noqa: E731
+    frame = lambda name: frame_link(rid, name)  # noqa: E731
     out["shots"] = [
         {"idx": x["idx"], "t0": x["t0"], "t1": x["t1"], "frame": frame(x.get("frame"))}
         for x in db.rows("SELECT idx, t0, t1, frame FROM shot WHERE recording = $r ORDER BY idx", r=rid)
@@ -196,20 +237,39 @@ def visual(db, rid, rec):
             "SELECT record::id(id) AS id, t0, t1, text, box, frame, edited FROM ocr_span WHERE recording = $r ORDER BY t0", r=rid
         )
     ]
-    out["faces_mode"] = faces.mode(db, rec["space"])
-    out["faces"] = (
-        [
-            {
-                **{k: t.get(k) for k in ("id", "local", "face", "name", "spans", "screen_ms", "first_ms", "boxes", "score", "match")},
-                "cover": frame(t.get("cover")),
-            }
-            for t in faces.tracks_for(db, rid)
-        ]
-        if out["faces_mode"] != "off"
-        else []
-    )
+    out.update(_faces(db, rid, rec))
+    out.update(_objects(db, rid))
+    out.update(_descriptions(db, rid))
     out["poster"] = out["shots"][0]["frame"] if out["shots"] else None
     return out
+
+
+def _faces(db, rid, rec):
+    """The namespace's face mode, and the faces found in the recording (none while it's off)."""
+    from . import faces
+
+    mode = faces.mode(db, rec["space"])
+    keep = ("id", "local", "face", "name", "spans", "screen_ms", "first_ms", "boxes", "score", "match")
+    tracks = faces.tracks_for(db, rid) if mode != "off" else []
+    return {
+        "faces_mode": mode,
+        "faces_pixelate": faces.pixelates(db, rec["space"]),
+        "faces": [{**{k: t.get(k) for k in keep}, "cover": frame_link(rid, t.get("cover"))} for t in tracks],
+    }
+
+
+def _objects(db, rid):
+    """The kinds of object found in the recording, the most seen first, each with the frame it's best seen on."""
+    from . import objects
+
+    return {"objects": [{**t, "frame": frame_link(rid, t.get("frame"))} for t in objects.for_recording(db, rid)]}
+
+
+def _descriptions(db, rid):
+    """What a model that can see images said each page or shot shows (t0 and t1 are a page's, from 0, on pages)."""
+    from . import descriptions
+
+    return {"descriptions": [{**d, "frame": frame_link(rid, d.get("frame"))} for d in descriptions.for_recording(db, rid)]}
 
 
 def has_audio(db, cfg, rid):
@@ -218,11 +278,17 @@ def has_audio(db, cfg, rid):
     return path if r.get("source") == "audio" and path and os.path.exists(path) else None
 
 
-def embed_page(db, cfg, rid, start=0.0, audio_url=None):
+def embed_page(db, cfg, rid, start=0.0, audio_url=None, played=None):
+    """The embeddable player. `played`: where the page reports its first play (share links only)."""
     d = player_data(db, rid, audio_url or f"{store.API}/recordings/{rid}/audio")
     if not audio_url and not has_audio(db, cfg, rid):
         d["audio"] = None
-    return ENV.get_template("embed.html").render(d=d, data=json_script(d), start=float(start or 0))
+    return ENV.get_template("embed.html").render(d=d, data=json_script(d), start=float(start or 0), played=played)
+
+
+def link_gone_page():
+    """What an expired, revoked or mistyped link shows: nothing about the recording, not even whether it exists."""
+    return ENV.get_template("link_gone.html").render()
 
 
 def _assets():
@@ -337,6 +403,16 @@ def report_namespace(db, cfg, nid, out_dir, links):
     return out
 
 
+def _links(out_dir, links=None):
+    """The recording report pages in a namespace's folder: {recording id: file name}."""
+    links = links if links is not None else {}
+    for p in out_dir.glob("*-*.html"):
+        m = re.search(r"-(\d+)\.html$", p.name)
+        if m:
+            links.setdefault(int(m.group(1)), p.name)
+    return links
+
+
 def build_reports(db, cfg, ns=None, rid=None, audio_mode=None, log=print):
     base, mode, written = pathlib.Path(cfg["data_dir"]) / "reports", audio_mode or cfg["reports"]["audio"], []
     spaces = db.rows("SELECT record::id(id) AS id, name FROM space" + (" WHERE name = $n" if ns else ""), n=ns)
@@ -349,14 +425,40 @@ def build_reports(db, cfg, ns=None, rid=None, audio_mode=None, log=print):
             p = report_recording(db, cfg, r["id"], out_dir, mode)
             links[r["id"]] = p.name
             written.append(p)
-        for p in out_dir.glob("*-*.html"):
-            m = re.search(r"-(\d+)\.html$", p.name)
-            if m:
-                links.setdefault(int(m.group(1)), p.name)
+        _links(out_dir, links)
         if links:
             written.append(report_namespace(db, cfg, n["id"], out_dir, links))
             log(f"  {n['name']}: {len(links)} recording report(s) and an overview")
     return written
+
+
+_OVERVIEWS: dict[str, bool] = {}  # namespace -> asked again while its overview was being rewritten
+_OL = threading.Lock()
+
+
+def refresh_overview(db, cfg, ns):
+    """Rewrite a namespace's report overview (index.html) after recordings went away, when it has one. Calls that come
+    while a rewrite runs make it run once more, instead of running alongside it."""
+    with _OL:
+        if ns in _OVERVIEWS:
+            _OVERVIEWS[ns] = True
+            return
+        _OVERVIEWS[ns] = False
+    try:
+        while True:
+            out_dir = pathlib.Path(cfg["data_dir"]) / "reports" / ns
+            row = db.one("SELECT record::id(id) AS id FROM space WHERE name = $n", n=ns)
+            if row and (out_dir / "index.html").exists():
+                report_namespace(db, cfg, row["id"], out_dir, _links(out_dir))
+            with _OL:
+                if not _OVERVIEWS[ns]:
+                    del _OVERVIEWS[ns]
+                    return
+                _OVERVIEWS[ns] = False
+    except BaseException:
+        with _OL:
+            _OVERVIEWS.pop(ns, None)
+        raise
 
 
 def _ts(ms, sep):

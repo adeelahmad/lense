@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { Recordings } from "@/app/openapi-client";
+import { Resources } from "@/app/openapi-client";
 import { EmbedBuilder } from "@/components/sharing/embed-builder";
 import { ShareLinks, type CreatedLink } from "@/components/sharing/share-links";
 import { Dialog } from "@/components/ui/dialog";
@@ -36,7 +36,7 @@ export function ShareEmbedDialog({ recordingId, open, onOpenChange, startMs }: S
 
   const rec = useQuery({
     queryKey: ["recording", recordingId],
-    queryFn: () => data(Recordings.getRecording({ client, path: { rid: recordingId } })),
+    queryFn: () => data(Resources.getRecording({ client, path: { rid: recordingId } })),
     enabled: open,
     staleTime: 60_000,
   });

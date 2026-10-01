@@ -52,6 +52,7 @@ analysis:
 llm:                                # optional summaries; any OpenAI-compatible server
   base_url: null                    # e.g. http://localhost:1234/v1 (LM Studio) or http://localhost:11434/v1 (Ollama)
   model: null
+  chat_models: []                   # the models people may pick in Chat (besides `model`); empty: whatever the server lists
   api_key_env: null
   max_chars: 24000
 
@@ -67,9 +68,19 @@ server:
   port: 8770
   allowed_hosts: [127.0.0.1, localhost]
   embed_frame_ancestors: ["'self'"] # pages allowed to iframe /embed/<id>, e.g. ["'self'", "https://intranet.example"]
-  max_upload_mb: 50                 # largest file the Import dialog accepts
+  max_upload_mb: 50                 # largest transcript file the Import dialog accepts (audio and video: uploads)
   session_hours: 168                # how long a sign-in lasts
   secure_cookies: false             # true behind HTTPS
+  # Proxies whose X-Forwarded-For names the visitor's address, for IP groups (docs/configuration.md): the web app's
+  # address, e.g. [127.0.0.1, "172.16.0.0/12"] for the web app in a Docker network. Put a reverse proxy in front of the
+  # web app that sets X-Forwarded-For (nginx, Caddy), or visitors can claim any address.
+  trusted_proxies: ["127.0.0.0/8", "::1/128"]
+
+uploads:                            # audio and video uploaded in the web app, in pieces (also in the app)
+  max_mb: 4096                      # largest file
+  extensions: [.m4a, .mp3, .wav, .flac, .ogg, .opus, .aac, .mp4, .webm, .amr, .mov, .mkv, .m4v, .avi]
+  chunk_mb: 8                       # per request; keep it under your reverse proxy's body limit
+  expire_hours: 24                  # an unfinished upload is deleted this long after its last piece
 
 workers:                            # background jobs; everything below can also be changed in the app
   inline: 1                         # workers inside the server (0 when separate `lens-archive worker` processes do the work)

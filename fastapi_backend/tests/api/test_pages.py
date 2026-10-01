@@ -43,14 +43,14 @@ def test_index_redirects_to_the_frontend(client):
 def test_embed_needs_a_share_or_signed_link(client, new_client, env):
     a, clip, he = env["a"], env["clip"], env["he"]
     anon = new_client()
-    assert anon.get(f"/embed/{a}").status_code == 401
+    assert anon.get(f"/embed/{a}").status_code == 410  # a neutral page (tests/api/test_sharing.py)
     tok = client.post(f"/api/v1/recordings/{a}/share", json={"days": 1}, headers=he).json()["token"]
     r = anon.get(f"/embed/{a}", params={"s": tok})
     assert r.status_code == 200
     assert "frame-ancestors 'self'" in r.headers["content-security-policy"]
-    assert anon.get(f"/embed/{env['b']}", params={"s": tok}).status_code == 401  # one recording only
+    assert anon.get(f"/embed/{env['b']}", params={"s": tok}).status_code == 410  # one recording only
     client.delete(f"/api/v1/recordings/{a}/share", headers=he)
-    assert anon.get(f"/embed/{a}", params={"s": tok}).status_code == 401  # revoked
+    assert anon.get(f"/embed/{a}", params={"s": tok}).status_code == 410  # revoked
 
     # a signed link from the API; the audio in the page is signed too, so it plays without a sign-in or share link
     link = client.get(f"/api/v1/recordings/{clip}/embed-link", params={"t": 1.5}, headers=he).json()["url"]
@@ -60,8 +60,8 @@ def test_embed_needs_a_share_or_signed_link(client, new_client, env):
     assert audio.startswith(f"/api/v1/recordings/{clip}/audio?") and "sig=" in audio
     r = anon.get(audio, headers={"Range": "bytes=0-9"})
     assert (r.status_code, r.content) == (206, env["wav"].read_bytes()[:10])
-    assert anon.get(link.replace("sig=", "sig=x")).status_code == 401  # tampered
-    assert anon.get(f"/embed/{env['call']}", headers=he).status_code == 404  # a bearer token still works, within its roles
+    assert anon.get(link.replace("sig=", "sig=x")).status_code == 410  # tampered
+    assert anon.get(f"/embed/{env['call']}", headers=he).status_code == 410  # a bearer token still works, within its roles
 
 
 def test_reports_are_served_by_signed_link(client, new_client, env, db, cfg):
@@ -98,3 +98,22 @@ def test_reports_are_served_by_signed_link(client, new_client, env, db, cfg):
     (pathlib.Path(cfg["data_dir"]) / "reports" / "pods" / "brief--1.html").write_text("<p>hi</p>")
     r = anon.get(sign_path("/reports/pods/brief--1.html"))
     assert r.status_code == 200 and "script-src 'none'" in r.headers["content-security-policy"]
+
+
+def test_pages_sign_only_their_own_recordings(client, new_client, env, db, cfg):
+    """A transcript line naming another recording's media stays unsigned in the embed and report pages."""
+    clip, he, anon = env["clip"], env["he"], new_client()
+    victim = f"/api/v1/recordings/{env['call']}/audio"  # in calls, where this editor has no role
+    line = f'see "{victim}" and {victim}'
+    assert client.patch(f"/api/v1/recordings/{clip}/segments/0", json={"text": line}, headers=he).status_code == 200
+    unsigned = re.compile(re.escape(victim) + r"\?")
+    own = re.compile(rf"/api/v1/recordings/{clip}/audio\?[^\"\\]*sig=")
+
+    page = anon.get(client.get(f"/api/v1/recordings/{clip}/embed-link", headers=he).json()["url"]).text
+    assert victim in page and not unsigned.search(page)
+    assert own.search(page)  # the page's own audio still plays
+
+    render.build_reports(db, cfg, log=quiet)
+    page = anon.get(client.get(f"/api/v1/recordings/{clip}", headers=he).json()["report_url"]).text
+    assert victim in page and not unsigned.search(page)
+    assert own.search(page)

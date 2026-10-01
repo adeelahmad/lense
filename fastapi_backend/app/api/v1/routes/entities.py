@@ -74,11 +74,18 @@ def list_entities(
     offset: int = 0,
     group: bool = False,
 ) -> EntityList:
-    """Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones."""
+    """Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
+    With `recording`, those said in it, also for someone who sees it through a role on its collection (then counted
+    over the recordings they see)."""
+    spaces, within = set(acl.roles), None
+    if recording is not None:
+        rec = acl.recording(recording)  # 404 unless they may see it
+        if rec["space"] not in spaces:
+            spaces, within = {rec["space"]}, acl.partial_recordings()
     return EntityList.model_validate(
         ents.list_entities(
             db,
-            set(acl.roles),
+            spaces,
             q,
             _csv_words(types),
             _csv_words(namespaces),
@@ -92,6 +99,7 @@ def list_entities(
             min(limit, 500),
             offset,
             group,
+            within,
         )
     )
 
