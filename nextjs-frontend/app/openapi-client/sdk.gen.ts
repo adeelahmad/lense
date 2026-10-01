@@ -2881,7 +2881,8 @@ export class Metadata {
 export class Video {
   /**
    * Get Media
-   * The video (or audio) file, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link.
+   * The video or audio file, with byte ranges; a document's or an image's file, to save. Accepts a bearer token, a
+   * share link (``?s=``) or a signed link.
    */
   public static getMedia<ThrowOnError extends boolean = false>(options: Options<GetMediaData, ThrowOnError>) {
     return (options.client ?? client).get<GetMediaResponses, GetMediaErrors, ThrowOnError>({

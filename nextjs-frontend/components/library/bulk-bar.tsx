@@ -4,7 +4,7 @@ import { Download, FolderInput, FolderTree, RefreshCw, Tag, Trash2, X, type Luci
 import { useEffect, useState, type ReactNode } from "react";
 
 import { EXPORT_FORMATS, type ExportFormat } from "@/components/library/actions";
-import { tagsFromText, tagsOn } from "@/components/library/model";
+import { hasSound, tagsFromText, tagsOn } from "@/components/library/model";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Field, Input, Select } from "@/components/ui/field";
@@ -370,7 +370,7 @@ export function MoveDialog({
   const to = picked && targets.includes(picked) ? picked : (targets[0] ?? "");
   const moving = rows.filter((r) => r.namespace !== to);
   const already = rows.length - moving.length;
-  const withAudio = moving.filter((r) => r.media_kind !== "transcript").length;
+  const withAudio = moving.filter(hasSound).length;
   const from = [...new Set(moving.map((r) => r.namespace ?? "?"))].join(", ");
   const n = moving.length;
   return (

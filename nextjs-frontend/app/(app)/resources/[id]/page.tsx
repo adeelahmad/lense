@@ -10,15 +10,28 @@ export const metadata: Metadata = { title: "Recording" };
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ t?: string | string[]; file?: string | string[]; line?: string | string[] }>;
+  searchParams: Promise<{
+    t?: string | string[];
+    file?: string | string[];
+    line?: string | string[];
+    page?: string | string[];
+  }>;
 };
 
-/** A resource: a recording (R1–R9, VR1–VR3). `?t=<seconds>` opens it at that moment, `?file=<id>&line=<n>` on one of
- * its files (search links lines of files without times that way). /recordings/<id> redirects here. */
+/** A resource: a recording (R1–R9, VR1–VR3), a document or an image. `?t=<seconds>` opens it at that moment,
+ * `?page=<n>` a document on its nth page, `?file=<id>&line=<n>` on one of its files (search links lines of files
+ * without times that way). /recordings/<id> redirects here. */
 export default async function RecordingRoute({ params, searchParams }: Props) {
   const { id } = await params;
   const rid = Number(id);
   if (!Number.isInteger(rid) || rid <= 0) notFound();
-  const { t, file, line } = await searchParams;
-  return <RecordingPage id={rid} start={parseStart(t)} focus={parseFileFocus(file, line)} />;
+  const { t, file, line, page } = await searchParams;
+  return (
+    <RecordingPage
+      id={rid}
+      start={parseStart(t)}
+      focus={parseFileFocus(file, line)}
+      page={typeof page === "string" ? page : null}
+    />
+  );
 }

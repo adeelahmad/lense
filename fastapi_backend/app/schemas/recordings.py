@@ -9,7 +9,7 @@ from app.schemas.hierarchy import CollectionStep
 
 # Recording statuses, plus two job states: a job queued or running (processing), the latest job failed (failed).
 RecordingState = Literal["new", "transcribed", "diarized", "analyzed", "error", "processing", "failed"]
-MediaKind = Literal["audio", "video", "transcript"]
+MediaKind = Literal["audio", "video", "transcript", "document", "image"]
 RecordingSort = Literal[
     "date",
     "-date",
@@ -38,8 +38,9 @@ class RecordingSummary(ResponseModel):
     namespace: str | None = None
     collection: int | None = Field(None, description="the collection it lives in")
     collection_name: str | None = None
-    media_kind: str = Field(description="audio, video or transcript")
-    poster: str | None = Field(None, description="signed link to the first video frame")
+    media_kind: str = Field(description="audio, video, transcript (text without media), document or image")
+    pages: int | None = Field(None, description="a document's or an image's pages")
+    poster: str | None = Field(None, description="signed link to a video's first frame, or a document's or image's first page")
     emotions: dict[str, Any] = Field(default_factory=dict)
     words: int | None = None
     importance: Any = None
@@ -102,8 +103,22 @@ class Recording(ResponseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class Page(ResponseModel):
+    """A page of a document, or an image (a TIFF has one per frame)."""
+
+    idx: int = Field(description="from 0")
+    width: int | None = Field(None, description="pixels of its image")
+    height: int | None = None
+    image: str | None = Field(None, description="a signed link to it, drawn; none when it couldn't be")
+    thumb: str | None = Field(None, description="a signed link to it, small")
+    text: Literal["pdf", "ocr"] | None = Field(None, description="how its text was read: from the PDF, or by OCR; none without text")
+    chars: int = Field(0, description="characters of text on it")
+    label: str | None = Field(None, description="the PDF's own name for it (iv, A-1, …) when it isn't its number")
+
+
 class Player(ResponseModel):
-    """Everything the player shows: transcript, speakers, sections, entities and, for videos, shots and faces."""
+    """Everything the player shows: transcript, speakers, sections, entities and, for videos, shots and faces; for
+    documents and images, their pages."""
 
     id: int
     title: str | None = None
@@ -115,14 +130,19 @@ class Player(ResponseModel):
     segments: list[dict[str, Any]] = Field(
         default_factory=list,
         description="the lines: t0, t1 (ms), s (speaker key), text, e (emotion), v (event), and w, the timed words as "
-        "[c0, c1, t0, t1] (a character range of text, ms) when transcription gave them",
+        "[c0, c1, t0, t1] (a character range of text, ms) when transcription gave them; a document's or an image's "
+        "blocks of text have p, their page (from 0), and b, where they are on it ([x, y, w, h] as fractions of the "
+        "page), and times that are only a reading pace",
     )
     sections: list[dict[str, Any]] = Field(default_factory=list)
     entities: list[dict[str, Any]] = Field(default_factory=list)
     keywords: list[Any] = Field(default_factory=list)
     envelope: list[Any] | None = None
     summary: dict[str, Any] | None = None
-    media: dict[str, Any] | None = None
+    media: dict[str, Any] | None = Field(
+        None, description="kind: audio, video, document or image (audio for a transcript without media), and its size"
+    )
+    pages: list[Page] | None = Field(None, description="a document's or an image's pages, in order")
 
 
 class RecordingUpdate(RequestModel):

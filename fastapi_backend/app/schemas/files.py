@@ -12,10 +12,10 @@ FileRole = Literal["transcript", "captions", "translation", "index", "thumbnail"
 
 
 class PrimaryFile(ResponseModel):
-    """The audio or video the resource's pipeline runs on."""
+    """The audio, video, document or image the resource's pipeline runs on."""
 
     name: str | None = None
-    kind: Literal["audio", "video"]
+    kind: Literal["audio", "video", "document", "image"]
     size: int | None = Field(None, description="bytes")
     content_type: str | None = None
     download: str = Field(description="a signed link to it")

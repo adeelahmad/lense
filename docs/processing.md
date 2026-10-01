@@ -7,7 +7,9 @@ How recordings move through Lens: where they come from, what each step does, and
 - `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped,
   and so are files whose recording someone deleted or moved to another namespace (at the same path, or a copy of the same
   file).
-- `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. A file that fails is marked and the batch carries on.
+- `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. A file that fails is marked and the batch carries on. For a
+  document or an image it draws the pages and reads their text instead: a PDF's own text, and OCR for scans and images
+  ([Documents and images](configuration.md#documents-and-images)).
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
   matches voiceprints against the namespace's speakers.
 - `analyze` finds entities, chapters, keywords and talk statistics; `summarize` (optional) calls any OpenAI-compatible
@@ -27,7 +29,8 @@ Formats: .txt, .md, .markdown, .mdx, .docx, .doc, .pdf, .srt, .vtt, .json (lens,
     lens import notes minutes.pdf --format text
 
 In the web app, Import takes pasted text, a chosen file or one dropped on the text box, and analyses it straight away.
-It also uploads audio and video, which go through the namespace's pipeline like scanned files. "Then run" picks
+It also uploads audio, video, documents and images, which go through the namespace's pipeline like scanned files. A
+PDF is a document (its pages, to look at and search) unless you choose Transcript (its text only). "Then run" picks
 another saved pipeline for what you import.
 
 **Audio for a transcript.** A transcript can get its audio (or video) in the web app: Import → Paste's "Attach audio…",
@@ -41,8 +44,8 @@ same file find it, unless another recording in the namespace has it already.
 Speakers are recognised from `Name: text`, `[12:30] Name: text`, `Name (12:30): text`, Otter/Zoom/Teams exports (a
 `Name  12:30` line, then what they said), `speaker|emotion|text` lines, and the speakers in SRT/VTT and JSON. Anything
 else becomes paragraphs split into segments of about 40 words with estimated times. Markdown and MDX are reduced to text
-first: front matter or the first heading becomes the title; imports, exports, JSX and code blocks are dropped. PDFs need a
-text layer, so OCR scans first. Named speakers are reused within the namespace; generic labels (SPEAKER_00, S1, CH0)
+first: front matter or the first heading becomes the title; imports, exports, JSX and code blocks are dropped. A PDF
+imported as a transcript needs a text layer; import a scan as a document instead, and its pages are read by OCR. Named speakers are reused within the namespace; generic labels (SPEAKER_00, S1, CH0)
 become new speakers.
 
 ## Speakers and namespaces

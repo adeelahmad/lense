@@ -109,7 +109,7 @@ def search(
     where_f = (" AND " + " AND ".join(filt)) if filt else ""
     base_params = dict(params)
     cap = min(1000, (offset + limit) * 3 + 50)
-    fields = "record::id(id) AS id, recording, idx, t0, t1, emotion, speaker, space, text"
+    fields = "record::id(id) AS id, recording, idx, t0, t1, emotion, speaker, space, text, page, box"
     rows = None
     if db.ready_fulltext():
         conds, sel = [], []
@@ -141,8 +141,8 @@ def search(
         r["_score"] = sum(abs(r.get(f"s{k}") or 0) for k in range(1, len(groups) + 1))  # BM25; some engines return it negated
         r["_snip"] = snippet(best)
         hits.append(r)
-    for h in hits:
-        h["source"] = "said"
+    for h in hits:  # a document's or an image's text is on its pages
+        h["source"] = "said" if h.get("page") is None else "page"
     if screen and not speaker and not emotion:  # text shown on screen in videos has no speaker or emotion
         hits += _screen(db, groups, space_filter(ns, spaces, recording, params), cap, params)
     if files and not speaker and not emotion:  # nor do the lines of files (a speaker there is just a label)
@@ -203,6 +203,7 @@ def search(
                 if h["source"] == "screen"
                 else {}
             ),
+            **({"page": h["page"], "box": h.get("box")} if h["source"] == "page" else {}),
             **(_in_file(in_files.get(h["file"]) or {"id": h["file"]}, h.get("line")) if h["source"] == "file" else {}),
         }
         for h in page

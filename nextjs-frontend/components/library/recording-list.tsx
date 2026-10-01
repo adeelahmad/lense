@@ -7,21 +7,17 @@ import { useRef } from "react";
 import type { RecordingSummary } from "@/app/openapi-client/types.gen";
 import { AccessBadge } from "@/components/access/access-fields";
 import { MediaIcon } from "@/components/library/cells";
-import { speakerList, statusView } from "@/components/library/model";
+import { lengthText, speakerList, statusView } from "@/components/library/model";
 import { rowClick, type RowProps } from "@/components/library/recording-table";
 import { Badge, speakerColor } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/field";
 import { Tooltip } from "@/components/ui/tooltip";
-import { shortDate, tc } from "@/lib/format";
+import { shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 function meta(r: RecordingSummary, compactDate = false) {
   const date = shortDate(r.recorded_at);
-  return [
-    r.namespace,
-    compactDate ? date.replace(/, \d\d:\d\d$/, "").replace(/ \d{4}$/, "") : date,
-    r.duration_ms ? tc(r.duration_ms) : "—",
-  ]
+  return [r.namespace, compactDate ? date.replace(/, \d\d:\d\d$/, "").replace(/ \d{4}$/, "") : date, lengthText(r)]
     .filter(Boolean)
     .join(" · ");
 }

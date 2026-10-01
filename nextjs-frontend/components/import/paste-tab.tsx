@@ -11,6 +11,7 @@ import {
   kindOf,
   localProblem,
   mappingParam,
+  mediaTypes,
   parseMapping,
 } from "@/components/import/files";
 import { MappingField, PreviewLines } from "@/components/import/mapping";
@@ -48,7 +49,7 @@ export function PasteTab({
   const [audio, setAudio] = useState<File | null>(null);
   const [audioProblem, setAudioProblem] = useState<string | null>(null);
   const pickAudio = async () => {
-    const [f] = await chooseFiles(limits.extensions.join(","));
+    const [f] = await chooseFiles(mediaTypes(limits));
     if (!f) return;
     const problem = isMedia(kindOf(f.name)) ? localProblem(f, limits) : { title: "Choose an audio or video file" };
     setAudio(problem ? null : f);

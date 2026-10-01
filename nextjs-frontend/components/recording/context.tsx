@@ -22,7 +22,8 @@ export type PanelTab =
   | "shots"
   | "text"
   | "people"
-  | "transcript";
+  | "transcript"
+  | "pages";
 
 /** Everything the recording page's parts share: the data, the person's role, and page-level UI state. */
 export type RecordingCtx = {
@@ -43,6 +44,12 @@ export type RecordingCtx = {
   member: boolean;
   /** No playable media: an imported transcript. */
   transcriptOnly: boolean;
+  /** A document or an image: its text is on pages, and times are only a reading pace. */
+  paged: boolean;
+  /** Where a moment of the text is, for people: its time ("1:23"), or for a document its page ("p. 3"). */
+  where: (ms: number) => string;
+  /** A document's page to open on (?page=, from 0). */
+  startPage: number | null;
   find: {
     open: boolean;
     query: string;

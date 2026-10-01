@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import errno
 import pathlib
-from typing import Any, Literal
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
@@ -19,7 +19,7 @@ from app.api.deps import Access, Acl, Cfg, Db, Writer, domain_errors
 from app.api.media import sign_urls
 from app.api.v1.routes.uploads import CHUNK
 from app.domain import access as acc
-from app.domain import auth, files, render, store, video
+from app.domain import auth, documents, files, render, store, video
 from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.files import FileLine, FileLines, FileRole, FileUpdate, PrimaryFile, ResourceFile, ResourceFiles
@@ -29,14 +29,17 @@ router = APIRouter(prefix="/recordings/{rid}/files", tags=["files"])
 
 
 def _primary(db: DB, cfg: dict[str, Any], rid: int, rec: dict[str, Any]) -> PrimaryFile | None:
-    """The audio or video, when the resource has one."""
-    local = render.has_audio(db, cfg, rid) if rec.get("source") == "audio" else None
-    if not (local or (rec.get("source") == "audio" and rec.get("remote"))):
+    """The audio, video, document or image, when the resource has one."""
+    kind = render.kind(rec)
+    if kind == "transcript":
+        return None
+    local = render.has_audio(db, cfg, rid) if kind in ("audio", "video") else store.resolve_path(cfg, rec.get("path"))
+    local = local if local and pathlib.Path(local).is_file() else None
+    if not (local or rec.get("remote")):
         return None
     name = pathlib.PurePosixPath((rec.get("remote") or {}).get("path") or rec.get("path") or "").name
     ext = pathlib.PurePosixPath(name).suffix.lower()
-    kind: Literal["audio", "video"] = "video" if (rec.get("media") or {}).get("kind") == "video" else "audio"
-    ctype = video.VIDEO_TYPES.get(ext) if kind == "video" else render.AUDIO_TYPES.get(ext)
+    ctype = {"video": video.VIDEO_TYPES.get(ext), "audio": render.AUDIO_TYPES.get(ext)}.get(kind) or documents.content_type(name)
     size = rec.get("size") or (pathlib.Path(local).stat().st_size if local else None)
     return PrimaryFile(name=name or None, kind=kind, size=size, content_type=ctype, download=f"{store.API}/recordings/{rid}/media")
 

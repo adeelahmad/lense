@@ -8,7 +8,7 @@
 import type { Job, ListRecordingsData, RecordingSummary, Speaker } from "@/app/openapi-client/types.gen";
 import type { Tone } from "@/components/ui/badge";
 import { STEP_LABEL } from "@/components/ui/loop";
-import { plural } from "@/lib/format";
+import { plural, tc } from "@/lib/format";
 
 /** Recording statuses as the backend names them, in pipeline order. */
 export const STATUSES = ["new", "transcribed", "diarized", "analyzed", "error"] as const;
@@ -204,7 +204,7 @@ export function emotionMix(emotions: Record<string, unknown> | null | undefined)
 
 export type DateRange = "any" | "today" | "7d" | "30d" | "90d" | "1y";
 export type DurationRange = "any" | "short" | "medium" | "long" | "xlong";
-export type MediaFilter = "any" | "audio" | "video" | "transcript";
+export type MediaFilter = "any" | "audio" | "video" | "transcript" | "document" | "image";
 export type LibraryView = "all" | "attention" | "processing" | "mine";
 /** Status filter values: the backend statuses plus two job states. */
 export type StatusFilter = RecordingStatus | "processing" | "failed";
@@ -280,7 +280,25 @@ export const MEDIA_LABEL: Record<MediaFilter, string> = {
   audio: "Audio",
   video: "Video",
   transcript: "Transcript only",
+  document: "Document",
+  image: "Image",
 };
+
+/** How long a row is: its duration, or a document's or an image's pages ("12 pages"); "—" when not known. */
+export function lengthText(r: {
+  duration_ms?: number | null;
+  media_kind?: string | null;
+  pages?: number | null;
+}): string {
+  if (r.media_kind === "document" || r.media_kind === "image")
+    return r.pages ? `${r.pages} page${r.pages === 1 ? "" : "s"}` : "—";
+  return r.duration_ms ? tc(r.duration_ms) : "—";
+}
+
+/** Whether a row has audio or video (whose speakers can be found again by voice). */
+export function hasSound(r: { media_kind?: string | null }): boolean {
+  return r.media_kind === "audio" || r.media_kind === "video";
+}
 
 export const STATUS_FILTER_LABEL: Record<StatusFilter, string> = {
   new: "New",

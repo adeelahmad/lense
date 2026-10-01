@@ -1,4 +1,4 @@
-"""Audio and video uploaded in pieces (docs/api.md, Uploads).
+"""Audio, video, documents and images uploaded in pieces (docs/api.md, Uploads).
 
 Someone starts an upload with the file's name and size, then sends it in chunks (the web app sends uploads.chunk_mb
 at a time). Each chunk streams straight into a partial file under data_dir/uploads/.partial, so no request holds a
@@ -22,7 +22,7 @@ import secrets
 import shutil
 import unicodedata
 
-from . import deletion, ingest, jobs, render, store
+from . import deletion, documents, ingest, jobs, render, store
 
 R = store.R
 MB = 1024 * 1024
@@ -55,6 +55,12 @@ class HasMedia(ValueError):
 def has_media(db, cfg, rec):
     """Whether a recording plays something: a file on a storage source, or a local file that's there."""
     return bool(rec.get("remote")) or bool(render.has_audio(db, cfg, rec["id"]))
+
+
+def has_file(db, cfg, rec):
+    """Whether a document or an image still has its file: on a storage source, or a local file that's there."""
+    path = store.resolve_path(cfg, rec.get("path"))
+    return bool(rec.get("remote")) or bool(path and os.path.exists(path))
 
 
 def clean_name(name):
@@ -146,7 +152,9 @@ def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=Non
     allowed = sorted({e.lower() for e in u["extensions"]})
     if ext not in allowed:
         kind = f"{ext[1:].upper()} files" if ext else "Files without an extension"
-        raise ValueError(f"{kind} can't be uploaded; audio and video files: {', '.join(e[1:] for e in allowed)}")
+        raise ValueError(f"{kind} can't be uploaded here; these can: {', '.join(e[1:] for e in allowed)}")
+    if attach and documents.kind_of(name):
+        raise ValueError("only audio or video can be attached to a transcript")
     if size <= 0:
         raise ValueError("the file is empty")
     if size > u["max_mb"] * MB:
@@ -271,15 +279,20 @@ def finish(db, cfg, row, admin=False):
             None
             if target
             else db.one(
-                "SELECT record::id(id) AS id, status, remote FROM recording WHERE space = $s AND fingerprint = $f LIMIT 1", s=sid, f=fp
+                "SELECT record::id(id) AS id, status, remote, path FROM recording WHERE space = $s AND fingerprint = $f LIMIT 1",
+                s=sid,
+                f=fp,
             )
         )
-        copy = bool(dup and has_media(db, cfg, dup))  # it's here already, with its media
+        kind = documents.kind_of(row["filename"])
+        copy = bool(dup and (has_file(db, cfg, dup) if kind else has_media(db, cfg, dup)))  # it's here already, with its file
         job = None
         if target:
             rid, job = target, _attach(db, cfg, target, sid, dest, st, fp, by)
         elif copy:
             rid = dup["id"]
+        elif kind:
+            rid, job = _document(db, dest, st, fp, sid, row, kind, dup, by)
         else:
             dur, ch = ingest.probe(dest)
             media = store.clean(
@@ -319,6 +332,33 @@ def finish(db, cfg, row, admin=False):
     if copy:
         shutil.rmtree(dest.parent, ignore_errors=True)
     return get(db, uid)
+
+
+def _document(db, dest, st, fp, sid, row, kind, dup, by):
+    """A document or an image: a resource of its own, or the one the file was before (imported as a transcript, or
+    whose file went), which takes it as this kind; its pages are drawn and read by the namespace's pipeline (or the
+    one chosen)."""
+    d = {"path": str(dest), "source": kind, "size": st.st_size, "mtime": st.st_mtime, "media": {"kind": kind}, "status": "new"}
+    if dup:
+        rid = dup["id"]
+        db.q("UPDATE $r MERGE $d", r=R("recording", rid), d=d)
+    else:
+        rid = db.next_id("recording")
+        db.q(
+            "CREATE $r CONTENT $d",
+            r=R("recording", rid),
+            d={
+                **d,
+                "space": sid,
+                "collection": _home(db, sid, row.get("collection")),
+                "fingerprint": fp,
+                "fp_key": f"{sid}:{fp}",
+                "title": row.get("title") or pathlib.Path(row["filename"]).stem,
+                "recorded_at": ingest.recorded_at(dest, st.st_mtime),
+                "created_at": store.now(),
+            },
+        )
+    return rid, jobs.enqueue(db, rid, None, by=by, pipeline=row.get("pipeline"))
 
 
 def _attach(db, cfg, rid, sid, dest, st, fp, by):

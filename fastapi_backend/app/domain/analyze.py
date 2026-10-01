@@ -545,12 +545,26 @@ SUMMARY_SYSTEM = (
     "of the line where it was said); empty if none. people: people mentioned by name. sentiment: the overall emotional "
     "tone, one of " + ", ".join(store.EMOTIONS) + ". importance: 1 (routine) to 5 (critical). Reply with JSON only."
 )
+SUMMARY_DOCUMENT_SYSTEM = (
+    "You summarise one document for a searchable archive. Use only what its text says. Each line of the text starts "
+    "with its page, like [p. 3]. summary: at most 120 words. key_points: up to 6 main points, each with at: the page "
+    "of the line it comes from, like p. 3. topics: up to 6 short noun phrases. action_items: follow-ups or "
+    "commitments the document states, each with who (who will do it, empty when not said) and at (the page where it "
+    "is said); empty if none. people: people mentioned by name. sentiment: the overall emotional tone, one of "
+    + ", ".join(store.EMOTIONS)
+    + ". importance: 1 (routine) to 5 (critical). Reply with JSON only."
+)
 CLOCK = re.compile(r"\[?(\d{1,2}(?::\d{1,2}){1,2})\]?")
+PAGE = re.compile(r"\[?\s*(?:p(?:age|g)?\.?\s*)?(\d+)\s*\]?", re.I)
 
 
 def _cited(at, starts, end):
     """ms for a line's time as the model cited it ("12:34", "[1:02:03]"): the start of the line shown with that time,
-    else the time itself; None when there's none or it's past the end."""
+    else the time itself; None when there's none or it's past the end. A document's lines are cited by page ("p. 3"):
+    the start of its first line on that page."""
+    pg = PAGE.fullmatch(str(at or "").strip())
+    if pg:
+        return starts.get(f"p. {int(pg.group(1))}")
     m = CLOCK.fullmatch(str(at or "").strip())
     if not m:
         return None
@@ -594,12 +608,12 @@ def summary_view(summary):
     }
 
 
-def _llm(cfg, user):
+def _llm(cfg, user, system=SUMMARY_SYSTEM):
     l = cfg["llm"]
     body = {
         "model": l["model"],
         "temperature": 0,
-        "messages": [{"role": "system", "content": SUMMARY_SYSTEM}, {"role": "user", "content": user}],
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         "response_format": {"type": "json_schema", "json_schema": {"name": "summary", "strict": True, "schema": SUMMARY_SCHEMA}},
     }
     headers = {"Content-Type": "application/json"}
@@ -623,18 +637,18 @@ def _llm(cfg, user):
 
 
 def summarize_recording(db, cfg, rid):
+    rec = db.one("SELECT space, source FROM $r", r=R("recording", rid))
     names = {
         r["id"]: r.get("name") or r["label"]
-        for r in db.rows(
-            "SELECT record::id(id) AS id, name, label FROM speaker WHERE space = $s",
-            s=db.one("SELECT space FROM $r", r=R("recording", rid))["space"],
-        )
+        for r in db.rows("SELECT record::id(id) AS id, name, label FROM speaker WHERE space = $s", s=rec["space"])
     }
-    segs = db.rows("SELECT idx, t0, t1, text, speaker FROM segment WHERE recording = $r ORDER BY idx", r=rid)
-    lines = [f"[{store.tc(r['t0'])}] {names.get(r.get('speaker'), 'Speaker')}: {r['text']}" for r in segs]
+    segs = db.rows("SELECT idx, t0, t1, text, speaker, page FROM segment WHERE recording = $r ORDER BY idx", r=rid)
+    doc = rec.get("source") in ("document", "image")  # its lines are on pages, not said at times
+    shown = (lambda r: f"p. {(r.get('page') or 0) + 1}") if doc else (lambda r: store.tc(r["t0"]))
+    lines = [f"[{shown(r)}] {r['text']}" if doc else f"[{shown(r)}] {names.get(r.get('speaker'), 'Speaker')}: {r['text']}" for r in segs]
     starts: dict[str, int] = {}
     for r in segs:
-        starts.setdefault(store.tc(r["t0"]), r["t0"])  # a cited time is the start of the line shown with it
+        starts.setdefault(shown(r), r["t0"])  # a cited time (or page) is the start of the first line shown with it
     chunks, cur = [], ""
     for line in lines:
         if cur and len(cur) + len(line) > cfg["llm"]["max_chars"]:
@@ -642,17 +656,22 @@ def summarize_recording(db, cfg, rid):
             cur = ""
         cur += line + "\n"
     chunks.append(cur)
+    system, what, text = (SUMMARY_DOCUMENT_SYSTEM, "document", "text") if doc else (SUMMARY_SYSTEM, "conversation", "transcript")
     parts = [
-        _llm(cfg, ("Part %d of %d of the transcript:\n\n" % (i + 1, len(chunks)) if len(chunks) > 1 else "Transcript:\n\n") + c)
+        _llm(cfg, (f"Part {i + 1} of {len(chunks)} of the {text}:\n\n" if len(chunks) > 1 else f"{text.capitalize()}:\n\n") + c, system)
         for i, c in enumerate(chunks)
     ]
     out = (
         parts[0]
         if len(parts) == 1
-        else _llm(cfg, "Combine these summaries of consecutive parts of one conversation into one:\n\n" + json.dumps(parts))
+        else _llm(cfg, f"Combine these summaries of consecutive parts of one {what} into one:\n\n" + json.dumps(parts), system)
     )
     end = max((r["t1"] for r in segs), default=0)
     out = {**out, "key_points": _timed(out.get("key_points"), starts, end), "action_items": _timed(out.get("action_items"), starts, end)}
+    if doc:  # where each point is: its page
+        page_at = {r["t0"]: r.get("page") for r in segs}
+        for k in ("key_points", "action_items"):
+            out[k] = [store.clean({**x, "page": page_at.get(x.get("t0"))}) for x in out[k]]
     db.q("UPDATE $r SET summary = $s, summarized_at = $t", r=R("recording", rid), s=out, t=store.now())
     return out
 

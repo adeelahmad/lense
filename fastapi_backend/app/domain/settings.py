@@ -49,6 +49,7 @@ EDITABLE = {
     "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
     "uploads": None,
     "tokens": None,
+    "documents": None,
 }
 SECRETS = {"llm": ("api_key",)}
 ENUMS = {
@@ -64,9 +65,11 @@ ENUMS = {
     ("video", "face_engine"): {"opencv", "insightface", "none"},
 }
 ENV_OVERRIDES = {("server", "allowed_hosts"): "ARCHIVE_ALLOWED_HOSTS"}
-# The types uploads.extensions may name: what the folder scans import, and a few more that ffmpeg reads.
-UPLOAD_TYPES = frozenset([*store.MEDIA_EXT, ".aif", ".aiff", ".wma", ".mpg", ".mpeg", ".3gp"])
+# The types uploads.extensions may name: what the folder scans import, a few more that ffmpeg reads, and documents and
+# images.
+UPLOAD_TYPES = frozenset([*store.MEDIA_EXT, ".aif", ".aiff", ".wma", ".mpg", ".mpeg", ".3gp", *store.DOCUMENT_EXT, *store.IMAGE_EXT])
 UPLOAD_RANGES = {"max_mb": (1, 1_000_000), "chunk_mb": (1, 64), "expire_hours": (1, 720)}
+DOCUMENT_RANGES = {"page_pixels": (800, 6000), "thumb_pixels": (120, 800), "ocr_below_chars": (0, 5000), "max_pages": (1, 50_000)}
 TOKEN_DAYS = (1, 3650)
 VIEWER_URL = re.compile(r"^https?://[^\s]+$")
 _KEYS, _KL = {}, threading.Lock()
@@ -205,6 +208,11 @@ def _check(section, key, value, default):
         return list(dict.fromkeys(names))
     if section == "uploads":
         return _upload_setting(key, value)
+    if section == "documents":
+        lo, hi = DOCUMENT_RANGES[key]
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"documents.{key} is a whole number from {lo} to {hi}")
+        return value
     if section == "tokens" and key != "never_expire":
         lo, hi = TOKEN_DAYS
         if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
@@ -237,7 +245,9 @@ def _upload_setting(key, value):
         ok = isinstance(value, list) and value and all(isinstance(x, str) for x in value)
         exts = sorted({"." + x.strip().lower().lstrip(".") for x in value}) if ok else []
         if not exts or any(e not in UPLOAD_TYPES for e in exts):
-            raise ValueError(f"uploads.extensions is a list of audio and video types from: {', '.join(sorted(UPLOAD_TYPES))}")
+            raise ValueError(
+                f"uploads.extensions is a list of audio, video, document and image types from: {', '.join(sorted(UPLOAD_TYPES))}"
+            )
         return exts
     lo, hi = UPLOAD_RANGES[key]
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):

@@ -135,8 +135,8 @@ namespace aren't listed: theirs holds everywhere in it.
 
 ## resources
 
-A resource is what the archive holds: today a recording (audio, video, or a transcript without media). The API calls
-them resources: `/api/v1/resources/…` is the canonical path for everything below, and the schema and the generated
+A resource is what the archive holds: a recording (audio, video, or a transcript without media), a document (a PDF) or
+an image ([Documents and images](#documents-and-images)). The API calls them resources: `/api/v1/resources/…` is the canonical path for everything below, and the schema and the generated
 client use it (the `Resources` class). `/api/v1/recordings/…`, their address before, keeps working for existing
 clients and reaches the same routes; links the server writes (signed media links, for one) may still use it. Fields
 keep their names (`recording`, `RecordingSummary`). The web app's pages moved too: `/resources/<id>`, with
@@ -196,7 +196,7 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 | `speaker` | speaker ids |
 | `from`, `to` | the recording date, `YYYY-MM-DD`, both days included; recordings without a date don't match |
 | `min_duration`, `max_duration` | seconds: at least `min_duration`, shorter than `max_duration` |
-| `media` | `audio`, `video` or `transcript` (no media) |
+| `media` | `audio`, `video`, `transcript` (no media), `document` or `image` |
 | `access` | `public`, `restricted` or `private`: the recording's own setting, else its namespace's default |
 | `featured` | `true`: only featured recordings; `false`: only the others |
 | `tag` | tags, ignoring case |
@@ -300,6 +300,26 @@ all of the recording (owners). `PUT …/{gid}` opens the recording to a group th
 that opens `everything` already), `DELETE …/{gid}` closes it again (404 when it wasn't open). Both answer with the list
 and are audited as `recording.ip_group.open` and `recording.ip_group.close`.
 
+### Documents and images
+
+A PDF uploaded as a document, or an image (JPEG, PNG, TIFF, WebP, GIF or BMP), is a resource of its own: its `source`
+is `document` or `image`, and so is `media_kind` in the list, with its `pages`. Its pipeline's transcribe step draws its
+pages and reads their text: a PDF's own text, block by block with where each block is on its page (poppler's
+pdftotext; pypdf without poppler, when there are no pages to look at), and by OCR (`video.ocr_engine`) the pages with
+fewer than `documents.ocr_below_chars` characters of text, drawn sharper for it. An image is one page (a TIFF one per
+frame), read by OCR. Diarize, shots and text on screen skip them; analyze, summarize and report run as for any text.
+[Configuration](configuration.md#documents-and-images) has the settings.
+
+The text becomes the resource's segments, one per block, so search, chat, entities, notes and corrections
+(`PATCH /segments/{idx}`) work on it as on a transcript. A block's times are only a reading pace; what places it is its
+page: `GET /{rid}/player` gives each segment `p` (its page, from 0) and `b` (where it is on the page, `[x, y, w, h]` as
+fractions, when known), and `pages`: each page's `idx`, `width` and `height` (pixels of its image), signed links to its
+`image` and its `thumb`nail (none when it couldn't be drawn), how its `text` was read (`pdf` or `ocr`), its `chars` and
+its `label` (the PDF's own name for it, when it isn't its number). `media` says its `kind`, its `pages` and the first
+page's size. `GET /{rid}/media` is the file itself, as a download that browsers don't run. A summary's key points and
+action items cite pages: each has the `page` it comes from. The web app opens a document at a page with
+`/resources/<id>?page=<n>` (from 1).
+
 ## notes
 
 ```
@@ -383,7 +403,9 @@ brings it back. Audited as `import.source`.
 
 ### Uploads
 
-Audio and video go up in pieces, so a dropped connection costs one piece, not the file.
+Audio, video, documents (PDF) and images go up in pieces, so a dropped connection costs one piece, not the file. A PDF
+uploaded this way is a [document](#documents-and-images); to import a PDF as a transcript (its text only), send it to
+`POST /import` instead (the web app's Import asks which).
 
 ```
 GET    /api/v1/uploads/limits
@@ -401,7 +423,7 @@ DELETE /api/v1/uploads/{uid}
 `POST /uploads {namespace, filename, size, title?, modified?, pipeline?, collection?, recording?}` starts one (editors of the namespace; admins
 may name a new namespace, created when the upload finishes). With `recording`, a transcript-only recording, the file
 becomes that recording's audio instead of a recording of its own (editors of its namespace; `namespace` can then be left
-out; 409 when it has audio already). [Processing](processing.md#importing-transcripts) says what runs then. `pipeline`
+out; 409 when it has audio already; 400 for anything but audio or video). [Processing](processing.md#importing-transcripts) says what runs then. `pipeline`
 runs instead of the namespace's once a new recording is made, and `collection` is where it goes (neither with
 `recording`, which stays in its collection). The name loses any folders and its extension is lowercased; `modified`
 (the file's last-modified time in milliseconds) dates the recording when its name doesn't. 400 for a type not in
@@ -441,8 +463,9 @@ With `facets=true` it also counts all the matching moments, whatever the page, b
 recording (`facets`: up to 50 values each, most first, and `moments`); past 20,000 moments the counts cover 20,000 of
 them (`partial`).
 
-Each hit's `source` says where it was found: `said` (the transcript), `screen` (text on screen) or `file` (a line of a
-supplementary file: its `file`, `file_role` and `file_label`, and which `line`). A file's lines have no `t0` when the
+Each hit's `source` says where it was found: `said` (the transcript), `screen` (text on screen), `page` (a document's or an
+image's text: its `page`, from 0, and its `box` on it) or `file` (a line of a supplementary file: its `file`, `file_role`
+and `file_label`, and which `line`). A file's lines have no `t0` when the
 file doesn't say when they are; the web app opens those in the resource's Files tab. A `speaker` or `emotion` filter
 keeps to what was said.
 

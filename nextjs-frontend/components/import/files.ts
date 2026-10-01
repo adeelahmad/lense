@@ -22,6 +22,9 @@ export const TRANSCRIPT_EXT = [
 ];
 const AUDIO_EXT = [".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".wma", ".aif", ".aiff", ".amr", ".weba"];
 const VIDEO_EXT = [".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v", ".mpg", ".mpeg", ".3gp"];
+/** Documents and images (the backend's DOCUMENT_EXT and IMAGE_EXT): uploaded in pieces, their pages drawn and read. */
+export const DOCUMENT_EXT = [".pdf"];
+export const IMAGE_EXT = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp"];
 
 export const SUPPORTED_LIST = "txt, md, mdx, docx, doc, pdf, srt, vtt, json, jsonl";
 
@@ -33,7 +36,11 @@ export const DEFAULT_LIMITS: UploadLimits = {
     ".aac",
     ".amr",
     ".avi",
+    ".bmp",
     ".flac",
+    ".gif",
+    ".jpeg",
+    ".jpg",
     ".m4a",
     ".m4v",
     ".mkv",
@@ -42,14 +49,19 @@ export const DEFAULT_LIMITS: UploadLimits = {
     ".mp4",
     ".ogg",
     ".opus",
+    ".pdf",
+    ".png",
+    ".tif",
+    ".tiff",
     ".wav",
     ".webm",
+    ".webp",
   ],
   chunk_mb: 8,
   transcript_mb: 50,
 };
 
-export type FileKind = "transcript" | "audio" | "video" | "unsupported";
+export type FileKind = "transcript" | "audio" | "video" | "document" | "image" | "unsupported";
 
 export function extOf(name: string): string {
   const i = name.lastIndexOf(".");
@@ -61,12 +73,36 @@ export function stemOf(name: string): string {
   return i > 0 ? name.slice(0, i) : name;
 }
 
+/** What a file becomes: a PDF a document (unless someone chooses a transcript, see canBeTranscript), an image an
+ * image, other text a transcript. */
 export function kindOf(name: string): FileKind {
   const ext = extOf(name);
+  if (DOCUMENT_EXT.includes(ext)) return "document";
+  if (IMAGE_EXT.includes(ext)) return "image";
   if (TRANSCRIPT_EXT.includes(ext)) return "transcript";
   if (AUDIO_EXT.includes(ext)) return "audio";
   if (VIDEO_EXT.includes(ext)) return "video";
   return "unsupported";
+}
+
+/** Files that go up in pieces as they are (audio, video, documents and images); transcripts are read first. */
+export function isUpload(kind: FileKind): boolean {
+  return kind === "audio" || kind === "video" || kind === "document" || kind === "image";
+}
+
+/** The audio and video types the server takes (for a picker of media only). */
+export function mediaTypes(limits: UploadLimits): string {
+  return limits.extensions.filter((e) => AUDIO_EXT.includes(e) || VIDEO_EXT.includes(e)).join(",");
+}
+
+/** A document that can be imported as a transcript instead (its text only): a PDF. */
+export function canBeTranscript(name: string): boolean {
+  return DOCUMENT_EXT.includes(extOf(name));
+}
+
+/** What a file to upload is, in a word: "Video", "Audio", "PDF document", "Image". */
+export function uploadKindName(kind: FileKind): string {
+  return kind === "video" ? "Video" : kind === "document" ? "PDF document" : kind === "image" ? "Image" : "Audio";
 }
 
 const FORMAT_NAME: Record<string, string> = {
@@ -108,14 +144,15 @@ export type Problem = {
 
 const MB = 1024 * 1024;
 
-/** Why a file can't be imported before we even send it; null when it can be tried. */
+/** Why a file can't be imported before we even send it (as `kind`: what it is, or the transcript it's read as); null
+ * when it can be tried. */
 export function localProblem(
   file: { name: string; size: number },
   limits: UploadLimits = DEFAULT_LIMITS,
+  kind: FileKind = kindOf(file.name),
 ): Problem | null {
-  const kind = kindOf(file.name);
   const ext = extOf(file.name);
-  if (kind === "audio" || kind === "video") {
+  if (isUpload(kind)) {
     if (!limits.extensions.includes(ext))
       return {
         code: "unsupported",
@@ -126,7 +163,10 @@ export function localProblem(
       return {
         code: "too-large",
         title: `Too large to upload here (limit ${bytes(limits.max_mb * MB)})`,
-        body: "Put it in a watched folder instead — sources have no size limit — or compress it to m4a or opus.",
+        body:
+          kind === "audio" || kind === "video"
+            ? "Put it in a watched folder instead — sources have no size limit — or compress it to m4a or opus."
+            : "Split it into smaller files, or ask an admin to raise the limit in Settings → Uploads.",
       };
     return null;
   }
@@ -134,7 +174,7 @@ export function localProblem(
     return {
       code: "unsupported",
       title: `${ext ? ext.slice(1).toUpperCase() : "These"} files can’t be imported`,
-      body: `Save it as .docx, .pdf or plain text and drop it again. Supported transcripts: ${SUPPORTED_LIST}, or audio and video.`,
+      body: `Save it as .docx, .pdf or plain text and drop it again. Supported transcripts: ${SUPPORTED_LIST}, or audio, video, PDF documents and images.`,
     };
   }
   if (file.size > limits.transcript_mb * MB) {
@@ -147,6 +187,22 @@ export function localProblem(
   return null;
 }
 
+/** A file as `kind`: uploads (audio, video, documents, images) are ready as they are; transcripts are read first (the
+ * preview); a file that can't be imported is blocked, with why. */
+export function asKind(
+  file: { name: string; size: number },
+  kind: FileKind,
+  limits: UploadLimits,
+): { kind: FileKind; status: "ready" | "reading" | "blocked"; problem?: Problem; preview: undefined } {
+  const problem = localProblem(file, limits, kind);
+  return {
+    kind,
+    status: problem ? "blocked" : isUpload(kind) ? "ready" : "reading",
+    problem: problem ?? undefined,
+    preview: undefined,
+  };
+}
+
 /** What the server said when it couldn't read a transcript, as a problem card. */
 export function readProblem(message: string, name: string): Problem {
   const m = message.replace(/^could not read that transcript:\s*/i, "");
@@ -155,7 +211,7 @@ export function readProblem(message: string, name: string): Problem {
       ? {
           code: "empty",
           title: "This PDF has no text to import",
-          body: "It may be a scan. Export the text (or a .docx) from wherever it was typed and drop that instead.",
+          body: "It may be a scan. Import it as a document instead: its pages are kept and read by OCR.",
         }
       : {
           code: "empty",
@@ -270,9 +326,10 @@ export function pipelineOptions(
   ];
 }
 
-/** Files of a source that can be imported: transcripts, audio and video (not folders or other files). */
+/** Files of a source that can be imported: transcripts (PDFs among them), audio and video (not folders or other files). */
 export function importable(entry: { name: string; dir: boolean }): boolean {
-  return !entry.dir && !entry.name.startsWith(".") && kindOf(entry.name) !== "unsupported";
+  const kind = kindOf(entry.name);
+  return !entry.dir && !entry.name.startsWith(".") && kind !== "unsupported" && kind !== "image";
 }
 
 /** What importing chosen files of a source did, in one line: "2 imported · 1 already here · 1 skipped". */

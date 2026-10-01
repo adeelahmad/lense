@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ClipboardPaste, FileAudio, FileText, FileVideo } from "lucide-react";
+import { CheckCircle2, ClipboardPaste, FileAudio, FileImage, FileText, FileType, FileVideo } from "lucide-react";
 import Link from "next/link";
 
 import { Jobs } from "@/app/openapi-client";
@@ -161,14 +161,19 @@ function QueueRow({
             bar: "intent",
           };
   }
+  const sent = kindOf(q.name);
   const Icon =
     q.kind === "paste"
       ? ClipboardPaste
-      : q.kind === "media"
-        ? kindOf(q.name) === "video"
+      : q.kind !== "media"
+        ? FileText
+        : sent === "video"
           ? FileVideo
-          : FileAudio
-        : FileText;
+          : sent === "document"
+            ? FileType
+            : sent === "image"
+              ? FileImage
+              : FileAudio;
   const error = q.error ?? (j?.status === "failed" ? j.error : null);
   return (
     <li className="grid grid-cols-[28px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2 border-b border-border px-4 py-3.5 last:border-b-0 md:grid-cols-[28px_minmax(0,1.3fr)_minmax(0,1fr)_150px_80px] md:px-6">

@@ -85,8 +85,10 @@ export function NotesTab() {
 
 /** Write a note: about the transcript's selection (Add note), where the player is, or the whole recording. */
 function Composer() {
-  const { id, ns, canEdit, noteDraft, clearNoteDraft } = useRec();
+  const { id, ns, canEdit, noteDraft, clearNoteDraft, paged, where } = useRec();
   const { hasMedia, time } = usePlayerState();
+  // a note can be about where the player is, or (in a document) the page with the text in view
+  const placed = hasMedia || paged;
   const { create } = useNoteActions(id);
   const [text, setText] = useState("");
   const [pinned, setPinned] = useState(true);
@@ -103,7 +105,7 @@ function Composer() {
   }, [noteDraft, clearNoteDraft]);
 
   const noShare = canEdit ? undefined : needRole("editor", ns);
-  const at = !moment && hasMedia && pinned ? time : null;
+  const at = !moment && placed && pinned ? time : null;
   const save = () => {
     if (!text.trim() || create.isPending) return;
     create.mutate(newNoteBody(text, { draft: moment, at, shared: shared && canEdit }), {
@@ -131,7 +133,7 @@ function Composer() {
     >
       {moment ? (
         <div className="flex items-start gap-2">
-          <span className={chip}>{momentLabel(moment)}</span>
+          <span className={chip}>{momentLabel(moment, paged ? where : undefined)}</span>
           {moment.quote ? (
             <blockquote className="line-clamp-3 min-w-0 flex-1 text-[13px] italic leading-snug text-fg-secondary">
               “{moment.quote}”
@@ -143,13 +145,17 @@ function Composer() {
             <X />
           </IconButton>
         </div>
-      ) : hasMedia ? (
+      ) : placed ? (
         <Checkbox
           checked={pinned}
           onCheckedChange={setPinned}
           label={
             <span className="tabular-nums">
-              {pinned ? `At ${tc(time)}, where the player is` : "About the whole recording"}
+              {pinned
+                ? paged
+                  ? `On ${where(time)}, the page in view`
+                  : `At ${tc(time)}, where the player is`
+                : `About the whole ${paged ? "document" : "recording"}`}
             </span>
           }
         />
@@ -192,13 +198,13 @@ function Composer() {
 
 /** One note: its moment (plays from there), the words it quotes, its text, who wrote it, and what you may do. */
 function NoteRow({ n }: { n: Note }) {
-  const { id, ns, canEdit } = useRec();
+  const { id, ns, canEdit, paged, where } = useRec();
   const api = usePlayerApi();
   const { update, remove } = useNoteActions(id);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(n.text);
   const [confirm, setConfirm] = useState(false);
-  const label = momentLabel(n);
+  const label = momentLabel(n, paged ? where : undefined);
   const save = () => {
     const text = draft.trim();
     if (!text) return;

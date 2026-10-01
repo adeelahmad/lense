@@ -6,7 +6,7 @@ import { useCallback } from "react";
 
 import { Jobs, Resources } from "@/app/openapi-client";
 import { useToast } from "@/components/ui/toast";
-import { deletedToast, movedToast } from "@/components/library/model";
+import { deletedToast, hasSound, movedToast } from "@/components/library/model";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
 
@@ -198,7 +198,7 @@ export function useRecordingActions() {
               path: { rid: r.id },
               body: {
                 namespace: to,
-                rediarize: opts.rediarize && r.media_kind !== "transcript",
+                rediarize: opts.rediarize && hasSound(r),
                 revoke_shares: opts.revokeShares,
               },
             }),

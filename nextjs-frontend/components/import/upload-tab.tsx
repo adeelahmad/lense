@@ -3,9 +3,11 @@
 import {
   Captions,
   FileAudio,
+  FileImage,
   FileJson,
   FileScan,
   FileText,
+  FileType,
   FileVideo,
   FileX,
   Loader2,
@@ -16,11 +18,21 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import type { SpeakerDirectory, Upload as UploadT } from "@/app/openapi-client/types.gen";
-import { extOf, formatName, isUntimed, kindOf } from "@/components/import/files";
+import {
+  canBeTranscript,
+  extOf,
+  formatName,
+  isUntimed,
+  isUpload,
+  kindOf,
+  uploadKindName,
+  type FileKind,
+} from "@/components/import/files";
 import { MappingField, PreviewLines } from "@/components/import/mapping";
 import { chooseFiles, isFileDrag } from "@/components/import/pending";
 import { pieceCount, resumeFrom, sentShare } from "@/components/import/upload-model";
-import { isMedia, type Item } from "@/components/import/use-import";
+import { ImportAs } from "@/components/import/import-as";
+import type { Item } from "@/components/import/use-import";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
@@ -59,11 +71,13 @@ const TONE = {
   },
 };
 
-export function fileIcon(it: Pick<Item, "file" | "status" | "problem">): LucideIcon {
+export function fileIcon(it: Pick<Item, "file" | "status" | "problem"> & { kind?: FileKind }): LucideIcon {
   const ext = extOf(it.file.name);
-  const kind = kindOf(it.file.name);
+  const kind = it.kind ?? kindOf(it.file.name);
   if (kind === "audio") return FileAudio;
   if (kind === "video") return FileVideo;
+  if (kind === "document") return FileType;
+  if (kind === "image") return FileImage;
   if (kind === "unsupported") return FileX;
   if (it.problem?.code === "empty" && ext === ".pdf") return FileScan;
   if (ext === ".srt" || ext === ".vtt") return Captions;
@@ -79,7 +93,7 @@ export function fileMeta(it: Item): string {
     if (it.problem.code === "too-large") return `${bytes(it.file.size)} — over the upload limit`;
     return it.problem.title;
   }
-  if (isMedia(it.kind)) return `${it.kind === "video" ? "Video" : "Audio"} · ${bytes(it.file.size)} · ready to upload`;
+  if (isUpload(it.kind)) return `${uploadKindName(it.kind)} · ${bytes(it.file.size)} · ready to upload`;
   const pv = it.preview;
   if (!pv) return bytes(it.file.size);
   const parts = [formatName(pv.format).replace(/ \(\.\w+\)$/, ""), plural(pv.segments, "segment")];
@@ -169,7 +183,7 @@ export function FileList({
       >
         <Upload className="size-4 shrink-0 text-blue" aria-hidden />
         <span>
-          {items.length ? "Drop more files, or " : "Drop transcripts, audio or video here, or "}
+          {items.length ? "Drop more files, or " : "Drop transcripts, audio, video, PDFs or images here, or "}
           <button
             type="button"
             className="font-semibold text-blue underline-offset-2 hover:underline"
@@ -210,11 +224,14 @@ export function ProblemCard({
   it,
   onRemove,
   onReplace,
+  onKind,
   className,
 }: {
   it: Item;
   onRemove: () => void;
   onReplace: (files: File[]) => void;
+  /** A PDF read as a transcript can be imported as a document instead. */
+  onKind?: (kind: FileKind) => void;
   className?: string;
 }) {
   const { admin } = useArchive();
@@ -224,7 +241,7 @@ export function ProblemCard({
   const red = it.status === "blocked";
   const kindLabel = extOf(it.file.name).slice(1).toUpperCase() || "File";
   const source = p.code === "too-large";
-  const mediaType = p.code === "unsupported" && isMedia(it.kind);
+  const mediaType = p.code === "unsupported" && isUpload(it.kind);
   return (
     <div
       className={cn("flex flex-col gap-3.5 rounded-lg border border-border bg-background p-5", className)}
@@ -275,6 +292,11 @@ export function ProblemCard({
             <Link href="/settings/uploads">Upload settings</Link>
           </Button>
         )}
+        {onKind && it.kind === "transcript" && canBeTranscript(it.file.name) && (
+          <Button size="sm" variant="primary" onClick={() => onKind("document")}>
+            Import as a document
+          </Button>
+        )}
         <Button size="sm" variant="ghost" onClick={onRemove}>
           {red ? "Remove" : "Skip file"}
         </Button>
@@ -287,6 +309,7 @@ export function ProblemCard({
 export function FileDetail({
   it,
   onPatch,
+  onKind,
   namespace,
   namespaceControl,
   pipelineControl,
@@ -295,6 +318,7 @@ export function FileDetail({
 }: {
   it: Item;
   onPatch: (p: Partial<Item>) => void;
+  onKind?: (kind: FileKind) => void;
   namespace: string | null;
   namespaceControl: ReactNode;
   pipelineControl: ReactNode;
@@ -313,6 +337,7 @@ export function FileDetail({
           Parsed
         </Badge>
       </div>
+      {onKind && <ImportAs it={it} onKind={onKind} />}
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Stat k="Format" v={formatName(pv.format)} />
         <Stat k="Speakers found" v={count(pv.speakers.length)} />
@@ -359,6 +384,7 @@ export function FileDetail({
 export function MediaDetail({
   it,
   onPatch,
+  onKind,
   namespace,
   namespaceControl,
   pipelineControl,
@@ -368,6 +394,7 @@ export function MediaDetail({
 }: {
   it: Item;
   onPatch: (p: Partial<Item>) => void;
+  onKind?: (kind: FileKind) => void;
   namespace: string | null;
   namespaceControl: ReactNode;
   pipelineControl: ReactNode;
@@ -388,8 +415,9 @@ export function MediaDetail({
           Ready to upload
         </Badge>
       </div>
+      {onKind && <ImportAs it={it} onKind={onKind} />}
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
-        <Stat k="Type" v={`${it.kind === "video" ? "Video" : "Audio"} (${extOf(it.file.name).slice(1)})`} />
+        <Stat k="Type" v={`${uploadKindName(it.kind)} (${extOf(it.file.name).slice(1)})`} />
         <Stat k="Size" v={bytes(it.file.size)} />
         <Stat k="Sent in" v={pieces === 1 ? "one piece" : `${count(pieces)} pieces`} />
       </div>
@@ -397,6 +425,14 @@ export function MediaDetail({
         <p className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-secondary">
           It goes with <b className="font-bold text-fg-strong">{twinOf}</b> from this upload: it becomes that
           transcript’s audio rather than a recording of its own.
+        </p>
+      )}
+      {(it.kind === "document" || it.kind === "image") && (
+        <p className="text-[13px] leading-[1.5] text-fg-secondary">
+          {it.kind === "document"
+            ? "Its pages are drawn to look at and their text is read"
+            : "It’s kept to look at and its text is read"}{" "}
+          (by OCR where there’s no text layer), so search finds it.
         </p>
       )}
       <p className="text-[13px] leading-[1.5] text-fg-secondary">

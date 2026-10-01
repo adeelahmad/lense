@@ -4161,6 +4161,69 @@ export type Output = {
 };
 
 /**
+ * Page
+ * A page of a document, or an image (a TIFF has one per frame).
+ */
+export type Page = {
+  /**
+   * Idx
+   * from 0
+   */
+  idx: number;
+  /**
+   * Width
+   * pixels of its image
+   */
+  width?: number | null;
+  /**
+   * Height
+   */
+  height?: number | null;
+  /**
+   * Image
+   * a signed link to it, drawn; none when it couldn't be
+   */
+  image?: string | null;
+  /**
+   * Thumb
+   * a signed link to it, small
+   */
+  thumb?: string | null;
+  /**
+   * Text
+   * how its text was read: from the PDF, or by OCR; none without text
+   */
+  text?: "pdf" | "ocr" | null;
+  /**
+   * Chars
+   * characters of text on it
+   */
+  chars?: number;
+  /**
+   * Label
+   * the PDF's own name for it (iv, A-1, …) when it isn't its number
+   */
+  label?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | number
+    | null
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | "pdf"
+    | "ocr"
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
  * Passage
  */
 export type Passage = {
@@ -4190,8 +4253,14 @@ export type Passage = {
   t0?: number | number | null;
   /**
    * Time
+   * when it was said ("12:34"), or for a document its page ("p. 3")
    */
   time?: string | null;
+  /**
+   * Page
+   * a document's or an image's page it's on (from 0)
+   */
+  page?: number | null;
   /**
    * Speaker
    */
@@ -4218,6 +4287,8 @@ export type Passage = {
     | number
     | null
     | string
+    | null
+    | number
     | null
     | string
     | null
@@ -4508,7 +4579,8 @@ export type Placed = {
 
 /**
  * Player
- * Everything the player shows: transcript, speakers, sections, entities and, for videos, shots and faces.
+ * Everything the player shows: transcript, speakers, sections, entities and, for videos, shots and faces; for
+ * documents and images, their pages.
  */
 export type Player = {
   /**
@@ -4544,7 +4616,7 @@ export type Player = {
   }>;
   /**
    * Segments
-   * the lines: t0, t1 (ms), s (speaker key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them
+   * the lines: t0, t1 (ms), s (speaker key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them; a document's or an image's blocks of text have p, their page (from 0), and b, where they are on it ([x, y, w, h] as fractions of the page), and times that are only a reading pace
    */
   segments?: Array<{
     [key: string]: unknown;
@@ -4577,10 +4649,16 @@ export type Player = {
   } | null;
   /**
    * Media
+   * kind: audio, video, document or image (audio for a transcript without media), and its size
    */
   media?: {
     [key: string]: unknown;
   } | null;
+  /**
+   * Pages
+   * a document's or an image's pages, in order
+   */
+  pages?: Array<Page> | null;
   [key: string]:
     | unknown
     | number
@@ -4617,6 +4695,8 @@ export type Player = {
         [key: string]: unknown;
       }
     | null
+    | Array<Page>
+    | null
     | undefined;
 };
 
@@ -4641,7 +4721,7 @@ export type PreviewLine = {
 
 /**
  * PrimaryFile
- * The audio or video the resource's pipeline runs on.
+ * The audio, video, document or image the resource's pipeline runs on.
  */
 export type PrimaryFile = {
   /**
@@ -4651,7 +4731,7 @@ export type PrimaryFile = {
   /**
    * Kind
    */
-  kind: "audio" | "video";
+  kind: "audio" | "video" | "document" | "image";
   /**
    * Size
    * bytes
@@ -4666,7 +4746,20 @@ export type PrimaryFile = {
    * a signed link to it
    */
   download: string;
-  [key: string]: unknown | string | null | "audio" | "video" | number | null | string | null | string | undefined;
+  [key: string]:
+    | unknown
+    | string
+    | null
+    | "audio"
+    | "video"
+    | "document"
+    | "image"
+    | number
+    | null
+    | string
+    | null
+    | string
+    | undefined;
 };
 
 /**
@@ -4698,7 +4791,7 @@ export type PublicCard = {
   /**
    * Media Kind
    */
-  media_kind: "audio" | "video" | "transcript";
+  media_kind: "audio" | "video" | "transcript" | "document" | "image";
   /**
    * View
    */
@@ -4734,6 +4827,8 @@ export type PublicCard = {
     | "audio"
     | "video"
     | "transcript"
+    | "document"
+    | "image"
     | "full"
     | "public"
     | "locked"
@@ -5047,7 +5142,7 @@ export type PublicRecording = {
   /**
    * Media Kind
    */
-  media_kind: "audio" | "video" | "transcript";
+  media_kind: "audio" | "video" | "transcript" | "document" | "image";
   /**
    * View
    * full: with permission; public: a public recording; locked: restricted, listed with a lock
@@ -5132,6 +5227,8 @@ export type PublicRecording = {
     | "audio"
     | "video"
     | "transcript"
+    | "document"
+    | "image"
     | "full"
     | "public"
     | "locked"
@@ -5232,7 +5329,7 @@ export type PublicResult = {
   /**
    * Media Kind
    */
-  media_kind: "audio" | "video" | "transcript";
+  media_kind: "audio" | "video" | "transcript" | "document" | "image";
   /**
    * View
    */
@@ -5273,6 +5370,8 @@ export type PublicResult = {
     | "audio"
     | "video"
     | "transcript"
+    | "document"
+    | "image"
     | "full"
     | "public"
     | "locked"
@@ -5810,12 +5909,17 @@ export type RecordingSummary = {
   collection_name?: string | null;
   /**
    * Media Kind
-   * audio, video or transcript
+   * audio, video, transcript (text without media), document or image
    */
   media_kind: string;
   /**
+   * Pages
+   * a document's or an image's pages
+   */
+  pages?: number | null;
+  /**
    * Poster
-   * signed link to the first video frame
+   * signed link to a video's first frame, or a document's or image's first page
    */
   poster?: string | null;
   /**
@@ -5901,6 +6005,8 @@ export type RecordingSummary = {
     | string
     | null
     | string
+    | number
+    | null
     | string
     | null
     | {
@@ -6452,9 +6558,9 @@ export type SearchHit = {
   snippet: string;
   /**
    * Source
-   * "said" (transcript), "screen" (text on screen in a video) or "file" (a line of a supplementary file)
+   * "said" (transcript), "screen" (text on screen in a video), "file" (a line of a supplementary file) or "page" (text on a page of a document or an image, whose times are only a reading pace)
    */
-  source: "said" | "screen" | "file";
+  source: "said" | "screen" | "file" | "page";
   /**
    * Frame
    * screen hits: signed link to the video frame
@@ -6462,9 +6568,14 @@ export type SearchHit = {
   frame?: string | null;
   /**
    * Box
-   * screen hits: where the text is on the frame
+   * screen and page hits: where the text is on the frame or the page ([x, y, w, h] fractions)
    */
   box?: unknown;
+  /**
+   * Page
+   * page hits: which page (from 0)
+   */
+  page?: number | null;
   /**
    * File
    * file hits: the supplementary file the line is in
@@ -6512,7 +6623,10 @@ export type SearchHit = {
     | "said"
     | "screen"
     | "file"
+    | "page"
     | string
+    | null
+    | number
     | null
     | number
     | null
@@ -8415,7 +8529,7 @@ export type ViewState = {
   /**
    * Media
    */
-  media?: "any" | "audio" | "video" | "transcript";
+  media?: "any" | "audio" | "video" | "transcript" | "document" | "image";
   /**
    * Tags
    * any of these
@@ -10040,9 +10154,9 @@ export type ListRecordingsData = {
     max_duration?: number | null;
     /**
      * Media
-     * audio, video or transcript (no media)
+     * audio, video, transcript (no media), document or image
      */
-    media?: "audio" | "video" | "transcript" | null;
+    media?: "audio" | "video" | "transcript" | "document" | "image" | null;
     /**
      * Access
      * public, restricted or private; repeat for several

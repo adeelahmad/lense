@@ -5,7 +5,9 @@ import {
   Download,
   Ellipsis,
   FileAudio,
+  FileImage,
   FileText,
+  FileType,
   FileVideo,
   Globe,
   Image as ImageIcon,
@@ -126,8 +128,15 @@ export function FilesTab() {
   );
 }
 
+const PRIMARY = {
+  audio: { icon: FileAudio, word: "Audio" },
+  video: { icon: FileVideo, word: "Video" },
+  document: { icon: FileType, word: "PDF document" },
+  image: { icon: FileImage, word: "Image" },
+} as const;
+
 function Primary({ p }: { p: PrimaryFile }) {
-  const Icon = p.kind === "video" ? FileVideo : FileAudio;
+  const { icon: Icon, word } = PRIMARY[p.kind] ?? PRIMARY.audio;
   return (
     <section
       aria-label="Primary file"
@@ -135,13 +144,9 @@ function Primary({ p }: { p: PrimaryFile }) {
     >
       <Icon className="size-[18px] shrink-0 text-fg-secondary" aria-hidden />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[14px] font-semibold text-fg">
-          {p.name ?? (p.kind === "video" ? "Video" : "Audio")}
-        </p>
+        <p className="truncate text-[14px] font-semibold text-fg">{p.name ?? word}</p>
         <p className="truncate text-[12px] text-fg-muted">
-          {["Primary", p.kind === "video" ? "Video" : "Audio", p.size != null ? bytes(p.size) : null]
-            .filter(Boolean)
-            .join(" · ")}
+          {["Primary", word, p.size != null ? bytes(p.size) : null].filter(Boolean).join(" · ")}
         </p>
       </div>
       <Button asChild size="sm" variant="ghost">

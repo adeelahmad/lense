@@ -101,7 +101,7 @@ def list_recordings(
     date_to: date | None = Query(None, alias="to", description="recorded on or before this day"),
     min_duration: int | None = Query(None, ge=0, description="at least this many seconds long"),
     max_duration: int | None = Query(None, ge=1, description="shorter than this many seconds"),
-    media: MediaKind | None = Query(None, description="audio, video or transcript (no media)"),
+    media: MediaKind | None = Query(None, description="audio, video, transcript (no media), document or image"),
     access: list[AccessLevel] | None = Query(None, description="public, restricted or private; repeat for several"),
     featured: bool | None = Query(None, description="only featured recordings (true) or only the others (false)"),
     tag: list[str] | None = Query(None, description="tags (ignoring case); repeat for several (any of them matches)"),

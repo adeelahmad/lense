@@ -54,7 +54,7 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 ## Settings in the app
 
 Admins can change transcription, diarisation, voice-ID thresholds, analysis, LLM provider and key, graph, search,
-reports, workers, IIIF, the assistant, video, uploads, and server options (embed frame ancestors, transcript upload
+reports, workers, IIIF, the assistant, video, uploads, documents and images, and server options (embed frame ancestors, transcript upload
 limit, allowed hosts, trusted proxies, session length). The API refuses an allowed-host list that leaves out the address
 you are using.
 
@@ -67,12 +67,13 @@ minute); on providers that list many models, or charge by model, list the ones y
 
 ## Uploads
 
-Audio and video uploaded in the web app (Import → Upload) go up in pieces ([API](api.md#uploads)). Settings → Uploads:
+Audio, video, documents (PDF) and images uploaded in the web app (Import → Upload) go up in pieces
+([API](api.md#uploads)). Settings → Uploads:
 
 | Setting | Default | |
 |---|---|---|
-| `uploads.max_mb` | 4096 | the largest audio or video file, in MB |
-| `uploads.extensions` | the types folder scans import | which types can be uploaded: any of `.m4a .mp3 .wav .flac .ogg .opus .aac .amr .aif .aiff .wma .mp4 .m4v .mov .mkv .webm .avi .mpg .mpeg .3gp` |
+| `uploads.max_mb` | 4096 | the largest file, in MB |
+| `uploads.extensions` | the types folder scans import, PDFs and images | which types can be uploaded: any of `.m4a .mp3 .wav .flac .ogg .opus .aac .amr .aif .aiff .wma .mp4 .m4v .mov .mkv .webm .avi .mpg .mpeg .3gp .pdf .jpg .jpeg .png .tif .tiff .webp .gif .bmp`. A list saved before documents and images came leaves them out until they're added |
 | `uploads.chunk_mb` | 8 | how much the web app sends per request, 1–64. Keep it below the request-body limit of any proxy in front of the web app (nginx's `client_max_body_size` is 1 MB unless set) |
 | `uploads.expire_hours` | 24 | how long an unfinished upload waits for its next piece before what arrived is deleted, 1–720 |
 
@@ -81,6 +82,24 @@ Pieces are written straight to `data_dir/uploads/.partial`, never held in memory
 512 MB free). Transcript files have their own limit, `server.max_upload_mb` (Settings → Access & embedding), which
 also caps a resource's supplementary files ([API](api.md#files)), kept in `data_dir/files/<resource>/`; watched
 folders have none.
+
+## Documents and images
+
+A PDF uploaded as a document, or an image, has its pages drawn and read when its pipeline runs ([API](api.md#documents-and-images)).
+Drawing pages and reading their text needs poppler-utils (`pdftoppm`, `pdftotext`, `pdfinfo`; in the Docker image);
+without it a PDF's text is read by pypdf and it has no pages to look at. Pages without text are read by the OCR engine of
+`video.ocr_engine` in the languages of `video.ocr_languages` (Tesseract is in the Docker image); without one, scans and
+images have no text. Settings → Documents and images:
+
+| Setting | Default | |
+|---|---|---|
+| `documents.page_pixels` | 2000 | the longest side of a page's image, in pixels, 800–6000 |
+| `documents.thumb_pixels` | 360 | the longest side of its thumbnail, 120–800 |
+| `documents.ocr_below_chars` | 25 | a page with fewer characters of text than this is read by OCR, 0–5000 (0: never) |
+| `documents.max_pages` | 2000 | the most pages of one document that are drawn and read, 1–50000 |
+
+The pages are JPEGs in `data_dir/frames/<resource>/` (a page of about 300 KB at the default size), and go when the
+resource does. Workers listed in `workers.steps` run them as part of `transcribe`.
 
 ## API keys
 
@@ -124,6 +143,7 @@ API on one machine.
   Content-Security-Policy; only the player (`/embed/<id>`, `/s/<code>`) can be framed, and only by
   `server.embed_frame_ancestors`.
 * Imports check the extension, cap the size (`server.max_upload_mb`), and are parsed in a temporary directory; nothing
-  uploaded is executed. Audio and video uploads accept only the media types in `uploads.extensions` (each is served
-  back as audio or video, or as a download), under a name with no folders in it.
+  uploaded is executed. Uploads accept only the types in `uploads.extensions` (each is served back as audio or video, or
+  as a download; documents and images only as downloads, and as page images Lens drew), under a name with no folders
+  in it.
 * Put everything behind HTTPS before exposing it beyond one machine. IIIF authorization requires it.

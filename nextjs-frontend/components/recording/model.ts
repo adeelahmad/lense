@@ -7,7 +7,7 @@ import type { Player } from "@/app/openapi-client/types.gen";
 import { speakerColor } from "@/components/ui/badge";
 import { tc } from "@/lib/format";
 
-export type MediaKind = "audio" | "video";
+export type MediaKind = "audio" | "video" | "document" | "image";
 export type FacesMode = "off" | "detect" | "recognize";
 
 export type SpeakerInfo = {
@@ -31,6 +31,9 @@ export type Segment = {
   event: string | null;
   /** Timed words, when transcription gave them: [c0, c1, t0, t1], a character range of `text` and when it was said. */
   words?: Word[];
+  /** A document's or an image's block of text: its page (from 0) and where it is on it. */
+  page?: number;
+  box?: Box | null;
 };
 
 export type Word = [c0: number, c1: number, t0: number, t1: number];
@@ -77,6 +80,21 @@ export type FaceTrack = {
   cover: string | null;
 };
 
+/** A page of a document, or an image (a TIFF has one per frame). */
+export type PageInfo = {
+  idx: number;
+  width: number | null;
+  height: number | null;
+  /** Signed links to it drawn, and small; null when it couldn't be drawn. */
+  image: string | null;
+  thumb: string | null;
+  /** How its text was read: from the PDF, or by OCR; null without text. */
+  text: "pdf" | "ocr" | null;
+  chars: number;
+  /** The PDF's own name for it (iv, A-1, …) when it isn't its number. */
+  label: string | null;
+};
+
 export type PlayerModel = {
   id: number;
   title: string;
@@ -97,7 +115,11 @@ export type PlayerModel = {
     width: number | null;
     height: number | null;
     fps: number | null;
+    /** A document's or an image's pages. */
+    pages: number | null;
   };
+  /** A document's or an image's pages, in order; empty for audio and video. */
+  pages: PageInfo[];
   shots: Shot[];
   screenText: ScreenText[];
   faces: FaceTrack[];
@@ -168,11 +190,13 @@ export function normalizePlayer(raw: Player): PlayerModel {
       emotion: str(o.e),
       event: str(o.v),
       ...wordsOf(o.w, (str(o.text) ?? "").length),
+      ...(o.p == null ? {} : { page: num(o.p), box: box(o.b) }),
     };
   });
   const lastEnd = segments.reduce((m, s) => Math.max(m, s.t1), 0);
   const media = rec(r.media);
-  const kind: MediaKind = media.kind === "video" ? "video" : "audio";
+  const kind: MediaKind =
+    media.kind === "video" || media.kind === "document" || media.kind === "image" ? media.kind : "audio";
   const mode = str(r.faces_mode) as FacesMode | null;
   return {
     id: num(r.id),
@@ -221,7 +245,21 @@ export function normalizePlayer(raw: Player): PlayerModel {
       width: num(media.width) || null,
       height: num(media.height) || null,
       fps: num(media.fps) || null,
+      pages: num(media.pages) || null,
     },
+    pages: arr(r.pages).map((x, i) => {
+      const o = rec(x);
+      return {
+        idx: num(o.idx, i),
+        width: num(o.width) || null,
+        height: num(o.height) || null,
+        image: str(o.image),
+        thumb: str(o.thumb),
+        text: o.text === "pdf" || o.text === "ocr" ? o.text : null,
+        chars: num(o.chars),
+        label: str(o.label),
+      };
+    }),
     shots: arr(r.shots).map((s, i) => {
       const o = rec(s);
       return {

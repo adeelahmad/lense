@@ -1,13 +1,14 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { AudioLines, FileText, Lock, Search, Video } from "lucide-react";
+import { Lock, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { Public } from "@/app/openapi-client";
 import type { PublicResult } from "@/app/openapi-client/types.gen";
+import { KIND_ICON } from "@/components/public/cards";
 import { usePublicClient } from "@/components/public/hooks";
 import { cardLine, collectionPath, momentPath, publicPath, searchPath } from "@/components/public/model";
 import { LoadError } from "@/components/public/states";
@@ -21,7 +22,6 @@ import { count, tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const PAGE = 20;
-const KIND_ICON = { audio: AudioLines, video: Video, transcript: FileText } as const;
 
 /** The search box for the pages visitors see; it opens the search page. */
 export function PublicSearchForm({ initial = "", className }: { initial?: string; className?: string }) {

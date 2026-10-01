@@ -613,7 +613,7 @@ export function FiltersBar({
         )}
       </Chip>
       <Chip
-        label={filters.media === "any" ? "Audio / text" : MEDIA_LABEL[filters.media]}
+        label={filters.media === "any" ? "Kind" : MEDIA_LABEL[filters.media]}
         active={filters.media !== "any"}
         onClear={() => set({ media: "any" })}
         width={200}

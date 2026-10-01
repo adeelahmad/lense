@@ -23,9 +23,11 @@ export function draftFromSelection(t: number, end: number, quote: string): NoteD
   };
 }
 
-/** "1:23", or "1:23–1:31" when the moment spans whole seconds; null for a note about the whole recording. */
-export function momentLabel(n: { t0?: number | null; t1?: number | null }): string | null {
+/** "1:23", or "1:23–1:31" when the moment spans whole seconds; null for a note about the whole recording. A document's
+ * notes say where they are with `at` (its page). */
+export function momentLabel(n: { t0?: number | null; t1?: number | null }, at?: (ms: number) => string): string | null {
   if (n.t0 == null) return null;
+  if (at) return at(n.t0);
   const a = tc(n.t0);
   const b = n.t1 != null ? tc(n.t1) : a;
   return b === a ? a : `${a}–${b}`;

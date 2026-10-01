@@ -123,7 +123,10 @@ export function fileHref(rid: number, fid: number, line?: number | null): string
 }
 
 /** Where a search hit opens: its moment, or for a line of a file without times, the line in the file. */
-export function hitHref(hit: Pick<SearchHit, "recording_id" | "t0" | "file" | "line">): string {
+export function hitHref(
+  hit: Pick<SearchHit, "recording_id" | "t0" | "file" | "line"> & { page?: number | null },
+): string {
+  if (hit.page != null) return `/resources/${hit.recording_id}?page=${hit.page + 1}`; // a document's text: its page
   if (hit.t0 == null && hit.file != null) return fileHref(hit.recording_id, hit.file, hit.line);
   return recordingHref(hit.recording_id, hit.t0);
 }

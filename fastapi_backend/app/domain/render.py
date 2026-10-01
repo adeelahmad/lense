@@ -103,7 +103,8 @@ def recording_stats(db, rid):
 
 
 def _line(s):
-    """A transcript line for the player; `w` holds its timed words as [c0, c1, t0, t1] when transcription gave them."""
+    """A transcript line for the player; `w` holds its timed words as [c0, c1, t0, t1] when transcription gave them, and
+    a document's or an image's blocks have their page (`p`, from 0) and where they are on it (`b`, [x, y, w, h])."""
     line = {
         "t0": s["t0"],
         "t1": s["t1"],
@@ -112,6 +113,8 @@ def _line(s):
         "e": s.get("emotion"),
         "v": s.get("event"),
     }
+    if s.get("page") is not None:
+        line.update(p=s["page"], b=s.get("box"))
     w = transcript.align(s["text"], transcript.words(s))
     return {**line, "w": w} if w else line
 
@@ -121,7 +124,8 @@ def player_data(db, rid, audio=None):
     if not rec:
         raise KeyError(rid)
     segs = db.rows(
-        "SELECT record::id(id) AS id, idx, t0, t1, speaker, text, emotion, event, words FROM segment WHERE recording = $r ORDER BY idx",
+        "SELECT record::id(id) AS id, idx, t0, t1, speaker, text, emotion, event, words, page, box FROM segment WHERE recording = $r "
+        "ORDER BY idx",
         r=rid,
     )
     order = list(dict.fromkeys(s["speaker"] for s in segs if s.get("speaker")))
@@ -173,12 +177,43 @@ def player_data(db, rid, audio=None):
     }
 
 
+def kind(rec):
+    """What a resource is: audio, video, transcript (text without media), document or image."""
+    src = rec.get("source")
+    if src in ("document", "image"):
+        return src
+    if src != "audio":
+        return "transcript"
+    return "video" if (rec.get("media") or {}).get("kind") == "video" else "audio"
+
+
+def frame_link(rid, name):
+    return f"{store.API}/recordings/{rid}/frames/{name}" if name else None
+
+
 def visual(db, rid, rec):
-    """Shots, text on screen and people on screen for a video recording."""
+    """Shots, text on screen and people on screen for a video recording; the pages of a document or an image."""
     media = rec.get("media") or {}
+    k = kind(rec)
     out = {
-        "media": {"kind": media.get("kind") or "audio", "width": media.get("width"), "height": media.get("height"), "fps": media.get("fps")}
+        "media": store.clean(
+            {
+                "kind": "audio" if k == "transcript" else k,
+                "width": media.get("width"),
+                "height": media.get("height"),
+                "fps": media.get("fps"),
+                "pages": media.get("pages"),
+            }
+        )
     }
+    if k in ("document", "image"):
+        from . import documents
+
+        out["pages"] = [
+            {**p, "image": frame_link(rid, p.get("image")), "thumb": frame_link(rid, p.get("thumb"))} for p in documents.pages(db, rid)
+        ]
+        out["poster"] = out["pages"][0]["thumb"] if out["pages"] else None
+        return out
     if media.get("kind") != "video":
         return out
     from . import faces

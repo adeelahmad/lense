@@ -221,11 +221,12 @@ export function pageState(
   const sorted = [...jobs].sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "") || b.id - a.id);
   const active = sorted.find(isActive) ?? null;
   const status = (recording.status ?? "").toLowerCase();
-  const justImported =
-    recording.source !== "audio" && (status === "transcribed" || status === "diarized" || status === "new");
+  // a file of its own to work through: audio or video, a document or an image
+  const filed = ["audio", "document", "image"].includes(recording.source ?? "");
+  const justImported = !filed && (status === "transcribed" || status === "diarized" || status === "new");
   if (active) {
     const step = currentStep(active);
-    const phase: Phase = step && TRANSCRIBING.has(step) && recording.source === "audio" ? "processing" : "analyzing";
+    const phase: Phase = step && TRANSCRIBING.has(step) && filed ? "processing" : "analyzing";
     return { phase, job: active, failedStep: null, error: null, justImported };
   }
   const latest = sorted[0] ?? null;

@@ -52,7 +52,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             claims = [l[2:] for l in body["messages"][-1]["content"].splitlines() if l.startswith("- ")]
             content = json.dumps({"verdicts": [{"claim": c, "supported": i == 0} for i, c in enumerate(claims)]})
         elif "sentiment" in schema.get("properties", {}):
-            times = re.findall(r"^\[(\d+(?::\d+)+)\]", body["messages"][-1]["content"], re.M) or ["0:00"]
+            # lines start with their time ([0:12]), or a document's with their page ([p. 2])
+            times = re.findall(r"^\[(\d+(?::\d+)+|p\. \d+)\]", body["messages"][-1]["content"], re.M) or ["0:00"]
             content = json.dumps(
                 {
                     "summary": "Alice and Bob talk about the capsid.",

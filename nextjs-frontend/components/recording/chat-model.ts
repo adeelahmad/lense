@@ -7,7 +7,10 @@ export type Passage = {
   n: number;
   recording_id: number;
   t0?: number | null;
+  /** When it was said ("12:34"), or for a document its page ("p. 3"). */
   time?: string | null;
+  /** A document's or an image's page it's on (from 0). */
+  page?: number | null;
   speaker?: string | null;
   title?: string | null;
   text: string;

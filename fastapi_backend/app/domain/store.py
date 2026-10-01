@@ -112,6 +112,9 @@ def labels():
 
 # Audio and video the folder scans import, and the types uploads accept unless changed.
 MEDIA_EXT = (".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".mp4", ".webm", ".amr", ".mov", ".mkv", ".m4v", ".avi")
+# documents and images, which uploads also accept (domain/documents.py)
+DOCUMENT_EXT = (".pdf",)
+IMAGE_EXT = (".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp")
 DEFAULTS = {
     "data_dir": "./archive-data",
     "database": {"url": None, "namespace": "archive", "database": "main", "user": "root", "password": "root"},
@@ -159,8 +162,12 @@ DEFAULTS = {
     # how long API keys last (docs/configuration.md): what a new key gets, the most it may get, and whether keys may
     # never expire
     "tokens": {"default_days": 90, "max_days": 365, "never_expire": False},
-    # audio and video uploaded in the web app, in pieces (docs/configuration.md); transcript files use server.max_upload_mb
-    "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT), "chunk_mb": 8, "expire_hours": 24},
+    # audio, video, documents and images uploaded in the web app, in pieces (docs/configuration.md); transcript files use
+    # server.max_upload_mb
+    "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT + DOCUMENT_EXT + IMAGE_EXT), "chunk_mb": 8, "expire_hours": 24},
+    # documents and images (docs/configuration.md): how large their pages are drawn, when a page is read by OCR, and
+    # how many pages are read at most
+    "documents": {"page_pixels": 2000, "thumb_pixels": 360, "ocr_below_chars": 25, "max_pages": 2000},
     "workers": {
         "inline": 1,
         "poll_seconds": 2,
@@ -615,6 +622,9 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS resource_file SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS resource_file_rec ON resource_file FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS resource_file_space ON resource_file FIELDS space",
+    # the pages of documents and images, drawn and read (app/domain/documents.py): page:⟨<resource>-<index>⟩
+    "DEFINE TABLE IF NOT EXISTS page SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS page_rec ON page FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS file_line SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS file_line_file ON file_line FIELDS file",
     "DEFINE INDEX IF NOT EXISTS file_line_rec ON file_line FIELDS recording",

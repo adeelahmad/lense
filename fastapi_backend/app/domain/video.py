@@ -163,25 +163,32 @@ class TesseractOCR:
             raise RuntimeError("tesseract isn't installed")
         self.langs = "+".join(cfg["video"].get("ocr_languages") or ["eng"])
 
-    def lines(self, path):
+    def _words(self, path):
+        """Tesseract's words: (block, paragraph, line, x, y, w, h, conf, text), and the image's size."""
         from PIL import Image
 
         W, H = Image.open(path).size
         out = subprocess.run([self.bin, str(path), "stdout", "-l", self.langs, "tsv"], capture_output=True, text=True, timeout=300)
-        groups = {}
+        words = []
         for row in out.stdout.splitlines()[1:]:
             c = row.split("\t")
             if len(c) < 12 or c[0] != "5" or not c[11].strip() or float(c[10]) < 0:
                 continue
-            key = (c[2], c[3], c[4])
-            x, y, w, h, conf = int(c[6]), int(c[7]), int(c[8]), int(c[9]), float(c[10])
-            g = groups.setdefault(key, {"words": [], "conf": [], "box": [x, y, x + w, y + h]})
-            g["words"].append(c[11])
+            words.append((c[2], c[3], c[4], int(c[6]), int(c[7]), int(c[8]), int(c[9]), float(c[10]), c[11]))
+        return words, W, H
+
+    def _grouped(self, path, key):
+        words, W, H = self._words(path)
+        groups = {}
+        for b, p, ln, x, y, w, h, conf, text in words:
+            g = groups.setdefault(key(b, p, ln), {"words": [], "conf": [], "box": [x, y, x + w, y + h], "line": ln})
+            g["words"].append(("\n" if g["line"] != ln else "") + text)
+            g["line"] = ln
             g["conf"].append(conf)
             g["box"] = [min(g["box"][0], x), min(g["box"][1], y), max(g["box"][2], x + w), max(g["box"][3], y + h)]
         return [
             {
-                "text": " ".join(g["words"]),
+                "text": " ".join(g["words"]).replace(" \n", "\n"),
                 "conf": sum(g["conf"]) / len(g["conf"]),
                 "box": [
                     round(g["box"][0] / W, 4),
@@ -192,6 +199,13 @@ class TesseractOCR:
             }
             for g in groups.values()
         ]
+
+    def lines(self, path):
+        return self._grouped(path, lambda b, p, ln: (b, p, ln))
+
+    def paragraphs(self, path):
+        """Its paragraphs as Tesseract laid them out (columns kept apart), lines separated by newlines."""
+        return self._grouped(path, lambda b, p, ln: (b, p))
 
 
 class AppleVisionOCR:
@@ -350,6 +364,8 @@ def _video(db, cfg, rid):
 
 def step_shots(db, cfg, rid, say):
     rec, path = _video(db, cfg, rid)
+    if rec.get("source") in ("document", "image"):
+        raise jobs.Skip("it isn't a video")
     if not path:
         raise jobs.Skip("there is no media file")
     media = probe_media(path)
@@ -391,7 +407,9 @@ def _norm(text):
 
 
 def step_ocr(db, cfg, rid, say):
-    rec = db.one("SELECT space, media, samples, sample_ms FROM $r", r=R("recording", rid)) or {}
+    rec = db.one("SELECT space, source, media, samples, sample_ms FROM $r", r=R("recording", rid)) or {}
+    if rec.get("source") in ("document", "image"):
+        raise jobs.Skip("its pages were read when it was transcribed")
     if (rec.get("media") or {}).get("kind") != "video":
         raise jobs.Skip("it isn't a video")
     engine = ocr_engine(cfg)

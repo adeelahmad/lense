@@ -2033,7 +2033,9 @@
                   "enum": [
                     "audio",
                     "video",
-                    "transcript"
+                    "transcript",
+                    "document",
+                    "image"
                   ],
                   "type": "string"
                 },
@@ -2041,10 +2043,10 @@
                   "type": "null"
                 }
               ],
-              "description": "audio, video or transcript (no media)",
+              "description": "audio, video, transcript (no media), document or image",
               "title": "Media"
             },
-            "description": "audio, video or transcript (no media)"
+            "description": "audio, video, transcript (no media), document or image"
           },
           {
             "name": "access",
@@ -8023,7 +8025,7 @@
           "video"
         ],
         "summary": "Get Media",
-        "description": "The video (or audio) file, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link.",
+        "description": "The video or audio file, with byte ranges; a document's or an image's file, to save. Accepts a bearer token, a\nshare link (``?s=``) or a signed link.",
         "operationId": "get_media",
         "parameters": [
           {
@@ -8051,7 +8053,9 @@
             "description": "Successful Response",
             "content": {
               "video/*": {},
-              "audio/*": {}
+              "audio/*": {},
+              "application/pdf": {},
+              "image/*": {}
             }
           },
           "206": {
@@ -18461,6 +18465,103 @@
         ],
         "title": "Output"
       },
+      "Page": {
+        "properties": {
+          "idx": {
+            "type": "integer",
+            "title": "Idx",
+            "description": "from 0"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width",
+            "description": "pixels of its image"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image",
+            "description": "a signed link to it, drawn; none when it couldn't be"
+          },
+          "thumb": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumb",
+            "description": "a signed link to it, small"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pdf",
+                  "ocr"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "how its text was read: from the PDF, or by OCR; none without text"
+          },
+          "chars": {
+            "type": "integer",
+            "title": "Chars",
+            "description": "characters of text on it",
+            "default": 0
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "the PDF's own name for it (iv, A-1, \u2026) when it isn't its number"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "idx"
+        ],
+        "title": "Page",
+        "description": "A page of a document, or an image (a TIFF has one per frame)."
+      },
       "Passage": {
         "properties": {
           "n": {
@@ -18527,7 +18628,20 @@
                 "type": "null"
               }
             ],
-            "title": "Time"
+            "title": "Time",
+            "description": "when it was said (\"12:34\"), or for a document its page (\"p. 3\")"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "a document's or an image's page it's on (from 0)"
           },
           "speaker": {
             "anyOf": [
@@ -19095,7 +19209,7 @@
             },
             "type": "array",
             "title": "Segments",
-            "description": "the lines: t0, t1 (ms), s (speaker key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them"
+            "description": "the lines: t0, t1 (ms), s (speaker key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them; a document's or an image's blocks of text have p, their page (from 0), and b, where they are on it ([x, y, w, h] as fractions of the page), and times that are only a reading pace"
           },
           "sections": {
             "items": {
@@ -19152,7 +19266,23 @@
                 "type": "null"
               }
             ],
-            "title": "Media"
+            "title": "Media",
+            "description": "kind: audio, video, document or image (audio for a transcript without media), and its size"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Page"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages",
+            "description": "a document's or an image's pages, in order"
           }
         },
         "additionalProperties": true,
@@ -19161,7 +19291,7 @@
           "id"
         ],
         "title": "Player",
-        "description": "Everything the player shows: transcript, speakers, sections, entities and, for videos, shots and faces."
+        "description": "Everything the player shows: transcript, speakers, sections, entities and, for videos, shots and faces; for\ndocuments and images, their pages."
       },
       "PreviewLine": {
         "properties": {
@@ -19210,7 +19340,9 @@
             "type": "string",
             "enum": [
               "audio",
-              "video"
+              "video",
+              "document",
+              "image"
             ],
             "title": "Kind"
           },
@@ -19250,7 +19382,7 @@
           "download"
         ],
         "title": "PrimaryFile",
-        "description": "The audio or video the resource's pipeline runs on."
+        "description": "The audio, video, document or image the resource's pipeline runs on."
       },
       "PublicCard": {
         "properties": {
@@ -19307,7 +19439,9 @@
             "enum": [
               "audio",
               "video",
-              "transcript"
+              "transcript",
+              "document",
+              "image"
             ],
             "title": "Media Kind"
           },
@@ -19830,7 +19964,9 @@
             "enum": [
               "audio",
               "video",
-              "transcript"
+              "transcript",
+              "document",
+              "image"
             ],
             "title": "Media Kind"
           },
@@ -20128,7 +20264,9 @@
             "enum": [
               "audio",
               "video",
-              "transcript"
+              "transcript",
+              "document",
+              "image"
             ],
             "title": "Media Kind"
           },
@@ -20987,7 +21125,19 @@
           "media_kind": {
             "type": "string",
             "title": "Media Kind",
-            "description": "audio, video or transcript"
+            "description": "audio, video, transcript (text without media), document or image"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages",
+            "description": "a document's or an image's pages"
           },
           "poster": {
             "anyOf": [
@@ -20999,7 +21149,7 @@
               }
             ],
             "title": "Poster",
-            "description": "signed link to the first video frame"
+            "description": "signed link to a video's first frame, or a document's or image's first page"
           },
           "emotions": {
             "additionalProperties": true,
@@ -21986,10 +22136,11 @@
             "enum": [
               "said",
               "screen",
-              "file"
+              "file",
+              "page"
             ],
             "title": "Source",
-            "description": "\"said\" (transcript), \"screen\" (text on screen in a video) or \"file\" (a line of a supplementary file)"
+            "description": "\"said\" (transcript), \"screen\" (text on screen in a video), \"file\" (a line of a supplementary file) or \"page\" (text on a page of a document or an image, whose times are only a reading pace)"
           },
           "frame": {
             "anyOf": [
@@ -22005,7 +22156,19 @@
           },
           "box": {
             "title": "Box",
-            "description": "screen hits: where the text is on the frame"
+            "description": "screen and page hits: where the text is on the frame or the page ([x, y, w, h] fractions)"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "page hits: which page (from 0)"
           },
           "file": {
             "anyOf": [
@@ -25100,7 +25263,9 @@
               "any",
               "audio",
               "video",
-              "transcript"
+              "transcript",
+              "document",
+              "image"
             ],
             "title": "Media",
             "default": "any"

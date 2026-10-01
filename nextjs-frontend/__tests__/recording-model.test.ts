@@ -163,7 +163,9 @@ describe("normalizePlayer", () => {
       width: 1920,
       height: 1080,
       fps: 30,
+      pages: null,
     });
+    expect(m.pages).toEqual([]);
     expect(m.screenText[0]).toMatchObject({
       id: "ocr:1",
       box: [0.1, 0.1, 0.2, 0.05],

@@ -28,7 +28,14 @@ export function collectionPath(name: string): string {
   return `/explore/collections/${encodeURIComponent(name)}`;
 }
 
-const KIND_WORD: Record<string, string> = { audio: "Audio", video: "Video", transcript: "Transcript only" };
+/** What a resource is, in a word (its media_kind). */
+export const KIND_WORD: Record<string, string> = {
+  audio: "Audio",
+  video: "Video",
+  transcript: "Transcript only",
+  document: "Document",
+  image: "Image",
+};
 
 /** The line under a card's title: "12 Sep 2026 · Video". */
 export function cardLine(card: { recorded_at?: string | null; media_kind: string }): string {

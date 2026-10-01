@@ -56,7 +56,8 @@ class Passage(ResponseModel):
     namespace: str | None = None
     recorded_at: str | None = None
     t0: int | float | None = None
-    time: str | None = None
+    time: str | None = Field(None, description='when it was said ("12:34"), or for a document its page ("p. 3")')
+    page: int | None = Field(None, description="a document's or an image's page it's on (from 0)")
     speaker: str | None = None
     text: str
     used: bool | None = Field(default=None, description="cited in the answer")

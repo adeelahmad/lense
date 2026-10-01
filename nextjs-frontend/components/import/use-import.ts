@@ -6,11 +6,11 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { Imports, Pipelines, Speakers, Uploads } from "@/app/openapi-client";
 import type { ImportPreview, UploadLimits } from "@/app/openapi-client/types.gen";
 import {
+  asKind,
   DEFAULT_LIMITS,
   fileToBase64,
   initialMapping,
   kindOf,
-  localProblem,
   mappingParam,
   parseMapping,
   readProblem,
@@ -45,18 +45,14 @@ type Action =
 
 let seq = 0;
 
-/** Audio and video are ready to upload as they are; transcripts are read first (the preview). */
+/** Audio and video: what a transcript dropped with them can take as its media. */
 export const isMedia = (kind: FileKind) => kind === "audio" || kind === "video";
 
 function makeItem(file: File, limits: UploadLimits): Item {
-  const problem = localProblem(file, limits);
-  const kind = kindOf(file.name);
   return {
     id: `f${++seq}`,
     file,
-    kind,
-    status: problem ? "blocked" : isMedia(kind) ? "ready" : "reading",
-    problem: problem ?? undefined,
+    ...asKind(file, kindOf(file.name), limits),
     title: titleFromName(file.name),
     mapping: "",
     mappingTouched: false,
@@ -114,6 +110,11 @@ export function useImportFiles() {
   const remove = useCallback((id: string) => dispatch({ type: "remove", id }), []);
   const patch = useCallback((id: string, p: Partial<Item>) => dispatch({ type: "patch", id, patch: p }), []);
   const clear = useCallback(() => dispatch({ type: "clear" }), []);
+  /** A PDF as a document (its pages) or a transcript (its text only). */
+  const setKind = useCallback(
+    (it: Item, kind: FileKind) => dispatch({ type: "patch", id: it.id, patch: asKind(it.file, kind, limits) }),
+    [limits],
+  );
 
   useEffect(() => {
     const waiting = items.filter((i) => i.status === "reading" && !inflight.current.has(i.id));
@@ -159,7 +160,7 @@ export function useImportFiles() {
     }
   }, [items, client, patch]);
 
-  return { items, add, remove, patch, clear, limits };
+  return { items, add, remove, patch, clear, setKind, limits };
 }
 
 /** Debounced preview of pasted text. */

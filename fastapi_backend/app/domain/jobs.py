@@ -24,6 +24,7 @@ FIELDS = (
     "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total"
 )
 MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces"}  # they take longer the longer the recording
+FILED = ("audio", "document", "image")  # sources with a file of their own for the steps to work on
 TIMINGS = 25  # recent timings kept per kind of step, for estimates
 
 
@@ -41,6 +42,10 @@ def _spec(s):
 
 def _transcribe(db, cfg, rid, say, spec=None):
     rec = db.one("SELECT source, engine, status, envelope FROM $r", r=R("recording", rid)) or {}
+    if rec.get("source") in ("document", "image"):
+        from . import documents
+
+        return documents.transcribe(db, cfg, rid, say)
     if rec.get("source") != "audio":
         raise Skip("an imported transcript has nothing to transcribe")
     if str(rec.get("engine") or "").startswith("import:") and rec.get("status") != "new" and not (spec or {}).get("force"):
@@ -53,6 +58,8 @@ def _transcribe(db, cfg, rid, say, spec=None):
 
 def _diarize(db, cfg, rid, say, spec=None):
     rec = db.one("SELECT source, diarizer FROM $r", r=R("recording", rid)) or {}
+    if rec.get("source") in ("document", "image"):
+        raise Skip(f"{'an image' if rec['source'] == 'image' else 'a document'} has no voices")
     if rec.get("source") != "audio" or (rec.get("diarizer") == "labels" and not (spec or {}).get("force")):
         raise Skip("the speakers came with the transcript; kept them")
     spk.diarize_one(db, cfg, rid, say)
@@ -66,6 +73,8 @@ def _analyze(db, cfg, rid, say, spec=None):
 def _summarize(db, cfg, rid, say, spec=None):
     if not (cfg["llm"].get("base_url") and cfg["llm"].get("model")):
         raise Skip("no LLM is configured")
+    if not db.values("SELECT VALUE id FROM segment WHERE recording = $r LIMIT 1", r=rid):
+        raise Skip("there's no text to summarise")
     analyze.summarize_recording(db, cfg, rid)
     say("summarised")
 
@@ -180,7 +189,7 @@ def add_steps(db, rid, steps, by=None):
 
 def steps_for(rec):
     st, audio = rec.get("status"), rec.get("source") == "audio"
-    if st in ("new", "error") and audio:
+    if st in ("new", "error") and rec.get("source") in FILED:
         return PIPELINE
     if st == "transcribed":
         return (["diarize"] if audio else []) + AFTER_IMPORT
@@ -330,7 +339,7 @@ def estimates(db, job):
     kinds = sorted({k for s in specs for k in _kinds(s)})
     stats = {r["kind"]: r.get("samples") or [] for r in db.rows("SELECT kind, samples FROM step_stat WHERE kind IN $k", k=kinds)}
     rec = db.one("SELECT duration_ms, source FROM $r", r=R("recording", job.get("recording") or 0)) or {}
-    ms, media = rec.get("duration_ms"), rec.get("source") == "audio"
+    ms, media = rec.get("duration_ms"), rec.get("source") in FILED
     out = []
     for s in specs:
         samples = next((stats[k] for k in reversed(_kinds(s)) if stats.get(k)), [])

@@ -20,11 +20,13 @@ class SearchHit(ResponseModel):
     recorded_at: str | None = None
     namespace: str | None = None
     snippet: str = Field(description="HTML: escaped text with <mark> around matches")
-    source: Literal["said", "screen", "file"] = Field(
-        description='"said" (transcript), "screen" (text on screen in a video) or "file" (a line of a supplementary file)'
+    source: Literal["said", "screen", "file", "page"] = Field(
+        description='"said" (transcript), "screen" (text on screen in a video), "file" (a line of a supplementary file) '
+        'or "page" (text on a page of a document or an image, whose times are only a reading pace)'
     )
     frame: str | None = Field(None, description="screen hits: signed link to the video frame")
-    box: Any = Field(None, description="screen hits: where the text is on the frame")
+    box: Any = Field(None, description="screen and page hits: where the text is on the frame or the page ([x, y, w, h] fractions)")
+    page: int | None = Field(None, description="page hits: which page (from 0)")
     file: int | None = Field(None, description="file hits: the supplementary file the line is in")
     file_role: str | None = Field(None, description="file hits: its role (transcript, captions, translation or index)")
     file_label: str | None = Field(None, description="file hits: its label, or its name")

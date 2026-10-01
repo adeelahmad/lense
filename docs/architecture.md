@@ -37,8 +37,9 @@ fastapi_backend/
       iiif.py, pages.py  IIIF protocol endpoints; embed player and reports (HTML)
     schemas/             Pydantic request and response models, one module per area
     domain/              the processing engine: store (SurrealDB), ingest, speakers, analyze,
-                         entities, graph, search, video, faces, iiif, metadata, pipelines,
-                         templates, llm, chat, batches, jobs, sources, settings, auth, render
+                         entities, graph, search, video, faces, documents, iiif, metadata,
+                         pipelines, templates, llm, chat, batches, jobs, sources, settings, auth,
+                         render
   tests/                 api/ (HTTP) and domain/ (engine) tests, pytest
 ```
 
@@ -78,7 +79,8 @@ run a separate `worker` service.
 
 ## Media
 
-Audio, video, frames and word clouds are loaded by `<audio>`, `<video>` and `<img>` tags, and supplementary files are
+Audio, video, frames, the pages of documents and images, and word clouds are loaded by `<audio>`, `<video>` and `<img>`
+tags, and supplementary files are
 downloaded through links, none of which can send an `Authorization` header. The API therefore returns **signed links** (`?exp=…&sig=…`, HMAC over the path and expiry)
 in every response that contains media, and only to callers who may read that recording. Media endpoints accept a
 signed link, a share link (`?s=…`) or a bearer token. Byte ranges are supported so players can seek.

@@ -360,6 +360,8 @@ def segment_rows(rid, nid, segs):
                     "event": s.get("event"),
                     "lang": s.get("lang"),
                     "words": s.get("words"),
+                    "page": s.get("page"),  # a document's or an image's page (domain/documents.py)
+                    "box": s.get("box"),
                 }
             )
         )

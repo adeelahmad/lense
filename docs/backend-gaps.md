@@ -27,7 +27,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| OCR for scanned PDFs | an OCR option on `/import/preview` |
 | Speaker-mapping suggestions from earlier imports | a label-suggestions endpoint |
 
 ## Search, chat and the assistant

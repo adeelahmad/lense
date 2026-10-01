@@ -410,7 +410,7 @@ export function EditToolbar() {
 
 /** Every saved correction to this recording's transcript, newest first, with Revert. */
 export function ChangeHistoryList({ limit = 50 }: { limit?: number }) {
-  const { id, ns, model, canEdit } = useRec();
+  const { id, ns, model, canEdit, where } = useRec();
   const edits = useEdits(id);
   const dir = useSpeakerDirectory(ns);
   const edit = useEdit();
@@ -454,8 +454,8 @@ export function ChangeHistoryList({ limit = 50 }: { limit?: number }) {
               <span />
             )}
             <span className="col-span-2 text-[11.5px] leading-snug text-fg-muted">
-              {seg ? tc(seg.t0) : `line ${e.idx + 1}`} · {e.by && me?.user.email === e.by ? "you" : (e.by ?? "someone")}{" "}
-              · {relative(e.at)}
+              {seg ? where(seg.t0) : `line ${e.idx + 1}`} ·{" "}
+              {e.by && me?.user.email === e.by ? "you" : (e.by ?? "someone")} · {relative(e.at)}
             </span>
           </li>
         );

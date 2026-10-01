@@ -10,6 +10,7 @@ import {
   Download,
   Ellipsis,
   ExternalLink,
+  Files,
   FileText,
   Folder,
   FolderTree,
@@ -31,6 +32,7 @@ import { AccessBadge } from "@/components/access/access-fields";
 import { libraryHref } from "@/components/library/collections-model";
 import { usePlayerApi } from "@/components/player/media";
 import { useRec } from "@/components/recording/context";
+import { pageAt, pagesSummary } from "@/components/recording/document/model";
 import { useExport, usePipelines, useRecordingActions } from "@/components/recording/hooks";
 import { isActive, readyBefore, shortError, stepLabel, loopSteps } from "@/components/recording/jobs";
 import { Badge, StatusChip } from "@/components/ui/badge";
@@ -119,7 +121,11 @@ export function RecordingHeader() {
             {shortDate(rec.recorded_at, true)}
           </time>
         )}
-        <Meta icon={<Clock3 />}>{tc(model.durationMs)}</Meta>
+        {r.paged ? (
+          <Meta icon={<Files />}>{pagesSummary(model.pages, model.media.kind === "image" ? "image" : "document")}</Meta>
+        ) : (
+          <Meta icon={<Clock3 />}>{tc(model.durationMs)}</Meta>
+        )}
         {source && (
           <Meta icon={source.remote ? <Cloud /> : <FileText />}>
             <span className={cn("max-w-[320px] truncate", source.file && "font-mono text-[12px]")} title={source.title}>
@@ -156,10 +162,10 @@ function Meta({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 export function HeaderActions({ compact }: { compact?: boolean }) {
   const r = useRec();
   const api = usePlayerApi();
-  const { canEdit, ns, openShare } = r;
+  const { canEdit, ns, openShare, paged } = r;
   return (
     <div className="flex items-center gap-2">
-      {!compact && (
+      {!compact && !paged && (
         <Button
           variant="secondary"
           size="sm"
@@ -177,8 +183,10 @@ export function HeaderActions({ compact }: { compact?: boolean }) {
 }
 
 export function ExportMenu({ trigger }: { trigger?: ReactNode }) {
-  const { id, model, rec } = useRec();
+  const { id, model, rec, paged } = useRec();
   const exp = useExport(id);
+  // a document's text has no times for subtitles
+  const formats = paged ? EXPORTS.filter(([fmt]) => fmt !== "srt" && fmt !== "vtt") : EXPORTS;
   return (
     <Menu>
       <MenuTrigger asChild>
@@ -189,8 +197,8 @@ export function ExportMenu({ trigger }: { trigger?: ReactNode }) {
         )}
       </MenuTrigger>
       <MenuContent>
-        <MenuLabel>Download the transcript</MenuLabel>
-        {EXPORTS.map(([fmt, label]) => (
+        <MenuLabel>{paged ? "Download the text" : "Download the transcript"}</MenuLabel>
+        {formats.map(([fmt, label]) => (
           <MenuItem key={fmt} onSelect={() => exp.mutate({ fmt, title: model.title })} shortcut={`.${fmt}`}>
             {label}
           </MenuItem>
@@ -282,11 +290,13 @@ function MoreMenu({ compact }: { compact?: boolean }) {
   const latest = r.jobs[0];
   const copy = async (withTime: boolean) => {
     const t = Math.floor(api.now() / 1000);
-    const url = `${window.location.origin}/resources/${r.id}${withTime && t > 0 ? `?t=${t}` : ""}`;
+    const page = r.paged ? pageAt(r.model.segments, api.now()) + 1 : 0; // a document's: the page with the text in view
+    const at = r.paged ? (page > 1 ? `?page=${page}` : "") : t > 0 ? `?t=${t}` : "";
+    const url = `${window.location.origin}/resources/${r.id}${withTime ? at : ""}`;
     try {
       await navigator.clipboard.writeText(url);
       toast({
-        title: withTime ? `Link at ${tc(t * 1000)} copied` : "Link copied",
+        title: withTime ? `Link at ${r.paged ? `page ${page}` : tc(t * 1000)} copied` : "Link copied",
         tone: "green",
       });
     } catch {
@@ -305,16 +315,18 @@ function MoreMenu({ compact }: { compact?: boolean }) {
           Copy link
         </MenuItem>
         <MenuItem icon={<Copy />} onSelect={() => void copy(true)}>
-          Copy link at the current time
+          {r.paged ? "Copy link to this page" : "Copy link at the current time"}
         </MenuItem>
         <MenuItem icon={<FolderTree />} disabled={!r.canEdit || !r.ns} onSelect={r.openCollection}>
           Move to collection…
         </MenuItem>
         {compact && (
           <>
-            <MenuItem icon={<CodeXml />} onSelect={() => r.openShare(Math.floor(api.now()) || undefined)}>
-              Share / Embed
-            </MenuItem>
+            {!r.paged && (
+              <MenuItem icon={<CodeXml />} onSelect={() => r.openShare(Math.floor(api.now()) || undefined)}>
+                Share / Embed
+              </MenuItem>
+            )}
             <MenuItem icon={<RefreshCw />} disabled={!r.canEdit} onSelect={r.openReprocess}>
               Reprocess…
             </MenuItem>

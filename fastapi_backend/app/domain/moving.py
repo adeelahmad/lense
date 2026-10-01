@@ -35,6 +35,7 @@ SPACED = (
     "note",
     "resource_file",
     "file_line",
+    "page",
 )
 
 

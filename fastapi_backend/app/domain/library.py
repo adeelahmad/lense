@@ -13,7 +13,7 @@ from . import access as acc, metadata, render, store
 R = store.R
 STATUSES = ("new", "transcribed", "diarized", "analyzed", "error")
 STATES = ("processing", "failed")  # job states the status filter also takes: a job queued or running; the latest job failed
-MEDIA = ("audio", "video", "transcript")
+MEDIA = ("audio", "video", "transcript", "document", "image")
 STATUS_ORDER = ["error", "new", "transcribed", "diarized", "analyzed"]
 # sort key -> (the value to sort by, whether a row has none); rows without a value go last either way, then ids break ties
 SORTS = {
@@ -264,7 +264,9 @@ def where(
             {
                 "video": "media.kind = 'video'",
                 "audio": "(media.kind = 'audio' OR (media.kind = NONE AND source = 'audio'))",
-                "transcript": "(media.kind = 'transcript' OR (media.kind = NONE AND source != 'audio'))",
+                "transcript": "(media.kind = 'transcript' OR (media.kind = NONE AND source NOT IN ['audio', 'document', 'image']))",
+                "document": "source = 'document'",
+                "image": "source = 'image'",
             }[media]
         )
     levels = list(dict.fromkeys(access or []))
@@ -357,6 +359,14 @@ def summaries(db, rows, cfg=None):
         if rows
         else {}
     )
+    paged = [r["id"] for r in rows if r.get("source") in ("document", "image")]
+    if paged:  # a document's or an image's first page stands for it
+        posters.update(
+            {
+                x["recording"]: x.get("thumb")
+                for x in db.rows("SELECT recording, thumb FROM page WHERE recording IN $r AND idx = 0", r=paged)
+            }
+        )
     origins = Origins(db, cfg) if cfg is not None and rows else None
     came = {r["id"]: origins.of(r) for r in rows} if origins else {}
     called = origins.names(set(came.values())) if origins else {}
@@ -370,7 +380,8 @@ def summaries(db, rows, cfg=None):
         a = access[r["id"]]
         r.update(access=a["access"], open=a["open"], featured=a["featured"], tags=r.get("tags") or [])
         st, sm = r.pop("stats", None) or {}, r.pop("summary", None) or {}
-        r["media_kind"] = (r.pop("media", None) or {}).get("kind") or ("audio" if r.get("source") == "audio" else "transcript")
+        r["media_kind"] = render.kind(r)
+        r["pages"] = (r.pop("media", None) or {}).get("pages") if r["media_kind"] in ("document", "image") else None
         r["poster"] = f"{store.API}/recordings/{r['id']}/frames/{posters[r['id']]}" if posters.get(r["id"]) else None
         out.append(
             {

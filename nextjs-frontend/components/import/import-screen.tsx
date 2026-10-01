@@ -4,7 +4,13 @@ import { FolderOpen, Upload } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { namespaceNameProblem, parseMapping, pipelineOptions, titleFromName } from "@/components/import/files";
+import {
+  isUpload,
+  namespaceNameProblem,
+  parseMapping,
+  pipelineOptions,
+  titleFromName,
+} from "@/components/import/files";
 import { ImportQueue } from "@/components/import/import-queue";
 import { PasteTab } from "@/components/import/paste-tab";
 import { chooseFiles, defaultImportNamespace, isFileDrag, takeFiles } from "@/components/import/pending";
@@ -136,7 +142,7 @@ export function ImportScreen() {
   const [ns, setNs] = useState("");
   const files = useImportFiles();
   const queue = useImportQueue();
-  const unfinished = useUnfinishedUploads(files.items.some((i) => isMedia(i.kind)));
+  const unfinished = useUnfinishedUploads(files.items.some((i) => isUpload(i.kind)));
   const directory = useNamespaceSpeakers(ns || null);
   const pipeline = useNamespacePipeline(ns || null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -188,7 +194,7 @@ export function ImportScreen() {
   const ready = items.filter((i) => i.status === "ready");
   const reading = items.filter((i) => i.status === "reading").length;
   const mappingProblem = ready.find(
-    (i) => !isMedia(i.kind) && parseMapping(i.mapping, i.preview?.speakers ?? []).errors.length,
+    (i) => !isUpload(i.kind) && parseMapping(i.mapping, i.preview?.speakers ?? []).errors.length,
   );
   const importReason =
     nsReason ??
@@ -233,7 +239,7 @@ export function ImportScreen() {
             namespace: target,
           };
           const twin = pairs.get(it.id);
-          return isMedia(it.kind)
+          return isUpload(it.kind)
             ? { ...base, kind: "media", file: it.file, pipeline: pipelineId, collection: collectionId }
             : {
                 ...base,
@@ -375,7 +381,8 @@ export function ImportScreen() {
                     </Button>
                   </div>
                   <p className="text-[12.5px] text-fg-muted">
-                    Audio and video go up in pieces: if the connection drops, they carry on where they stopped.
+                    Audio, video, PDFs and images go up in pieces: if the connection drops, they carry on where they
+                    stopped.
                   </p>
                 </div>
               </div>
@@ -386,10 +393,11 @@ export function ImportScreen() {
                     <FileList items={items} selected={selected} onSelect={setSelected} onAdd={files.add} />
                   </div>
                   <div className="min-w-0 px-4 py-4 md:px-6 md:py-[18px]">
-                    {current?.status === "ready" && isMedia(current.kind) ? (
+                    {current?.status === "ready" && isUpload(current.kind) ? (
                       <MediaDetail
                         it={current}
                         onPatch={(p) => files.patch(current.id, p)}
+                        onKind={(k) => files.setKind(current, k)}
                         namespace={ns || null}
                         namespaceControl={nsControl}
                         pipelineControl={pipelineControl}
@@ -401,6 +409,7 @@ export function ImportScreen() {
                       <FileDetail
                         it={current}
                         onPatch={(p) => files.patch(current.id, p)}
+                        onKind={(k) => files.setKind(current, k)}
                         namespace={ns || null}
                         namespaceControl={nsControl}
                         pipelineControl={pipelineControl}
@@ -411,6 +420,7 @@ export function ImportScreen() {
                       <ProblemCard
                         it={current}
                         className="max-w-[520px]"
+                        onKind={(k) => files.setKind(current, k)}
                         onRemove={() => files.remove(current.id)}
                         onReplace={(fs) => {
                           if (!fs.length) return;

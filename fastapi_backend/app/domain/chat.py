@@ -99,7 +99,7 @@ def retrieve(db, question, spaces, scope=None, k=8):
     passages = []
     for rid, idxs in wanted.items():
         segs = db.rows(
-            "SELECT idx, t0, t1, speaker, text FROM segment WHERE recording = $r AND idx IN $i ORDER BY idx",
+            "SELECT idx, t0, t1, speaker, text, page FROM segment WHERE recording = $r AND idx IN $i ORDER BY idx",
             r=rid,
             i=sorted(i for i in idxs if i >= 0),
         )
@@ -128,18 +128,25 @@ def retrieve(db, question, spaces, scope=None, k=8):
     for n, x in enumerate(passages, 1):
         rec = recs.get(x["recording_id"], {})
         first = x["segs"][0]
+        page = first.get("page")  # a document's text is on pages, without speakers
         out.append(
-            {
-                "n": n,
-                "recording_id": x["recording_id"],
-                "title": rec.get("title"),
-                "namespace": spaces_n.get(rec.get("space")),
-                "recorded_at": rec.get("recorded_at"),
-                "t0": first["t0"],
-                "time": store.tc(first["t0"]),
-                "speaker": names.get(first.get("speaker")),
-                "text": "\n".join(f"{names.get(s.get('speaker'), 'Unknown')}: {s['text']}" for s in x["segs"]),
-            }
+            store.clean(
+                {
+                    "n": n,
+                    "recording_id": x["recording_id"],
+                    "title": rec.get("title"),
+                    "namespace": spaces_n.get(rec.get("space")),
+                    "recorded_at": rec.get("recorded_at"),
+                    "t0": first["t0"],
+                    "time": store.tc(first["t0"]) if page is None else f"p. {page + 1}",
+                    "page": page,
+                    "speaker": names.get(first.get("speaker")),
+                    "text": "\n".join(
+                        s["text"] if s.get("page") is not None else f"{names.get(s.get('speaker'), 'Unknown')}: {s['text']}"
+                        for s in x["segs"]
+                    ),
+                }
+            )
         )
     if not (scope or {}).get("speakers"):  # text shown on screen in videos
         seen = Counter()

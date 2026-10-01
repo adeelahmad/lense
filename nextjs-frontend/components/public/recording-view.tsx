@@ -23,6 +23,7 @@ import {
   collectionPath,
   descriptionRows,
   findLines,
+  KIND_WORD,
   lineAt,
   markParts,
   networkNote,
@@ -40,8 +41,6 @@ import { bytes, plural, shortDate, tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Rec = PublicRecording;
-
-const KIND: Record<Rec["media_kind"], string> = { audio: "Audio", video: "Video", transcript: "Transcript only" };
 
 /**
  * A recording's public page (docs/access.md): all of it for people with permission; for everyone else a public
@@ -179,7 +178,7 @@ function PageHead({ rec, meta, duration }: { rec: Rec; meta: Meta; duration: num
             {tc(duration)}
           </span>
         )}
-        <span>{KIND[rec.media_kind]}</span>
+        <span>{KIND_WORD[rec.media_kind]}</span>
         <AccessBadge value={rec} />
       </div>
       {summary && <p className="max-w-[72ch] text-[15px] leading-[1.55] text-fg">{summary}</p>}

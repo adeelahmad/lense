@@ -24,7 +24,7 @@ class ViewState(RequestModel):
     duration: Literal["any", "short", "medium", "long", "xlong"] = Field(
         "any", description="short: under 10 min; medium: 10–30; long: 30–60; xlong: over an hour"
     )
-    media: Literal["any", "audio", "video", "transcript"] = "any"
+    media: Literal["any", "audio", "video", "transcript", "document", "image"] = "any"
     tags: list[Tag] = Field(default_factory=list, max_length=20, description="any of these")
     origins: list[Annotated[str, Field(pattern=r"^(upload|paste|iiif|folder|file|source:\d+)$")]] = Field(
         default_factory=list, max_length=20, description="where they came from (GET /recordings `origin`)"

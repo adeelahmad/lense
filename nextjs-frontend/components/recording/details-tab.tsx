@@ -21,7 +21,7 @@ type Row = [string, ReactNode, boolean?];
 
 /** Details tab (Recording Pages §2): file, streams, provenance and processing — what the recording row records. */
 export function DetailsTab() {
-  const { rec, model } = useRec();
+  const { rec, model, paged } = useRec();
   const video = model.media.kind === "video";
   const src = sourceLabel(rec);
   // Pasted transcripts have no file name ("paste:<hash>" is an internal key); uploads drop their "upload:" prefix.
@@ -34,14 +34,41 @@ export function DetailsTab() {
         ?.replace(/^upload:/, "") || null;
   const file: Row[] = [
     ["Name", name, true],
-    ["Kind", video ? "Video" : model.audio ? "Audio" : "Transcript only (no audio)"],
-    ["Duration", tc(model.durationMs)],
+    [
+      "Kind",
+      model.media.kind === "document"
+        ? "Document"
+        : model.media.kind === "image"
+          ? "Image"
+          : video
+            ? "Video"
+            : model.audio
+              ? "Audio"
+              : "Transcript only (no audio)",
+    ],
+    paged ? ["Pages", count(model.pages.length)] : ["Duration", tc(model.durationMs)],
     ["Size", rec.size ? bytes(rec.size) : null],
-    ["Transcript", [plural(model.segments.length, "line"), transcriptOrigin(rec.engine)].filter(Boolean).join(" · ")],
+    paged
+      ? [
+          "Text",
+          [
+            plural(model.segments.length, "block"),
+            plural(model.pages.filter((p) => p.text === "ocr").length, "page") + " read by OCR",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        ]
+      : [
+          "Transcript",
+          [plural(model.segments.length, "line"), transcriptOrigin(rec.engine)].filter(Boolean).join(" · "),
+        ],
     ["Language", rec.language && !["none", "nospeech"].includes(rec.language) ? rec.language.toUpperCase() : null],
   ];
   const media: Row[] = [
-    ["Frame size", model.media.width && model.media.height ? `${model.media.width}×${model.media.height}` : null],
+    [
+      paged ? "Page size" : "Frame size",
+      model.media.width && model.media.height ? `${model.media.width}×${model.media.height}` : null,
+    ],
     ["Frame rate", model.media.fps ? `${Math.round(model.media.fps * 100) / 100} fps` : null],
     [
       "Channels",

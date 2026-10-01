@@ -1,6 +1,6 @@
 "use client";
 
-import { AudioLines, FileText, FolderOpen, Lock, Star, Video } from "lucide-react";
+import { AudioLines, BookOpenText, FileText, FolderOpen, Image as ImageIcon, Lock, Star, Video } from "lucide-react";
 import Link from "next/link";
 
 import type { PublicCard, PublicCollectionSummary } from "@/app/openapi-client/types.gen";
@@ -8,7 +8,13 @@ import { cardLine, collectionPath, publicPath } from "@/components/public/model"
 import { tc } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const KIND_ICON = { audio: AudioLines, video: Video, transcript: FileText } as const;
+export const KIND_ICON = {
+  audio: AudioLines,
+  video: Video,
+  transcript: FileText,
+  document: BookOpenText,
+  image: ImageIcon,
+} as const;
 
 /**
  * A recording in a list of the pages visitors see. A locked one (restricted, seen signed in without permission) keeps

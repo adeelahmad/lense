@@ -26,6 +26,28 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Documents and images.** A PDF or an image is a resource of its own: its pages are drawn and their text read, so
+  it can be looked at page by page, searched, summarised and asked about like a recording. Decided with the project
+  owner: a PDF is a document unless the person importing it chooses a transcript; images are shown, read by OCR and
+  published like the rest.
+    - Import → Upload takes PDFs and images (JPEG, PNG, TIFF, WebP, GIF, BMP) in pieces, like audio and video; a PDF
+      asks "Import as: Document / Transcript". `uploads.extensions` lists them by default: a list saved in Settings →
+      Uploads before now needs them added.
+    - The pipeline's transcribe step draws a document's pages (poppler) and reads each page's text with where each
+      block is on it; pages with hardly any text (scans) and images are read by OCR (`video.ocr_engine`). A TIFF's
+      frames are its pages. New settings: `documents.page_pixels`, `thumb_pixels`, `ocr_below_chars` and
+      `max_pages` (docs/configuration.md#documents-and-images). The Docker image has poppler and Tesseract; CI
+      installs poppler now too.
+    - The resource page shows the pages (thumbnails, zoom, ←/→ to turn) beside the text by page: choosing a block,
+      a find match, a summary point or a chat source turns to its page and marks the block on it. Editors correct
+      what was read ("Correct text"). Summaries, chat, notes and history say pages ("p. 3"), not times.
+    - Library: a Kind filter (audio, video, transcript only, document, image), and rows give a document's pages
+      instead of a duration. Search finds the text on its page and opens there (`/resources/<id>?page=3`).
+    - API: `source`/`media_kind` `document` and `image`, `pages` on list rows and in the player data, `p` and `b` on
+      its segments, search hits with `source: "page"`, `page` on summary items and chat sources, `GET
+      /resources/{rid}/media` as the file to save (docs/api.md#documents-and-images). Answers "OCR for scanned PDFs"
+      (docs/backend-gaps.md).
+    - Next: documents and images on public pages and in IIIF, faces on their pages, and from storage sources.
 - **Custom fields.** Editors define their own metadata fields on a namespace or on a collection, for the resources,
   the collections or the files inside it: text, long text, number, date, yes/no, one or several of a list, or a link.
   Decided with the project owner: fields live where they're defined and apply to everything inside; each is published

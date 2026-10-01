@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { FileAudio, FileVideo, Paperclip } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { kindOf, localProblem } from "@/components/import/files";
+import { kindOf, localProblem, mediaTypes } from "@/components/import/files";
 import { chooseFiles } from "@/components/import/pending";
 import { sentShare, sentText, uploadError } from "@/components/import/upload-model";
 import { sendFile } from "@/components/import/uploader";
@@ -42,7 +42,7 @@ export function AttachAudioDialog({ open, onOpenChange }: { open: boolean; onOpe
   }, [open]);
 
   const pick = async () => {
-    const [f] = await chooseFiles(limits.extensions.join(","));
+    const [f] = await chooseFiles(mediaTypes(limits));
     if (!f) return;
     const p = isMedia(kindOf(f.name)) ? localProblem(f, limits) : { title: "Choose an audio or video file" };
     setFile(p ? null : f);

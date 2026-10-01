@@ -17,11 +17,11 @@ import {
   TagsCell,
   TextBadge,
 } from "@/components/library/cells";
-import { statusView, type SortDir, type SortKey } from "@/components/library/model";
+import { lengthText, statusView, type SortDir, type SortKey } from "@/components/library/model";
 import { Checkbox } from "@/components/ui/field";
 import { Menu, MenuContent, MenuLabel, MenuTrigger } from "@/components/ui/menu";
 import { SortTh, THead, Th } from "@/components/ui/table";
-import { shortDate, tc } from "@/lib/format";
+import { shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type RowProps = {
@@ -71,7 +71,7 @@ const COLUMNS: Col[] = [
     width: 70,
     sort: "duration",
     right: true,
-    cell: (r) => (r.duration_ms ? tc(r.duration_ms) : "—"),
+    cell: (r) => lengthText(r),
     cls: "tabular text-right text-fg-secondary",
   },
   {

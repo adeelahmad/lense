@@ -313,7 +313,7 @@ function AnswerView({ text, passages, streaming }: { text: string; passages: Pas
               [{p.n}]
             </sup>
           );
-        const label = `${tc(ps.t0 ?? 0)}${ps.speaker ? ` · ${ps.speaker}` : ""}`;
+        const label = `${ps.page != null ? (ps.time ?? `p. ${ps.page + 1}`) : tc(ps.t0 ?? 0)}${ps.speaker ? ` · ${ps.speaker}` : ""}`;
         const cls =
           "mx-0.5 inline-flex h-[20px] items-center rounded-pill border border-blue-border bg-blue-surface px-1.5 align-[2px] font-sans text-[11.5px] font-semibold text-blue-dark hover:bg-blue hover:text-white";
         return ps.recording_id === id ? (
@@ -330,7 +330,7 @@ function AnswerView({ text, passages, streaming }: { text: string; passages: Pas
         ) : (
           <Link
             key={i}
-            href={`/resources/${ps.recording_id}?t=${Math.floor((ps.t0 ?? 0) / 1000)}`}
+            href={`/resources/${ps.recording_id}${ps.page != null ? `?page=${ps.page + 1}` : `?t=${Math.floor((ps.t0 ?? 0) / 1000)}`}`}
             className={cls}
             title={ps.text}
           >
