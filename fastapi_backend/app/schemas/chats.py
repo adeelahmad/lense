@@ -16,6 +16,9 @@ class ChatScope(RequestModel):
 
     namespaces: list[str] | None = None
     recordings: list[int] | None = None
+    collections: list[int] | None = Field(
+        default=None, description="saved collections (yours or shared): their recordings as they are when it answers"
+    )
     speakers: list[int] | None = None
     date_from: str | None = Field(default=None, alias="from", description="YYYY-MM-DD")
     date_to: str | None = Field(default=None, alias="to", description="YYYY-MM-DD")

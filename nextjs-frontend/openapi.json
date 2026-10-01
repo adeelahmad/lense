@@ -11626,6 +11626,21 @@
             ],
             "title": "Recordings"
           },
+          "collections": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collections",
+            "description": "saved collections (yours or shared): their recordings as they are when it answers"
+          },
           "speakers": {
             "anyOf": [
               {

@@ -127,3 +127,18 @@ def visible(db, account):
 
 def members(db, c, spaces, limit=None):
     return resolve(db, spaces, c.get("filter"), c.get("recordings"), limit)
+
+
+def within(db, spaces, recordings=None, collections=None):
+    """The recordings a conversation's scope keeps to: the ones it names, and the members of its collections as they
+    are now (a deleted collection adds none), within `spaces`. None when it names neither."""
+    keep = set(resolve(db, spaces, recordings=recordings)) if recordings else None
+    if collections:
+        held = set()
+        for cid in collections:
+            try:
+                held |= set(members(db, get(db, cid), spaces))
+            except KeyError:
+                continue
+        keep = held if keep is None else keep & held
+    return keep

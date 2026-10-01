@@ -1,7 +1,7 @@
 """Questions answered from the archive, with numbered citations to the exact moments.
 
 Retrieval is keyword-first over the full-text index (English stemming), limited to the namespaces the asker can read
-and to the conversation's scope (namespaces, recordings, speakers, dates). Each hit is widened to its neighbouring
+and to the conversation's scope (namespaces, recordings, collections, speakers, dates). Each hit is widened to its neighbouring
 lines and numbered; the model is told to answer only from those excerpts and cite them as [n]. With no model
 configured, the best passages come back on their own.
 """
@@ -13,7 +13,7 @@ import re
 import time
 from collections import Counter, defaultdict
 
-from . import llm, render, store
+from . import llm, recsets, render, store
 
 R = store.R
 STOP = set(
@@ -45,7 +45,8 @@ def scope_filter(db, spaces, scope):
     if scope.get("namespaces"):
         sp &= {sid for sid, name in store.space_names(db).items() if name in scope["namespaces"]}
     where, p = ["space IN $sp"], {"sp": sorted(sp)}
-    recs = [int(r) for r in scope["recordings"]] if scope.get("recordings") else None
+    kept = recsets.within(db, sp, scope.get("recordings"), scope.get("collections"))
+    recs = sorted(kept) if kept is not None else None
     if scope.get("from") or scope.get("to"):
         q = (
             "SELECT VALUE record::id(id) FROM recording WHERE space IN $sp"

@@ -37,7 +37,6 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| Scope a chat by collection (today: expanded to at most 200 recording ids) | collection ids in the chat scope |
 
 ## Speakers and graph
 

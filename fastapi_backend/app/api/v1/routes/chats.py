@@ -17,6 +17,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.api.media import sign_urls
+from app.api.v1.routes.collections import own_collection
 from app.domain import ai_tools, auth, chat, llm, store
 from app.domain.store import DB
 from app.schemas.chats import (
@@ -41,7 +42,8 @@ SSE_HEADERS = {"Cache-Control": "no-store", "X-Accel-Buffering": "no"}
 
 
 def _scope(acl: Access, db: DB, scope: ChatScope | None) -> dict[str, Any]:
-    """The scope with only the keys that narrow it; namespaces and recordings must be ones the caller can read."""
+    """The scope with only the keys that narrow it; namespaces and recordings must be ones the caller can read, and
+    collections theirs or shared."""
     s = scope.model_dump(by_alias=True, exclude_none=True) if scope else {}
     names = {n for sid, n in store.space_names(db).items() if sid in acl.roles}
     for n in s.get("namespaces") or []:
@@ -49,6 +51,10 @@ def _scope(acl: Access, db: DB, scope: ChatScope | None) -> dict[str, Any]:
             raise HTTPException(404, f"no namespace {n!r}")
     for rid in s.get("recordings") or []:
         acl.recording(int(rid))
+    for cid in s.get("collections") or []:
+        if acl.user is None:
+            raise HTTPException(401, "sign in first")
+        own_collection(db, int(cid), acl.user)
     return {k: v for k, v in s.items() if v}
 
 

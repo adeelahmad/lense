@@ -484,6 +484,11 @@ a 400. Each answer records the `model` that wrote it. `POST /chats/{cid}/stop` s
 step it's on: the stream sends `stopped`, then `done` with the saved message, whose `stopped` is true and whose
 `content` is what came before (`(stopped)` when nothing had). `{stopping: false}` when nothing was being written.
 
+A conversation's `scope` narrows what it draws on: `namespaces`, `recordings`, `collections`, `speakers`, `from` and
+`to`; every key narrows it further, and an empty scope is everything you can read. `collections` are ids of
+collections you can see (yours or shared); the conversation draws on their recordings as they are each time it
+answers, so a filter collection's new recordings count, and a deleted collection adds none.
+
 `GET /chats/{cid}` returns each answer with the `steps` the assistant took (`{tool, args, summary}`), its `notice` and
 `error`, and its latest source `check` (`{claims, supported, verdicts, uncited}`), as they were when it was written
 or checked.

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Chats, Collections } from "@/app/openapi-client";
+import { Chats } from "@/app/openapi-client";
 import type { AnswerCheck, Approval, ChatMessage, Estimate, Passage } from "@/app/openapi-client/types.gen";
 import { Answer } from "@/components/chat/answer";
 import { shortTitle } from "@/components/chat/cite";
@@ -115,26 +115,11 @@ export function ChatApp() {
     if (search.get("q")) setDraft(search.get("q") ?? "");
     if (search.toString()) setDraftScope(linkScope);
   }, [search, linkScope]);
-  // A collection link (?collection=5) scopes a new conversation to its recordings as they are now.
+  // A collection link (?collection=5) starts a conversation that draws on the collection (the link's scope has it).
   const collectionId = Number(search.get("collection")) || null;
   useEffect(() => {
-    if (!collectionId) return;
-    setComposing(true);
-    data(Collections.getCollection({ client, path: { cid: collectionId } }))
-      .then((c) =>
-        setDraftScope((s) => ({
-          ...s,
-          recordings: c.recordings.map((r) => r.id),
-        })),
-      )
-      .catch((e) =>
-        toast({
-          title: "Couldn’t open the collection",
-          body: e instanceof Error ? e.message : undefined,
-          tone: "red",
-        }),
-      );
-  }, [collectionId, client, toast]);
+    if (collectionId) setComposing(true);
+  }, [collectionId]);
 
   const scope = activeId != null ? fromApiScope(chat.data?.scope) : draftScope;
   const streaming = live?.turn.status === "streaming";

@@ -2,7 +2,9 @@
 
 ## Chat
 
-Conversations belong to one person and can be scoped to namespaces, recordings, speakers and dates.
+Conversations belong to one person and can be scoped to namespaces, recordings, collections, speakers and dates. A
+collection in the scope is read each time the assistant answers, so it draws on the collection's recordings as they are
+then.
 
 - **Retrieval:** the question's keywords go through the full-text index (English stemming), limited to namespaces the
   person can read. Hits are widened to their neighbouring lines and numbered.

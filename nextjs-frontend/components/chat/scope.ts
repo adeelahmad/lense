@@ -5,6 +5,8 @@ import { count, shortDate } from "@/lib/format";
 export type Scope = {
   namespaces?: string[];
   recordings?: number[];
+  /** Saved collections: their recordings as they are each time it answers. */
+  collections?: number[];
   speakers?: number[];
   from?: string;
   to?: string;
@@ -15,6 +17,7 @@ export function toApiScope(s: Scope): ChatScope {
   const out: ChatScope = {};
   if (s.namespaces?.length) out.namespaces = s.namespaces;
   if (s.recordings?.length) out.recordings = s.recordings;
+  if (s.collections?.length) out.collections = s.collections;
   if (s.speakers?.length) out.speakers = s.speakers;
   if (s.from) out.from = s.from;
   if (s.to) out.to = s.to;
@@ -29,6 +32,7 @@ export function fromApiScope(raw: Record<string, unknown> | null | undefined): S
   const s: Scope = {
     namespaces: strs(r.namespaces),
     recordings: ints(r.recordings),
+    collections: ints(r.collections),
     speakers: ints(r.speakers),
   };
   if (typeof r.from === "string") s.from = r.from;
@@ -40,6 +44,7 @@ function toScope(c: ChatScope): Scope {
   return {
     ...(c.namespaces ? { namespaces: c.namespaces } : {}),
     ...(c.recordings ? { recordings: c.recordings } : {}),
+    ...(c.collections ? { collections: c.collections } : {}),
     ...(c.speakers ? { speakers: c.speakers } : {}),
     ...(c.from ? { from: c.from } : {}),
     ...(c.to ? { to: c.to } : {}),
@@ -47,10 +52,15 @@ function toScope(c: ChatScope): Scope {
 }
 
 export function isEverything(s: Scope): boolean {
-  return !s.namespaces?.length && !s.recordings?.length && !s.speakers?.length && !s.from && !s.to;
+  return (
+    !s.namespaces?.length && !s.recordings?.length && !s.collections?.length && !s.speakers?.length && !s.from && !s.to
+  );
 }
 
-/** Scope from a link (Search's "Ask in chat", a recording's chat, a collection): ns, recording(s), speaker(s), from, to. */
+/**
+ * Scope from a link (Search's "Ask in chat", a recording's chat, a collection's "Chat"): ns, recording(s),
+ * collection(s), speaker(s), from, to.
+ */
 export function scopeFromParams(p: URLSearchParams): Scope {
   const list = (k: string) =>
     p
@@ -66,6 +76,7 @@ export function scopeFromParams(p: URLSearchParams): Scope {
     toApiScope({
       namespaces: list("ns"),
       recordings: [...ints("recording"), ...ints("recordings")],
+      collections: [...ints("collection"), ...ints("collections")],
       speakers: [...ints("speaker"), ...ints("speakers")],
       from: p.get("from") ?? undefined,
       to: p.get("to") ?? undefined,
@@ -120,9 +131,25 @@ export function scopeWords(s: Scope): string {
     s.recordings?.length
       ? `${s.recordings.length === 1 ? "one recording" : `${s.recordings.length} recordings`}`
       : null,
+    s.collections?.length
+      ? `${s.collections.length === 1 ? "one collection" : `${s.collections.length} collections`}`
+      : null,
     s.speakers?.length ? "chosen speakers" : null,
   ]
     .filter(Boolean)
     .join(", ");
   return extra ? `${base} (${extra})` : base;
+}
+
+/** Add a collection to the scope, or take it out. */
+export function toggleCollection(s: Scope, id: number): Scope {
+  const now = s.collections ?? [];
+  const next = now.includes(id) ? now.filter((x) => x !== id) : [...now, id];
+  return { ...s, collections: next.length ? next : undefined };
+}
+
+/** "Capsid talk" or "Capsid talk and 2 more"; a collection that's gone reads "a removed collection". */
+export function collectionsLabel(ids: number[], names: Map<number, string>): string {
+  const first = names.get(ids[0]) ?? "a removed collection";
+  return ids.length > 1 ? `${first} and ${ids.length - 1} more` : first;
 }

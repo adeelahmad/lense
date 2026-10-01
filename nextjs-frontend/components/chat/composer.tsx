@@ -9,15 +9,23 @@ import {
   ChevronDown,
   FolderClosed,
   FolderSearch,
+  Library,
   Plus,
   Sparkles,
   Wrench,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Collections } from "@/app/openapi-client";
-import { datesLabel, namespaceSize, recordingsLabel, type Scope } from "@/components/chat/scope";
+import {
+  collectionsLabel,
+  datesLabel,
+  namespaceSize,
+  recordingsLabel,
+  toggleCollection,
+  type Scope,
+} from "@/components/chat/scope";
 import { useRecordingIndex, useSpeakerDirectory } from "@/components/search/data";
 import { talkTime } from "@/components/speakers/format";
 import { Button } from "@/components/ui/button";
@@ -229,15 +237,15 @@ function ScopePicker({
             {(cols.data ?? []).map((c) => (
               <li key={c.id}>
                 <CollectionOption
-                  id={c.id}
                   name={c.name}
                   n={c.count}
-                  onPick={(ids) => (onChange({ ...scope, recordings: ids }), onClose())}
+                  on={Boolean(scope.collections?.includes(c.id))}
+                  onPick={() => onChange(toggleCollection(scope, c.id))}
                 />
               </li>
             ))}
             <li className="pt-1 text-[12px] text-fg-muted">
-              A collection limits the conversation to its recordings as they are now.
+              The conversation draws on a collection’s recordings as they are each time it answers.
             </li>
           </ul>
         )}
@@ -251,39 +259,39 @@ function ScopePicker({
   );
 }
 
-function CollectionOption({
-  id,
-  name,
-  n,
-  onPick,
-}: {
-  id: number;
-  name: string;
-  n: number;
-  onPick: (ids: number[]) => void;
-}) {
-  const client = useApiClient();
-  const [busy, setBusy] = useState(false);
+function CollectionOption({ name, n, on, onPick }: { name: string; n: number; on: boolean; onPick: () => void }) {
   return (
     <button
       type="button"
-      disabled={busy || n === 0}
-      onClick={async () => {
-        setBusy(true);
-        try {
-          const c = await data(Collections.getCollection({ client, path: { cid: id } }));
-          onPick(c.recordings.map((r) => r.id));
-        } finally {
-          setBusy(false);
-        }
-      }}
-      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13.5px] text-fg hover:bg-surface-neutral disabled:opacity-50"
+      role="checkbox"
+      aria-checked={on}
+      onClick={onPick}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13.5px] text-fg hover:bg-surface-neutral",
+        on && "bg-blue-surface",
+      )}
     >
-      <FolderSearch className="size-4 text-fg-secondary" aria-hidden />
+      {on ? (
+        <Check className="size-4 text-fg-accent" aria-hidden />
+      ) : (
+        <FolderSearch className="size-4 text-fg-secondary" aria-hidden />
+      )}
       <span className="flex-1 truncate">{name}</span>
-      <span className="tabular text-[12px] text-fg-muted">{busy ? "…" : count(n)}</span>
+      <span className="tabular text-[12px] text-fg-muted">{count(n)}</span>
     </button>
   );
+}
+
+/** The names of your collections and the shared ones, for the scope's chip. */
+function useCollectionNames(enabled: boolean): Map<number, string> {
+  const client = useApiClient();
+  const cols = useQuery({
+    queryKey: ["collections"],
+    queryFn: () => data(Collections.listCollections({ client })),
+    enabled,
+    staleTime: 60_000,
+  });
+  return useMemo(() => new Map((cols.data ?? []).map((c) => [c.id, c.name])), [cols.data]);
 }
 
 /** Scope chips (each shows its size), "+ Scope", and which model answers (a menu, when there's a choice). */
@@ -311,6 +319,7 @@ export function ScopeBar({
   const dir = useSpeakerDirectory(Boolean(scope.speakers?.length));
   const chosen = namespaces.filter((n) => scope.namespaces?.includes(n.name));
   const recs = scope.recordings?.length ? recordingsLabel(scope.recordings, index.byId) : null;
+  const cols = useCollectionNames(Boolean(scope.collections?.length));
   const spk = scope.speakers?.map((id) => dir.speakers.find((s) => s.id === id)?.display ?? `#${id}`);
   return (
     <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
@@ -341,6 +350,13 @@ export function ScopeBar({
           onRemove={() => onChange({ ...scope, recordings: undefined })}
         />
       )}
+      {scope.collections?.length ? (
+        <ScopeChip
+          icon={<Library />}
+          label={collectionsLabel(scope.collections, cols)}
+          onRemove={() => onChange({ ...scope, collections: undefined })}
+        />
+      ) : null}
       {spk && (
         <ScopeChip
           icon={<AudioLines />}

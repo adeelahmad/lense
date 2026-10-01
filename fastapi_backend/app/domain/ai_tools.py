@@ -96,9 +96,7 @@ class Toolbox:
         names = store.space_names(db)
         if self.scope.get("namespaces"):
             self.readable = {s for s in self.readable if names.get(s) in self.scope["namespaces"]}
-        self.allowed = (
-            set(recsets.resolve(db, self.readable, recordings=self.scope["recordings"])) if self.scope.get("recordings") else None
-        )
+        self.allowed = recsets.within(db, self.readable, self.scope.get("recordings"), self.scope.get("collections"))
         self.refs, self.reads, self.approvals = [], 0, []
 
     def specs(self):

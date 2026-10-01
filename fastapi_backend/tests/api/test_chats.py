@@ -267,3 +267,41 @@ def test_choosing_the_model(plain, client, new_client, db, cfg, folder, llm):
     llm.seen.clear()
     sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "And now?"}).text)
     assert [b["model"] for b in llm.seen] == ["fake"]
+
+
+def test_scoped_by_a_collection(plain, client, new_client, db, cfg, folder):
+    """A conversation can draw on saved collections: their recordings as they are when it answers."""
+    from app.domain import recsets
+
+    a, b, call = seed(db, cfg, folder)
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    hv, he = login(client, "vi@x.io", "viewer password 1"), login(new_client(), "ed@x.io", "editor password 1")
+    fixed = client.post("/api/v1/collections", headers=hv, json={"name": "Episode 2", "recordings": [b]}).json()["id"]
+    mine_only = client.post("/api/v1/collections", headers=he, json={"name": "Private", "recordings": [a]}).json()["id"]
+    shared = client.post("/api/v1/collections", headers=he, json={"name": "Capsid talk", "filter": {"q": "capsid"}, "shared": True}).json()[
+        "id"
+    ]
+
+    # only collections you can see: yours, or shared
+    assert client.post("/api/v1/chats", headers=hv, json={"scope": {"collections": [mine_only]}}).status_code == 404
+    assert client.post("/api/v1/chats", headers=hv, json={"scope": {"collections": [999]}}).status_code == 404
+    cid = client.post("/api/v1/chats", headers=hv, json={"scope": {"collections": [fixed]}}).json()["id"]
+    assert client.get(f"/api/v1/chats/{cid}", headers=hv).json()["scope"] == {"collections": [fixed]}
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=hv, json={"content": "Dyno Therapeutics capsid"}).text)
+    assert {p["recording_id"] for p in ev["passages"][0]} == {b}
+
+    # a collection is read when it answers: what's added later counts
+    recsets.update(db, fixed, recordings=[a, b])
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=hv, json={"content": "Dyno Therapeutics capsid"}).text)
+    assert {p["recording_id"] for p in ev["passages"][0]} == {a, b}
+    # several collections together, narrowed by recordings too; within what you can read
+    both = {"collections": [fixed, shared], "recordings": [a]}
+    assert client.patch(f"/api/v1/chats/{cid}", headers=hv, json={"scope": both}).status_code == 200
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=hv, json={"content": "capsid"}).text)
+    assert {p["recording_id"] for p in ev["passages"][0]} == {a}
+    assert call not in recsets.within(db, {store.ns_id(db, "pods")}, collections=[shared])
+    # a deleted collection adds nothing
+    client.delete(f"/api/v1/collections/{fixed}", headers=hv)
+    assert recsets.within(db, {store.ns_id(db, "pods")}, collections=[fixed]) == set()
+    assert client.patch(f"/api/v1/chats/{cid}", headers=hv, json={"scope": {"collections": [fixed]}}).status_code == 404

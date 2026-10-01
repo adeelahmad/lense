@@ -971,6 +971,11 @@ export type ChatScope = {
    */
   recordings?: Array<number> | null;
   /**
+   * Collections
+   * saved collections (yours or shared): their recordings as they are when it answers
+   */
+  collections?: Array<number> | null;
+  /**
    * Speakers
    */
   speakers?: Array<number> | null;
