@@ -162,6 +162,11 @@ recording (`job`), is audited (`transcript.edit`, `transcript.split`, `transcrip
 the latest first, with `kind` (`split`, `merge`, or null for a correction); a merge keeps where its second line
 started (`after.at`, `after.t`) to split it there again.
 
+A recording's `summary` (the Summarize step's, also in `GET …/player`) has `summary`, `key_points` and
+`action_items`, `topics`, `people`, `sentiment` and `importance` (1–5). Key points and action items are
+`{text, who?, t0?}`: `who` will do it, and `t0` is where the line they come from starts (ms), when the model said;
+summaries made before they had times hold plain strings.
+
 In `GET …/player`, a line whose words have timings from transcription carries them as `w`: `[c0, c1, t0, t1]` for
 each word, a character range of its `text` and when it was said (ms). A corrected line keeps the timings of the words
 it still has.

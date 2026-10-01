@@ -26,6 +26,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Summaries: key points and action items say when.** The Summarize step now gives key points as well, and each key
+  point and action item comes with the time of the line it's from (and who will do an action item, when said); the
+  Summary tab shows the time, which plays from there, as do the report page and the embedded player.
+    - The summary's `key_points` and `action_items` are `{text, who?, t0?}` (`t0` in ms; docs/api.md); the model is
+      asked to cite each line's time, and a cited time becomes the start of the line shown with it. Summaries made
+      before this keep plain strings, which everything still reads.
+    - In templates, these items print as their text, so templates written for strings keep working; `.who` and `.t0`
+      are there for new ones (docs/processing.md).
 - **Split and join transcript lines; the word being said lights up.** In Edit, a line splits at the cursor
   (Shift+Enter, or Split here), optionally giving the rest to another speaker (Split, the rest is…), and joins the next
   line (Join with next line, or Delete at its end; Backspace at its start joins the line above). Undo takes them back

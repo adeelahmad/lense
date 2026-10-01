@@ -11,7 +11,9 @@ How recordings move through Lens: where they come from, what each step does, and
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
   matches voiceprints against the namespace's speakers.
 - `analyze` finds entities, chapters, keywords and talk statistics; `summarize` (optional) calls any OpenAI-compatible
-  server; `report` writes static HTML per recording and per namespace, with word clouds.
+  server for a summary, key points, action items (with who will do them), topics, people, tone and importance, each
+  key point and action item with the time of the line it comes from; `report` writes static HTML per recording and
+  per namespace, with word clouds.
 
 Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
 
@@ -173,7 +175,9 @@ Any step can carry a condition: `min_minutes`, `max_minutes`, `source` (audio or
 
 Templates are versioned (publish, history, diff) and rendered in a sandboxed Jinja environment. It can't reach Python
 internals, caps output size, and escapes HTML in reports. Templates see `recording`, `speakers`, `segments`,
-`transcript` (trimmed to `llm.max_chars`), `sections`, `entities`, `keywords`, `summary`, `stats` and `outputs`. A
-fresh archive starts with three: Meeting notes (prompt), Markdown transcript (export) and One-page brief (report).
+`transcript` (trimmed to `llm.max_chars`), `sections`, `entities`, `keywords`, `summary`, `stats` and `outputs`. The
+summary's `key_points` and `action_items` print as their text and have `text`, `who` (empty when not said) and `t0`
+(where the line they come from starts, in ms; none when not known); summaries made before they had times hold plain
+strings. A fresh archive starts with three: Meeting notes (prompt), Markdown transcript (export) and One-page brief (report).
 `POST /api/v1/templates/preview` renders any template, saved or not, against a recording, and with `run: true` also asks
 the model.

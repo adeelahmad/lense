@@ -2,6 +2,7 @@
 
 import http.server
 import json
+import re
 import threading
 
 
@@ -50,6 +51,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if "verdicts" in schema.get("properties", {}):
             claims = [l[2:] for l in body["messages"][-1]["content"].splitlines() if l.startswith("- ")]
             content = json.dumps({"verdicts": [{"claim": c, "supported": i == 0} for i, c in enumerate(claims)]})
+        elif "sentiment" in schema.get("properties", {}):
+            times = re.findall(r"^\[(\d+(?::\d+)+)\]", body["messages"][-1]["content"], re.M) or ["0:00"]
+            content = json.dumps(
+                {
+                    "summary": "Alice and Bob talk about the capsid.",
+                    "key_points": [{"text": "The capsid model beat the benchmark", "at": times[0]}, {"text": "No time given", "at": ""}],
+                    "topics": ["capsid"],
+                    "action_items": [{"text": "Send the capsid samples", "who": "Alice", "at": f"[{times[-1]}]"}, "Plain follow-up"],
+                    "people": ["Alice"],
+                    "sentiment": "happy",
+                    "importance": 9,
+                }
+            )
         elif body.get("response_format"):
             content = json.dumps(
                 {

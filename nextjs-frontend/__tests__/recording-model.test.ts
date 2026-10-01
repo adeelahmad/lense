@@ -421,6 +421,26 @@ describe("summaries", () => {
       { label: "Importance", value: "3 of 5" },
     ]);
   });
+  it("reads the Summarize step's timed items, in ms", () => {
+    const d = summaryDoc({
+      summary: "They read the card.",
+      key_points: [{ text: "The model beat the benchmark", t0: 12_000 }, { text: "No time" }],
+      topics: ["evals"],
+      action_items: [{ text: "Send the samples", who: "Alice", t0: 83_400 }, "Older, a string"],
+      people: [],
+      sentiment: "Happy",
+      importance: 4,
+    });
+    expect(d.sections.map((s) => s.title)).toEqual(["Key points", "Action items"]);
+    expect(d.sections[0].items).toEqual([
+      { text: "The model beat the benchmark", who: null, due: null, t: 12_000 },
+      { text: "No time", who: null, due: null, t: null },
+    ]);
+    expect(d.sections[1].items).toEqual([
+      { text: "Send the samples", who: "Alice", due: null, t: 83_400 },
+      { text: "Older, a string" },
+    ]);
+  });
   it("reads Meeting notes, in the design's section order", () => {
     const d = summaryDoc({
       open_questions: ["Would scores change?"],

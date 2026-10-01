@@ -517,26 +517,81 @@ def _dedupe(scored, top):
 
 
 # ---------- optional summaries through any OpenAI-compatible server ----------
+def _item(**extra):
+    props = {"text": {"type": "string"}, **extra, "at": {"type": "string"}}
+    return {"type": "object", "additionalProperties": False, "required": list(props), "properties": props}
+
+
 SUMMARY_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["summary", "topics", "action_items", "people", "sentiment", "importance"],
+    "required": ["summary", "key_points", "topics", "action_items", "people", "sentiment", "importance"],
     "properties": {
         "summary": {"type": "string"},
+        "key_points": {"type": "array", "items": _item()},
         "topics": {"type": "array", "items": {"type": "string"}},
-        "action_items": {"type": "array", "items": {"type": "string"}},
+        "action_items": {"type": "array", "items": _item(who={"type": "string"})},
         "people": {"type": "array", "items": {"type": "string"}},
         "sentiment": {"type": "string", "enum": store.EMOTIONS},
         "importance": {"type": "integer"},
     },
 }
+SUMMARY_NEEDS = ("summary", "topics", "action_items", "people", "sentiment", "importance")  # key_points may be missing
 SUMMARY_SYSTEM = (
-    "You summarise one recorded conversation for a searchable archive. Use only what the transcript says. "
-    "summary: at most 120 words. topics: up to 6 short noun phrases. action_items: follow-ups or commitments "
-    "stated in the conversation, naming who when said; empty if none. people: people mentioned by name. "
-    "sentiment: the overall emotional tone, one of " + ", ".join(store.EMOTIONS) + ". importance: 1 (routine) "
-    "to 5 (critical). Reply with JSON only."
+    "You summarise one recorded conversation for a searchable archive. Use only what the transcript says. Each "
+    "transcript line starts with its time, like [12:34]. summary: at most 120 words. key_points: up to 6 main points, "
+    "each with at: the time of the line it comes from. topics: up to 6 short noun phrases. action_items: follow-ups "
+    "or commitments stated in the conversation, each with who (who will do it, empty when not said) and at (the time "
+    "of the line where it was said); empty if none. people: people mentioned by name. sentiment: the overall emotional "
+    "tone, one of " + ", ".join(store.EMOTIONS) + ". importance: 1 (routine) to 5 (critical). Reply with JSON only."
 )
+CLOCK = re.compile(r"\[?(\d{1,2}(?::\d{1,2}){1,2})\]?")
+
+
+def _cited(at, starts, end):
+    """ms for a line's time as the model cited it ("12:34", "[1:02:03]"): the start of the line shown with that time,
+    else the time itself; None when there's none or it's past the end."""
+    m = CLOCK.fullmatch(str(at or "").strip())
+    if not m:
+        return None
+    ms = 0
+    for part in m.group(1).split(":"):
+        ms = ms * 60 + int(part)
+    ms *= 1000
+    return starts.get(store.tc(ms), ms if ms <= end else None)
+
+
+def _timed(items, starts, end):
+    """Summary items as {text, who?, t0?}: where in the recording each comes from (ms), when the model said."""
+    out = []
+    for x in items if isinstance(items, list) else []:
+        x = {"text": x} if isinstance(x, str) else x
+        text = str(x.get("text") or "").strip() if isinstance(x, dict) else ""
+        if not text:
+            continue
+        who, t0 = str(x.get("who") or "").strip(), _cited(x.get("at"), starts, end)
+        out.append(store.clean({"text": text, "who": who or None, "t0": t0}))
+    return out
+
+
+class SummaryItem(dict):
+    """A summary item for templates, {text, who, t0} (who "" and t0 None when not known), that prints as its text, so
+    templates written for plain strings still work."""
+
+    def __str__(self):
+        return str(self.get("text") or "")
+
+
+def summary_view(summary):
+    """A summary for templates: key points and action items print as their text (older summaries hold strings)."""
+    if not isinstance(summary, dict):
+        return summary or {}
+    return {
+        k: [SummaryItem({"who": "", "t0": None, **x}) if isinstance(x, dict) else x for x in v]
+        if k in ("key_points", "action_items") and isinstance(v, list)
+        else v
+        for k, v in summary.items()
+    }
 
 
 def _llm(cfg, user):
@@ -558,9 +613,10 @@ def _llm(cfg, user):
         text = json.loads(r.read().decode())["choices"][0]["message"]["content"]
     text = re.sub(r"^```(?:json)?|```$", "", text.strip()).strip()
     obj = json.loads(text[text.find("{") : text.rfind("}") + 1])
-    missing = [k for k in SUMMARY_SCHEMA["required"] if k not in obj]
+    missing = [k for k in SUMMARY_NEEDS if k not in obj]
     if missing:
         raise ValueError(f"summary missing {missing}")
+    obj.setdefault("key_points", [])
     obj["sentiment"] = store.norm_emotion(obj["sentiment"]) or "Neutral"
     obj["importance"] = max(1, min(5, int(obj["importance"])))
     return obj
@@ -574,10 +630,11 @@ def summarize_recording(db, cfg, rid):
             s=db.one("SELECT space FROM $r", r=R("recording", rid))["space"],
         )
     }
-    lines = [
-        f"[{store.tc(r['t0'])}] {names.get(r.get('speaker'), 'Speaker')}: {r['text']}"
-        for r in db.rows("SELECT idx, t0, text, speaker FROM segment WHERE recording = $r ORDER BY idx", r=rid)
-    ]
+    segs = db.rows("SELECT idx, t0, t1, text, speaker FROM segment WHERE recording = $r ORDER BY idx", r=rid)
+    lines = [f"[{store.tc(r['t0'])}] {names.get(r.get('speaker'), 'Speaker')}: {r['text']}" for r in segs]
+    starts: dict[str, int] = {}
+    for r in segs:
+        starts.setdefault(store.tc(r["t0"]), r["t0"])  # a cited time is the start of the line shown with it
     chunks, cur = [], ""
     for line in lines:
         if cur and len(cur) + len(line) > cfg["llm"]["max_chars"]:
@@ -594,6 +651,8 @@ def summarize_recording(db, cfg, rid):
         if len(parts) == 1
         else _llm(cfg, "Combine these summaries of consecutive parts of one conversation into one:\n\n" + json.dumps(parts))
     )
+    end = max((r["t1"] for r in segs), default=0)
+    out = {**out, "key_points": _timed(out.get("key_points"), starts, end), "action_items": _timed(out.get("action_items"), starts, end)}
     db.q("UPDATE $r SET summary = $s, summarized_at = $t", r=R("recording", rid), s=out, t=store.now())
     return out
 
