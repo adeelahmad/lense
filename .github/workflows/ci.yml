@@ -51,22 +51,56 @@ jobs:
         timeout-minutes: 4
         run: |
           uv run python - <<'PY'
-          import os, pathlib, shutil, subprocess, tempfile, time
+          import pathlib, re, shutil, subprocess, tempfile, time
           from app.domain import convert
-          exe = next((shutil.which(n) for n in ("chromium", "chromium-browser", "google-chrome") if shutil.which(n)), None)
+          exe = shutil.which("chromium")
           version = subprocess.run([exe, "--version"], capture_output=True, text=True).stdout.strip()
           print("chromium:", exe, version, "| without its sandbox:", convert.no_sandbox(exe), flush=True)
+          real = subprocess.run
+          at = lambda ln: (m := re.match(r"\[\d+:\d+:\d{4}/(\d\d)(\d\d)(\d\d\.\d+)", ln)) and int(m[1]) * 3600 + int(m[2]) * 60 + float(m[3])
+
+          def chromium(drop=(), verbose=False):
+              """Chromium as Lens runs it (less the switches in `drop`), saying where it went quiet for long."""
+              def run(argv, **kw):
+                  argv = [a for a in argv if not a.startswith(drop)] if drop else list(argv)
+                  argv[1:1] = ["--v=1"] if verbose else []
+                  kw["timeout"], t = 45, time.time()
+                  try:
+                      r = real(argv, **kw)
+                      err, how = r.stderr, f"exit {r.returncode}"
+                  except subprocess.TimeoutExpired as e:
+                      err, how = e.stderr, "TIMED OUT"
+                  text = err.decode(errors="replace") if isinstance(err, bytes) else err or ""
+                  lines = [x for x in text.splitlines() if at(x) is not None]  # its log, not its histograms
+                  print(f"== {how} after {time.time() - t:.1f} s; it logged {len(lines)} lines", flush=True)
+                  for i in range(1, len(lines)):
+                      if at(lines[i]) - at(lines[i - 1]) > 2:
+                          print(f"-- quiet for {at(lines[i]) - at(lines[i - 1]):.1f} s, between:", flush=True)
+                          for x in lines[max(0, i - 10) : i + 2]:
+                              print("   ", x[:300], flush=True)
+                  print("-- last:", flush=True)
+                  for x in lines[-25:]:
+                      print("   ", x[:300], flush=True)
+                  if how == "TIMED OUT":
+                      raise subprocess.TimeoutExpired(argv, 45)
+                  return r
+              return run
+
           page = convert.text_page("High at noon.", "Tide notes")
-          # as Lens runs it (no D-Bus), then with the runner's D-Bus, to see whether that's what it waited on
-          for name, bus in (("without D-Bus", False), ("with the runner's D-Bus", True)):
-              if bus:
-                  convert.no_bus = lambda profile: dict(os.environ)
-              out, t = pathlib.Path(tempfile.mkdtemp()) / "page.pdf", time.time()
+          for name, drop, verbose in (
+              ("as Lens runs it, its log verbose", (), True),
+              ("without virtual time", ("--virtual-time-budget", "--run-all-compositor-stages-before-draw"), False),
+          ):
+              print(f"#### {name}", flush=True)
+              convert.subprocess.run = chromium(drop, verbose)
+              out = pathlib.Path(tempfile.mkdtemp()) / "page.pdf"
               try:
-                  convert.html_pdf({"documents": {"chromium": exe, "convert_seconds": 60}}, page, out)
-                  print(f"{name}: printed {out.stat().st_size} bytes in {time.time() - t:.1f} s", flush=True)
+                  convert.html_pdf({"documents": {"chromium": exe, "convert_seconds": 45}}, page, out)
+                  print(f"printed {out.stat().st_size} bytes", flush=True)
               except Exception as e:
-                  print(f"{name}: FAILED after {time.time() - t:.1f} s: {e}", flush=True)
+                  print("FAILED:", str(e)[:300], flush=True)
+              finally:
+                  convert.subprocess.run = real
           PY
 
       - name: Lint
