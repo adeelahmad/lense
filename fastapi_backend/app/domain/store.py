@@ -515,6 +515,11 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS api_token_account ON api_token FIELDS account",
     "DEFINE TABLE IF NOT EXISTS share_link SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS share_link_rec ON share_link FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS share_link_short ON share_link FIELDS short",
+    # sites whose pages framed a share link's player (share_embed:⟨link-site⟩): opens and when
+    "DEFINE TABLE IF NOT EXISTS share_embed SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS share_embed_rec ON share_embed FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS share_embed_share ON share_embed FIELDS share",
     "DEFINE TABLE IF NOT EXISTS audit_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS audit_at ON audit_log FIELDS at",
     # background work

@@ -5154,9 +5154,60 @@ export type Share = {
   expires_at?: string | null;
   /**
    * Active
+   * it still works: not revoked and not expired
    */
   active: boolean;
-  [key: string]: unknown | string | string | null | string | null | string | null | boolean | undefined;
+  /**
+   * Revoked
+   */
+  revoked?: boolean;
+  /**
+   * Revoked By
+   */
+  revoked_by?: string | null;
+  /**
+   * Revoked At
+   */
+  revoked_at?: string | null;
+  /**
+   * Short
+   * it has a short /s/ address (links made before short links have none)
+   */
+  short?: boolean;
+  /**
+   * Plays
+   * times its player started playing, once per page load (not counting Lens itself)
+   */
+  plays?: number;
+  /**
+   * Played At
+   * the last play
+   */
+  played_at?: string | null;
+  /**
+   * Embedded On
+   * sites whose pages framed its player, most recent first (up to 50)
+   */
+  embedded_on?: Array<ShareSite>;
+  [key: string]:
+    | unknown
+    | string
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | boolean
+    | string
+    | null
+    | string
+    | null
+    | number
+    | string
+    | null
+    | Array<ShareSite>
+    | undefined;
 };
 
 /**
@@ -5174,6 +5225,11 @@ export type ShareCreate = {
  */
 export type ShareLink = {
   /**
+   * Id
+   * the link's id, as GET /shares lists it
+   */
+  id: string;
+  /**
    * Token
    */
   token: string;
@@ -5182,7 +5238,33 @@ export type ShareLink = {
    * embeddable player link carrying the share token (works without signing in)
    */
   embed: string;
-  [key: string]: unknown | string;
+  /**
+   * Short
+   * "/s/<code>": a short address for the same player; it expires and is revoked with the link
+   */
+  short?: string | null;
+  [key: string]: unknown | string | string | null | undefined;
+};
+
+/**
+ * ShareSite
+ */
+export type ShareSite = {
+  /**
+   * Origin
+   * a site whose pages framed the player (scheme and host, as browsers report it)
+   */
+  origin: string;
+  /**
+   * Opens
+   * how many times the player was opened there
+   */
+  opens?: number;
+  /**
+   * Last At
+   */
+  last_at?: string | null;
+  [key: string]: unknown | string | number | string | null | undefined;
 };
 
 /**
@@ -8658,6 +8740,41 @@ export type CreateShareResponses = {
 };
 
 export type CreateShareResponse = CreateShareResponses[keyof CreateShareResponses];
+
+export type RevokeShareData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Sid
+     * the link's id
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/recordings/{rid}/shares/{sid}";
+};
+
+export type RevokeShareErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RevokeShareError = RevokeShareErrors[keyof RevokeShareErrors];
+
+export type RevokeShareResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RevokeShareResponse = RevokeShareResponses[keyof RevokeShareResponses];
 
 export type ListSharesData = {
   body?: never;

@@ -26,6 +26,22 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   seconds; the job still carries its last 200 (`log`) and now how many there are (`log_total`).
   `GET /api/v1/jobs/{jid}/log?after=&limit=` pages through them, and `GET /api/v1/events?logs=<jid>` follows one job
   with `log` events `{job, start, lines}` (docs/api.md). Runs from before this keep their last 200 lines.
+- **Share links: revoke one, see plays and where it's embedded, short addresses, and a page for dead links.** The
+  Share dialog lists each link with how often its player was played and the sites that embed it, and revokes one
+  link (Revoke…) as well as all of them. A new link comes with a short address, `/s/<code>`, which opens the same
+  player and can be framed like it. An expired, revoked or mistyped link opens a neutral "This link isn't available"
+  page with status 410 instead of a JSON 401, in the frame of a host page too.
+    - `DELETE /api/v1/recordings/{rid}/shares/{id}` revokes one link; `POST .../share` returns `id` and `short`;
+      `GET .../shares` adds `revoked`, `revoked_by`, `revoked_at`, `short`, `plays`, `played_at` and `embedded_on`
+      (docs/api.md). Revoking is audited as `share.revoke` with the link (or how many links).
+    - A play is the shared player starting to play, counted once per page load; the page reports it to
+      `POST /embed/{rid}/played`. The sites come from the Referer's origin when the browser says the player is in a
+      frame (a new `share_embed` table, up to 50 sites per link). Lens's own pages, such as the embed builder's
+      preview, count neither.
+    - Short codes are ten characters without look-alikes, and only their hashes are kept, like the token's; links
+      made before this have none. `/s` is proxied by the web app like `/embed`.
+    - The 410 page is the same whatever was wrong with the link, so it never tells whether a recording exists; a
+      signed embed link that expired or was tampered with gets it too.
 - **Speakers: "not the same", unlink, and who merged.** The review queue's Not the same works: the pair is dropped
   and never suggested again. Other namespaces lists likely matching voices with how alike they are (it read them
   off the graph, without a score), each with Not the same and Link, and linked speakers can be unlinked. Merge

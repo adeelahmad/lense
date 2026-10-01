@@ -4,7 +4,7 @@ The API lives under `/api/v1`. Interactive docs with every request and response 
 
 Authenticate with `Authorization: Bearer <token>`: an access token from `POST /api/v1/auth/login`, or an API token (`la_…`). See [Authentication](authentication.md). Errors are JSON `{"detail": …}`; validation errors answer 422. Namespaces you can't read answer 404.
 
-Outside `/api/v1`: IIIF resources under `/iiif/…` ([IIIF](iiif.md)), the embeddable player at `/embed/<id>` and stored reports at `/reports/<namespace>/…`.
+Outside `/api/v1`: IIIF resources under `/iiif/…` ([IIIF](iiif.md)), the embeddable player at `/embed/<id>` (and at a share link's short address, `/s/<code>`) and stored reports at `/reports/<namespace>/…`.
 
 ## auth
 
@@ -99,6 +99,7 @@ POST   /api/v1/recordings/{rid}/reprocess
 POST   /api/v1/recordings/{rid}/share
 DELETE /api/v1/recordings/{rid}/share
 GET    /api/v1/recordings/{rid}/shares
+DELETE /api/v1/recordings/{rid}/shares/{id}
 GET    /api/v1/recordings/{rid}/export.{fmt}
 PATCH  /api/v1/recordings/{rid}/segments/{idx}
 GET    /api/v1/recordings/{rid}/edits
@@ -158,6 +159,17 @@ and per-mention corrections start over: analysis runs again in the new namespace
 move to the new namespace's folders. The old namespace's scans and watched folders don't import the file again, and
 its IP groups no longer open the recording. 409 when the new namespace already has the same file or a job is running
 on it. Audited as `recording.move`.
+
+Share links (editors): `POST /recordings/{rid}/share` with `{"days"}` (1–3650, default 30) makes one and returns its
+`id`, `token`, `embed` (`/embed/<id>?s=<token>`) and `short` (`/s/<code>`, ten characters, the same player); only their
+hashes are kept, so the addresses are shown this once. `GET /recordings/{rid}/shares` lists the links, newest first:
+`active` (neither `revoked` nor expired), `revoked_by`/`revoked_at`, `short` (links from before short links have
+none), `plays` (times its player started playing, once per page load; previews in Lens itself don't count) with
+`played_at`, and `embedded_on`: the sites whose pages framed its player (`origin`, `opens`, `last_at`, most recent
+first, up to 50 per link), from the browser's Referer when it reports a frame. `DELETE /recordings/{rid}/shares/{id}`
+revokes one link (404 if the recording has no such link), `DELETE /recordings/{rid}/share` every one that still
+works; both are audited as `share.revoke`. A link that doesn't work (expired, revoked, mistyped, or its recording is
+gone) opens a neutral page with status 410 that says nothing about the recording.
 
 `GET /recordings/{rid}/access` says who may see a recording (members): `access` (`public`, `restricted` or
 `private`), `open` (the parts a public recording opens to everyone: `media`, `transcript`, `index`), `featured`,

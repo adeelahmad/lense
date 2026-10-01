@@ -52,8 +52,12 @@ curl -H "Authorization: Bearer la_…" https://lens.example.org/api/v1/recording
 
 ## Share links and signed links
 
-* **Share links** give read-only access to one recording's player and embed, expire, and can be revoked:
-  `POST/DELETE /api/v1/recordings/<id>/share`.
+* **Share links** give read-only access to one recording's player and embed, and expire. Each has a short address
+  too (`/s/<code>`). Editors see how often each was played and which sites embed it, and revoke one link or all of
+  them: `POST/DELETE /api/v1/recordings/<id>/share`, `GET /api/v1/recordings/<id>/shares`,
+  `DELETE /api/v1/recordings/<id>/shares/<link id>`. Only hashes of the token and the code are stored. A link that
+  no longer works opens a neutral "This link isn't available" page (status 410), the same whatever went wrong, so it
+  never tells whether a recording exists.
 * **Signed links** are what the API puts in responses for media (`?exp=&sig=`); see [Architecture](architecture.md#media).
   `GET /api/v1/recordings/<id>/embed-link` returns a signed `/embed/<id>` link for people who can read the recording.
 

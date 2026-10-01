@@ -164,6 +164,9 @@ import type {
   CreateShareData,
   CreateShareResponses,
   CreateShareErrors,
+  RevokeShareData,
+  RevokeShareResponses,
+  RevokeShareErrors,
   ListSharesData,
   ListSharesResponses,
   ListSharesErrors,
@@ -1343,6 +1346,7 @@ export class Recordings {
 
   /**
    * Revoke Shares
+   * Revoke every link that still works. Opening one shows a page saying the link isn't available.
    */
   public static revokeShares<ThrowOnError extends boolean = false>(options: Options<RevokeSharesData, ThrowOnError>) {
     return (options.client ?? client).delete<RevokeSharesResponses, RevokeSharesErrors, ThrowOnError>({
@@ -1353,7 +1357,8 @@ export class Recordings {
 
   /**
    * Create Share
-   * A read-only link to this one recording, for people without an account. Revoke with DELETE.
+   * A read-only link to this one recording, for people without an account, with a short ``/s/`` address too. Its
+   * address is only shown now. Revoke it with DELETE /shares/{id}, or every link with DELETE /share.
    */
   public static createShare<ThrowOnError extends boolean = false>(options: Options<CreateShareData, ThrowOnError>) {
     return (options.client ?? client).post<CreateShareResponses, CreateShareErrors, ThrowOnError>({
@@ -1367,7 +1372,20 @@ export class Recordings {
   }
 
   /**
+   * Revoke Share
+   * Revoke one link. Opening it shows a page saying the link isn't available; the others keep working.
+   */
+  public static revokeShare<ThrowOnError extends boolean = false>(options: Options<RevokeShareData, ThrowOnError>) {
+    return (options.client ?? client).delete<RevokeShareResponses, RevokeShareErrors, ThrowOnError>({
+      url: "/api/v1/recordings/{rid}/shares/{sid}",
+      ...options,
+    });
+  }
+
+  /**
    * List Shares
+   * The recording's share links, newest first: whether each still works, how often it was played, and the sites
+   * whose pages embed it.
    */
   public static listShares<ThrowOnError extends boolean = false>(options: Options<ListSharesData, ThrowOnError>) {
     return (options.client ?? client).get<ListSharesResponses, ListSharesErrors, ThrowOnError>({

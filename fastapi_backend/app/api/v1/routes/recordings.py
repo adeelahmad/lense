@@ -10,7 +10,7 @@ import pathlib
 from datetime import date
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query, Request
 from fastapi.responses import Response
 
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer, domain_errors
@@ -48,6 +48,7 @@ from app.schemas.recordings import (
     Share,
     ShareCreate,
     ShareLink,
+    ShareSite,
     TagCount,
     TagsChanged,
 )
@@ -429,39 +430,57 @@ def reprocess_recording(rid: int, acl: Acl, user: Writer, db: Db, body: Reproces
 
 @router.post("/{rid}/share")
 def create_share(rid: int, acl: Acl, user: Writer, db: Db, body: ShareCreate | None = None) -> ShareLink:
-    """A read-only link to this one recording, for people without an account. Revoke with DELETE."""
+    """A read-only link to this one recording, for people without an account, with a short ``/s/`` address too. Its
+    address is only shown now. Revoke it with DELETE /shares/{id}, or every link with DELETE /share."""
     acl.recording(rid, "editor")
-    raw = auth.create_share(db, rid, user.id, (body or ShareCreate()).days)
-    auth.audit(db, user.as_audit(), "share.create", f"recording:{rid}")
-    return ShareLink(token=raw, embed=f"/embed/{rid}?s={raw}")
+    link = auth.create_share(db, rid, user.id, (body or ShareCreate()).days)
+    auth.audit(db, user.as_audit(), "share.create", f"recording:{rid}", {"link": link["id"]})
+    return ShareLink(id=link["id"], token=link["token"], embed=f"/embed/{rid}?s={link['token']}", short=f"/s/{link['short']}")
 
 
 @router.delete("/{rid}/share")
 def revoke_shares(rid: int, acl: Acl, user: Writer, db: Db) -> Ok:
+    """Revoke every link that still works. Opening one shows a page saying the link isn't available."""
     acl.recording(rid, "editor")
-    auth.revoke_shares(db, rid)
-    auth.audit(db, user.as_audit(), "share.revoke", f"recording:{rid}")
+    n = auth.revoke_shares(db, rid, user.email)
+    auth.audit(db, user.as_audit(), "share.revoke", f"recording:{rid}", {"links": n})
+    return Ok()
+
+
+@router.delete("/{rid}/shares/{sid}")
+def revoke_share(
+    rid: int, acl: Acl, user: Writer, db: Db, sid: str = Path(pattern=r"^[0-9a-f]{10,64}$", description="the link's id")
+) -> Ok:
+    """Revoke one link. Opening it shows a page saying the link isn't available; the others keep working."""
+    acl.recording(rid, "editor")
+    if not auth.revoke_share(db, rid, sid, user.email):
+        raise HTTPException(404, "no such link")
+    auth.audit(db, user.as_audit(), "share.revoke", f"recording:{rid}", {"link": sid})
     return Ok()
 
 
 @router.get("/{rid}/shares")
 def list_shares(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[Share]:
+    """The recording's share links, newest first: whether each still works, how often it was played, and the sites
+    whose pages embed it."""
     acl.recording(rid, "editor")
     people = {a["id"]: a["email"] for a in db.rows("SELECT record::id(id) AS id, email FROM account")}
-    now = store.now()
-    rows = db.rows(
-        "SELECT record::id(id) AS id, created_by, created_at, expires_at, revoked FROM share_link WHERE recording = $r ORDER BY created_at DESC",
-        r=rid,
-    )
     return [
         Share(
-            id=str(r["id"])[:10],
+            id=str(r["key"])[:10],
             created_by=people.get(r.get("created_by")),
             created_at=r.get("created_at"),
             expires_at=r.get("expires_at"),
-            active=not r.get("revoked") and (r.get("expires_at") or "") >= now,
+            active=auth.share_live(r),
+            revoked=bool(r.get("revoked")),
+            revoked_by=r.get("revoked_by"),
+            revoked_at=r.get("revoked_at"),
+            short=bool(r.get("short")),
+            plays=r.get("plays") or 0,
+            played_at=r.get("played_at"),
+            embedded_on=[ShareSite(**x) for x in r["sites"]],
         )
-        for r in rows
+        for r in auth.shares(db, rid)
     ]
 
 

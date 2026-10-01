@@ -5,7 +5,16 @@ import { useState } from "react";
 
 import { Recordings } from "@/app/openapi-client";
 import type { Share } from "@/app/openapi-client/types.gen";
-import { MAX_DAYS, embedUrl, expiryDate, fmtDay, iframeSnippet } from "@/components/sharing/embed-model";
+import {
+  MAX_DAYS,
+  embedUrl,
+  embeddedLine,
+  expiryDate,
+  fmtDay,
+  iframeSnippet,
+  linkState,
+  playsLine,
+} from "@/components/sharing/embed-model";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { CodeBlock } from "@/components/ui/states";
@@ -14,7 +23,7 @@ import { data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export type CreatedLink = { token: string; embed: string; expires: Date };
+export type CreatedLink = { id: string; token: string; embed: string; short?: string | null; expires: Date };
 
 /** Share links of one recording (editors can list, create and revoke them). */
 export function useShares(recordingId: number, enabled: boolean) {
@@ -23,6 +32,7 @@ export function useShares(recordingId: number, enabled: boolean) {
     queryKey: ["shares", recordingId],
     queryFn: () => data(Recordings.listShares({ client, path: { rid: recordingId } })),
     enabled,
+    staleTime: 0, // plays and embedding sites change while the dialog is closed
   });
 }
 
@@ -43,7 +53,7 @@ export function useCreateShare(recordingId: number, onCreated: (l: CreatedLink) 
     }),
     onSuccess: ({ days, r }) => {
       void qc.invalidateQueries({ queryKey: ["shares", recordingId] });
-      onCreated({ token: r.token, embed: r.embed, expires: expiryDate(days) });
+      onCreated({ id: r.id, token: r.token, embed: r.embed, short: r.short, expires: expiryDate(days) });
     },
     onError: (e: Error) =>
       toast({
@@ -54,38 +64,81 @@ export function useCreateShare(recordingId: number, onCreated: (l: CreatedLink) 
   });
 }
 
-function LinkList({ shares }: { shares: Share[] }) {
+const STATE_LABEL = { active: "Active", expired: "Expired", revoked: "Revoked" } as const;
+
+/** One link: whether it still works, who made it, how it's been used; editors can revoke it. */
+function LinkRow({
+  share: s,
+  canRevoke,
+  onRevoke,
+  revoking,
+}: {
+  share: Share;
+  canRevoke: boolean;
+  onRevoke: () => void;
+  revoking: boolean;
+}) {
+  const [confirm, setConfirm] = useState(false);
+  const state = linkState(s);
+  const sites = embeddedLine(s.embedded_on);
   return (
-    <ul className="flex flex-col">
-      {shares.map((s) => {
-        const expired = !s.active && s.expires_at != null && new Date(s.expires_at) < new Date();
-        return (
-          <li key={s.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 border-t border-border py-2.5">
-            <code
-              className={cn("truncate font-mono text-[12.5px] font-medium", s.active ? "text-fg" : "text-fg-muted")}
+    <li className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 border-t border-border py-2.5">
+      <code className={cn("truncate font-mono text-[12.5px] font-medium", s.active ? "text-fg" : "text-fg-muted")}>
+        link {s.id}…
+      </code>
+      <span className={cn("text-[12px] font-semibold", s.active ? "text-green-dark" : "text-fg-muted")}>
+        {STATE_LABEL[state]}
+      </span>
+      <span className="col-span-2 text-[12px] text-fg-muted">
+        {[
+          s.created_by,
+          s.created_at ? `created ${fmtDay(s.created_at)}` : null,
+          state === "revoked"
+            ? `revoked ${s.revoked_at ? fmtDay(s.revoked_at) : ""}${s.revoked_by ? ` by ${s.revoked_by}` : ""}`.trim()
+            : s.expires_at
+              ? `${state === "expired" ? "expired" : "expires"} ${fmtDay(s.expires_at)}`
+              : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </span>
+      <span className="col-span-2 text-[12px] text-fg-secondary">
+        {playsLine(s.plays, s.played_at)}
+        {sites ? ` · ${sites}` : ""}
+      </span>
+      {s.active &&
+        (confirm ? (
+          <div className="col-span-2 flex flex-wrap items-center gap-2 pt-1">
+            <span className="flex-1 text-[12.5px] text-fg-strong" role="alert">
+              Revoke this link? Pages that embed it stop playing; other links keep working.
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>
+              Keep it
+            </Button>
+            <Button size="sm" variant="danger" onClick={onRevoke} disabled={revoking}>
+              Revoke
+            </Button>
+          </div>
+        ) : (
+          <div className="col-span-2 pt-0.5">
+            <Button
+              size="sm"
+              variant="danger-ghost"
+              onClick={() => setConfirm(true)}
+              disabled={!canRevoke}
+              disabledReason="Only editors can revoke links"
+              aria-label={`Revoke link ${s.id}`}
             >
-              link {s.id}…
-            </code>
-            <span className={cn("text-[12px] font-semibold", s.active ? "text-green-dark" : "text-fg-muted")}>
-              {s.active ? "Active" : expired ? "Expired" : "Revoked"}
-            </span>
-            <span className="col-span-2 text-[12px] text-fg-muted">
-              {[
-                s.created_by,
-                s.created_at ? `created ${fmtDay(s.created_at)}` : null,
-                s.expires_at ? `${expired ? "expired" : "expires"} ${fmtDay(s.expires_at)}` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </span>
-          </li>
-        );
-      })}
-    </ul>
+              Revoke…
+            </Button>
+          </div>
+        ))}
+    </li>
   );
 }
 
-/** SH1: create a link (days), show it once with its embed snippet, list the links, revoke them all. */
+/** SH1: create a link (days), show it once (its short address) with its embed snippet, list the links with their
+ * plays and the sites that embed them, revoke one or all. */
 export function ShareLinks({
   recordingId,
   title,
@@ -124,13 +177,27 @@ export function ShareLinks({
       onCreated(null);
       toast({
         title: "All share links revoked",
-        body: "Anyone opening them now sees “This link is no longer available”.",
+        body: "Anyone opening them now sees “This link isn’t available”.",
       });
     },
     onError: (e: Error) =>
       toast({
         tone: "red",
         title: "Couldn’t revoke the links",
+        body: e.message,
+      }),
+  });
+  const revokeOne = useMutation({
+    mutationFn: (sid: string) => data(Recordings.revokeShare({ client, path: { rid: recordingId, sid } })),
+    onSuccess: (_r, sid) => {
+      void qc.invalidateQueries({ queryKey: ["shares", recordingId] });
+      if (created?.id === sid) onCreated(null);
+      toast({ title: "Link revoked", body: "Anyone opening it now sees “This link isn’t available”." });
+    },
+    onError: (e: Error) =>
+      toast({
+        tone: "red",
+        title: "Couldn’t revoke the link",
         body: e.message,
       }),
   });
@@ -145,9 +212,20 @@ export function ShareLinks({
         Share links <span className="font-medium text-fg-muted">· {plural(active, "active link")}</span>
       </summary>
       <div className="mt-2">
-        <LinkList shares={shares.data ?? []} />
+        <ul className="flex flex-col">
+          {(shares.data ?? []).map((s) => (
+            <LinkRow
+              key={s.id}
+              share={s}
+              canRevoke={canShare}
+              revoking={revokeOne.isPending && revokeOne.variables === s.id}
+              onRevoke={() => revokeOne.mutate(s.id)}
+            />
+          ))}
+        </ul>
         <p className="border-t border-border pt-2 text-[12px] text-fg-muted">
-          A link’s address is shown only when it’s created. Links can be revoked all at once.
+          A link’s address is shown only when it’s created. Plays count each time its player starts, once per visit;
+          sites are the pages that embed it.
         </p>
       </div>
     </details>
@@ -188,7 +266,7 @@ export function ShareLinks({
   );
 
   if (created) {
-    const url = `${origin}${created.embed}`;
+    const url = `${origin}${created.short ?? created.embed}`;
     const snippet = iframeSnippet({
       src: embedUrl(origin, recordingId, {
         token: created.token,

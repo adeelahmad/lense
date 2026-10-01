@@ -2754,7 +2754,7 @@
           "recordings"
         ],
         "summary": "Create Share",
-        "description": "A read-only link to this one recording, for people without an account. Revoke with DELETE.",
+        "description": "A read-only link to this one recording, for people without an account, with a short ``/s/`` address too. Its\naddress is only shown now. Revoke it with DELETE /shares/{id}, or every link with DELETE /share.",
         "operationId": "create_share",
         "parameters": [
           {
@@ -2812,6 +2812,7 @@
           "recordings"
         ],
         "summary": "Revoke Shares",
+        "description": "Revoke every link that still works. Opening one shows a page saying the link isn't available.",
         "operationId": "revoke_shares",
         "parameters": [
           {
@@ -2848,12 +2849,68 @@
         }
       }
     },
+    "/api/v1/recordings/{rid}/shares/{sid}": {
+      "delete": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Revoke Share",
+        "description": "Revoke one link. Opening it shows a page saying the link isn't available; the others keep working.",
+        "operationId": "revoke_share",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{10,64}$",
+              "description": "the link's id",
+              "title": "Sid"
+            },
+            "description": "the link's id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/recordings/{rid}/shares": {
       "get": {
         "tags": [
           "recordings"
         ],
         "summary": "List Shares",
+        "description": "The recording's share links, newest first: whether each still works, how often it was played, and the sites\nwhose pages embed it.",
         "operationId": "list_shares",
         "parameters": [
           {
@@ -17244,7 +17301,67 @@
           },
           "active": {
             "type": "boolean",
-            "title": "Active"
+            "title": "Active",
+            "description": "it still works: not revoked and not expired"
+          },
+          "revoked": {
+            "type": "boolean",
+            "title": "Revoked",
+            "default": false
+          },
+          "revoked_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked By"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "short": {
+            "type": "boolean",
+            "title": "Short",
+            "description": "it has a short /s/ address (links made before short links have none)",
+            "default": false
+          },
+          "plays": {
+            "type": "integer",
+            "title": "Plays",
+            "description": "times its player started playing, once per page load (not counting Lens itself)",
+            "default": 0
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At",
+            "description": "the last play"
+          },
+          "embedded_on": {
+            "items": {
+              "$ref": "#/components/schemas/ShareSite"
+            },
+            "type": "array",
+            "title": "Embedded On",
+            "description": "sites whose pages framed its player, most recent first (up to 50)"
           }
         },
         "additionalProperties": true,
@@ -17271,6 +17388,11 @@
       },
       "ShareLink": {
         "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the link's id, as GET /shares lists it"
+          },
           "token": {
             "type": "string",
             "title": "Token"
@@ -17279,15 +17401,60 @@
             "type": "string",
             "title": "Embed",
             "description": "embeddable player link carrying the share token (works without signing in)"
+          },
+          "short": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short",
+            "description": "\"/s/<code>\": a short address for the same player; it expires and is revoked with the link"
           }
         },
         "additionalProperties": true,
         "type": "object",
         "required": [
+          "id",
           "token",
           "embed"
         ],
         "title": "ShareLink"
+      },
+      "ShareSite": {
+        "properties": {
+          "origin": {
+            "type": "string",
+            "title": "Origin",
+            "description": "a site whose pages framed the player (scheme and host, as browsers report it)"
+          },
+          "opens": {
+            "type": "integer",
+            "title": "Opens",
+            "description": "how many times the player was opened there",
+            "default": 0
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "origin"
+        ],
+        "title": "ShareSite"
       },
       "Source": {
         "properties": {

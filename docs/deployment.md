@@ -14,8 +14,8 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
 ## Checklist
 
 * **HTTPS in front of the web app** (Caddy, nginx, a cloud load balancer). The web app proxies `/api/v1`, `/iiif`,
-  `/embed`, `/reports` and `/static` to the API, so only the frontend needs to be public. IIIF authorization requires
-  HTTPS.
+  `/embed`, `/s`, `/reports` and `/static` to the API, so only the frontend needs to be public. IIIF authorization
+  requires HTTPS.
 * **Allowed hosts.** Add your public host name to `server.allowed_hosts` (in the app) or `ARCHIVE_ALLOWED_HOSTS`, next
   to `backend`, the name the frontend uses inside the network.
 * **Uploads through the reverse proxy.** Audio and video go up in pieces of `uploads.chunk_mb` (8 MB); let the reverse

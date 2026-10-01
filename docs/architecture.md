@@ -5,15 +5,15 @@ Lens is three processes around one database:
 ```
  browser ──► Next.js (nextjs-frontend) ──server-side, Bearer token──► FastAPI (fastapi_backend) ──► SurrealDB
     │            │  NextAuth session (encrypted cookie)                    ▲
-    │            └─ rewrites /api/v1, /iiif, /embed, /reports, /static ────┘
-    └── <audio>/<img> load signed media links through the same rewrites
+    │            └─ proxies /api/v1, /iiif, /embed, /s, /reports, /static ─┘
+    └── <audio>/<img> load signed media links through the same proxy
                                                    lens worker ×N ─────────► SurrealDB (job queue)
 ```
 
 | Piece | What it does |
 |---|---|
 | **Next.js** (`nextjs-frontend/`) | The web app. Auth.js (NextAuth v5) keeps the session; server components and server actions call the API with the session's access token through the generated, typed client. |
-| **FastAPI** (`fastapi_backend/app/`) | The HTTP API under `/api/v1`, IIIF endpoints under `/iiif`, the embeddable player at `/embed/<id>` and stored reports at `/reports/...`. |
+| **FastAPI** (`fastapi_backend/app/`) | The HTTP API under `/api/v1`, IIIF endpoints under `/iiif`, the embeddable player at `/embed/<id>` (and `/s/<code>`, a share link's short address) and stored reports at `/reports/...`. |
 | **Workers** (`lens worker`) | Run queued jobs: transcription, diarisation, video analysis, entity extraction, LLM steps and reports. Any number, on any machine that reaches the database; each can be limited to the steps it can run (for example mlx transcription on a Mac). |
 | **SurrealDB** | Everything: recordings, transcripts, speakers, the knowledge graph (as graph edges), full-text indexes, jobs, accounts and settings. |
 

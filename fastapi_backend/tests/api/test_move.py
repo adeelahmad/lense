@@ -75,7 +75,7 @@ def test_moving_a_recording(client, new_client, env, db, cfg, folder):
     # what it has from pods: public with the transcript open, and a rights statement
     metadata.save_namespace(db, pods, profile={"default_access": "public", "default_open": ["transcript"], "defaults": {"rights": CC_BY}})
     assert metadata.effective(db, cfg, clip)["rights"] == CC_BY
-    share = auth.create_share(db, clip, 1, 30)
+    share = auth.create_share(db, clip, 1, 30)["token"]
     client.post(f"{url}/permissions", headers=ho, json={"email": "guest@x.io"})
     gid = client.post("/api/v1/namespaces/pods/ip-groups", headers=ho, json={"name": "Lab", "ranges": ["198.51.100.7"]}).json()["groups"][
         0
@@ -146,7 +146,7 @@ def test_moving_a_recording(client, new_client, env, db, cfg, folder):
 
 def test_moving_again_from_its_voices(client, env, db):
     clip, ho = env["clip"], env["ho"]
-    raw = auth.create_share(db, clip, 1, 30)
+    raw = auth.create_share(db, clip, 1, 30)["token"]
     r = _move(client, clip, ho, rediarize=True, revoke_shares=True)
     assert r.status_code == 200, r.text
     assert r.json()["shares_revoked"] == 1 and not auth.share_ok(db, raw, clip)

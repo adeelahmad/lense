@@ -31,7 +31,7 @@ def install(app: FastAPI) -> None:
         path = request.url.path
         # Built-in reports carry their player inline; reports rendered from people's templates may not run scripts at all.
         script = ("'none'" if "--" in path else "'self' 'unsafe-inline'") if path.startswith("/reports/") else "'self'"
-        frame = frames if path.startswith("/embed/") else "'none'"
+        frame = frames if path.startswith(("/embed/", "/s/")) else "'none'"
         resp.headers.setdefault(
             "Content-Security-Policy",
             "default-src 'self'; img-src 'self' data:; media-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; "

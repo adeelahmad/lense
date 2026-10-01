@@ -219,11 +219,17 @@ def has_audio(db, cfg, rid):
     return path if r.get("source") == "audio" and path and os.path.exists(path) else None
 
 
-def embed_page(db, cfg, rid, start=0.0, audio_url=None):
+def embed_page(db, cfg, rid, start=0.0, audio_url=None, played=None):
+    """The embeddable player. `played`: where the page reports its first play (share links only)."""
     d = player_data(db, rid, audio_url or f"{store.API}/recordings/{rid}/audio")
     if not audio_url and not has_audio(db, cfg, rid):
         d["audio"] = None
-    return ENV.get_template("embed.html").render(d=d, data=json_script(d), start=float(start or 0))
+    return ENV.get_template("embed.html").render(d=d, data=json_script(d), start=float(start or 0), played=played)
+
+
+def link_gone_page():
+    """What an expired, revoked or mistyped link shows: nothing about the recording, not even whether it exists."""
+    return ENV.get_template("link_gone.html").render()
 
 
 def _assets():

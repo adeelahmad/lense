@@ -212,8 +212,16 @@ class ShareCreate(RequestModel):
 
 
 class ShareLink(ResponseModel):
+    id: str = Field(description="the link's id, as GET /shares lists it")
     token: str
     embed: str = Field(description="embeddable player link carrying the share token (works without signing in)")
+    short: str | None = Field(None, description='"/s/<code>": a short address for the same player; it expires and is revoked with the link')
+
+
+class ShareSite(ResponseModel):
+    origin: str = Field(description="a site whose pages framed the player (scheme and host, as browsers report it)")
+    opens: int = Field(0, description="how many times the player was opened there")
+    last_at: str | None = None
 
 
 class Share(ResponseModel):
@@ -221,7 +229,16 @@ class Share(ResponseModel):
     created_by: str | None = None
     created_at: str | None = None
     expires_at: str | None = None
-    active: bool
+    active: bool = Field(description="it still works: not revoked and not expired")
+    revoked: bool = False
+    revoked_by: str | None = None
+    revoked_at: str | None = None
+    short: bool = Field(False, description="it has a short /s/ address (links made before short links have none)")
+    plays: int = Field(0, description="times its player started playing, once per page load (not counting Lens itself)")
+    played_at: str | None = Field(None, description="the last play")
+    embedded_on: list[ShareSite] = Field(
+        default_factory=list, description="sites whose pages framed its player, most recent first (up to 50)"
+    )
 
 
 class SegmentUpdate(RequestModel):

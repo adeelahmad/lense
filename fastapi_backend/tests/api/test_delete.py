@@ -51,7 +51,8 @@ def test_owners_delete_a_recording(client, env, db, cfg):
     # things that hang off it
     metadata.save(db, cfg, clip, {"access": "public"}, user="own@x.io")
     client.post(f"{url}/permissions", headers=ho, json={"email": "guest@x.io"})
-    client.post(f"{url}/share", headers=he)
+    tok = client.post(f"{url}/share", headers=he).json()["token"]
+    client.get(f"/embed/{clip}", params={"s": tok}, headers={"Referer": "https://blog.example.org/", "Sec-Fetch-Dest": "iframe"})
     gid = client.post("/api/v1/namespaces/pods/ip-groups", headers=ho, json={"name": "Lab", "ranges": ["198.51.100.7"]}).json()["groups"][
         0
     ]["id"]
@@ -68,6 +69,7 @@ def test_owners_delete_a_recording(client, env, db, cfg):
     (frames / "shot0001.jpg").write_bytes(b"jpg")
     queued = jobs.enqueue(db, clip, ["report"], by="test")
     assert _count(db, "segment", clip) and _count(db, "appearance", clip) and _count(db, "permission", clip)
+    assert _count(db, "share_embed", clip)
 
     # owners only; the namespace looks absent to people without a role
     assert client.delete(url, headers=he).status_code == 403

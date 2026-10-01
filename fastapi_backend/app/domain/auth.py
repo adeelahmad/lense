@@ -345,25 +345,119 @@ def members(db, sid):
 
 
 # ---------- share links (read-only access to one recording, revocable) ----------
+# Each link has a token (?s=) and a short code (/s/<code>): 10 characters without look-alikes, about 58 bits. Only
+# their hashes are kept, so a link's address is shown once, when it's made.
+SHORT = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz"
+SHORT_LEN = 10
+EMBED_SITES = 50  # sites remembered per link; pages on more than that still play, they just aren't listed
+
+
 def create_share(db, rid, uid, days=30):
-    raw = secrets.token_urlsafe(24)
+    """A new link: {id, token, short}."""
+    raw, code = secrets.token_urlsafe(24), "".join(secrets.choice(SHORT) for _ in range(SHORT_LEN))
+    key = sha(raw)
     db.q(
         "CREATE $r CONTENT $d",
-        r=R("share_link", sha(raw)),
-        d={"recording": rid, "created_by": uid, "created_at": store.now(), "expires_at": _later(24 * days), "revoked": False},
+        r=R("share_link", key),
+        d={
+            "recording": rid,
+            "created_by": uid,
+            "created_at": store.now(),
+            "expires_at": _later(24 * days),
+            "revoked": False,
+            "short": sha(code),
+            "plays": 0,
+        },
     )
-    return raw
+    return {"id": key[:10], "token": raw, "short": code}
+
+
+def find_share(db, raw):
+    """The link a token or a short code belongs to, whatever its state ({key, recording, expires_at, revoked}), or None."""
+    if not raw:
+        return None
+    q = "SELECT record::id(id) AS key, recording, expires_at, revoked FROM "
+    if len(raw) == SHORT_LEN:
+        return db.one(q + "share_link WHERE short = $h LIMIT 1", h=sha(raw))
+    return db.one(q + "$r", r=R("share_link", sha(raw)))
+
+
+def share_live(s):
+    """Not revoked and not expired."""
+    return bool(s) and not s.get("revoked") and (s.get("expires_at") or "") >= store.now()
 
 
 def share_ok(db, raw, rid):
-    if not raw:
+    s = find_share(db, raw)
+    return share_live(s) and s["recording"] == rid
+
+
+def revoke_shares(db, rid, by=None):
+    """Revoke the recording's links that still work; how many there were."""
+    t = store.now()
+    return len(
+        db.rows(
+            "UPDATE share_link SET revoked = true, revoked_at = $t, revoked_by = $b "
+            "WHERE recording = $r AND revoked != true AND expires_at >= $t RETURN id",
+            r=rid,
+            t=t,
+            b=by,
+        )
+    )
+
+
+def revoke_share(db, rid, sid, by=None):
+    """Revoke one of the recording's links, by the id GET /shares gives it (the start of its key). False if it has no
+    such link; revoking one that's already revoked changes nothing."""
+    keys = [k for k in db.values("SELECT VALUE record::id(id) FROM share_link WHERE recording = $r", r=rid) if str(k).startswith(sid)]
+    if len(keys) != 1:
         return False
-    s = db.one("SELECT recording, expires_at, revoked FROM $r", r=R("share_link", sha(raw)))
-    return bool(s and s["recording"] == rid and not s.get("revoked") and s["expires_at"] >= store.now())
+    db.q(
+        "UPDATE $s SET revoked = true, revoked_at = $t, revoked_by = $b WHERE revoked != true",
+        s=R("share_link", keys[0]),
+        t=store.now(),
+        b=by,
+    )
+    return True
 
 
-def revoke_shares(db, rid):
-    db.q("UPDATE share_link SET revoked = true WHERE recording = $r", r=rid)
+def share_played(db, key):
+    """The link's player started playing (once per page load)."""
+    db.q("UPDATE $s SET plays = (plays ?? 0) + 1, played_at = $t", s=R("share_link", key), t=store.now())
+
+
+def share_embedded(db, s, site):
+    """The link's player was opened in a frame on `site` (an origin): counted per site."""
+    e = R("share_embed", f"{s['key'][:32]}-{sha(site)[:32]}")
+    if (
+        not db.one("SELECT id FROM $e", e=e)
+        and len(db.values("SELECT VALUE id FROM share_embed WHERE share = $k", k=s["key"])) >= EMBED_SITES
+    ):
+        return
+    t = store.now()
+    db.q(
+        "UPSERT $e SET share = $k, recording = $r, origin = $o, opens = (opens ?? 0) + 1, first_at = first_at ?? $t, last_at = $t",
+        e=e,
+        k=s["key"],
+        r=s["recording"],
+        o=site,
+        t=t,
+    )
+
+
+def shares(db, rid):
+    """The recording's links, newest first, with their plays and the sites that embed them (most recent first)."""
+    rows = db.rows(
+        "SELECT record::id(id) AS key, created_by, created_at, expires_at, revoked ?? false AS revoked, revoked_at, "
+        "revoked_by, plays ?? 0 AS plays, played_at, short FROM share_link WHERE recording = $r ORDER BY created_at DESC",
+        r=rid,
+    )
+    sites = {}
+    for e in db.rows("SELECT share, origin, opens, last_at FROM share_embed WHERE recording = $r ORDER BY last_at DESC", r=rid):
+        sites.setdefault(e["share"], []).append({"origin": e["origin"], "opens": e.get("opens") or 0, "last_at": e.get("last_at")})
+    for r in rows:
+        r["sites"] = sites.get(r["key"], [])
+    return rows
 
 
 def audit(db, user, action, target=None, detail=None):

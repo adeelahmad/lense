@@ -85,11 +85,8 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| Revoke one link; play counts; where it's embedded | per-link endpoints |
-| Short `/s/…` links | a short-link route |
 | Embed layout and theme | embed parameters |
 | Origin check for non-admins (frame ancestors are admin-only settings) | a public "can this origin embed?" check |
-| Expired or revoked links show a page, not JSON 401 | a neutral 410 page on `/embed` |
 
 ## IIIF and metadata
 

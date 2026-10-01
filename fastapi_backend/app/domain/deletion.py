@@ -35,6 +35,7 @@ OWN = (
     "ocr_span",
     "face_track",
     "share_link",
+    "share_embed",
     "permission",
     "access_request",
 )

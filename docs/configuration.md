@@ -105,7 +105,8 @@ API on one machine.
 ## Security notes
 
 * The API checks the `Host` header against `server.allowed_hosts` (stops DNS rebinding) and sends a strict
-  Content-Security-Policy; only `/embed/<id>` can be framed, and only by `server.embed_frame_ancestors`.
+  Content-Security-Policy; only the player (`/embed/<id>`, `/s/<code>`) can be framed, and only by
+  `server.embed_frame_ancestors`.
 * Imports check the extension, cap the size (`server.max_upload_mb`), and are parsed in a temporary directory; nothing
   uploaded is executed. Audio and video uploads accept only the media types in `uploads.extensions` (each is served
   back as audio or video, or as a download), under a name with no folders in it.

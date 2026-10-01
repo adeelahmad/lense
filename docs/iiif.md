@@ -55,7 +55,7 @@ parts and whether it's published, the validation result and the viewer links.
 <iframe src="https://lens.example.org/embed/12?s=<share token>&t=90" style="width:100%;height:560px;border:0"></iframe>
 ```
 
-The embed needs a share link (`?s=…`, from `POST /api/v1/recordings/<id>/share`, which can be revoked) or a signed link from `GET /api/v1/recordings/<id>/embed-link` (which expires). Only `/embed/<id>` may be framed, and only by origins listed in `server.embed_frame_ancestors`. A host page can drive it:
+The embed needs a share link (`?s=…`, from `POST /api/v1/recordings/<id>/share`, which can be revoked) or a signed link from `GET /api/v1/recordings/<id>/embed-link` (which expires). A share link's short address (`https://lens.example.org/s/<code>?t=90`) works as the `src` too. Only `/embed/<id>` and `/s/<code>` may be framed, and only by origins listed in `server.embed_frame_ancestors`. An expired or revoked link shows a neutral "This link isn't available" page in the frame (status 410). Share links count their plays and remember the sites that frame them (`GET /api/v1/recordings/<id>/shares`). A host page can drive it:
 
 ```js
 frame.contentWindow.postMessage({ type: 'archive:seek', t: 90, play: true }, '*')

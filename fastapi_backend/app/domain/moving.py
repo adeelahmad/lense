@@ -177,10 +177,7 @@ def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None):
         k=f"{dst}:{fp}",
     )
     deletion.forget(db, dst, fp, rec.get("path"))  # it's in the new namespace now: its scans may find it again
-    revoked = 0
-    if revoke_shares:
-        revoked = len(db.values("SELECT VALUE id FROM share_link WHERE recording = $r AND revoked != true", r=rid))
-        auth.revoke_shares(db, rid)
+    revoked = auth.revoke_shares(db, rid, by) if revoke_shares else 0
     _files(db, cfg, rec, rid, names[src], names[dst])
     deletion.orphans(db, old_speakers, old_faces)  # unnamed ones nothing else has any more
     job = jobs.enqueue(db, rid, (["diarize"] if rediarize else []) + ["analyze", "report"], by=by)
