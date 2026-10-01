@@ -3,6 +3,8 @@
  * ("SPEAKER_00 = Host A", one per line) that becomes the API's `speakers` string ("SPEAKER_00=Host A,...").
  * Pure functions, tested in __tests__/import-files.test.ts.
  */
+import type { UploadLimits } from "@/app/openapi-client/types.gen";
+import { bytes } from "@/lib/format";
 
 /** Transcript types the importer reads (the backend's IMPORT_EXT). */
 export const TRANSCRIPT_EXT = [
@@ -19,12 +21,33 @@ export const TRANSCRIPT_EXT = [
   ".vtt",
 ];
 const AUDIO_EXT = [".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".wma", ".aif", ".aiff", ".amr", ".weba"];
-const VIDEO_EXT = [".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v", ".mpg", ".mpeg"];
+const VIDEO_EXT = [".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v", ".mpg", ".mpeg", ".3gp"];
 
 export const SUPPORTED_LIST = "txt, md, mdx, docx, doc, pdf, srt, vtt, json, jsonl";
 
-/** The upload limit when the server doesn't tell us (settings → server.max_upload_mb defaults to 50). */
-export const DEFAULT_MAX_MB = 50;
+/** What the server accepts until GET /uploads/limits answers: the defaults of Settings → Uploads and
+ * server.max_upload_mb. */
+export const DEFAULT_LIMITS: UploadLimits = {
+  max_mb: 4096,
+  extensions: [
+    ".aac",
+    ".amr",
+    ".avi",
+    ".flac",
+    ".m4a",
+    ".m4v",
+    ".mkv",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".ogg",
+    ".opus",
+    ".wav",
+    ".webm",
+  ],
+  chunk_mb: 8,
+  transcript_mb: 50,
+};
 
 export type FileKind = "transcript" | "audio" | "video" | "unsupported";
 
@@ -78,33 +101,46 @@ export function titleFromName(name: string): string {
 }
 
 export type Problem = {
-  code: "unsupported" | "audio" | "too-large" | "unreadable" | "empty";
+  code: "unsupported" | "too-large" | "unreadable" | "empty";
   title: string;
   body: string;
 };
 
+const MB = 1024 * 1024;
+
 /** Why a file can't be imported before we even send it; null when it can be tried. */
-export function localProblem(file: { name: string; size: number }, maxMb = DEFAULT_MAX_MB): Problem | null {
+export function localProblem(
+  file: { name: string; size: number },
+  limits: UploadLimits = DEFAULT_LIMITS,
+): Problem | null {
   const kind = kindOf(file.name);
   const ext = extOf(file.name);
   if (kind === "audio" || kind === "video") {
-    return {
-      code: "audio",
-      title: `${kind === "video" ? "Video" : "Audio"} can’t be uploaded here yet`,
-      body: "Put it in a watched folder instead: sources pick up audio and video, and have no size limit. Transcripts can be imported here.",
-    };
+    if (!limits.extensions.includes(ext))
+      return {
+        code: "unsupported",
+        title: `${ext.slice(1).toUpperCase()} files can’t be uploaded here`,
+        body: `This server takes ${limits.extensions.map((e) => e.slice(1)).join(", ")}. Convert it to one of those, or ask an admin to allow ${ext} files in Settings → Uploads.`,
+      };
+    if (file.size > limits.max_mb * MB)
+      return {
+        code: "too-large",
+        title: `Too large to upload here (limit ${bytes(limits.max_mb * MB)})`,
+        body: "Put it in a watched folder instead — sources have no size limit — or compress it to m4a or opus.",
+      };
+    return null;
   }
   if (kind === "unsupported") {
     return {
       code: "unsupported",
       title: `${ext ? ext.slice(1).toUpperCase() : "These"} files can’t be imported`,
-      body: `Save it as .docx, .pdf or plain text and drop it again. Supported transcripts: ${SUPPORTED_LIST}.`,
+      body: `Save it as .docx, .pdf or plain text and drop it again. Supported transcripts: ${SUPPORTED_LIST}, or audio and video.`,
     };
   }
-  if (file.size > maxMb * 1024 * 1024) {
+  if (file.size > limits.transcript_mb * MB) {
     return {
       code: "too-large",
-      title: `Too large to upload here (limit ${maxMb} MB)`,
+      title: `Too large to upload here (limit ${limits.transcript_mb} MB)`,
       body: "Put it in a watched folder instead — sources have no size limit — or split it into smaller files.",
     };
   }

@@ -185,6 +185,22 @@ import type {
   PreviewImportData,
   PreviewImportResponses,
   PreviewImportErrors,
+  UploadLimitsData,
+  UploadLimitsResponses,
+  ListUploadsData,
+  ListUploadsResponses,
+  StartUploadData,
+  StartUploadResponses,
+  StartUploadErrors,
+  CancelUploadData,
+  CancelUploadResponses,
+  CancelUploadErrors,
+  GetUploadData,
+  GetUploadResponses,
+  GetUploadErrors,
+  SendChunkData,
+  SendChunkResponses,
+  SendChunkErrors,
   SearchTranscriptsData,
   SearchTranscriptsResponses,
   SearchTranscriptsErrors,
@@ -1420,6 +1436,89 @@ export class Imports {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Uploads {
+  /**
+   * Upload Limits
+   * What can be uploaded: the audio and video types, the largest file, the chunk size the web app sends, and the
+   * largest transcript file for POST /import.
+   */
+  public static uploadLimits<ThrowOnError extends boolean = false>(options?: Options<UploadLimitsData, ThrowOnError>) {
+    return (options?.client ?? client).get<UploadLimitsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/uploads/limits",
+      ...options,
+    });
+  }
+
+  /**
+   * List Uploads
+   * Your uploads that haven't finished, newest first: sending the same file again carries on where it stopped.
+   */
+  public static listUploads<ThrowOnError extends boolean = false>(options?: Options<ListUploadsData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListUploadsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/uploads",
+      ...options,
+    });
+  }
+
+  /**
+   * Start Upload
+   * Start uploading an audio or video file into a namespace (editors; admins may name a new one). Then send the file
+   * with PUT /uploads/{uid}. 400 for a type not in uploads.extensions, 413 over uploads.max_mb, 507 when the server's
+   * disk can't hold it.
+   */
+  public static startUpload<ThrowOnError extends boolean = false>(options: Options<StartUploadData, ThrowOnError>) {
+    return (options.client ?? client).post<StartUploadResponses, StartUploadErrors, ThrowOnError>({
+      url: "/api/v1/uploads",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Cancel Upload
+   * Stop an upload and throw away what has arrived. A finished one is only forgotten: its recording stays.
+   */
+  public static cancelUpload<ThrowOnError extends boolean = false>(options: Options<CancelUploadData, ThrowOnError>) {
+    return (options.client ?? client).delete<CancelUploadResponses, CancelUploadErrors, ThrowOnError>({
+      url: "/api/v1/uploads/{uid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Upload
+   * How much of an upload has arrived (`offset`), or the recording it became.
+   */
+  public static getUpload<ThrowOnError extends boolean = false>(options: Options<GetUploadData, ThrowOnError>) {
+    return (options.client ?? client).get<GetUploadResponses, GetUploadErrors, ThrowOnError>({
+      url: "/api/v1/uploads/{uid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Send Chunk
+   * The next chunk of the file as the raw request body (application/octet-stream), starting at `offset`; it streams
+   * to disk. A chunk that breaks off is dropped whole. 409 when `offset` isn't where the upload has got to (GET it and
+   * send from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload
+   * done, with its recording and job; audited as `upload`.
+   */
+  public static sendChunk<ThrowOnError extends boolean = false>(options: Options<SendChunkData, ThrowOnError>) {
+    return (options.client ?? client).put<SendChunkResponses, SendChunkErrors, ThrowOnError>({
+      bodySerializer: null,
+      url: "/api/v1/uploads/{uid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/octet-stream",
         ...options.headers,
       },
     });

@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Sparkles,
   Terminal,
+  Upload,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -43,6 +44,7 @@ const ICON: Record<SectionId, LucideIcon> = {
   video: Clapperboard,
   workers: Cpu,
   access: ShieldCheck,
+  uploads: Upload,
   iiif: Globe,
   startup: Terminal,
 };

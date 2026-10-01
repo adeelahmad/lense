@@ -3185,6 +3185,245 @@
         }
       }
     },
+    "/api/v1/uploads/limits": {
+      "get": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Upload Limits",
+        "description": "What can be uploaded: the audio and video types, the largest file, the chunk size the web app sends, and the\nlargest transcript file for POST /import.",
+        "operationId": "upload_limits",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadLimits"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/uploads": {
+      "get": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "List Uploads",
+        "description": "Your uploads that haven't finished, newest first: sending the same file again carries on where it stopped.",
+        "operationId": "list_uploads",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Upload"
+                  },
+                  "type": "array",
+                  "title": "Response Uploads-List Uploads"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Start Upload",
+        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one). Then send the file\nwith PUT /uploads/{uid}. 400 for a type not in uploads.extensions, 413 over uploads.max_mb, 507 when the server's\ndisk can't hold it.",
+        "operationId": "start_upload",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upload"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/uploads/{uid}": {
+      "get": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Get Upload",
+        "description": "How much of an upload has arrived (`offset`), or the recording it became.",
+        "operationId": "get_upload",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$",
+              "title": "Uid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upload"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Send Chunk",
+        "description": "The next chunk of the file as the raw request body (application/octet-stream), starting at `offset`; it streams\nto disk. A chunk that breaks off is dropped whole. 409 when `offset` isn't where the upload has got to (GET it and\nsend from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload\ndone, with its recording and job; audited as `upload`.",
+        "operationId": "send_chunk",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$",
+              "title": "Uid"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "where this chunk starts in the file: the upload's `offset`",
+              "title": "Offset"
+            },
+            "description": "where this chunk starts in the file: the upload's `offset`"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upload"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Cancel Upload",
+        "description": "Stop an upload and throw away what has arrived. A finished one is only forgotten: its recording stays.",
+        "operationId": "cancel_upload",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$",
+              "title": "Uid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/search": {
       "get": {
         "tags": [
@@ -17463,6 +17702,194 @@
           "user"
         ],
         "title": "TokenPair"
+      },
+      "Upload": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename",
+            "description": "the name it's stored under"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "how many bytes have arrived: the next chunk starts here"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "receiving",
+              "done"
+            ],
+            "title": "State"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording",
+            "description": "the recording it became, once done"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job",
+            "description": "the processing queued for it, if any"
+          },
+          "duplicate": {
+            "type": "boolean",
+            "title": "Duplicate",
+            "description": "the namespace already had this file: `recording` is that one",
+            "default": false
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At",
+            "description": "when it's removed unless more of it arrives (uploads.expire_hours after the last chunk)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "namespace",
+          "filename",
+          "size",
+          "offset",
+          "state",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "Upload"
+      },
+      "UploadLimits": {
+        "properties": {
+          "max_mb": {
+            "type": "integer",
+            "title": "Max Mb",
+            "description": "the largest audio or video file, in MB (uploads.max_mb)"
+          },
+          "extensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Extensions",
+            "description": "the audio and video types that can be uploaded (uploads.extensions)"
+          },
+          "chunk_mb": {
+            "type": "integer",
+            "title": "Chunk Mb",
+            "description": "how much the web app sends per request (uploads.chunk_mb)"
+          },
+          "transcript_mb": {
+            "type": "integer",
+            "title": "Transcript Mb",
+            "description": "the largest transcript file for POST /import (server.max_upload_mb)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "max_mb",
+          "extensions",
+          "chunk_mb",
+          "transcript_mb"
+        ],
+        "title": "UploadLimits"
+      },
+      "UploadStart": {
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "title": "Namespace",
+            "description": "a namespace you edit; admins may name a new one, created when the upload finishes"
+          },
+          "filename": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Filename"
+          },
+          "size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Size",
+            "description": "the file's size in bytes"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "the recording's title (default: the file's name)"
+          },
+          "modified": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified",
+            "description": "the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "namespace",
+          "filename",
+          "size"
+        ],
+        "title": "UploadStart"
       },
       "UserCreate": {
         "properties": {

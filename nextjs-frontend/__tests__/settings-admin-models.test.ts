@@ -74,6 +74,8 @@ describe("settings fields", () => {
       "speakers.review_threshold": "Thresholds must satisfy 0 ≤ review ≤ match ≤ 1",
     });
     expect(crossErrors({ "server.allowed_hosts": [] })["server.allowed_hosts"]).toMatch(/at least one host/);
+    expect(crossErrors({ "uploads.extensions": [] })).toEqual({ "uploads.extensions": "Pick at least one type" });
+    expect(crossErrors({ "uploads.extensions": [".mp3"] })).toEqual({});
     expect(crossErrors({ "server.allowed_hosts": ["https://a.org"] })["server.allowed_hosts"]).toMatch(
       /isn’t a host name/,
     );

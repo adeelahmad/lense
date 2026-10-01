@@ -1,10 +1,12 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ClipboardPaste, FileText } from "lucide-react";
+import { CheckCircle2, ClipboardPaste, FileAudio, FileText, FileVideo } from "lucide-react";
 import Link from "next/link";
 
 import { Jobs } from "@/app/openapi-client";
+import { kindOf } from "@/components/import/files";
+import { sentShare, sentText } from "@/components/import/upload-model";
 import { stepLabel } from "@/components/library/model";
 import type { QueueItem } from "@/components/import/use-import";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -23,7 +25,15 @@ type RowState = {
   bar: "intent" | "muted" | "green" | "red";
 };
 
-function QueueRow({ q }: { q: QueueItem }) {
+function QueueRow({
+  q,
+  onPause,
+  onResume,
+}: {
+  q: QueueItem;
+  onPause: (key: string) => void;
+  onResume: (key: string) => void;
+}) {
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
@@ -35,7 +45,17 @@ function QueueRow({ q }: { q: QueueItem }) {
   });
   const j = job.data;
   let st: RowState;
-  if (q.state === "uploading")
+  const share = sentShare(q.sent, q.size);
+  if (q.state === "uploading" && q.kind === "media")
+    st = {
+      step: `Upload · ${sentText(q.sent ?? 0, q.size ?? 0)}`,
+      pct: `${Math.floor(share * 100)}%`,
+      width: Math.max(0.02, share),
+      badge: "Uploading",
+      tone: "intent",
+      bar: "intent",
+    };
+  else if (q.state === "uploading")
     st = {
       step: "Upload",
       pct: "sending…",
@@ -43,6 +63,24 @@ function QueueRow({ q }: { q: QueueItem }) {
       badge: "Uploading",
       tone: "intent",
       bar: "muted",
+    };
+  else if (q.state === "paused")
+    st = {
+      step: `Paused · ${sentText(q.sent ?? 0, q.size ?? 0)}`,
+      pct: `${Math.floor(share * 100)}%`,
+      width: Math.max(0.02, share),
+      badge: "Paused",
+      tone: "neutral",
+      bar: "muted",
+    };
+  else if (q.state === "failed" && q.kind === "media")
+    st = {
+      step: `Upload stopped · ${sentText(q.sent ?? 0, q.size ?? 0)}`,
+      pct: "",
+      width: Math.max(0.02, share),
+      badge: "Failed",
+      tone: "red",
+      bar: "red",
     };
   else if (q.state === "failed")
     st = {
@@ -52,6 +90,15 @@ function QueueRow({ q }: { q: QueueItem }) {
       badge: "Failed",
       tone: "red",
       bar: "red",
+    };
+  else if (q.duplicate && !q.job)
+    st = {
+      step: "Already in the archive",
+      pct: "",
+      width: 1,
+      badge: "Already here",
+      tone: "green",
+      bar: "green",
     };
   else if (!j)
     st = {
@@ -110,7 +157,14 @@ function QueueRow({ q }: { q: QueueItem }) {
             bar: "intent",
           };
   }
-  const Icon = q.kind === "paste" ? ClipboardPaste : FileText;
+  const Icon =
+    q.kind === "paste"
+      ? ClipboardPaste
+      : q.kind === "media"
+        ? kindOf(q.name) === "video"
+          ? FileVideo
+          : FileAudio
+        : FileText;
   const error = q.error ?? (j?.status === "failed" ? j.error : null);
   return (
     <li className="grid grid-cols-[28px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2 border-b border-border px-4 py-3.5 last:border-b-0 md:grid-cols-[28px_minmax(0,1.3fr)_minmax(0,1fr)_150px_80px] md:px-6">
@@ -158,7 +212,15 @@ function QueueRow({ q }: { q: QueueItem }) {
           </Badge>
         </span>
         <span className="text-right text-[13px] font-semibold">
-          {q.recording != null ? (
+          {q.kind === "media" && q.state === "uploading" ? (
+            <button type="button" className="text-fg-accent hover:underline" onClick={() => onPause(q.key)}>
+              Pause
+            </button>
+          ) : q.kind === "media" && (q.state === "paused" || q.state === "failed") ? (
+            <button type="button" className="text-fg-accent hover:underline" onClick={() => onResume(q.key)}>
+              {q.state === "paused" ? "Resume" : "Try again"}
+            </button>
+          ) : q.recording != null ? (
             j?.status === "failed" ? (
               <button
                 type="button"
@@ -191,8 +253,19 @@ function QueueRow({ q }: { q: QueueItem }) {
 }
 
 /** Library I4: after submitting. Safe to leave; progress also shows in Activity and in the Library rows. */
-export function ImportQueue({ queue, onMore }: { queue: QueueItem[]; onMore: () => void }) {
+export function ImportQueue({
+  queue,
+  onMore,
+  onPause,
+  onResume,
+}: {
+  queue: QueueItem[];
+  onMore: () => void;
+  onPause: (key: string) => void;
+  onResume: (key: string) => void;
+}) {
   const sending = queue.filter((q) => q.state === "uploading").length;
+  const paused = queue.filter((q) => q.state === "paused").length;
   const failed = queue.filter((q) => q.state === "failed").length;
   return (
     <div className="overflow-hidden rounded-md border border-border bg-background">
@@ -207,6 +280,11 @@ export function ImportQueue({ queue, onMore }: { queue: QueueItem[]; onMore: () 
             <>
               <b className="font-bold">Sending {plural(sending, "file")}…</b> Keep this page open until they’re sent;
               processing then carries on without it.
+            </>
+          ) : paused ? (
+            <>
+              <b className="font-bold">{plural(paused, "upload")} paused.</b> What arrived is kept for a while: resume
+              here, or drop the same file again later to carry on.
             </>
           ) : (
             <>
@@ -230,7 +308,7 @@ export function ImportQueue({ queue, onMore }: { queue: QueueItem[]; onMore: () 
       </div>
       <ul aria-label="Imports">
         {queue.map((q) => (
-          <QueueRow key={q.key} q={q} />
+          <QueueRow key={q.key} q={q} onPause={onPause} onResume={onResume} />
         ))}
       </ul>
     </div>

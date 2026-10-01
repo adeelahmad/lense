@@ -54,8 +54,25 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 ## Settings in the app
 
 Admins can change transcription, diarisation, voice-ID thresholds, analysis, LLM provider and key, graph, search,
-reports, workers, IIIF, the assistant, video, and server options (embed frame ancestors, upload limit, allowed hosts,
-trusted proxies, session length). The API refuses an allowed-host list that leaves out the address you are using.
+reports, workers, IIIF, the assistant, video, uploads, and server options (embed frame ancestors, transcript upload
+limit, allowed hosts, trusted proxies, session length). The API refuses an allowed-host list that leaves out the address
+you are using.
+
+## Uploads
+
+Audio and video uploaded in the web app (Import → Upload) go up in pieces ([API](api.md#uploads)). Settings → Uploads:
+
+| Setting | Default | |
+|---|---|---|
+| `uploads.max_mb` | 4096 | the largest audio or video file, in MB |
+| `uploads.extensions` | the types folder scans import | which types can be uploaded: any of `.m4a .mp3 .wav .flac .ogg .opus .aac .amr .aif .aiff .wma .mp4 .m4v .mov .mkv .webm .avi .mpg .mpeg .3gp` |
+| `uploads.chunk_mb` | 8 | how much the web app sends per request, 1–64. Keep it below the request-body limit of any proxy in front of the web app (nginx's `client_max_body_size` is 1 MB unless set) |
+| `uploads.expire_hours` | 24 | how long an unfinished upload waits for its next piece before what arrived is deleted, 1–720 |
+
+Pieces are written straight to `data_dir/uploads/.partial`, never held in memory; finished files are kept in
+`data_dir/uploads/<namespace>/`, so give `data_dir` room for them (an upload is refused when it would leave less than
+512 MB free). Transcript files have their own limit, `server.max_upload_mb` (Settings → Access & embedding); watched
+folders have none.
 
 ## Trusted proxies
 
@@ -83,5 +100,6 @@ API on one machine.
 * The API checks the `Host` header against `server.allowed_hosts` (stops DNS rebinding) and sends a strict
   Content-Security-Policy; only `/embed/<id>` can be framed, and only by `server.embed_frame_ancestors`.
 * Imports check the extension, cap the size (`server.max_upload_mb`), and are parsed in a temporary directory; nothing
-  uploaded is executed.
+  uploaded is executed. Audio and video uploads accept only the media types in `uploads.extensions` (each is served
+  back as audio or video, or as a download), under a name with no folders in it.
 * Put everything behind HTTPS before exposing it beyond one machine. IIIF authorization requires it.

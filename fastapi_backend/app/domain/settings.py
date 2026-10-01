@@ -47,6 +47,7 @@ EDITABLE = {
         "publish_faces",
     ),
     "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
+    "uploads": None,
 }
 SECRETS = {"llm": ("api_key",)}
 ENUMS = {
@@ -62,6 +63,9 @@ ENUMS = {
     ("video", "face_engine"): {"opencv", "insightface", "none"},
 }
 ENV_OVERRIDES = {("server", "allowed_hosts"): "ARCHIVE_ALLOWED_HOSTS"}
+# The types uploads.extensions may name: what the folder scans import, and a few more that ffmpeg reads.
+UPLOAD_TYPES = frozenset([*store.MEDIA_EXT, ".aif", ".aiff", ".wma", ".mpg", ".mpeg", ".3gp"])
+UPLOAD_RANGES = {"max_mb": (1, 1_000_000), "chunk_mb": (1, 64), "expire_hours": (1, 720)}
 VIEWER_URL = re.compile(r"^https?://[^\s]+$")
 _KEYS, _KL = {}, threading.Lock()
 
@@ -192,6 +196,8 @@ def _check(section, key, value, default):
         return value
     if (section, key) == ("server", "trusted_proxies"):
         return ipgroups.proxies(value)
+    if section == "uploads":
+        return _upload_setting(key, value)
     if default is None or value is None:
         return value
     if isinstance(default, bool):
@@ -211,6 +217,19 @@ def _check(section, key, value, default):
         ok = True
     if not ok:
         raise ValueError(f"{section}.{key} should be {type(default).__name__}")
+    return value
+
+
+def _upload_setting(key, value):
+    if key == "extensions":
+        ok = isinstance(value, list) and value and all(isinstance(x, str) for x in value)
+        exts = sorted({"." + x.strip().lower().lstrip(".") for x in value}) if ok else []
+        if not exts or any(e not in UPLOAD_TYPES for e in exts):
+            raise ValueError(f"uploads.extensions is a list of audio and video types from: {', '.join(sorted(UPLOAD_TYPES))}")
+        return exts
+    lo, hi = UPLOAD_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"uploads.{key} is a whole number from {lo} to {hi}")
     return value
 
 

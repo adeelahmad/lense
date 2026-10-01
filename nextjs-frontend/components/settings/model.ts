@@ -66,6 +66,7 @@ export type SectionId =
   | "video"
   | "workers"
   | "access"
+  | "uploads"
   | "iiif"
   | "startup";
 
@@ -146,6 +147,13 @@ export const SECTIONS: SectionSpec[] = [
       "Who can reach the server, how it tells visitors’ addresses, which sites may embed the player, and how long sessions last.",
   },
   {
+    id: "uploads",
+    label: "Uploads",
+    backend: ["uploads"],
+    description:
+      "Audio and video people upload in the web app: which types, how large, and how long an unfinished upload waits.",
+  },
+  {
     id: "iiif",
     label: "IIIF & metadata",
     backend: ["iiif"],
@@ -173,6 +181,30 @@ export const WORKER_STEPS = [
   "llm",
   "report",
   "export",
+];
+
+/** What uploads.extensions may name (the backend's UPLOAD_TYPES, in app/domain/settings.py). */
+export const UPLOAD_TYPES = [
+  ".m4a",
+  ".mp3",
+  ".wav",
+  ".flac",
+  ".ogg",
+  ".opus",
+  ".aac",
+  ".amr",
+  ".aif",
+  ".aiff",
+  ".wma",
+  ".mp4",
+  ".m4v",
+  ".mov",
+  ".mkv",
+  ".webm",
+  ".avi",
+  ".mpg",
+  ".mpeg",
+  ".3gp",
 ];
 
 export const LAYERS: Opt[] = [
@@ -735,10 +767,45 @@ export const FIELDS: FieldSpec[] = [
   {
     section: "server",
     key: "max_upload_mb",
-    label: "Largest upload (MB)",
+    label: "Largest transcript file (MB)",
     kind: "int",
     min: 1,
     max: 1_000_000,
+    hint: "Audio and video have their own limit, under Uploads",
+  },
+  // Uploads
+  {
+    section: "uploads",
+    key: "max_mb",
+    label: "Largest audio or video file (MB)",
+    kind: "int",
+    min: 1,
+    max: 1_000_000,
+  },
+  {
+    section: "uploads",
+    key: "chunk_mb",
+    label: "Piece size (MB)",
+    kind: "int",
+    min: 1,
+    max: 64,
+    hint: "How much the web app sends per request; keep it under the body limit of any proxy in front of the server",
+  },
+  {
+    section: "uploads",
+    key: "expire_hours",
+    label: "Keep unfinished uploads for (hours)",
+    kind: "int",
+    min: 1,
+    max: 720,
+    hint: "After the last piece arrived; then what arrived is deleted",
+  },
+  {
+    section: "uploads",
+    key: "extensions",
+    label: "Types people can upload",
+    kind: "checks",
+    options: UPLOAD_TYPES.map((e) => ({ value: e, label: e.slice(1) })),
   },
   // IIIF & metadata
   {
@@ -954,6 +1021,8 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   );
   if (badOrigin)
     e["server.embed_frame_ancestors"] = `“${badOrigin}” isn’t an origin like https://blog.example.org or 'self'`;
+  const types = values["uploads.extensions"] as string[] | undefined;
+  if (types && !types.length) e["uploads.extensions"] = "Pick at least one type";
   const gaz = values["analysis.gazetteer"] as string[] | undefined;
   const g = gaz ? gazetteerErrors(gaz) : null;
   if (g) e["analysis.gazetteer"] = g;

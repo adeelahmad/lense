@@ -9,19 +9,22 @@ import { ImportQueue } from "@/components/import/import-queue";
 import { PasteTab } from "@/components/import/paste-tab";
 import { chooseFiles, defaultImportNamespace, isFileDrag, takeFiles } from "@/components/import/pending";
 import { SourceTab } from "@/components/import/source-tab";
-import { FileDetail, FileList, ProblemCard, audioTwinOf } from "@/components/import/upload-tab";
+import { FileDetail, FileList, MediaDetail, ProblemCard, audioTwinOf } from "@/components/import/upload-tab";
 import {
   fileBody,
+  isMedia,
   useImportFiles,
   useImportQueue,
   useNamespacePipeline,
   useNamespaceSpeakers,
+  useUnfinishedUploads,
+  type QueueJob,
 } from "@/components/import/use-import";
 import { LibraryTabs } from "@/components/library/library-tabs";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/states";
-import { plural } from "@/lib/format";
+import { bytes, plural } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
@@ -104,6 +107,7 @@ export function ImportScreen() {
   const [ns, setNs] = useState("");
   const files = useImportFiles();
   const queue = useImportQueue();
+  const unfinished = useUnfinishedUploads(files.items.some((i) => isMedia(i.kind)));
   const directory = useNamespaceSpeakers(ns || null);
   const pipeline = useNamespacePipeline(ns || null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -150,7 +154,9 @@ export function ImportScreen() {
         : needRole("editor", ns);
   const ready = items.filter((i) => i.status === "ready");
   const reading = items.filter((i) => i.status === "reading").length;
-  const mappingProblem = ready.find((i) => parseMapping(i.mapping, i.preview?.speakers ?? []).errors.length);
+  const mappingProblem = ready.find(
+    (i) => !isMedia(i.kind) && parseMapping(i.mapping, i.preview?.speakers ?? []).errors.length,
+  );
   const importReason =
     nsReason ??
     (!ready.length
@@ -167,14 +173,17 @@ export function ImportScreen() {
   const importFiles = () => {
     const target = ns;
     void queue.send(
-      ready.map((it) => ({
-        key: it.id,
-        name: it.file.name,
-        title: it.title.trim() || titleFromName(it.file.name),
-        namespace: target,
-        kind: "file" as const,
-        body: () => fileBody(it, target),
-      })),
+      ready.map((it): QueueJob => {
+        const base = {
+          key: it.id,
+          name: it.file.name,
+          title: it.title.trim() || titleFromName(it.file.name),
+          namespace: target,
+        };
+        return isMedia(it.kind)
+          ? { ...base, kind: "media", file: it.file }
+          : { ...base, kind: "file", body: () => fileBody(it, target) };
+      }),
     );
     files.clear();
   };
@@ -205,7 +214,7 @@ export function ImportScreen() {
 
       {queue.queue.length > 0 ? (
         <div className="px-4 py-5 md:px-6">
-          <ImportQueue queue={queue.queue} onMore={queue.reset} />
+          <ImportQueue queue={queue.queue} onMore={queue.reset} onPause={queue.pause} onResume={queue.resume} />
         </div>
       ) : (
         <>
@@ -288,10 +297,11 @@ export function ImportScreen() {
                     <FolderOpen className="size-6" aria-hidden />
                   </span>
                   <div className="flex flex-col gap-1.5">
-                    <h2 className="text-[17px] font-bold text-fg">Drop transcripts here</h2>
+                    <h2 className="text-[17px] font-bold text-fg">Drop transcripts, audio or video here</h2>
                     <p className="max-w-md text-[14px] leading-normal text-fg-secondary">
-                      txt, md, mdx, docx, doc, pdf, srt, vtt, json or jsonl, up to {files.maxMb} MB each. You’ll see how
-                      each one was read before anything is saved.
+                      Transcripts (txt, md, mdx, docx, doc, pdf, srt, vtt, json or jsonl) up to{" "}
+                      {files.limits.transcript_mb} MB each: you’ll see how each one was read before anything is saved.
+                      Audio and video up to {bytes(files.limits.max_mb * 1024 * 1024)} each.
                     </p>
                   </div>
                   <div className="flex flex-wrap justify-center gap-2">
@@ -303,7 +313,7 @@ export function ImportScreen() {
                     </Button>
                   </div>
                   <p className="text-[12.5px] text-fg-muted">
-                    Audio and video come in through watched folders (Sources), which have no size limit.
+                    Audio and video go up in pieces: if the connection drops, they carry on where they stopped.
                   </p>
                 </div>
               </div>
@@ -314,7 +324,17 @@ export function ImportScreen() {
                     <FileList items={items} selected={selected} onSelect={setSelected} onAdd={files.add} />
                   </div>
                   <div className="min-w-0 px-4 py-4 md:px-6 md:py-[18px]">
-                    {current?.status === "ready" ? (
+                    {current?.status === "ready" && isMedia(current.kind) ? (
+                      <MediaDetail
+                        it={current}
+                        onPatch={(p) => files.patch(current.id, p)}
+                        namespace={ns || null}
+                        namespaceControl={nsControl}
+                        pipeline={pipeline.name}
+                        pieceMb={files.limits.chunk_mb}
+                        unfinished={unfinished.data ?? []}
+                      />
+                    ) : current?.status === "ready" ? (
                       <FileDetail
                         it={current}
                         onPatch={(p) => files.patch(current.id, p)}

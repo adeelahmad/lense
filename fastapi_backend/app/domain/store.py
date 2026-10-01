@@ -110,14 +110,13 @@ def labels():
     return {"palette": PALETTE, "emoji": EMOJI, "events": EVENT_EMOJI, "speakers": SPEAKER_COLORS}
 
 
+# Audio and video the folder scans import, and the types uploads accept unless changed.
+MEDIA_EXT = (".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".mp4", ".webm", ".amr", ".mov", ".mkv", ".m4v", ".avi")
 DEFAULTS = {
     "data_dir": "./archive-data",
     "database": {"url": None, "namespace": "archive", "database": "main", "user": "root", "password": "root"},
     "namespaces": {},
-    "audio": {
-        "extensions": [".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus", ".aac", ".mp4", ".webm", ".amr", ".mov", ".mkv", ".m4v", ".avi"],
-        "path_map": {},
-    },
+    "audio": {"extensions": list(MEDIA_EXT), "path_map": {}},
     "transcribe": {
         "engine": "sensevoice",
         "device": "auto",
@@ -156,6 +155,8 @@ DEFAULTS = {
         # proxies whose X-Forwarded-For names the visitor's address, for IP groups (docs/configuration.md)
         "trusted_proxies": ["127.0.0.0/8", "::1/128"],
     },
+    # audio and video uploaded in the web app, in pieces (docs/configuration.md); transcript files use server.max_upload_mb
+    "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT), "chunk_mb": 8, "expire_hours": 24},
     "workers": {
         "inline": 1,
         "poll_seconds": 2,
@@ -488,6 +489,9 @@ SCHEMA = [
     # address ranges whose visitors see all of a namespace's recordings, or chosen ones (docs/access.md): ip_group:<n>
     "DEFINE TABLE IF NOT EXISTS ip_group SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS ip_group_space ON ip_group FIELDS space",
+    # audio and video arriving in pieces (docs/api.md, Uploads): upload:<random id>
+    "DEFINE TABLE IF NOT EXISTS upload SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS upload_account ON upload FIELDS account",
     "DEFINE TABLE IF NOT EXISTS login_session SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS login_session_account ON login_session FIELDS account",
     "DEFINE INDEX IF NOT EXISTS login_session_sid ON login_session FIELDS sid",

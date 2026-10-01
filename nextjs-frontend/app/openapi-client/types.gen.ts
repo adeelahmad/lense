@@ -5663,6 +5663,137 @@ export type TokenPair = {
 };
 
 /**
+ * Upload
+ */
+export type Upload = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Filename
+   * the name it's stored under
+   */
+  filename: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Size
+   */
+  size: number;
+  /**
+   * Offset
+   * how many bytes have arrived: the next chunk starts here
+   */
+  offset: number;
+  /**
+   * State
+   */
+  state: "receiving" | "done";
+  /**
+   * Recording
+   * the recording it became, once done
+   */
+  recording?: number | null;
+  /**
+   * Job
+   * the processing queued for it, if any
+   */
+  job?: number | null;
+  /**
+   * Duplicate
+   * the namespace already had this file: `recording` is that one
+   */
+  duplicate?: boolean;
+  /**
+   * Created At
+   */
+  created_at: string;
+  /**
+   * Expires At
+   * when it's removed unless more of it arrives (uploads.expire_hours after the last chunk)
+   */
+  expires_at: string;
+  [key: string]:
+    | unknown
+    | string
+    | string
+    | null
+    | number
+    | "receiving"
+    | "done"
+    | number
+    | null
+    | number
+    | null
+    | boolean
+    | undefined;
+};
+
+/**
+ * UploadLimits
+ */
+export type UploadLimits = {
+  /**
+   * Max Mb
+   * the largest audio or video file, in MB (uploads.max_mb)
+   */
+  max_mb: number;
+  /**
+   * Extensions
+   * the audio and video types that can be uploaded (uploads.extensions)
+   */
+  extensions: Array<string>;
+  /**
+   * Chunk Mb
+   * how much the web app sends per request (uploads.chunk_mb)
+   */
+  chunk_mb: number;
+  /**
+   * Transcript Mb
+   * the largest transcript file for POST /import (server.max_upload_mb)
+   */
+  transcript_mb: number;
+  [key: string]: unknown | number | Array<string>;
+};
+
+/**
+ * UploadStart
+ */
+export type UploadStart = {
+  /**
+   * Namespace
+   * a namespace you edit; admins may name a new one, created when the upload finishes
+   */
+  namespace: string;
+  /**
+   * Filename
+   */
+  filename: string;
+  /**
+   * Size
+   * the file's size in bytes
+   */
+  size: number;
+  /**
+   * Title
+   * the recording's title (default: the file's name)
+   */
+  title?: string | null;
+  /**
+   * Modified
+   * the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't
+   */
+  modified?: number | null;
+};
+
+/**
  * UserCreate
  */
 export type UserCreate = {
@@ -8055,6 +8186,160 @@ export type PreviewImportResponses = {
 };
 
 export type PreviewImportResponse = PreviewImportResponses[keyof PreviewImportResponses];
+
+export type UploadLimitsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/uploads/limits";
+};
+
+export type UploadLimitsResponses = {
+  /**
+   * Successful Response
+   */
+  200: UploadLimits;
+};
+
+export type UploadLimitsResponse = UploadLimitsResponses[keyof UploadLimitsResponses];
+
+export type ListUploadsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/uploads";
+};
+
+export type ListUploadsResponses = {
+  /**
+   * Response Uploads-List Uploads
+   * Successful Response
+   */
+  200: Array<Upload>;
+};
+
+export type ListUploadsResponse = ListUploadsResponses[keyof ListUploadsResponses];
+
+export type StartUploadData = {
+  body: UploadStart;
+  path?: never;
+  query?: never;
+  url: "/api/v1/uploads";
+};
+
+export type StartUploadErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type StartUploadError = StartUploadErrors[keyof StartUploadErrors];
+
+export type StartUploadResponses = {
+  /**
+   * Successful Response
+   */
+  201: Upload;
+};
+
+export type StartUploadResponse = StartUploadResponses[keyof StartUploadResponses];
+
+export type CancelUploadData = {
+  body?: never;
+  path: {
+    /**
+     * Uid
+     */
+    uid: string;
+  };
+  query?: never;
+  url: "/api/v1/uploads/{uid}";
+};
+
+export type CancelUploadErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CancelUploadError = CancelUploadErrors[keyof CancelUploadErrors];
+
+export type CancelUploadResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type CancelUploadResponse = CancelUploadResponses[keyof CancelUploadResponses];
+
+export type GetUploadData = {
+  body?: never;
+  path: {
+    /**
+     * Uid
+     */
+    uid: string;
+  };
+  query?: never;
+  url: "/api/v1/uploads/{uid}";
+};
+
+export type GetUploadErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetUploadError = GetUploadErrors[keyof GetUploadErrors];
+
+export type GetUploadResponses = {
+  /**
+   * Successful Response
+   */
+  200: Upload;
+};
+
+export type GetUploadResponse = GetUploadResponses[keyof GetUploadResponses];
+
+export type SendChunkData = {
+  body: Blob | File;
+  path: {
+    /**
+     * Uid
+     */
+    uid: string;
+  };
+  query: {
+    /**
+     * Offset
+     * where this chunk starts in the file: the upload's `offset`
+     */
+    offset: number;
+  };
+  url: "/api/v1/uploads/{uid}";
+};
+
+export type SendChunkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SendChunkError = SendChunkErrors[keyof SendChunkErrors];
+
+export type SendChunkResponses = {
+  /**
+   * Successful Response
+   */
+  200: Upload;
+};
+
+export type SendChunkResponse = SendChunkResponses[keyof SendChunkResponses];
 
 export type SearchTranscriptsData = {
   body?: never;

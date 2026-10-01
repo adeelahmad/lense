@@ -22,6 +22,7 @@ from app.api.v1.routes import (
     sources,
     speakers,
     templates,
+    uploads,
     users,
     video,
 )
@@ -35,6 +36,7 @@ for module in (
     namespaces,
     recordings,
     imports,
+    uploads,
     search,
     speakers,
     entities,

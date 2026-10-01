@@ -18,6 +18,9 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
   HTTPS.
 * **Allowed hosts.** Add your public host name to `server.allowed_hosts` (in the app) or `ARCHIVE_ALLOWED_HOSTS`, next
   to `backend`, the name the frontend uses inside the network.
+* **Uploads through the reverse proxy.** Audio and video go up in pieces of `uploads.chunk_mb` (8 MB); let the reverse
+  proxy pass request bodies at least that big (nginx: `client_max_body_size 16m;`). Finished uploads are kept in
+  `data_dir/uploads`, so size the `archive-data` volume for them. See [Uploads](configuration.md#uploads).
 * **Visitors' addresses, for IP groups.** Have the reverse proxy set `X-Forwarded-For`, and list the web app's address
   (in Docker, the compose network) in `server.trusted_proxies`. See [Trusted proxies](configuration.md#trusted-proxies).
 * **Stable secrets.** `ACCESS_SECRET_KEY` (changing it signs everyone out), `ARCHIVE_SECRET_KEY` (changing it makes

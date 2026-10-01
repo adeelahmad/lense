@@ -184,6 +184,43 @@ POST   /api/v1/import
 POST   /api/v1/import/preview
 ```
 
+### Uploads
+
+Audio and video go up in pieces, so a dropped connection costs one piece, not the file.
+
+```
+GET    /api/v1/uploads/limits
+POST   /api/v1/uploads
+GET    /api/v1/uploads
+GET    /api/v1/uploads/{uid}
+PUT    /api/v1/uploads/{uid}?offset=
+DELETE /api/v1/uploads/{uid}
+```
+
+`GET /limits` tells anyone signed in what can be uploaded: the types (`uploads.extensions`), the largest file
+(`uploads.max_mb`), the piece size the web app sends (`uploads.chunk_mb`) and the largest transcript file for
+`POST /import` (`server.max_upload_mb`).
+
+`POST /uploads {namespace, filename, size, title?, modified?}` starts one (editors of the namespace; admins may name a
+new namespace, created when the upload finishes). The name loses any folders and its extension is lowercased; `modified`
+(the file's last-modified time in milliseconds) dates the recording when its name doesn't. 400 for a type not in
+`uploads.extensions`, 413 over `uploads.max_mb`, 507 when the server's disk can't hold it with 512 MB to spare.
+
+`PUT /uploads/{uid}?offset=` sends the next piece as the raw request body (`application/octet-stream`), starting at
+`offset`: the upload's `offset` is how many bytes have arrived. Pieces stream to a partial file under
+`data_dir/uploads/.partial`; a piece that breaks off is dropped whole, so after a dropped connection the client gets the
+upload and sends from its `offset`. 409 when `offset` isn't where the upload has got to, or while another piece of it
+is arriving. The piece with the last byte moves the file to `data_dir/uploads/<namespace>/<uid>/<name>`, makes it a
+recording and queues the namespace's pipeline: the answer has `state: "done"`, `recording` and `job`. When the namespace
+already has the same file (uploaded, scanned or imported before), no second recording is made: `duplicate` is true and
+`recording` is that one, which gets its media back if it had lost it. Audited as `upload`. Sending the last piece again
+answers the same.
+
+`GET /uploads` lists your unfinished uploads, newest first: choosing the same file for the same namespace again carries
+on from its `offset`. Only the person uploading (and admins) can see, send to or `DELETE` an upload; `DELETE` throws away
+what arrived. An upload nobody has sent a piece to for `uploads.expire_hours` is removed with its partial file. Deleting a
+recording later leaves its uploaded file in place, like any other media file.
+
 ## search
 
 ```

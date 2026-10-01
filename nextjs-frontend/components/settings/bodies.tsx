@@ -273,6 +273,22 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="server.max_upload_mb" />
         </>
       );
+    case "uploads":
+      return (
+        <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <F ctx={ctx} id="uploads.max_mb" />
+            <F ctx={ctx} id="uploads.chunk_mb" />
+            <F ctx={ctx} id="uploads.expire_hours" />
+          </div>
+          <F ctx={ctx} id="uploads.extensions" />
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            Uploads arrive in pieces and carry on where they stopped if the connection drops. Finished files are kept in
+            the server’s data folder, under uploads. Transcript files have their own limit, under Access &amp;
+            embedding; watched folders have no limit.
+          </p>
+        </>
+      );
     case "iiif":
       return <IiifBody ctx={ctx} />;
     case "startup":

@@ -21,6 +21,18 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - `speaker` takes speaker ids. Speakers belong to one namespace, so the web app's speaker filter lists everyone
       who speaks in the namespaces in scope by name and sends every id with that name.
     - The Needs attention and Processing tab counts come from the server too.
+- **Upload audio and video.** Import → Upload takes audio and video as well as transcripts. Files go up in pieces
+  (`uploads.chunk_mb`, 8 MB), each written straight to disk on the server; a piece that fails is sent again, an upload
+  can be paused and resumed, and choosing the same file again after a reload carries on where it stopped. When the
+  last piece arrives the file becomes a recording and the namespace's pipeline is queued; a file the namespace already
+  has finds that recording instead of making a second one. `GET/POST /api/v1/uploads`, `GET/PUT/DELETE
+  /api/v1/uploads/{uid}` and `GET /api/v1/uploads/limits` (docs/api.md); audited as `upload`.
+    - New settings (Settings → Uploads, docs/configuration.md): `uploads.max_mb` (4096), `uploads.extensions` (the
+      types folder scans import), `uploads.chunk_mb` and `uploads.expire_hours` (24: unfinished uploads are then
+      deleted). The transcript limit, `server.max_upload_mb`, is unchanged.
+    - Uploaded files are kept in `data_dir/uploads/<namespace>/`, and an upload is refused (507) when it would leave
+      the disk less than 512 MB free. Deleting a recording leaves its uploaded file, as with any media file.
+    - The Import page reads its limits from the server for everyone, not only admins.
 - **Your own name and password.** Everyone changes their own name on the Profile page, and their password with their
   current one: `PATCH /api/v1/auth/me` and `POST /api/v1/auth/password` (signed in, not with an API token; wrong
   guesses are throttled like sign-ins; audited as `password.change`). A new password ends your other sessions and

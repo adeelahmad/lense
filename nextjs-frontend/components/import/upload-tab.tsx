@@ -15,11 +15,12 @@ import {
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
-import type { SpeakerDirectory } from "@/app/openapi-client/types.gen";
+import type { SpeakerDirectory, Upload as UploadT } from "@/app/openapi-client/types.gen";
 import { extOf, formatName, isUntimed, kindOf, stemOf } from "@/components/import/files";
 import { MappingField, PreviewLines } from "@/components/import/mapping";
 import { chooseFiles, isFileDrag } from "@/components/import/pending";
-import type { Item } from "@/components/import/use-import";
+import { pieceCount, resumeFrom, sentShare } from "@/components/import/upload-model";
+import { isMedia, type Item } from "@/components/import/use-import";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
@@ -74,12 +75,12 @@ export function fileIcon(it: Pick<Item, "file" | "status" | "problem">): LucideI
 export function fileMeta(it: Item): string {
   if (it.status === "reading") return `Reading… · ${bytes(it.file.size)}`;
   if (it.problem) {
-    if (it.problem.code === "audio")
-      return `${it.kind === "video" ? "Video" : "Audio"} · ${bytes(it.file.size)} — can’t upload here`;
     if (it.problem.code === "unsupported") return "Unsupported file type";
     if (it.problem.code === "too-large") return `${bytes(it.file.size)} — over the upload limit`;
     return it.problem.title;
   }
+  if (isMedia(it.kind))
+    return `${it.kind === "video" ? "Video" : "Audio"} · ${bytes(it.file.size)} · transcribed after upload`;
   const pv = it.preview;
   if (!pv) return bytes(it.file.size);
   const parts = [formatName(pv.format).replace(/ \(\.\w+\)$/, ""), plural(pv.segments, "segment")];
@@ -169,7 +170,7 @@ export function FileList({
       >
         <Upload className="size-4 shrink-0 text-blue" aria-hidden />
         <span>
-          {items.length ? "Drop more files, or " : "Drop transcripts here, or "}
+          {items.length ? "Drop more files, or " : "Drop transcripts, audio or video here, or "}
           <button
             type="button"
             className="font-semibold text-blue underline-offset-2 hover:underline"
@@ -223,7 +224,8 @@ export function ProblemCard({
   const Icon = fileIcon(it);
   const red = it.status === "blocked";
   const kindLabel = extOf(it.file.name).slice(1).toUpperCase() || "File";
-  const source = p.code === "audio" || p.code === "too-large";
+  const source = p.code === "too-large";
+  const mediaType = p.code === "unsupported" && isMedia(it.kind);
   return (
     <div
       className={cn("flex flex-col gap-3.5 rounded-lg border border-border bg-background p-5", className)}
@@ -267,6 +269,11 @@ export function ProblemCard({
         ) : (
           <Button size="sm" variant="secondary" onClick={async () => onReplace(await chooseFiles())}>
             Choose another file
+          </Button>
+        )}
+        {mediaType && admin && (
+          <Button asChild size="sm" variant="ghost">
+            <Link href="/settings/uploads">Upload settings</Link>
           </Button>
         )}
         <Button size="sm" variant="ghost" onClick={onRemove}>
@@ -348,10 +355,79 @@ export function FileDetail({
       )}
       {audioTwin && (
         <p className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-secondary">
-          <b className="font-bold text-fg-strong">{audioTwin}</b> from this upload has the same name, but audio can’t be
-          attached here yet — the transcript is imported on its own.
+          <b className="font-bold text-fg-strong">{audioTwin}</b> from this upload has the same name. They become two
+          recordings: this transcript, and the audio, transcribed on its own.
         </p>
       )}
+    </div>
+  );
+}
+
+/** The right pane for audio or video: what will be sent, its title and where it goes. An earlier upload of the same
+ * file that stopped part-way is carried on. */
+export function MediaDetail({
+  it,
+  onPatch,
+  namespace,
+  namespaceControl,
+  pipeline,
+  pieceMb,
+  unfinished,
+}: {
+  it: Item;
+  onPatch: (p: Partial<Item>) => void;
+  namespace: string | null;
+  namespaceControl: ReactNode;
+  pipeline: string;
+  pieceMb: number;
+  unfinished: UploadT[];
+}) {
+  const Icon = fileIcon(it);
+  const earlier = namespace ? resumeFrom(unfinished, it.file, namespace) : null;
+  const pieces = pieceCount(it.file.size, pieceMb);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2.5">
+        <Icon className="size-[18px] text-fg-secondary" aria-hidden />
+        <h2 className="min-w-0 flex-1 truncate text-[15px] font-bold text-fg">{it.file.name}</h2>
+        <Badge tone="neutral" dot>
+          Ready to upload
+        </Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
+        <Stat k="Type" v={`${it.kind === "video" ? "Video" : "Audio"} (${extOf(it.file.name).slice(1)})`} />
+        <Stat k="Size" v={bytes(it.file.size)} />
+        <Stat k="Sent in" v={pieces === 1 ? "one piece" : `${count(pieces)} pieces`} />
+      </div>
+      <p className="text-[13px] leading-[1.5] text-fg-secondary">
+        {earlier ? (
+          <>
+            <b className="font-bold text-fg-strong">
+              An earlier upload of this file stopped at {Math.round(sentShare(earlier.offset, earlier.size) * 100)}%.
+            </b>{" "}
+            Importing carries on from there.
+          </>
+        ) : (
+          <>Sent in pieces: if the connection drops, the upload carries on where it stopped.</>
+        )}{" "}
+        It’s transcribed once it has arrived.
+      </p>
+      <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr]">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-bold text-fg-strong">Title</span>
+          <Input value={it.title} onChange={(e) => onPatch({ title: e.target.value })} maxLength={200} />
+        </label>
+        {namespaceControl}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-bold text-fg-strong">Then run</span>
+          <span
+            className="flex h-10 items-center truncate rounded-sm border border-dashed border-border bg-surface px-3.5 text-[14px] text-fg-secondary"
+            title="Imports run the namespace’s pipeline. Change which one in Pipelines."
+          >
+            {pipeline}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
