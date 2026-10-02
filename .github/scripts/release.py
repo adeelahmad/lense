@@ -114,8 +114,14 @@ def current_version() -> str:
     return match.group(2)
 
 
+def _key(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in version.split("."))
+
+
 def next_version(current: str, bump: str) -> str:
     if SEMVER.match(bump):
+        if SEMVER.match(current) and _key(bump) <= _key(current):
+            fail(f"{bump} isn't newer than the current version {current}")
         return bump
     match = SEMVER.match(current)
     if not match:

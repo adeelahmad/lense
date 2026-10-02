@@ -40,20 +40,37 @@ jobs:
     steps:
       - name: Only from the default branch
         if: github.ref_name != github.event.repository.default_branch
+        env:
+          REF: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          echo "::error::Run the release from ${{ github.event.repository.default_branch }}, not ${{ github.ref_name }}"
+          echo "::error::Run the release from $DEFAULT_BRANCH, not $REF"
           exit 1
 
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.RELEASE_TOKEN || github.token }}
+          ref: ${{ github.ref }} # the branch as it is now, not when the run started, so a re-run sees its own commit
           fetch-depth: 0 # the history and tags since the last release
 
       - name: Move Unreleased under the new version
         id: cut
         env:
           BUMP: ${{ inputs.bump }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          # a run whose push went through but whose release didn't (re-run, or run again): publish that version
+          subject=$(git log -1 --format=%s)
+          if [[ "$subject" == "chore(release): v"* ]]; then
+            tag="${subject#chore(release): }"
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null \
+              && ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "::notice::$tag is committed and tagged but not released yet; publishing it"
+              echo "tag=$tag" >> "$GITHUB_OUTPUT"
+              echo "resume=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
           version=$(python3 .github/scripts/release.py cut "$BUMP")
           git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null \
             && { echo "::error::Tag v$version already exists"; exit 1; }
@@ -61,6 +78,7 @@ jobs:
           git diff --stat
 
       - name: Commit and tag
+        if: steps.cut.outputs.resume != 'true'
         env:
           TAG: ${{ steps.cut.outputs.tag }}
         run: |
@@ -69,16 +87,14 @@ jobs:
           git commit -am "chore(release): $TAG"
           git tag "$TAG"
           # one push, so the tag never exists without the commit on the branch. With RELEASE_TOKEN this tag push
-          # starts this workflow again; the publish job skips "chore(release): v…" commits, published from here.
+          # starts this workflow again; that run waits for this one (concurrency) and finds the release published.
           git push --atomic origin "HEAD:${GITHUB_REF_NAME}" "refs/tags/$TAG"
 
   publish:
     name: Publish ${{ needs.cut.outputs.tag || github.ref_name }}
     needs: cut
-    # after the cut, or for a tag pushed by hand (not one the cut job pushed with RELEASE_TOKEN)
-    if: >-
-      always() && (needs.cut.result == 'success'
-      || (github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore(release): v')))
+    # after the cut, or for a pushed tag
+    if: always() && (needs.cut.result == 'success' || github.event_name == 'push')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -112,7 +128,12 @@ jobs:
             echo "EXISTING=true" >> "$GITHUB_ENV"
             exit 0
           fi
-          gh release create "$TAG" --verify-tag --title "$TAG" --latest "$NOTES"
+          # the newest version is marked Latest (what the Proxmox script installs); a backport isn't
+          newest=$(gh release list --exclude-drafts --exclude-pre-releases --limit 100 --json tagName --jq '.[].tagName' \
+            | { cat; echo "$TAG"; } | sort -V | tail -1)
+          latest=false
+          [ "$newest" != "$TAG" ] || latest=true
+          gh release create "$TAG" --verify-tag --title "$TAG" --latest="$latest" "$NOTES"
 
       - name: Start the package workflows
         # RELEASE_TOKEN's release fires `release: published` in them already

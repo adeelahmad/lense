@@ -73,6 +73,9 @@ performance, reverts, dependencies and other changes; `docs`, `refactor`, `test`
 `nextjs-frontend/package.json` and `CloudronManifest.json`, commits that to `main` as `chore(release): vX.Y.Z`, tags
 it and publishes the GitHub release with that section as its notes. Pushing a `vX.Y.Z` tag yourself publishes it the
 same way, without the commit. `python3 .github/scripts/release.py cut auto` shows locally what it would write.
+An exact version must be newer than the current one, and only the newest version is marked Latest. If a run pushed its
+commit and tag but failed before publishing, run it again (or re-run it): it publishes that version instead of
+cutting another.
 
 Publishing starts the package builds (Cloudron, QNAP, Synology), which attach their files to the release; the
 Proxmox script installs the latest release. If `main` is protected, add a `RELEASE_TOKEN` secret: a fine-grained
