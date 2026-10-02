@@ -4,6 +4,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **MCP server: agents search, read and cite the archive.** Add `https://<your Lens>/mcp` to Claude, Cursor, VS Code
+  or another MCP client, sign in on Lens's consent page (OAuth), and the agent sees what you see: your namespaces,
+  the collections you were given a role on, and their graphs. Read-only tools: `search` (moments said, on screen or
+  written, with links to each), `list_namespaces`, `list_recordings`, `list_speakers`, `get_recording` (summary,
+  chapters, entities), `get_transcript` (paged), `fetch` (the whole text), `cite` (the words, who said them, the
+  time and a link, as Markdown), `list_entities`, `get_entity`, `explore_graph` and `find_path`. Links open the
+  recording at that moment in the web app. Streamable HTTP without sessions, in both protocol eras (the 2025
+  `initialize` handshake and 2026-07-28's per-request envelope); an API token works for clients that can't sign in
+  (docs/mcp.md).
 - **Opt-in telemetry.** Lens can send OpenTelemetry traces and metrics about its own work to a collector you choose:
   API requests by route, jobs and each step, routines, workflow runs, and model calls with their tokens and an
   estimated cost (from per-model prices you set). It is off by default and never on unless you turn it on, in

@@ -85,11 +85,12 @@ def test_discovery_says_where_everything_is(client, app):
         "resource": "https://lens.example.org/mcp",
         "authorization_servers": ["https://lens.example.org"],
         "bearer_methods_supported": ["header"],
-        "scopes_supported": ["read", "write"],
+        "scopes_supported": ["read"],  # the MCP server only reads
         "resource_name": "Lens",
     }
     assert web.get("/.well-known/oauth-protected-resource/a b<c", headers=via).status_code == 404
-    assert client.get("/.well-known/oauth-protected-resource").json()["resource"] == "http://127.0.0.1"
+    res = client.get("/.well-known/oauth-protected-resource").json()
+    assert res["resource"] == "http://127.0.0.1" and res["scopes_supported"] == ["read", "write"]
     # a forwarded host that isn't a host name, or one from an address that isn't a trusted proxy, names nothing:
     # the web app is then where FRONTEND_URL says
     bad = {"x-forwarded-host": "evil.example/x?y", "x-forwarded-proto": "https"}

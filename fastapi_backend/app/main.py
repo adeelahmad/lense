@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.iiif import router as iiif_router
+from app.api.mcp import router as mcp_router
 from app.api.pages import router as pages_router
 from app.api.v1.router import api_router
 from app.api.v1.routes.oauth import bearer_challenge
@@ -84,6 +85,7 @@ def create_app(cfg: dict[str, Any] | None = None, db: store.DB | None = None, ba
 
     app.include_router(api_router, prefix="/api/v1")
     app.include_router(oauth_well_known)
+    app.include_router(mcp_router)
     app.add_exception_handler(StarletteHTTPException, bearer_challenge)  # type: ignore[arg-type]
     app.include_router(iiif_router)
     app.include_router(pages_router)
