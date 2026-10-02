@@ -748,7 +748,7 @@ def _entities(
     "it most, and the lines that mention it (newest first), each with a url to that moment.",
     Arg("entity_id", "integer", "the entity (from list_entities, get_recording or the graph)", required=True),
     Arg("mentions", "integer", "how many mentioning lines", default=10, minimum=0, maximum=100),
-    Arg("mentions_offset", "integer", "skip this many lines (for the next page)", default=0, minimum=0),
+    Arg("mentions_offset", "integer", "skip this many lines (for the next page)", default=0, minimum=0, maximum=10000),
     Arg("sort", "string", "the lines' order", default="newest", enum=("newest", "oldest", "most")),
 )
 def get_entity(ctx: Context, entity_id: int, mentions: int, mentions_offset: int, sort: str) -> dict[str, Any]:

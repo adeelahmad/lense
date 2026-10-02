@@ -52,6 +52,7 @@ class Principal:
     sid: str | None = None
     roles: dict[int, str] = field(default_factory=dict)
     collections: dict[int, dict[int, str]] = field(default_factory=dict)  # roles on collections: {space: {collection: role}}
+    resource: str | None = None  # an app's token: the server it was given for (RFC 8707), when the app named one
 
     @property
     def can_write(self) -> bool:
@@ -76,7 +77,7 @@ def _principal(request: Request, db: DB) -> Principal | None:
     elif raw.startswith("lo_"):
         u = oauth.token_account(db, raw)
         if u:
-            p = Principal(u["id"], u["email"], u.get("name"), bool(u.get("admin")), "oauth", u["scope"])
+            p = Principal(u["id"], u["email"], u.get("name"), bool(u.get("admin")), "oauth", u["scope"], resource=u.get("resource"))
     elif raw:
         claims = security.decode_access_token(raw)
         u = auth.active_account(db, claims.account) if claims and auth.session_active(db, claims.sid) else None
