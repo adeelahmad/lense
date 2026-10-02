@@ -1,0 +1,20 @@
+{
+  "data-share": {
+    "shares": [
+      {
+        "name": "lens",
+        "permission": { "rw": ["lens"] }
+      }
+    ]
+  },
+  "docker-project": {
+    "preload-image": "images/lens-images.tar.gz",
+    "projects": [
+      {
+        "name": "lens",
+        "path": "compose",
+        "build_params": { "force_pull": false, "build": false, "force_recreate": true }
+      }
+    ]
+  }
+}

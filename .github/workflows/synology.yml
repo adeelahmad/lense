@@ -1,0 +1,40 @@
+name: Synology package
+
+# Run from the Actions tab; the .spk files are attached to the run.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Backend image: lean, or full (LibreOffice and Chromium; a much bigger package)"
+        default: lean
+        type: choice
+        options: [lean, full]
+      build:
+        description: "Package build number (raise it to upgrade an installed package of the same version)"
+        default: "0001"
+
+jobs:
+  spk:
+    name: SPK (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x86_64, armv8]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+        if: matrix.arch == 'armv8'
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+      - name: Build
+        env:
+          ARCH: ${{ matrix.arch }}
+          LENS_TARGET: ${{ inputs.target }}
+          BUILD: ${{ inputs.build }}
+        run: packaging/synology/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lens-synology-${{ matrix.arch }}
+          path: dist/synology/*.spk
+          compression-level: 0
