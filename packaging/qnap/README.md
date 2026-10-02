@@ -30,6 +30,11 @@ packaging/qnap/build.sh --arch arm_64      # ARM NAS:       packaging/qnap/build
 - `--prebuilt` packages the `lens-backend:<version>` and `lens-frontend:<version>` images already in Docker instead
   of building them (from CI, say).
 
+Releases get the packages automatically: publishing a GitHub release runs `.github/workflows/qnap.yml`, which builds
+both and attaches `Lens_<tag>_x86_64.qpkg` and `Lens_<tag>_arm_64.qpkg` to it (run it by hand from the Actions tab,
+with a tag, to rebuild them). The ARM package is built under QEMU, which is slow; set the repository variable
+`QNAP_ARM_RUNNER` to an ARM runner (`ubuntu-24.04-arm`) if the repository has one.
+
 ## Install on the NAS
 
 1. Install **Container Station** from the App Center and open it once, so it finishes its setup.

@@ -1,0 +1,67 @@
+name: QNAP packages
+
+# Builds the Lens QPKGs (packaging/qnap) for Intel/AMD and ARM NAS and attaches them to the release.
+# Runs when a release is published (release.yml makes the draft; publishing it starts this), or by hand for a tag.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and attach the packages to"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qnap-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  qpkg:
+    name: QPKG ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          # Built under QEMU unless the repository variable QNAP_ARM_RUNNER names an ARM runner (ubuntu-24.04-arm)
+          - arch: arm_64
+            runner: ${{ vars.QNAP_ARM_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 300
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Make room for the images
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          docker system prune -af >/dev/null
+          df -h /
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker  # images go straight into the local Docker, where build.sh saves them from
+
+      - name: Build the package
+        run: |
+          version="${TAG#v}"
+          packaging/qnap/build.sh --arch "${{ matrix.arch }}" --version "$version"
+
+      - name: Attach to the release
+        run: |
+          ls -lh packaging/qnap/build/
+          # GitHub release assets are limited to 2 GiB each
+          for f in packaging/qnap/build/*.qpkg; do
+            [ "$(stat -c %s "$f")" -lt 2147483648 ] || { echo "::error::$f is over 2 GiB, too big for a release asset"; exit 1; }
+          done
+          gh release upload "$TAG" packaging/qnap/build/*.qpkg packaging/qnap/build/*.qpkg.md5 --clobber
