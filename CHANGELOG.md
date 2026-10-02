@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Imports no longer wait forever at "shots" on a native setup.** `archive.yaml` written from the example before the
+  video steps existed lists no `shots`, `ocr`, `faces`, `objects` or `describe` in `workers.steps`, so no worker
+  took them. A worker with such a list now runs them too, a worker whose list leaves steps out says so when it
+  starts, and the example lists every step.
 - **Watched folders and routines work in Docker and the packages.** They were checked only by the API's own
   background work, which Docker, Synology, QNAP, Cloudron and Proxmox all turn off in favour of a `lens worker`
   process; so folders were never scanned and routines never ran. `lens worker` now does both (not a worker limited
