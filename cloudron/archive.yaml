@@ -1,0 +1,9 @@
+# Lens processing configuration on Cloudron. Written to /app/data/archive.yaml on first start and yours to edit
+# afterwards (restart the app to apply). Every key is documented in fastapi_backend/archive.example.yaml; most
+# settings can also be changed in the web app.
+data_dir: /app/data/archive        # reports, frames, uploads, model caches, locks
+workers:
+  inline: 0                        # the worker process does the work
+sources:
+  # folders the web app may watch: put recordings in /app/data/media (Cloudron's file manager, or `cloudron push`)
+  local_roots: [/app/data/media]

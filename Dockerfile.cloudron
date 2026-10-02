@@ -1,0 +1,65 @@
+# Lens as one Cloudron app: SurrealDB, the API, a job worker and the Next.js web app in one container, run by
+# supervisord. Only the web app (port 3000) is public; it proxies the API's paths (lib/api/backend-proxy.ts).
+# Build and install: see cloudron/README.md.
+#   --build-arg EXTRAS="sensevoice voices"   optional backend extras, as in fastapi_backend/Dockerfile
+#   --build-arg FULL=true                    LibreOffice and fonts, to read Office files, text, saved web pages and emails
+#                                            (no Chromium: Ubuntu 24.04's apt package is a snap stub, so no web capture)
+
+FROM cloudron/base:5.1.0@sha256:1c0666c9abe9e2090d33686826d4e97769b799124573118d41e0d7485135748e AS frontend
+ENV PATH="/usr/local/node-24.19.0/bin:$PATH" COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+WORKDIR /app
+RUN corepack enable
+COPY nextjs-frontend/package.json nextjs-frontend/pnpm-lock.yaml nextjs-frontend/pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY nextjs-frontend/ ./
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN AUTH_SECRET=build-only pnpm build && pnpm prune --prod && rm -rf .next/cache
+
+FROM cloudron/base:5.1.0@sha256:1c0666c9abe9e2090d33686826d4e97769b799124573118d41e0d7485135748e
+
+ARG EXTRAS=""
+ARG FULL=false
+
+# tesseract: text on screen; antiword + poppler: legacy .doc and PDF fallbacks (ffmpeg is in the base image)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tesseract-ocr antiword poppler-utils \
+    && if [ "$FULL" = "true" ]; then apt-get install -y --no-install-recommends \
+         libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui \
+         fonts-dejavu-core fonts-liberation2 fonts-noto-core fonts-noto-cjk; fi \
+    && case " $EXTRAS " in *" doctr "*) apt-get install -y --no-install-recommends libgl1 libglib2.0-0;; esac \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=surrealdb/surrealdb:v3.2.4 /surreal /usr/local/bin/surreal
+COPY --from=rclone/rclone:1.75.1 /usr/local/bin/rclone /usr/local/bin/rclone
+COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /usr/local/bin/uv
+
+ENV PATH="/app/code/venv/bin:/usr/local/node-24.19.0/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    NEXT_TELEMETRY_DISABLED=1
+
+# The backend, in a virtualenv built against the base image's Python 3.12
+WORKDIR /app/code/backend
+COPY fastapi_backend/pyproject.toml fastapi_backend/uv.lock fastapi_backend/README.md ./
+RUN UV_PROJECT_ENVIRONMENT=/app/code/venv UV_PYTHON_DOWNLOADS=never UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
+    uv sync --frozen --no-dev --no-install-project --python /usr/bin/python3.12 \
+      $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done)
+COPY fastapi_backend/ ./
+RUN UV_PROJECT_ENVIRONMENT=/app/code/venv UV_PYTHON_DOWNLOADS=never UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
+    uv sync --frozen --no-dev --python /usr/bin/python3.12 \
+      $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done) \
+    && rm -rf /root/.cache
+
+# The web app, built in the stage above; Next writes its cache to /run (the code is read-only on Cloudron)
+WORKDIR /app/code/frontend
+COPY --from=frontend /app/package.json /app/next.config.mjs ./
+COPY --from=frontend /app/node_modules ./node_modules
+COPY --from=frontend /app/.next ./.next
+COPY --from=frontend /app/public ./public
+RUN ln -s /run/lens/next-cache .next/cache
+
+COPY cloudron/start.sh cloudron/supervisord.conf cloudron/archive.yaml cloudron/export-db.sh /app/code/cloudron/
+RUN chmod +x /app/code/cloudron/*.sh
+
+WORKDIR /app/code
+CMD [ "/app/code/cloudron/start.sh" ]
