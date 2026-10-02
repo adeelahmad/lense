@@ -98,6 +98,14 @@ def _export(db, cfg, rid, say, spec=None):
     pipelines.run_export(db, cfg, rid, spec, say)
 
 
+def _workflow(db, cfg, rid, say, spec=None):
+    from . import workflows
+
+    done = workflows.run(db, cfg, rid, int(spec["workflow"]), spec.get("version"), say)
+    ran = sum(1 for v in done.values() if v == "done") - 1  # not counting the input
+    say(f"workflow ran {ran} of {len(done) - 1} nodes")
+
+
 def _shots(db, cfg, rid, say, spec=None):
     from . import video
 
@@ -141,6 +149,7 @@ STEPS = {
     "report": _report,
     "llm": _llm,
     "export": _export,
+    "workflow": _workflow,
 }
 
 
@@ -151,7 +160,9 @@ def enqueue(db, rid, steps=None, by=None, priority=0, pipeline=None, batch=None)
         raise KeyError(rid)
     ref = None
     if steps is None:
-        steps, ref = pipelines.resolve(db, rec["space"], pipeline)
+        from . import content_types
+
+        steps, ref = pipelines.resolve(db, rec["space"], pipeline, None if pipeline else content_types.of_recording(db, rid)[0])
     steps = [_spec(s) for s in steps]
     if not steps or any(s.get("type") not in STEPS for s in steps):
         raise ValueError(f"steps are {', '.join(STEPS)}")
@@ -213,8 +224,15 @@ def steps_for(rec):
 
 
 def enqueue_pending(db, space=None, by=None):
+    """Queue what scans and imports left waiting. A new file runs the pipeline its content type and namespace resolve
+    to, as an upload does; a transcript imported part-way runs what's left after import."""
     q = "SELECT record::id(id) AS id, status, source FROM recording WHERE status IN ['new', 'error', 'transcribed', 'diarized']"
-    return [enqueue(db, r["id"], steps_for(r), by) for r in db.rows(q + (" AND space = $s" if space else ""), s=space) if steps_for(r)]
+    out = []
+    for r in db.rows(q + (" AND space = $s" if space else ""), s=space):
+        steps = steps_for(r)
+        if steps:
+            out.append(enqueue(db, r["id"], None if steps is PIPELINE else steps, by))
+    return out
 
 
 def claim(db, worker, can):
@@ -686,6 +704,8 @@ class Worker:
         self.db, self.cfg_fn, self.log = db, cfg_fn, log
         self.name = name or f"{socket.gethostname()}-{os.getpid()}"
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
+        if "llm" in self.can:  # a workflow needs what an llm step needs; lists written before workflows existed run them too
+            self.can.add("workflow")
         self.was_paused = False
 
     def register(self, current=None):
