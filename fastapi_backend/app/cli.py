@@ -256,6 +256,7 @@ def platform_main(argv, config):
             else:
                 print(f"worker {wk.name} runs {', '.join(sorted(wk.can))}; Ctrl-C to stop")
                 stop = threading.Event()
+                _stop_on_term()
                 try:
                     wk.loop(stop)
                 except KeyboardInterrupt:
@@ -264,6 +265,7 @@ def platform_main(argv, config):
             print(f"scanned {sources.poll_due(db, C(), print)} folder(s)")
         else:
             print("watching storage sources; Ctrl-C to stop")
+            _stop_on_term()
             try:
                 while True:
                     sources.poll_due(db, C(), print)
@@ -274,6 +276,17 @@ def platform_main(argv, config):
         raise SystemExit(str(e)) from None
     finally:
         db.close()
+
+
+def _stop_on_term():
+    """`docker stop` and service managers send TERM: stop as Ctrl-C does. (As a container's first process Python
+    would otherwise ignore it, and be killed ten seconds later.)"""
+    import signal
+
+    def stop(*_):
+        raise KeyboardInterrupt
+
+    signal.signal(signal.SIGTERM, stop)
 
 
 def main(argv=None):

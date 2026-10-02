@@ -11,7 +11,7 @@
           "auth"
         ],
         "summary": "Status",
-        "description": "Whether the archive still needs its first admin (the sign-in page shows the setup form instead).",
+        "description": "Whether the archive still needs its first admin (the sign-in page shows the setup form instead), and whether\nthe first-run wizard is still to be finished (the web app takes admins there).",
         "operationId": "status",
         "responses": {
           "200": {
@@ -982,6 +982,196 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Started"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Get Setup",
+        "description": "What is set already, and which fields .env or archive.yaml locks.",
+        "operationId": "get_setup",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/namespace": {
+      "post": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Save Namespace",
+        "description": "Create the first namespace (or set the graph mode of one that exists).",
+        "operationId": "save_namespace",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupNamespace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/llm": {
+      "put": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Save Llm",
+        "description": "The model provider: an OpenAI-compatible server's address, the model, and its key (empty: unchanged).",
+        "operationId": "save_llm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupLlm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/storage": {
+      "put": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Save Storage",
+        "description": "The upload limit, and optionally a folder on this machine (inside sources.local_roots) to watch.",
+        "operationId": "save_storage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupStorage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/finish": {
+      "post": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Finish",
+        "description": "Finish (or skip) the wizard; the web app stops showing it. Everything stays changeable in Settings.",
+        "operationId": "finish",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupFinish"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -13134,6 +13324,11 @@
           "setup_required": {
             "type": "boolean",
             "title": "Setup Required"
+          },
+          "wizard_pending": {
+            "type": "boolean",
+            "title": "Wizard Pending",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -24268,6 +24463,145 @@
         "title": "SegmentUpdate",
         "description": "Send ``text``, ``speaker`` (a speaker id in the same namespace, or null), or both."
       },
+      "SetupAdmin": {
+        "properties": {
+          "from_env": {
+            "type": "boolean",
+            "title": "From Env"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "from_env"
+        ],
+        "title": "SetupAdmin"
+      },
+      "SetupFinish": {
+        "properties": {
+          "skipped": {
+            "type": "boolean",
+            "title": "Skipped",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SetupFinish"
+      },
+      "SetupLlm": {
+        "properties": {
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SetupLlm"
+      },
+      "SetupLlmView": {
+        "properties": {
+          "values": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Values"
+          },
+          "locked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Locked"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "values",
+          "locked"
+        ],
+        "title": "SetupLlmView"
+      },
+      "SetupNamespace": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 41,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "graph": {
+            "type": "string",
+            "enum": [
+              "shared",
+              "isolated"
+            ],
+            "title": "Graph",
+            "default": "shared"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SetupNamespace"
+      },
+      "SetupNamespaceView": {
+        "properties": {
+          "existing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Existing"
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "existing",
+          "locked"
+        ],
+        "title": "SetupNamespaceView"
+      },
       "SetupRequest": {
         "properties": {
           "code": {
@@ -24302,6 +24636,150 @@
           "password"
         ],
         "title": "SetupRequest"
+      },
+      "SetupSaved": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "saved": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Saved",
+            "default": []
+          },
+          "watch": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Watch"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "SetupSaved"
+      },
+      "SetupStorage": {
+        "properties": {
+          "max_upload_mb": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Upload Mb"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SetupStorage"
+      },
+      "SetupStorageView": {
+        "properties": {
+          "data_dir": {
+            "type": "string",
+            "title": "Data Dir"
+          },
+          "database": {
+            "type": "string",
+            "title": "Database"
+          },
+          "embedded": {
+            "type": "boolean",
+            "title": "Embedded"
+          },
+          "local_roots": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Local Roots"
+          },
+          "max_upload_mb": {
+            "type": "integer",
+            "title": "Max Upload Mb"
+          },
+          "watches": {
+            "type": "integer",
+            "title": "Watches"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "data_dir",
+          "database",
+          "embedded",
+          "local_roots",
+          "max_upload_mb",
+          "watches"
+        ],
+        "title": "SetupStorageView"
+      },
+      "SetupView": {
+        "properties": {
+          "pending": {
+            "type": "boolean",
+            "title": "Pending"
+          },
+          "admin": {
+            "$ref": "#/components/schemas/SetupAdmin"
+          },
+          "namespace": {
+            "$ref": "#/components/schemas/SetupNamespaceView"
+          },
+          "llm": {
+            "$ref": "#/components/schemas/SetupLlmView"
+          },
+          "storage": {
+            "$ref": "#/components/schemas/SetupStorageView"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "pending",
+          "admin",
+          "namespace",
+          "llm",
+          "storage"
+        ],
+        "title": "SetupView"
       },
       "Share": {
         "properties": {

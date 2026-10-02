@@ -25,7 +25,7 @@ function sentence(s: string): string {
   return t ? t[0].toUpperCase() + t.slice(1) + (/[.!?]$/.test(t) ? "" : ".") : t;
 }
 
-/** Creates the first admin with the one-time code from the server log, then signs in. */
+/** Creates the first admin with the one-time code from the server log, signs in, and opens the setup wizard. */
 export async function setup(_prev: FormState, formData: FormData): Promise<FormState> {
   const validated = setupSchema.safeParse({
     code: formData.get("code") ?? "",
@@ -55,6 +55,6 @@ export async function setup(_prev: FormState, formData: FormData): Promise<FormS
     };
   }
 
-  await signIn("credentials", { email, password, redirectTo: "/" });
+  await signIn("credentials", { email, password, redirectTo: "/welcome" });
   return undefined;
 }
