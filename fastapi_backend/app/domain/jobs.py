@@ -13,7 +13,7 @@ import socket
 import threading
 import time
 
-from . import analyze, ingest, pipelines, render, speakers as spk, store
+from . import analyze, ingest, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
 PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "summarize", "report"]
@@ -435,6 +435,7 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
         return time.time()
 
     def finished(k, outcome, note, t0, outputs=None):
+        telemetry.record("lens.job.step.duration", time.time() - t0, {"lens.step": _spec(steps[k])["type"], "lens.step.outcome": outcome})
         runs[k] = store.clean(
             {
                 **runs[k],
@@ -512,15 +513,17 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
                 i, t0 = i + 1, None
                 continue
             before = _saved(db, rid)
-            try:
-                STEPS[step](db, cfg_fn(), rid, say, spec)
-            except Skip as e:
-                say(f"{step} skipped: {e}")
-                finished(i, "skipped", str(e), t0, _outputs(before, _saved(db, rid)))
-            else:
-                note = said[0]
-                say(f"{spec.get('name') or step} done in {time.time() - t0:.1f}s")
-                finished(i, "done", note, t0, _outputs(before, _saved(db, rid)))
+            with telemetry.span(f"step {step}", {"lens.step": step, "lens.step.index": i, "lens.job.id": str(jid)}) as sp:
+                try:
+                    STEPS[step](db, cfg_fn(), rid, say, spec)
+                except Skip as e:
+                    say(f"{step} skipped: {e}")
+                    finished(i, "skipped", str(e), t0, _outputs(before, _saved(db, rid)))
+                else:
+                    note = said[0]
+                    say(f"{spec.get('name') or step} done in {time.time() - t0:.1f}s")
+                    finished(i, "done", note, t0, _outputs(before, _saved(db, rid)))
+                sp.set_attribute("lens.step.outcome", runs[i]["outcome"])
             _timed(db, rid, spec, runs[i]["seconds"], runs[i]["outcome"] == "skipped")
             i, t0 = i + 1, None
     except (Exception, SystemExit) as e:  # noqa: BLE001 - recorded on the job; SystemExit too (a missing engine says so)
@@ -738,7 +741,17 @@ class Worker:
         if not job:
             return False
         self.register(job["id"])
-        run_job(self.db, self.cfg_fn, job, self.name, self.can, self.log)
+        pipe = job.get("pipeline") if isinstance(job.get("pipeline"), dict) else {}
+        attrs = {
+            "lens.job.id": str(job["id"]),
+            "lens.recording.id": str(job["recording"]),
+            "lens.pipeline.id": str(pipe["id"]) if pipe.get("id") is not None else ("standard" if pipe else None),
+            "lens.pipeline.version": pipe.get("version"),
+        }
+        with telemetry.span("job", attrs) as sp:
+            outcome = run_job(self.db, self.cfg_fn, job, self.name, self.can, self.log)
+            sp.set_attribute("lens.job.outcome", outcome)
+        telemetry.record("lens.jobs", 1, {"lens.job.outcome": outcome})
         self.register()
         return True
 

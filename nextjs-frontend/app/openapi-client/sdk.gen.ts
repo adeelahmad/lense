@@ -81,6 +81,10 @@ import type {
   UpdateSettingsErrors,
   TestLlmData,
   TestLlmResponses,
+  TelemetryStatusData,
+  TelemetryStatusResponses,
+  TestTelemetryData,
+  TestTelemetryResponses,
   ListAuditData,
   ListAuditResponses,
   ListAuditErrors,
@@ -104,6 +108,9 @@ import type {
   SaveStorageData,
   SaveStorageResponses,
   SaveStorageErrors,
+  SaveTelemetryData,
+  SaveTelemetryResponses,
+  SaveTelemetryErrors,
   FinishData,
   FinishResponses,
   FinishErrors,
@@ -1274,6 +1281,32 @@ export class Admin {
   }
 
   /**
+   * Telemetry Status
+   * Whether telemetry is on, where it goes, and how the API process's last exports went. Off by default.
+   */
+  public static telemetryStatus<ThrowOnError extends boolean = false>(
+    options?: Options<TelemetryStatusData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<TelemetryStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/telemetry/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Telemetry
+   * Send one test span to the saved endpoint now (on or off), to check the address and headers.
+   */
+  public static testTelemetry<ThrowOnError extends boolean = false>(
+    options?: Options<TestTelemetryData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).post<TestTelemetryResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/telemetry/test",
+      ...options,
+    });
+  }
+
+  /**
    * List Audit
    * Who changed what, newest first.
    */
@@ -1384,6 +1417,21 @@ export class Setup {
   public static saveStorage<ThrowOnError extends boolean = false>(options: Options<SaveStorageData, ThrowOnError>) {
     return (options.client ?? client).put<SaveStorageResponses, SaveStorageErrors, ThrowOnError>({
       url: "/api/v1/setup/storage",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Save Telemetry
+   * Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector). Off unless chosen.
+   */
+  public static saveTelemetry<ThrowOnError extends boolean = false>(options: Options<SaveTelemetryData, ThrowOnError>) {
+    return (options.client ?? client).put<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError>({
+      url: "/api/v1/setup/telemetry",
       ...options,
       headers: {
         "Content-Type": "application/json",

@@ -31,6 +31,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `LENS_NAMESPACE` | | create the first namespace at startup, while there is none |
 | `LENS_LLM_BASE_URL` / `LENS_LLM_MODEL` / `LENS_LLM_API_KEY` / `LENS_LLM_VISION_MODEL` | | the model provider; wins over Settings, which show these locked |
 | `LENS_SETUP_WIZARD` | | `off`: never show the setup wizard |
+| `LENS_TELEMETRY` / `LENS_TELEMETRY_ENDPOINT` / `LENS_TELEMETRY_HEADERS` | off | opt-in OpenTelemetry traces and metrics, sent only to this OTLP/HTTP endpoint ([Telemetry](telemetry.md)); `LENS_TELEMETRY=off` keeps it off whatever Settings say |
 | `FRONTEND_URL` | `http://localhost:3000` | the web app's address as people use it: links in emails, and where apps send people to sign in ([OAuth](authentication.md#oauth)) |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | origins allowed to call the API from a browser |
 | `OPENAPI_URL` | `/openapi.json` | `""` disables `/docs` and the schema |

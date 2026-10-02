@@ -71,6 +71,7 @@ nav:
   - Video: video.md
   - Chat and batch runs: assistant.md
   - Notifications: notifications.md
+  - Telemetry: telemetry.md
   - IIIF: iiif.md
   - API: api.md
   - API work the design needs: backend-gaps.md

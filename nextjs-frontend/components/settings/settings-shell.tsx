@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
+  Activity,
   AudioLines,
   Bell,
   Bot,
@@ -48,6 +49,7 @@ const ICON: Record<SectionId, LucideIcon> = {
   workers: Cpu,
   access: ShieldCheck,
   notifications: Bell,
+  telemetry: Activity,
   uploads: Upload,
   documents: FileType,
   tokens: KeyRound,

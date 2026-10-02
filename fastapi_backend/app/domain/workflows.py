@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import re
 
-from . import analyze, fields as fieldmod, llm, metadata, organize, pipelines, store, templates
+from . import analyze, fields as fieldmod, llm, metadata, organize, pipelines, store, telemetry, templates
 
 R = store.R
 RECORDING_NODES = ("input", "llm", "pick", "condition", "merge", "extract_rules", "extract_llm", "output", "field", "save_entities")
@@ -437,6 +437,18 @@ def save_entities(db, cfg, rid, ents):
 def run(db, cfg, rid, wid, version=None, say=print, user=None):
     """Run one version (default: the current one) of a workflow on a recording. Returns what each node did:
     {node id: done | skipped}."""
+    attrs = {"lens.workflow.id": str(wid), "lens.workflow.version": version, "lens.recording.id": str(rid)}
+    with telemetry.span("workflow", attrs):
+        try:
+            out = _run(db, cfg, rid, wid, version, say, user)
+        except Exception:
+            telemetry.record("lens.workflow.runs", 1, {"lens.outcome": "failed"})
+            raise
+    telemetry.record("lens.workflow.runs", 1, {"lens.outcome": "done"})
+    return out
+
+
+def _run(db, cfg, rid, wid, version, say, user):
     w = get(db, wid, version)
     if w["scope"] != "recording":
         raise ValueError(f"workflow {w['name']} organises the graph; a routine runs it, not a pipeline")

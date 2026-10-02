@@ -11,6 +11,8 @@ import time
 import urllib.error
 import urllib.request
 
+from . import telemetry
+
 
 class LLMError(RuntimeError):
     pass
@@ -91,8 +93,8 @@ def chat(cfg, messages, model=None, max_tokens=None, temperature=0.2):
     payload = {"model": model or cfg["llm"]["model"], "messages": messages, "temperature": temperature}
     if max_tokens:
         payload["max_tokens"] = max_tokens
-    with _post(cfg, payload) as r:
-        return _content(_load(r))
+    with telemetry.model_call(cfg, payload) as call, _post(cfg, payload) as r:
+        return _content(call.reply(_load(r)))
 
 
 def _visible(pieces):
@@ -125,10 +127,18 @@ def stream_chat(cfg, messages, model=None, temperature=0.2):
 
 
 def _stream(cfg, model, messages, temperature):
-    r = _post(cfg, {"model": model, "messages": messages, "temperature": temperature, "stream": True})
+    payload = {"model": model, "messages": messages, "temperature": temperature, "stream": True}
+    # not the current span: the generator may resume in another thread (a streamed response)
+    call = telemetry.model_call(cfg, payload, current=False)
+    error = None
+    try:
+        r = _post(cfg, payload)
+    except LLMError as e:
+        call.end(e)
+        raise
     try:
         if "text/event-stream" not in (r.headers.get("Content-Type") or ""):
-            yield _content(_load(r))  # the server ignored stream=true
+            yield _content(call.reply(_load(r)))  # the server ignored stream=true
             return
         finished = False
         try:
@@ -141,7 +151,8 @@ def _stream(cfg, model, messages, temperature):
                     finished = True
                     break
                 try:
-                    choice = json.loads(data)["choices"][0]
+                    chunk = call.reply(json.loads(data))  # the last chunk may carry the usage, with no choices
+                    choice = chunk["choices"][0]
                     delta = (choice.get("delta") or {}).get("content")
                 except (ValueError, KeyError, IndexError, TypeError, AttributeError):
                     continue
@@ -152,8 +163,12 @@ def _stream(cfg, model, messages, temperature):
             raise LLMError(f"the LLM server stopped mid-answer: {e}") from None
         if not finished:
             raise LLMError("the LLM server stopped mid-answer")
+    except BaseException as e:
+        error = e
+        raise
     finally:
         r.close()
+        call.end(None if isinstance(error, GeneratorExit) else error)
 
 
 def parse_json(text):
@@ -211,8 +226,8 @@ def json_out(cfg, system, user, schema, model=None):
         "response_format": {"type": "json_schema", "json_schema": {"name": "output", "schema": schema, "strict": False}},
     }
     try:
-        with _post(cfg, payload) as r:
-            text = _content(_load(r))
+        with telemetry.model_call(cfg, payload) as call, _post(cfg, payload) as r:
+            text = _content(call.reply(_load(r)))
     except LLMError as e:
         if not str(e)[:3] in ("400", "422", "404"):
             raise
@@ -235,8 +250,8 @@ def chat_message(cfg, messages, tools=None, model=None, temperature=0.2):
     if tools:
         payload.update(tools=tools, tool_choice="auto")
     try:
-        with _post(cfg, payload) as r:
-            j = _load(r)
+        with telemetry.model_call(cfg, payload) as call, _post(cfg, payload) as r:
+            j = call.reply(_load(r))
     except LLMError as e:
         if tools and str(e)[:3] in ("400", "404", "422", "501"):
             raise ToolsUnsupported(str(e)) from None
