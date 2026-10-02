@@ -8,6 +8,7 @@ shows those fields locked.
   LENS_ADMIN_EMAIL, LENS_ADMIN_PASSWORD, LENS_ADMIN_NAME   the first admin, created at startup (no setup code needed)
   LENS_NAMESPACE                                           the first namespace, created at startup while there is none
   LENS_LLM_BASE_URL, LENS_LLM_MODEL, LENS_LLM_API_KEY      the model provider (settings.ENV_OVERRIDES)
+  LENS_TELEMETRY, LENS_TELEMETRY_ENDPOINT                  opt-in telemetry (off unless set on; docs/telemetry.md)
   LENS_SETUP_WIZARD=off                                    never show the wizard (everything comes from .env)
 
 The first admin still needs the one-time setup code (or the environment), so a stranger can't claim a public server.
@@ -101,6 +102,11 @@ def view(db, cfg):
             "max_upload_mb": shown["uploads"]["max_mb"],
             "watches": len(db.values("SELECT VALUE id FROM watch_path")),
         },
+        "telemetry": {
+            "enabled": bool(shown["telemetry"].get("enabled")),
+            "endpoint": shown["telemetry"].get("endpoint"),
+            "locked": [k for k in settings.locked("telemetry") if k in ("enabled", "endpoint")],
+        },
     }
 
 
@@ -120,6 +126,19 @@ def save_llm(db, cfg, values, user=None):
     keep = {k: v for k, v in values.items() if k not in settings.locked("llm")}
     if keep:
         settings.save(db, cfg, "llm", keep, user)
+    return sorted(keep)
+
+
+def save_telemetry(db, cfg, enabled, endpoint, user=None):
+    """Opt in to telemetry (or stay out), leaving out what the environment sets. On needs an endpoint."""
+    locked = settings.locked("telemetry")
+    endpoint = (endpoint or "").strip() or None
+    if enabled and not endpoint and "endpoint" not in locked:
+        raise ValueError("telemetry needs an endpoint to send to, like http://localhost:4318")
+    values = {"enabled": bool(enabled), **({"endpoint": endpoint} if endpoint or enabled else {})}  # off keeps the address
+    keep = {k: v for k, v in values.items() if k not in locked}
+    if keep:
+        settings.save(db, cfg, "telemetry", keep, user)
     return sorted(keep)
 
 

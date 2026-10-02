@@ -12,7 +12,7 @@ import time
 
 import pytest
 
-from app.domain import deletion, pipelines, sources, store
+from app.domain import convert, deletion, pipelines, sources, store
 from tests.helpers import drain, login, make_user, write_wav
 
 R = store.R
@@ -49,6 +49,7 @@ def test_sources_and_watched_folders(client, new_client, db, cfg, folder):
     )
     assert r.status_code == 200, r.text
     assert sources.poll_due(db, cfg) == 1
+    assert sources.poll_due(db, cfg) == 0  # scanned: not due again until poll_minutes have passed
     drain(db, cfg)
     assert db.one("SELECT status FROM recording WHERE title = 'call1'")["status"] == "analyzed"
     # S3, through rclone's own S3 server
@@ -102,7 +103,7 @@ def test_sources_and_watched_folders(client, new_client, db, cfg, folder):
 
 
 @needs_rclone
-def test_watch_preview_counts_files(client, db, folder):
+def test_watch_preview_counts_files(client, db, cfg, folder):
     inbox = folder / "inbox"
     inbox.mkdir()
     (inbox / "a.txt").write_text("Ann: hi.\nBen: hello.")
@@ -112,9 +113,11 @@ def test_watch_preview_counts_files(client, db, folder):
     h = login(client, "root@x.io", "root password 1")
     sid = client.post("/api/v1/sources", json={"name": "inbox", "type": "local"}, headers=h).json()["id"]
     r = client.post("/api/v1/watches/preview", json={"source": sid, "path": str(inbox)}, headers=h)
-    assert r.json() == {"files": 2, "audio": 0, "transcripts": 2, "documents": 0, "images": 0}
+    # a text file is a document where the server can make a PDF of it (LibreOffice), else a transcript
+    docs = 0 if convert.unavailable(cfg, "a.txt") else 1
+    assert r.json() == {"files": 2, "audio": 0, "transcripts": 2 - docs, "documents": docs, "images": 0}
     r = client.post("/api/v1/watches/preview", json={"source": sid, "path": str(inbox), "exclude": ["*.srt"]}, headers=h)
-    assert r.json()["transcripts"] == 1
+    assert r.json()["transcripts"] == 1 - docs
 
 
 def test_sources_and_watches_without_rclone(client, new_client, db, cfg, folder):

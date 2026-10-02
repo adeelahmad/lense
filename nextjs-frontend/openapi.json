@@ -1261,6 +1261,50 @@
         }
       }
     },
+    "/api/v1/settings/telemetry/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Telemetry Status",
+        "description": "Whether telemetry is on, where it goes, and how the API process's last exports went. Off by default.",
+        "operationId": "telemetry_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/telemetry/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Telemetry",
+        "description": "Send one test span to the saved endpoint now (on or off), to check the address and headers.",
+        "operationId": "test_telemetry",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/audit": {
       "get": {
         "tags": [
@@ -1543,6 +1587,48 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SetupStorage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/telemetry": {
+      "put": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Save Telemetry",
+        "description": "Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector). Off unless chosen.",
+        "operationId": "save_telemetry",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupTelemetry"
               }
             }
           },
@@ -29434,6 +29520,63 @@
         ],
         "title": "SetupStorageView"
       },
+      "SetupTelemetry": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SetupTelemetry"
+      },
+      "SetupTelemetryView": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint"
+          },
+          "locked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Locked"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "locked"
+        ],
+        "title": "SetupTelemetryView"
+      },
       "SetupView": {
         "properties": {
           "pending": {
@@ -29451,6 +29594,9 @@
           },
           "storage": {
             "$ref": "#/components/schemas/SetupStorageView"
+          },
+          "telemetry": {
+            "$ref": "#/components/schemas/SetupTelemetryView"
           }
         },
         "additionalProperties": true,
@@ -29460,7 +29606,8 @@
           "admin",
           "namespace",
           "llm",
-          "storage"
+          "storage",
+          "telemetry"
         ],
         "title": "SetupView"
       },
@@ -30946,6 +31093,128 @@
         ],
         "title": "TagsChanged"
       },
+      "TelemetryExport": {
+        "properties": {
+          "at": {
+            "type": "number",
+            "title": "At"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "at",
+          "ok"
+        ],
+        "title": "TelemetryExport"
+      },
+      "TelemetryStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint"
+          },
+          "traces": {
+            "type": "boolean",
+            "title": "Traces"
+          },
+          "metrics": {
+            "type": "boolean",
+            "title": "Metrics"
+          },
+          "last_traces": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TelemetryExport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_metrics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TelemetryExport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "traces",
+          "metrics"
+        ],
+        "title": "TelemetryStatus",
+        "description": "What the API process does with telemetry now; each worker follows the same settings on its own."
+      },
+      "TelemetryTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "TelemetryTestResult"
+      },
       "Template": {
         "properties": {
           "id": {
@@ -32102,6 +32371,13 @@
           "type": {
             "type": "string",
             "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
           }
         },
         "type": "object",

@@ -54,7 +54,8 @@ GET    /api/v1/oauth/grants
 DELETE /api/v1/oauth/grants/{grant_id}
 ```
 
-Lens is an OAuth 2.1 authorization server for API and MCP clients ([Authentication](authentication.md#oauth)).
+Lens is an OAuth 2.1 authorization server for API and MCP clients ([Authentication](authentication.md#oauth)). The MCP
+server itself is at `/mcp`, outside `/api/v1` ([MCP server](mcp.md)).
 
 * `POST /oauth/register {redirect_uris, client_name?, client_uri?, token_endpoint_auth_method?}` (RFC 7591, no sign-in,
   201) registers an app: `client_id` (`lc_…`), and a `client_secret` (`ls_…`, shown once) when it asked for

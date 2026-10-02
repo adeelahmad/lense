@@ -12,6 +12,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     tool_script = []  # assistant messages to return, in order, when a request offers tools
     reject_tools = False  # behave like a server whose model can't call tools
     blind = False  # behave like a server whose model can't see images
+    usage = None  # token counts to report with each answer (and as a streamed answer's last chunk), like OpenAI
 
     def _json(self, obj):
         data = json.dumps(obj).encode()
@@ -48,6 +49,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             for piece in ["The shipment ", "leaves on Friday [1]."]:
                 self.wfile.write(f"data: {json.dumps({'choices': [{'delta': {'content': piece}}]})}\n\n".encode())
+            if Handler.usage:
+                self.wfile.write(f"data: {json.dumps({'choices': [], 'usage': Handler.usage})}\n\n".encode())
             self.wfile.write(b"data: [DONE]\n\n")
             return
         seen = _picture(body)
@@ -117,7 +120,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             )
         else:
             content = "OK"
-        data = json.dumps({"choices": [{"message": {"content": content}}]}).encode()
+        extra = {"usage": Handler.usage, "model": body.get("model")} if Handler.usage else {}
+        data = json.dumps({"choices": [{"message": {"content": content}}], **extra}).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))

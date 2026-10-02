@@ -2,11 +2,20 @@ name: pre-commit
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+# Pushes to a pull request cancel its older runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
   pre-commit:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     env:
       # Only for importing the app to generate the OpenAPI schema; not a real secret.
@@ -20,6 +29,8 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
+          # a cache that outlives the job on the self-hosted runner (the default is in the job's temp folder)
+          cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
           python-version: "3.12"
 
       - name: Install the backend's dev tools
@@ -37,7 +48,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: pnpm
+          # on the self-hosted runner pnpm's store stays on disk; saving it to GitHub's cache took minutes
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
           cache-dependency-path: nextjs-frontend/pnpm-lock.yaml
 
       - name: Install Node dependencies

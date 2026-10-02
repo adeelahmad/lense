@@ -17,8 +17,9 @@ A routine whose run is still going isn't started again; a run that stops reporti
 from __future__ import annotations
 
 import datetime as dt
+import threading
 
-from . import jobs, organize, schedule, semantic, sources, store, workflows
+from . import jobs, organize, schedule, semantic, sources, store, telemetry, workflows
 
 R = store.R
 ACTIONS = ("sync", "pipeline", "workflow")
@@ -32,6 +33,7 @@ UNPROCESSED = ["new", "error", "transcribed", "diarized"]
 MAX_ACTIONS, DEFAULT_LIMIT, MAX_LIMIT = 20, 500, 5000
 STALE_MINUTES = 180
 CHECK_SECONDS = 30  # how often the scheduler looks for routines that are due
+MIN_WAIT_SECONDS = 5  # the shortest wait between rounds, whatever sources.check_seconds says
 LOG_MAX = 500
 FIELDS = (
     "record::id(id) AS id, name, description, enabled, schedule, timezone, namespaces, actions, next_run_at, last_run_at, "
@@ -334,6 +336,13 @@ def _takes_new(db, a):
 
 def run(db, cfg, rid, trigger="manual", by=None, propose_only=False, log=None):
     """Run a routine now, here; the run's id. Each action is tried even when one before it failed."""
+    with telemetry.span(
+        "routine", {"lens.routine.id": str(rid), "lens.routine.trigger": trigger, "lens.routine.propose_only": propose_only}
+    ):
+        return _run(db, cfg, rid, trigger, by, propose_only, log)
+
+
+def _run(db, cfg, rid, trigger, by, propose_only, log):
     routine = get(db, rid)
     since = routine.get("seen_recording") or 0
     seen = {"since": since, "marks": [], "failed": False}
@@ -357,7 +366,8 @@ def run(db, cfg, rid, trigger="manual", by=None, propose_only=False, log=None):
         say(f"{k}. {a['type']}")
         seen["pending"] = None
         try:
-            got = _action(db, cfg, routine, run_id, a, seen, propose_only, say)
+            with telemetry.span(f"action {a['type']}", {"lens.routine.action": a["type"], "lens.routine.action.index": k}):
+                got = _action(db, cfg, routine, run_id, a, seen, propose_only, say)
             results.append({"type": a["type"], "status": "done", "result": got})
             if seen["pending"] is not None:
                 seen["marks"].append(seen["pending"])
@@ -372,6 +382,7 @@ def run(db, cfg, rid, trigger="manual", by=None, propose_only=False, log=None):
         for s in ("applied", "proposed")
     }
     status = "done" if not failed else ("error" if failed == len(results) else "partly")
+    telemetry.record("lens.routine.runs", 1, {"lens.outcome": status, "lens.routine.trigger": trigger})
     db.q(
         "UPDATE $r MERGE $d",
         r=R("routine_run", run_id),
@@ -467,6 +478,30 @@ def run_due(db, cfg, log=print, now=None):
             if log:
                 log(f"routine {r['id']}: {type(e).__name__}: {e}")
     return done
+
+
+def start(db, cfg_fn, stop, log=None):
+    """The scheduling threads, until `stop` is set: watched folders scanned when due (every sources.check_seconds) and
+    routines run when due (every CHECK_SECONDS). The API runs them with its background work; `lens worker` runs them too,
+    since Docker and the packages run the API without it."""
+
+    def every(seconds, fn, what):
+        def loop():
+            while not stop.wait(max(MIN_WAIT_SECONDS, seconds())):
+                try:
+                    fn(db, cfg_fn(), log=log)
+                except Exception as e:  # noqa: BLE001 - keep going
+                    if log:
+                        log(f"{what}: {type(e).__name__}: {e}")
+
+        th = threading.Thread(target=loop, daemon=True, name=what)
+        th.start()
+        return th
+
+    return [
+        every(lambda: cfg_fn()["sources"]["check_seconds"], sources.poll_due, "watched folders"),
+        every(lambda: CHECK_SECONDS, run_due, "routines"),
+    ]
 
 
 # ---------- what a fresh archive starts with ----------

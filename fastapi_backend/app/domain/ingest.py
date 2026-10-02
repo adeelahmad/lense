@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import importlib.util
 import html
 import json
 import pathlib
@@ -330,8 +331,23 @@ class Whisper:
         ]
 
 
-def get_engine(cfg):
+ENGINE_MODULES = {"sensevoice": "funasr", "mlx-whisper": "mlx_whisper", "whisper": "faster_whisper"}  # the order to fall back in
+
+
+def installed(engine):
+    return importlib.util.find_spec(ENGINE_MODULES[engine]) is not None
+
+
+def get_engine(cfg, log=None):
+    """The configured engine; when it isn't installed here, the first one that is (the Docker images and packages
+    carry faster-whisper, not SenseVoice, the default), so an import is transcribed rather than failing."""
     e = cfg["transcribe"]["engine"]
+    if e in ENGINE_MODULES and not installed(e):
+        other = next((x for x in ENGINE_MODULES if installed(x)), None)
+        if other:
+            if log:
+                log(f"  {e} isn't installed on this worker; transcribing with {other}")
+            e = other
     if e == "sensevoice":
         return SenseVoice(cfg)
     if e in ("whisper", "mlx-whisper"):
@@ -405,7 +421,7 @@ def add_envelope(db, cfg, rid):
 
 def transcribe_one(db, cfg, rid, log=print, engine=None):
     r = db.one("SELECT record::id(id) AS id, space, path, title, remote FROM $r", r=store.R("recording", rid))
-    engine, t = engine or get_engine(cfg), time.time()
+    engine, t = engine or get_engine(cfg, log), time.time()
     audio = decode(audio_path(db, cfg, r))
     segs = engine.transcribe(audio)
     env = envelope(audio)
@@ -433,7 +449,7 @@ def transcribe_pending(db, cfg, ns=None, limit=0, force=False, log=print):
     )[: limit or None]
     if not rows:
         return 0
-    engine, done = get_engine(cfg), 0
+    engine, done = get_engine(cfg, log), 0
     for r in rows:
         try:
             transcribe_one(db, cfg, r["id"], log, engine)
@@ -701,8 +717,12 @@ def read_doc(path):
                 return out.stdout
     office = shutil.which("soffice") or shutil.which("libreoffice")
     if office:
+        from .convert import _run
+
         with tempfile.TemporaryDirectory() as d:
-            subprocess.run([office, "--headless", "--convert-to", "txt:Text", "--outdir", d, str(path)], capture_output=True)
+            # a profile of its own, so it neither waits on nor disturbs a LibreOffice the user has open
+            argv = [office, "--headless", "--norestore", "--nolockcheck", "--nodefault", "--nofirststartwizard"]
+            _run(argv + [f"-env:UserInstallation=file://{d}/profile", "--convert-to", "txt:Text", "--outdir", d, str(path)], 300, cwd=d)
             for f in pathlib.Path(d).glob("*.txt"):
                 return f.read_text(encoding="utf-8", errors="replace")
     raise SystemExit("reading .doc needs antiword, catdoc or LibreOffice installed (or save it as .docx)")

@@ -201,7 +201,7 @@ def platform_main(argv, config):
     import threading
     import time
 
-    from .domain import auth, jobs, notify, routines, settings, sources
+    from .domain import auth, jobs, notify, routines, settings, sources, telemetry
 
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -225,6 +225,11 @@ def platform_main(argv, config):
     w.add_argument("--name")
     w.add_argument("--steps", help="comma-separated steps this worker runs (default: all)")
     w.add_argument("--once", action="store_true", help="run what is queued, then exit")
+    w.add_argument(
+        "--no-schedule",
+        action="store_true",
+        help="don't scan watched folders or run routines (a worker limited with --steps never does)",
+    )
     x = sub.add_parser("watch", help="scan watched folders on storage sources and run the routines that are due")
     x.add_argument("--once", action="store_true")
     a = ap.parse_args(argv)
@@ -263,6 +268,7 @@ def platform_main(argv, config):
                     auth.update_account(db, acct["id"], password=password())
                     print(f"password changed for {a.email}")
         elif a.cmd == "worker":
+            telemetry.set_role("worker")
             wk = jobs.Worker(db, C, a.name, a.steps.split(",") if a.steps else None, log=print)
             if a.once:
                 print(f"ran {wk.drain()} job(s)")
@@ -270,15 +276,19 @@ def platform_main(argv, config):
                 print(f"worker {wk.name} runs {', '.join(sorted(wk.can))}; Ctrl-C to stop")
                 stop = threading.Event()
                 notify.start(db, C, stop, name=wk.name, log=print)  # sends notifications too (docs/notifications.md)
+                if not (a.steps or a.no_schedule):  # and scans watched folders and runs routines, as `lens watch` does
+                    routines.start(db, C, stop, log=print)
                 _stop_on_term()
                 try:
                     wk.loop(stop)
                 except KeyboardInterrupt:
                     stop.set()
         elif a.once:
+            telemetry.set_role("watcher")
             print(f"scanned {sources.poll_due(db, C(), print)} folder(s)")
             print(f"ran {routines.run_due(db, C(), print)} routine(s)")
         else:
+            telemetry.set_role("watcher")
             print("watching storage sources and running routines; Ctrl-C to stop")
             _stop_on_term()
             try:
@@ -291,6 +301,7 @@ def platform_main(argv, config):
     except (ValueError, KeyError) as e:
         raise SystemExit(str(e)) from None
     finally:
+        telemetry.shutdown()  # sends what is buffered
         db.close()
 
 

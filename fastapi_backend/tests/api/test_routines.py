@@ -341,3 +341,25 @@ def test_one_failed_batch_or_undone_merge_doesnt_stop_the_rest(db, cfg, env, llm
         if a.get("merge"):
             entities.undo_merge(db, a["merge"])  # undone from the entity page first
     assert organize.undo_run(db, run_id) == (len(applied), 0)
+
+
+def test_scheduling_threads_scan_folders_and_run_routines(db, cfg, monkeypatch):
+    """What the API's background work and `lens worker` start: both rounds, until told to stop."""
+    import threading
+
+    from app.domain import sources
+
+    calls = {"watched folders": threading.Event(), "routines": threading.Event()}
+    monkeypatch.setattr(routines, "MIN_WAIT_SECONDS", 0.01)
+    monkeypatch.setattr(routines, "CHECK_SECONDS", 0.01)
+    monkeypatch.setattr(sources, "poll_due", lambda db, cfg, log=None: calls["watched folders"].set())
+    monkeypatch.setattr(routines, "run_due", lambda db, cfg, log=None: calls["routines"].set())
+    stop = threading.Event()
+    threads = routines.start(db, lambda: {**cfg, "sources": {**cfg["sources"], "check_seconds": 0}}, stop)
+    try:
+        assert all(e.wait(5) for e in calls.values())
+    finally:
+        stop.set()
+        for t in threads:
+            t.join(5)
+    assert not any(t.is_alive() for t in threads)

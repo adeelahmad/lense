@@ -52,6 +52,29 @@ class IndexQueued(ResponseModel):
     remaining: bool = Field(description="more are waiting than were queued; run it again, or let the hourly routine")
 
 
+class TelemetryExport(ResponseModel):
+    at: float
+    ok: bool
+    error: str | None = None
+
+
+class TelemetryStatus(ResponseModel):
+    """What the API process does with telemetry now; each worker follows the same settings on its own."""
+
+    enabled: bool
+    endpoint: str | None = None
+    traces: bool
+    metrics: bool
+    last_traces: TelemetryExport | None = None
+    last_metrics: TelemetryExport | None = None
+
+
+class TelemetryTestResult(ResponseModel):
+    ok: bool
+    error: str | None = None
+    ms: int | None = None
+
+
 class AuditEntry(ResponseModel):
     at: str
     email: str | None = None

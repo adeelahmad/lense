@@ -13,7 +13,7 @@ import socket
 import threading
 import time
 
-from . import analyze, ingest, pipelines, render, speakers as spk, store
+from . import analyze, ingest, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
 PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
@@ -150,6 +150,7 @@ def _describe(db, cfg, rid, say, spec=None):
     descriptions.step_describe(db, cfg, rid, say)
 
 
+VIDEO_STEPS = {"shots", "ocr", "faces", "objects", "describe"}  # added after workers.steps lists were first written
 STEPS = {
     "transcribe": _transcribe,
     "diarize": _diarize,
@@ -450,6 +451,7 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
         return time.time()
 
     def finished(k, outcome, note, t0, outputs=None):
+        telemetry.record("lens.job.step.duration", time.time() - t0, {"lens.step": _spec(steps[k])["type"], "lens.step.outcome": outcome})
         runs[k] = store.clean(
             {
                 **runs[k],
@@ -527,15 +529,17 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
                 i, t0 = i + 1, None
                 continue
             before = _saved(db, rid)
-            try:
-                STEPS[step](db, cfg_fn(), rid, say, spec)
-            except Skip as e:
-                say(f"{step} skipped: {e}")
-                finished(i, "skipped", str(e), t0, _outputs(before, _saved(db, rid)))
-            else:
-                note = said[0]
-                say(f"{spec.get('name') or step} done in {time.time() - t0:.1f}s")
-                finished(i, "done", note, t0, _outputs(before, _saved(db, rid)))
+            with telemetry.span(f"step {step}", {"lens.step": step, "lens.step.index": i, "lens.job.id": str(jid)}) as sp:
+                try:
+                    STEPS[step](db, cfg_fn(), rid, say, spec)
+                except Skip as e:
+                    say(f"{step} skipped: {e}")
+                    finished(i, "skipped", str(e), t0, _outputs(before, _saved(db, rid)))
+                else:
+                    note = said[0]
+                    say(f"{spec.get('name') or step} done in {time.time() - t0:.1f}s")
+                    finished(i, "done", note, t0, _outputs(before, _saved(db, rid)))
+                sp.set_attribute("lens.step.outcome", runs[i]["outcome"])
             _timed(db, rid, spec, runs[i]["seconds"], runs[i]["outcome"] == "skipped")
             i, t0 = i + 1, None
     except (Exception, SystemExit) as e:  # noqa: BLE001 - recorded on the job; SystemExit too (a missing engine says so)
@@ -717,12 +721,19 @@ def control(db, name, action, by=None):
 class Worker:
     def __init__(self, db, cfg_fn, name=None, steps=None, log=None):
         self.db, self.cfg_fn, self.log = db, cfg_fn, log
+        cfg_fn()  # reads the saved settings now, so telemetry (if on) is set up before the first job's span
         self.name = name or f"{socket.gethostname()}-{os.getpid()}"
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
         if "llm" in self.can:  # a workflow needs what an llm step needs; lists written before workflows existed run them too
             self.can.add("workflow")
+        if not steps and "transcribe" in self.can and not self.can & VIDEO_STEPS:
+            # a workers.steps list written before the video steps existed (archive.yaml copied from an older example):
+            # without them every import would wait for a worker that can run shots
+            self.can |= VIDEO_STEPS
         if self.can & {"analyze", "summarize"}:  # embedding needs what they need; lists written before it existed run it too
             self.can.add("embed")
+        if not steps and log and (missing := sorted(set(STEPS) - self.can)):
+            log(f"worker {self.name}: workers.steps leaves out {', '.join(missing)}; jobs with those steps wait for another worker")
         self.was_paused = False
 
     def register(self, current=None):
@@ -755,7 +766,17 @@ class Worker:
         if not job:
             return False
         self.register(job["id"])
-        run_job(self.db, self.cfg_fn, job, self.name, self.can, self.log)
+        pipe = job.get("pipeline") if isinstance(job.get("pipeline"), dict) else {}
+        attrs = {
+            "lens.job.id": str(job["id"]),
+            "lens.recording.id": str(job["recording"]),
+            "lens.pipeline.id": str(pipe["id"]) if pipe.get("id") is not None else ("standard" if pipe else None),
+            "lens.pipeline.version": pipe.get("version"),
+        }
+        with telemetry.span("job", attrs) as sp:
+            outcome = run_job(self.db, self.cfg_fn, job, self.name, self.can, self.log)
+            sp.set_attribute("lens.job.outcome", outcome)
+        telemetry.record("lens.jobs", 1, {"lens.job.outcome": outcome})
         self.register()
         return True
 
