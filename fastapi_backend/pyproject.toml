@@ -50,7 +50,7 @@ lens = "app.cli:main"
 
 [dependency-groups]
 dev = [
-    "pre-commit>=3.4.0,<4",
+    "pre-commit>=4.6.2,<5",
     "ruff>=0.16.9,<0.17",
     "watchdog>=5.0.3,<6",
     "python-dotenv>=1.0.1,<2",
