@@ -64,8 +64,8 @@ git add CloudronVersions.json && git commit -m "Cloudron: publish 0.3.0" && git 
 
 Then install it from the dashboard (App Store, community app, with the file's raw URL) or with
 `cloudron install --location lens --versions-url https://raw.githubusercontent.com/adeelahmad/lense/main/CloudronVersions.json`.
-For each release: bump `version` in `CloudronManifest.json`, add a `[x.y.z]` entry to `cloudron/CHANGELOG`, push a
-release (which pushes the image) and run `cloudron versions add` again. The image must be public.
+For each release: add a `[x.y.z]` entry to `cloudron/CHANGELOG`, run the Release workflow (it sets the version in
+`CloudronManifest.json` and starts the image build), then `cloudron versions add` again. The image must be public.
 
 ## Restore the database from its export
 

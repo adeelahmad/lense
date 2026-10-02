@@ -1,7 +1,8 @@
 name: Cloudron image
 
 # Builds the Cloudron package (Dockerfile.cloudron) when it changes. A published release pushes the image to GHCR,
-# tagged with the release version and `latest`; run it by hand to push the manifest's version. The image is for
+# tagged with the release version and `latest`; the Release workflow starts it with `tag` (a release published with
+# GITHUB_TOKEN fires no release event). Run by hand without `tag`, it pushes the manifest's version. The image is for
 # `cloudron install --image` or `cloudron versions add` (cloudron/README.md).
 on:
   release:
@@ -10,6 +11,10 @@ on:
     paths: [Dockerfile.cloudron, CloudronManifest.json, cloudron/**, .dockerignore]
   workflow_dispatch:
     inputs:
+      tag:
+        description: "Release tag to build and push as that version and latest (vX.Y.Z); empty: the manifest's version"
+        type: string
+        default: ""
       push:
         description: "Push to ghcr.io/<owner>/lens-cloudron"
         type: boolean
@@ -23,12 +28,14 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Image name and tags (the release's version, else the manifest's)
         id: meta
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          PUSH: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.push) }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          PUSH: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.push || inputs.tag != '')) }}
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/lens-cloudron"
           version="${RELEASE_TAG#v}"
