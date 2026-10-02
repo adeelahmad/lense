@@ -4,9 +4,10 @@ pre-commit hook; needs only Python and git.
 
     release.py cut auto|patch|minor|major|X.Y.Z [--date YYYY-MM-DD]
         Writes the new version's CHANGELOG.md section: the "## Unreleased" text, when there is any, then the changes
-        merged since the last release, listed from their Conventional Commit titles. Sets the version in
-        pyproject.toml, uv.lock, package.json and CloudronManifest.json (when present) and prints it. `auto` picks the
-        bump from those titles: a breaking change is major (minor before 1.0), a feat minor, anything else patch.
+        merged since the last release, listed from their Conventional Commit titles (except those that wrote their
+        own Unreleased entry, unless breaking). Sets the version in pyproject.toml, uv.lock, package.json and
+        CloudronManifest.json (when present) and prints it. `auto` picks the bump from those titles and any
+        BREAKING CHANGE footers: a breaking change is major (minor before 1.0), a feat minor, anything else patch.
     release.py notes X.Y.Z
         Prints that version's CHANGELOG.md section without its heading (nothing when there's none).
     release.py check-title TITLE
@@ -175,20 +176,24 @@ def last_release(current: str) -> str | None:
     return base
 
 
+BREAKING_FOOTER = re.compile(r"^BREAKING[ -]CHANGE:", re.M)
+
+
 def changes_since(base: str | None) -> list[dict]:
     """One entry per pull request (by its title, which GitHub puts in the merge commit) or direct commit on the
     branch since BASE."""
     log = git(
         "log",
         "--first-parent",
-        "--format=%s%x1f%b%x1e",
+        "--format=%H%x1f%P%x1f%s%x1f%b%x1e",
         f"{base}..HEAD" if base else "HEAD",
     )
     changes = []
     for record in log.split("\x1e"):
         if not record.strip():
             continue
-        subject, _, body = record.strip("\n").partition("\x1f")
+        commit, parents, subject, body = record.strip("\n").split("\x1f", 3)
+        parents = parents.split()
         pr = None
         merged = re.match(r"^Merge pull request #(\d+) ", subject)
         if merged:
@@ -196,6 +201,9 @@ def changes_since(base: str | None) -> list[dict]:
             subject = next(
                 (line for line in body.splitlines() if line.strip()), subject
             )
+            # a breaking-change footer is in the PR's own commits, not in the merge commit
+            if len(parents) > 1:
+                body += "\n" + git("log", "--format=%B", f"{parents[0]}..{parents[1]}")
         elif subject.startswith("Merge ") or subject.startswith("chore(release): "):
             continue
         else:
@@ -203,6 +211,7 @@ def changes_since(base: str | None) -> list[dict]:
             if squashed:
                 pr, subject = squashed.group(1), subject[: squashed.start()]
         subject = subject.strip()
+        breaking = bool(BREAKING_FOOTER.search(body))
         match = CONVENTIONAL.match(subject)
         if match and match["type"] in TYPES:
             kind, scope, description = (
@@ -210,14 +219,20 @@ def changes_since(base: str | None) -> list[dict]:
                 match["scope"],
                 match["description"],
             )
-            breaking = bool(match["breaking"]) or "BREAKING CHANGE:" in body
-            if (
-                kind == "build" and scope == "deps"
-            ):  # Dependabot (.github/dependabot.yml)
+            breaking = breaking or bool(match["breaking"])
+            if kind == "build" and scope == "deps":  # Dependabot
                 kind = "deps"
         else:
             kind = "deps" if DEPENDABOT.match(subject) else "other"
-            scope, description, breaking = None, subject, False
+            scope, description = None, subject
+        # a change that wrote its own CHANGELOG.md entry is described there, not listed again
+        first_parent = parents[0] if parents else None
+        documented = bool(
+            first_parent
+            and git(
+                "diff", "--numstat", first_parent, commit, "--", "CHANGELOG.md"
+            ).strip()
+        )
         changes.append(
             {
                 "type": kind,
@@ -225,6 +240,7 @@ def changes_since(base: str | None) -> list[dict]:
                 "description": description,
                 "breaking": breaking,
                 "pr": pr,
+                "documented": documented,
             }
         )
     return list(reversed(changes))
@@ -236,7 +252,7 @@ def changes_markdown(changes: list[dict]) -> str:
     grouped: dict[str, list[str]] = {}
     for change in changes:
         section = "breaking" if change["breaking"] else change["type"]
-        if section not in SECTIONS:
+        if section not in SECTIONS or (change["documented"] and section != "breaking"):
             continue
         line = change["description"]
         if change["scope"] and change["type"] != "deps":

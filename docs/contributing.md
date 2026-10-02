@@ -10,7 +10,7 @@ regenerate the OpenAPI client when the API changes. The commit message is checke
 ## Commit messages and PR titles
 
 Write them as [Conventional Commits](https://www.conventionalcommits.org/): `type(optional scope): what changed`,
-with `!` before the colon (or a `BREAKING CHANGE:` line) for a breaking change, e.g.
+with `!` before the colon (or a `BREAKING CHANGE:` footer in any of the PR's commits) for a breaking change, e.g.
 `feat(chat): answer from the selected recordings` or `fix(worker): retry a stalled transcription`. The types are
 `feat`, `fix`, `perf`, `revert`, `docs`, `refactor`, `test`, `build`, `ci`, `chore` and `style`.
 
@@ -69,7 +69,7 @@ With `auto` it picks the version from the PR titles merged since the last releas
 (minor before 1.0), a `feat` minor, anything else patch; give `patch`, `minor`, `major` or an exact version to
 override. It writes the new section (the Unreleased text, then the changes grouped into features, fixes,
 performance, reverts, dependencies and other changes; `docs`, `refactor`, `test`, `build`, `ci`, `chore` and
-`style` are left out), sets the version in `fastapi_backend/pyproject.toml`, `uv.lock`,
+`style` are left out, and so is a PR that wrote its own Unreleased entry, unless it's breaking), sets the version in `fastapi_backend/pyproject.toml`, `uv.lock`,
 `nextjs-frontend/package.json` and `CloudronManifest.json`, commits that to `main` as `chore(release): vX.Y.Z`, tags
 it and publishes the GitHub release with that section as its notes. Pushing a `vX.Y.Z` tag yourself publishes it the
 same way, without the commit. `python3 .github/scripts/release.py cut auto` shows locally what it would write.
