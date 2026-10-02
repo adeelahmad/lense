@@ -17,6 +17,7 @@ import pathlib
 import re
 import secrets
 import threading
+import urllib.parse
 
 from . import convert, ipgroups, objects, store, telemetry
 
@@ -363,6 +364,21 @@ def _telemetry_setting(key, value):
         v = value.strip().rstrip("/")
         if v.endswith(("/v1/traces", "/v1/metrics")):
             raise ValueError("telemetry.endpoint is the collector's base address, without /v1/traces or /v1/metrics")
+        try:
+            u = urllib.parse.urlsplit(v)
+            host = u.hostname or ""
+            u.port  # noqa: B018 - ValueError for a port out of range
+        except ValueError:
+            raise ValueError("telemetry.endpoint isn't a valid address") from None
+        if u.username is not None or u.password is not None:
+            # the endpoint is stored and shown as it is; a token belongs in the sealed headers
+            raise ValueError("telemetry.endpoint can't carry a user name or password; put credentials in telemetry.headers")
+        try:
+            link_local = ipaddress.ip_address(host).is_link_local
+        except ValueError:
+            link_local = False
+        if link_local:
+            raise ValueError("telemetry.endpoint can't be a link-local address (169.254.0.0/16, fe80::/10)")
         return v
     if key == "sample_ratio":
         if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 1):
@@ -378,6 +394,14 @@ def _telemetry_setting(key, value):
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"telemetry.{key} is a whole number from {lo} to {hi}")
     return value
+
+
+def _origin(url):
+    try:
+        u = urllib.parse.urlsplit(url or "")
+        return (u.scheme, u.hostname, u.port)
+    except ValueError:
+        return None
 
 
 def _prices(value):
@@ -435,7 +459,12 @@ def save(db, base, section, changes, user=None):
             continue
         if k not in defaults:
             raise ValueError(f"unknown setting {section}.{k}")
+        before = data.get(k, (base.get(section) or {}).get(k))
         data[k] = _check(section, k, v, defaults[k])
+        if (section, k) == ("telemetry", "endpoint") and "headers" not in (changes or {}) and _origin(before) != _origin(data[k]):
+            # the saved headers (an auth token) were for the old collector: they don't go to a new host
+            if before:
+                sealed.pop("headers", None)
     if section == "speakers":
         m = data.get("match_threshold", defaults["match_threshold"])
         r = data.get("review_threshold", defaults["review_threshold"])

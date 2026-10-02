@@ -77,6 +77,11 @@ def test_settings_are_checked(client, db, collector):
         {"prices": {"gpt": {"input": 1, "cached": 1}}},
         {"prices": ["gpt"]},
         {"headers": "no-equals-sign"},
+        {"endpoint": "http://user:secret@collector:4318"},
+        {"endpoint": "http://token@collector:4318"},
+        {"endpoint": "http://169.254.169.254:4318"},
+        {"endpoint": "http://[fe80::1]:4318"},
+        {"endpoint": "http://collector:99999"},
         {"colour": "blue"},
     ):
         assert put(bad).status_code == 400, bad
@@ -86,6 +91,15 @@ def test_settings_are_checked(client, db, collector):
     assert put({"headers": "Authorization=Bearer%20abc,X-Tenant=lens"}).status_code == 200
     assert client.get("/api/v1/settings", headers=h).json()["telemetry"]["values"]["headers"] == {"secret": True, "set": True}
     assert put({"prices": {}}).status_code == 200
+
+    # the saved headers stay with their collector: a new path keeps them, a new host drops them
+    assert put({"endpoint": "http://collector:4318/otlp"}).status_code == 200
+    assert client.get("/api/v1/settings", headers=h).json()["telemetry"]["values"]["headers"]["set"] is True
+    assert put({"endpoint": "http://elsewhere:4318"}).status_code == 200
+    assert client.get("/api/v1/settings", headers=h).json()["telemetry"]["values"]["headers"]["set"] is False
+    # unless new ones come with the move
+    assert put({"endpoint": "http://third:4318", "headers": "X-Key=1"}).status_code == 200
+    assert client.get("/api/v1/settings", headers=h).json()["telemetry"]["values"]["headers"]["set"] is True
 
 
 def test_traces_and_metrics_go_to_the_endpoint(client, db, cfg, folder, collector, model):
@@ -224,3 +238,17 @@ def test_cost_and_headers():
     assert telemetry.parse_headers("") == {}
     with pytest.raises(ValueError):
         telemetry.parse_headers("bad header=1")
+
+
+def test_a_new_workers_first_job_is_traced(client, db, cfg, folder, collector):
+    """A worker reads the saved settings when it starts, so telemetry is on before its first job's span."""
+    from app.domain import settings
+
+    rid = seed(db, cfg, folder)[0]
+    settings.save(db, cfg, "telemetry", {"enabled": True, "endpoint": collector})
+    jobs.enqueue(db, rid, ["analyze"])
+    telemetry.shutdown()  # as in a fresh worker process
+    worker = jobs.Worker(db, settings.Settings(db, cfg).current, name="w1", steps=["analyze"])  # lens worker --steps
+    assert worker.drain() == 1
+    telemetry.flush()
+    assert "job" in {s["name"] for s in fake_otlp.Handler.spans}

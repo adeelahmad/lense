@@ -1436,6 +1436,17 @@ export function why(c: Change): string | null {
     return c.after
       ? "The server and its workers start sending traces and metrics to the endpoint within a few seconds."
       : "Nothing more is sent; what was sent stays with your collector.";
+  if (id === "telemetry.endpoint" && c.before && c.after !== c.before) {
+    const origin = (u: unknown) => {
+      try {
+        return new URL(String(u)).origin;
+      } catch {
+        return String(u);
+      }
+    };
+    if (origin(c.before) !== origin(c.after))
+      return "Saved headers are removed, since they were for the old collector: enter them again if the new one needs them.";
+  }
   if (id === "telemetry.headers")
     return c.after === "" ? "The headers are removed." : "Sent with every export; stored encrypted.";
   if (id === "llm.api_key")
