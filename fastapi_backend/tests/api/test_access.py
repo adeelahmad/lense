@@ -58,7 +58,13 @@ def test_roles_isolate_namespaces(client, new_client, db, cfg, folder):
 
 
 def _mounted(app, *paths):
-    have = {getattr(r, "path", None) for r in app.routes}
+    # FastAPI 0.13x+ lists an included router in app.routes as one entry; its effective routes carry the full paths
+    have = set()
+    for r in app.routes:
+        if hasattr(r, "effective_route_contexts"):
+            have |= {getattr(c, "path_format", None) for c in r.effective_route_contexts()}
+        else:
+            have.add(getattr(r, "path", None))
     missing = [p for p in paths if p not in have]
     if missing:
         pytest.skip(f"not mounted yet (another area): {', '.join(missing)}")
