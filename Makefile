@@ -2,7 +2,9 @@
 
 BACKEND_DIR=fastapi_backend
 FRONTEND_DIR=nextjs-frontend
-DOCKER_COMPOSE=docker compose
+# Compose as a Docker plugin (`docker compose`), or the standalone `docker-compose` where that's what is installed
+# (Colima, Podman); `make dev DOCKER_COMPOSE=…` chooses another.
+DOCKER_COMPOSE ?= $(shell docker compose version >/dev/null 2>&1 && echo docker compose || echo docker-compose)
 
 .PHONY: help
 help: ## List the commands
@@ -49,7 +51,7 @@ run: .env ## Build once and run the whole stack, no hot reload (the fast way to 
 	@echo "Lens is at http://localhost:3000. First start: 'make setup-code' for the admin setup code; 'make logs' to follow; 'make stop' to stop."
 
 dev: .env ## Run the stack with hot reload (slower: pages compile on first visit)
-	$(DOCKER_COMPOSE) up --build
+	$(DOCKER_COMPOSE) up --build --renew-anon-volumes
 
 stop: ## Stop whichever stack is running; the database and the archive stay in their volumes
 	$(PROD_COMPOSE) down

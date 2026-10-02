@@ -19,6 +19,20 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - The backend's OpenAPI watcher no longer runs mypy on every save (it took longer than the reload) and leaves
       `openapi.json` alone when the schema hasn't changed, so the frontend doesn't regenerate its client for nothing.
 
+- **Fixes for the Docker stacks.** From running `make dev` on an Apple Silicon Mac with Colima and reading its logs.
+    - `make` finds Compose by itself: `docker compose`, or the standalone `docker-compose` where there's no `docker`
+      plugin (Colima, Podman); `DOCKER_COMPOSE=…` still chooses.
+    - The dev stack's mail catcher is Mailpit (<http://localhost:8025>, as before): MailHog publishes no arm64 image,
+      so the stack didn't start on Apple Silicon. Its ports are published on this machine only (127.0.0.1).
+    - Containers stop when told to. The API's and the web app's dev containers and the worker ignored `docker stop`
+      (as a container's first process, bash and Python ignore TERM unless they handle it) and were killed ten seconds
+      later (exit 137): `start.sh` now passes the stop on to the server and the watcher, and `lens worker` and
+      `lens watch` stop on TERM as on Ctrl-C.
+    - Dependencies follow the image. The dev containers kept their packages in named volumes, which a rebuild
+      doesn't touch: after `pnpm-lock.yaml` moved to Next 16.3.6 the web app still ran 16.0.8. They're anonymous
+      volumes now and `make dev` renews them (`up --build --renew-anon-volumes`).
+    - The web app's dev server no longer writes an `AGENTS.md` and a `CLAUDE.md` into `nextjs-frontend/` (Next 16.3
+      does unless told not to), and its browser-support data is current (the logs said it was 24 months old).
 - **Fix (security): only the server's own media links are signed.** Text shaped like a media link
   (`/api/v1/recordings/12/audio`) came back signed: titles and transcript lines in API responses, and anything in the
   embed and report pages, including the transcript data inside them. Someone who could rename a recording or correct

@@ -1,4 +1,4 @@
-# Local development stack: SurrealDB, the API (hot reload), a job worker, the Next.js frontend and MailHog.
+# Local development stack: SurrealDB, the API (hot reload), a job worker, the Next.js frontend and Mailpit (catches the mail).
 #   cp fastapi_backend/.env.example fastapi_backend/.env   (set ACCESS_SECRET_KEY)
 #   cp nextjs-frontend/.env.example nextjs-frontend/.env.local   (set AUTH_SECRET)
 #   docker compose up
@@ -21,7 +21,7 @@ x-backend: &backend
     SURREAL_PASS: ${SURREAL_PASS:-root}
     ARCHIVE_CONFIG: /app/docker/archive.yaml
     RUN_BACKGROUND: "false"
-    MAIL_SERVER: mailhog
+    MAIL_SERVER: mail
     MAIL_PORT: "1025"
     MAIL_FROM: lens@example.com
     MAIL_STARTTLS: "False"
@@ -31,7 +31,9 @@ x-backend: &backend
     OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
   volumes:
     - ./fastapi_backend:/app
-    - backend-venv:/opt/venv
+    # the image's own packages, not the source tree's: anonymous, so `make dev` (up --build --renew-anon-volumes)
+    # starts from the rebuilt image's after a dependency changes
+    - /opt/venv
     - archive-data:/data
     - ./local-shared-data:/app/shared-data
     - ${AUDIO_DIR:-./local-audio}:/audio:ro
@@ -83,22 +85,22 @@ services:
       OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
     volumes:
       - ./nextjs-frontend:/app
-      - nextjs-node-modules:/app/node_modules
+      - /app/node_modules       # the image's, renewed with it (see the backend's /opt/venv)
       - ./local-shared-data:/app/shared-data
     networks: [lens]
 
-  mailhog:
-    image: mailhog/mailhog
+  # Catches the mail the API sends (password resets, access requests): read it at http://localhost:8025.
+  # Mailpit has images for arm64 and amd64 (MailHog's is amd64 only).
+  mail:
+    image: axllent/mailpit:v1.27
     ports:
-      - "1025:1025" # SMTP
-      - "8025:8025" # Web UI
+      - "127.0.0.1:1025:1025" # SMTP, for an API run outside Docker (MAIL_SERVER=localhost)
+      - "127.0.0.1:8025:8025" # the mailbox
     networks: [lens]
 
 volumes:
   surreal-data:
   archive-data:
-  backend-venv:
-  nextjs-node-modules:
 
 networks:
   lens:
