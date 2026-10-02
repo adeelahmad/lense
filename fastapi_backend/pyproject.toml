@@ -61,7 +61,7 @@ dev = [
     "coverage>=7.6",
     "coveralls>=4.0.1,<5",
     "mkdocs-material>=9.6.9",
-    "mkdocs-material[imaging]>=9.6.9",
+    "mkdocs-material[imaging]>=9.7.7",
     "onnxruntime>=1.18",  # the objects tests run a small YOLOX-shaped model
     "onnx>=1.16",  # ... which they build
 ]
