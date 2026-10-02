@@ -1,0 +1,99 @@
+# Lens on Synology: written by the package's postinst from compose.yaml.in; edits here are replaced on upgrade.
+# Container Manager runs it as the project "lens". Data lives in the shared folder @DATA@.
+name: lens
+
+x-backend: &backend
+  image: lens-backend:@VERSION@
+  pull_policy: never
+  env_file: [lens.env]  # MAIL_* and LENS_* from lens.conf
+  environment:
+    ACCESS_SECRET_KEY: "@ACCESS_SECRET_KEY@"
+    ARCHIVE_SECRET_KEY: "@ARCHIVE_SECRET_KEY@"
+    SURREAL_URL: ws://surrealdb:8000
+    SURREAL_USER: root
+    SURREAL_PASS: "@SURREAL_PASS@"
+    RUN_BACKGROUND: "false"
+    LENS_SETUP_CODE: "@SETUP_CODE@"
+    FRONTEND_URL: "@URL@"
+    CORS_ORIGINS: '["@URL@"]'
+    ARCHIVE_ALLOWED_HOSTS: "backend,localhost,127.0.0.1,@HOST@"
+  volumes:
+    - @DATA@/archive:/data
+    - @DATA@/audio:/audio:ro
+  depends_on:
+    surrealdb:
+      condition: service_healthy
+    permissions:
+      condition: service_completed_successfully
+  restart: unless-stopped
+  networks: [lens]
+
+services:
+  # The API and the worker run as uid 1000; a fresh folder on the NAS belongs to someone else.
+  permissions:
+    image: lens-backend:@VERSION@
+    pull_policy: never
+    user: root
+    entrypoint: ["chown", "1000:1000", "/data"]
+    volumes:
+      - @DATA@/archive:/data
+    restart: "no"
+    networks: [lens]
+
+  surrealdb:
+    image: surrealdb/surrealdb:v3.2.4
+    pull_policy: never
+    command: start --log info --user root --pass "@SURREAL_PASS@" surrealkv:/data/lens.db
+    user: root
+    volumes:
+      - @DATA@/db:/data
+    healthcheck:
+      test: ["CMD", "/surreal", "is-ready", "--endpoint", "http://localhost:8000"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [lens]
+
+  backend:
+    <<: *backend
+
+  worker:
+    <<: *backend
+    command: lens worker
+    healthcheck:
+      disable: true
+
+  # After an upgrade, removes the images of the versions before this one (built with the package's label).
+  cleanup:
+    image: docker:27-cli
+    pull_policy: never
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        docker image ls --filter label=net.lens.package=synology --format '{{.Repository}}:{{.Tag}}'
+        | grep -v -e ':@VERSION@$$' -e '<none>' | xargs -r docker image rm;
+        docker image prune -f --filter label=net.lens.package=synology; true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on: [backend, worker, frontend]
+    restart: "no"
+    networks: [lens]
+
+  frontend:
+    image: lens-frontend:@VERSION@
+    pull_policy: never
+    environment:
+      API_BASE_URL: http://backend:8000
+      AUTH_SECRET: "@AUTH_SECRET@"
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: "@URL@"
+    ports:
+      - "@PORT@:3000"
+    depends_on: [backend]
+    restart: unless-stopped
+    networks: [lens]
+
+networks:
+  lens:
+    driver: bridge
