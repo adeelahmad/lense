@@ -8,6 +8,7 @@ The assistant only ever sees, and cites, what the asker can read.
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Iterator
 from typing import Any
 
@@ -38,6 +39,7 @@ from app.schemas.common import Created, Ok
 
 router = APIRouter(tags=["chats"])
 R = store.R
+log = logging.getLogger("lens")
 SSE_HEADERS = {"Cache-Control": "no-store", "X-Accel-Buffering": "no"}
 
 
@@ -237,8 +239,17 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
 
     def gen() -> Iterator[str]:
         on = chat.Answering(db, cid)
+        saved = False
         try:
-            yield from answer(on)
+            for ev in answer(on):
+                saved = saved or ev.startswith("event: done")
+                yield ev
+        except Exception:  # an answer that breaks off still ends with an error and is saved, so the question isn't left unanswered
+            log.exception("chat %s: the answer failed", cid)
+            message = "Something went wrong while answering. Try again."
+            yield _ev("error", {"message": message})
+            if not saved:
+                yield _ev("done", {"message": save("(no answer)", [], error=message)})
         finally:
             on.end()
 

@@ -9,7 +9,7 @@ import threading
 from typing import Any
 
 from app.config import settings as env
-from app.domain import auth, content_types, jobs, routines, settings, sources, store, templates
+from app.domain import auth, content_types, jobs, routines, settings, setup, sources, store, templates
 
 log = logging.getLogger("lens")
 
@@ -34,6 +34,9 @@ class Archive:
         routines.seed(self.db)
         # Pay for the embedded engine's full-text repair at startup rather than in someone's first search.
         self.db.ready_fulltext()
+        if auth.account_count(self.db) == 0:
+            setup.mark_fresh(self.db)  # a fresh install: the web app walks the first admin through setup
+        setup.apply_env(self.db)
         if auth.account_count(self.db) == 0:
             self.setup_code = os.environ.get("LENS_SETUP_CODE") or secrets.token_urlsafe(9)
             log.warning("No accounts yet. Create the first admin in the web app with setup code: %s", self.setup_code)

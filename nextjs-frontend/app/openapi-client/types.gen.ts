@@ -356,7 +356,11 @@ export type AuthStatus = {
    * Setup Required
    */
   setup_required: boolean;
-  [key: string]: unknown | boolean;
+  /**
+   * Wizard Pending
+   */
+  wizard_pending?: boolean;
+  [key: string]: unknown | boolean | undefined;
 };
 
 /**
@@ -8245,6 +8249,96 @@ export type SegmentUpdate = {
 };
 
 /**
+ * SetupAdmin
+ */
+export type SetupAdmin = {
+  /**
+   * From Env
+   */
+  from_env: boolean;
+  [key: string]: unknown | boolean;
+};
+
+/**
+ * SetupFinish
+ */
+export type SetupFinish = {
+  /**
+   * Skipped
+   */
+  skipped?: boolean;
+};
+
+/**
+ * SetupLlm
+ */
+export type SetupLlm = {
+  /**
+   * Base Url
+   */
+  base_url?: string | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Api Key
+   */
+  api_key?: string | null;
+};
+
+/**
+ * SetupLlmView
+ */
+export type SetupLlmView = {
+  /**
+   * Values
+   */
+  values: {
+    [key: string]: unknown;
+  };
+  /**
+   * Locked
+   */
+  locked: Array<string>;
+  [key: string]:
+    | unknown
+    | {
+        [key: string]: unknown;
+      }
+    | Array<string>;
+};
+
+/**
+ * SetupNamespace
+ */
+export type SetupNamespace = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Graph
+   */
+  graph?: "shared" | "isolated";
+};
+
+/**
+ * SetupNamespaceView
+ */
+export type SetupNamespaceView = {
+  /**
+   * Existing
+   */
+  existing: Array<string>;
+  /**
+   * Locked
+   */
+  locked: boolean;
+  [key: string]: unknown | Array<string> | boolean;
+};
+
+/**
  * SetupRequest
  */
 export type SetupRequest = {
@@ -8264,6 +8358,89 @@ export type SetupRequest = {
    * Name
    */
   name?: string | null;
+};
+
+/**
+ * SetupSaved
+ */
+export type SetupSaved = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Saved
+   */
+  saved?: Array<string>;
+  /**
+   * Watch
+   */
+  watch?: number | null;
+  [key: string]: unknown | boolean | Array<string> | number | null | undefined;
+};
+
+/**
+ * SetupStorage
+ */
+export type SetupStorage = {
+  /**
+   * Max Upload Mb
+   */
+  max_upload_mb?: number | null;
+  /**
+   * Folder
+   */
+  folder?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+};
+
+/**
+ * SetupStorageView
+ */
+export type SetupStorageView = {
+  /**
+   * Data Dir
+   */
+  data_dir: string;
+  /**
+   * Database
+   */
+  database: string;
+  /**
+   * Embedded
+   */
+  embedded: boolean;
+  /**
+   * Local Roots
+   */
+  local_roots: Array<string>;
+  /**
+   * Max Upload Mb
+   */
+  max_upload_mb: number;
+  /**
+   * Watches
+   */
+  watches: number;
+  [key: string]: unknown | string | boolean | Array<string> | number;
+};
+
+/**
+ * SetupView
+ */
+export type SetupView = {
+  /**
+   * Pending
+   */
+  pending: boolean;
+  admin: SetupAdmin;
+  namespace: SetupNamespaceView;
+  llm: SetupLlmView;
+  storage: SetupStorageView;
+  [key: string]: unknown | boolean | SetupAdmin | SetupNamespaceView | SetupLlmView | SetupStorageView;
 };
 
 /**
@@ -11380,6 +11557,122 @@ export type ReindexSearchResponses = {
 };
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
+
+export type GetSetupData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup";
+};
+
+export type GetSetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupView;
+};
+
+export type GetSetupResponse = GetSetupResponses[keyof GetSetupResponses];
+
+export type SaveNamespaceData = {
+  body: SetupNamespace;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/namespace";
+};
+
+export type SaveNamespaceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveNamespaceError = SaveNamespaceErrors[keyof SaveNamespaceErrors];
+
+export type SaveNamespaceResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveNamespaceResponse = SaveNamespaceResponses[keyof SaveNamespaceResponses];
+
+export type SaveLlmData = {
+  body: SetupLlm;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/llm";
+};
+
+export type SaveLlmErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveLlmError = SaveLlmErrors[keyof SaveLlmErrors];
+
+export type SaveLlmResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveLlmResponse = SaveLlmResponses[keyof SaveLlmResponses];
+
+export type SaveStorageData = {
+  body: SetupStorage;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/storage";
+};
+
+export type SaveStorageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveStorageError = SaveStorageErrors[keyof SaveStorageErrors];
+
+export type SaveStorageResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveStorageResponse = SaveStorageResponses[keyof SaveStorageResponses];
+
+export type FinishData = {
+  body: SetupFinish;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/finish";
+};
+
+export type FinishErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FinishError = FinishErrors[keyof FinishErrors];
+
+export type FinishResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type FinishResponse = FinishResponses[keyof FinishResponses];
 
 export type ListNamespacesData = {
   body?: never;

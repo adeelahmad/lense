@@ -1,0 +1,21 @@
+name: PR title
+
+# A pull request's title is the line its merge adds to the changelog and what decides the next version, so it has to
+# be a Conventional Commit title (`feat(chat): …`, `fix!: …`); see .github/scripts/release.py check-title.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  conventional:
+    name: Conventional Commit title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: python3 .github/scripts/release.py check-title "$TITLE"

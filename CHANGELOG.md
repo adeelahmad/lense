@@ -39,6 +39,46 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       A content type can have a pipeline, and a namespace can override it. `/api/v1/content-types`.
     - Nothing changes until someone sets something: the standard pipeline is drawn as a chain of today's steps, and
       content types start without a pipeline.
+- **Releases are automatic, from Conventional Commits.** PR titles are Conventional Commits (`feat(chat): …`,
+  `fix!: …`), checked on each PR and, with `make hooks`, on each commit message. Running Release from the Actions
+  tab picks the semantic version from the titles merged since the last release (or takes `patch`, `minor`, `major`
+  or a version), writes the changelog section from them under any hand-written Unreleased text, sets the version in
+  the backend, frontend and Cloudron manifest, commits and tags `vX.Y.Z`, and publishes the GitHub release with that
+  section as its notes; a tag pushed by hand is published the same way. Publishing starts the Cloudron, QNAP and
+  Synology package builds, which attach to the release. It replaces the template's draft-only workflow
+  (docs/contributing.md).
+    - The pre-commit hooks also check YAML, TOML and the GitHub workflows (actionlint), and the commit message.
+    - The repository has a CONTRIBUTING.md, SECURITY.md (report vulnerabilities privately to the maintainer), a code of
+      conduct (Contributor Covenant 2.1), bug and feature issue forms, a PR template that asks for a Conventional
+      Commit title, and Dependabot updates for Python, JavaScript, Docker images and Actions, titled `build(deps): …`
+      so the changelog lists them under Dependencies.
+
+- **First-run setup wizard.** A fresh install now walks its first admin through setup in the web app: after the
+  admin account (still with the one-time setup code, so a stranger can't claim a public server) come the first
+  namespace, the model provider (with a connection test) and storage (the upload limit, and a folder to watch).
+  Every step and the whole wizard can be skipped; installs that already had accounts never see it
+  (docs/configuration.md#first-run-setup).
+    - Or answer it in `.env`: `LENS_ADMIN_EMAIL` / `LENS_ADMIN_PASSWORD` create the first admin at startup,
+      `LENS_NAMESPACE` the first namespace, `LENS_LLM_BASE_URL` / `LENS_LLM_MODEL` / `LENS_LLM_API_KEY` set the
+      model provider, and `LENS_SETUP_WIZARD=off` turns the wizard off. Environment values win over the app, and
+      the wizard and Settings show them locked; a key from the environment is never shown.
+- **Fix: a fresh database with no namespaces in archive.yaml no longer stops the API from starting** with
+  "table 'seq' does not exist" (SurrealDB 3). The counters table is defined with the rest of the schema now, so
+  nothing reads it before it exists.
+
+- **Fix: Chat answers no longer break off with "The answer stopped before it finished".** With some model servers an
+  answer ended mid-stream with nothing saved, so the question sat unanswered in the conversation. Now each one ends
+  in an answer, or an error that's shown and saved with the conversation.
+    - Tool calls whose arguments come as an object rather than a JSON string (some Ollama, llama.cpp and vLLM
+      setups) are read as they are; they used to break the answer.
+    - A reply that isn't JSON (a proxy's error page), a stream that's cut off, and a tool that fails are errors the
+      chat says in words: the model is told about a failed tool and carries on.
+    - Reasoning models (Qwen 3, DeepSeek R1) no longer show their `<think>…</think>` block in answers, summaries
+      and the source check.
+    - In a conversation scoped to some recordings (a recording's Chat tab, a collection's Chat) the assistant's
+      search looks only there, so matches elsewhere no longer crowd out the ones in scope and leave it with nothing.
+    - Tool steps say "not found" instead of a bare id, and an entity change missing its new name, type or merge ids
+      is refused instead of asking you to approve "Change X to None".
 
 - **Faster to run.** `make run` builds the images once and runs the whole stack without hot reload
   (`docker-compose.prod.yml`, with a `.env` of fresh secrets written on first use): the web app is built ahead of
@@ -54,6 +94,29 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       type-check plugin is gone (type errors come from the editor, `pnpm tsc` and CI).
     - The backend's OpenAPI watcher no longer runs mypy on every save (it took longer than the reload) and leaves
       `openapi.json` alone when the schema hasn't changed, so the frontend doesn't regenerate its client for nothing.
+
+- **Fixes for the Docker stacks.** From running `make dev` on an Apple Silicon Mac with Colima and reading its logs.
+    - `make` finds Compose by itself: `docker compose`, or the standalone `docker-compose` where there's no `docker`
+      plugin (Colima, Podman); `DOCKER_COMPOSE=…` still chooses.
+    - The dev stack's mail catcher is Mailpit (<http://localhost:8025>, as before): MailHog publishes no arm64 image,
+      so the stack didn't start on Apple Silicon. Its ports are published on this machine only (127.0.0.1).
+    - Containers stop when told to. The API's and the web app's dev containers and the worker ignored `docker stop`
+      (as a container's first process, bash and Python ignore TERM unless they handle it) and were killed ten seconds
+      later (exit 137): `start.sh` now passes the stop on to the server and the watcher, and `lens worker` and
+      `lens watch` stop on TERM as on Ctrl-C.
+    - Dependencies follow the image. The dev containers kept their packages in named volumes, which a rebuild
+      doesn't touch: after `pnpm-lock.yaml` moved to Next 16.3.6 the web app still ran 16.0.8. They're anonymous
+      volumes now and `make dev` renews them (`up --build --renew-anon-volumes`).
+    - The web app's dev server no longer writes an `AGENTS.md` and a `CLAUDE.md` into `nextjs-frontend/` (Next 16.3
+      does unless told not to), and its browser-support data is current (the logs said it was 24 months old).
+    - A dev container whose server crashed stops (the log says why) instead of looking up and serving nothing.
+    - `make run` no longer overwrites the dev images: the production ones are `lens-backend` and `lens-frontend`,
+      tagged `${LENS_VERSION:-prod}`. A plain `docker compose up` after `make run` ran the production web app, which
+      has no dev build, and crashed.
+    - The dev stack reads `ARCHIVE_SECRET_KEY` from the root `.env`, as native runs do, so both read the same stored
+      credentials. **Upgrading:** a dev stack that stored credentials before this sealed them with the key in its
+      volume's `data_dir/secret.key` and can't read them now: enter them again, or set `ARCHIVE_SECRET_KEY` in `.env`
+      to that file's contents (`docker compose exec backend cat /data/secret.key`).
 
 - **Fix (security): only the server's own media links are signed.** Text shaped like a media link
   (`/api/v1/recordings/12/audio`) came back signed: titles and transcript lines in API responses, and anything in the

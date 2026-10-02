@@ -7,10 +7,12 @@ run work or change data don't act: they create an approval the person accepts or
 from __future__ import annotations
 
 import json
+import logging
 
 from . import batches, entities, recsets, render, search as searchmod, speakers as spk, store, templates
 
 R = store.R
+log = logging.getLogger("lens")
 _I = {"type": "integer"}
 _S = {"type": "string"}
 TOOLS = [
@@ -142,14 +144,20 @@ class Toolbox:
             return json.dumps({"error": f"no tool {name}"}), f"unknown tool {name}"
         try:
             out, summary = fn(**{k: v for k, v in (args or {}).items() if v is not None})
-        except (ValueError, KeyError, TypeError) as e:
+        except KeyError as e:  # an id or name that doesn't exist
+            return json.dumps({"error": f"not found: {e.args[0] if e.args else e}"}), f"{name}: not found"
+        except (ValueError, TypeError) as e:
             return json.dumps({"error": str(e)}), f"{name}: {e}"
+        except Exception as e:  # noqa: BLE001 - the model hears what went wrong instead of the answer breaking off
+            log.exception("assistant tool %s failed", name)
+            return json.dumps({"error": f"the tool failed: {e}"}), f"{name} failed"
         return json.dumps(out, ensure_ascii=False, default=str)[:12000], summary
 
     # ---- read tools ----
     def t_search_transcripts(self, query, namespace=None, limit=8):
-        res = searchmod.search(self.db, query, namespace, limit=min(int(limit), 20), spaces=self.readable)
-        hits = [h for h in res["hits"] if self.allowed is None or h["recording_id"] in self.allowed]
+        # within the conversation's scope in the search itself, so out-of-scope matches don't crowd out the rest
+        res = searchmod.search(self.db, query, namespace, limit=min(int(limit), 20), spaces=self.readable, recordings=self.allowed)
+        hits = res["hits"]
         out = []
         for h in hits:
             text = h["snippet"].replace("<mark>", "").replace("</mark>", "")
@@ -270,6 +278,8 @@ class Toolbox:
         return entities.timeline(self.db, [int(entity_id)], self.readable), "Counted mentions by month"
 
     def t_graph_neighbours(self, entity_id=None, speaker_id=None, limit=15):
+        if not entity_id and not speaker_id:
+            raise ValueError("give an entity_id or a speaker_id")
         focus = f"e{entity_id}" if entity_id else f"s{speaker_id}"
         g = entities.neighbourhood(self.db, focus, self.readable, 1, limit=min(int(limit), 40))
         labels = {n["id"]: n["label"] for n in g["nodes"]}
@@ -324,6 +334,11 @@ class Toolbox:
         return self._approval("run_template", {"template_id": t["id"], "recordings": ids}, f"Run {label} on {len(ids)} recording(s)", est)
 
     def t_propose_entity_change(self, action, entity_id, merge_ids=None, new_name=None, new_type=None):
+        needs = {"merge": ("merge_ids", merge_ids), "rename": ("new_name", new_name), "retype": ("new_type", new_type)}
+        if action not in needs:
+            raise ValueError("action is one of merge, rename, retype")
+        if not needs[action][1]:
+            raise ValueError(f"{action} needs {needs[action][0]}")
         e = entities.detail(self.db, int(entity_id), self.readable)
         what = {
             "merge": f"Merge {len(merge_ids or [])} entit{'y' if len(merge_ids or []) == 1 else 'ies'} into {e['name']}",

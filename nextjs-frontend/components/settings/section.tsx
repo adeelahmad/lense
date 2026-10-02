@@ -38,6 +38,10 @@ import { cn } from "@/lib/utils";
 /** Env variables that override a setting (the backend reports the key as locked). */
 const ENV: Record<string, string> = {
   "server.allowed_hosts": "ARCHIVE_ALLOWED_HOSTS",
+  "llm.base_url": "LENS_LLM_BASE_URL",
+  "llm.model": "LENS_LLM_MODEL",
+  "llm.api_key": "LENS_LLM_API_KEY",
+  "llm.vision_model": "LENS_LLM_VISION_MODEL",
 };
 const CONFIRM_BASE = "CHANGE ALL IDENTIFIERS";
 

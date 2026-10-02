@@ -27,6 +27,7 @@ from app.api.v1.routes import (
     routines,
     search,
     searches,
+    setup,
     sources,
     speakers,
     templates,
@@ -43,6 +44,7 @@ api_router.include_router(auth.tokens)
 for module in (
     users,
     admin,
+    setup,
     namespaces,
     hierarchy,
     recordings,
