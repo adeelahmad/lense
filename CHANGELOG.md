@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Watched folders and routines work in Docker and the packages.** They were checked only by the API's own
+  background work, which Docker, Synology, QNAP, Cloudron and Proxmox all turn off in favour of a `lens worker`
+  process; so folders were never scanned and routines never ran. `lens worker` now does both (not a worker limited
+  with `--steps`, nor one started with `--no-schedule`), and a folder scan is claimed first, as routine runs are.
 - **Install on Proxmox VE with one command.** A [community helper script](https://community-scripts.org/docs/ct/detailed_guide)
   (`proxmox/ct/lens.sh`, run in the Proxmox host's shell) creates a Debian 13 LXC container running Lens without
   Docker: SurrealDB 3.2.4, the API, a job worker and the web app as systemd services, with fresh secrets and the web

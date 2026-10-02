@@ -143,6 +143,10 @@ has left.
 
     lens worker --steps transcribe,diarize     # e.g. on the Mac, with SURREAL_URL pointing at the server
 
+A worker that runs every step also scans watched folders and runs routines when they are due, so Docker and the
+packages need no other process for them. One limited with `--steps`, or started with `--no-schedule`, only runs jobs.
+A folder scan and a routine run are each claimed first, so several processes doing this never repeat one.
+
 ## Storage sources
 
 Admins add sources in the app (`/api/v1/sources`): S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB,
@@ -262,7 +266,7 @@ namespaces, or all of them:
 
 The schedule is a five-field cron expression (minute hour day-of-month month day-of-week, e.g. `0 3 * * *`) or
 `@hourly`, `@daily`, `@weekly`, `@monthly`, in a time zone; without one a routine runs only when someone presses Run
-now. The API process checks every 30 seconds (`lens watch` does too, for setups that run it separately); a routine is
+now. Every 30 seconds, `lens worker` checks (and so does the API process when it runs background work, and `lens watch`); a routine is
 never started twice at once, and one started in two processes runs once. Each run keeps what every action did and a
 log.
 
