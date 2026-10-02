@@ -27,8 +27,8 @@ cloudron install --location lens -f Dockerfile.cloudron
 ```
 
 The CLI uploads the source and your Cloudron builds the image itself, so no registry is needed. Then open the app:
-the post-install note says where the first-admin **setup code** is (the app's logs, or
-`grep LENS_SETUP_CODE /app/data/secrets.env` in the web terminal).
+enter the first-admin **setup code** (in the app's logs, or `grep LENS_SETUP_CODE /app/data/secrets.env` in the
+web terminal), then follow the setup steps for the namespace, model provider and storage.
 
 Update to a newer checkout with `cloudron update --app lens -f Dockerfile.cloudron`; logs with
 `cloudron logs --app lens -f`.
