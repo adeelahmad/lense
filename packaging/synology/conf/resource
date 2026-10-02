@@ -8,7 +8,7 @@
     ]
   },
   "docker-project": {
-    "preload-image": "images/lens-images.tar.gz",
+    "preload-image": "lens-images.tar.gz",
     "projects": [
       {
         "name": "lens",

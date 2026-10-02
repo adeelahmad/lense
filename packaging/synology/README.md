@@ -30,7 +30,8 @@ RTD1296/RTD1619 and Marvell Armada 37xx are `armv8`.
 
 1. Package Center > **Manual Install** > choose the `.spk` > Next. Accept the third-party package warning.
 2. In the wizard, pick the web port (3000 unless something else uses it), the address people will open Lens at
-   (leave it blank for `http://<NAS address>:<port>`), and a setup code.
+   (leave it blank for `http://<NAS address>:<port>`), and a setup code. The mail server for password resets is an
+   optional second page.
 3. When it's done, open Lens from the DSM main menu (or the address above), and create the first admin account with
    the setup code.
 
@@ -43,13 +44,17 @@ The package creates a shared folder `lens` (or reuses one with that name):
 | `lens/audio/podcasts`, `lens/audio/interviews` | Recordings Lens can scan into the two starting namespaces |
 | `lens/lens.conf` | Secrets and the wizard's answers, kept with the data so a reinstall still reads it |
 
+To change a setting later, edit `lens/lens.conf` and Manual Install the same `.spk` again. Any `MAIL_*` or `LENS_*` line
+in it reaches the API and the worker as it is, so the variables in [Configuration](../../docs/configuration.md) work
+there too (for example `LENS_LLM_BASE_URL` for a model server on your network).
+
 Back up the whole `lens` folder (Hyper Backup) with Lens stopped. Uninstalling the package leaves the folder alone.
 
 ## Upgrade
 
 Build with a higher `BUILD` (or a new Lens version) and Manual Install the new `.spk` over the old one. The data, the
 secrets and the wizard's answers are kept; Container Manager loads the new images and recreates the containers.
-The previous version's images stay in Container Manager > Image until you delete them.
+The previous version's Lens images are removed once the new containers are up.
 
 ```bash
 BUILD=0002 packaging/synology/build.sh
@@ -68,6 +73,10 @@ as an unprivileged package user, as DSM 7 requires; they only write the compose 
   shared folder instead of named volumes, and a one-shot `permissions` container that hands `lens/archive` to the
   API's user (uid 1000).
 - The API uses the image's `docker/archive.yaml`, so it starts with the `podcasts` and `interviews` namespaces.
+- A one-shot `cleanup` container (the Docker CLI, bundled) removes Lens images of earlier versions after an upgrade.
+  Its command is fixed in the compose file: it removes images carrying the `net.lens.package=synology` label that
+  `build.sh` puts on the Lens images, other than the current version's. It is given the Docker socket to do that,
+  which is as powerful as root on the NAS, and exits when done.
 
 ## Troubleshooting
 

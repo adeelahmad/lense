@@ -6,7 +6,8 @@
 #   ARCH=armv8 packaging/synology/build.sh         # 64-bit ARM models (cross-builds with QEMU/binfmt)
 #   LENS_TARGET=full packaging/synology/build.sh   # with LibreOffice and Chromium (a much bigger package)
 #   SKIP_BUILD=1 BUILD=0002 packaging/synology/build.sh   # package lens-backend:<version> and lens-frontend:<version>
-#                                                         # images already built for that architecture
+#                                                         # images already built for that architecture (label them
+#                                                         # net.lens.package=synology so upgrades remove them)
 #
 # Needs Docker with buildx. Writes dist/synology/lens-<version>-<arch>.spk.
 set -eu
@@ -18,6 +19,7 @@ LENS_TARGET=${LENS_TARGET:-lean}
 EXTRAS=${EXTRAS:-}
 BUILD=${BUILD:-0001}
 SURREAL_IMAGE=surrealdb/surrealdb:v3.2.4
+DOCKER_CLI_IMAGE=docker:27-cli
 APP_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/fastapi_backend/pyproject.toml" | head -n 1)
 VERSION="$APP_VERSION-$BUILD"
 
@@ -30,23 +32,24 @@ esac
 OUT=$ROOT/dist/synology
 WORK=$OUT/work-$ARCH
 rm -rf "$WORK"
-mkdir -p "$WORK/spk" "$WORK/package/images" "$WORK/package/ui/images"
+mkdir -p "$WORK/spk" "$WORK/package/ui/images"
 
 if [ -z "${SKIP_BUILD:-}" ]; then
     echo "==> Building images for $PLATFORM ($LENS_TARGET)"
-    docker buildx build --platform "$PLATFORM" --load --target "$LENS_TARGET" --build-arg EXTRAS="$EXTRAS" \
+    docker buildx build --platform "$PLATFORM" --load --label net.lens.package=synology --target "$LENS_TARGET" --build-arg EXTRAS="$EXTRAS" \
         -t "lens-backend:$VERSION" "$ROOT/fastapi_backend"
-    docker buildx build --platform "$PLATFORM" --load -f "$ROOT/nextjs-frontend/Dockerfile.prod" \
+    docker buildx build --platform "$PLATFORM" --load --label net.lens.package=synology -f "$ROOT/nextjs-frontend/Dockerfile.prod" \
         -t "lens-frontend:$VERSION" "$ROOT/nextjs-frontend"
 fi
 docker pull --platform "$PLATFORM" "$SURREAL_IMAGE"
+docker pull --platform "$PLATFORM" "$DOCKER_CLI_IMAGE"
 
 echo "==> Saving images into the package"
 SAVE_PLATFORM=
 docker save --help 2>/dev/null | grep -q -- '--platform' && SAVE_PLATFORM="--platform $PLATFORM"
 # shellcheck disable=SC2086
-docker save $SAVE_PLATFORM "lens-backend:$VERSION" "lens-frontend:$VERSION" "$SURREAL_IMAGE" \
-    | gzip -1 > "$WORK/package/images/lens-images.tar.gz"
+docker save $SAVE_PLATFORM "lens-backend:$VERSION" "lens-frontend:$VERSION" "$SURREAL_IMAGE" "$DOCKER_CLI_IMAGE" \
+    | gzip -1 > "$WORK/package/lens-images.tar.gz"
 
 echo "==> Assembling the SPK"
 cp -R "$HERE/package/compose" "$WORK/package/"

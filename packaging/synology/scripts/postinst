@@ -19,7 +19,7 @@ CONF=$DATA/lens.conf
 touch "$CONF"
 chmod 600 "$CONF"
 get() { sed -n "s/^$1=//p" "$CONF" | tail -n 1; }
-put() { grep -v "^$1=" "$CONF" > "$CONF.tmp" || true; echo "$1=$2" >> "$CONF.tmp"; mv "$CONF.tmp" "$CONF"; chmod 600 "$CONF"; }
+put() { grep -v "^$1=" "$CONF" > "$CONF.tmp" || true; printf '%s=%s\n' "$1" "$2" >> "$CONF.tmp"; mv "$CONF.tmp" "$CONF"; chmod 600 "$CONF"; }
 secret() { head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; }
 
 for key in ACCESS_SECRET_KEY ARCHIVE_SECRET_KEY AUTH_SECRET SURREAL_PASS; do
@@ -29,6 +29,12 @@ done
 [ -n "$wizard_port" ] && put PORT "$wizard_port"
 [ -n "$wizard_setup_code" ] && put SETUP_CODE "$wizard_setup_code"
 [ -n "${wizard_url+x}" ] && put URL "${wizard_url%/}"
+# Mail, for password resets and share links: optional, so only the answers given are stored.
+[ -n "$wizard_mail_server" ] && put MAIL_SERVER "$wizard_mail_server"
+[ -n "$wizard_mail_port" ] && put MAIL_PORT "$wizard_mail_port"
+[ -n "$wizard_mail_username" ] && put MAIL_USERNAME "$wizard_mail_username"
+[ -n "$wizard_mail_password" ] && put MAIL_PASSWORD "$wizard_mail_password"
+[ -n "$wizard_mail_from" ] && put MAIL_FROM "$wizard_mail_from"
 [ -n "$(get PORT)" ] || put PORT 3000
 [ -n "$(get SETUP_CODE)" ] || put SETUP_CODE "$(secret | cut -c1-12)"
 
@@ -56,4 +62,8 @@ render() {
 render "$TARGET/compose/compose.yaml.in" "$TARGET/compose/compose.yaml"
 chmod 600 "$TARGET/compose/compose.yaml"
 render "$TARGET/ui/config.in" "$TARGET/ui/config"
+# Every MAIL_* and LENS_* line in lens.conf reaches the API and the worker as it is (LENS_ADMIN_EMAIL, LENS_NAMESPACE,
+# LENS_LLM_BASE_URL and the rest of docs/configuration.md); add one there and install the package again to apply it.
+grep -E '^(MAIL|LENS)_[A-Z0-9_]+=' "$CONF" > "$TARGET/compose/lens.env" || true
+chmod 600 "$TARGET/compose/lens.env"
 exit 0

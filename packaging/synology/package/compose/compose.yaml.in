@@ -5,6 +5,7 @@ name: lens
 x-backend: &backend
   image: lens-backend:@VERSION@
   pull_policy: never
+  env_file: [lens.env]  # MAIL_* and LENS_* from lens.conf
   environment:
     ACCESS_SECRET_KEY: "@ACCESS_SECRET_KEY@"
     ARCHIVE_SECRET_KEY: "@ARCHIVE_SECRET_KEY@"
@@ -62,6 +63,22 @@ services:
     command: lens worker
     healthcheck:
       disable: true
+
+  # After an upgrade, removes the images of the versions before this one (built with the package's label).
+  cleanup:
+    image: docker:27-cli
+    pull_policy: never
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        docker image ls --filter label=net.lens.package=synology --format '{{.Repository}}:{{.Tag}}'
+        | grep -v -e ':@VERSION@$$' -e '<none>' | xargs -r docker image rm;
+        docker image prune -f --filter label=net.lens.package=synology; true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on: [backend, worker, frontend]
+    restart: "no"
+    networks: [lens]
 
   frontend:
     image: lens-frontend:@VERSION@
