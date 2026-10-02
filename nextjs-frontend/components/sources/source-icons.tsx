@@ -1,4 +1,16 @@
-import { Box, Cloud, CloudCog, Folder, Globe, HardDrive, type LucideIcon, Network, Server } from "lucide-react";
+import {
+  Box,
+  CalendarDays,
+  Cloud,
+  CloudCog,
+  Folder,
+  Globe,
+  HardDrive,
+  type LucideIcon,
+  Mail,
+  Network,
+  Server,
+} from "lucide-react";
 
 import type { SourceType } from "@/components/sources/source-model";
 
@@ -11,6 +23,8 @@ export const TYPE_ICON: Record<SourceType, LucideIcon> = {
   smb: Network,
   webdav: Globe,
   local: Folder,
+  imap: Mail,
+  ical: CalendarDays,
 };
 
 /** The connection's type in a 32px rounded tile. */

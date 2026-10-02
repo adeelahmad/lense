@@ -70,6 +70,7 @@ nav:
   - Processing: processing.md
   - Video: video.md
   - Chat and batch runs: assistant.md
+  - Notifications: notifications.md
   - IIIF: iiif.md
   - API: api.md
   - API work the design needs: backend-gaps.md

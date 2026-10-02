@@ -207,6 +207,9 @@ export function GraphPage() {
       >
         {filters}
         <span className="flex-1" />
+        <Link href="/routines/changes" className="text-[12.5px] font-semibold text-fg-accent hover:underline">
+          Proposed changes to review
+        </Link>
         {viewSwitch}
       </aside>
 

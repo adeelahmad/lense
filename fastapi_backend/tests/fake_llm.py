@@ -77,6 +77,33 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "importance": 9,
                 }
             )
+        elif "judgements" in schema.get("properties", {}):
+            # graph tidying: sure that the first pair is one thing, less sure of the rest, and the last isn't
+            pairs = re.findall(r"^(\d+)\. a:", body["messages"][-1]["content"], re.M)
+            content = json.dumps(
+                {
+                    "judgements": [
+                        {
+                            "pair": int(k),
+                            "same": i < len(pairs) - 1 or i == 0,
+                            "confidence": 0.97 if i == 0 else 0.6,
+                            "keep": "a",
+                            "why": "spelling",
+                        }
+                        for i, k in enumerate(pairs)
+                    ]
+                }
+            )
+        elif "entities" in schema.get("properties", {}):
+            content = json.dumps(
+                {
+                    "entities": [
+                        {"name": "Dave", "type": "PERSON", "line": 1},
+                        {"name": "capsid samples", "type": "PRODUCT"},
+                        {"name": "", "type": "ORG"},
+                    ]
+                }
+            )
         elif body.get("response_format"):
             content = json.dumps(
                 {
