@@ -1,61 +1,153 @@
-name: Release draft creation
+name: Release
 
+# Cuts and publishes a release in one go, from the Actions tab (Run workflow) or `gh workflow run release.yml`. The
+# version follows the Conventional Commit titles merged since the last release (a breaking change is major, minor
+# before 1.0; a feat minor; anything else patch) unless you give a bump. The new CHANGELOG.md section is the
+# "Unreleased" text, if any, then those changes listed by type; the version is set in the backend, frontend and
+# Cloudron manifest, committed to the default branch, tagged vX.Y.Z and published as the GitHub release with that
+# section as its notes (.github/scripts/release.py). Pushing a vX.Y.Z tag yourself publishes that tag the same way,
+# without the commit.
+#
+# Publishing starts the package workflows (cloudron.yml, qnap.yml, synology.yml). A release published with the
+# workflow's own token doesn't trigger `release: published` in other workflows, so this one starts them itself,
+# for the tag (`gh workflow run <file> --ref vX.Y.Z -f tag=vX.Y.Z`). With a RELEASE_TOKEN secret (a fine-grained
+# token with Contents: write on this repository) the release is published with it instead, `release: published`
+# fires as usual, and nothing is started here. RELEASE_TOKEN is also what pushes past branch protection on main.
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: "Version of the release"
+      bump:
+        description: "auto (from the commit titles), patch, minor, major, or the exact version (1.2.3)"
         required: true
-        type: number
+        default: auto
+        type: string
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  release:
-    name: Release
-
+  cut:
+    name: Cut the version
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
-
+    outputs:
+      tag: ${{ steps.cut.outputs.tag }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Extract changelog for version
+      - name: Only from the default branch
+        if: github.ref_name != github.event.repository.default_branch
+        env:
+          REF: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          VERSION=${{ github.event.inputs.version }}
+          echo "::error::Run the release from $DEFAULT_BRANCH, not $REF"
+          exit 1
 
-          # Extract changelog for version
-          CHANGELOG=$(awk -v version="$VERSION" 'BEGIN{RS="## "; FS="\n"} $0 ~ version {print "## "$0}' CHANGELOG.md)
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+          ref: ${{ github.ref }} # the branch as it is now, not when the run started, so a re-run sees its own commit
+          fetch-depth: 0 # the history and tags since the last release
 
-          # Remove the first line (version title)
-          CHANGELOG=$(echo "$CHANGELOG" | sed '1d')
+      - name: Move Unreleased under the new version
+        id: cut
+        env:
+          BUMP: ${{ inputs.bump }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # a run whose push went through but whose release didn't (re-run, or run again, even after more
+          # merges): publish that version first
+          tag=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -1)
+          if [ -n "$tag" ] && [[ "$(git log -1 --format=%s "$tag")" == "chore(release): $tag" ]] \
+            && ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::notice::$tag is committed and tagged but not released yet; publishing it, run Release again for the next one"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "resume=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          version=$(python3 .github/scripts/release.py cut "$BUMP")
+          git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null \
+            && { echo "::error::Tag v$version already exists"; exit 1; }
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          git diff --stat
 
-          # Verify if changelog was found
-          if [ -z "$CHANGELOG" ]; then
-            echo "Changelog for version $VERSION not found"
-            exit 1
+      - name: Commit and tag
+        if: steps.cut.outputs.resume != 'true'
+        env:
+          TAG: ${{ steps.cut.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore(release): $TAG"
+          git tag "$TAG"
+          # one push, so the tag never exists without the commit on the branch. With RELEASE_TOKEN this tag push
+          # starts this workflow again; that run waits for this one (concurrency) and finds the release published.
+          git push --atomic origin "HEAD:${GITHUB_REF_NAME}" "refs/tags/$TAG"
+
+  publish:
+    name: Publish ${{ needs.cut.outputs.tag || github.ref_name }}
+    needs: cut
+    # after the cut, or for a pushed tag
+    if: always() && (needs.cut.result == 'success' || github.event_name == 'push')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write # to start the package workflows
+    env:
+      TAG: ${{ needs.cut.outputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      HAS_RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Release notes from CHANGELOG.md
+        run: |
+          python3 .github/scripts/release.py notes "$TAG" > notes.md
+          if [ -s notes.md ] && grep -q '[^[:space:]]' notes.md; then
+            echo "NOTES=--notes-file=notes.md" >> "$GITHUB_ENV"
+          else
+            echo "::warning::CHANGELOG.md has no ${TAG#v} section; the notes list the merged pull requests instead"
+            echo "NOTES=--generate-notes" >> "$GITHUB_ENV"
           fi
 
-          # Set output
-          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
-          echo "$CHANGELOG" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      - name: Create GitHub Release Draft
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event.inputs.version }}
-          name: ${{ github.event.inputs.version }}
-          body: ${{ env.CHANGELOG }}
-          draft: true
-          prerelease: false
+      - name: Publish the release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::notice::$TAG is already released; leaving it as it is"
+            echo "EXISTING=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          # the newest version is marked Latest (what the Proxmox script installs); a backport isn't
+          newest=$(gh release list --exclude-drafts --exclude-pre-releases --limit 100 --json tagName --jq '.[].tagName' \
+            | { cat; echo "$TAG"; } | sort -V | tail -1)
+          latest=false
+          [ "$newest" != "$TAG" ] || latest=true
+          gh release create "$TAG" --verify-tag --title "$TAG" --latest="$latest" "$NOTES"
+
+      - name: Start the package workflows
+        # RELEASE_TOKEN's release fires `release: published` in them already
+        if: env.EXISTING != 'true' && env.HAS_RELEASE_TOKEN != 'true'
+        run: |
+          for workflow in cloudron.yml qnap.yml synology.yml; do
+            if [ ! -f ".github/workflows/$workflow" ]; then
+              echo "$workflow isn't in $TAG; skipped"
+            elif gh workflow run "$workflow" --ref "$TAG" -f tag="$TAG"; then
+              echo "Started $workflow for $TAG"
+            else
+              echo "::warning::Couldn't start $workflow for $TAG; run it from the Actions tab"
+            fi
+          done
 
       - name: Summary
         run: |
-          echo "## 🚀 Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "Release draft created for version ${{ github.event.inputs.version }}." >> $GITHUB_STEP_SUMMARY
-          echo "Visit the [Releases section](https://github.com/vintasoftware/nextjs-fastapi-template/releases) to review and publish the release." >> $GITHUB_STEP_SUMMARY
-          echo "Once the draft is published, another action will automatically be triggered to publish the packages." >> $GITHUB_STEP_SUMMARY
+          echo "## $TAG" >> "$GITHUB_STEP_SUMMARY"
+          echo "[The release]($GITHUB_SERVER_URL/$GH_REPO/releases/tag/$TAG) is published; the package workflows attach their files to it." >> "$GITHUB_STEP_SUMMARY"

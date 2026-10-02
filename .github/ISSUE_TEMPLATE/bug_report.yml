@@ -1,0 +1,53 @@
+name: Bug report
+description: Something in Lens doesn't work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead. Screenshots help.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a recording in a namespace with …
+        2. Click …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release tag, or the commit (`git describe --tags`).
+      placeholder: v0.4.0
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How Lens runs
+      options:
+        - Docker Compose (make run / make dev)
+        - Without Docker (make start-backend / start-frontend)
+        - Cloudron
+        - Synology
+        - QNAP
+        - Proxmox
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: models
+    attributes:
+      label: Model server
+      description: If it involves transcription, chat or extraction, which server and model (Ollama, llama.cpp, vLLM, OpenAI, …).
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The backend and worker logs around the time (`make logs`). Remove secrets first.
+      render: text

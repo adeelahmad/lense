@@ -11,6 +11,87 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   wizard (`/welcome`) asks for the first namespace, the model provider and storage. `update` moves to the
   latest published GitHub release (the newest `main` until there is one), building it beside the running version
   so Lens stays up until the switch (proxmox/README.md).
+- **Notifications to chat and webhooks.** A namespace's owners can have Lens tell a chat room or another app when a
+  run finishes or fails, a batch run finishes, or something is added: on the namespace's page under Notifications,
+  with a test button and a list of what each target was sent (docs/notifications.md).
+    - Targets: [Matterbridge](https://github.com/42wim/matterbridge)'s API (and through it Slack, Discord, Matrix,
+      Telegram, IRC and the rest), webhooks with Lens's own JSON signed the Standard Webhooks way, and Slack-style and
+      Discord incoming webhooks. Addresses, secrets and tokens are sealed in the database.
+    - A batch run is one message when it finishes, not one per run; more than five things added at once are one
+      message too.
+    - The notifier runs wherever background work does (inline workers, `lens worker`): it reads runs that ended and
+      recordings added, claims each event once across processes, and retries what doesn't get through (30 s, then
+      four times longer each time, up to 6 hours). Nothing from before notifications were set up is sent.
+    - Targets reach public addresses only unless an admin lists a private network under Settings → Notifications
+      (`notifications.networks`), which a Matterbridge on the LAN or the Docker network needs; the address that was
+      checked is the one connected to, and redirects aren't followed. `notifications.app_url` sets where links point.
+    - `GET/POST /api/v1/namespaces/{name}/notifications`, `PATCH/DELETE …/{tid}`, `POST …/{tid}/test`,
+      `POST …/{tid}/secret` and `GET …/{tid}/deliveries` (docs/api.md).
+- **Email and calendars as sources.** Sources can now be an email account (IMAP) or a calendar feed (iCal), next to
+  S3, Drive, SFTP and the rest. Browse them, import chosen messages or events, or watch them like a folder
+  (docs/processing.md#email-imap-and-calendar-feeds-ical).
+    - IMAP: mailboxes are folders and messages are `.eml` files named by their subjects. Each message becomes an
+      email document, titled by its subject and dated when it was sent, and its attachments are kept and become
+      resources of their own. Watching the whole account skips the bin, junk, drafts and Gmail's All Mail, Starred
+      and Important, and a message in several mailboxes comes in once. A watch asks only for messages newer than the
+      last it saw. Lens only reads: messages stay unread and nothing is moved or deleted.
+    - iCal: an `https://` or `webcal://` address, with a password if it needs one. The address is kept encrypted
+      like a password, fetched only from public addresses (and networks allowed in `documents.web_networks`), and
+      the password isn't sent on to another server the calendar redirects to. Each event becomes text (title, when
+      and where, organizer and attendees, how it repeats, description), dated when it starts; Outlook's Windows time
+      zone names and calendars' own time zones are understood. An event that changes is read again into the same
+      resource instead of making a second one.
+    - `.eml` and `.ics` files can be read as text everywhere else too: in a storage source or uploaded through
+      Import. Where the server can't make PDFs, an email from a source is read as text instead of being skipped.
+- **Routines: things the archive does on a schedule.** A routine runs its actions over chosen namespaces (or all) on
+  a cron schedule in a time zone, or when someone presses Run now: sync watched folders, queue a pipeline for new,
+  unprocessed or all recordings, or run a workflow. Runs keep per-action results and a log (docs/processing.md,
+  Routines). `GET/POST/PATCH/DELETE /api/v1/routines`, `POST /api/v1/routines/{id}/run`,
+  `GET /api/v1/routines/{id}/runs`, `GET /api/v1/routines/schedule` to preview a schedule.
+    - The API process checks for due routines every 30 seconds in its own thread, and `lens watch` runs them too. A
+      run is claimed before it starts, so two processes never run the same routine twice; a run that stops reporting
+      for three hours is taken as dead.
+    - "New recordings" means recordings made since the routine last looked, by recording id, so nothing made during a
+      run is missed or taken twice.
+- **Organising the graph with a workflow.** Workflows have a scope: recordings (as before) or the graph. Graph
+  workflows find look-alike entities in each namespace and across shared ones, ask the model whether each pair is one
+  thing, and merge or link the pairs it is sure of while proposing the rest. Every change is recorded and can be
+  accepted, dismissed or undone (`/api/v1/graph-changes`), and a whole run can be undone at once. A fresh archive gets
+  the workflow *Organise the entity graph* and a nightly routine that runs it, switched off.
+    - Graph workflows can't be attached to pipelines or run on one recording; recording workflows can't use graph
+      nodes.
+    - Web app: Routines (admins) lists routines with their schedule, next run and last result, and turns them on
+      and off; the editor has schedule presets with a live preview of the next runs, namespaces, and an ordered list
+      of actions. Each routine's page shows its runs with results and logs, and undoes a run's changes. Proposed
+      changes (`/routines/changes`, also linked from the Graph page) shows both entities side by side with the
+      model's verdict, to merge, link, dismiss or undo. On the canvas a new workflow can organise the graph, with its
+      own nodes.
+- **Workflows on a canvas, and content types.** Pipelines make assets (transcripts, shots, OCR text, faces); workflows
+  are shared, versioned node graphs that make metadata (outputs, custom field values, entities). Both are drawn on a
+  canvas (Pipelines → Workflows, and Canvas on a pipeline): drag nodes, connect them, set each node's options, save a
+  version. A pipeline runs a workflow as a `workflow` step, pinned to its version when the run is queued.
+    - Workflow nodes: input, LLM template, pick, condition (yes/no), merge, output, custom field, and entity
+      extraction as nodes (by rules: the built-in extractor, terms and patterns; by the model, as structured output;
+      save entities). `/api/v1/workflows` lists, creates, versions and runs them.
+    - Every resource is video, audio, image or text, and under each is an editable vocabulary of content types
+      (podcast, interview, screen-share tutorial, email, ...) that recognise files by extension, name and length.
+      A content type can have a pipeline, and a namespace can override it. `/api/v1/content-types`.
+    - Nothing changes until someone sets something: the standard pipeline is drawn as a chain of today's steps, and
+      content types start without a pipeline.
+- **Releases are automatic, from Conventional Commits.** PR titles are Conventional Commits (`feat(chat): …`,
+  `fix!: …`), checked on each PR and, with `make hooks`, on each commit message. Running Release from the Actions
+  tab picks the semantic version from the titles merged since the last release (or takes `patch`, `minor`, `major`
+  or a version), writes the changelog section from them under any hand-written Unreleased text, sets the version in
+  the backend, frontend and Cloudron manifest, commits and tags `vX.Y.Z`, and publishes the GitHub release with that
+  section as its notes; a tag pushed by hand is published the same way. Publishing starts the Cloudron, QNAP and
+  Synology package builds, which attach to the release. It replaces the template's draft-only workflow
+  (docs/contributing.md).
+    - The pre-commit hooks also check YAML, TOML and the GitHub workflows (actionlint), and the commit message.
+    - The repository has a CONTRIBUTING.md, SECURITY.md (report vulnerabilities privately to the maintainer), a code of
+      conduct (Contributor Covenant 2.1), bug and feature issue forms, a PR template that asks for a Conventional
+      Commit title, and Dependabot updates for Python, JavaScript, Docker images and Actions, titled `build(deps): …`
+      so the changelog lists them under Dependencies.
+
 - **First-run setup wizard.** A fresh install now walks its first admin through setup in the web app: after the
   admin account (still with the one-time setup code, so a stranger can't claim a public server) come the first
   namespace, the model provider (with a connection test) and storage (the upload limit, and a folder to watch).
@@ -52,6 +133,65 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       type-check plugin is gone (type errors come from the editor, `pnpm tsc` and CI).
     - The backend's OpenAPI watcher no longer runs mypy on every save (it took longer than the reload) and leaves
       `openapi.json` alone when the schema hasn't changed, so the frontend doesn't regenerate its client for nothing.
+
+- **OAuth sign-in for API and MCP clients.** Apps can sign people in with their Lens account instead of asking them
+  for a key: Lens is an OAuth 2.1 authorization server with PKCE (S256, required), dynamic client registration
+  (RFC 7591) and discovery (`/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`), as MCP
+  clients expect. Decided with the project owner: Lens issues the tokens itself; they carry the person's roles and
+  last as long as the token-lifetime settings say; no account is created through OAuth.
+    - API: `POST /api/v1/oauth/register`, `GET`/`POST …/authorize` (the consent page's question and answer),
+      `POST …/token` (authorization code and refresh token; refresh tokens rotate, and one that comes back after it
+      was swapped ends the access), `POST …/revoke`, `GET …/grants` and `DELETE …/grants/{id}`; new `oauth_client`,
+      `oauth_code`, `oauth_grant` and `oauth_token` tables, holding only hashes of codes, tokens and app secrets
+      (docs/authentication.md#oauth, docs/api.md#oauth). The bearer path takes an app's access token (`lo_…`) next to
+      sessions and API keys; `GET /auth/me` says `via: "oauth"`. Audited as `oauth.client.register`, `oauth.grant`
+      and `oauth.revoke`.
+    - An app asks for `read` or `read write`, and the person may give read only. An admin's app has the admin's roles
+      in every namespace but can't administer the archive (people, settings, the audit log, everyone's keys).
+    - New settings (Settings → API keys, docs/configuration.md#api-keys): `tokens.oauth_access_minutes` (60) and
+      `tokens.oauth_refresh_days` (30, at most `tokens.max_days`).
+    - Redirect addresses are https, this machine's (any port) or the app's own scheme; ones with a user name or a
+      backslash in them, and the browser's and the system's own schemes, are refused. Discovery names the web app's
+      address only as a trusted proxy reports it, else `FRONTEND_URL`.
+    - Web app: the consent page at `/oauth/authorize` (signing in first when needed) names the app, where it returns
+      you to and what it asks for, with Allow and Deny; API tokens → Apps with access lists the apps you allowed,
+      with Revoke; `/.well-known/…` is served on the web app's address too. The web app now passes the address the
+      browser used (its `Host`, or what a reverse proxy in front reports) on to the API.
+    - A code that comes back after it was swapped ends the access it gave; a rotated refresh token that comes back
+      within a minute is refused without ending anything. Expired codes are swept. A 401 asking for a token names the
+      protected resource metadata (`WWW-Authenticate: Bearer resource_metadata="…"`). The consent page can't be framed.
+    - The web app passes a browser's own `X-Forwarded-Host` and `-Proto` on to the API only with
+      `TRUST_PROXY_HEADERS=true` (a reverse proxy in front sets them); otherwise it reports the `Host` it was sent.
+    - Checked in the browser, playing the app: it finds the endpoints on the web app's address and registers; a
+      signed-out viewer is sent to sign in and comes back to the consent page, switches "Make changes" off and
+      allows; the app gets its code with its state, swaps it for tokens that have the viewer's one role, and renews
+      them; on a phone in dark mode the viewer sees the app under Apps with access and revokes it, and its token
+      stops working; a request with an address the app didn't register says so and sends nobody anywhere; an admin
+      in dark mode denies (the app hears `access_denied`), then allows: the app reads resources and can't read the
+      audit log; Settings → API keys shows the two lifetimes. No console errors besides the 400 of the refused
+      request.
+- **Fixes for the Docker stacks.** From running `make dev` on an Apple Silicon Mac with Colima and reading its logs.
+    - `make` finds Compose by itself: `docker compose`, or the standalone `docker-compose` where there's no `docker`
+      plugin (Colima, Podman); `DOCKER_COMPOSE=…` still chooses.
+    - The dev stack's mail catcher is Mailpit (<http://localhost:8025>, as before): MailHog publishes no arm64 image,
+      so the stack didn't start on Apple Silicon. Its ports are published on this machine only (127.0.0.1).
+    - Containers stop when told to. The API's and the web app's dev containers and the worker ignored `docker stop`
+      (as a container's first process, bash and Python ignore TERM unless they handle it) and were killed ten seconds
+      later (exit 137): `start.sh` now passes the stop on to the server and the watcher, and `lens worker` and
+      `lens watch` stop on TERM as on Ctrl-C.
+    - Dependencies follow the image. The dev containers kept their packages in named volumes, which a rebuild
+      doesn't touch: after `pnpm-lock.yaml` moved to Next 16.3.6 the web app still ran 16.0.8. They're anonymous
+      volumes now and `make dev` renews them (`up --build --renew-anon-volumes`).
+    - The web app's dev server no longer writes an `AGENTS.md` and a `CLAUDE.md` into `nextjs-frontend/` (Next 16.3
+      does unless told not to), and its browser-support data is current (the logs said it was 24 months old).
+    - A dev container whose server crashed stops (the log says why) instead of looking up and serving nothing.
+    - `make run` no longer overwrites the dev images: the production ones are `lens-backend` and `lens-frontend`,
+      tagged `${LENS_VERSION:-prod}`. A plain `docker compose up` after `make run` ran the production web app, which
+      has no dev build, and crashed.
+    - The dev stack reads `ARCHIVE_SECRET_KEY` from the root `.env`, as native runs do, so both read the same stored
+      credentials. **Upgrading:** a dev stack that stored credentials before this sealed them with the key in its
+      volume's `data_dir/secret.key` and can't read them now: enter them again, or set `ARCHIVE_SECRET_KEY` in `.env`
+      to that file's contents (`docker compose exec backend cat /data/secret.key`).
 
 - **Fix (security): only the server's own media links are signed.** Text shaped like a media link
   (`/api/v1/recordings/12/audio`) came back signed: titles and transcript lines in API responses, and anything in the
