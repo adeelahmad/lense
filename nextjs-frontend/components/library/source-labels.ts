@@ -8,6 +8,8 @@ export const SOURCE_TYPE_LABEL: Record<string, string> = {
   smb: "SMB",
   webdav: "WebDAV",
   local: "Local",
+  imap: "Email",
+  ical: "Calendar",
 };
 
 export function sourceTypeLabel(type: string | null | undefined, fallback = "Source"): string {

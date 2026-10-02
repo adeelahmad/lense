@@ -845,11 +845,34 @@ export type BrowseEntry = {
    */
   modified?: string | null;
   /**
+   * Title
+   * an email's subject, a calendar event's title
+   */
+  title?: string | null;
+  /**
+   * When
+   * when an email was sent, or a calendar event starts
+   */
+  when?: string | null;
+  /**
    * Imported
    * the recordings this file already is, and where
    */
   imported?: Array<ImportedAs>;
-  [key: string]: unknown | string | boolean | number | null | string | null | Array<ImportedAs> | undefined;
+  [key: string]:
+    | unknown
+    | string
+    | boolean
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | Array<ImportedAs>
+    | undefined;
 };
 
 /**
@@ -8594,7 +8617,7 @@ export type Source = {
   /**
    * Type
    */
-  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local";
+  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "ical";
   /**
    * Label
    */
@@ -8636,6 +8659,8 @@ export type Source = {
     | "smb"
     | "webdav"
     | "local"
+    | "imap"
+    | "ical"
     | {
         [key: string]: unknown;
       }
@@ -8662,7 +8687,7 @@ export type SourceCreate = {
   /**
    * Type
    */
-  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local";
+  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "ical";
   /**
    * Params
    */

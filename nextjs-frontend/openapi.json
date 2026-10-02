@@ -15285,6 +15285,30 @@
             ],
             "title": "Modified"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "an email's subject, a calendar event's title"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "When",
+            "description": "when an email was sent, or a calendar event starts"
+          },
           "imported": {
             "items": {
               "$ref": "#/components/schemas/ImportedAs"
@@ -27383,7 +27407,9 @@
               "sftp",
               "smb",
               "webdav",
-              "local"
+              "local",
+              "imap",
+              "ical"
             ],
             "title": "Type"
           },
@@ -27476,7 +27502,9 @@
               "sftp",
               "smb",
               "webdav",
-              "local"
+              "local",
+              "imap",
+              "ical"
             ],
             "title": "Type"
           },
