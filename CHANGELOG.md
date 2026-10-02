@@ -13,7 +13,7 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - The database is exported to `/app/data/backup/lens.surql` every six hours, so Cloudron's backups always hold
       a consistent copy alongside the live files.
     - It can also be published as a community app (`cloudron versions add`), with the image built and pushed to
-      GHCR by the new "Cloudron image" workflow.
+      GHCR by the new "Cloudron image" workflow on every published release.
 
 - **Fix: Chat answers no longer break off with "The answer stopped before it finished".** With some model servers an
   answer ended mid-stream with nothing saved, so the question sat unanswered in the conversation. Now each one ends

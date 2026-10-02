@@ -53,16 +53,19 @@ cloudron install --location lens --image ghcr.io/you/lens-cloudron:0.3.0
 Cloudron 9.1 and later install community apps from a `CloudronVersions.json` file at a public URL, with updates
 offered as new versions are added to it.
 
+Publishing a GitHub release builds the image and pushes it to `ghcr.io/adeelahmad/lens-cloudron:<release version>`
+(and `:latest`) with the "Cloudron image" workflow; make that package public once on GitHub. Then:
+
 ```bash
 cloudron versions init                                        # once: creates CloudronVersions.json
-cloudron versions add --image ghcr.io/you/lens-cloudron:0.3.0
+cloudron versions add --image ghcr.io/adeelahmad/lens-cloudron:0.3.0
 git add CloudronVersions.json && git commit -m "Cloudron: publish 0.3.0" && git push
 ```
 
 Then install it from the dashboard (App Store, community app, with the file's raw URL) or with
 `cloudron install --location lens --versions-url https://raw.githubusercontent.com/adeelahmad/lense/main/CloudronVersions.json`.
 For each release: bump `version` in `CloudronManifest.json`, add a `[x.y.z]` entry to `cloudron/CHANGELOG`, push a
-new image tag and run `cloudron versions add` again. The image must be public.
+release (which pushes the image) and run `cloudron versions add` again. The image must be public.
 
 ## Restore the database from its export
 
