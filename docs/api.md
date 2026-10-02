@@ -73,6 +73,13 @@ GET    /api/v1/namespaces/{name}/ip-groups
 POST   /api/v1/namespaces/{name}/ip-groups
 PATCH  /api/v1/namespaces/{name}/ip-groups/{gid}
 DELETE /api/v1/namespaces/{name}/ip-groups/{gid}
+GET    /api/v1/namespaces/{name}/notifications
+POST   /api/v1/namespaces/{name}/notifications
+PATCH  /api/v1/namespaces/{name}/notifications/{tid}
+DELETE /api/v1/namespaces/{name}/notifications/{tid}
+POST   /api/v1/namespaces/{name}/notifications/{tid}/test
+POST   /api/v1/namespaces/{name}/notifications/{tid}/secret
+GET    /api/v1/namespaces/{name}/notifications/{tid}/deliveries
 GET    /api/v1/namespaces/{name}/collections
 POST   /api/v1/namespaces/{name}/collections
 GET    /api/v1/namespaces/{name}/collections/{cid}
@@ -101,6 +108,16 @@ your address as the server sees it (`null` when it can't tell; see `server.trust
 `{"name", "ranges", "everything"}` adds one: `ranges` are addresses or CIDR ranges, at most 100, none wider than `/8`
 (IPv4) or `/16` (IPv6); names are unique in the namespace. `PATCH` changes any of them and `DELETE` removes the group.
 All three answer with the list and are audited as `namespace.ip_group.create`, `.update` and `.delete`.
+
+`/namespaces/{name}/notifications` lists a namespace's notification targets ([Notifications](notifications.md),
+owners), the `events` they can get, and whether notifications are `enabled` for the server. `POST` with
+`{"name", "kind", "url", "events"}` adds one: `kind` is `webhook`, `matterbridge`, `slack` or `discord`, and a
+Matterbridge target also takes `gateway` (required), `username` and `token`. A webhook comes back with its signing
+`secret`, this once; `POST …/{tid}/secret` makes a new one. A target's `url` comes back as its scheme and host only.
+`PATCH` changes the name, events, `enabled`, the address (in full) and Matterbridge's gateway, name and token (`""`
+removes it). `POST …/{tid}/test` sends a test message now and answers `{ok, code, error}`; `GET …/{tid}/deliveries`
+lists the latest 50 messages with their `status` (`pending`, `sending`, `sent`, `failed`, `dropped`), `attempts`,
+answer `code` and `error`. Changes are audited as `namespace.notification.create`, `.update`, `.delete` and `.secret`.
 
 ### Collections of a namespace
 

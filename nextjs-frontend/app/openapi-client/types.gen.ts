@@ -2424,6 +2424,28 @@ export type Estimate = {
 };
 
 /**
+ * EventInfo
+ */
+export type EventInfo = {
+  /**
+   * Type
+   */
+  type: "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added";
+  /**
+   * Label
+   */
+  label: string;
+  [key: string]:
+    | unknown
+    | "job.succeeded"
+    | "job.failed"
+    | "job.cancelled"
+    | "batch.finished"
+    | "recording.added"
+    | string;
+};
+
+/**
  * FaceDismiss
  */
 export type FaceDismiss = {
@@ -4021,6 +4043,34 @@ export type LanguageCount = {
 };
 
 /**
+ * LastSend
+ */
+export type LastSend = {
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Code
+   * the HTTP status it answered with
+   */
+  code?: number | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Event
+   */
+  event?: string | null;
+  [key: string]: unknown | string | boolean | number | null | string | null | string | null | undefined;
+};
+
+/**
  * LlmEstimate
  */
 export type LlmEstimate = {
@@ -4880,6 +4930,315 @@ export type NoteUpdate = {
    * share or unshare it (sharing needs editor access)
    */
   shared?: boolean | null;
+};
+
+/**
+ * NotifyDelivery
+ */
+export type NotifyDelivery = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Event
+   */
+  event: string;
+  /**
+   * Status
+   */
+  status: "pending" | "sending" | "sent" | "failed" | "dropped";
+  /**
+   * Attempts
+   */
+  attempts?: number;
+  /**
+   * Code
+   */
+  code?: number | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Text
+   * the message, as chat targets get it
+   */
+  text?: string | null;
+  /**
+   * Created At
+   */
+  created_at: string;
+  /**
+   * Sent At
+   */
+  sent_at?: string | null;
+  /**
+   * Next At
+   * when it's tried again, while pending
+   */
+  next_at?: string | null;
+  [key: string]:
+    | unknown
+    | string
+    | "pending"
+    | "sending"
+    | "sent"
+    | "failed"
+    | "dropped"
+    | number
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * NotifySecret
+ */
+export type NotifySecret = {
+  /**
+   * Secret
+   * the webhook's new signing secret, shown this once
+   */
+  secret: string;
+  [key: string]: unknown | string;
+};
+
+/**
+ * NotifyTarget
+ */
+export type NotifyTarget = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: "webhook" | "matterbridge" | "slack" | "discord";
+  /**
+   * Url
+   * scheme, host and port of its address; the rest stays sealed
+   */
+  url?: string | null;
+  /**
+   * Events
+   */
+  events: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added">;
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Gateway
+   * Matterbridge: the gateway it sends to
+   */
+  gateway?: string | null;
+  /**
+   * Username
+   * Matterbridge: the name messages are sent under
+   */
+  username?: string | null;
+  /**
+   * Secret Set
+   * webhook: deliveries are signed
+   */
+  secret_set?: boolean;
+  /**
+   * Token Set
+   * Matterbridge: an API token is sent
+   */
+  token_set?: boolean;
+  /**
+   * how the latest send went
+   */
+  last?: LastSend | null;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | "webhook"
+    | "matterbridge"
+    | "slack"
+    | "discord"
+    | string
+    | null
+    | Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added">
+    | boolean
+    | string
+    | null
+    | string
+    | null
+    | LastSend
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * NotifyTargetCreate
+ */
+export type NotifyTargetCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: "webhook" | "matterbridge" | "slack" | "discord";
+  /**
+   * Url
+   * where to POST: the webhook's URL, or the Matterbridge API's address (/api/message is added)
+   */
+  url: string;
+  /**
+   * Events
+   * default: job.failed and batch.finished
+   */
+  events?: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added"> | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+  /**
+   * Gateway
+   * Matterbridge: the [[gateway]] name to send to
+   */
+  gateway?: string | null;
+  /**
+   * Username
+   * Matterbridge: the name to send as (default Lens)
+   */
+  username?: string | null;
+  /**
+   * Token
+   * Matterbridge: the API token ([api] Token), if it has one
+   */
+  token?: string | null;
+};
+
+/**
+ * NotifyTargetCreated
+ */
+export type NotifyTargetCreated = {
+  target: NotifyTarget;
+  /**
+   * Secret
+   * webhook: the signing secret, shown this once
+   */
+  secret?: string | null;
+  [key: string]: unknown | NotifyTarget | string | null | undefined;
+};
+
+/**
+ * NotifyTargetUpdate
+ */
+export type NotifyTargetUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Url
+   * a new address, in full; leave it out to keep the one saved
+   */
+  url?: string | null;
+  /**
+   * Events
+   */
+  events?: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added"> | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+  /**
+   * Gateway
+   */
+  gateway?: string | null;
+  /**
+   * Username
+   */
+  username?: string | null;
+  /**
+   * Token
+   * Matterbridge: a new token; "" removes it
+   */
+  token?: string | null;
+};
+
+/**
+ * NotifyTargets
+ */
+export type NotifyTargets = {
+  /**
+   * Events
+   */
+  events: Array<EventInfo>;
+  /**
+   * Targets
+   */
+  targets: Array<NotifyTarget>;
+  /**
+   * Enabled
+   * notifications are on for the server (an admin's notifications.enabled)
+   */
+  enabled: boolean;
+  [key: string]: unknown | Array<EventInfo> | Array<NotifyTarget> | boolean;
+};
+
+/**
+ * NotifyTestResult
+ */
+export type NotifyTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Code
+   */
+  code?: number | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown | boolean | number | null | string | null | undefined;
 };
 
 /**
@@ -18968,6 +19327,237 @@ export type UpdateViewResponses = {
 };
 
 export type UpdateViewResponse = UpdateViewResponses[keyof UpdateViewResponses];
+
+export type ListNotifyTargetsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications";
+};
+
+export type ListNotifyTargetsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListNotifyTargetsError = ListNotifyTargetsErrors[keyof ListNotifyTargetsErrors];
+
+export type ListNotifyTargetsResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotifyTargets;
+};
+
+export type ListNotifyTargetsResponse = ListNotifyTargetsResponses[keyof ListNotifyTargetsResponses];
+
+export type CreateNotifyTargetData = {
+  body: NotifyTargetCreate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications";
+};
+
+export type CreateNotifyTargetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateNotifyTargetError = CreateNotifyTargetErrors[keyof CreateNotifyTargetErrors];
+
+export type CreateNotifyTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotifyTargetCreated;
+};
+
+export type CreateNotifyTargetResponse = CreateNotifyTargetResponses[keyof CreateNotifyTargetResponses];
+
+export type DeleteNotifyTargetData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications/{tid}";
+};
+
+export type DeleteNotifyTargetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteNotifyTargetError = DeleteNotifyTargetErrors[keyof DeleteNotifyTargetErrors];
+
+export type DeleteNotifyTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteNotifyTargetResponse = DeleteNotifyTargetResponses[keyof DeleteNotifyTargetResponses];
+
+export type UpdateNotifyTargetData = {
+  body: NotifyTargetUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications/{tid}";
+};
+
+export type UpdateNotifyTargetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateNotifyTargetError = UpdateNotifyTargetErrors[keyof UpdateNotifyTargetErrors];
+
+export type UpdateNotifyTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotifyTarget;
+};
+
+export type UpdateNotifyTargetResponse = UpdateNotifyTargetResponses[keyof UpdateNotifyTargetResponses];
+
+export type TestNotifyTargetData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications/{tid}/test";
+};
+
+export type TestNotifyTargetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestNotifyTargetError = TestNotifyTargetErrors[keyof TestNotifyTargetErrors];
+
+export type TestNotifyTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotifyTestResult;
+};
+
+export type TestNotifyTargetResponse = TestNotifyTargetResponses[keyof TestNotifyTargetResponses];
+
+export type RotateNotifySecretData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications/{tid}/secret";
+};
+
+export type RotateNotifySecretErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RotateNotifySecretError = RotateNotifySecretErrors[keyof RotateNotifySecretErrors];
+
+export type RotateNotifySecretResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotifySecret;
+};
+
+export type RotateNotifySecretResponse = RotateNotifySecretResponses[keyof RotateNotifySecretResponses];
+
+export type ListNotifyDeliveriesData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications/{tid}/deliveries";
+};
+
+export type ListNotifyDeliveriesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListNotifyDeliveriesError = ListNotifyDeliveriesErrors[keyof ListNotifyDeliveriesErrors];
+
+export type ListNotifyDeliveriesResponses = {
+  /**
+   * Response Notifications-List Notify Deliveries
+   * Successful Response
+   */
+  200: Array<NotifyDelivery>;
+};
+
+export type ListNotifyDeliveriesResponse = ListNotifyDeliveriesResponses[keyof ListNotifyDeliveriesResponses];
 
 export type ListRoutinesData = {
   body?: never;
