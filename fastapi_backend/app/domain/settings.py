@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import copy
 import hashlib
+import ipaddress
 import json
 import os
 import pathlib
@@ -32,6 +33,7 @@ EDITABLE = {
     "workers": None,
     "iiif": None,
     "ai": None,
+    "notifications": None,
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -107,6 +109,7 @@ DOCUMENT_RANGES = {
     "convert_seconds": (10, 3600),
 }
 TOKEN_DAYS = (1, 3650)
+OAUTH_ACCESS_MINUTES = (5, 1440)
 VIEWER_URL = re.compile(r"^https?://[^\s]+$")
 _KEYS, _KL = {}, threading.Lock()
 
@@ -255,6 +258,8 @@ def _check(section, key, value, default):
         return list(dict.fromkeys(names))
     if section == "uploads":
         return _upload_setting(key, value)
+    if section == "notifications":
+        return _notify_setting(key, value)
     if (section, key) == ("documents", "attachment_resources"):
         if not isinstance(value, bool):
             raise ValueError("documents.attachment_resources is true or false")
@@ -268,6 +273,11 @@ def _check(section, key, value, default):
         if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0.05 <= value <= 0.95):
             raise ValueError("video.object_min_score is a number from 0.05 to 0.95")
         return float(value)
+    if (section, key) == ("tokens", "oauth_access_minutes"):
+        lo, hi = OAUTH_ACCESS_MINUTES
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"tokens.oauth_access_minutes is a whole number of minutes from {lo} to {hi}")
+        return value
     if section == "tokens" and key != "never_expire":
         lo, hi = TOKEN_DAYS
         if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
@@ -292,6 +302,36 @@ def _check(section, key, value, default):
         ok = True
     if not ok:
         raise ValueError(f"{section}.{key} should be {type(default).__name__}")
+    return value
+
+
+NOTIFY_RANGES = {"poll_seconds": (1, 3600), "max_attempts": (1, 20)}
+
+
+def _notify_setting(key, value):
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("notifications.enabled is true or false")
+        return value
+    if key == "networks":
+        if not isinstance(value, list):
+            raise ValueError("notifications.networks is a list of networks like 192.168.1.0/24")
+        out = []
+        for v in value:
+            try:
+                out.append(str(ipaddress.ip_network(str(v).strip(), strict=False)))
+            except ValueError:
+                raise ValueError(f"notifications.networks: {v} isn't a network like 192.168.1.0/24") from None
+        return list(dict.fromkeys(out))
+    if key == "app_url":
+        if value is None or value == "":
+            return None
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("notifications.app_url is the web app's http(s) address")
+        return value.strip().rstrip("/")
+    lo, hi = NOTIFY_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"notifications.{key} is a whole number from {lo} to {hi}")
     return value
 
 
@@ -337,6 +377,8 @@ def save(db, base, section, changes, user=None):
             raise ValueError("thresholds must satisfy 0 ≤ review ≤ match ≤ 1")
     if section == "tokens" and data.get("default_days", defaults["default_days"]) > data.get("max_days", defaults["max_days"]):
         raise ValueError("tokens.default_days can't be more than tokens.max_days")
+    if section == "tokens" and data.get("oauth_refresh_days", defaults["oauth_refresh_days"]) > data.get("max_days", defaults["max_days"]):
+        raise ValueError("tokens.oauth_refresh_days can't be more than tokens.max_days")
     if (
         section == "server"
         and "allowed_hosts" in data

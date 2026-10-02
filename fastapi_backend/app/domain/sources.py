@@ -1,7 +1,8 @@
 """Storage sources through rclone, and the folders on them that the archive watches.
 
 A source is one connection: S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV, or a folder on
-this machine (only inside sources.local_roots). A watch maps a folder on a source to a namespace: new audio, video,
+this machine (only inside sources.local_roots); or, without rclone, an email account (IMAP) or a calendar feed (iCal),
+whose messages and events are shown as files (feeds.py). A watch maps a folder on a source to a namespace: new audio, video,
 documents (PDFs) and images become resources queued for the whole pipeline, their files staying on the source; new
 transcripts are imported and queued for analysis. Credentials are stored encrypted and handed to rclone in a private
 temporary config file per call; OAuth tokens rclone refreshes are saved.
@@ -20,7 +21,7 @@ import shutil
 import subprocess
 import tempfile
 
-from . import convert, deletion, ingest, jobs, settings, store
+from . import convert, deletion, feeds, ingest, jobs, settings, store
 
 R = store.R
 BACKENDS = {
@@ -46,10 +47,11 @@ BACKENDS = {
     "smb": {"label": "SMB / Windows share", "fields": {"host": "", "user": "", "domain": ""}, "secrets": ["pass"]},
     "webdav": {"label": "WebDAV", "fields": {"url": "", "vendor": "other", "user": ""}, "secrets": ["pass"]},
     "local": {"label": "Folder on this machine", "fields": {}, "secrets": []},
+    **feeds.TYPES,
 }
 OBSCURED = {"pass"}  # rclone wants these obscured in its config file
 SKIPPED = "not audio, video, a document, an image or a transcript"
-TRANSCRIPT_EXT = {".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".srt", ".vtt", ".json", ".jsonl"}
+TRANSCRIPT_EXT = {".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".srt", ".vtt", ".json", ".jsonl", ".eml", ".ics"}
 # what a watched folder picks up (its `kinds`): the first three are from before documents, and read PDFs as transcripts
 TAKES = {
     "audio": {"audio"},
@@ -138,6 +140,8 @@ def _writeback(db, cfg, src, conf):
 
 
 def run(db, cfg, src, argv, timeout=300):
+    if feeds.handles(src):
+        raise RuntimeError(f"{BACKENDS[src['type']]['label']} isn't storage: files can't be read or written through rclone")
     name, d, conf = _private_conf(cfg, src)
     try:
         out = subprocess.run(
@@ -158,6 +162,9 @@ def stream(db, cfg, sid, path, offset=0, count=None):
     """Bytes of a remote file, for playback with Range requests."""
     src = get(db, sid)
     p = check_path(cfg, src, path)
+    if feeds.handles(src):
+        data = cached_copy(db, cfg, sid, p).read_bytes()
+        return iter([data[offset : None if count is None else offset + count]])
     name, d, conf = _private_conf(cfg, src)
     cmd = [_bin(cfg), "--config", conf, "cat", f"{name}:{p}", "--offset", str(offset)] + (
         ["--count", str(count)] if count is not None else []
@@ -209,6 +216,8 @@ def _entries(out, base):
 
 def browse(db, cfg, sid, path=""):
     src = get(db, sid)
+    if feeds.handles(src):
+        return feeds.browse(cfg, src, check_path(cfg, src, path))
     if src["type"] == "local" and not path:
         return [{"path": r, "rel": r, "name": r, "dir": True} for r in cfg["sources"].get("local_roots") or []]
     p = check_path(cfg, src, path)
@@ -216,8 +225,11 @@ def browse(db, cfg, sid, path=""):
     return sorted(_entries(out, p.rstrip("/")), key=lambda e: (not e["dir"], e["name"].lower()))
 
 
-def list_files(db, cfg, src, path):
+def list_files(db, cfg, src, path, cursor=None):
+    """Every file under `path`. A watch hands its `cursor` to sources that keep one (IMAP: only newer messages)."""
     p = check_path(cfg, src, path)
+    if feeds.handles(src):
+        return feeds.list_files(cfg, src, p, cursor)
     out = run(db, cfg, src, lambda n: ["lsjson", "-R", "--files-only", "--no-mimetype", f"{n}:{p}"], timeout=900)
     return _entries(out, p.rstrip("/"))
 
@@ -225,14 +237,17 @@ def list_files(db, cfg, src, path):
 def test(db, cfg, sid):
     src = get(db, sid)
     try:
-        if src["type"] == "local":
+        if feeds.handles(src):
+            feeds.test(cfg, src)
+        elif src["type"] == "local":
             roots = cfg["sources"].get("local_roots") or []
             if not roots:
                 raise RuntimeError("no sources.local_roots are configured")
             target = check_path(cfg, src, roots[0])
         else:
             target = ""
-        run(db, cfg, src, lambda n: ["lsjson", "--max-depth", "1", "--dirs-only", f"{n}:{target}"], timeout=60)
+        if not feeds.handles(src):
+            run(db, cfg, src, lambda n: ["lsjson", "--max-depth", "1", "--dirs-only", f"{n}:{target}"], timeout=60)
         health = {"ok": True, "checked_at": store.now()}
     except (RuntimeError, ValueError, subprocess.TimeoutExpired) as e:
         health = {"ok": False, "checked_at": store.now(), "error": str(e)[:300]}
@@ -251,10 +266,13 @@ def cached_copy(db, cfg, sid, path):
     if src["type"] == "local":
         return pathlib.Path(p)
     dest = cache_file(cfg, sid, p)
-    if not dest.exists():
+    if not dest.exists() or (feeds.handles(src) and not feeds.immutable(src)):  # a calendar's event may have changed
         dest.parent.mkdir(parents=True, exist_ok=True)
         tmp = dest.with_name(dest.name + ".part")
-        run(db, cfg, src, lambda n: ["copyto", f"{n}:{p}", str(tmp)], timeout=6 * 3600)
+        if feeds.handles(src):
+            tmp.write_bytes(feeds.fetch(cfg, src, p))
+        else:
+            run(db, cfg, src, lambda n: ["copyto", f"{n}:{p}", str(tmp)], timeout=6 * 3600)
         tmp.replace(dest)
     return dest
 
@@ -390,6 +408,8 @@ def create_watch(db, cfg, sid, path, space, user=None, **opts):
 
 def update_watch(db, wid, **opts):
     db.q("UPDATE $r MERGE $d", r=R("watch_path", wid), d=_check_watch(opts))
+    if {"kinds", "include", "exclude"} & set(opts):  # what it takes changed: look through the mailboxes again
+        db.q("UPDATE $r SET cursor = NONE", r=R("watch_path", wid))
 
 
 def remove_watch(db, wid):
@@ -419,15 +439,23 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
     """One file of a source becomes a resource in namespace `space` (in `collection`, else the namespace's default),
     and its processing is queued: (id, job). Audio, video, documents and images stay on the source; a transcript is
     imported from it."""
-    title, shown = pathlib.PurePosixPath(f["path"]).stem, f"{src['name']}:{f['path']}"
+    title, shown = f.get("title") or pathlib.PurePosixPath(f["path"]).stem, f"{src['name']}:{f['path']}"
     if kind == "transcript":
         ns = (db.one("SELECT name FROM $s", s=R("space", space)) or {})["name"]
-        rid = ingest.import_transcript(
-            db, cfg, ns, cached_copy(db, cfg, src["id"], f["path"]), title=title, log=lambda *a: None, collection=collection
+        local = cached_copy(db, cfg, src["id"], f["path"])
+        if feeds.handles(src) and not feeds.immutable(src):
+            _same_resource(db, space, src["id"], f["path"], ingest.fingerprint(local))
+        rid = ingest.import_transcript(db, cfg, ns, local, title=title, log=lambda *a: None, collection=collection)
+        db.q(
+            "UPDATE $r MERGE $d",
+            r=R("recording", rid),
+            d=store.clean({"path": shown, "remote": {"source": src["id"], "path": f["path"]}, "recorded_at": f.get("when")}),
         )
-        db.q("UPDATE $r SET path = $p, remote = $m", r=R("recording", rid), p=shown, m={"source": src["id"], "path": f["path"]})
         return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
-    fp = "rclone-" + hashlib.sha1(f"{src['id']}:{f['path']}:{f['size']}:{f['modified']}".encode()).hexdigest()[:24]
+    if f.get("key"):  # the same message in two mailboxes (a Message-ID) is one resource
+        fp = "feed-" + hashlib.sha1(f"{src['id']}:{f['key']}".encode()).hexdigest()[:24]
+    else:
+        fp = "rclone-" + hashlib.sha1(f"{src['id']}:{f['path']}:{f['size']}:{f['modified']}".encode()).hexdigest()[:24]
     known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{space}:{fp}")
     if known:
         return known["id"], None
@@ -445,13 +473,26 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
             "fingerprint": fp,
             "fp_key": f"{space}:{fp}",
             "title": title,
-            "recorded_at": _when(f["modified"]).isoformat(timespec="seconds"),
+            "recorded_at": f.get("when") or _when(f["modified"]).isoformat(timespec="seconds"),
             "size": f["size"],
             "status": "new",
             "created_at": store.now(),
         },
     )
     return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
+
+
+def _same_resource(db, space, sid, path, fp):
+    """A calendar event that changed is read again into the resource it already is (found by where it came from), not
+    made a second one: that resource takes the new file's fingerprint, which the import then finds."""
+    old = db.one(
+        "SELECT record::id(id) AS id, fingerprint FROM recording WHERE space = $sp AND remote.source = $s AND remote.path = $p LIMIT 1",
+        sp=space,
+        s=sid,
+        p=path,
+    )
+    if old and old.get("fingerprint") != fp:
+        db.q("UPDATE $r SET fingerprint = $f, fp_key = $k", r=R("recording", old["id"]), f=fp, k=f"{space}:{fp}")
 
 
 def file_kind(cfg, name, documents_as="document"):
@@ -490,8 +531,8 @@ def kind_of(cfg, w, f):
 
 def poll_watch(db, cfg, wid, log=print):
     w = db.one(
-        "SELECT record::id(id) AS id, source, path, space, kinds, poll_minutes, stable_seconds, backfill, include, exclude, steps, pipeline, last_scan_at "
-        "FROM $r",
+        "SELECT record::id(id) AS id, source, path, space, kinds, poll_minutes, stable_seconds, backfill, include, exclude, steps, pipeline, last_scan_at, "
+        "cursor FROM $r",
         r=R("watch_path", wid),
     )
     src = get(db, w["source"])
@@ -499,7 +540,8 @@ def poll_watch(db, cfg, wid, log=print):
     known = {r["path"]: r for r in db.rows("SELECT path, size, modified, status FROM remote_file WHERE watch = $w", w=wid)}
     gone = deletion.gone_remote(db, w["space"])  # recordings someone deleted stay deleted
     stats = {"seen": 0, "new": 0, "waiting": 0, "skipped": 0, "errors": 0}
-    for f in list_files(db, cfg, src, w["path"]):
+    files, held = list_files(db, cfg, src, w["path"], w.get("cursor")), set()
+    for f in files:
         kind = kind_of(cfg, w, f)
         if not kind:
             continue
@@ -515,6 +557,7 @@ def poll_watch(db, cfg, wid, log=print):
         elif (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0):
             db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "waiting"})
             stats["waiting"] += 1
+            held.add(f["path"])
         else:
             try:
                 rid, _job = _ingest(db, cfg, src, f, kind, w["space"], f"watch:{wid}", w.get("steps"), w.get("pipeline"))
@@ -532,6 +575,8 @@ def poll_watch(db, cfg, wid, log=print):
         n=nxt,
         s=stats,
     )
+    if any(f.get("cursor") for f in files):
+        db.q("UPDATE $r SET cursor = $c", r=R("watch_path", wid), c=feeds.advance(w.get("cursor"), files, held))
     return stats
 
 

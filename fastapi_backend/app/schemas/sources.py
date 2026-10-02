@@ -1,4 +1,4 @@
-"""Storage sources (where files live, through rclone) and watched folders (admins)."""
+"""Storage sources (where files live, through rclone; email accounts and calendar feeds) and watched folders (admins)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pydantic import Field
 
 from app.schemas.common import Created, Ok, RequestModel, ResponseModel
 
-SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local"]
+SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local", "imap", "ical"]
 WatchKinds = Literal["audio", "transcripts", "both", "documents", "all"]
 KINDS_HELP = (
     "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and "
@@ -80,6 +80,8 @@ class BrowseEntry(ResponseModel):
     dir: bool
     size: int | None = None
     modified: str | None = None
+    title: str | None = Field(default=None, description="an email's subject, a calendar event's title")
+    when: str | None = Field(default=None, description="when an email was sent, or a calendar event starts")
     imported: list[ImportedAs] = Field(default_factory=list, description="the recordings this file already is, and where")
 
 

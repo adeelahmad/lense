@@ -3,11 +3,11 @@
 import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { Workflow } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { Namespaces, Pipelines } from "@/app/openapi-client";
 import type { Pipeline } from "@/app/openapi-client/types.gen";
-import { CatalogHeader, usePipelineCatalog } from "@/components/pipelines/catalog-header";
+import { CatalogHeader, useContentTypes, usePipelineCatalog } from "@/components/pipelines/catalog-header";
 import { toSpec } from "@/components/pipelines/pipeline-model";
 import { StepChips } from "@/components/pipelines/step-chips";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,32 @@ export function PipelinesPage() {
     return m;
   }, [list]);
   const onStandard = namespaces.filter((n) => !usedBy.has(n.name)).map((n) => n.name);
+  const overrides = useMemo(() => {
+    const m = new Map<string, { subtype: string; pipeline: number }[]>();
+    for (const p of list)
+      for (const u of p.content_types ?? [])
+        m.set(u.namespace, [...(m.get(u.namespace) ?? []), { subtype: u.content_type, pipeline: p.id }]);
+    return m;
+  }, [list]);
+  const types = useContentTypes();
+  const subtypes = types.data?.types ?? [];
+  const typeLabel = (k: string) => subtypes.find((t) => t.key === k)?.label ?? k;
+  const [adding, setAdding] = useState<Record<string, { subtype: string; pipeline: string }>>({});
+
+  const setForType = useMutation({
+    mutationFn: ({ ns, kind, pipeline }: { ns: string; kind: string; pipeline: number | null }) =>
+      data(Namespaces.updateNamespace({ client, path: { name: ns }, body: { pipelines: { [kind]: pipeline } } })),
+    onSuccess: (_d, v) => {
+      void qc.invalidateQueries({ queryKey: ["pipelines"] });
+      setAdding((a) => ({ ...a, [v.ns]: { subtype: "", pipeline: "" } }));
+      toast({
+        tone: "green",
+        title: `${typeLabel(v.kind)} in ${v.ns}: ${v.pipeline == null ? "no override" : (list.find((p) => p.id === v.pipeline)?.name ?? "that pipeline")}`,
+        body: "New runs use it; runs in progress keep theirs.",
+      });
+    },
+    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t change it", body: e.message }),
+  });
 
   const setDefault = useMutation({
     mutationFn: ({ ns, pipeline }: { ns: string; pipeline: number | null }) =>
@@ -220,6 +246,111 @@ export function PipelinesPage() {
                               </span>
                             </Tooltip>
                           )}
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                </tbody>
+              </Table>
+            </div>
+          </section>
+
+          <section aria-labelledby="ns-types" className="mt-2 flex flex-col gap-1">
+            <SectionTitle>
+              <span id="ns-types">Namespace overrides by content type</span>
+            </SectionTitle>
+            <p className="-mt-2 mb-2 text-[13px] text-fg-secondary">
+              A namespace’s own pipeline for one content type, in place of the type’s pipeline (set in{" "}
+              <Link href="/content-types" className="font-semibold text-fg-accent hover:underline">
+                Content types
+              </Link>
+              ) and the namespace default.
+            </p>
+            <div className="overflow-x-auto rounded-md border border-border">
+              <Table aria-label="Namespace overrides by content type">
+                <THead className="border-t-0">
+                  <tr>
+                    <Th>Namespace</Th>
+                    <Th>Overrides</Th>
+                    <Th>Add one</Th>
+                  </tr>
+                </THead>
+                <tbody>
+                  {namespaces.map((n) => {
+                    const allowed = can("owner", n.name);
+                    const mineOver = overrides.get(n.name) ?? [];
+                    const draft = adding[n.name] ?? { subtype: "", pipeline: "" };
+                    return (
+                      <Tr key={n.name} className="h-12">
+                        <Td className="font-medium text-fg">{n.name}</Td>
+                        <Td>
+                          {mineOver.length ? (
+                            <span className="flex flex-wrap gap-1.5">
+                              {mineOver.map((o) => (
+                                <span
+                                  key={o.subtype}
+                                  className="inline-flex h-6 items-center gap-1 rounded-pill border border-border px-2 text-[12px] text-fg"
+                                >
+                                  {typeLabel(o.subtype)} → {list.find((p) => p.id === o.pipeline)?.name}
+                                  {allowed && (
+                                    <button
+                                      type="button"
+                                      aria-label={`Remove the override for ${typeLabel(o.subtype)}`}
+                                      className="text-fg-muted hover:text-red-dark"
+                                      onClick={() => setForType.mutate({ ns: n.name, kind: o.subtype, pipeline: null })}
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                </span>
+                              ))}
+                            </span>
+                          ) : (
+                            <span className="text-fg-muted">—</span>
+                          )}
+                        </Td>
+                        <Td>
+                          <span className="flex items-center gap-1.5">
+                            <Select
+                              aria-label={`Content type to override in ${n.name}`}
+                              size="sm"
+                              className="w-[190px]"
+                              value={draft.subtype}
+                              disabled={!allowed}
+                              title={allowed ? undefined : needRole("owner", n.name)}
+                              onChange={(e) =>
+                                setAdding((a) => ({ ...a, [n.name]: { ...draft, subtype: e.target.value } }))
+                              }
+                              options={[
+                                { value: "", label: "Content type…" },
+                                ...subtypes.map((t) => ({ value: t.key, label: `${t.base} · ${t.label}` })),
+                              ]}
+                            />
+                            <Select
+                              aria-label={`Pipeline for it in ${n.name}`}
+                              size="sm"
+                              className="w-[170px]"
+                              value={draft.pipeline}
+                              disabled={!allowed}
+                              onChange={(e) =>
+                                setAdding((a) => ({ ...a, [n.name]: { ...draft, pipeline: e.target.value } }))
+                              }
+                              options={[
+                                { value: "", label: "Pipeline…" },
+                                ...list.map((p) => ({ value: String(p.id), label: p.name })),
+                              ]}
+                            />
+                            <Button
+                              size="xs"
+                              variant="secondary"
+                              disabled={!allowed || !draft.subtype || !draft.pipeline || setForType.isPending}
+                              onClick={() =>
+                                setForType.mutate({ ns: n.name, kind: draft.subtype, pipeline: Number(draft.pipeline) })
+                              }
+                            >
+                              Add
+                            </Button>
+                          </span>
                         </Td>
                       </Tr>
                     );

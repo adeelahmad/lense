@@ -1,0 +1,44 @@
+# Security policy
+
+## Supported versions
+
+Fixes go into the next release; only the [latest release](https://github.com/adeelahmad/lense/releases/latest) and
+`main` get them. Update to the latest release before reporting, if you can.
+
+## Reporting a vulnerability
+
+Report it privately to the maintainer, [@adeelahmad](https://github.com/adeelahmad), not in an issue, pull request or
+discussion: this repository is private for now, and its issues are visible to every collaborator. If you don't have a
+private way to reach the maintainer, open an issue that says only that you have a security report and asks for a
+contact, with no details.
+
+When the repository goes public, reports will go through GitHub's private vulnerability reporting instead
+(**Security > Report a vulnerability**), and this section will say so.
+
+Include what you can of:
+
+- the version or commit, and how Lens runs (Docker Compose, Cloudron, Synology, QNAP, Proxmox, native);
+- what an attacker needs (no account, a viewer or editor role in one namespace, an admin) and what they get;
+- steps or a proof of concept, and the requests involved.
+
+This is a private project with no bug bounty. Reports are answered as soon as the maintainer can; fixes go into the
+next release, and you're credited in its notes unless you'd rather not be.
+
+## What counts
+
+Lens keeps people's recordings, transcripts and documents, so these matter most:
+
+- reading or changing anything in a namespace you have no role in (the API should answer 404 there), or doing more
+  than your role allows;
+- getting a working media link (audio, video, frames, documents) you weren't given; only the server's own signed
+  links should work;
+- authentication and sessions: login, the first-admin setup code, tokens and API keys;
+- stored credentials for sources and model servers leaking through the API, logs or exports;
+- making the server fetch internal addresses through a URL it is given, such as an import or a model server (SSRF);
+- injection into the database queries, the shell or the processing tools.
+
+Out of scope: findings that need an admin to configure Lens insecurely on purpose, missing hardening headers with no
+attack, denial of service by sheer volume, and vulnerabilities in dependencies that Lens doesn't reach (tell us
+anyway if you're unsure).
+
+When you test, use your own instance and data, and don't touch other people's.

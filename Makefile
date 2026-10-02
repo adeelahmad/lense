@@ -2,14 +2,19 @@
 
 BACKEND_DIR=fastapi_backend
 FRONTEND_DIR=nextjs-frontend
-DOCKER_COMPOSE=docker compose
+# Compose as a Docker plugin (`docker compose`), or the standalone `docker-compose` where that's what is installed
+# (Colima, Podman); `make dev DOCKER_COMPOSE=…` chooses another.
+DOCKER_COMPOSE ?= $(shell docker compose version >/dev/null 2>&1 && echo docker compose || echo docker-compose)
 
 .PHONY: help
 help: ## List the commands
 	@awk '/^[a-zA-Z_-]+:.*##/{split($$1, target, ":"); print "  " target[1] "\t" substr($$0, index($$0,"##")+3)}' $(MAKEFILE_LIST)
 
 # Local development
-.PHONY: start-backend test-backend lint-backend start-frontend test-frontend lint-frontend openapi worker docs
+.PHONY: start-backend test-backend lint-backend start-frontend test-frontend lint-frontend openapi worker docs hooks
+
+hooks: ## Install the git hooks: lint on commit, Conventional Commit messages
+	cd $(BACKEND_DIR) && uv run pre-commit install -c ../.pre-commit-config.yaml
 
 start-backend: $(BACKEND_DIR)/.env $(BACKEND_DIR)/archive.yaml ## Start the API with hot reload (and the OpenAPI watcher), on the embedded database
 	cd $(BACKEND_DIR) && ./start.sh
@@ -49,7 +54,7 @@ run: .env ## Build once and run the whole stack, no hot reload (the fast way to 
 	@echo "Lens is at http://localhost:3000. First start: 'make setup-code' for the admin setup code; 'make logs' to follow; 'make stop' to stop."
 
 dev: .env ## Run the stack with hot reload (slower: pages compile on first visit)
-	$(DOCKER_COMPOSE) up --build
+	$(DOCKER_COMPOSE) up --build --renew-anon-volumes
 
 stop: ## Stop whichever stack is running; the database and the archive stay in their volumes
 	$(PROD_COMPOSE) down

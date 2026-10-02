@@ -35,3 +35,21 @@ def test_import_file_and_stdin_then_run(tmp_path, monkeypatch, capsys):
     assert "Zed" in text
     assert "surrealkv://" in text
     assert (tmp_path / "data" / "reports" / "pods" / "index.html").exists()
+
+
+def test_term_stops_a_worker_like_ctrl_c():
+    import os
+    import signal
+
+    import pytest
+
+    from app import cli
+
+    before = signal.getsignal(signal.SIGTERM)
+    try:
+        cli._stop_on_term()
+        with pytest.raises(KeyboardInterrupt):
+            os.kill(os.getpid(), signal.SIGTERM)
+            signal.raise_signal(signal.SIGTERM)  # in case delivery of the first is deferred
+    finally:
+        signal.signal(signal.SIGTERM, before)
