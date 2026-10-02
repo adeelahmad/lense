@@ -1,12 +1,22 @@
 import { Auth } from "@/app/openapi-client";
 import { createApiClient } from "@/lib/api/client";
 
-/** Whether the archive still needs its first admin. False when the API can't be reached. */
-export async function isSetupRequired(): Promise<boolean> {
+async function status() {
   try {
     const { data } = await Auth.status({ client: createApiClient() });
-    return data?.setup_required ?? false;
+    return data;
   } catch {
-    return false;
+    return undefined;
   }
+}
+
+/** Whether the archive still needs its first admin. False when the API can't be reached. */
+export async function isSetupRequired(): Promise<boolean> {
+  return (await status())?.setup_required ?? false;
+}
+
+/** Whether a fresh install's setup wizard is still to be finished (admins are taken to /welcome). False when the API
+ * can't be reached. */
+export async function isWizardPending(): Promise<boolean> {
+  return (await status())?.wizard_pending ?? false;
 }
