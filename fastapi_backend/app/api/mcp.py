@@ -49,6 +49,7 @@ PATH = MCP
 HANDSHAKE = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 PER_REQUEST = ("2026-07-28",)
 MAX_BODY = 1_000_000
+MAX_BATCH = 20  # messages in one batch (2025-03-26), each of which may search
 SERVER_INFO = {"name": "lens", "title": settings.PROJECT_NAME, "version": __version__}
 CAPABILITIES = {"tools": {"listChanged": False}}
 INSTRUCTIONS = (
@@ -222,6 +223,31 @@ def handle_per_request(message: Any, request: Request, ctx: mcp_tools.Context) -
     return {"jsonrpc": "2.0", "id": mid, "result": result}, 200
 
 
+def _audience_ok(request: Request, resource: str | None) -> bool:
+    """An app's token that names the server it is for (RFC 8707) must name this one: Lens, or its MCP server, on any
+    address Lens is reached at. Tokens that name none (API tokens, apps that didn't say) are Lens's."""
+    if resource is None:
+        return True
+    bases = {public_base(request), web_app_base(request), settings.FRONTEND_URL}
+    return resource.rstrip("/") in {b.rstrip("/") + end for b in bases for end in ("", PATH)}
+
+
+async def _read(request: Request) -> bytes | None:
+    """The body, or None when it's more than MAX_BODY: told by Content-Length, or found while reading, so a large one
+    is never held whole."""
+    try:
+        if int(request.headers.get("content-length") or 0) > MAX_BODY:
+            return None
+    except ValueError:
+        pass  # a malformed length: reading tells
+    body = bytearray()
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > MAX_BODY:
+            return None
+    return bytes(body)
+
+
 @router.post(PATH)
 async def post(request: Request, db: Db) -> Response:
     if not _origin_ok(request):
@@ -232,8 +258,11 @@ async def post(request: Request, db: Db) -> Response:
     user = await run_in_threadpool(optional_user, request, db)  # the database blocks
     if not user:
         raise HTTPException(401, "sign in first", headers={"WWW-Authenticate": "Bearer"})
-    body = await request.body()
-    if len(body) > MAX_BODY:
+    if not _audience_ok(request, user.resource):
+        # a token an app was given for another server (RFC 8707) isn't one to use here; the app asks again for this one
+        raise HTTPException(401, "this token was given for another server", headers={"WWW-Authenticate": "Bearer"})
+    body = await _read(request)
+    if body is None:
         return JSONResponse(Fault(INVALID_REQUEST, "the message is too large").error(None), status_code=413)
     try:
         message = json.loads(body)
@@ -247,6 +276,8 @@ async def post(request: Request, db: Db) -> Response:
     if isinstance(message, list):
         if not message:
             return JSONResponse(Fault(INVALID_REQUEST, "an empty batch").error(None), status_code=400)
+        if len(message) > MAX_BATCH:
+            return JSONResponse(Fault(INVALID_REQUEST, f"a batch may hold {MAX_BATCH} messages at most").error(None), status_code=400)
         answers = [a for m in message if (a := await run_in_threadpool(handle, m, ctx)) is not None]
         return JSONResponse(answers) if answers else Response(status_code=202)
     answer = await run_in_threadpool(handle, message, ctx)
