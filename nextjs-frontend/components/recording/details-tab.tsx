@@ -151,8 +151,8 @@ export function DetailsTab() {
         <Group
           icon={Globe}
           title="Web page"
-          rows={webRows(rec.web, absolute).map(
-            ([k, v]): Row => (/^https?:\/\//.test(v) ? [k, <WebLink key={k} href={v} />, true] : [k, v]),
+          rows={webRows(rec.web, absolute).map(([k, v]): Row =>
+            /^https?:\/\//.test(v) ? [k, <WebLink key={k} href={v} />, true] : [k, v],
           )}
         />
       )}

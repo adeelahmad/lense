@@ -9,9 +9,7 @@ import { cn } from "@/lib/utils";
  */
 
 export type Block =
-  | { type: "p"; text: string }
-  | { type: "h"; level: 1 | 2 | 3; text: string }
-  | { type: "ul" | "ol"; items: string[] };
+  { type: "p"; text: string } | { type: "h"; level: 1 | 2 | 3; text: string } | { type: "ul" | "ol"; items: string[] };
 
 export function parseBlocks(text: string): Block[] {
   const out: Block[] = [];

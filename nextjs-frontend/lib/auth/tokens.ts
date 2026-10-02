@@ -69,8 +69,8 @@ export function refreshTokens(refreshToken: string): Promise<TokenPair | null> {
     body: { refresh_token: refreshToken },
   }).then(({ data, response }) => {
     if (data) return data;
-    if (response.status === 401) return null;
-    throw new Error(`Token refresh failed with status ${response.status}`);
+    if (response?.status === 401) return null;
+    throw new Error(`Token refresh failed with status ${response?.status}`);
   });
   recent.set(refreshToken, { promise, at: now });
   promise.catch(() => recent.delete(refreshToken));

@@ -14,6 +14,8 @@ recording.
 - **Publishing:** an embeddable transcript player, static reports, and IIIF Presentation 3 with Content Search, Change
   Discovery and the Authorization Flow.
 - **Multi-user:** roles per namespace (viewer, editor, owner), API tokens, share links, and an audit log.
+- **Agents:** an MCP server (`/mcp`) that agents sign in to with OAuth, to search, read and cite what the person can
+  read.
 
 ## Stack
 
@@ -43,7 +45,7 @@ Start with [Get started](docs/get-started.md), then:
 - [Database](docs/database.md): SurrealDB modes, schema, and the traps the code avoids
 - [Configuration](docs/configuration.md)
 - [Processing](docs/processing.md), [Video](docs/video.md), [Chat and batch runs](docs/assistant.md), [IIIF](docs/iiif.md)
-- [API](docs/api.md), [what the design needs from the API next](docs/backend-gaps.md)
+- [API](docs/api.md), [MCP server](docs/mcp.md), [what the design needs from the API next](docs/backend-gaps.md)
 - [Deployment](docs/deployment.md), [Contributing](CONTRIBUTING.md), [Security](SECURITY.md)
 
 Built on the [Next.js FastAPI Template](https://github.com/vintasoftware/nextjs-fastapi-template) (MIT).

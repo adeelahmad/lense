@@ -8,6 +8,33 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   background work, which Docker, Synology, QNAP, Cloudron and Proxmox all turn off in favour of a `lens worker`
   process; so folders were never scanned and routines never ran. `lens worker` now does both (not a worker limited
   with `--steps`, nor one started with `--no-schedule`), and a folder scan is claimed first, as routine runs are.
+- **MCP server: agents search, read and cite the archive.** Add `https://<your Lens>/mcp` to Claude, Cursor, VS Code
+  or another MCP client, sign in on Lens's consent page (OAuth), and the agent sees what you see: your namespaces,
+  the collections you were given a role on, and their graphs. Read-only tools: `search` (moments said, on screen or
+  written, with links to each), `list_namespaces`, `list_recordings`, `list_speakers`, `get_recording` (summary,
+  chapters, entities), `get_transcript` (paged), `fetch` (the whole text), `cite` (the words, who said them, the
+  time and a link, as Markdown), `list_entities`, `get_entity`, `explore_graph` and `find_path`. Links open the
+  recording at that moment in the web app. Streamable HTTP without sessions, in both protocol eras (the 2025
+  `initialize` handshake and 2026-07-28's per-request envelope); an API token works for clients that can't sign in
+  (docs/mcp.md).
+- **Opt-in telemetry.** Lens can send OpenTelemetry traces and metrics about its own work to a collector you choose:
+  API requests by route, jobs and each step, routines, workflow runs, and model calls with their tokens and an
+  estimated cost (from per-model prices you set). It is off by default and never on unless you turn it on, in
+  Settings → Telemetry, the setup wizard's new last step, or `LENS_TELEMETRY=on` with `LENS_TELEMETRY_ENDPOINT` in
+  .env (`LENS_TELEMETRY=off` keeps it off). It goes only to that endpoint, over OTLP/HTTP; there is no built-in
+  destination. Spans and metrics carry ids, step types, model names, counts and timings, never transcript, prompt or
+  answer text, file names, titles, people, paths or addresses. Settings shows whether it is on and how the last
+  exports went, and can send a test span; the API and each worker follow a change without a restart
+  (docs/telemetry.md).
+- **Security: the API client generator is upgraded.** `@hey-api/openapi-ts` moves from 0.83 to 0.99, which removes
+  the critical handlebars and tar alerts it brought in and fixes a prototype-chain issue in the generated client
+  itself. `make openapi` regenerates `app/openapi-client` as before. The client keeps its old behaviour of failing
+  loudly when the API can't be reached (`throwingNetworkErrors` in `lib/api/client.ts`), so an API outage still shows
+  as an error rather than as "Wrong email or password".
+- **Security: frontend dependencies patched.** The web app's lockfile now pulls fixed versions of form-data, ws,
+  brace-expansion, minimatch, picomatch, glob, js-yaml, flatted, browserslist, Babel and the other packages GitHub
+  flagged, each kept inside the major version its parent asks for (`overrides` in `nextjs-frontend/pnpm-workspace.yaml`).
+  The unused `@hookform/resolvers` dependency is gone.
 - **Install on Proxmox VE with one command.** A [community helper script](https://community-scripts.org/docs/ct/detailed_guide)
   (`proxmox/ct/lens.sh`, run in the Proxmox host's shell) creates a Debian 13 LXC container running Lens without
   Docker: SurrealDB 3.2.4, the API, a job worker and the web app as systemd services, with fresh secrets and the web

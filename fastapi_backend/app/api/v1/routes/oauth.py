@@ -42,6 +42,7 @@ API = "/api/v1/oauth"
 HOST = re.compile(r"[A-Za-z0-9.\-]+(:\d+)?|\[[0-9A-Fa-f:.]+\](:\d+)?")
 RESOURCE = re.compile(r"[A-Za-z0-9_\-]+(/[A-Za-z0-9_\-]+)*")
 NO_STORE = {"Cache-Control": "no-store", "Pragma": "no-cache"}
+MCP, MCP_SCOPE = "/mcp", "read"  # the MCP server (app/api/mcp.py), and the scope its tools need
 
 
 def _first(value: str | None) -> str:
@@ -72,10 +73,14 @@ def public_base(request: Request) -> str:
     return settings.FRONTEND_URL.rstrip("/")
 
 
-def _consent_page(request: Request) -> str:
-    """The consent page is the web app's: on this address when the request came through it, else FRONTEND_URL."""
+def web_app_base(request: Request) -> str:
+    """Where people open the web app's pages: this address when the request came through it, else FRONTEND_URL."""
     through_web_app = bool(_first(request.headers.get("x-forwarded-host")))
-    return (public_base(request) if through_web_app else settings.FRONTEND_URL.rstrip("/")) + "/oauth/authorize"
+    return public_base(request) if through_web_app else settings.FRONTEND_URL.rstrip("/")
+
+
+def _consent_page(request: Request) -> str:
+    return web_app_base(request) + "/oauth/authorize"
 
 
 def _discovery(doc: dict[str, Any]) -> JSONResponse:
@@ -103,10 +108,12 @@ def _client_credentials(request: Request, client_id: str | None, client_secret: 
 async def bearer_challenge(request: Request, exc: StarletteHTTPException) -> Response:
     """401s that ask for a bearer token say where to find out how to get one (RFC 9728 §5.1), as MCP clients expect."""
     if exc.status_code == 401 and (exc.headers or {}).get("WWW-Authenticate") == "Bearer":
-        meta = f"{public_base(request)}/.well-known/oauth-protected-resource"
-        exc = StarletteHTTPException(
-            401, exc.detail, headers={**(exc.headers or {}), "WWW-Authenticate": f'Bearer resource_metadata="{meta}"'}
-        )
+        # the MCP server is a resource of its own (/mcp), so clients that check what the metadata names see their URL;
+        # its tools only read, so that's all it asks for
+        mcp = request.url.path == MCP
+        meta = f"{public_base(request)}/.well-known/oauth-protected-resource" + (MCP if mcp else "")
+        challenge = f'Bearer resource_metadata="{meta}"' + (f', scope="{MCP_SCOPE}"' if mcp else "")
+        exc = StarletteHTTPException(401, exc.detail, headers={**(exc.headers or {}), "WWW-Authenticate": challenge})
     return await http_exception_handler(request, exc)
 
 
@@ -142,7 +149,7 @@ def protected_resource(request: Request, rest: str = "") -> JSONResponse:
         "resource": f"{base}/{rest}" if rest else base,
         "authorization_servers": [base],
         "bearer_methods_supported": ["header"],
-        "scopes_supported": list(oauth.SCOPES),
+        "scopes_supported": [MCP_SCOPE] if f"/{rest}" == MCP else list(oauth.SCOPES),
         "resource_name": settings.PROJECT_NAME,
     }
     return _discovery(doc)
