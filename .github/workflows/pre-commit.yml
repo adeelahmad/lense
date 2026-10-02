@@ -45,7 +45,7 @@ jobs:
           run_install: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           # on the self-hosted runner pnpm's store stays on disk; saving it to GitHub's cache took minutes
