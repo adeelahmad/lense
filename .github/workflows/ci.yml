@@ -31,7 +31,7 @@ jobs:
       - name: Restore system packages
         if: runner.environment == 'github-hosted'
         id: apt-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ~/apt-archives
           key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
@@ -50,7 +50,7 @@ jobs:
           sudo chown -R "$(id -u)" ~/apt-archives
       - name: Keep system packages
         if: runner.environment == 'github-hosted' && steps.apt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ~/apt-archives
           key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
@@ -114,7 +114,7 @@ jobs:
       - name: Restore system packages
         if: runner.environment == 'github-hosted'
         id: apt-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ~/apt-archives
           key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
@@ -133,7 +133,7 @@ jobs:
           sudo chown -R "$(id -u)" ~/apt-archives
       - name: Keep system packages
         if: runner.environment == 'github-hosted' && steps.apt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ~/apt-archives
           key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
