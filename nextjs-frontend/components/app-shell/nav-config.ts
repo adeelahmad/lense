@@ -69,7 +69,10 @@ export function isActive(pathname: string, href: string): boolean {
       pathname.startsWith("/recordings/")
     );
   // Workflows, content types and templates are tabs of Pipelines.
-  if (href === "/pipelines" && ["/templates", "/workflows", "/content-types"].some((p) => pathname === p || pathname.startsWith(`${p}/`)))
+  if (
+    href === "/pipelines" &&
+    ["/templates", "/workflows", "/content-types"].some((p) => pathname === p || pathname.startsWith(`${p}/`))
+  )
     return true;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
