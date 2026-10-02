@@ -4,6 +4,20 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Fix: Chat answers no longer break off with "The answer stopped before it finished".** With some model servers an
+  answer ended mid-stream with nothing saved, so the question sat unanswered in the conversation. Now each one ends
+  in an answer, or an error that's shown and saved with the conversation.
+    - Tool calls whose arguments come as an object rather than a JSON string (some Ollama, llama.cpp and vLLM
+      setups) are read as they are; they used to break the answer.
+    - A reply that isn't JSON (a proxy's error page), a stream that's cut off, and a tool that fails are errors the
+      chat says in words: the model is told about a failed tool and carries on.
+    - Reasoning models (Qwen 3, DeepSeek R1) no longer show their `<think>…</think>` block in answers, summaries
+      and the source check.
+    - In a conversation scoped to some recordings (a recording's Chat tab, a collection's Chat) the assistant's
+      search looks only there, so matches elsewhere no longer crowd out the ones in scope and leave it with nothing.
+    - Tool steps say "not found" instead of a bare id, and an entity change missing its new name, type or merge ids
+      is refused instead of asking you to approve "Change X to None".
+
 - **Faster to run.** `make run` builds the images once and runs the whole stack without hot reload
   (`docker-compose.prod.yml`, with a `.env` of fresh secrets written on first use): the web app is built ahead of
   time, so every page opens at once instead of compiling on its first visit. `make dev` is the hot-reload stack;
