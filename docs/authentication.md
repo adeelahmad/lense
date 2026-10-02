@@ -77,7 +77,8 @@ app ──► POST /api/v1/oauth/token   grant_type=refresh_token      before th
   backslash in them, and the browser's and the operating system's own schemes, are refused. Apps nobody gave access
   to are forgotten after a week, and one address registers at most 8 apps in 15 minutes.
 * **PKCE is required** (S256). The code works once, for five minutes, only with the verifier and the redirect address
-  it was given for.
+  it was given for. A code that comes back after it was swapped ends the access it gave (it was probably
+  intercepted). The consent page can't be framed by another site.
 * **The consent page** (`/oauth/authorize` in the web app) names the app, where it returns the person to and what it
   asks for: `read` (browse, search, chat), or `read write` (also import, edit, reprocess). The person can give read
   only to an app that asked for both. Only a signed-in person answers it: API keys and other apps can't.
@@ -88,18 +89,21 @@ app ──► POST /api/v1/oauth/token   grant_type=refresh_token      before th
 * **Lifetimes** are the admins' ([Configuration](configuration.md#api-keys)): the access token lasts
   `tokens.oauth_access_minutes` (60), and the app stays signed in for `tokens.oauth_refresh_days` (30) after it last
   renewed, at most `tokens.max_days`.
-* **Refresh tokens rotate**: each renewal gives a new one. A swapped one that comes back within 60 seconds is accepted
-  (two requests at once); after that it ends the access, because it was probably copied. Only hashes of tokens,
-  codes and app secrets are kept.
+* **Refresh tokens rotate**: each renewal gives a new one. A swapped one that comes back within 60 seconds is refused
+  and changes nothing (two requests at once: the app keeps the pair it got first); after that it ends the access,
+  because it was probably copied. Only hashes of tokens, codes and app secrets are kept.
 * **Taking access away**: people see the apps they allowed under API tokens → Apps with access, and revoke one there
   (`DELETE /api/v1/oauth/grants/<id>`); an app hands its token back with `POST /api/v1/oauth/revoke`. Either way its
   tokens stop working at once. Disabling an account stops its apps too. Allowing an app again replaces what it had.
 * Registering, allowing and revoking are audited: `oauth.client.register`, `oauth.grant`, `oauth.revoke`.
 
 `/.well-known/oauth-authorization-server` (RFC 8414) and `/.well-known/oauth-protected-resource` (RFC 9728) are
-served on the web app's address as well as the API's. The addresses in them are the web app's when the request came
+served on the web app's address as well as the API's, and every 401 that asks for a token points at the second in
+`WWW-Authenticate: Bearer resource_metadata="…"`, as MCP clients expect. The addresses in them are the web app's when the request came
 through it: the host it reports in `X-Forwarded-Host` when the web app is a trusted proxy
-([Configuration](configuration.md#trusted-proxies)), else `FRONTEND_URL`. Set `FRONTEND_URL` to the address people
+([Configuration](configuration.md#trusted-proxies)), else `FRONTEND_URL`. The web app reports the `Host` the browser
+sent, or, with `TRUST_PROXY_HEADERS=true`, what a reverse proxy in front of it says in `X-Forwarded-Host`; leave that
+off unless such a proxy sets the header, or anyone could choose the address. Set `FRONTEND_URL` to the address people
 use, or apps will be sent to the wrong place to sign in.
 
 | Endpoint | |

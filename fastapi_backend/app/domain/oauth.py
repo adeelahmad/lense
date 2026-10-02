@@ -22,6 +22,7 @@ from . import auth, store
 R = store.R
 SCOPES = ("read", "write")
 CODE_SECONDS = 300
+CODE_REMEMBERED_SECONDS = 86400  # a spent code is remembered this long, so that its coming back ends what it gave
 REUSE_GRACE_SECONDS = auth.REUSE_GRACE_SECONDS
 UNUSED_CLIENT_DAYS = 7  # a registered app nobody gave access to is forgotten after this
 AUTH_METHODS = ("none", "client_secret_post", "client_secret_basic")
@@ -205,6 +206,7 @@ def approve(db, uid, info, code_challenge, granted_scope=None, resource=None):
     if can_write(scope) and not can_write(info["scope"]):
         scope = "read"
     code = secrets.token_urlsafe(32)
+    db.q("DELETE oauth_code WHERE expires_at < $now", now=store.now())  # codes never swapped, and spent codes' marks
     db.q(
         "CREATE $r CONTENT $d",
         r=R("oauth_code", auth.sha(code)),
@@ -255,7 +257,14 @@ def exchange_code(db, cfg, client_id, client_secret, code, redirect_uri, verifie
     person gave the same app before."""
     c = _client(db, client_id, client_secret, check_secret=True)
     # deleting it is what makes a code work once, whoever else is trying it at the same moment
-    row = (db.rows("DELETE $r RETURN BEFORE", r=R("oauth_code", auth.sha(code))) or [None])[0] if code else None
+    key = R("oauth_code", auth.sha(code or ""))
+    row = (db.rows("DELETE $r RETURN BEFORE", r=key) or [None])[0] if code else None
+    if row and row.get("spent"):
+        # a code that was swapped already came back: it was probably intercepted, so the tokens it gave stop working
+        # (RFC 6749 §4.1.2)
+        if row.get("gid") is not None:
+            drop_grant(db, row["gid"])
+        raise OAuthError("invalid_grant", "the code is wrong, was used already or has expired")
     if not row or row.get("expires_at", "") < store.now() or row["client"] != c["id"]:
         raise OAuthError("invalid_grant", "the code is wrong, was used already or has expired")
     if row["redirect_uri"] != redirect_uri:
@@ -268,7 +277,9 @@ def exchange_code(db, cfg, client_id, client_secret, code, redirect_uri, verifie
         drop_grant(db, old)
     gid = db.next_id("oauth_grant")
     db.run(
-        ["CREATE $g CONTENT $d", "UPDATE $c SET used = true"],
+        ["CREATE $g CONTENT $d", "UPDATE $c SET used = true", "CREATE $k CONTENT $spent"],
+        k=key,
+        spent={"spent": True, "gid": gid, "expires_at": _later(CODE_REMEMBERED_SECONDS)},
         g=R("oauth_grant", gid),
         d={
             "account": row["account"],
@@ -291,9 +302,13 @@ def refresh(db, cfg, client_id, client_secret, raw):
     g = db.one("SELECT client FROM $r", r=R("oauth_grant", t["gid"])) if t else None
     if not t or not g or t["kind"] != "refresh" or g["client"] != c["id"] or t["expires_at"] < store.now():
         raise OAuthError("invalid_grant", "the refresh token is wrong, was revoked or has expired")
-    if t.get("rotated") and (t.get("rotated_at") or "") < _later(-REUSE_GRACE_SECONDS):
-        drop_grant(db, t["gid"])
-        raise OAuthError("invalid_grant", "the refresh token was used already; ask for access again")
+    if t.get("rotated"):
+        # within the grace period it's more likely the app renewing twice at once (it keeps the pair it got first);
+        # later it was probably copied, so the access ends
+        if (t.get("rotated_at") or "") < _later(-REUSE_GRACE_SECONDS):
+            drop_grant(db, t["gid"])
+            raise OAuthError("invalid_grant", "the refresh token was used already; ask for access again")
+        raise OAuthError("invalid_grant", "the refresh token was used already; use the tokens it was swapped for")
     if not auth.active_account(db, t["account"]):
         raise OAuthError("invalid_grant", "the account is no longer active")
     now = store.now()

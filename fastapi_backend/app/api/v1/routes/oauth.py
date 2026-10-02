@@ -17,7 +17,9 @@ import time
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.exception_handlers import http_exception_handler
+from fastapi.responses import JSONResponse, Response
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.deps import Cfg, CurrentUser, Db, client_ip, domain_errors, visitor_address
 from app.config import settings
@@ -96,6 +98,16 @@ def _client_credentials(request: Request, client_id: str | None, client_secret: 
         except (binascii.Error, UnicodeDecodeError):
             raise oauth.OAuthError("invalid_client", "the Authorization header isn't Basic credentials", 401) from None
     return client_id, client_secret
+
+
+async def bearer_challenge(request: Request, exc: StarletteHTTPException) -> Response:
+    """401s that ask for a bearer token say where to find out how to get one (RFC 9728 §5.1), as MCP clients expect."""
+    if exc.status_code == 401 and (exc.headers or {}).get("WWW-Authenticate") == "Bearer":
+        meta = f"{public_base(request)}/.well-known/oauth-protected-resource"
+        exc = StarletteHTTPException(
+            401, exc.detail, headers={**(exc.headers or {}), "WWW-Authenticate": f'Bearer resource_metadata="{meta}"'}
+        )
+    return await http_exception_handler(request, exc)
 
 
 @well_known.get("/.well-known/oauth-authorization-server")

@@ -40,6 +40,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `AUTH_SECRET` | encrypts the NextAuth session cookie (`npx auth secret`) |
 | `AUTH_URL` | the public URL of the web app, when it can't be inferred |
 | `AUTH_TRUST_HOST` | `true` behind a proxy or in Docker |
+| `TRUST_PROXY_HEADERS` | `true` when a reverse proxy in front of the web app sets `X-Forwarded-Host` and `-Proto`: they're passed on to the API, which names that address in OAuth discovery. Off, the web app reports the `Host` the browser sent |
 
 ## archive.yaml
 

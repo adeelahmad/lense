@@ -97,6 +97,11 @@ def test_discovery_says_where_everything_is(client, app):
     far = TestClient(app, base_url="http://127.0.0.1", client=("203.0.113.9", 50000))
     meta = far.get("/.well-known/oauth-authorization-server", headers={"x-forwarded-host": "evil.example"}).json()
     assert meta["issuer"] == "http://localhost:3000" and meta["token_endpoint"] == "http://localhost:3000/api/v1/oauth/token"
+    # a request without a token is told where to find out how to get one (RFC 9728), on the address it used
+    r = web.get("/api/v1/auth/me", headers=via)
+    assert r.status_code == 401
+    assert r.headers["www-authenticate"] == 'Bearer resource_metadata="https://lens.example.org/.well-known/oauth-protected-resource"'
+    assert r.json() == {"detail": "sign in first"}
 
 
 def test_an_app_gets_access_and_acts_with_the_persons_roles(client, db, cfg, folder):
@@ -198,8 +203,9 @@ def test_refresh_tokens_rotate_and_a_copied_one_ends_the_grant(client, db):
     second = r.json()
     assert second["refresh_token"] != first["refresh_token"] and second["access_token"] != first["access_token"]
     assert client.get("/api/v1/auth/me", headers=_bearer(second)).status_code == 200
-    # two requests at once may both carry the old one: within a minute it still works
-    assert renew(first["refresh_token"]).status_code == 200
+    # two requests at once may both carry the old one: within a minute it gets nothing new, and the access stays
+    assert renew(first["refresh_token"]).json()["error"] == "invalid_grant"
+    assert client.get("/api/v1/auth/me", headers=_bearer(second)).status_code == 200
     # another app can't use it, and an access token isn't a refresh token
     other = _register(client, client_name="Other")
     r = client.post(
@@ -276,12 +282,22 @@ def test_codes_work_once_with_the_right_verifier(client, db):
     # each failed try used its code up: none of them left a grant
     assert client.get(f"{O}/grants", headers=h).json() == []
     code = _code(client, h, app, challenge)
-    assert _tokens(client, app, code, verifier).status_code == 200
-    assert err(_tokens(client, app, code, verifier)) == (400, "invalid_grant")  # once
+    r = _tokens(client, app, code, verifier)
+    assert r.status_code == 200
+    assert client.get("/api/v1/auth/me", headers=_bearer(r.json())).status_code == 200
+    # once: a code that comes back was probably intercepted, so the tokens it gave stop working
+    assert err(_tokens(client, app, code, verifier)) == (400, "invalid_grant")
+    assert client.get("/api/v1/auth/me", headers=_bearer(r.json())).status_code == 401
+    assert client.get(f"{O}/grants", headers=h).json() == []
     # and only for five minutes
     late = _code(client, h, app, challenge)
     db.q("UPDATE $r SET expires_at = $t", r=store.R("oauth_code", auth.sha(late)), t=oauth._later(-1))
     assert err(_tokens(client, app, late, verifier)) == (400, "invalid_grant")
+    # codes nobody swapped don't pile up: the next one made sweeps those that expired
+    unused = _code(client, h, app, challenge)
+    db.q("UPDATE $r SET expires_at = $t", r=store.R("oauth_code", auth.sha(unused)), t=oauth._later(-1))
+    _code(client, h, app, challenge)
+    assert not db.values("SELECT VALUE id FROM $r", r=store.R("oauth_code", auth.sha(unused)))
 
 
 def test_consent_refuses_requests_it_cant_answer(client, db):

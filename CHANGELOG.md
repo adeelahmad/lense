@@ -56,6 +56,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       you to and what it asks for, with Allow and Deny; API tokens → Apps with access lists the apps you allowed,
       with Revoke; `/.well-known/…` is served on the web app's address too. The web app now passes the address the
       browser used (its `Host`, or what a reverse proxy in front reports) on to the API.
+    - A code that comes back after it was swapped ends the access it gave; a rotated refresh token that comes back
+      within a minute is refused without ending anything. Expired codes are swept. A 401 asking for a token names the
+      protected resource metadata (`WWW-Authenticate: Bearer resource_metadata="…"`). The consent page can't be framed.
+    - The web app passes a browser's own `X-Forwarded-Host` and `-Proto` on to the API only with
+      `TRUST_PROXY_HEADERS=true` (a reverse proxy in front sets them); otherwise it reports the `Host` it was sent.
     - Checked in the browser, playing the app: it finds the endpoints on the web app's address and registers; a
       signed-out viewer is sent to sign in and comes back to the consent page, switches "Make changes" off and
       allows; the app gets its code with its state, swaps it for tokens that have the viewer's one role, and renews
