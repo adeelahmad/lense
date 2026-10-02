@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a security vulnerability
-    url: https://github.com/adeelahmad/lense/security/advisories/new
-    about: Report it privately here, not in an issue (SECURITY.md).
+    url: https://github.com/adeelahmad/lense/blob/main/SECURITY.md
+    about: Report it privately to the maintainer, not in an issue; SECURITY.md says how.
   - name: Documentation
     url: https://github.com/adeelahmad/lense/tree/main/docs
     about: Set-up, configuration and deployment guides.

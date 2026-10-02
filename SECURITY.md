@@ -7,9 +7,13 @@ Fixes go into the next release; only the [latest release](https://github.com/ade
 
 ## Reporting a vulnerability
 
-Report it privately through GitHub: **Security > Report a vulnerability** on this repository
-([direct link](https://github.com/adeelahmad/lense/security/advisories/new)). Please don't open a public issue, pull
-request or discussion about it.
+Report it privately to the maintainer, [@adeelahmad](https://github.com/adeelahmad), not in an issue, pull request or
+discussion: this repository is private for now, and its issues are visible to every collaborator. If you don't have a
+private way to reach the maintainer, open an issue that says only that you have a security report and asks for a
+contact, with no details.
+
+When the repository goes public, reports will go through GitHub's private vulnerability reporting instead
+(**Security > Report a vulnerability**), and this section will say so.
 
 Include what you can of:
 
@@ -17,8 +21,8 @@ Include what you can of:
 - what an attacker needs (no account, a viewer or editor role in one namespace, an admin) and what they get;
 - steps or a proof of concept, and the requests involved.
 
-You'll get an answer within a week. Once a fix is ready we'll agree a disclosure date with you, publish an advisory
-and credit you unless you'd rather not be named.
+This is a private project with no bug bounty. Reports are answered as soon as the maintainer can; fixes go into the
+next release, and you're credited in its notes unless you'd rather not be.
 
 ## What counts
 
