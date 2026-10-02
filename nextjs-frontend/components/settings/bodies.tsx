@@ -304,6 +304,22 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <AllTokens />
         </>
       );
+    case "notifications":
+      return (
+        <>
+          <F ctx={ctx} id="notifications.enabled" />
+          <F ctx={ctx} id="notifications.networks" />
+          <F ctx={ctx} id="notifications.app_url" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="notifications.poll_seconds" />
+            <F ctx={ctx} id="notifications.max_attempts" />
+          </div>
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            Each namespace’s owners choose its targets and events on the namespace’s page. Workers send them, so a
+            target must be reachable from where the workers run.
+          </p>
+        </>
+      );
     case "uploads":
       return (
         <>

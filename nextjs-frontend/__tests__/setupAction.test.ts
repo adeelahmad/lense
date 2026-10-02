@@ -42,7 +42,7 @@ describe("setup action", () => {
     expect(signIn).toHaveBeenCalledWith("credentials", {
       email: "ada@example.com",
       password: "long enough pw",
-      redirectTo: "/",
+      redirectTo: "/welcome",
     });
   });
 

@@ -87,7 +87,7 @@ workers:                            # background jobs; everything below can also
   poll_seconds: 2
   stale_minutes: 15                 # a job whose worker goes quiet this long is retried
   max_attempts: 3
-  steps: [transcribe, diarize, analyze, summarize, llm, report, export]
+  steps: [transcribe, diarize, analyze, summarize, llm, report, export, workflow]
 
 sources:                            # bootstrap-only: the web app can't change these
   rclone: null                      # path to rclone; null: rclone on PATH

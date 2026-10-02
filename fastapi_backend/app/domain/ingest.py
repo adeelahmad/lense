@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import html
 import json
 import pathlib
 import re
@@ -723,7 +724,36 @@ def read_pdf(path):
     return re.sub(r"(\w)-\n(\w)", r"\1\2", text)
 
 
+def _html_text(markup):
+    t = re.sub(r"(?is)<(script|style|head)\b.*?</\1>", "", markup or "")
+    t = re.sub(r"(?i)<br\s*/?>|</(p|div|li|tr|h[1-6])>", "\n", t)
+    t = re.sub(r"<[^>]+>", "", t)
+    return re.sub(r"\n{3,}", "\n\n", html.unescape(t)).strip()
+
+
+def read_email(path):
+    """An .eml email as Markdown: its subject as the heading, who sent it to whom and when, its attachments by name,
+    then its text (the details are 'Label — value' lines, which the transcript reader doesn't take for speakers)."""
+    from . import convert
+
+    e = convert.read_eml(path)
+    who = [re.sub(r"<([^<>\s]+@[^<>\s]+)>", r"(\1)", e[k] or "") for k in ("from", "to", "cc")]  # Markdown drops <mail>
+    rows = [("From", who[0]), ("To", who[1]), ("Cc", who[2]), ("Date", e["date"])]
+    rows.append(("Attachments", ", ".join(p["name"] for p in e["parts"] if p["attached"])))
+    body = e.get("text") if e.get("text") is not None else _html_text(e.get("html"))
+    head = [f"{k} — {v}" for k, v in rows if v]
+    return "\n".join([f"# {e['subject'] or '(no subject)'}", "", *head, "", (body or "").strip()]) + "\n"
+
+
+def read_calendar(path):
+    """An .ics calendar as Markdown, one section per event (calendars.py)."""
+    from . import calendars
+
+    return calendars.text(pathlib.Path(path).read_text(encoding="utf-8-sig", errors="replace"))
+
+
 DOC_READERS = {".docx": read_docx, ".doc": read_doc, ".pdf": read_pdf}
+MARKDOWN_READERS = {".eml": read_email, ".ics": read_calendar}  # their subject or event title is the title
 FORMATS = ("auto", "text", "markdown", "mdx", "json", "jsonl", "srt", "vtt")
 
 
@@ -808,6 +838,8 @@ def read_transcript(path, fmt="auto"):
     ext = p.suffix.lower()
     if ext in DOC_READERS:
         return read_text_transcript(DOC_READERS[ext](p), "text" if fmt == "auto" else fmt, p.name)
+    if ext in MARKDOWN_READERS:
+        return read_text_transcript(MARKDOWN_READERS[ext](p), "markdown" if fmt == "auto" else fmt, p.name)
     return read_text_transcript(p.read_text(encoding="utf-8-sig", errors="replace"), fmt, p.name)
 
 
@@ -864,7 +896,7 @@ def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engi
 
 
 def import_transcript(db, cfg, ns, tpath, audio=None, title=None, speaker_names=None, fmt="auto", log=print, collection=None):
-    """A transcript file (txt, md, mdx, docx, doc, pdf, json, jsonl, srt, vtt), optionally with its audio, into a
+    """A transcript file (txt, md, mdx, docx, doc, pdf, json, jsonl, srt, vtt, eml, ics), optionally with its audio, into a
     collection of the namespace (default: its default collection)."""
     src = pathlib.Path(audio or tpath)
     t = read_transcript(tpath, fmt)

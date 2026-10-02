@@ -1,0 +1,41 @@
+# Weekly dependency updates. Titles are Conventional Commits (`build(deps): bump …`), which the changelog lists
+# under Dependencies.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /fastapi_backend
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      python-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm # pnpm
+    directory: /nextjs-frontend
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      javascript-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+      include: scope
+
+  - package-ecosystem: docker
+    directories: [/fastapi_backend, /nextjs-frontend]
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: build
+      include: scope

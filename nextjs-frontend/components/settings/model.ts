@@ -72,6 +72,7 @@ export type SectionId =
   | "video"
   | "workers"
   | "access"
+  | "notifications"
   | "uploads"
   | "documents"
   | "tokens"
@@ -153,6 +154,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["server"],
     description:
       "Who can reach the server, how it tells visitors’ addresses, which sites may embed the player, and how long sessions last.",
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    backend: ["notifications"],
+    description:
+      "Where namespaces may send notifications (webhooks, Matterbridge, Slack, Discord), how often the notifier looks, and how often a failed send is tried again.",
   },
   {
     id: "uploads",
@@ -871,6 +879,49 @@ export const FIELDS: FieldSpec[] = [
     kind: "switch",
     hint: "Off: every key expires. Keys made before a change keep their expiry; revoke them below.",
   },
+  // Notifications
+  {
+    section: "notifications",
+    key: "enabled",
+    label: "Send notifications",
+    kind: "switch",
+    hint: "Off: nothing is sent, and what happens meanwhile isn’t sent later",
+  },
+  {
+    section: "notifications",
+    key: "networks",
+    label: "Private networks targets may be in",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like 192.168.1.0/24 or 172.16.0.0/12 for Docker. Without one, targets must be public addresses; a Matterbridge on your network needs its network here",
+  },
+  {
+    section: "notifications",
+    key: "app_url",
+    label: "Web app address for links",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "https://lens.example.org",
+    hint: "Messages link to runs and recordings here. Empty: the server’s FRONTEND_URL",
+  },
+  {
+    section: "notifications",
+    key: "poll_seconds",
+    label: "Look for news every (seconds)",
+    kind: "int",
+    min: 1,
+    max: 3600,
+  },
+  {
+    section: "notifications",
+    key: "max_attempts",
+    label: "Tries per message",
+    kind: "int",
+    min: 1,
+    max: 20,
+    hint: "A failed send waits 30 seconds, then four times longer each time, up to 6 hours",
+  },
   {
     section: "tokens",
     key: "oauth_access_minutes",
@@ -1203,6 +1254,11 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   if (llm && !URL_RX.test(llm)) e["llm.base_url"] = "Use an http(s) address, such as https://api.example.org/v1";
   const base = values["iiif.base_url"] as string | null | undefined;
   if (base && !URL_RX.test(base)) e["iiif.base_url"] = "Use an http(s) address";
+  const appUrl = values["notifications.app_url"] as string | null | undefined;
+  if (appUrl && !URL_RX.test(appUrl)) e["notifications.app_url"] = "Use an http(s) address";
+  const nets = values["notifications.networks"] as string[] | undefined;
+  const badNet = nets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
+  if (badNet) e["notifications.networks"] = `“${badNet}” isn’t a network like 192.168.1.0/24`;
   const rights = values["iiif.rights"] as string | null | undefined;
   if (rights && !RIGHTS_RX.test(rights))
     e["iiif.rights"] = "Pick a Creative Commons licence or a RightsStatements.org statement";

@@ -356,7 +356,11 @@ export type AuthStatus = {
    * Setup Required
    */
   setup_required: boolean;
-  [key: string]: unknown | boolean;
+  /**
+   * Wizard Pending
+   */
+  wizard_pending?: boolean;
+  [key: string]: unknown | boolean | undefined;
 };
 
 /**
@@ -893,11 +897,34 @@ export type BrowseEntry = {
    */
   modified?: string | null;
   /**
+   * Title
+   * an email's subject, a calendar event's title
+   */
+  title?: string | null;
+  /**
+   * When
+   * when an email was sent, or a calendar event starts
+   */
+  when?: string | null;
+  /**
    * Imported
    * the recordings this file already is, and where
    */
   imported?: Array<ImportedAs>;
-  [key: string]: unknown | string | boolean | number | null | string | null | Array<ImportedAs> | undefined;
+  [key: string]:
+    | unknown
+    | string
+    | boolean
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | Array<ImportedAs>
+    | undefined;
 };
 
 /**
@@ -2010,6 +2037,31 @@ export type ConsentResult = {
 };
 
 /**
+ * ContentRules
+ * How a subtype is recognised when nobody chose it: every rule given has to hold.
+ */
+export type ContentRules = {
+  /**
+   * Extensions
+   * e.g. [.srt, .vtt]
+   */
+  extensions?: Array<string> | null;
+  /**
+   * Pattern
+   * a regular expression found in the file name or title
+   */
+  pattern?: string | null;
+  /**
+   * Min Minutes
+   */
+  min_minutes?: number | null;
+  /**
+   * Max Minutes
+   */
+  max_minutes?: number | null;
+};
+
+/**
  * ContentState
  */
 export type ContentState = {
@@ -2038,6 +2090,144 @@ export type ContentState = {
       }
     | string
     | Array<ViewerLink>;
+};
+
+/**
+ * ContentType
+ */
+export type ContentType = {
+  /**
+   * Key
+   */
+  key: string;
+  /**
+   * Base
+   */
+  base: "video" | "audio" | "image" | "text";
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Pipeline
+   * its pipeline; none: the namespace default runs
+   */
+  pipeline?: number | null;
+  /**
+   * Rules
+   */
+  rules?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * General
+   * the base type's catch-all: can be renamed, not removed
+   */
+  general: boolean;
+  /**
+   * Builtin
+   * one Lens started with
+   */
+  builtin: boolean;
+  [key: string]:
+    | unknown
+    | string
+    | "video"
+    | "audio"
+    | "image"
+    | "text"
+    | string
+    | null
+    | number
+    | null
+    | {
+        [key: string]: unknown;
+      }
+    | null
+    | boolean
+    | undefined;
+};
+
+/**
+ * ContentTypeCatalog
+ */
+export type ContentTypeCatalog = {
+  /**
+   * Bases
+   */
+  bases: Array<string>;
+  /**
+   * Types
+   */
+  types: Array<ContentType>;
+  [key: string]: unknown | Array<string> | Array<ContentType>;
+};
+
+/**
+ * ContentTypeCreate
+ */
+export type ContentTypeCreate = {
+  /**
+   * Base
+   */
+  base: "video" | "audio" | "image" | "text";
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Key
+   * lowercase letters, digits and _; made from the label if left out
+   */
+  key?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Pipeline
+   */
+  pipeline?: number | null;
+  rules?: ContentRules | null;
+};
+
+/**
+ * ContentTypeUpdate
+ * Only what you send changes; its key and base type stay.
+ */
+export type ContentTypeUpdate = {
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Pipeline
+   */
+  pipeline?: number | null;
+  rules?: ContentRules | null;
+};
+
+/**
+ * ContentTypeUse
+ */
+export type ContentTypeUse = {
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Content Type
+   */
+  content_type: string;
+  [key: string]: unknown | string;
 };
 
 /**
@@ -2486,6 +2676,28 @@ export type Estimate = {
     | string
     | null
     | undefined;
+};
+
+/**
+ * EventInfo
+ */
+export type EventInfo = {
+  /**
+   * Type
+   */
+  type: "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added";
+  /**
+   * Label
+   */
+  label: string;
+  [key: string]:
+    | unknown
+    | "job.succeeded"
+    | "job.failed"
+    | "job.cancelled"
+    | "batch.finished"
+    | "recording.added"
+    | string;
 };
 
 /**
@@ -2946,6 +3158,132 @@ export type Graph = {
     | Array<{
         [key: string]: unknown;
       }>;
+};
+
+/**
+ * GraphChange
+ */
+export type GraphChange = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Kind
+   */
+  kind: "merge" | "link";
+  /**
+   * A
+   */
+  a: {
+    [key: string]: unknown;
+  };
+  /**
+   * B
+   */
+  b: {
+    [key: string]: unknown;
+  };
+  /**
+   * Spaces
+   */
+  spaces: Array<number>;
+  /**
+   * Reason
+   */
+  reason?: string | null;
+  /**
+   * Confidence
+   */
+  confidence?: number | null;
+  /**
+   * Verdict
+   */
+  verdict?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Keep
+   */
+  keep?: number | null;
+  /**
+   * Status
+   */
+  status: "proposed" | "applied" | "dismissed" | "undone";
+  /**
+   * Routine
+   */
+  routine?: number | null;
+  /**
+   * Run
+   */
+  run?: number | null;
+  /**
+   * Workflow
+   */
+  workflow?: number | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Decided At
+   */
+  decided_at?: string | null;
+  /**
+   * Decided By
+   */
+  decided_by?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | "merge"
+    | "link"
+    | {
+        [key: string]: unknown;
+      }
+    | {
+        [key: string]: unknown;
+      }
+    | Array<number>
+    | string
+    | null
+    | number
+    | null
+    | {
+        [key: string]: unknown;
+      }
+    | null
+    | number
+    | null
+    | "proposed"
+    | "applied"
+    | "dismissed"
+    | "undone"
+    | number
+    | null
+    | number
+    | null
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * GraphChangeAccept
+ */
+export type GraphChangeAccept = {
+  /**
+   * Keep
+   * for a merge: the entity to keep (default: the one proposed)
+   */
+  keep?: number | null;
 };
 
 /**
@@ -3960,6 +4298,34 @@ export type LanguageCount = {
 };
 
 /**
+ * LastSend
+ */
+export type LastSend = {
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Code
+   * the HTTP status it answered with
+   */
+  code?: number | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Event
+   */
+  event?: string | null;
+  [key: string]: unknown | string | boolean | number | null | string | null | string | null | undefined;
+};
+
+/**
  * LlmEstimate
  */
 export type LlmEstimate = {
@@ -4645,6 +5011,43 @@ export type NamespaceUpdate = {
    * Pipeline
    */
   pipeline?: number | null;
+  /**
+   * Pipelines
+   * the namespace's own pipeline per content subtype (by key); null drops the override
+   */
+  pipelines?: {
+    [key: string]: number | null;
+  } | null;
+};
+
+/**
+ * NodeType
+ */
+export type NodeType = {
+  /**
+   * Type
+   */
+  type: string;
+  /**
+   * Settings
+   */
+  settings: Array<string>;
+  /**
+   * Scopes
+   * the workflow scopes it can be used in
+   */
+  scopes?: Array<string>;
+  /**
+   * Inputs
+   * how many edges may come in: 0, 1, or -1 for any number
+   */
+  inputs: number;
+  /**
+   * Outputs
+   * its outgoing ports: [] for none, ['out'], or a condition's ['yes', 'no']
+   */
+  outputs: Array<string>;
+  [key: string]: unknown | string | Array<string> | Array<string> | number | Array<string> | undefined;
 };
 
 /**
@@ -4783,6 +5186,315 @@ export type NoteUpdate = {
    * share or unshare it (sharing needs editor access)
    */
   shared?: boolean | null;
+};
+
+/**
+ * NotifyDelivery
+ */
+export type NotifyDelivery = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Event
+   */
+  event: string;
+  /**
+   * Status
+   */
+  status: "pending" | "sending" | "sent" | "failed" | "dropped";
+  /**
+   * Attempts
+   */
+  attempts?: number;
+  /**
+   * Code
+   */
+  code?: number | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Text
+   * the message, as chat targets get it
+   */
+  text?: string | null;
+  /**
+   * Created At
+   */
+  created_at: string;
+  /**
+   * Sent At
+   */
+  sent_at?: string | null;
+  /**
+   * Next At
+   * when it's tried again, while pending
+   */
+  next_at?: string | null;
+  [key: string]:
+    | unknown
+    | string
+    | "pending"
+    | "sending"
+    | "sent"
+    | "failed"
+    | "dropped"
+    | number
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * NotifySecret
+ */
+export type NotifySecret = {
+  /**
+   * Secret
+   * the webhook's new signing secret, shown this once
+   */
+  secret: string;
+  [key: string]: unknown | string;
+};
+
+/**
+ * NotifyTarget
+ */
+export type NotifyTarget = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: "webhook" | "matterbridge" | "slack" | "discord";
+  /**
+   * Url
+   * scheme, host and port of its address; the rest stays sealed
+   */
+  url?: string | null;
+  /**
+   * Events
+   */
+  events: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added">;
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Gateway
+   * Matterbridge: the gateway it sends to
+   */
+  gateway?: string | null;
+  /**
+   * Username
+   * Matterbridge: the name messages are sent under
+   */
+  username?: string | null;
+  /**
+   * Secret Set
+   * webhook: deliveries are signed
+   */
+  secret_set?: boolean;
+  /**
+   * Token Set
+   * Matterbridge: an API token is sent
+   */
+  token_set?: boolean;
+  /**
+   * how the latest send went
+   */
+  last?: LastSend | null;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | "webhook"
+    | "matterbridge"
+    | "slack"
+    | "discord"
+    | string
+    | null
+    | Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added">
+    | boolean
+    | string
+    | null
+    | string
+    | null
+    | LastSend
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * NotifyTargetCreate
+ */
+export type NotifyTargetCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: "webhook" | "matterbridge" | "slack" | "discord";
+  /**
+   * Url
+   * where to POST: the webhook's URL, or the Matterbridge API's address (/api/message is added)
+   */
+  url: string;
+  /**
+   * Events
+   * default: job.failed and batch.finished
+   */
+  events?: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added"> | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+  /**
+   * Gateway
+   * Matterbridge: the [[gateway]] name to send to
+   */
+  gateway?: string | null;
+  /**
+   * Username
+   * Matterbridge: the name to send as (default Lens)
+   */
+  username?: string | null;
+  /**
+   * Token
+   * Matterbridge: the API token ([api] Token), if it has one
+   */
+  token?: string | null;
+};
+
+/**
+ * NotifyTargetCreated
+ */
+export type NotifyTargetCreated = {
+  target: NotifyTarget;
+  /**
+   * Secret
+   * webhook: the signing secret, shown this once
+   */
+  secret?: string | null;
+  [key: string]: unknown | NotifyTarget | string | null | undefined;
+};
+
+/**
+ * NotifyTargetUpdate
+ */
+export type NotifyTargetUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Url
+   * a new address, in full; leave it out to keep the one saved
+   */
+  url?: string | null;
+  /**
+   * Events
+   */
+  events?: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added"> | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+  /**
+   * Gateway
+   */
+  gateway?: string | null;
+  /**
+   * Username
+   */
+  username?: string | null;
+  /**
+   * Token
+   * Matterbridge: a new token; "" removes it
+   */
+  token?: string | null;
+};
+
+/**
+ * NotifyTargets
+ */
+export type NotifyTargets = {
+  /**
+   * Events
+   */
+  events: Array<EventInfo>;
+  /**
+   * Targets
+   */
+  targets: Array<NotifyTarget>;
+  /**
+   * Enabled
+   * notifications are on for the server (an admin's notifications.enabled)
+   */
+  enabled: boolean;
+  [key: string]: unknown | Array<EventInfo> | Array<NotifyTarget> | boolean;
+};
+
+/**
+ * NotifyTestResult
+ */
+export type NotifyTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Code
+   */
+  code?: number | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown | boolean | number | null | string | null | undefined;
 };
 
 /**
@@ -5273,6 +5985,7 @@ export type Pipeline = {
   steps: Array<{
     [key: string]: unknown;
   }>;
+  graph: PipelineGraph;
   /**
    * Notes
    */
@@ -5298,6 +6011,7 @@ export type Pipeline = {
     | Array<{
         [key: string]: unknown;
       }>
+    | PipelineGraph
     | string
     | null
     | string
@@ -5320,6 +6034,16 @@ export type PipelineCatalog = {
    */
   step_types: Array<string>;
   /**
+   * Asset Steps
+   * steps that make something of the media
+   */
+  asset_steps?: Array<string>;
+  /**
+   * Base Types
+   * video, audio, image and text
+   */
+  base_types?: Array<string>;
+  /**
    * Conditions
    * keys a step's `when` may use
    */
@@ -5328,7 +6052,15 @@ export type PipelineCatalog = {
    * Pipelines
    */
   pipelines: Array<PipelineSummary>;
-  [key: string]: unknown | Array<string> | Array<string> | Array<string> | Array<PipelineSummary>;
+  [key: string]:
+    | unknown
+    | Array<string>
+    | Array<string>
+    | Array<string>
+    | Array<string>
+    | Array<string>
+    | Array<PipelineSummary>
+    | undefined;
 };
 
 /**
@@ -5341,17 +6073,40 @@ export type PipelineCreate = {
   name: string;
   /**
    * Steps
+   * the steps in order; or send a graph instead
    */
-  steps: Array<
+  steps?: Array<
     | string
     | {
         [key: string]: unknown;
       }
   >;
+  graph?: PipelineGraph | null;
   /**
    * Description
    */
   description?: string | null;
+};
+
+/**
+ * PipelineGraph
+ * A pipeline as the canvas draws it: steps as nodes, an edge saying its target runs after its source.
+ */
+export type PipelineGraph = {
+  /**
+   * Nodes
+   * {id, step, x, y}
+   */
+  nodes: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Edges
+   * {source, target}
+   */
+  edges?: Array<{
+    [key: string]: unknown;
+  }>;
 };
 
 /**
@@ -5393,7 +6148,28 @@ export type PipelineSummary = {
    * namespaces that use it by default
    */
   namespaces?: Array<string>;
-  [key: string]: unknown | number | string | string | null | string | null | Array<string> | undefined;
+  /**
+   * Content Types
+   * namespaces that use it for one content subtype
+   */
+  content_types?: Array<ContentTypeUse>;
+  /**
+   * Subtypes
+   * content subtypes whose pipeline it is
+   */
+  subtypes?: Array<string>;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | string
+    | null
+    | Array<string>
+    | Array<ContentTypeUse>
+    | Array<string>
+    | undefined;
 };
 
 /**
@@ -5402,13 +6178,15 @@ export type PipelineSummary = {
 export type PipelineVersionCreate = {
   /**
    * Steps
+   * the steps in order; or send a graph instead
    */
-  steps: Array<
+  steps?: Array<
     | string
     | {
         [key: string]: unknown;
       }
   >;
+  graph?: PipelineGraph | null;
   /**
    * Notes
    */
@@ -6681,6 +7459,30 @@ export type RecordingAccessUpdate = {
 };
 
 /**
+ * RecordingContentType
+ */
+export type RecordingContentType = {
+  content_type: ContentType;
+  /**
+   * Chosen
+   * someone chose it; otherwise it was recognised from the file
+   */
+  chosen: boolean;
+  [key: string]: unknown | ContentType | boolean;
+};
+
+/**
+ * RecordingContentTypeSet
+ */
+export type RecordingContentTypeSet = {
+  /**
+   * Content Type
+   * a subtype of the resource's base type; null to recognise it again
+   */
+  content_type: string | null;
+};
+
+/**
  * RecordingFacet
  */
 export type RecordingFacet = {
@@ -7304,6 +8106,294 @@ export type ResourceFiles = {
 };
 
 /**
+ * Routine
+ */
+export type Routine = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Schedule
+   * five-field cron (minute hour day month weekday) or @daily...; none: by hand only
+   */
+  schedule?: string | null;
+  /**
+   * Schedule Text
+   */
+  schedule_text: string;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Namespaces
+   * namespace ids; none for every namespace
+   */
+  namespaces?: Array<number> | null;
+  /**
+   * Namespace Names
+   */
+  namespace_names?: Array<string | null> | null;
+  /**
+   * Actions
+   */
+  actions: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Next Run At
+   */
+  next_run_at?: string | null;
+  /**
+   * Last Run At
+   */
+  last_run_at?: string | null;
+  /**
+   * Last Status
+   */
+  last_status?: string | null;
+  /**
+   * Last Run
+   */
+  last_run?: number | null;
+  /**
+   * Running
+   */
+  running?: boolean;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | boolean
+    | string
+    | null
+    | Array<number>
+    | null
+    | Array<string | null>
+    | null
+    | Array<{
+        [key: string]: unknown;
+      }>
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * RoutineCatalog
+ */
+export type RoutineCatalog = {
+  /**
+   * Routines
+   */
+  routines: Array<Routine>;
+  /**
+   * Actions
+   * what a routine can do: sync, pipeline, workflow
+   */
+  actions: Array<string>;
+  /**
+   * Recordings
+   * which recordings a pipeline or workflow action takes: new, unprocessed, all
+   */
+  recordings: Array<string>;
+  [key: string]: unknown | Array<Routine> | Array<string> | Array<string>;
+};
+
+/**
+ * RoutineCreate
+ */
+export type RoutineCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Actions
+   * in order: {type: sync, watches?}, {type: pipeline, pipeline?, steps?, recordings?, limit?}, {type: workflow, workflow, version?, recordings?, limit?, propose_only?}
+   */
+  actions: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Schedule
+   */
+  schedule?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<number> | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+};
+
+/**
+ * RoutineRun
+ */
+export type RoutineRun = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Routine
+   */
+  routine: number;
+  /**
+   * Trigger
+   */
+  trigger: string;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * Status
+   */
+  status: string;
+  /**
+   * Started At
+   */
+  started_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Results
+   */
+  results?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Changes
+   */
+  changes?: {
+    [key: string]: number;
+  } | null;
+  /**
+   * Log
+   */
+  log?: Array<string> | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | Array<{
+        [key: string]: unknown;
+      }>
+    | string
+    | null
+    | {
+        [key: string]: number;
+      }
+    | null
+    | Array<string>
+    | null
+    | undefined;
+};
+
+/**
+ * RoutineRunRequest
+ */
+export type RoutineRunRequest = {
+  /**
+   * Propose Only
+   * graph workflows propose every change instead of making the sure ones
+   */
+  propose_only?: boolean;
+};
+
+/**
+ * RoutineUpdate
+ */
+export type RoutineUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Actions
+   */
+  actions?: Array<{
+    [key: string]: unknown;
+  }> | null;
+  /**
+   * Schedule
+   */
+  schedule?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string | null;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<number> | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+};
+
+/**
  * SavedSearch
  */
 export type SavedSearch = {
@@ -7468,6 +8558,29 @@ export type SavedView = {
     | string
     | null
     | undefined;
+};
+
+/**
+ * SchedulePreview
+ */
+export type SchedulePreview = {
+  /**
+   * Schedule
+   */
+  schedule: string;
+  /**
+   * Timezone
+   */
+  timezone: string;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Next
+   */
+  next: Array<string>;
+  [key: string]: unknown | string | Array<string>;
 };
 
 /**
@@ -7855,6 +8968,96 @@ export type SegmentUpdate = {
 };
 
 /**
+ * SetupAdmin
+ */
+export type SetupAdmin = {
+  /**
+   * From Env
+   */
+  from_env: boolean;
+  [key: string]: unknown | boolean;
+};
+
+/**
+ * SetupFinish
+ */
+export type SetupFinish = {
+  /**
+   * Skipped
+   */
+  skipped?: boolean;
+};
+
+/**
+ * SetupLlm
+ */
+export type SetupLlm = {
+  /**
+   * Base Url
+   */
+  base_url?: string | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Api Key
+   */
+  api_key?: string | null;
+};
+
+/**
+ * SetupLlmView
+ */
+export type SetupLlmView = {
+  /**
+   * Values
+   */
+  values: {
+    [key: string]: unknown;
+  };
+  /**
+   * Locked
+   */
+  locked: Array<string>;
+  [key: string]:
+    | unknown
+    | {
+        [key: string]: unknown;
+      }
+    | Array<string>;
+};
+
+/**
+ * SetupNamespace
+ */
+export type SetupNamespace = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Graph
+   */
+  graph?: "shared" | "isolated";
+};
+
+/**
+ * SetupNamespaceView
+ */
+export type SetupNamespaceView = {
+  /**
+   * Existing
+   */
+  existing: Array<string>;
+  /**
+   * Locked
+   */
+  locked: boolean;
+  [key: string]: unknown | Array<string> | boolean;
+};
+
+/**
  * SetupRequest
  */
 export type SetupRequest = {
@@ -7874,6 +9077,89 @@ export type SetupRequest = {
    * Name
    */
   name?: string | null;
+};
+
+/**
+ * SetupSaved
+ */
+export type SetupSaved = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Saved
+   */
+  saved?: Array<string>;
+  /**
+   * Watch
+   */
+  watch?: number | null;
+  [key: string]: unknown | boolean | Array<string> | number | null | undefined;
+};
+
+/**
+ * SetupStorage
+ */
+export type SetupStorage = {
+  /**
+   * Max Upload Mb
+   */
+  max_upload_mb?: number | null;
+  /**
+   * Folder
+   */
+  folder?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+};
+
+/**
+ * SetupStorageView
+ */
+export type SetupStorageView = {
+  /**
+   * Data Dir
+   */
+  data_dir: string;
+  /**
+   * Database
+   */
+  database: string;
+  /**
+   * Embedded
+   */
+  embedded: boolean;
+  /**
+   * Local Roots
+   */
+  local_roots: Array<string>;
+  /**
+   * Max Upload Mb
+   */
+  max_upload_mb: number;
+  /**
+   * Watches
+   */
+  watches: number;
+  [key: string]: unknown | string | boolean | Array<string> | number;
+};
+
+/**
+ * SetupView
+ */
+export type SetupView = {
+  /**
+   * Pending
+   */
+  pending: boolean;
+  admin: SetupAdmin;
+  namespace: SetupNamespaceView;
+  llm: SetupLlmView;
+  storage: SetupStorageView;
+  [key: string]: unknown | boolean | SetupAdmin | SetupNamespaceView | SetupLlmView | SetupStorageView;
 };
 
 /**
@@ -8027,7 +9313,7 @@ export type Source = {
   /**
    * Type
    */
-  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local";
+  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "ical";
   /**
    * Label
    */
@@ -8069,6 +9355,8 @@ export type Source = {
     | "smb"
     | "webdav"
     | "local"
+    | "imap"
+    | "ical"
     | {
         [key: string]: unknown;
       }
@@ -8095,7 +9383,7 @@ export type SourceCreate = {
   /**
    * Type
    */
-  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local";
+  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "ical";
   /**
    * Params
    */
@@ -9196,6 +10484,22 @@ export type ToolStep = {
 };
 
 /**
+ * Undone
+ */
+export type Undone = {
+  /**
+   * Undone
+   */
+  undone: number;
+  /**
+   * Failed
+   * changes that couldn't be undone (an entity in them was deleted since)
+   */
+  failed?: number;
+  [key: string]: unknown | number | undefined;
+};
+
+/**
  * Upload
  */
 export type Upload = {
@@ -10097,6 +11401,251 @@ export type WorkerInfo = {
     | undefined;
 };
 
+/**
+ * Workflow
+ */
+export type Workflow = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Scope
+   */
+  scope?: string;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Version
+   */
+  version: number;
+  graph: WorkflowGraph;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * History
+   */
+  history?: Array<WorkflowVersionInfo>;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | WorkflowGraph
+    | string
+    | null
+    | string
+    | null
+    | Array<WorkflowVersionInfo>
+    | undefined;
+};
+
+/**
+ * WorkflowCatalog
+ */
+export type WorkflowCatalog = {
+  /**
+   * Node Types
+   */
+  node_types: Array<NodeType>;
+  /**
+   * Operators
+   * what a condition node can test
+   */
+  operators: Array<string>;
+  /**
+   * Entity Types
+   */
+  entity_types: Array<string>;
+  /**
+   * Scopes
+   */
+  scopes?: Array<string>;
+  /**
+   * Workflows
+   */
+  workflows: Array<WorkflowSummary>;
+  [key: string]:
+    | unknown
+    | Array<NodeType>
+    | Array<string>
+    | Array<string>
+    | Array<string>
+    | Array<WorkflowSummary>
+    | undefined;
+};
+
+/**
+ * WorkflowCreate
+ */
+export type WorkflowCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  graph: WorkflowGraph;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Scope
+   */
+  scope?: "recording" | "graph";
+};
+
+/**
+ * WorkflowGraph
+ */
+export type WorkflowGraph = {
+  /**
+   * Nodes
+   * {id, type, config, label, x, y}
+   */
+  nodes: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Edges
+   * {source, target, branch (a condition's yes or no)}
+   */
+  edges?: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+/**
+ * WorkflowRunRequest
+ */
+export type WorkflowRunRequest = {
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Version
+   */
+  version?: number | null;
+};
+
+/**
+ * WorkflowSummary
+ */
+export type WorkflowSummary = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Scope
+   * recording (run by pipelines) or graph (run over namespaces by routines)
+   */
+  scope?: string;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Pipelines
+   * pipelines whose current version runs it
+   */
+  pipelines?: Array<string>;
+  [key: string]: unknown | number | string | string | null | string | null | Array<string> | undefined;
+};
+
+/**
+ * WorkflowUpdate
+ */
+export type WorkflowUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+};
+
+/**
+ * WorkflowVersionCreate
+ */
+export type WorkflowVersionCreate = {
+  graph: WorkflowGraph;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Publish
+   */
+  publish?: boolean;
+};
+
+/**
+ * WorkflowVersionInfo
+ */
+export type WorkflowVersionInfo = {
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  [key: string]: unknown | number | string | null | string | null | string | null | undefined;
+};
+
 export type StatusData = {
   body?: never;
   path?: never;
@@ -10942,6 +12491,122 @@ export type ReindexSearchResponses = {
 };
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
+
+export type GetSetupData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup";
+};
+
+export type GetSetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupView;
+};
+
+export type GetSetupResponse = GetSetupResponses[keyof GetSetupResponses];
+
+export type SaveNamespaceData = {
+  body: SetupNamespace;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/namespace";
+};
+
+export type SaveNamespaceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveNamespaceError = SaveNamespaceErrors[keyof SaveNamespaceErrors];
+
+export type SaveNamespaceResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveNamespaceResponse = SaveNamespaceResponses[keyof SaveNamespaceResponses];
+
+export type SaveLlmData = {
+  body: SetupLlm;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/llm";
+};
+
+export type SaveLlmErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveLlmError = SaveLlmErrors[keyof SaveLlmErrors];
+
+export type SaveLlmResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveLlmResponse = SaveLlmResponses[keyof SaveLlmResponses];
+
+export type SaveStorageData = {
+  body: SetupStorage;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/storage";
+};
+
+export type SaveStorageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveStorageError = SaveStorageErrors[keyof SaveStorageErrors];
+
+export type SaveStorageResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveStorageResponse = SaveStorageResponses[keyof SaveStorageResponses];
+
+export type FinishData = {
+  body: SetupFinish;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/finish";
+};
+
+export type FinishErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FinishError = FinishErrors[keyof FinishErrors];
+
+export type FinishResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type FinishResponse = FinishResponses[keyof FinishResponses];
 
 export type ListNamespacesData = {
   body?: never;
@@ -16936,6 +18601,333 @@ export type RunPipelineResponses = {
 
 export type RunPipelineResponse = RunPipelineResponses[keyof RunPipelineResponses];
 
+export type ListContentTypesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/content-types";
+};
+
+export type ListContentTypesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ContentTypeCatalog;
+};
+
+export type ListContentTypesResponse = ListContentTypesResponses[keyof ListContentTypesResponses];
+
+export type CreateContentTypeData = {
+  body: ContentTypeCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/content-types";
+};
+
+export type CreateContentTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateContentTypeError = CreateContentTypeErrors[keyof CreateContentTypeErrors];
+
+export type CreateContentTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: ContentType;
+};
+
+export type CreateContentTypeResponse = CreateContentTypeResponses[keyof CreateContentTypeResponses];
+
+export type DeleteContentTypeData = {
+  body?: never;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/content-types/{key}";
+};
+
+export type DeleteContentTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteContentTypeError = DeleteContentTypeErrors[keyof DeleteContentTypeErrors];
+
+export type DeleteContentTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteContentTypeResponse = DeleteContentTypeResponses[keyof DeleteContentTypeResponses];
+
+export type UpdateContentTypeData = {
+  body: ContentTypeUpdate;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/content-types/{key}";
+};
+
+export type UpdateContentTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateContentTypeError = UpdateContentTypeErrors[keyof UpdateContentTypeErrors];
+
+export type UpdateContentTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: ContentType;
+};
+
+export type UpdateContentTypeResponse = UpdateContentTypeResponses[keyof UpdateContentTypeResponses];
+
+export type GetRecordingContentTypeData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/content-type";
+};
+
+export type GetRecordingContentTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRecordingContentTypeError = GetRecordingContentTypeErrors[keyof GetRecordingContentTypeErrors];
+
+export type GetRecordingContentTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: RecordingContentType;
+};
+
+export type GetRecordingContentTypeResponse = GetRecordingContentTypeResponses[keyof GetRecordingContentTypeResponses];
+
+export type SetRecordingContentTypeData = {
+  body: RecordingContentTypeSet;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/content-type";
+};
+
+export type SetRecordingContentTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetRecordingContentTypeError = SetRecordingContentTypeErrors[keyof SetRecordingContentTypeErrors];
+
+export type SetRecordingContentTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: RecordingContentType;
+};
+
+export type SetRecordingContentTypeResponse = SetRecordingContentTypeResponses[keyof SetRecordingContentTypeResponses];
+
+export type ListWorkflowsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/workflows";
+};
+
+export type ListWorkflowsResponses = {
+  /**
+   * Successful Response
+   */
+  200: WorkflowCatalog;
+};
+
+export type ListWorkflowsResponse = ListWorkflowsResponses[keyof ListWorkflowsResponses];
+
+export type CreateWorkflowData = {
+  body: WorkflowCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/workflows";
+};
+
+export type CreateWorkflowErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateWorkflowError = CreateWorkflowErrors[keyof CreateWorkflowErrors];
+
+export type CreateWorkflowResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type CreateWorkflowResponse = CreateWorkflowResponses[keyof CreateWorkflowResponses];
+
+export type GetWorkflowData = {
+  body?: never;
+  path: {
+    /**
+     * Wid
+     */
+    wid: number;
+  };
+  query?: {
+    /**
+     * Version
+     */
+    version?: number | null;
+  };
+  url: "/api/v1/workflows/{wid}";
+};
+
+export type GetWorkflowErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetWorkflowError = GetWorkflowErrors[keyof GetWorkflowErrors];
+
+export type GetWorkflowResponses = {
+  /**
+   * Successful Response
+   */
+  200: Workflow;
+};
+
+export type GetWorkflowResponse = GetWorkflowResponses[keyof GetWorkflowResponses];
+
+export type UpdateWorkflowData = {
+  body: WorkflowUpdate;
+  path: {
+    /**
+     * Wid
+     */
+    wid: number;
+  };
+  query?: never;
+  url: "/api/v1/workflows/{wid}";
+};
+
+export type UpdateWorkflowErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateWorkflowError = UpdateWorkflowErrors[keyof UpdateWorkflowErrors];
+
+export type UpdateWorkflowResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateWorkflowResponse = UpdateWorkflowResponses[keyof UpdateWorkflowResponses];
+
+export type CreateWorkflowVersionData = {
+  body: WorkflowVersionCreate;
+  path: {
+    /**
+     * Wid
+     */
+    wid: number;
+  };
+  query?: never;
+  url: "/api/v1/workflows/{wid}/versions";
+};
+
+export type CreateWorkflowVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateWorkflowVersionError = CreateWorkflowVersionErrors[keyof CreateWorkflowVersionErrors];
+
+export type CreateWorkflowVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: VersionSaved;
+};
+
+export type CreateWorkflowVersionResponse = CreateWorkflowVersionResponses[keyof CreateWorkflowVersionResponses];
+
+export type RunWorkflowData = {
+  body: WorkflowRunRequest;
+  path: {
+    /**
+     * Wid
+     */
+    wid: number;
+  };
+  query?: never;
+  url: "/api/v1/workflows/{wid}/run";
+};
+
+export type RunWorkflowErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunWorkflowError = RunWorkflowErrors[keyof RunWorkflowErrors];
+
+export type RunWorkflowResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobQueued;
+};
+
+export type RunWorkflowResponse = RunWorkflowResponses[keyof RunWorkflowResponses];
+
 export type ListChatsData = {
   body?: never;
   path?: never;
@@ -17885,6 +19877,657 @@ export type UpdateViewResponses = {
 };
 
 export type UpdateViewResponse = UpdateViewResponses[keyof UpdateViewResponses];
+
+export type ListNotifyTargetsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications";
+};
+
+export type ListNotifyTargetsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListNotifyTargetsError = ListNotifyTargetsErrors[keyof ListNotifyTargetsErrors];
+
+export type ListNotifyTargetsResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotifyTargets;
+};
+
+export type ListNotifyTargetsResponse = ListNotifyTargetsResponses[keyof ListNotifyTargetsResponses];
+
+export type CreateNotifyTargetData = {
+  body: NotifyTargetCreate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications";
+};
+
+export type CreateNotifyTargetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateNotifyTargetError = CreateNotifyTargetErrors[keyof CreateNotifyTargetErrors];
+
+export type CreateNotifyTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotifyTargetCreated;
+};
+
+export type CreateNotifyTargetResponse = CreateNotifyTargetResponses[keyof CreateNotifyTargetResponses];
+
+export type DeleteNotifyTargetData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications/{tid}";
+};
+
+export type DeleteNotifyTargetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteNotifyTargetError = DeleteNotifyTargetErrors[keyof DeleteNotifyTargetErrors];
+
+export type DeleteNotifyTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteNotifyTargetResponse = DeleteNotifyTargetResponses[keyof DeleteNotifyTargetResponses];
+
+export type UpdateNotifyTargetData = {
+  body: NotifyTargetUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications/{tid}";
+};
+
+export type UpdateNotifyTargetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateNotifyTargetError = UpdateNotifyTargetErrors[keyof UpdateNotifyTargetErrors];
+
+export type UpdateNotifyTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotifyTarget;
+};
+
+export type UpdateNotifyTargetResponse = UpdateNotifyTargetResponses[keyof UpdateNotifyTargetResponses];
+
+export type TestNotifyTargetData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications/{tid}/test";
+};
+
+export type TestNotifyTargetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestNotifyTargetError = TestNotifyTargetErrors[keyof TestNotifyTargetErrors];
+
+export type TestNotifyTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotifyTestResult;
+};
+
+export type TestNotifyTargetResponse = TestNotifyTargetResponses[keyof TestNotifyTargetResponses];
+
+export type RotateNotifySecretData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications/{tid}/secret";
+};
+
+export type RotateNotifySecretErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RotateNotifySecretError = RotateNotifySecretErrors[keyof RotateNotifySecretErrors];
+
+export type RotateNotifySecretResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotifySecret;
+};
+
+export type RotateNotifySecretResponse = RotateNotifySecretResponses[keyof RotateNotifySecretResponses];
+
+export type ListNotifyDeliveriesData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/notifications/{tid}/deliveries";
+};
+
+export type ListNotifyDeliveriesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListNotifyDeliveriesError = ListNotifyDeliveriesErrors[keyof ListNotifyDeliveriesErrors];
+
+export type ListNotifyDeliveriesResponses = {
+  /**
+   * Response Notifications-List Notify Deliveries
+   * Successful Response
+   */
+  200: Array<NotifyDelivery>;
+};
+
+export type ListNotifyDeliveriesResponse = ListNotifyDeliveriesResponses[keyof ListNotifyDeliveriesResponses];
+
+export type ListRoutinesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/routines";
+};
+
+export type ListRoutinesResponses = {
+  /**
+   * Successful Response
+   */
+  200: RoutineCatalog;
+};
+
+export type ListRoutinesResponse = ListRoutinesResponses[keyof ListRoutinesResponses];
+
+export type CreateRoutineData = {
+  body: RoutineCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/routines";
+};
+
+export type CreateRoutineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateRoutineError = CreateRoutineErrors[keyof CreateRoutineErrors];
+
+export type CreateRoutineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type CreateRoutineResponse = CreateRoutineResponses[keyof CreateRoutineResponses];
+
+export type PreviewScheduleData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Schedule
+     */
+    schedule: string;
+    /**
+     * Timezone
+     */
+    timezone?: string;
+  };
+  url: "/api/v1/routines/schedule";
+};
+
+export type PreviewScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PreviewScheduleError = PreviewScheduleErrors[keyof PreviewScheduleErrors];
+
+export type PreviewScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: SchedulePreview;
+};
+
+export type PreviewScheduleResponse = PreviewScheduleResponses[keyof PreviewScheduleResponses];
+
+export type DeleteRoutineData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/routines/{rid}";
+};
+
+export type DeleteRoutineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteRoutineError = DeleteRoutineErrors[keyof DeleteRoutineErrors];
+
+export type DeleteRoutineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteRoutineResponse = DeleteRoutineResponses[keyof DeleteRoutineResponses];
+
+export type GetRoutineData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/routines/{rid}";
+};
+
+export type GetRoutineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRoutineError = GetRoutineErrors[keyof GetRoutineErrors];
+
+export type GetRoutineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Routine;
+};
+
+export type GetRoutineResponse = GetRoutineResponses[keyof GetRoutineResponses];
+
+export type UpdateRoutineData = {
+  body: RoutineUpdate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/routines/{rid}";
+};
+
+export type UpdateRoutineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateRoutineError = UpdateRoutineErrors[keyof UpdateRoutineErrors];
+
+export type UpdateRoutineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateRoutineResponse = UpdateRoutineResponses[keyof UpdateRoutineResponses];
+
+export type RunRoutineData = {
+  body: RoutineRunRequest;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/routines/{rid}/run";
+};
+
+export type RunRoutineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunRoutineError = RunRoutineErrors[keyof RunRoutineErrors];
+
+export type RunRoutineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RunRoutineResponse = RunRoutineResponses[keyof RunRoutineResponses];
+
+export type ListRunsData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/routines/{rid}/runs";
+};
+
+export type ListRunsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListRunsError = ListRunsErrors[keyof ListRunsErrors];
+
+export type ListRunsResponses = {
+  /**
+   * Response Routines-List Runs
+   * Successful Response
+   */
+  200: Array<RoutineRun>;
+};
+
+export type ListRunsResponse = ListRunsResponses[keyof ListRunsResponses];
+
+export type GetRunData = {
+  body?: never;
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: number;
+  };
+  query?: never;
+  url: "/api/v1/routine-runs/{run_id}";
+};
+
+export type GetRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRunError = GetRunErrors[keyof GetRunErrors];
+
+export type GetRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: RoutineRun;
+};
+
+export type GetRunResponse = GetRunResponses[keyof GetRunResponses];
+
+export type UndoRunData = {
+  body?: never;
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: number;
+  };
+  query?: never;
+  url: "/api/v1/routine-runs/{run_id}/undo";
+};
+
+export type UndoRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UndoRunError = UndoRunErrors[keyof UndoRunErrors];
+
+export type UndoRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: Undone;
+};
+
+export type UndoRunResponse = UndoRunResponses[keyof UndoRunResponses];
+
+export type ListGraphChangesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Status
+     */
+    status?: "proposed" | "applied" | "dismissed" | "undone" | null;
+    /**
+     * Run
+     */
+    run?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/graph-changes";
+};
+
+export type ListGraphChangesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListGraphChangesError = ListGraphChangesErrors[keyof ListGraphChangesErrors];
+
+export type ListGraphChangesResponses = {
+  /**
+   * Response Routines-List Graph Changes
+   * Successful Response
+   */
+  200: Array<GraphChange>;
+};
+
+export type ListGraphChangesResponse = ListGraphChangesResponses[keyof ListGraphChangesResponses];
+
+export type AcceptGraphChangeData = {
+  body: GraphChangeAccept;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/graph-changes/{cid}/accept";
+};
+
+export type AcceptGraphChangeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AcceptGraphChangeError = AcceptGraphChangeErrors[keyof AcceptGraphChangeErrors];
+
+export type AcceptGraphChangeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type AcceptGraphChangeResponse = AcceptGraphChangeResponses[keyof AcceptGraphChangeResponses];
+
+export type DismissGraphChangeData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/graph-changes/{cid}/dismiss";
+};
+
+export type DismissGraphChangeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DismissGraphChangeError = DismissGraphChangeErrors[keyof DismissGraphChangeErrors];
+
+export type DismissGraphChangeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DismissGraphChangeResponse = DismissGraphChangeResponses[keyof DismissGraphChangeResponses];
+
+export type UndoGraphChangeData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/graph-changes/{cid}/undo";
+};
+
+export type UndoGraphChangeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UndoGraphChangeError = UndoGraphChangeErrors[keyof UndoGraphChangeErrors];
+
+export type UndoGraphChangeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UndoGraphChangeResponse = UndoGraphChangeResponses[keyof UndoGraphChangeResponses];
 
 export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});

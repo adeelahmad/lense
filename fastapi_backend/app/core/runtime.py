@@ -9,7 +9,7 @@ import threading
 from typing import Any
 
 from app.config import settings as env
-from app.domain import auth, jobs, settings, sources, store, templates
+from app.domain import auth, content_types, jobs, notify, routines, settings, setup, sources, store, templates
 
 log = logging.getLogger("lens")
 
@@ -30,14 +30,19 @@ class Archive:
 
     def prepare(self) -> None:
         templates.seed(self.db)
+        content_types.seed(self.db)
+        routines.seed(self.db)
         # Pay for the embedded engine's full-text repair at startup rather than in someone's first search.
         self.db.ready_fulltext()
+        if auth.account_count(self.db) == 0:
+            setup.mark_fresh(self.db)  # a fresh install: the web app walks the first admin through setup
+        setup.apply_env(self.db)
         if auth.account_count(self.db) == 0:
             self.setup_code = os.environ.get("LENS_SETUP_CODE") or secrets.token_urlsafe(9)
             log.warning("No accounts yet. Create the first admin in the web app with setup code: %s", self.setup_code)
 
     def start_background(self) -> None:
-        """Inline workers and the watched-folder poller. Production runs these as separate processes (`lens worker`)."""
+        """Inline workers, the watched-folder poller, the notifier and the routine scheduler. Production runs these as separate processes (`lens worker`)."""
         for i in range(max(0, int(self.current()["workers"]["inline"]))):
             w = jobs.Worker(self.db, self.current, name=f"api-{os.getpid()}-{i}", log=log.info)
             threading.Thread(target=w.loop, args=(self.stop,), daemon=True, name=f"worker-{i}").start()
@@ -50,6 +55,16 @@ class Archive:
                     log.exception("watcher failed")
 
         threading.Thread(target=watcher, daemon=True, name="watcher").start()
+        notify.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.warning)
+
+        def scheduler() -> None:
+            while not self.stop.wait(routines.CHECK_SECONDS):
+                try:
+                    routines.run_due(self.db, self.current(), log=log.info)
+                except Exception:  # noqa: BLE001 - keep scheduling
+                    log.exception("routines failed")
+
+        threading.Thread(target=scheduler, daemon=True, name="routines").start()
 
     def close(self) -> None:
         self.stop.set()

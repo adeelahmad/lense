@@ -212,6 +212,7 @@ DEFAULTS = {
             "llm",
             "report",
             "export",
+            "workflow",
         ],
     },
     # video: sampling, shot detection, OCR and faces. Model paths are bootstrap-only (the app can't point at arbitrary files).
@@ -250,6 +251,10 @@ DEFAULTS = {
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
     "reports": {"audio": "link"},
+    # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
+    # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
+    # point (null: FRONTEND_URL)
+    "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
     # IIIF: identifiers are built from base_url (set it to the stable public HTTPS address; null: the request's address)
     "iiif": {
         "base_url": None,
@@ -493,6 +498,12 @@ class DB:
 
 
 SCHEMA = [
+    # counters (next_id), the migration marker and the settings version. Defined up front: SurrealDB 3 refuses to
+    # SELECT from a table nobody has written to yet ("table 'seq' does not exist"), which a fresh database with no
+    # namespaces in archive.yaml would otherwise hit in migrate() before anything had created it.
+    "DEFINE TABLE IF NOT EXISTS seq SCHEMALESS",
+    # first-run setup (domain/setup.py): setup:wizard while the web wizard is still to be finished
+    "DEFINE TABLE IF NOT EXISTS setup SCHEMALESS",
     # No composite indexes: on SurrealDB 2.x a (space, x) index makes "space = $s" lookups return nothing, so
     # uniqueness is enforced on single "<space>:<value>" key fields instead.
     "DEFINE TABLE IF NOT EXISTS space SCHEMALESS",
@@ -598,6 +609,18 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS job_status ON job FIELDS status",
     "DEFINE INDEX IF NOT EXISTS job_rec ON job FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS job_updated ON job FIELDS updated_at",
+    "DEFINE INDEX IF NOT EXISTS job_finished ON job FIELDS finished_at",
+    "DEFINE INDEX IF NOT EXISTS recording_created ON recording FIELDS created_at",
+    # notifications (domain/notify.py): a namespace's targets (notify_target:<n>), what each was sent
+    # (notify_delivery:<random>), the events claimed for sending (notify_event:<hash of its key>) and where the
+    # notifier's next look starts (notify_state:scan)
+    "DEFINE TABLE IF NOT EXISTS notify_target SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS notify_target_space ON notify_target FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS notify_delivery SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS notify_delivery_target ON notify_delivery FIELDS target",
+    "DEFINE INDEX IF NOT EXISTS notify_delivery_status ON notify_delivery FIELDS status",
+    "DEFINE TABLE IF NOT EXISTS notify_event SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS notify_state SCHEMALESS",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",
@@ -617,6 +640,19 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS pipeline SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS pipeline_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS pipeline_version_p ON pipeline_version FIELDS pipeline",
+    "DEFINE TABLE IF NOT EXISTS workflow SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS content_type SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS workflow_version SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS workflow_version_w ON workflow_version FIELDS workflow",
+    # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
+    "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
+    "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS routine_run SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS routine_run_r ON routine_run FIELDS routine",
+    "DEFINE TABLE IF NOT EXISTS graph_change SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS graph_change_run ON graph_change FIELDS run",
+    "DEFINE INDEX IF NOT EXISTS graph_change_status ON graph_change FIELDS status",
+    "DEFINE INDEX IF NOT EXISTS graph_change_pair ON graph_change FIELDS pair",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",

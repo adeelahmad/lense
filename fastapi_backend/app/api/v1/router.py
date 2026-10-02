@@ -9,6 +9,7 @@ from app.api.v1.routes import (
     chats,
     collections,
     comments,
+    content_types,
     entities,
     fields,
     files,
@@ -19,13 +20,16 @@ from app.api.v1.routes import (
     metadata,
     namespaces,
     notes,
+    notifications,
     oauth,
     pipelines,
     public,
     recordings,
     requests,
+    routines,
     search,
     searches,
+    setup,
     sources,
     speakers,
     templates,
@@ -33,6 +37,7 @@ from app.api.v1.routes import (
     users,
     video,
     views,
+    workflows,
 )
 
 api_router = APIRouter()
@@ -42,6 +47,7 @@ api_router.include_router(oauth.router)
 for module in (
     users,
     admin,
+    setup,
     namespaces,
     hierarchy,
     recordings,
@@ -62,11 +68,15 @@ for module in (
     sources,
     templates,
     pipelines,
+    content_types,
+    workflows,
     chats,
     collections,
     batches,
     public,
     requests,
     views,
+    notifications,
+    routines,
 ):
     api_router.include_router(module.router)

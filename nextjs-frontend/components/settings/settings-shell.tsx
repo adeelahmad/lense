@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   AudioLines,
+  Bell,
   Bot,
   Captions,
   ChartNoAxesColumn,
@@ -46,6 +47,7 @@ const ICON: Record<SectionId, LucideIcon> = {
   video: Clapperboard,
   workers: Cpu,
   access: ShieldCheck,
+  notifications: Bell,
   uploads: Upload,
   documents: FileType,
   tokens: KeyRound,
