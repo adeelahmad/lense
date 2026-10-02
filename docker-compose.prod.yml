@@ -38,6 +38,8 @@ x-backend: &backend
     LENS_LLM_MODEL: ${LENS_LLM_MODEL:-}
     LENS_LLM_API_KEY: ${LENS_LLM_API_KEY:-}
     LENS_LLM_VISION_MODEL: ${LENS_LLM_VISION_MODEL:-}
+    # private networks calendar feeds and web pages may be fetched from, e.g. 192.168.1.0/24 (documents.web_networks)
+    LENS_WEB_NETWORKS: ${LENS_WEB_NETWORKS:-}
     # opt-in telemetry (docs/telemetry.md): unset, it stays off unless turned on in Settings
     LENS_TELEMETRY: ${LENS_TELEMETRY:-}
     LENS_TELEMETRY_ENDPOINT: ${LENS_TELEMETRY_ENDPOINT:-}

@@ -329,6 +329,8 @@ def load_config(path=None, overrides=None):
             raise SystemExit(f"namespace {name}: graph must be shared or isolated")
         nss[name] = {"paths": [str((base / os.path.expanduser(x)).resolve()) for x in spec.get("paths", [])], "graph": graph}
     cfg["namespaces"] = nss
+    if extra := os.environ.get("LENS_WEB_NETWORKS"):  # for Docker and the packages, whose archive.yaml is in the image
+        cfg["documents"]["web_networks"] = [*(cfg["documents"].get("web_networks") or []), *extra.replace(",", " ").split()]
     if cfg["search"]["stemming"] not in ("english", "none"):
         raise SystemExit("search.stemming must be english or none")
     cfg["_path"] = str(p)
