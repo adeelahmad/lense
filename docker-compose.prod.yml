@@ -23,6 +23,17 @@ x-backend: &backend
     MAIL_USERNAME: ${MAIL_USERNAME:-}
     MAIL_PASSWORD: ${MAIL_PASSWORD:-}
     MAIL_FROM: ${MAIL_FROM:-}
+    # first run (docs/configuration.md#first-run-setup): unset, the web app's setup wizard asks
+    LENS_SETUP_CODE: ${LENS_SETUP_CODE:-}
+    LENS_SETUP_WIZARD: ${LENS_SETUP_WIZARD:-}
+    LENS_ADMIN_EMAIL: ${LENS_ADMIN_EMAIL:-}
+    LENS_ADMIN_PASSWORD: ${LENS_ADMIN_PASSWORD:-}
+    LENS_ADMIN_NAME: ${LENS_ADMIN_NAME:-}
+    LENS_NAMESPACE: ${LENS_NAMESPACE:-}
+    LENS_LLM_BASE_URL: ${LENS_LLM_BASE_URL:-}
+    LENS_LLM_MODEL: ${LENS_LLM_MODEL:-}
+    LENS_LLM_API_KEY: ${LENS_LLM_API_KEY:-}
+    LENS_LLM_VISION_MODEL: ${LENS_LLM_VISION_MODEL:-}
   volumes:
     - archive-data:/data
     - ${AUDIO_DIR:-./local-audio}:/audio:ro

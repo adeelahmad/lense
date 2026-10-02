@@ -19,6 +19,8 @@ class UserPublic(ResponseModel):
 
 class AuthStatus(ResponseModel):
     setup_required: bool
+    # a fresh install whose setup wizard (namespace, model provider, storage) the first admin hasn't finished
+    wizard_pending: bool = False
 
 
 class LoginRequest(RequestModel):
