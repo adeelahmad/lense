@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Calendar feeds on your own network.** A calendar server at home or on an intranet (Nextcloud, Radicale) was
+  refused with "only public web pages can be captured", and Docker and the packages had no way to allow it.
+  `LENS_WEB_NETWORKS` in `.env` (e.g. `192.168.1.0/24`) now adds networks to `documents.web_networks`, and the error
+  says so.
 - **Search by meaning.** Search now also finds moments about what you asked in other words: "money worries" finds
   "we can't afford the rent this month". A new `embed` pipeline step (in the standard pipeline, after analyze) has an
   OpenAI-compatible embedding model embed each recording's passages (runs of transcript lines, page text, and what
