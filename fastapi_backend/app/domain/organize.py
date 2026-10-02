@@ -191,7 +191,11 @@ def judge(cfg, items, c, say=print):
         if c.get("instructions"):
             ask.append(c["instructions"].strip())
         ask.append("Pairs:\n" + "\n".join(_describe(k, it) for k, it in enumerate(batch, 1)))
-        reply = llm.json_out(cfg, JUDGE_SYSTEM, "\n\n".join(ask), JUDGE_SCHEMA, c.get("model"))
+        try:
+            reply = llm.json_out(cfg, JUDGE_SYSTEM, "\n\n".join(ask), JUDGE_SCHEMA, c.get("model"))
+        except Exception as e:  # noqa: BLE001 - one bad batch leaves its pairs unjudged, not the run failed
+            say(f"pairs {start + 1}-{start + len(batch)}: the model failed ({type(e).__name__}: {str(e)[:200]})")
+            reply = None
         got = {}
         for d in (reply or {}).get("judgements") or []:
             if isinstance(d, dict) and isinstance(d.get("pair"), int) and isinstance(d.get("same"), bool):
@@ -336,19 +340,28 @@ def undo(db, cid, user=None):
     if ch["status"] != "applied":
         raise ValueError(f"this change is {ch['status']}, not applied")
     if ch["kind"] == "merge":
-        entities.undo_merge(db, ch["merge"])
+        m = db.one("SELECT undone FROM $r", r=R("entity_merge", int(ch["merge"])))
+        if m and not m.get("undone"):  # someone may have undone it from the entity page already
+            entities.undo_merge(db, ch["merge"])
     else:
         entities.unlink(db, ch["a"]["id"], ch["b"]["id"])
     db.q("UPDATE $r SET status = 'undone', undone_at = $t, undone_by = $u", r=R("graph_change", ch["id"]), t=store.now(), u=user)
 
 
-def undo_run(db, run_id, user=None):
-    """Take back every change a routine run applied, newest first: how many."""
+def undo_run(db, run_id, user=None, say=None):
+    """Take back every change a routine run applied, newest first: (undone, failed). One that can't be undone (an
+    entity in it was deleted since) is left as it is and counted."""
     rows = db.rows("SELECT record::id(id) AS id FROM graph_change WHERE run = $r AND status = 'applied' ORDER BY id DESC", r=int(run_id))
-    ids = [r["id"] for r in rows]
-    for cid in ids:
-        undo(db, cid, user)
-    return len(ids)
+    done = failed = 0
+    for r in rows:
+        try:
+            undo(db, r["id"], user)
+            done += 1
+        except Exception as e:  # noqa: BLE001 - the rest still get undone
+            failed += 1
+            if say:
+                say(f"change {r['id']}: {type(e).__name__}: {e}")
+    return done, failed
 
 
 def list_changes(db, spaces, status=None, run=None, limit=200):

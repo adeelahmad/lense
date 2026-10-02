@@ -63,8 +63,14 @@ def test_schedules():
     # 03:00 in Stockholm is 01:00 UTC in summer and 02:00 in winter
     assert schedule.next_after("0 3 * * *", "Europe/Stockholm", t("2026-10-02T12:00:00")) == t("2026-10-03T01:00:00")
     assert schedule.next_after("0 3 * * *", "Europe/Stockholm", t("2026-12-02T12:00:00")) == t("2026-12-03T02:00:00")
-    # 02:30 doesn't happen on the spring DST night
-    assert schedule.next_after("30 2 * * *", "Europe/Stockholm", t("2027-03-27T12:00:00")) == t("2027-03-29T00:30:00")
+    # 02:30 doesn't happen on the spring DST night: it runs when the clock gets past the gap (03:00 = 01:00 UTC)
+    assert schedule.next_after("30 2 * * *", "Europe/Stockholm", t("2027-03-27T12:00:00")) == t("2027-03-28T01:00:00")
+    # the hour New York repeats in November: every-15-minutes keeps going through both, never into the past
+    assert schedule.next_after("*/15 * * * *", "America/New_York", t("2026-11-01T06:10:00")) == t("2026-11-01T06:15:00")
+    assert schedule.next_after("*/15 * * * *", "America/New_York", t("2026-11-01T05:50:00")) == t("2026-11-01T06:00:00")
+    # a daily time in the repeated hour runs once
+    assert schedule.next_after("30 1 * * *", "America/New_York", t("2026-11-01T05:31:00")) == t("2026-11-02T06:30:00")
+    assert schedule.next_after("0 9 * * mon-sun", "UTC", t("2026-10-04T10:00:00")) == t("2026-10-05T09:00:00")
     assert schedule.describe("0 3 * * *") == "every day at 03:00"
     for bad, msg in (("0 3 * *", "five fields"), ("61 * * * *", "outside"), ("* * * * fun", "isn't a number"), ("0 0 31 feb *", "never")):
         with pytest.raises(ValueError, match=msg):
@@ -256,7 +262,8 @@ def test_graph_workflows_organise_entities(client, new_client, db, cfg, env, fol
         assert db.one("SELECT id FROM $r", r=R("entity_distinct", f"{lo}-{hi}"))
 
     # the whole first run, taken back
-    assert client.post(f"/api/v1/routine-runs/{run['id']}/undo", headers=h).json() == {"undone": 1}
+    assert client.post(f"/api/v1/routine-runs/{run['id']}/undo", headers=h).json() == {"undone": 1, "failed": 0}
+    assert client.get(f"/api/v1/routine-runs/{run['id']}", headers=h).json()["changes"]["applied"] == 0  # counted live
     assert db.one("SELECT id FROM $r", r=R("entity", gone))
     assert client.get("/api/v1/graph-changes", params={"run": run["id"], "status": "applied"}, headers=h).json() == []
 
@@ -272,3 +279,63 @@ def test_propose_only(db, cfg, env):
     assert len(db.values("SELECT VALUE id FROM entity")) == before
     north = [eid(db, "Northwind Labs"), eid(db, "North Wind Labs")]
     assert all(entities._entity(db, x) for x in north)
+
+
+def test_new_recordings_advance_only_as_far_as_queued(db, cfg, env):
+    pods = store.ns_id(db, "pods")
+    rid = routines.create(db, "Small batches", [{"type": "pipeline", "steps": ["analyze"], "limit": 1}], namespaces=[pods])
+    db.q("UPDATE $r SET seen_recording = 0", r=R("routine", rid))  # as if made before the recordings came
+    taken = []
+    for _ in range(4):
+        db.q("UPDATE job SET status = 'done'")
+        run_id = routines.run(db, cfg, rid)
+        taken.append(routines.get_run(db, run_id)["results"][0]["result"]["queued"])
+    assert taken == [1, 1, 1, 0]  # three pods recordings, one a run, none skipped
+
+    # an action that fails doesn't move the mark on
+    db.q("UPDATE $r SET seen_recording = 0, actions = $a", r=R("routine", rid), a=[{"type": "workflow", "workflow": 999}])
+    routines.run(db, cfg, rid)
+    assert routines.get(db, rid)["seen_recording"] == 0
+
+
+def test_dead_runs_are_swept(db, cfg, env):
+    rid = routines.create(db, "x", [{"type": "sync"}])
+    now = dt.datetime.now(UTC)
+    old = (now - dt.timedelta(hours=5)).isoformat(timespec="seconds")
+    db.q("UPDATE $r SET running_since = $t, heartbeat_at = $t", r=R("routine", rid), t=old)
+    db.q("CREATE routine_run:900 CONTENT $d", d={"routine": rid, "status": "running", "started_at": old})
+    assert routines.sweep(db, now) == 1
+    assert routines.get_run(db, 900)["status"] == "error" and not routines.get(db, rid)["running"]
+
+
+def test_one_failed_batch_or_undone_merge_doesnt_stop_the_rest(db, cfg, env, llm):
+    routines.seed(db)
+    rid = routines.list_routines(db)[0]["id"]
+    calls = {"n": 0}
+    real = organize.llm.json_out
+
+    def flaky(*a, **k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise organize.llm.LLMError("500 the server fell over")
+        return real(*a, **k)
+
+    wid = routines.get(db, rid)["actions"][0]["workflow"]
+    g = workflows.get(db, wid)["graph"]
+    for n in g["nodes"]:
+        if n["type"] == "llm_judge":
+            n["config"]["batch"] = 1
+    workflows.save_version(db, wid, g)
+    organize.llm.json_out = flaky
+    try:
+        run_id = routines.run(db, cfg, rid)
+    finally:
+        organize.llm.json_out = real
+    got = routines.get_run(db, run_id)
+    assert got["status"] == "done" and any("the model failed" in line for line in got["log"])
+    applied = db.rows("SELECT record::id(id) AS id, merge FROM graph_change WHERE run = $r AND status = 'applied'", r=run_id)
+    assert applied
+    for a in applied:
+        if a.get("merge"):
+            entities.undo_merge(db, a["merge"])  # undone from the entity page first
+    assert organize.undo_run(db, run_id) == (len(applied), 0)

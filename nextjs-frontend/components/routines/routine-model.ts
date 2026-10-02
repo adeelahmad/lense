@@ -9,6 +9,8 @@ export type SyncAction = { type: "sync"; watches?: number[] | null };
 export type PipelineAction = {
   type: "pipeline";
   pipeline?: number | null;
+  /** Steps set through the API; kept as they are, since the editor doesn't change them. */
+  steps?: unknown[] | null;
   recordings?: Pick;
   limit?: number | null;
 };
@@ -137,6 +139,7 @@ export function cleanActions(
     const out: Record<string, unknown> = { type: a.type };
     if (a.type === "pipeline") {
       if (a.pipeline != null) out.pipeline = a.pipeline;
+      if (a.steps?.length) out.steps = a.steps;
       out.recordings = a.recordings ?? "new";
     } else {
       out.workflow = a.workflow;

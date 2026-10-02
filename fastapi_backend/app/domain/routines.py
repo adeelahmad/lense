@@ -3,8 +3,8 @@ namespaces (or all of them), at the times its schedule says, or when someone ask
 
 - `sync`: pull from sources: scan watched folders now (the routine's namespaces' watches, or the ones it names),
   so new files come in and run their pipelines.
-- `pipeline`: queue a pipeline (the namespace's own per content type, or one chosen) for recordings: new ones (made
-  since the routine last looked), unprocessed ones, or all of them.
+- `pipeline`: queue a pipeline (one chosen, else the one each recording's content type gets: see content_types.py)
+  for recordings: new ones (made since the routine last looked), unprocessed ones, or all of them.
 - `workflow`: run a workflow. One that runs on recordings is queued on them as a workflow step (as above); one that
   organises the graph (scope graph, see organize.py) runs over the routine's namespaces there and then, proposing or
   making changes to their entities.
@@ -193,20 +193,34 @@ def list_routines(db):
     return [_view(db, r) for r in db.rows(f"SELECT {FIELDS} FROM routine ORDER BY id")]
 
 
+def _with_changes(db, rows):
+    """Runs with their graph changes counted as they stand now (some may have been undone or accepted since)."""
+    ids = [r["id"] for r in rows]
+    counts = {}
+    for c in db.rows("SELECT run, status FROM graph_change WHERE run IN $ids", ids=ids) if ids else []:
+        counts.setdefault(c["run"], {"applied": 0, "proposed": 0}).setdefault(c["status"], 0)
+        counts[c["run"]][c["status"]] += 1
+    for r in rows:
+        got = counts.get(r["id"], {})
+        r["changes"] = {"applied": got.get("applied", 0), "proposed": got.get("proposed", 0)}
+    return rows
+
+
 def runs(db, rid, limit=20):
-    return db.rows(
-        "SELECT record::id(id) AS id, routine, trigger, by, status, started_at, finished_at, results, error, changes FROM routine_run "
+    rows = db.rows(
+        "SELECT record::id(id) AS id, routine, trigger, by, status, started_at, finished_at, results, error FROM routine_run "
         "WHERE routine = $r ORDER BY id DESC LIMIT $n",
         r=int(rid),
         n=int(limit),
     )
+    return _with_changes(db, rows)
 
 
 def get_run(db, run_id):
     row = db.one("SELECT *, record::id(id) AS id FROM $r", r=R("routine_run", int(run_id)))
     if not row:
         raise KeyError(run_id)
-    return row
+    return _with_changes(db, [row])[0]
 
 
 def request_run(db, rid, by=None, propose_only=False):
@@ -233,15 +247,18 @@ def _last_recording(db):
 
 
 def _recordings(db, spaces, pick, seen, limit):
-    """Recording ids an action takes. `seen` is {"since": the newest recording the last run looked at, "upto": the
-    newest this run has}: new ones are those after `since`, up to the newest there is now (noted in `upto`)."""
+    """Recording ids an action takes. New ones are those after `seen["since"]` (the newest recording the last run
+    covered); how far this action got is left in `seen["pending"]` (the newest it took when it hit its limit, else
+    the newest there was), for the run to keep once the action has done its work."""
     q, upto = "SELECT record::id(id) AS id FROM recording WHERE space IN $s", _last_recording(db)
     if pick == "new":
         q += " AND record::id(id) > $since AND record::id(id) <= $upto"
-        seen["upto"] = max(seen["upto"], upto)
     elif pick == "unprocessed":
         q += " AND status IN $u"
-    return [r["id"] for r in db.rows(q + " ORDER BY id LIMIT $n", s=spaces, since=seen["since"], upto=upto, u=UNPROCESSED, n=limit)]
+    ids = [r["id"] for r in db.rows(q + " ORDER BY id LIMIT $n", s=spaces, since=seen["since"], upto=upto, u=UNPROCESSED, n=limit)]
+    if pick == "new":
+        seen["pending"] = ids[-1] if len(ids) >= limit else upto
+    return ids
 
 
 def _sync(db, cfg, a, spaces, say):
@@ -296,11 +313,23 @@ def _action(db, cfg, routine, run_id, a, seen, propose_only, say):
     return {"workflow": w["name"], "version": w["version"], **_queue(db, rids, [step], by, add=True, say=say)}
 
 
+def _takes_new(db, a):
+    """Whether an action works on new recordings (a graph workflow doesn't look at recordings)."""
+    if a["type"] == "sync" or a.get("recordings", "new") != "new":
+        return False
+    if a["type"] == "workflow":
+        try:
+            return workflows.get(db, int(a["workflow"]), a.get("version"))["scope"] != "graph"
+        except (KeyError, TypeError, ValueError):
+            return True
+    return True
+
+
 def run(db, cfg, rid, trigger="manual", by=None, propose_only=False, log=None):
     """Run a routine now, here; the run's id. Each action is tried even when one before it failed."""
     routine = get(db, rid)
     since = routine.get("seen_recording") or 0
-    seen = {"since": since, "upto": since}
+    seen = {"since": since, "marks": [], "failed": False}
     run_id, lines = db.next_id("routine_run"), []
     started = store.now()
 
@@ -319,11 +348,15 @@ def run(db, cfg, rid, trigger="manual", by=None, propose_only=False, log=None):
     results, failed = [], 0
     for k, a in enumerate(routine.get("actions") or [], 1):
         say(f"{k}. {a['type']}")
+        seen["pending"] = None
         try:
             got = _action(db, cfg, routine, run_id, a, seen, propose_only, say)
             results.append({"type": a["type"], "status": "done", "result": got})
+            if seen["pending"] is not None:
+                seen["marks"].append(seen["pending"])
         except Exception as e:  # noqa: BLE001 - recorded on the run; the next action still runs
             failed += 1
+            seen["failed"] = seen["failed"] or _takes_new(db, a)  # its new recordings are new again next time
             results.append({"type": a["type"], "status": "error", "error": f"{type(e).__name__}: {e}"[:300]})
             say(f"{a['type']} failed: {type(e).__name__}: {e}")
         db.q("UPDATE $r SET results = $x, log = $l", r=R("routine_run", run_id), x=results, l=lines)
@@ -340,7 +373,7 @@ def run(db, cfg, rid, trigger="manual", by=None, propose_only=False, log=None):
     db.q(
         "UPDATE $r SET last_run_at = $t, last_status = $s, last_run = $i, seen_recording = $seen, running_since = NONE, heartbeat_at = NONE",
         r=R("routine", int(rid)),
-        seen=seen["upto"],
+        seen=since if seen["failed"] or not seen["marks"] else min(seen["marks"]),
         t=started,
         s=status,
         i=run_id,
@@ -365,10 +398,33 @@ def _claim(db, r, now):
     return got[0] if got else None
 
 
+def sweep(db, now=None):
+    """Runs whose process died: the run says so, and its routine can run again. How many."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    stale = _iso(now - dt.timedelta(minutes=STALE_MINUTES))
+    dead = db.rows(
+        "SELECT record::id(id) AS id FROM routine WHERE running_since != NONE AND (heartbeat_at = NONE OR heartbeat_at < $s)", s=stale
+    )
+    for r in dead:
+        db.q("UPDATE $r SET running_since = NONE, heartbeat_at = NONE, last_status = 'error'", r=R("routine", r["id"]))
+    live = set(db.values("SELECT VALUE record::id(id) FROM routine WHERE running_since != NONE"))
+    n = 0
+    for run in db.rows("SELECT record::id(id) AS id, routine FROM routine_run WHERE status = 'running'"):
+        if run["routine"] not in live:
+            db.q(
+                "UPDATE $r SET status = 'error', error = 'stopped without finishing', finished_at = $t",
+                r=R("routine_run", run["id"]),
+                t=_iso(now),
+            )
+            n += 1
+    return n
+
+
 def run_due(db, cfg, log=print, now=None):
     """Run every routine that is due (or asked to run now); how many ran."""
     now = now or dt.datetime.now(dt.timezone.utc)
     stamp = _iso(now)
+    sweep(db, now)
     due = db.rows(
         "SELECT record::id(id) AS id, schedule, timezone, next_run_at, run_now FROM routine "
         "WHERE run_now != NONE OR (enabled = true AND next_run_at != NONE AND next_run_at <= $n)",

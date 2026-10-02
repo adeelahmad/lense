@@ -2,7 +2,8 @@
 
 `*`, lists (`1,15`), ranges (`1-5`), steps (`*/15`, `9-17/2`), month and day names (`jan`, `mon-fri`) and the
 shorthands `@hourly`, `@daily`, `@weekly`, `@monthly` and `@yearly` work. As in cron, when both day fields are
-restricted a day matches either of them. Sunday is 0 (or 7).
+restricted a day matches either of them. Sunday is 0 (or 7). Times DST skips run when the clock
+gets past the gap; times it repeats run once (both times when the schedule runs every hour).
 """
 
 from __future__ import annotations
@@ -51,6 +52,8 @@ def _field(text, field):
         else:
             a = _value(rng, field)
             b = hi if step else a
+        if field == 4 and "-" in rng and b == 0 and a > 0:
+            b = 7  # mon-sun
         if not (lo <= a <= hi and lo <= b <= hi) or a > b:
             raise ValueError(f"cron {LABELS[field]}: {part!r} is outside {lo}-{hi}")
         out.update(range(a, b + 1, int(step or 1)))
@@ -90,21 +93,42 @@ def _day_ok(d, days, weekdays, dr, wr):
     return dom and dow
 
 
+def _exists(t):
+    """Whether a wall-clock time happens in its zone (DST skips some)."""
+    back = t.astimezone(dt.timezone.utc).astimezone(t.tzinfo)
+    return back.replace(tzinfo=None) == t.replace(tzinfo=None)
+
+
+def _instants(wall, z, every_hour):
+    """The UTC instants a wall-clock time stands for. A time DST skips runs when the clock gets past the gap (as cron
+    does); a time DST repeats runs once, at its first occurrence, unless the schedule runs every hour (then both)."""
+    t = wall.replace(tzinfo=z)
+    if not _exists(t):
+        while not _exists(t):
+            t = (t.replace(tzinfo=None) + dt.timedelta(minutes=1)).replace(tzinfo=z)
+        return [t.astimezone(dt.timezone.utc)]
+    first, second = t.replace(fold=0).astimezone(dt.timezone.utc), t.replace(fold=1).astimezone(dt.timezone.utc)
+    return [first, second] if every_hour and second != first else [first]
+
+
 def next_after(expr, tz="UTC", after=None):
     """The first time after `after` (default now) the schedule fires, as an aware UTC datetime; None if never."""
     minutes, hours, days, months, weekdays, dr, wr = parse(expr)
     z = zone(tz)
-    after = (after or dt.datetime.now(dt.timezone.utc)).astimezone(z)
-    start = after.replace(second=0, microsecond=0) + dt.timedelta(minutes=1)
-    day = start.date()
+    after = (after or dt.datetime.now(dt.timezone.utc)).astimezone(dt.timezone.utc)
+    every_hour = len(hours) == 24
+    day = after.astimezone(z).date() - dt.timedelta(days=1)  # a repeated hour can fall on the day before, locally
     for _ in range(HORIZON_DAYS):
         if day.month in months and _day_ok(day, days, weekdays, dr, wr):
-            for h in sorted(hours):
-                for m in sorted(minutes):
-                    t = dt.datetime(day.year, day.month, day.day, h, m, tzinfo=z)
-                    back = t.astimezone(dt.timezone.utc).astimezone(z)
-                    if t >= start and back.replace(tzinfo=None) == t.replace(tzinfo=None):  # a time DST skips isn't one
-                        return t.astimezone(dt.timezone.utc)
+            found = [
+                u
+                for h in hours
+                for m in minutes
+                for u in _instants(dt.datetime(day.year, day.month, day.day, h, m), z, every_hour)
+                if u > after
+            ]
+            if found:
+                return min(found)
         day += dt.timedelta(days=1)
     return None
 

@@ -109,9 +109,9 @@ def undo_run(run_id: int, user: AdminWriter, db: Db) -> Undone:
     """Take back every graph change the run made."""
     with domain_errors():
         routines.get_run(db, run_id)
-        n = organize.undo_run(db, run_id, user.email)
-    auth.audit(db, user.as_audit(), "routine.undo_run", f"routine_run:{run_id}", {"undone": n})
-    return Undone(undone=n)
+        n, failed = organize.undo_run(db, run_id, user.email)
+    auth.audit(db, user.as_audit(), "routine.undo_run", f"routine_run:{run_id}", {"undone": n, "failed": failed})
+    return Undone(undone=n, failed=failed)
 
 
 # ---------- graph changes ----------

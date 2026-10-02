@@ -144,7 +144,15 @@ export function RoutineDetail({ id, tab: initialTab }: { id: number; tab?: "runs
       setUndoing(null);
       void qc.invalidateQueries({ queryKey: ["routine-runs", id] });
       void qc.invalidateQueries({ queryKey: ["graph-changes"] });
-      toast({ tone: "green", title: `Undid ${plural(res.undone, "change")}` });
+      toast(
+        res.failed
+          ? {
+              tone: "red",
+              title: `Undid ${plural(res.undone, "change")}; ${res.failed} couldn’t be undone`,
+              body: "An entity in them was deleted since.",
+            }
+          : { tone: "green", title: `Undid ${plural(res.undone, "change")}` },
+      );
     },
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t undo the run", body: e.message }),
   });

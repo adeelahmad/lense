@@ -9593,7 +9593,12 @@ export type Undone = {
    * Undone
    */
   undone: number;
-  [key: string]: unknown | number;
+  /**
+   * Failed
+   * changes that couldn't be undone (an entity in them was deleted since)
+   */
+  failed?: number;
+  [key: string]: unknown | number | undefined;
 };
 
 /**

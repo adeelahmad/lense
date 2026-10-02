@@ -108,3 +108,4 @@ class GraphChangeAccept(RequestModel):
 
 class Undone(ResponseModel):
     undone: int
+    failed: int = Field(0, description="changes that couldn't be undone (an entity in them was deleted since)")

@@ -28796,6 +28796,12 @@
           "undone": {
             "type": "integer",
             "title": "Undone"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "description": "changes that couldn't be undone (an entity in them was deleted since)",
+            "default": 0
           }
         },
         "additionalProperties": true,
