@@ -2,7 +2,8 @@
 # supervisord. Only the web app (port 3000) is public; it proxies the API's paths (lib/api/backend-proxy.ts).
 # Build and install: see cloudron/README.md.
 #   --build-arg EXTRAS="sensevoice voices"   optional backend extras, as in fastapi_backend/Dockerfile
-#   --build-arg FULL=true                    LibreOffice, Chromium and fonts, to read Office files, web pages and emails
+#   --build-arg FULL=true                    LibreOffice and fonts, to read Office files, text, saved web pages and emails
+#                                            (no Chromium: Ubuntu 24.04's apt package is a snap stub, so no web capture)
 
 FROM cloudron/base:5.1.0@sha256:1c0666c9abe9e2090d33686826d4e97769b799124573118d41e0d7485135748e AS frontend
 ENV PATH="/usr/local/node-24.19.0/bin:$PATH" COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -24,7 +25,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends tesseract-ocr antiword poppler-utils \
     && if [ "$FULL" = "true" ]; then apt-get install -y --no-install-recommends \
          libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui \
-         chromium fonts-dejavu-core fonts-liberation2 fonts-noto-core fonts-noto-cjk; fi \
+         fonts-dejavu-core fonts-liberation2 fonts-noto-core fonts-noto-cjk; fi \
     && case " $EXTRAS " in *" doctr "*) apt-get install -y --no-install-recommends libgl1 libglib2.0-0;; esac \
     && rm -rf /var/lib/apt/lists/*
 

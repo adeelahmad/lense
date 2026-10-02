@@ -33,8 +33,8 @@ the post-install note says where the first-admin **setup code** is (the app's lo
 Update to a newer checkout with `cloudron update --app lens -f Dockerfile.cloudron`; logs with
 `cloudron logs --app lens -f`.
 
-Build options go with `--build-arg`: `FULL=true` adds LibreOffice, Chromium and fonts (Office files, web pages,
-emails), `EXTRAS="sensevoice voices"` adds backend extras as in `fastapi_backend/Dockerfile`. Raise the memory limit
+Build options go with `--build-arg`: `FULL=true` adds LibreOffice and fonts (Office files, text, saved web pages,
+emails; capturing live web pages needs Chromium, which this package leaves out), `EXTRAS="sensevoice voices"` adds backend extras as in `fastapi_backend/Dockerfile`. Raise the memory limit
 in the app's Resources page for large models.
 
 ## Build once, install from an image
