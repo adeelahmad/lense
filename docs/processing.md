@@ -222,3 +222,43 @@ else the general one. Patterns ignore case and see `_` as a space, so `\bcalls?\
 content type, else the content type's pipeline, else the namespace default, else the standard pipeline. Content types
 start without a pipeline, so nothing changes until someone sets one. Files found by a folder scan go through the same
 choice as uploads.
+
+## Routines
+
+A routine does things on a schedule, like a cron job (Routines, admins only). It runs its actions in order over its
+namespaces, or all of them:
+
+- **Sync** scans watched folders now (all of the routine's namespaces' folders, or the ones you pick), so new files
+  come in and run their pipelines.
+- **Pipeline** queues a pipeline for recordings (one you pick, else the one each recording's content type gets, as
+  above): new ones (since the routine last looked), unprocessed ones, or all of them.
+- **Workflow** runs a workflow. One that runs on recordings is queued on them as a workflow step, pinned to its
+  published version; one that organises the graph runs over the namespaces there and then.
+
+The schedule is a five-field cron expression (minute hour day-of-month month day-of-week, e.g. `0 3 * * *`) or
+`@hourly`, `@daily`, `@weekly`, `@monthly`, in a time zone; without one a routine runs only when someone presses Run
+now. The API process checks every 30 seconds (`lens watch` does too, for setups that run it separately); a routine is
+never started twice at once, and one started in two processes runs once. Each run keeps what every action did and a
+log.
+
+### Organising the graph
+
+A workflow's scope is either recordings (above) or the graph. Graph workflows have their own nodes:
+
+- **Candidates** finds pairs of entities that may be one thing, by the same rules as the merge suggestions (same
+  letters, acronym, spelling, sounds alike, one name inside the other): inside each namespace (merge) or across
+  namespaces whose graph is shared (link). Pairs someone said are different, and pairs already proposed, are skipped.
+- **Ask the model** (`llm_judge`) shows the model each pair with lines where the names were said and asks whether
+  they are the same thing, how sure it is, and which name to keep.
+- **Filter** keeps the pairs that pass a test, e.g. `verdict.same` equals true.
+- **Apply changes** merges or links the pairs whose confidence is at least *apply above* (at most *max apply* a run)
+  and proposes the rest. Without *apply above* it only proposes.
+
+A fresh archive has the workflow *Organise the entity graph* (both kinds of candidates, the model, then merges at 95%
+or more, 25 a run) and the routine *Organise the graph every night* that runs it at 03:00 UTC, switched off. Turn it
+on, or Run now with *propose only* first to see what it would do.
+
+Every change is recorded (`GET /api/v1/graph-changes`): editors of the namespaces involved accept or dismiss
+proposals (dismissing says the two are different, so the pair isn't suggested again) and undo applied changes; an
+admin can undo everything a run applied at once (`POST /api/v1/routine-runs/{id}/undo`). Merges are undone exactly as
+from an entity's page.
