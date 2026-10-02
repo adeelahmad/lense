@@ -146,8 +146,7 @@ export function useJobEvents(onJob?: Listener, onOpen?: () => void): FeedStatus 
 }
 
 type JobsKeyOpts =
-  | { status?: string; recording?: number; limit?: number; namespace?: string; batch?: number }
-  | undefined;
+  { status?: string; recording?: number; limit?: number; namespace?: string; batch?: number } | undefined;
 
 /**
  * Patch every cached job list (query keys ["jobs", {status, recording, limit, namespace, batch}]) with one change.
