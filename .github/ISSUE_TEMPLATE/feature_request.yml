@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest something Lens should do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you're trying to do
+      description: The task or problem, in your words. What do you do today instead?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+      description: How you'd like it to work. Sketches and examples welcome.
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Who else needs this, links, alternatives you've tried.

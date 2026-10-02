@@ -205,6 +205,10 @@ def changes_since(base: str | None) -> list[dict]:
                 match["description"],
             )
             breaking = bool(match["breaking"]) or "BREAKING CHANGE:" in body
+            if (
+                kind == "build" and scope == "deps"
+            ):  # Dependabot (.github/dependabot.yml)
+                kind = "deps"
         else:
             kind = "deps" if DEPENDABOT.match(subject) else "other"
             scope, description, breaking = None, subject, False
@@ -229,7 +233,7 @@ def changes_markdown(changes: list[dict]) -> str:
         if section not in SECTIONS:
             continue
         line = change["description"]
-        if change["scope"]:
+        if change["scope"] and change["type"] != "deps":
             line = f"**{change['scope']}:** {line}"
         if change["pr"]:
             line += f" ([#{change['pr']}]({server}/{repo}/pull/{change['pr']}))"
