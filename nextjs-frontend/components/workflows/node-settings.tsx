@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import type { FieldDef, TemplateSummary } from "@/app/openapi-client/types.gen";
-import { NODES, OPS, type WfNode } from "@/components/workflows/workflow-model";
+import { OPS, infoFor, type Scope, type WfNode } from "@/components/workflows/workflow-model";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
 
 export type NsField = FieldDef & { namespace: string };
@@ -66,6 +66,9 @@ function parseValue(s: string): unknown {
   return s;
 }
 
+/** A number typed in a box: empty is unset. */
+const num = (s: string) => (s.trim() === "" ? undefined : Number(s));
+
 /** The selected node's settings, what it takes in and what it passes on. */
 export function NodeSettings({
   node,
@@ -74,6 +77,7 @@ export function NodeSettings({
   fields,
   readOnly,
   problem,
+  scope = "recording",
 }: {
   node: WfNode;
   onChange: (n: WfNode) => void;
@@ -81,8 +85,9 @@ export function NodeSettings({
   fields: NsField[];
   readOnly?: boolean;
   problem?: string;
+  scope?: Scope;
 }) {
-  const info = NODES[node.type];
+  const info = infoFor(node.type, scope);
   const c = node.config;
   const set = (patch: Record<string, unknown>) => {
     const config = { ...c, ...patch };
@@ -176,16 +181,24 @@ export function NodeSettings({
           </Field>
         )}
 
-        {node.type === "condition" && (
+        {(node.type === "condition" || node.type === "filter") && (
           <>
-            <Field label="Path" optional hint="Test a part of what came in, or leave empty to test all of it">
+            <Field
+              label="Path"
+              optional
+              hint={
+                node.type === "filter"
+                  ? "Tested in each item of the list, e.g. verdict.same or verdict.confidence"
+                  : "Test a part of what came in, or leave empty to test all of it"
+              }
+            >
               {({ id, describedBy }) => (
                 <Input
                   id={id}
                   aria-describedby={describedBy}
                   mono
                   value={String(c.path ?? "")}
-                  placeholder="summary.importance"
+                  placeholder={node.type === "filter" ? "verdict.same" : "summary.importance"}
                   onChange={(e) => set({ path: e.target.value })}
                 />
               )}
@@ -342,6 +355,146 @@ export function NodeSettings({
               />
             )}
           </Field>
+        )}
+
+        {node.type === "candidates" && (
+          <>
+            <Field label="Look for">
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={String(c.kind ?? "merge")}
+                  onChange={(e) => set({ kind: e.target.value })}
+                  options={[
+                    { value: "merge", label: "Look-alikes in a namespace (to merge)" },
+                    { value: "link", label: "Look-alikes across shared namespaces (to link)" },
+                  ]}
+                />
+              )}
+            </Field>
+            <Field label="At least this sure" hint="0 to 1: how sure the rules must be that a pair is one thing">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={c.min_confidence == null ? "" : String(c.min_confidence)}
+                  onChange={(e) => set({ min_confidence: num(e.target.value) })}
+                />
+              )}
+            </Field>
+            <Field label="At most" hint="Pairs a run, 1 to 1000, most likely first">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={c.limit == null ? "" : String(c.limit)}
+                  onChange={(e) => set({ limit: num(e.target.value) })}
+                />
+              )}
+            </Field>
+            <Field label="Only these types" optional hint="e.g. PERSON, ORG; empty for all">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  defaultValue={typesText(c.types)}
+                  onChange={(e) => set({ types: typesOf(e.target.value).length ? typesOf(e.target.value) : undefined })}
+                />
+              )}
+            </Field>
+          </>
+        )}
+
+        {node.type === "llm_judge" && (
+          <>
+            <Field label="Pairs a call" hint="How many pairs the model judges at once, 1 to 100">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={c.batch == null ? "" : String(c.batch)}
+                  onChange={(e) => set({ batch: num(e.target.value) })}
+                />
+              )}
+            </Field>
+            <Field label="Instructions" optional hint="Anything the model should know, e.g. how your names are spelled">
+              {({ id, describedBy }) => (
+                <Textarea
+                  id={id}
+                  aria-describedby={describedBy}
+                  rows={3}
+                  value={String(c.instructions ?? "")}
+                  onChange={(e) => set({ instructions: e.target.value })}
+                />
+              )}
+            </Field>
+            <Field label="Model" optional hint="Leave empty for the model in Settings → LLM">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  value={String(c.model ?? "")}
+                  onChange={(e) => set({ model: e.target.value })}
+                />
+              )}
+            </Field>
+          </>
+        )}
+
+        {node.type === "apply_changes" && (
+          <>
+            <Checkbox
+              checked={c.apply_above != null}
+              onCheckedChange={(v) => set({ apply_above: v ? 0.95 : undefined, max_apply: v ? 25 : undefined })}
+              label="Make the changes it’s sure of; propose the rest"
+              disabled={readOnly}
+            />
+            {c.apply_above == null ? (
+              <p className="text-[12.5px] text-fg-muted">Every change is proposed, for someone to accept.</p>
+            ) : (
+              <>
+                <Field label="Sure enough at" hint="0 to 1: the model’s confidence (else the rules’) to make a change">
+                  {({ id, describedBy }) => (
+                    <Input
+                      id={id}
+                      aria-describedby={describedBy}
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={String(c.apply_above)}
+                      onChange={(e) => set({ apply_above: num(e.target.value) ?? 0 })}
+                    />
+                  )}
+                </Field>
+                <Field label="At most" hint="Changes made a run, 0 to 1000; the rest are proposed">
+                  {({ id, describedBy }) => (
+                    <Input
+                      id={id}
+                      aria-describedby={describedBy}
+                      type="number"
+                      min={0}
+                      max={1000}
+                      value={c.max_apply == null ? "" : String(c.max_apply)}
+                      onChange={(e) => set({ max_apply: num(e.target.value) })}
+                    />
+                  )}
+                </Field>
+              </>
+            )}
+          </>
         )}
       </fieldset>
     </div>

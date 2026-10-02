@@ -4,11 +4,16 @@
  */
 import {
   Braces,
+  CheckCheck,
+  Filter,
   GitBranch,
   GitMerge,
+  Gavel,
+  Network,
   PlayCircle,
   Save,
   ScanSearch,
+  SearchCheck,
   Sparkles,
   Tags,
   TextCursorInput,
@@ -25,6 +30,8 @@ export type WfNode = {
 };
 export type WfEdge = { source: string; target: string; branch?: "yes" | "no" };
 export type WfGraph = { nodes: WfNode[]; edges: WfEdge[] };
+/** What a workflow runs on: one recording (from a pipeline), or the entity graph of namespaces (from a routine). */
+export type Scope = "recording" | "graph";
 
 type Info = {
   label: string;
@@ -150,7 +157,89 @@ export const NODES: Record<string, Info> = {
     gives: "a custom field",
     group: "Keep",
   },
+  // Graph workflows (scope graph)
+  candidates: {
+    label: "Look-alike entities",
+    describe:
+      "Pairs of entities that may be one thing, found by rules (same letters, acronym, spelling, sound, one name in the other)",
+    icon: SearchCheck,
+    tone: "green",
+    inputs: 1,
+    outputs: ["out"],
+    takes: "namespaces",
+    gives: "pairs[]",
+    group: "Entities",
+  },
+  llm_judge: {
+    label: "Ask the model",
+    describe: "Asks the model whether each pair is the same thing, with lines where each name was said",
+    icon: Gavel,
+    tone: "gold",
+    inputs: 1,
+    outputs: ["out"],
+    takes: "pairs[]",
+    gives: "pairs[] with a verdict",
+    group: "AI",
+  },
+  filter: {
+    label: "Filter",
+    describe: "Keeps the items of a list that pass a test, e.g. verdict.same equals true",
+    icon: Filter,
+    tone: "neutral",
+    inputs: 1,
+    outputs: ["out"],
+    takes: "a list",
+    gives: "the items that pass",
+    group: "Logic",
+  },
+  apply_changes: {
+    label: "Apply changes",
+    describe: "Merges or links the pairs it’s sure of and proposes the rest for someone to accept; all can be undone",
+    icon: CheckCheck,
+    tone: "gold",
+    inputs: 1,
+    outputs: [],
+    takes: "pairs[]",
+    gives: "merges · links · proposals",
+    group: "Keep",
+  },
 };
+
+/** The start of a graph workflow: the namespaces a routine runs it over. */
+const GRAPH_INPUT: Info = {
+  ...NODES.input,
+  label: "Namespaces",
+  describe: "Where every graph workflow starts: the namespaces the routine runs it over",
+  icon: Network,
+  gives: "namespaces",
+};
+
+export function infoFor(type: string, scope: Scope = "recording"): Info | undefined {
+  return type === "input" && scope === "graph" ? GRAPH_INPUT : NODES[type];
+}
+
+/** Node types per scope, for when the catalog hasn't said (it lists each type's scopes). */
+const SCOPE_NODES: Record<Scope, string[]> = {
+  recording: [
+    "input",
+    "extract_rules",
+    "extract_llm",
+    "save_entities",
+    "llm",
+    "pick",
+    "condition",
+    "merge",
+    "output",
+    "field",
+  ],
+  graph: ["input", "pick", "condition", "merge", "candidates", "llm_judge", "filter", "apply_changes"],
+};
+
+/** Whether a node type can be used in a workflow of this scope. */
+export function inScope(type: string, scope: Scope, catalog?: { type: string; scopes?: string[] }[]): boolean {
+  const t = catalog?.find((x) => x.type === type);
+  return t?.scopes ? t.scopes.includes(scope) : SCOPE_NODES[scope].includes(type);
+}
 
 export const GROUPS = ["Entities", "AI", "Logic", "Keep"] as const;
 export const OPS: Record<string, string> = {
@@ -163,8 +252,25 @@ export const OPS: Record<string, string> = {
   lt: "is less than",
 };
 
-/** A new workflow: today’s entity extraction, ready to extend (an LLM pass, your own rules). */
-export function starter(): WfGraph {
+/** A new workflow: today’s entity extraction, ready to extend (an LLM pass, your own rules); or, for the graph,
+ * look-alikes judged by the model and proposed. */
+export function starter(scope: Scope = "recording"): WfGraph {
+  if (scope === "graph")
+    return {
+      nodes: [
+        { id: "in", type: "input", config: {}, x: 0, y: 120 },
+        { id: "pairs", type: "candidates", config: defaultConfig("candidates"), x: 260, y: 120 },
+        { id: "judge", type: "llm_judge", config: defaultConfig("llm_judge"), x: 520, y: 120 },
+        { id: "same", type: "filter", config: defaultConfig("filter"), x: 780, y: 120 },
+        { id: "apply", type: "apply_changes", config: {}, x: 1040, y: 120 },
+      ],
+      edges: [
+        { source: "in", target: "pairs" },
+        { source: "pairs", target: "judge" },
+        { source: "judge", target: "same" },
+        { source: "same", target: "apply" },
+      ],
+    };
   return {
     nodes: [
       { id: "in", type: "input", config: {}, x: 0, y: 120 },
@@ -182,6 +288,9 @@ export function defaultConfig(type: string): Record<string, unknown> {
   if (type === "extract_rules") return { builtin: true };
   if (type === "condition") return { op: "exists" };
   if (type === "output") return { key: "" };
+  if (type === "candidates") return { kind: "merge", min_confidence: 0.7, limit: 100 };
+  if (type === "llm_judge") return { batch: 25 };
+  if (type === "filter") return { path: "verdict.same", op: "equals", value: true };
   return {};
 }
 
@@ -203,7 +312,8 @@ export function nodeSummary(
     case "pick":
       return c.path ? `→ ${c.path}` : "Choose a path";
     case "condition":
-      return `${c.path ? String(c.path) : "value"} ${OPS[String(c.op)] ?? ""}${c.value != null && c.op !== "exists" && c.op !== "empty" ? ` ${JSON.stringify(c.value)}` : ""}`;
+    case "filter":
+      return `${n.type === "filter" ? "keep where " : ""}${c.path ? String(c.path) : "value"} ${OPS[String(c.op)] ?? ""}${c.value != null && c.op !== "exists" && c.op !== "empty" ? ` ${JSON.stringify(c.value)}` : ""}`;
     case "extract_rules": {
       const parts = [c.builtin === false ? "your rules only" : "built-in"];
       const t = (c.terms as string[] | undefined)?.length;
@@ -218,34 +328,65 @@ export function nodeSummary(
       return c.key ? `outputs.${c.key}` : "Name the output";
     case "field":
       return c.field != null ? (names.field(Number(c.field)) ?? `field #${c.field}`) : "Choose a field";
+    case "candidates":
+      return [
+        c.kind === "link" ? "across namespaces" : "in each namespace",
+        `${Math.round(Number(c.min_confidence ?? 0.7) * 100)}%+`,
+        `up to ${Number(c.limit ?? 100)}`,
+        ...((c.types as string[] | undefined)?.length ? [(c.types as string[]).join(", ")] : []),
+      ].join(" · ");
+    case "llm_judge":
+      return `${Number(c.batch ?? 25)} pairs a call${c.model ? ` · ${String(c.model)}` : ""}`;
+    case "apply_changes":
+      return c.apply_above == null
+        ? "Propose every change"
+        : `Make ${Math.round(Number(c.apply_above) * 100)}%+ (up to ${Number(c.max_apply ?? 50)}), propose the rest`;
     default:
       return NODES[n.type]?.describe ?? "";
   }
 }
 
 /** Problems per node id ("" for the graph as a whole), as the backend would put them. */
-export function problems(g: WfGraph, templateKind: (id: number) => string | undefined): Record<string, string> {
+export function problems(
+  g: WfGraph,
+  templateKind: (id: number) => string | undefined,
+  scope: Scope = "recording",
+): Record<string, string> {
   const out: Record<string, string> = {};
   const by = new Map(g.nodes.map((n) => [n.id, n]));
   const inputs = g.nodes.filter((n) => n.type === "input");
-  if (inputs.length !== 1) out[""] = "A workflow has exactly one Recording node.";
+  if (inputs.length !== 1) out[""] = `A workflow has exactly one ${infoFor("input", scope)?.label} node.`;
   for (const n of g.nodes) {
     const c = n.config;
     const into = g.edges.filter((e) => e.target === n.id);
-    if (n.type !== "input" && !into.length) out[n.id] = "Connect something into it.";
+    if (!SCOPE_NODES[scope].includes(n.type))
+      out[n.id] =
+        scope === "graph" ? "This node works on recordings, not the graph." : "This node is for graph workflows.";
+    else if (n.type !== "input" && !into.length) out[n.id] = "Connect something into it.";
     else if (n.type !== "merge" && into.length > 1) out[n.id] = "It takes one input; join several with a Merge.";
     else if (n.type === "llm" && c.template == null) out[n.id] = "Choose a prompt template.";
     else if (n.type === "llm" && templateKind(Number(c.template)) && templateKind(Number(c.template)) !== "prompt")
       out[n.id] = "Needs a prompt template.";
     else if (n.type === "pick" && !PATH_RX.test(String(c.path ?? "")))
       out[n.id] = "Give a path like tldr or action_items.0.text.";
-    else if (n.type === "condition" && c.path && !PATH_RX.test(String(c.path)))
+    else if ((n.type === "condition" || n.type === "filter") && c.path && !PATH_RX.test(String(c.path)))
       out[n.id] = "The path is letters, digits, _ and dots.";
-    else if (n.type === "condition" && (c.op === "gt" || c.op === "lt") && typeof c.value !== "number")
+    else if (
+      (n.type === "condition" || n.type === "filter") &&
+      (c.op === "gt" || c.op === "lt") &&
+      typeof c.value !== "number"
+    )
       out[n.id] = "Compare with a number.";
     else if (n.type === "output" && !KEY_RX.test(String(c.key ?? "")))
       out[n.id] = "Name it: lowercase letters, digits and _, e.g. meeting_notes.";
     else if (n.type === "field" && c.field == null) out[n.id] = "Choose a custom field.";
+    else if (n.type === "candidates" && !between(c.min_confidence, 0, 1, false))
+      out[n.id] = "How sure is a number from 0 to 1.";
+    else if (n.type === "candidates" && !between(c.limit, 1, 1000, true)) out[n.id] = "At most is 1 to 1000 pairs.";
+    else if (n.type === "llm_judge" && !between(c.batch, 1, 100, true)) out[n.id] = "Pairs a call is 1 to 100.";
+    else if (n.type === "apply_changes" && !between(c.apply_above, 0, 1, false))
+      out[n.id] = "Sure enough at is a number from 0 to 1.";
+    else if (n.type === "apply_changes" && !between(c.max_apply, 0, 1000, true)) out[n.id] = "At most is 0 to 1000.";
     else if (n.type === "extract_rules") {
       for (const p of (c.patterns as { pattern?: string; type?: string }[] | undefined) ?? []) {
         if (!p.pattern) out[n.id] = "A pattern is empty.";
@@ -264,9 +405,18 @@ export function problems(g: WfGraph, templateKind: (id: number) => string | unde
     }
   }
   if (!out[""] && hasLoop(g)) out[""] = "The workflow has a loop.";
-  if (!out[""] && !g.nodes.some((n) => ["output", "field", "save_entities"].includes(n.type)))
+  if (scope === "graph") {
+    if (!out[""] && !g.nodes.some((n) => n.type === "apply_changes"))
+      out[""] = "Add an Apply changes node, or the workflow changes nothing.";
+  } else if (!out[""] && !g.nodes.some((n) => ["output", "field", "save_entities"].includes(n.type)))
     out[""] = "Add a Save output, Set field or Save entities node, or the workflow keeps nothing.";
   return out;
+}
+
+/** Unset, or a number in [lo, hi] (a whole one when `whole`). */
+function between(v: unknown, lo: number, hi: number, whole: boolean): boolean {
+  if (v == null) return true;
+  return typeof v === "number" && v >= lo && v <= hi && (!whole || Number.isInteger(v));
 }
 
 function hasLoop(g: WfGraph): boolean {

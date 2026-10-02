@@ -21,6 +21,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   the workflow *Organise the entity graph* and a nightly routine that runs it, switched off.
     - Graph workflows can't be attached to pipelines or run on one recording; recording workflows can't use graph
       nodes.
+    - Web app: Routines (admins) lists routines with their schedule, next run and last result, and turns them on
+      and off; the editor has schedule presets with a live preview of the next runs, namespaces, and an ordered list
+      of actions. Each routine's page shows its runs with results and logs, and undoes a run's changes. Proposed
+      changes (`/routines/changes`, also linked from the Graph page) shows both entities side by side with the
+      model's verdict, to merge, link, dismiss or undo. On the canvas a new workflow can organise the graph, with its
+      own nodes.
 - **Workflows on a canvas, and content types.** Pipelines make assets (transcripts, shots, OCR text, faces); workflows
   are shared, versioned node graphs that make metadata (outputs, custom field values, entities). Both are drawn on a
   canvas (Pipelines → Workflows, and Canvas on a pipeline): drag nodes, connect them, set each node's options, save a

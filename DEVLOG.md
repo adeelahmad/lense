@@ -23,7 +23,7 @@ Todo:
 - [x] Graph changes: proposed / applied / dismissed / undone; undo a whole run
 - [x] Seed the graph workflow and a nightly routine (off)
 - [x] API tests
-- [ ] Web app: Routines page, run history, proposed changes review, graph nodes on the canvas
+- [x] Web app: Routines page, run history, proposed changes review, graph nodes on the canvas
 - [ ] Notify (Matterbridge/webhooks thread) when a run fails or leaves proposals
 - [ ] More graph nodes: retype entities, hide noise, cluster topics
 - [ ] Routing rules (shared IMAP inbox → namespaces) slot in between sync and ingest

@@ -1,5 +1,6 @@
 import {
   AudioLines,
+  CalendarClock,
   ChartNoAxesColumn,
   HardDriveDownload,
   House,
@@ -50,6 +51,7 @@ export const NAV: NavItem[] = [
     divider: true,
   },
   { label: "Pipelines", href: "/pipelines", icon: Workflow },
+  { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true },
   { label: "Sources", href: "/sources", icon: HardDriveDownload },
   { label: "Settings", href: "/settings", icon: Settings, adminOnly: true },
   { label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
