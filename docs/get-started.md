@@ -34,7 +34,9 @@ On first start the API log prints a setup code:
 No accounts yet. Create the first admin in the web app with setup code: …
 ```
 
-Open the web app, choose **Set up**, and create the admin account with it.
+Open the web app, choose **Set up**, and create the admin account with it. A short wizard then asks for the first
+namespace, the model provider and storage; skip any of it and change it later in Settings
+([Configuration](configuration.md#first-run-setup) lists the `.env` values that answer it instead).
 
 Put audio under `./local-audio/podcasts` and `./local-audio/interviews` (or set `AUDIO_DIR`), or import transcripts
 from the web app. Namespaces and folders are configured in `fastapi_backend/docker/archive.yaml`.

@@ -3,7 +3,8 @@
 ## People and roles
 
 There is no public sign-up. The first admin is created with a one-time **setup code** that the API prints in its log
-on first start (or `lens users add you@example.com --admin`). Admins then add people and give them roles per
+on first start (or `lens users add you@example.com --admin`, or `LENS_ADMIN_EMAIL` and `LENS_ADMIN_PASSWORD` in
+`.env`). On a fresh install the web app then opens a short setup wizard ([Configuration](configuration.md#first-run-setup)). Admins then add people and give them roles per
 namespace: viewer, editor or owner.
 
 Passwords are hashed with scrypt and need at least 10 characters. Failed sign-ins are throttled per email and address
@@ -31,7 +32,7 @@ Sign out ──► POST /api/v1/auth/logout (ends the session on the API too)
 
 | Endpoint | |
 |---|---|
-| `GET /api/v1/auth/status` | `{setup_required}`: the sign-in page shows the setup form when true |
+| `GET /api/v1/auth/status` | `{setup_required, wizard_pending}`: the sign-in page shows the setup form while the first admin is missing; admins are taken to the setup wizard while it is pending |
 | `POST /api/v1/auth/setup` | first admin, with the setup code |
 | `POST /api/v1/auth/login` · `/refresh` · `/logout` | token pairs |
 | `GET /api/v1/auth/me` | the account, roles by namespace, and how the caller authenticated |

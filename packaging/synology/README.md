@@ -32,8 +32,8 @@ RTD1296/RTD1619 and Marvell Armada 37xx are `armv8`.
 2. In the wizard, pick the web port (3000 unless something else uses it), the address people will open Lens at
    (leave it blank for `http://<NAS address>:<port>`), and a setup code. The mail server for password resets is an
    optional second page.
-3. When it's done, open Lens from the DSM main menu (or the address above), and create the first admin account with
-   the setup code.
+3. When it's done, open Lens from the DSM main menu (or the address above), create the first admin account with the
+   setup code, and follow the setup steps (namespace, model provider, storage; each can be skipped).
 
 The package creates a shared folder `lens` (or reuses one with that name):
 
@@ -46,7 +46,9 @@ The package creates a shared folder `lens` (or reuses one with that name):
 
 To change a setting later, edit `lens/lens.conf` and Manual Install the same `.spk` again. Any `MAIL_*` or `LENS_*` line
 in it reaches the API and the worker as it is, so the variables in [Configuration](../../docs/configuration.md) work
-there too (for example `LENS_LLM_BASE_URL` for a model server on your network).
+there too: `LENS_LLM_BASE_URL` for a model server on your network, or `LENS_ADMIN_EMAIL`, `LENS_ADMIN_PASSWORD`,
+`LENS_NAMESPACE` and `LENS_SETUP_WIZARD=off` to answer the first-run setup ahead of time
+([First-run setup](../../docs/configuration.md#first-run-setup)).
 
 Back up the whole `lens` folder (Hyper Backup) with Lens stopped. Uninstalling the package leaves the folder alone.
 

@@ -13,6 +13,19 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `LENS_*` line in the folder's `lens.conf` reaches the API and the worker. Publishing a GitHub release builds the packages for both architectures and attaches them to it
   (the **Synology package** workflow, which also runs by hand from the Actions tab; packaging/synology/README.md).
 
+- **First-run setup wizard.** A fresh install now walks its first admin through setup in the web app: after the
+  admin account (still with the one-time setup code, so a stranger can't claim a public server) come the first
+  namespace, the model provider (with a connection test) and storage (the upload limit, and a folder to watch).
+  Every step and the whole wizard can be skipped; installs that already had accounts never see it
+  (docs/configuration.md#first-run-setup).
+    - Or answer it in `.env`: `LENS_ADMIN_EMAIL` / `LENS_ADMIN_PASSWORD` create the first admin at startup,
+      `LENS_NAMESPACE` the first namespace, `LENS_LLM_BASE_URL` / `LENS_LLM_MODEL` / `LENS_LLM_API_KEY` set the
+      model provider, and `LENS_SETUP_WIZARD=off` turns the wizard off. Environment values win over the app, and
+      the wizard and Settings show them locked; a key from the environment is never shown.
+- **Fix: a fresh database with no namespaces in archive.yaml no longer stops the API from starting** with
+  "table 'seq' does not exist" (SurrealDB 3). The counters table is defined with the rest of the schema now, so
+  nothing reads it before it exists.
+
 - **Fix: Chat answers no longer break off with "The answer stopped before it finished".** With some model servers an
   answer ended mid-stream with nothing saved, so the question sat unanswered in the conversation. Now each one ends
   in an answer, or an error that's shown and saved with the conversation.
