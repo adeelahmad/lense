@@ -13,6 +13,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   recording at that moment in the web app. Streamable HTTP without sessions, in both protocol eras (the 2025
   `initialize` handshake and 2026-07-28's per-request envelope); an API token works for clients that can't sign in
   (docs/mcp.md).
+- **Opt-in telemetry.** Lens can send OpenTelemetry traces and metrics about its own work to a collector you choose:
+  API requests by route, jobs and each step, routines, workflow runs, and model calls with their tokens and an
+  estimated cost (from per-model prices you set). It is off by default and never on unless you turn it on, in
+  Settings → Telemetry, the setup wizard's new last step, or `LENS_TELEMETRY=on` with `LENS_TELEMETRY_ENDPOINT` in
+  .env (`LENS_TELEMETRY=off` keeps it off). It goes only to that endpoint, over OTLP/HTTP; there is no built-in
+  destination. Spans and metrics carry ids, step types, model names, counts and timings, never transcript, prompt or
+  answer text, file names, titles, people, paths or addresses. Settings shows whether it is on and how the last
+  exports went, and can send a test span; the API and each worker follow a change without a restart
+  (docs/telemetry.md).
 - **Security: frontend dependencies patched.** The web app's lockfile now pulls fixed versions of form-data, ws,
   brace-expansion, minimatch, picomatch, glob, js-yaml, flatted, browserslist, Babel and the other packages GitHub
   flagged, each kept inside the major version its parent asks for (`overrides` in `nextjs-frontend/pnpm-workspace.yaml`).

@@ -188,7 +188,7 @@ def platform_main(argv, config):
     import threading
     import time
 
-    from .domain import auth, jobs, notify, routines, settings, sources
+    from .domain import auth, jobs, notify, routines, settings, sources, telemetry
 
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -250,6 +250,7 @@ def platform_main(argv, config):
                     auth.update_account(db, acct["id"], password=password())
                     print(f"password changed for {a.email}")
         elif a.cmd == "worker":
+            telemetry.set_role("worker")
             wk = jobs.Worker(db, C, a.name, a.steps.split(",") if a.steps else None, log=print)
             if a.once:
                 print(f"ran {wk.drain()} job(s)")
@@ -263,9 +264,11 @@ def platform_main(argv, config):
                 except KeyboardInterrupt:
                     stop.set()
         elif a.once:
+            telemetry.set_role("watcher")
             print(f"scanned {sources.poll_due(db, C(), print)} folder(s)")
             print(f"ran {routines.run_due(db, C(), print)} routine(s)")
         else:
+            telemetry.set_role("watcher")
             print("watching storage sources and running routines; Ctrl-C to stop")
             _stop_on_term()
             try:
@@ -278,6 +281,7 @@ def platform_main(argv, config):
     except (ValueError, KeyError) as e:
         raise SystemExit(str(e)) from None
     finally:
+        telemetry.shutdown()  # sends what is buffered
         db.close()
 
 

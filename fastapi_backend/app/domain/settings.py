@@ -18,7 +18,7 @@ import re
 import secrets
 import threading
 
-from . import convert, ipgroups, objects, store
+from . import convert, ipgroups, objects, store, telemetry
 
 R = store.R
 EDITABLE = {
@@ -34,6 +34,7 @@ EDITABLE = {
     "iiif": None,
     "ai": None,
     "notifications": None,
+    "telemetry": None,
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -57,7 +58,7 @@ EDITABLE = {
     # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
     "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
-SECRETS = {"llm": ("api_key",)}
+SECRETS = {"llm": ("api_key",), "telemetry": ("headers",)}
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"},
     ("transcribe", "device"): {"auto", "cpu", "cuda", "mps"},
@@ -72,13 +73,17 @@ ENUMS = {
     ("video", "object_engine"): {"yolox", "ultralytics", "off"},
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
-# break-glass allowed hosts, and the model provider so an install can be configured without the setup wizard.
+# break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
+# telemetry (LENS_TELEMETRY=off keeps it off whatever the app says).
 ENV_OVERRIDES = {
     ("server", "allowed_hosts"): "ARCHIVE_ALLOWED_HOSTS",
     ("llm", "base_url"): "LENS_LLM_BASE_URL",
     ("llm", "model"): "LENS_LLM_MODEL",
     ("llm", "api_key"): "LENS_LLM_API_KEY",
     ("llm", "vision_model"): "LENS_LLM_VISION_MODEL",
+    ("telemetry", "enabled"): "LENS_TELEMETRY",
+    ("telemetry", "endpoint"): "LENS_TELEMETRY_ENDPOINT",
+    ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
 }
 
 
@@ -87,8 +92,11 @@ def env_value(section, key):
     raw = os.environ.get(ENV_OVERRIDES.get((section, key)) or "", "").strip()
     if not raw:
         return None
-    if isinstance(store.DEFAULTS.get(section, {}).get(key), list):
+    default = store.DEFAULTS.get(section, {}).get(key)
+    if isinstance(default, list):
         return [x.strip() for x in raw.split(",") if x.strip()]
+    if isinstance(default, bool):
+        return raw.lower() in ("1", "true", "on", "yes")
     return raw
 
 
@@ -189,6 +197,7 @@ class Settings:
         with self._lock:
             if self._cfg is None or v != self._ver:
                 self._cfg, self._ver = effective(self.db, self.base), v
+                telemetry.apply(self._cfg)  # turned on, changed or off in the app: this process follows
             return self._cfg
 
 
@@ -260,6 +269,8 @@ def _check(section, key, value, default):
         return _upload_setting(key, value)
     if section == "notifications":
         return _notify_setting(key, value)
+    if section == "telemetry":
+        return _telemetry_setting(key, value)
     if (section, key) == ("documents", "attachment_resources"):
         if not isinstance(value, bool):
             raise ValueError("documents.attachment_resources is true or false")
@@ -335,6 +346,59 @@ def _notify_setting(key, value):
     return value
 
 
+TELEMETRY_RANGES = {"export_seconds": (5, 3600)}
+SERVICE_RX = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+
+
+def _telemetry_setting(key, value):
+    if key in ("enabled", "traces", "metrics"):
+        if not isinstance(value, bool):
+            raise ValueError(f"telemetry.{key} is true or false")
+        return value
+    if key == "endpoint":
+        if value is None or value == "":
+            return None
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("telemetry.endpoint is the OTLP/HTTP address of a collector, like http://localhost:4318")
+        v = value.strip().rstrip("/")
+        if v.endswith(("/v1/traces", "/v1/metrics")):
+            raise ValueError("telemetry.endpoint is the collector's base address, without /v1/traces or /v1/metrics")
+        return v
+    if key == "sample_ratio":
+        if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 1):
+            raise ValueError("telemetry.sample_ratio is a number from 0 to 1")
+        return float(value)
+    if key == "service_name":
+        if not (isinstance(value, str) and SERVICE_RX.match(value.strip())):
+            raise ValueError("telemetry.service_name is up to 64 letters, digits, ., _ and -")
+        return value.strip()
+    if key == "prices":
+        return _prices(value)
+    lo, hi = TELEMETRY_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"telemetry.{key} is a whole number from {lo} to {hi}")
+    return value
+
+
+def _prices(value):
+    """{model: {input, output}}: USD per million tokens, for the cost estimates."""
+    msg = "telemetry.prices gives each model its input and output price in USD per million tokens"
+    if value is None:
+        return {}
+    if not isinstance(value, dict) or len(value) > 200:
+        raise ValueError(msg)
+    out = {}
+    for model, p in value.items():
+        name = str(model).strip()
+        if not name or len(name) > 200 or not isinstance(p, dict) or set(p) - {"input", "output"}:
+            raise ValueError(msg)
+        nums = {k: p.get(k, 0) for k in ("input", "output")}
+        if not all(isinstance(n, (int, float)) and not isinstance(n, bool) and 0 <= n <= 1_000_000 for n in nums.values()):
+            raise ValueError(msg)
+        out[name] = {k: float(n) for k, n in nums.items()}
+    return out
+
+
 def _upload_setting(key, value):
     if key == "extensions":
         ok = isinstance(value, list) and value and all(isinstance(x, str) for x in value)
@@ -363,6 +427,8 @@ def save(db, base, section, changes, user=None):
             if v is None or v == "":
                 sealed.pop(k, None)
             elif isinstance(v, str):
+                if (section, k) == ("telemetry", "headers"):
+                    telemetry.parse_headers(v)  # ValueError when malformed
                 sealed[k] = seal(base, v, f"setting:{section}.{k}")
             elif not (isinstance(v, dict) and v.get("secret")):  # the mask echoed back means "unchanged"
                 raise ValueError(f"{section}.{k} must be text")

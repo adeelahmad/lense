@@ -12,8 +12,8 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
-from app.domain import auth, jobs, llm, settings, sources, store
-from app.schemas.admin import AuditEntry, Health, LlmTestResult, Started
+from app.domain import auth, jobs, llm, settings, sources, store, telemetry
+from app.schemas.admin import AuditEntry, Health, LlmTestResult, Started, TelemetryStatus, TelemetryTestResult
 from app.schemas.auth import AccountToken
 from app.schemas.common import Ok
 
@@ -52,6 +52,19 @@ def test_llm(user: AdminWriter, cfg: Cfg) -> LlmTestResult:
     except llm.LLMError as e:
         return LlmTestResult(ok=False, error=str(e))
     return LlmTestResult(ok=True, reply=reply.strip()[:40], ms=int((time.time() - t0) * 1000), model=cfg["llm"]["model"])
+
+
+@router.get("/settings/telemetry/status")
+def telemetry_status(user: AdminReader, cfg: Cfg) -> TelemetryStatus:
+    """Whether telemetry is on, where it goes, and how the API process's last exports went. Off by default."""
+    return TelemetryStatus.model_validate(telemetry.status(cfg))
+
+
+@router.post("/settings/telemetry/test")
+def test_telemetry(user: AdminWriter, cfg: Cfg) -> TelemetryTestResult:
+    """Send one test span to the saved endpoint now (on or off), to check the address and headers."""
+    ok, error, ms = telemetry.test_export(cfg)
+    return TelemetryTestResult(ok=ok, error=error, ms=ms)
 
 
 @router.get("/audit")

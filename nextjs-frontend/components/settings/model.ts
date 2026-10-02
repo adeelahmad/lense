@@ -63,6 +63,7 @@ export type SectionId =
   | "workers"
   | "access"
   | "notifications"
+  | "telemetry"
   | "uploads"
   | "documents"
   | "tokens"
@@ -151,6 +152,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["notifications"],
     description:
       "Where namespaces may send notifications (webhooks, Matterbridge, Slack, Discord), how often the notifier looks, and how often a failed send is tried again.",
+  },
+  {
+    id: "telemetry",
+    label: "Telemetry",
+    backend: ["telemetry"],
+    description:
+      "Off unless you turn it on. Traces and metrics from the server and its workers, sent only to an OpenTelemetry collector you run or choose; nothing goes anywhere else.",
   },
   {
     id: "uploads",
@@ -912,6 +920,73 @@ export const FIELDS: FieldSpec[] = [
     max: 20,
     hint: "A failed send waits 30 seconds, then four times longer each time, up to 6 hours",
   },
+  // Telemetry (opt-in)
+  {
+    section: "telemetry",
+    key: "enabled",
+    label: "Send telemetry",
+    kind: "switch",
+    hint: "Off by default; while off, nothing is collected or sent",
+  },
+  {
+    section: "telemetry",
+    key: "endpoint",
+    label: "OTLP endpoint",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "http://localhost:4318",
+    hint: "An OpenTelemetry collector’s OTLP/HTTP address; traces go to /v1/traces and metrics to /v1/metrics under it",
+  },
+  { section: "telemetry", key: "headers", label: "Headers", kind: "secret" },
+  {
+    section: "telemetry",
+    key: "traces",
+    label: "Traces",
+    kind: "switch",
+    hint: "API requests, jobs and their steps, routines, workflows and model calls",
+  },
+  {
+    section: "telemetry",
+    key: "metrics",
+    label: "Metrics",
+    kind: "switch",
+    hint: "Durations, job outcomes, model tokens and estimated cost",
+  },
+  {
+    section: "telemetry",
+    key: "sample_ratio",
+    label: "Share of traces kept",
+    kind: "number",
+    min: 0,
+    max: 1,
+    hint: "1 keeps every trace, 0.1 one in ten",
+  },
+  {
+    section: "telemetry",
+    key: "export_seconds",
+    label: "Send metrics every (seconds)",
+    kind: "int",
+    min: 5,
+    max: 3600,
+  },
+  {
+    section: "telemetry",
+    key: "service_name",
+    label: "Service name",
+    kind: "text",
+    mono: true,
+    hint: "How this server shows in your tracing tool",
+  },
+  {
+    section: "telemetry",
+    key: "prices",
+    label: "Model prices for cost estimates",
+    kind: "lines",
+    mono: true,
+    placeholder: "gpt-4o-mini 0.15 0.60",
+    hint: "One model per line: its name, then the input and output price in dollars per million tokens. The AI assistant’s prices count for the configured model",
+  },
   {
     section: "tokens",
     key: "oauth_access_minutes",
@@ -1120,6 +1195,7 @@ export function toUi(f: FieldSpec, v: unknown): unknown {
     case "checks":
       return Array.isArray(v) ? v.map(String) : [];
     case "lines":
+      if (f.section === "telemetry" && f.key === "prices") return pricesToLines(v);
       return Array.isArray(v) ? v.join("\n") : "";
     case "days":
       return typeof v === "number" ? String(Math.round((v / 24) * 100) / 100) : "";
@@ -1132,6 +1208,33 @@ export function toUi(f: FieldSpec, v: unknown): unknown {
 
 export type Parsed = { value: unknown } | { error: string };
 
+export type Prices = Record<string, { input: number; output: number }>;
+
+/** telemetry.prices as lines: "model input output". */
+export function pricesToLines(v: unknown): string {
+  if (!v || typeof v !== "object") return "";
+  return Object.entries(v as Prices)
+    .map(([model, p]) => `${model} ${p?.input ?? 0} ${p?.output ?? 0}`)
+    .join("\n");
+}
+
+/** Lines of "model input output" (dollars per million tokens) back to telemetry.prices. */
+export function linesToPrices(text: string): Parsed {
+  const out: Prices = {};
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    const parts = lines[i].split(/\s+/);
+    const nums = parts.slice(-2).map(Number);
+    if (parts.length < 3 || nums.some((n) => !Number.isFinite(n) || n < 0))
+      return { error: `Line ${i + 1}: write the model, then its input and output price, like gpt-4o-mini 0.15 0.60` };
+    out[parts.slice(0, -2).join(" ")] = { input: nums[0], output: nums[1] };
+  }
+  return { value: out };
+}
+
 /** Parses a control's value back to what the backend stores, checking it like the backend does. */
 export function parse(f: FieldSpec, ui: unknown): Parsed {
   switch (f.kind) {
@@ -1142,6 +1245,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
     case "checks":
       return { value: ui as string[] };
     case "lines":
+      if (f.section === "telemetry" && f.key === "prices") return linesToPrices(String(ui ?? ""));
       return {
         value: String(ui ?? "")
           .split("\n")
@@ -1249,6 +1353,12 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const nets = values["notifications.networks"] as string[] | undefined;
   const badNet = nets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badNet) e["notifications.networks"] = `“${badNet}” isn’t a network like 192.168.1.0/24`;
+  const otlp = values["telemetry.endpoint"] as string | null | undefined;
+  if (otlp && !URL_RX.test(otlp)) e["telemetry.endpoint"] = "Use an http(s) address, such as http://localhost:4318";
+  else if (otlp && /\/v1\/(traces|metrics)\/?$/.test(otlp))
+    e["telemetry.endpoint"] = "Use the collector’s base address, without /v1/traces or /v1/metrics";
+  else if (values["telemetry.enabled"] === true && "telemetry.endpoint" in values && !otlp)
+    e["telemetry.endpoint"] = "Set the collector’s address to send telemetry to";
   const rights = values["iiif.rights"] as string | null | undefined;
   if (rights && !RIGHTS_RX.test(rights))
     e["iiif.rights"] = "Pick a Creative Commons licence or a RightsStatements.org statement";
@@ -1285,6 +1395,10 @@ export function show(f: FieldSpec, v: unknown): string {
   if (f.kind === "switch") return f.key === "cross_namespace" ? (v === "off" ? "off" : "on") : v ? "on" : "off";
   if (f.kind === "days") return `${Math.round(((v as number) / 24) * 100) / 100} days`;
   if (f.key === "rights") return rightsShort(v as string);
+  if (f.section === "telemetry" && f.key === "prices") {
+    const n = Object.keys((v as Prices) ?? {}).length;
+    return n ? `${n} model${n === 1 ? "" : "s"}` : "none";
+  }
   if (Array.isArray(v)) {
     if (f.kind === "checks" && f.section === "ai") return `${v.length} off`;
     return v.length > 3 ? `${v.length} ${f.kind === "lines" ? "lines" : "items"}` : v.join(", ") || "none";
@@ -1318,6 +1432,12 @@ export function why(c: Change): string | null {
   if (id === "transcribe.engine" || id === "transcribe.language")
     return "Applies to new transcriptions; existing transcripts stay until reprocessed.";
   if (id === "workers.inline") return "Takes effect when the server restarts.";
+  if (id === "telemetry.enabled")
+    return c.after
+      ? "The server and its workers start sending traces and metrics to the endpoint within a few seconds."
+      : "Nothing more is sent; what was sent stays with your collector.";
+  if (id === "telemetry.headers")
+    return c.after === "" ? "The headers are removed." : "Sent with every export; stored encrypted.";
   if (id === "llm.api_key")
     return c.after === ""
       ? "The key is removed; LLM steps and chat stop until a new one is set."

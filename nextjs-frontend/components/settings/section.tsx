@@ -42,6 +42,9 @@ const ENV: Record<string, string> = {
   "llm.model": "LENS_LLM_MODEL",
   "llm.api_key": "LENS_LLM_API_KEY",
   "llm.vision_model": "LENS_LLM_VISION_MODEL",
+  "telemetry.enabled": "LENS_TELEMETRY",
+  "telemetry.endpoint": "LENS_TELEMETRY_ENDPOINT",
+  "telemetry.headers": "LENS_TELEMETRY_HEADERS",
 };
 const CONFIRM_BASE = "CHANGE ALL IDENTIFIERS";
 

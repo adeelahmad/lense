@@ -1,4 +1,4 @@
-"""The first-run setup wizard (admins): the first namespace, the model provider and storage, then finishing it.
+"""The first-run setup wizard (admins): the first namespace, the model provider, storage and telemetry, then finishing it.
 
 The first admin is created before this, with the setup code (POST /auth/setup) or from the environment. Fields the
 environment sets are left out of every save and reported as locked (domain/setup.py).
@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import AdminReader, AdminWriter, Db
 from app.domain import auth, setup
-from app.schemas.setup import SetupFinish, SetupLlm, SetupNamespace, SetupSaved, SetupStorage, SetupView
+from app.schemas.setup import SetupFinish, SetupLlm, SetupNamespace, SetupSaved, SetupStorage, SetupTelemetry, SetupView
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 
@@ -64,6 +64,18 @@ def save_storage(body: SetupStorage, user: AdminWriter, request: Request, db: Db
     if wid is not None:
         auth.audit(db, user.as_audit(), "watch.create", f"watch_path:{wid}")
     return SetupSaved(saved=[k for k in ("max_upload_mb", "folder") if getattr(body, k) is not None], watch=wid)
+
+
+@router.put("/telemetry")
+def save_telemetry(body: SetupTelemetry, user: AdminWriter, request: Request, db: Db) -> SetupSaved:
+    """Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector). Off unless chosen."""
+    try:
+        saved = setup.save_telemetry(db, request.app.state.archive.base, body.enabled, body.endpoint, user.email)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    if saved:
+        auth.audit(db, user.as_audit(), "settings.save", "telemetry", saved)
+    return SetupSaved(saved=saved)
 
 
 @router.post("/finish")
