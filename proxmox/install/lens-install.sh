@@ -109,7 +109,7 @@ msg_ok "Configured Lens"
 msg_info "Building Lens API (patience)"
 cd /opt/lens/fastapi_backend
 export UV_PYTHON="3.12"
-$STD uv sync --frozen --no-dev
+$STD uv sync --frozen --no-dev --extra whisper  # faster-whisper: transcription on the CPU
 msg_ok "Built Lens API"
 
 msg_info "Building Lens web app (patience)"

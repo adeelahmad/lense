@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Audio and video are transcribed out of the box in Docker and the packages.** The images (and the Proxmox
+  install) had no transcription engine, so every import failed at Transcribe with "SenseVoice needs FunASR". They
+  now carry faster-whisper, and a worker whose configured engine isn't installed transcribes with one that is, saying
+  so in the run's log.
 - **Imports no longer wait forever at "shots" on a native setup.** `archive.yaml` written from the example before the
   video steps existed lists no `shots`, `ocr`, `faces`, `objects` or `describe` in `workers.steps`, so no worker
   took them. A worker with such a list now runs them too, a worker whose list leaves steps out says so when it
