@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import pathlib
 
+import pytest
+
 from app.domain import analyze, ingest, store
 from tests.helpers import seed, speaker_names, write_docx, write_pdf
 
@@ -123,3 +125,17 @@ def test_paste_and_chunk_stitching(db, cfg):
         naive = sum(len((r.get("text") or "").split()) for r in rows)
         stitched = sum(len(s["text"].split()) for s in ingest.stitch_chunks(rows))
         assert naive * 0.6 < stitched < naive * 0.9
+
+
+def test_an_engine_that_isnt_installed_falls_back_to_one_that_is(monkeypatch):
+    """The Docker images carry faster-whisper, not SenseVoice (the default engine): imports are transcribed anyway."""
+    made = []
+    monkeypatch.setattr(ingest, "installed", lambda e: e == "whisper")
+    monkeypatch.setattr(ingest, "Whisper", lambda cfg, mlx=False: made.append(mlx) or "whisper engine")
+    said = []
+    cfg = {"transcribe": {"engine": "sensevoice", "sensevoice": {}}}
+    assert ingest.get_engine(cfg, said.append) == "whisper engine" and made == [False]
+    assert said == ["  sensevoice isn't installed on this worker; transcribing with whisper"]
+    monkeypatch.setattr(ingest, "installed", lambda e: False)  # nothing installed: the configured engine says what it needs
+    with pytest.raises(SystemExit, match="FunASR"):
+        ingest.get_engine(cfg)
