@@ -120,7 +120,7 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
     case "imap":
       return `IMAP · ${str(p.user) ? `${str(p.user)}@` : ""}${str(p.host) || "no host"}${str(p.port) ? `:${str(p.port)}` : ""}`;
     case "ical":
-      return `Calendar · ${str(p.url).replace(/^(https?|webcals?):\/\//i, "") || "no address"}`;
+      return "Calendar feed · address kept secret";
     default:
       return "Folder on this machine";
   }
@@ -435,7 +435,8 @@ export function validateForm(
     if (!secret("pass")) e.pass = "Enter the password (an app password, where the provider has them).";
   }
   if (type === "ical") {
-    if (!/^(https?|webcals?):\/\/\S+$/i.test(str(form.params.url)))
+    const url = form.secrets.url;
+    if (url === undefined ? !(editing && isSet("url")) : !/^(https?|webcals?):\/\/\S+$/i.test(url.trim()))
       e.url = "Enter the calendar’s address, starting with https:// or webcal://";
   }
   return e;

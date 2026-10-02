@@ -279,11 +279,9 @@ export function ConnectionFields({
     case "ical":
       return (
         <div className="flex flex-col gap-3">
-          {text("url", {
-            mono: true,
+          {secret("url", {
             label: "Calendar address",
-            placeholder: "https://calendar.example.com/team.ics or webcal://…",
-            hint: "The iCal (.ics) link the calendar shares; a secret link works as it is",
+            hint: "The iCal (.ics) link the calendar shares, https:// or webcal://. Kept like a password: never shown again",
           })}
           <div className="grid grid-cols-2 gap-2.5">
             {text("user", { optional: true })}

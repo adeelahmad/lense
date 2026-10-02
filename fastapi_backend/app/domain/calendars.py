@@ -75,6 +75,7 @@ def parse(text):
             if cur is not None:
                 cur["lines"].append(l)
                 if len(stack) == 1 and top == "VEVENT":
+                    cur["zones"] = zones  # filled in as the calendar is read: its VTIMEZONEs may come after
                     events.append(cur)
                     cur = None
                 elif len(stack) == 1 and top == "VTIMEZONE":
@@ -100,20 +101,151 @@ def all_of(event, name):
     return [(p, v) for k, p, v in event["props"] if k == name]
 
 
-def _zone(tzid):
+# Windows' names for time zones, which Outlook and Exchange write as TZIDs, as the IANA zones they stand for
+WINDOWS_ZONES = {
+    "Dateline Standard Time": "Etc/GMT+12",
+    "Hawaiian Standard Time": "Pacific/Honolulu",
+    "Alaskan Standard Time": "America/Anchorage",
+    "Pacific Standard Time": "America/Los_Angeles",
+    "Mountain Standard Time": "America/Denver",
+    "US Mountain Standard Time": "America/Phoenix",
+    "Central Standard Time": "America/Chicago",
+    "Central America Standard Time": "America/Guatemala",
+    "Mexico Standard Time": "America/Mexico_City",
+    "Canada Central Standard Time": "America/Regina",
+    "Eastern Standard Time": "America/New_York",
+    "SA Pacific Standard Time": "America/Bogota",
+    "Atlantic Standard Time": "America/Halifax",
+    "Newfoundland Standard Time": "America/St_Johns",
+    "E. South America Standard Time": "America/Sao_Paulo",
+    "Argentina Standard Time": "America/Argentina/Buenos_Aires",
+    "UTC": "Etc/UTC",
+    "Coordinated Universal Time": "Etc/UTC",
+    "GMT Standard Time": "Europe/London",
+    "Greenwich Standard Time": "Atlantic/Reykjavik",
+    "W. Europe Standard Time": "Europe/Berlin",
+    "Romance Standard Time": "Europe/Paris",
+    "Central Europe Standard Time": "Europe/Budapest",
+    "Central European Standard Time": "Europe/Warsaw",
+    "GTB Standard Time": "Europe/Bucharest",
+    "E. Europe Standard Time": "Europe/Chisinau",
+    "FLE Standard Time": "Europe/Kiev",
+    "Israel Standard Time": "Asia/Jerusalem",
+    "Egypt Standard Time": "Africa/Cairo",
+    "South Africa Standard Time": "Africa/Johannesburg",
+    "Russian Standard Time": "Europe/Moscow",
+    "Turkey Standard Time": "Europe/Istanbul",
+    "Arab Standard Time": "Asia/Riyadh",
+    "Arabian Standard Time": "Asia/Dubai",
+    "Iran Standard Time": "Asia/Tehran",
+    "Pakistan Standard Time": "Asia/Karachi",
+    "India Standard Time": "Asia/Kolkata",
+    "Nepal Standard Time": "Asia/Kathmandu",
+    "Bangladesh Standard Time": "Asia/Dhaka",
+    "SE Asia Standard Time": "Asia/Bangkok",
+    "China Standard Time": "Asia/Shanghai",
+    "Singapore Standard Time": "Asia/Singapore",
+    "Taipei Standard Time": "Asia/Taipei",
+    "Tokyo Standard Time": "Asia/Tokyo",
+    "Korea Standard Time": "Asia/Seoul",
+    "AUS Eastern Standard Time": "Australia/Sydney",
+    "E. Australia Standard Time": "Australia/Brisbane",
+    "Cen. Australia Standard Time": "Australia/Adelaide",
+    "W. Australia Standard Time": "Australia/Perth",
+    "New Zealand Standard Time": "Pacific/Auckland",
+}
+DAYS = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
+
+
+def _offset(v):
+    m = re.fullmatch(r"([+-])(\d\d)(\d\d)(\d\d)?", (v or "").strip())
+    if not m:
+        return None
+    d = dt.timedelta(hours=int(m.group(2)), minutes=int(m.group(3)), seconds=int(m.group(4) or 0))
+    return -d if m.group(1) == "-" else d
+
+
+class Defined(dt.tzinfo):
+    """A time zone as a calendar's own VTIMEZONE defines it: its STANDARD and DAYLIGHT parts, each starting at its
+    DTSTART and, with a yearly RRULE (BYMONTH and BYDAY, as calendars write them), again every year."""
+
+    def __init__(self, tzid, lines_):
+        self.tzid, self.parts, part = tzid, [], None
+        for l in lines_:
+            n, _, v = prop(l)
+            if n == "BEGIN" and v.strip().upper() in ("STANDARD", "DAYLIGHT"):
+                part = {}
+            elif n == "END" and part is not None:
+                start, to = when({}, part.get("DTSTART")), _offset(part.get("TZOFFSETTO"))
+                if isinstance(start, dt.datetime) and to is not None:
+                    rule = dict(x.split("=", 1) for x in (part.get("RRULE") or "").split(";") if "=" in x)
+                    self.parts.append((start.replace(tzinfo=None), to, rule))
+                part = None
+            elif part is not None:
+                part[n] = v
+
+    def _onsets(self, year):
+        for start, to, rule in self.parts:
+            if rule.get("FREQ") != "YEARLY" or "BYMONTH" not in rule:
+                yield start, to
+                continue
+            month = int(rule["BYMONTH"].split(",")[0])
+            m = re.fullmatch(r"([+-]?\d)?(MO|TU|WE|TH|FR|SA|SU)", rule.get("BYDAY", "").split(",")[0])
+            if not m:
+                yield start.replace(year=year, month=month), to
+                continue
+            nth, dow = int(m.group(1) or 1), DAYS[m.group(2)]
+            if nth > 0:
+                first_ = dt.date(year, month, 1)
+                day = first_ + dt.timedelta(days=(dow - first_.weekday()) % 7 + 7 * (nth - 1))
+            else:
+                last = (dt.date(year + (month == 12), month % 12 + 1, 1)) - dt.timedelta(days=1)
+                day = last - dt.timedelta(days=(last.weekday() - dow) % 7 + 7 * (-nth - 1))
+            if dt.datetime.combine(day, start.time()) >= start:
+                yield dt.datetime.combine(day, start.time()), to
+
+    def utcoffset(self, t):
+        if t is None or not self.parts:
+            return dt.timedelta(0)
+        local = t.replace(tzinfo=None)
+        onsets = [o for y in (local.year - 1, local.year) for o in self._onsets(y) if o[0] <= local]
+        if not onsets:
+            return min(self.parts, key=lambda p: p[0])[1]
+        return max(onsets, key=lambda o: o[0])[1]
+
+    def dst(self, t):
+        return None
+
+    def tzname(self, t):
+        return self.tzid
+
+    def __str__(self):
+        return self.tzid
+
+
+def _zone(tzid, defined=None):
+    """A TZID as a time zone: an IANA zone (also inside a longer name, '/mozilla.org/.../Europe/Berlin'), a Windows
+    name ('W. Europe Standard Time'), else the calendar's own VTIMEZONE for it; None when none of those."""
     if not tzid:
         return None
-    for candidate in (tzid, re.sub(r"^.*?([A-Za-z]+/[A-Za-z_+-]+(?:/[A-Za-z_+-]+)?)$", r"\1", tzid)):
+    tail = re.sub(r"^.*?([A-Za-z]+/[A-Za-z_+-]+(?:/[A-Za-z_+-]+)?)$", r"\1", tzid)
+    for candidate in (tzid, tail, WINDOWS_ZONES.get(tzid.strip())):
+        if not candidate:
+            continue
         try:
             return ZoneInfo(candidate)
         except (ZoneInfoNotFoundError, ValueError):
             continue
+    if defined and tzid in defined:
+        zone = Defined(tzid, defined[tzid])
+        return zone if zone.parts else None
     return None
 
 
-def when(params, value):
+def when(params, value, zones=None):
     """A DATE or DATE-TIME value: a date (all day), an aware datetime (UTC, or its TZID's zone), or a naive one (a
-    floating time, or a zone this machine doesn't know). None when it can't be read."""
+    floating time, or a zone neither this machine nor the calendar defines). None when it can't be read. `zones` are
+    the calendar's VTIMEZONEs, for TZIDs that aren't zones this machine knows."""
     v = (value or "").strip()
     try:
         if re.fullmatch(r"\d{8}", v):
@@ -126,17 +258,18 @@ def when(params, value):
         return None
     if m.group(3):
         return t.replace(tzinfo=UTC)
-    zone = _zone((params or {}).get("TZID"))
+    zone = _zone((params or {}).get("TZID"), zones)
     return t.replace(tzinfo=zone) if zone else t
 
 
 def iso(value):
-    """A date or a datetime as an ISO timestamp; a naive time is taken as UTC, a date as its midnight UTC."""
+    """A date or a datetime as an ISO timestamp. An all-day date is its midnight and a floating time stays as it is,
+    both without an offset: they happen at that time wherever you are, not at one instant."""
     if value is None:
         return None
     if not isinstance(value, dt.datetime):
         value = dt.datetime(value.year, value.month, value.day)
-    return (value if value.tzinfo else value.replace(tzinfo=UTC)).isoformat(timespec="seconds")
+    return value.isoformat(timespec="seconds")
 
 
 def key(event):
@@ -159,14 +292,14 @@ def summary(event):
 
 def start(event):
     p, v = first(event, "DTSTART")
-    return when(p, v)
+    return when(p, v, event.get("zones"))
 
 
 def changed(event):
     """When the event last changed, as the calendar says (LAST-MODIFIED, else CREATED); None if it doesn't say."""
     for name in ("LAST-MODIFIED", "CREATED"):
         p, v = first(event, name)
-        t = when(p, v)
+        t = when(p, v, event.get("zones"))
         if t is not None:
             return t
     return None
@@ -204,7 +337,7 @@ def _span(event):
     """'Friday 2 October 2026, 10:00 to 11:00 (Europe/Berlin)', 'Friday 2 October 2026 (all day)'..."""
     s = start(event)
     p, v = first(event, "DTEND")
-    end = when(p, v)
+    end = when(p, v, event.get("zones"))
     if s is None:
         return ""
     if not isinstance(s, dt.datetime):  # all day; DTEND is the day after the last

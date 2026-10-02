@@ -2,7 +2,8 @@
 and SELECT, UID FETCH (sizes, dates, header fields and whole messages, as literals) and LOGOUT. It keeps every
 command it was sent (`commands`), so a test can check nothing was changed or marked read.
 
-`mailboxes` is {name: [(uid, raw message, INTERNALDATE)]}; `flags` gives a mailbox's LIST flags (e.g. \\Trash).
+`mailboxes` is {name: [(uid, raw message, INTERNALDATE)]}; `flags` gives a mailbox's LIST flags (e.g. \\Trash), and
+`validity` its UIDVALIDITY (7 unless set), which a test changes to rebuild a mailbox.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ class Server(socketserver.ThreadingTCPServer):
     def __init__(self, mailboxes, user="lens", password="mail password 1", flags=None):
         super().__init__(("127.0.0.1", 0), Handler)
         self.mailboxes, self.user, self.password, self.flags = mailboxes, user, password, flags or {}
-        self.commands = []
+        self.commands, self.validity = [], {}
 
     @property
     def port(self):
@@ -78,7 +79,8 @@ class Handler(socketserver.StreamRequestHandler):
                     self.send(f"{tag} NO no such mailbox\r\n")
                     continue
                 box = name
-                self.send(f"* {len(srv.mailboxes[box])} EXISTS\r\n* OK [UIDVALIDITY 7] ok\r\n{tag} OK [READ-ONLY] {cmd} done\r\n")
+                validity = srv.validity.get(box, 7)
+                self.send(f"* {len(srv.mailboxes[box])} EXISTS\r\n* OK [UIDVALIDITY {validity}] ok\r\n{tag} OK [READ-ONLY] {cmd} done\r\n")
             elif cmd == "UID" and box is not None:
                 self.uid(tag, args, srv.mailboxes[box])
             else:
@@ -90,8 +92,8 @@ class Handler(socketserver.StreamRequestHandler):
             self.send(f"{tag} BAD only UID FETCH\r\n")
             return
         which, _, items = args.partition(" ")
-        if which == "1:*":
-            chosen = messages
+        if which.endswith(":*"):  # n:* is every message from n on, and at least the last one (as IMAP has it)
+            chosen = [m for m in messages if m[0] >= int(which[:-2])] or messages[-1:]
         else:
             chosen = [m for m in messages if str(m[0]) == which]
         for seq, (uid, raw, arrived) in enumerate(chosen, 1):
@@ -99,10 +101,10 @@ class Handler(socketserver.StreamRequestHandler):
                 self.send(f"* {seq} FETCH (UID {uid} BODY[] {{{len(raw)}}}\r\n".encode() + raw + b")\r\n")
                 continue
             msg = email.message_from_bytes(raw, policy=policy.default)
-            head = "".join(f"{k}: {msg[k]}\r\n" for k in ("Subject", "Date") if msg[k] is not None).encode() + b"\r\n"
+            head = "".join(f"{k}: {msg[k]}\r\n" for k in ("Subject", "Date", "Message-ID") if msg[k] is not None).encode() + b"\r\n"
             self.send(
                 f'* {seq} FETCH (UID {uid} RFC822.SIZE {len(raw)} INTERNALDATE "{arrived}" '
-                f"BODY[HEADER.FIELDS (SUBJECT DATE)] {{{len(head)}}}\r\n".encode()
+                f"BODY[HEADER.FIELDS (SUBJECT DATE MESSAGE-ID)] {{{len(head)}}}\r\n".encode()
                 + head
                 + b")\r\n"
             )

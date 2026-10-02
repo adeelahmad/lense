@@ -225,10 +225,11 @@ def browse(db, cfg, sid, path=""):
     return sorted(_entries(out, p.rstrip("/")), key=lambda e: (not e["dir"], e["name"].lower()))
 
 
-def list_files(db, cfg, src, path):
+def list_files(db, cfg, src, path, cursor=None):
+    """Every file under `path`. A watch hands its `cursor` to sources that keep one (IMAP: only newer messages)."""
     p = check_path(cfg, src, path)
     if feeds.handles(src):
-        return feeds.list_files(cfg, src, p)
+        return feeds.list_files(cfg, src, p, cursor)
     out = run(db, cfg, src, lambda n: ["lsjson", "-R", "--files-only", "--no-mimetype", f"{n}:{p}"], timeout=900)
     return _entries(out, p.rstrip("/"))
 
@@ -407,6 +408,8 @@ def create_watch(db, cfg, sid, path, space, user=None, **opts):
 
 def update_watch(db, wid, **opts):
     db.q("UPDATE $r MERGE $d", r=R("watch_path", wid), d=_check_watch(opts))
+    if {"kinds", "include", "exclude"} & set(opts):  # what it takes changed: look through the mailboxes again
+        db.q("UPDATE $r SET cursor = NONE", r=R("watch_path", wid))
 
 
 def remove_watch(db, wid):
@@ -449,7 +452,10 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
             d=store.clean({"path": shown, "remote": {"source": src["id"], "path": f["path"]}, "recorded_at": f.get("when")}),
         )
         return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
-    fp = "rclone-" + hashlib.sha1(f"{src['id']}:{f['path']}:{f['size']}:{f['modified']}".encode()).hexdigest()[:24]
+    if f.get("key"):  # the same message in two mailboxes (a Message-ID) is one resource
+        fp = "feed-" + hashlib.sha1(f"{src['id']}:{f['key']}".encode()).hexdigest()[:24]
+    else:
+        fp = "rclone-" + hashlib.sha1(f"{src['id']}:{f['path']}:{f['size']}:{f['modified']}".encode()).hexdigest()[:24]
     known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{space}:{fp}")
     if known:
         return known["id"], None
@@ -525,8 +531,8 @@ def kind_of(cfg, w, f):
 
 def poll_watch(db, cfg, wid, log=print):
     w = db.one(
-        "SELECT record::id(id) AS id, source, path, space, kinds, poll_minutes, stable_seconds, backfill, include, exclude, steps, pipeline, last_scan_at "
-        "FROM $r",
+        "SELECT record::id(id) AS id, source, path, space, kinds, poll_minutes, stable_seconds, backfill, include, exclude, steps, pipeline, last_scan_at, "
+        "cursor FROM $r",
         r=R("watch_path", wid),
     )
     src = get(db, w["source"])
@@ -534,7 +540,8 @@ def poll_watch(db, cfg, wid, log=print):
     known = {r["path"]: r for r in db.rows("SELECT path, size, modified, status FROM remote_file WHERE watch = $w", w=wid)}
     gone = deletion.gone_remote(db, w["space"])  # recordings someone deleted stay deleted
     stats = {"seen": 0, "new": 0, "waiting": 0, "skipped": 0, "errors": 0}
-    for f in list_files(db, cfg, src, w["path"]):
+    files, held = list_files(db, cfg, src, w["path"], w.get("cursor")), set()
+    for f in files:
         kind = kind_of(cfg, w, f)
         if not kind:
             continue
@@ -550,6 +557,7 @@ def poll_watch(db, cfg, wid, log=print):
         elif (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0):
             db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "waiting"})
             stats["waiting"] += 1
+            held.add(f["path"])
         else:
             try:
                 rid, _job = _ingest(db, cfg, src, f, kind, w["space"], f"watch:{wid}", w.get("steps"), w.get("pipeline"))
@@ -567,6 +575,8 @@ def poll_watch(db, cfg, wid, log=print):
         n=nxt,
         s=stats,
     )
+    if any(f.get("cursor") for f in files):
+        db.q("UPDATE $r SET cursor = $c", r=R("watch_path", wid), c=feeds.advance(w.get("cursor"), files, held))
     return stats
 
 

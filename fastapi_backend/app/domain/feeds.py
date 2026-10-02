@@ -1,13 +1,18 @@
 """Sources that aren't file storage: IMAP mailboxes and iCalendar feeds, shown as folders of files so browsing,
 choosing files, watching and importing work for them as they do for rclone's storage (sources.py).
 
-- An IMAP account's folders are its mailboxes, and each message is a file, `<mailbox>/<uid>.eml` (UIDs don't change
-  while a mailbox exists). A message is an email like any other: a document whose attachments are kept and made
-  resources of their own, or its text where the server can't make PDFs. Nothing is changed on the server: mailboxes
-  are opened read-only and messages fetched with BODY.PEEK, so they stay unread.
+- An IMAP account's folders are its mailboxes, and each message is a file, `<mailbox>/<uidvalidity>-<uid>.eml`: a
+  UID stands for one message only while the mailbox's UIDVALIDITY stays the same, so a mailbox the server rebuilt
+  gives new files rather than old names for other messages. A message is an email like any other: a document whose
+  attachments are kept and made resources of their own, or its text where the server can't make PDFs. Nothing is
+  changed on the server: mailboxes are opened read-only and messages fetched with BODY.PEEK, so they stay unread. A
+  watch keeps, per mailbox, the last UID it has seen (its cursor), and asks only for messages after it.
 - An iCalendar feed (an https:// or webcal:// address, as calendars publish them) is one folder of events, each a
   file `<id>.ics` of its own (the id stands for its UID and, for a changed occurrence, its RECURRENCE-ID). An event is
-  read as text: its title, when and where, who, and its description.
+  read as text: its title, when and where, who, and its description. The address is kept sealed, like a password
+  (a private calendar's address is all it takes to read it), and fetched as web pages are captured (netguard.py):
+  public addresses only, and the networks in documents.web_networks, on ports 80 and 443. Its password is never sent
+  on to another server it redirects to.
 
 Both keep the names of their files (`name`), a `title` and `when` for the resource made from one, beside what rclone's
 listings have (path, rel, size, modified).
@@ -24,10 +29,11 @@ import re
 import ssl
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from email import policy
 
-from . import calendars
+from . import calendars, netguard
 
 TYPES = {
     "imap": {
@@ -37,12 +43,14 @@ TYPES = {
     },
     "ical": {
         "label": "Calendar feed (iCal)",
-        "fields": {"url": "", "user": ""},
-        "secrets": ["pass"],
+        "fields": {"user": ""},
+        "secrets": ["url", "pass"],
     },
 }
 SECURITY = ("ssl", "starttls", "none")
-SKIP_MAILBOXES = {"\\noselect", "\\nonexistent", "\\trash", "\\junk", "\\drafts"}  # not taken when a whole account is watched
+# not taken when a whole account is watched: what can't be opened, the bin, junk and drafts, and the mailboxes that
+# only show messages kept elsewhere (Gmail's All Mail, Starred and Important)
+SKIP_MAILBOXES = {"\\noselect", "\\nonexistent", "\\trash", "\\junk", "\\drafts", "\\all", "\\flagged", "\\important"}
 MAX_CALENDAR = 50 * 1024 * 1024
 FEED_SECONDS = 60  # a calendar fetched for a listing is reused this long (a scan reads each of its events)
 _FEEDS: dict = {}
@@ -63,8 +71,8 @@ def _params(src):
     return {k: str(v).strip() for k, v in (src.get("params") or {}).items() if v is not None}
 
 
-def _entry(path, rel, name, size, modified, title=None, when=None):
-    return {"path": path, "rel": rel, "name": name, "dir": False, "size": size, "modified": modified, "title": title, "when": when}
+def _entry(path, rel, name, size, modified, title=None, when=None, **more):
+    return {"path": path, "rel": rel, "name": name, "dir": False, "size": size, "modified": modified, "title": title, "when": when, **more}
 
 
 def _folder(path, name):
@@ -154,13 +162,15 @@ def _mailboxes(conn):
 
 
 def _select(conn, mailbox):
+    """Open a mailbox read-only: (how many messages, its UIDVALIDITY)."""
     typ, data = conn.select(_quote(mailbox), readonly=True)
     if typ != "OK":
         raise ValueError(f"there's no mailbox {mailbox}")
+    _, validity = conn.response("UIDVALIDITY")
     try:
-        return int(data[0] or 0)
+        return int(data[0] or 0), int((validity or [b"0"])[0] or 0)
     except (TypeError, ValueError):
-        return 0
+        return 0, 0
 
 
 def _internal(meta):
@@ -173,11 +183,15 @@ def _internal(meta):
         return None
 
 
-def _messages(conn, mailbox, base):
-    """The messages of a mailbox as files: uid, size, when it arrived, its subject (headers only; nothing is read)."""
-    if not _select(conn, mailbox):
+def _messages(conn, mailbox, base, after=None):
+    """The messages of a mailbox as files: uid, size, when it arrived, its subject and Message-ID (headers only;
+    nothing is read). With `after` ({validity, uid}, a watch's cursor), only those after that UID, unless the mailbox
+    has been rebuilt since (its UIDVALIDITY changed)."""
+    count, validity = _select(conn, mailbox)
+    if not count:
         return []
-    typ, data = conn.uid("FETCH", "1:*", "(UID RFC822.SIZE INTERNALDATE BODY.PEEK[HEADER.FIELDS (SUBJECT DATE)])")
+    last = int(after["uid"]) if after and int(after.get("validity") or -1) == validity else 0
+    typ, data = conn.uid("FETCH", f"{last + 1}:*", "(UID RFC822.SIZE INTERNALDATE BODY.PEEK[HEADER.FIELDS (SUBJECT DATE MESSAGE-ID)])")
     data = _ok(typ, data, f"reading {mailbox}")
     out, i = [], 0
     while i < len(data):
@@ -191,7 +205,7 @@ def _messages(conn, mailbox, base):
             i += 1
         i += 1
         uid, size = re.search(rb"UID (\d+)", meta), re.search(rb"RFC822\.SIZE (\d+)", meta)
-        if not uid:
+        if not uid or int(uid.group(1)) <= last:  # n:* always answers with the last message, even one before n
             continue
         h = email.message_from_bytes(header, policy=policy.default)
         try:
@@ -203,8 +217,9 @@ def _messages(conn, mailbox, base):
             sent = h["date"].datetime.isoformat(timespec="seconds") if h.get("date") and h["date"].datetime else None
         except (AttributeError, TypeError, ValueError):
             sent = None
+        msgid = str(h.get("message-id") or "").strip().strip("<>").strip() or None
         name = re.sub(r"[\x00-\x1f\x7f/\\]", "", subject)[:150].strip() or "(no subject)"
-        rel = f"{uid.group(1).decode()}.eml"
+        rel = f"{validity}-{uid.group(1).decode()}.eml"
         out.append(
             _entry(
                 f"{mailbox}/{rel}",
@@ -214,51 +229,90 @@ def _messages(conn, mailbox, base):
                 arrived or sent,
                 subject or None,
                 sent or arrived,
+                key=f"message-id:{msgid}" if msgid else None,
+                cursor={"mailbox": mailbox, "validity": validity, "uid": int(uid.group(1))},
             )
         )
     return sorted(out, key=lambda e: e["modified"] or "", reverse=True)
 
 
-MESSAGE_RX = re.compile(r"^(?P<mailbox>.+)/(?P<uid>\d+)\.eml$")
+MESSAGE_RX = re.compile(r"^(?P<mailbox>.+)/(?P<validity>\d+)-(?P<uid>\d+)\.eml$")
 
 
 def _message_path(path):
     m = MESSAGE_RX.match(path or "")
     if not m:
-        raise ValueError("that isn't a message (mailbox/uid.eml)")
-    return m.group("mailbox"), m.group("uid")
+        raise ValueError("that isn't a message (mailbox/uidvalidity-uid.eml)")
+    return m.group("mailbox"), int(m.group("validity")), m.group("uid")
+
+
+def _selectable(boxes):
+    return [n for n, flags in boxes if "\\noselect" not in flags and "\\nonexistent" not in flags]
 
 
 def _imap_browse(cfg, src, path):
     with _imap(cfg, src) as conn:
         boxes = _mailboxes(conn)
         if not path:
-            return [_folder(n, _mutf7(n)) for n, flags in boxes if "\\noselect" not in flags and "\\nonexistent" not in flags]
-        if path not in {n for n, _ in boxes}:
+            return [_folder(n, _mutf7(n)) for n in _selectable(boxes)]
+        if path not in _selectable(boxes):
             raise ValueError(f"there's no mailbox {path}")
         return _messages(conn, path, "")
 
 
-def _imap_files(cfg, src, path):
+def _imap_files(cfg, src, path, cursor=None):
+    """A mailbox's messages, or the whole account's (no path): every mailbox but those in SKIP_MAILBOXES, INBOX first,
+    each message once however many mailboxes show it (by its Message-ID). With `cursor` ({mailbox: {validity, uid}}),
+    only messages after it."""
+    cursor = cursor or {}
     with _imap(cfg, src) as conn:
         boxes = _mailboxes(conn)
         if path:
-            if path not in {n for n, _ in boxes}:
+            if path not in _selectable(boxes):
                 raise ValueError(f"there's no mailbox {path}")
-            return _messages(conn, path, "")
-        return [e for n, flags in boxes if not flags & SKIP_MAILBOXES for e in _messages(conn, n, f"{n}/")]
+            return _messages(conn, path, "", cursor.get(path))
+        names = sorted((n for n, flags in boxes if not flags & SKIP_MAILBOXES), key=lambda n: n.upper() != "INBOX")
+        out, seen = [], {}
+        for n in names:
+            for e in _messages(conn, n, f"{n}/", cursor.get(n)):
+                if e["key"] and e["key"] in seen:  # listed once; its place here still moves this mailbox's cursor on
+                    seen[e["key"]].setdefault("also", []).append(e["cursor"])
+                    continue
+                if e["key"]:
+                    seen[e["key"]] = e
+                out.append(e)
+        return out
 
 
 def _imap_fetch(cfg, src, path):
-    mailbox, uid = _message_path(path)
+    mailbox, validity, uid = _message_path(path)
     with _imap(cfg, src) as conn:
-        _select(conn, mailbox)
+        _, now = _select(conn, mailbox)
+        if now != validity:
+            raise FileNotFoundError(f"{mailbox} has been rebuilt on the server: message {uid} there is another one now")
         typ, data = conn.uid("FETCH", uid, "(BODY.PEEK[])")
         data = _ok(typ, data, f"reading message {uid}")
         raw = next((d[1] for d in data if isinstance(d, tuple) and d[1]), None)
     if raw is None:
         raise FileNotFoundError(f"message {uid} isn't in {mailbox} any more")
     return raw
+
+
+def advance(cursor, files, held=()):
+    """A watch's cursor after a scan of these files: each mailbox's last UID listed, but before the first one still
+    `held` (paths waiting to settle, to be listed again). Mailboxes the scan didn't list keep theirs."""
+    out = {c["mailbox"]: dict(c) for c in cursor or []}
+    first_held = {}
+    for f in files:
+        for c in [f["cursor"], *f.get("also", [])] if f.get("cursor") else []:
+            if f["path"] in held:
+                first_held[c["mailbox"]] = min(first_held.get(c["mailbox"], c["uid"]), c["uid"])
+            old = out.get(c["mailbox"])
+            if not old or old["validity"] != c["validity"] or c["uid"] > old["uid"]:
+                out[c["mailbox"]] = dict(c)
+    for box, uid in first_held.items():
+        out[box]["uid"] = min(out[box]["uid"], uid - 1)
+    return list(out.values())
 
 
 def _imap_test(cfg, src):
@@ -268,30 +322,68 @@ def _imap_test(cfg, src):
 
 
 # ---------- iCalendar feeds ----------
-def _url(src):
-    url = _params(src).get("url", "")
+def _url(cfg, src):
+    url = _secret(cfg, src, "url").strip()
     url = re.sub(r"^webcals?://", "https://", url, flags=re.I)
-    if not re.match(r"^https?://\S+$", url, re.I):
+    if not re.match(r"^https?://[^\s/]+\S*$", url, re.I):
         raise RuntimeError("the calendar's address starts with https:// (or webcal://)")
     return url
 
 
+class _Redirects(urllib.request.HTTPRedirectHandler):
+    """Follows a calendar's redirects, but not with its password to another server (or to plain http)."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None and req.has_header("Authorization"):
+            a, b = urllib.parse.urlsplit(req.full_url), urllib.parse.urlsplit(new.full_url)
+            same = (a.hostname, a.port) == (b.hostname, b.port) and (a.scheme == b.scheme or b.scheme == "https")
+            if not same:
+                why = "it redirects to another server, which isn't given its password: use the address it ends at"
+                raise urllib.error.HTTPError(newurl, code, why, headers, fp)
+        return new
+
+
+def _opener(guard):
+    """netguard's opener (every request through the guard), with _Redirects."""
+    o = urllib.request.OpenerDirector()
+    for h in (
+        netguard.Through({"http": guard.url, "https": guard.url}),
+        urllib.request.UnknownHandler(),
+        urllib.request.HTTPHandler(),
+        urllib.request.HTTPSHandler(),
+        urllib.request.HTTPDefaultErrorHandler(),
+        _Redirects(),
+        urllib.request.HTTPErrorProcessor(),
+    ):
+        o.add_handler(h)
+    return o
+
+
 def _download(cfg, src):
-    url = _url(src)
+    from . import webcapture  # the networks an admin allowed besides public ones; it imports what imports this
+
+    url = _url(cfg, src)
     hit = _FEEDS.get(src["id"])
     if hit and hit[0] == url and time.monotonic() - hit[1] < FEED_SECONDS:
         return hit[2]
+    try:
+        webcapture.check_url(cfg, url)
+    except ValueError as e:
+        raise RuntimeError(f"that calendar can't be fetched: {e}") from None
     req = urllib.request.Request(url, headers={"User-Agent": "Lens calendar source", "Accept": "text/calendar, */*;q=0.5"})
     user, pw = _params(src).get("user", ""), _secret(cfg, src, "pass")
     if user or pw:
         req.add_header("Authorization", "Basic " + base64.b64encode(f"{user}:{pw}".encode()).decode("ascii"))
-    try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            raw = r.read(MAX_CALENDAR + 1)
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"the calendar's server answered {e.code} {e.reason}") from None
-    except (urllib.error.URLError, OSError) as e:
-        raise RuntimeError(f"couldn't fetch the calendar: {getattr(e, 'reason', e)}") from None
+    with netguard.Guard(forward=True, networks=webcapture.networks(cfg), max_bytes=MAX_CALENDAR + 65536) as guard:
+        try:
+            with _opener(guard).open(req, timeout=60) as r:
+                raw = r.read(MAX_CALENDAR + 1)
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"the calendar's server answered {e.code} {e.reason}") from None
+        except (urllib.error.URLError, OSError) as e:
+            refused = f"; refused: {guard.refused[0]}" if guard.refused else ""
+            raise RuntimeError(f"couldn't fetch the calendar: {getattr(e, 'reason', e)}{refused}") from None
     if len(raw) > MAX_CALENDAR:
         raise RuntimeError("the calendar is larger than 50 MB")
     text = raw.decode("utf-8", "replace")
@@ -349,9 +441,13 @@ def browse(cfg, src, path=""):
     return (_imap_browse if src["type"] == "imap" else _ical_browse)(cfg, src, check_path(path))
 
 
-def list_files(cfg, src, path=""):
+def list_files(cfg, src, path="", cursor=None):
+    """Every file under `path`; for IMAP with a watch's `cursor` (a list of {mailbox, validity, uid}), only messages
+    after it."""
     path = check_path(path)
-    return _imap_files(cfg, src, path) if src["type"] == "imap" else _ical_browse(cfg, src, path)
+    if src["type"] == "imap":
+        return _imap_files(cfg, src, path, {c["mailbox"]: c for c in cursor or []})
+    return _ical_browse(cfg, src, path)
 
 
 def fetch(cfg, src, path):

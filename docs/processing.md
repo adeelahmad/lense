@@ -168,16 +168,22 @@ Two kinds of source aren't storage and don't use rclone; their messages and even
 importing chosen ones and watching work as above.
 
 - **Email (IMAP)**: host, port, security (SSL/TLS, STARTTLS or none), user and password (an app password where the
-  provider has them). Mailboxes are the folders, and each message is a file `<mailbox>/<uid>.eml`, named by its
-  subject. A message is an email like any uploaded one: a document whose attachments are kept and made resources of
+  provider has them). Mailboxes are the folders, and each message is a file `<mailbox>/<uidvalidity>-<uid>.eml`,
+  named by its subject (a mailbox the server rebuilds gets new names, so an old one never reads another message). A message is an email like any uploaded one: a document whose attachments are kept and made resources of
   their own, titled by its subject and dated when it was sent. On a server that can't make PDFs (no Chromium or
   LibreOffice) it comes in as text instead, without its attachments. Watching the whole account (no path) takes every
-  mailbox but the bin, junk and drafts. Lens only reads: mailboxes are opened read-only and messages fetched without
-  marking them read.
+  mailbox but the bin, junk and drafts and the views of mail kept elsewhere (Gmail's All Mail, Starred and
+  Important), and a message several mailboxes show (one Message-ID) becomes one resource. A watch remembers the last
+  message it saw in each mailbox and asks only for newer ones. Lens only reads: mailboxes are opened read-only and
+  messages fetched without marking them read.
 - **Calendar feed (iCal)**: the calendar's iCal address (`https://` or `webcal://`; a user and password if it asks for
-  one). The feed is one folder of events, each a file `<id>.ics` named by its date and title; a moved occurrence of a
+  one). The address is kept encrypted like a password and never shown again, since a private calendar's address is
+  all it takes to read it. It is fetched the way web pages are captured: public addresses only (and the networks in
+  `documents.web_networks`), on ports 80 and 443, and the password is never sent on to another server the calendar
+  redirects to. The feed is one folder of events, each a file `<id>.ics` named by its date and title; a moved occurrence of a
   repeating event is an event of its own. An event comes in as text (its title, when and where, the organizer and
-  attendees, how it repeats, and its description), dated when it starts. An event that changes (its LAST-MODIFIED,
+  attendees, how it repeats, and its description), dated when it starts: an all-day event on its date, wherever you
+  are. Time zones are read as IANA names, Windows' names (as Outlook writes them), or the calendar's own VTIMEZONE. An event that changes (its LAST-MODIFIED,
   or its size) is read again into the resource it already is, rather than made a second one.
 - `.eml` and `.ics` files in any source, and uploaded through Import, can be read as text this way too.
 

@@ -9,11 +9,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   (docs/processing.md#email-imap-and-calendar-feeds-ical).
     - IMAP: mailboxes are folders and messages are `.eml` files named by their subjects. Each message becomes an
       email document, titled by its subject and dated when it was sent, and its attachments are kept and become
-      resources of their own. Watching the whole account skips the bin, junk and drafts. Lens only reads: messages
-      stay unread and nothing is moved or deleted.
-    - iCal: an `https://` or `webcal://` address, with a password if it needs one. Each event becomes text (title,
-      when and where, organizer and attendees, how it repeats, description), dated when it starts. An event that
-      changes is read again into the same resource instead of making a second one.
+      resources of their own. Watching the whole account skips the bin, junk, drafts and Gmail's All Mail, Starred
+      and Important, and a message in several mailboxes comes in once. A watch asks only for messages newer than the
+      last it saw. Lens only reads: messages stay unread and nothing is moved or deleted.
+    - iCal: an `https://` or `webcal://` address, with a password if it needs one. The address is kept encrypted
+      like a password, fetched only from public addresses (and networks allowed in `documents.web_networks`), and
+      the password isn't sent on to another server the calendar redirects to. Each event becomes text (title, when
+      and where, organizer and attendees, how it repeats, description), dated when it starts; Outlook's Windows time
+      zone names and calendars' own time zones are understood. An event that changes is read again into the same
+      resource instead of making a second one.
     - `.eml` and `.ics` files can be read as text everywhere else too: in a storage source or uploaded through
       Import. Where the server can't make PDFs, an email from a source is read as text instead of being skipped.
 

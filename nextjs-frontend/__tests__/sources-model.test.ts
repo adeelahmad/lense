@@ -137,13 +137,11 @@ describe("connections", () => {
       fields: { host: "", port: "993", security: "ssl", user: "" },
       secrets: ["pass"],
     };
-    const ICAL: BackendSpec = { label: "Calendar feed (iCal)", fields: { url: "", user: "" }, secrets: ["pass"] };
+    const ICAL: BackendSpec = { label: "Calendar feed (iCal)", fields: { user: "" }, secrets: ["url", "pass"] };
     expect(sourceSubtitle({ type: "imap", params: { host: "imap.example.com", port: "993", user: "lens" } })).toBe(
       "IMAP · lens@imap.example.com:993",
     );
-    expect(sourceSubtitle({ type: "ical", params: { url: "webcal://cal.example.org/team.ics" } })).toBe(
-      "Calendar · cal.example.org/team.ics",
-    );
+    expect(sourceSubtitle({ type: "ical", params: { user: "" } })).toBe("Calendar feed · address kept secret");
     expect(Object.keys(validateForm("imap", IMAP, emptyForm(IMAP), false))).toEqual(["host", "user", "pass"]);
     const mail = {
       ...emptyForm(IMAP),
@@ -151,9 +149,13 @@ describe("connections", () => {
     };
     expect(validateForm("imap", IMAP, { ...mail, secrets: { pass: "p" } }, false)).toEqual({});
     expect(validateForm("ical", ICAL, emptyForm(ICAL), false)).toHaveProperty("url");
-    const cal = { ...emptyForm(ICAL), params: { url: "webcal://cal.example.org/team.ics", user: "" } };
+    // the address is a secret: sent when typed, kept when editing without retyping it
+    const cal = { ...emptyForm(ICAL), secrets: { url: "webcal://cal.example.org/team.ics" } };
     expect(validateForm("ical", ICAL, cal, false)).toEqual({});
-    expect(suggestName("ical", cal.params)).toBe("Calendar feed · cal.example.org");
+    expect(validateForm("ical", ICAL, { ...cal, secrets: { url: "cal.example.org" } }, false)).toHaveProperty("url");
+    expect(validateForm("ical", ICAL, emptyForm(ICAL), true, (k) => k === "url")).toEqual({});
+    expect(buildPayload(ICAL, cal, "ical").secrets).toEqual({ url: "webcal://cal.example.org/team.ics" });
+    expect(suggestName("ical", cal.params)).toBe("Calendar feed");
     expect([fileKind("Harbour report.eml"), fileKind("2026-10-02 Stand-up.ics")]).toEqual(["document", "transcript"]);
   });
   it("confirms deletes by name, loosely", () => {
