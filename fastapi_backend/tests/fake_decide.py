@@ -68,13 +68,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
     @staticmethod
     def _answer(state, q):
         what, crit = q.get("instructions"), q.get("criteria")
+        about = what if isinstance(what, dict) else {}
         if q["type"] == "noul":
-            # asked about a passage it carries itself (a rerank question), or about the state
-            subject = what.get("passage") if isinstance(what, dict) and "passage" in what else state
-            ask = state if isinstance(what, dict) and "passage" in what else what
-            p = round(min(0.98, 0.04 + overlap(ask, subject)), 3)
+            # asked about a passage the question carries itself (a rerank or an ask question), or about the state
+            if "passage" in about:
+                p = round(min(0.98, 0.04 + overlap(about.get("question") or state, about["passage"])), 3)
+            else:
+                p = round(min(0.98, 0.04 + overlap(what, state)), 3)
             return {"noul": p, "confidence": round(max(p, 1 - p), 3)}
         if q["type"] == "choice":
+            if "statement" in about:  # a check: the passage says it, says it isn't so, or doesn't say
+                alike = overlap(about["statement"], about["passage"])
+                denies = (" not " in f" {about['passage'].lower()} ") != (" not " in f" {about['statement'].lower()} ")
+                pick = "silent" if alike < 0.5 else "contradicts" if denies else "supports"
+                probs = {k: (0.9 if k == pick else 0.05) for k in crit}
+                return {"choice": pick, "probabilities": probs, "confidence": 0.9}
             scores = {k: overlap(f"{k} {v or ''}", state) + 0.01 for k, v in crit.items()}
             total = sum(scores.values())
             probs = {k: round(v / total, 3) for k, v in scores.items()}

@@ -33,10 +33,11 @@ Todo:
 - [x] `decide.py` client on TypeSafe's Python SDK (`typesafe-sdk`), settings and validation, env overrides, fake System One server for tests
 - [x] Settings → Decisions in the web app: provider, key, model, test, thresholds
 - [x] Rerank search (API `rerank`, relevance on hits in the web app)
-- [ ] Chat and MCP retrieval use the reranked order
+- [x] MCP search uses the reranked order
+- [ ] Chat retrieval uses the reranked order
 - [ ] `classify` step and workflow node: tags, subtype, collection; suggestions on the resource
 - [ ] Moderation flags on comments with an owners' review queue
-- [ ] MCP `ask` and `check` tools
+- [x] MCP `ask` and `check` tools (offered only where `decisions.mcp` is on)
 - [ ] Docs (configuration, processing, api, mcp), tests on both engines, browser checks
 - [ ] Live check against hosted Jev once a key reaches this environment (2026-10-03: a request without a header is
       refused with "Must supply an API key", and no key or gateway is visible from this shell)

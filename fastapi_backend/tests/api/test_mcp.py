@@ -67,7 +67,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
     assert init["serverInfo"]["name"] == "lens" and "cite" in init["instructions"]
     assert rpc(client, env["h"], "initialize", {"protocolVersion": "1999-01-01"})["result"]["protocolVersion"] == "2025-11-25"
     tools = rpc(client, env["h"], "tools/list")["result"]["tools"]
-    assert [t["name"] for t in tools] == list(mcp_tools.TOOLS)
+    assert [t["name"] for t in tools] == [n for n, t in mcp_tools.TOOLS.items() if not t.needs]  # ask and check need a decision model
     assert all(t["annotations"]["readOnlyHint"] and t["inputSchema"]["type"] == "object" for t in tools)
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too
@@ -326,5 +326,5 @@ def test_a_real_mcp_client(app, env):
     for mode, version in (("legacy", "2025-11-25"), ("auto", MODERN)):
         got, names, found, text = anyio.run(session, mode)
         assert got == version
-        assert names == list(mcp_tools.TOOLS)
+        assert names == [n for n, t in mcp_tools.TOOLS.items() if not t.needs]
         assert found["results"][0]["recording_id"] == env["ids"][0] and json.loads(text) == found

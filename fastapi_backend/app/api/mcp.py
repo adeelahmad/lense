@@ -129,7 +129,7 @@ def dispatch(ctx: mcp_tools.Context, method: Any, params: Any, per_request: bool
     if method == "ping" and not per_request:  # the per-request era has no ping
         return {}
     if method == "tools/list":
-        return {"tools": mcp_tools.listing()}
+        return {"tools": mcp_tools.listing(ctx.cfg)}
     if method == "tools/call":
         name, args = params.get("name"), params.get("arguments") or {}
         if not isinstance(name, str) or name not in mcp_tools.TOOLS:

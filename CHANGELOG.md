@@ -4,6 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Assistants can ask the archive and check their answers.** Two MCP tools on top of typed decisions, for answers
+  that rest on what the archive says. `ask` puts a yes/no question to the passages most related to it (or to one
+  recording): each is judged for whether it says the answer is yes, and they come back most supportive first with the
+  probability and a link. `check` takes a statement and the moments an assistant would cite for it (`recording:line`),
+  and judges each passage as supporting it, contradicting it or silent on it; the verdict is supported, contradicted,
+  mixed or unsupported, and an answer the model isn't sure of supports nothing. Both read only what the person may
+  read, and are listed only where an admin set up a decision model (`decisions.mcp`). `search` results through MCP are
+  reranked too and carry `relevance` (docs/mcp.md).
 - **Typed decisions, and searches reranked by them.** Lens can ask a decision model typed questions about its own
   content: yes or no with a probability, one of a list, a level on a scale, answered in a few hundred milliseconds, and
   acts on an answer only when it's sure enough. Decided with the project owner: either provider by setting, TypeSafe's

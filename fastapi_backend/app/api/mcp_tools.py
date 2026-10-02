@@ -23,7 +23,7 @@ from app.api.v1.routes import entities as entity_routes
 from app.api.v1.routes import namespaces as namespace_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import search as search_routes
-from app.domain import analyze, library, render, store
+from app.domain import analyze, decide, library, render, store
 from app.domain import entities as ents
 from app.domain import speakers as spk
 from app.domain.store import DB
@@ -152,6 +152,7 @@ class Tool:
     description: str
     args: tuple[Arg, ...]
     run: Callable[..., dict[str, Any]] = field(compare=False)
+    needs: str | None = None  # "decisions": offered only where a decision model is set up for assistants
 
     def definition(self) -> dict[str, Any]:
         return {
@@ -177,16 +178,22 @@ class Tool:
 TOOLS: dict[str, Tool] = {}
 
 
-def tool(name: str, title: str, description: str, *args: Arg) -> Callable[[Callable[..., dict[str, Any]]], Callable[..., dict[str, Any]]]:
+def tool(
+    name: str, title: str, description: str, *args: Arg, needs: str | None = None
+) -> Callable[[Callable[..., dict[str, Any]]], Callable[..., dict[str, Any]]]:
     def register(fn: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
-        TOOLS[name] = Tool(name, title, description, args, fn)
+        TOOLS[name] = Tool(name, title, description, args, fn, needs)
         return fn
 
     return register
 
 
-def listing() -> list[dict[str, Any]]:
-    return [t.definition() for t in TOOLS.values()]
+def offered(cfg: dict[str, Any], t: Tool) -> bool:
+    return t.needs != "decisions" or decide.uses(cfg, "mcp")
+
+
+def listing(cfg: dict[str, Any]) -> list[dict[str, Any]]:
+    return [t.definition() for t in TOOLS.values() if offered(cfg, t)]
 
 
 def _text(out: dict[str, Any], error: bool = False) -> dict[str, Any]:
@@ -202,6 +209,8 @@ def call(ctx: Context, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     t = TOOLS[name]
     known = {a.name for a in t.args}
     try:
+        if not offered(ctx.cfg, t):
+            raise ToolError(f"{name} needs a decision model, and none is set up for assistants here")
         unknown = sorted(set(arguments) - known)
         if unknown:
             raise ToolError(f"unknown argument {', '.join(unknown)}; {name} takes {', '.join(a.name for a in t.args) or 'none'}")
@@ -310,6 +319,7 @@ def search(
         offset=offset,
         facets=False,
         mode="auto",  # by meaning too, when it's set up
+        rerank=offset == 0,  # and the best in the order a decision model judges them to answer, where there is one
     )
     found = SearchResults.model_validate(res)  # the route hands back the dict it signed
     results = []
@@ -329,6 +339,7 @@ def search(
             "page": h.page + 1 if h.page is not None else None,
             "file": h.file_label,
             "text": _plain(h.snippet),
+            "relevance": h.relevance,
             "url": ctx.link(h.recording_id, h.t0),
         }
         results.append({k: v for k, v in hit.items() if v is not None})
@@ -660,6 +671,143 @@ def cite(ctx: Context, recording_id: int, line: int | None, seconds: float | Non
         "url": url,
         "markdown": f"> {quote}\n>\n> — {credit}, [{at}]({url})",
     }
+
+
+# ---------- judging: questions answered, and answers checked, against what the archive says ----------
+ASK_PASSAGES = 12  # passages a question is put to
+PASSAGE_CHARS = 900
+VERDICTS = {
+    "supports": "the passage says this, or says something from which it plainly follows",
+    "contradicts": "the passage says the opposite, or something that can't be true if this is",
+    "silent": "the passage doesn't say whether this is so",
+}
+
+
+def _judged(ctx: Context, requests: list[tuple[Any, dict[str, Any]]]) -> list[dict[str, Any]]:
+    answers = decide.ask_many(ctx.cfg, requests)
+    failed = next((a for a in answers if isinstance(a, decide.DecideError)), None)
+    if failed is not None:
+        raise ToolError(f"the decision model couldn't answer: {failed}")
+    return [a for a in answers if isinstance(a, dict)]
+
+
+def _passage(ctx: Context, rid: int, line: int, lines: int) -> dict[str, Any]:
+    """A few lines of a recording this person may read, as one passage."""
+    rec = _recording(ctx, rid)
+    segs = _segments(ctx.db, rid, " AND idx >= $i", lines, i=line)
+    if not segs or segs[0]["idx"] != line:
+        raise ToolError(f"recording {rid} has no line {line}")
+    first = segs[0]
+    return {
+        "recording_id": rid,
+        "title": rec.get("title"),
+        "line": line,
+        "at": f"p. {first['page'] + 1}" if first.get("page") is not None else store.tc(first.get("t0")),
+        "text": _cut(" ".join((s.get("text") or "").strip() for s in segs), PASSAGE_CHARS),
+        "url": ctx.link(rid, first.get("t0")),
+    }
+
+
+SMALL_WORDS = frozenset(
+    "a an and are as at be been but by can could did do does for from had has have how if in is it its of on or "
+    "our should so than that the their then there these they this to was we were what when where which who why will "
+    "with would you your not no yes any some all about into over after before".split()
+)
+
+
+def _found(ctx: Context, query: str, namespace: str | None, recording_id: int | None, limit: int) -> list[dict[str, Any]]:
+    """Passages to judge for a question or a statement: what a search for it finds (by meaning too, where that's set
+    up), and, since a sentence rarely appears word for word, what any of its main words find."""
+    words = sorted({w for w in re.findall(r"[\w'’-]{3,}", query.lower()) if w not in SMALL_WORDS}, key=len, reverse=True)
+    out: dict[tuple[int, Any], dict[str, Any]] = {}
+    for q in (query, " OR ".join(words[:4])):
+        if not q or len(out) >= limit:
+            continue
+        for r in search(ctx, q, namespace, None, recording_id, limit, 0)["results"]:
+            if r.get("text"):
+                p = {k: r.get(k) for k in ("recording_id", "title", "line", "at", "url")} | {"text": r["text"].replace("**", "")}
+                out.setdefault((r["recording_id"], r.get("line") if r.get("line") is not None else r["text"]), p)
+    return list(out.values())[:limit]
+
+
+@tool(
+    "ask",
+    "Ask the archive a yes/no question",
+    "Put a yes/no question to the archive and get judged evidence, not prose: the passages most related to the question "
+    "are found (or the lines of one recording you name), and a decision model judges for each whether it says the answer "
+    "is yes. Returns the passages, most supportive first, each with the probability that it says yes and a url, and "
+    "`answer`: yes when a passage clearly says so, no when the passages found clearly don't, unclear otherwise. Use it "
+    "to find where something is said or to test a hunch; quote and cite the passages, not the probability.",
+    Arg(
+        "question",
+        "string",
+        "a question with a yes or no answer, e.g. Did the team agree to ship on Friday?",
+        required=True,
+        max_length=500,
+    ),
+    Arg("namespace", "string", "only this namespace"),
+    Arg("recording_id", "integer", "only within this recording"),
+    Arg("limit", "integer", "how many passages to judge", default=8, minimum=1, maximum=ASK_PASSAGES),
+    needs="decisions",
+)
+def ask(ctx: Context, question: str, namespace: str | None, recording_id: int | None, limit: int) -> dict[str, Any]:
+    if recording_id is not None:
+        _recording(ctx, recording_id)
+    passages = _found(ctx, question, namespace, recording_id, limit)
+    if not passages:
+        return {"question": question, "answer": "unclear", "passages": [], "note": "nothing in what you can read is about this"}
+    yes = "the passage states or clearly implies that the answer to the question is yes"
+    no = "the passage says the answer is no, or doesn't say"
+    qs = {f"p{n}": decide.noul({"question": question, "passage": p["text"]}, yes, no) for n, p in enumerate(passages)}
+    got = _judged(ctx, [({"task": "Judge each passage on its own: does it say the answer to the question is yes?"}, qs)])[0]
+    for n, p in enumerate(passages):
+        p["says_yes"] = round(got[f"p{n}"]["p"], 3)
+    passages.sort(key=lambda p: -p["says_yes"])
+    best = passages[0]["says_yes"]
+    answer = "yes" if best >= 0.75 else "no" if best <= 0.25 else "unclear"
+    return {"question": question, "answer": answer, "passages": passages}
+
+
+@tool(
+    "check",
+    "Check a statement against the archive",
+    "Check something you're about to say against what the archive says, before you say it. Give the statement and the "
+    "moments you'd cite for it (recording:line, from search, ask or get_transcript); a decision model judges for each "
+    "whether the passage supports the statement, contradicts it, or is silent on it. Without citations, the passages "
+    "most related to the statement are judged instead. Returns `verdict` (supported, contradicted, mixed or "
+    "unsupported) and each passage's judgment with probabilities. Say only what is supported, and cite what supports it.",
+    Arg("statement", "string", "one claim, as you would state it", required=True, max_length=800),
+    Arg("citations", "string[]", "the moments it rests on, each as recording_id:line (up to 8)"),
+    Arg("namespace", "string", "when there are no citations: look only in this namespace"),
+    Arg("lines", "integer", "how many lines each citation covers from its line", default=2, minimum=1, maximum=6),
+    needs="decisions",
+)
+def check(ctx: Context, statement: str, citations: list[str] | None, namespace: str | None, lines: int) -> dict[str, Any]:
+    if citations:
+        if len(citations) > 8:
+            raise ToolError("at most 8 citations")
+        passages = []
+        for c in citations:
+            m = re.fullmatch(r"(\d+)\s*:\s*(\d+)", c)
+            if not m:
+                raise ToolError(f"a citation is recording_id:line, like 12:34 (got {c})")
+            passages.append(_passage(ctx, int(m.group(1)), int(m.group(2)), lines))
+    else:
+        passages = _found(ctx, statement, namespace, None, 6)
+        if not passages:
+            return {"statement": statement, "verdict": "unsupported", "passages": [], "note": "nothing in what you can read is about this"}
+    task = "Does the passage support the statement, contradict it, or not say?"
+    qs = {f"p{n}": decide.choice({"task": task, "statement": statement, "passage": p["text"]}, VERDICTS) for n, p in enumerate(passages)}
+    got = _judged(ctx, [({"task": "Judge each passage on its own against the statement."}, qs)])[0]
+    for n, p in enumerate(passages):
+        a = got[f"p{n}"]
+        p["judgment"], p["probabilities"] = a["choice"], {k: round(v, 3) for k, v in a["probabilities"].items()}
+        p["confidence"] = round(a["confidence"], 3)
+    sure = [p for p in passages if p["confidence"] >= 0.6]
+    supports = any(p["judgment"] == "supports" for p in sure)
+    contradicts = any(p["judgment"] == "contradicts" for p in sure)
+    verdict = "mixed" if supports and contradicts else "supported" if supports else "contradicted" if contradicts else "unsupported"
+    return {"statement": statement, "verdict": verdict, "passages": passages}
 
 
 # ---------- entities and the graph ----------
