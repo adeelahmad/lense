@@ -88,6 +88,12 @@ counted over the recordings they see; the namespace's lists of speakers and face
 or merging speakers and faces (which are the namespace's) needs editor access to the namespace. For the pages
 visitors see and IIIF, a role on a collection is permission on its recordings.
 
+## Analytics
+
+A namespace's owners see how its resources are used (views, plays, searches, downloads, comments, as counts), an
+admin of a collection their collection's, and admins everything; everyone sees their own activity
+([Analytics](analytics.md)).
+
 ## Asking for access
 
 Someone signed in without permission can ask a recording's owners for access: to the closed parts of a public

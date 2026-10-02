@@ -5,21 +5,22 @@ import {
   AudioLines,
   Bot,
   Captions,
+  ChartLine,
   ChartNoAxesColumn,
   Clapperboard,
   Cpu,
   FileType,
   Fingerprint,
   Globe,
+  KeyRound,
   ScanText,
   Search,
   Settings,
   ShieldCheck,
   Sparkles,
   Terminal,
-  Upload,
   type LucideIcon,
-  KeyRound,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -49,6 +50,7 @@ const ICON: Record<SectionId, LucideIcon> = {
   uploads: Upload,
   documents: FileType,
   tokens: KeyRound,
+  analytics: ChartLine,
   iiif: Globe,
   startup: Terminal,
 };

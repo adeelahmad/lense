@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 
-from app.api.deps import Acl, Cfg, Db, Writer, domain_errors
+from app.api.deps import Acl, Cfg, Db, Track, Writer, domain_errors
 from app.api.media import sign_url
 from app.domain import access as acc
 from app.domain import public, store
@@ -63,6 +63,7 @@ def search_public(
     acl: Acl,
     db: Db,
     cfg: Cfg,
+    track: Track,
     q: str = Query("", description='words, "phrases", OR between alternatives'),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -73,19 +74,21 @@ def search_public(
     """Search what this visitor may see: titles of the recordings they see listed, and the lines of the transcripts
     they may read. Title matches come first. Restricted recordings (for signed-in people) and public ones with the
     transcript closed match on their title only."""
+    if offset == 0 and q.strip():
+        track("search")
     d = public.search(db, q, acl.who(), limit, offset, cfg=cfg, semantic=semantic)
     _signed(d["items"])
     return PublicSearch.model_validate(d)
 
 
 @router.get("/recordings/{rid}")
-def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecording:
+def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg, track: Track) -> PublicRecording:
     """A recording's public page: what this visitor may see of it, and nothing more.
 
     Anyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title
     with a lock; people with a role in its namespace, given permission on the recording, or on the network of an IP
     group that opens it, see all of it. Everything else answers 404, as a recording that doesn't exist would."""
-    rec = db.one("SELECT space FROM $r", r=R("recording", rid))
+    rec = db.one("SELECT space, collection FROM $r", r=R("recording", rid))
     if not rec:
         raise HTTPException(404, "not found")
     a = acc.of(db, rid)
@@ -97,6 +100,8 @@ def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecordin
     if seen is None:
         raise HTTPException(404, "not found")
     d = public.recording(db, cfg, rid, seen, a, member, granted and not member, network)
+    if seen != "locked":  # a page they could read: a view
+        track("view", rid, rec["space"], rec.get("collection"))
     if who.signed_in and not permitted:
         d["can_request"] = seen == "locked" or bool(d["closed"]) or d["files_closed"] > 0
         d["request"] = acc.request_of(db, rid, acl.user.id if acl.user else None)

@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.api.v1.routes import (
     admin,
+    analytics,
     auth,
     batches,
     chats,
@@ -68,5 +69,6 @@ for module in (
     public,
     requests,
     views,
+    analytics,
 ):
     api_router.include_router(module.router)

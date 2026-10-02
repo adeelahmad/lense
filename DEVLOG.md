@@ -30,11 +30,15 @@ backend tests (both engines) → `make openapi` → web app → frontend tests �
   - [x] 11 tools and `lens://resource/<id>` resources, each a request to the API's own routes with the caller's token
   - [x] Web app proxies `/mcp`; the apps page shows the address; `docs/mcp.md` (Claude, Claude Code, Cursor)
   - [x] 5 backend tests (both engines), frontend test, checked with the official MCP client end to end over OAuth
-  - [ ] Push, CI green <-- CURRENT
-- [ ] **4. Telemetry and analytics per collection (#48)**
-  - [ ] `event` table (account, resource/collection, time; no IP/UA; "visitor"), 90-day retention setting, daily rollups, purge job
-  - [ ] Analytics: owners per namespace, collection admins per collection, admins everywhere; own activity under the account
-  - [ ] Web app, tests, docs, CHANGELOG, browser check, commit, push, CI
+  - [x] Pushed (a3ed322). **GitHub Actions refused to start the jobs: the account's billing or spending limit** (not a code failure). Until that's fixed, the Linux suite runs in the Docker backend image as a stand-in.
+- [x] **4. Telemetry and analytics per collection (#48)** (own commit)
+  - [x] `app/domain/telemetry.py`: `activity` (account, resource, collection, time) and `activity_day` counts; views deduplicated per half hour; never raises
+  - [x] `Track` dependency on the player, public page, searches, downloads, comments; `played` routes for the web player
+  - [x] `GET /analytics` (owners; collection admins; admins), `/analytics/me`, admin status and purge; workers purge hourly; `analytics.retention_days`
+  - [x] Web app: Analytics page with day charts, Your activity, Settings → Analytics, play reporting
+  - [x] 5 backend tests (both engines), 11 frontend tests, docs/analytics.md, CHANGELOG, browser check
+  - [ ] Push <-- CURRENT
+- [ ] **4b. Logo** (asked 2026-10-03): an AI looking through a lens, in the current colours; the wordmark is "Lens", not "Lens Archive"
 - [ ] **5. Afterwards:** rows of `docs/backend-gaps.md`, smallest-useful first; remove a row when its slice lands
 
 ### Decisions (active)
@@ -81,6 +85,7 @@ backend tests (both engines) → `make openapi` → web app → frontend tests �
 **Lesson:** Every router here needs a tag, in the schema or not.
 
 ## Technical Debt & Future Ideas
+- **A typed-decision layer (Jev-style) for Lens** — the owner shared the awesome-jev list (2026-10-02) as inspiration. Patterns that map onto Lens: rerank search hits and RAG passages with a yes/no relevance judgment (jev-reranker, MemSearch, Cribrix); classify and route imports into collections, tags and kinds (Paca, DocJev, sortwell); grounded-answer and prompt-injection checks on chat sources; moderation flags on comments and public pages; a `decide` pipeline step with confidence thresholds that escalate to a person; a stopping policy for the assistant's searches. Not in the backlog yet: confirm scope and provider (hosted Jev, or an open local model behind the same `/v1/systemone` shape) before starting.
 - Search by meaning scans every vector the asker may read; add a vector index (HNSW) when archives get large.
 - The no-results page still says "every word has to appear" when Meaning is on and nothing is close enough.
 - A one-click "embed everything" after switching search by meaning on (today: Reprocess or a batch run).

@@ -1,5 +1,6 @@
 import {
   AudioLines,
+  ChartLine,
   ChartNoAxesColumn,
   HardDriveDownload,
   House,
@@ -43,12 +44,8 @@ export const NAV: NavItem[] = [
     countKey: "reviews",
   },
   { label: "Graph", href: "/graph", icon: Waypoints },
-  {
-    label: "Reports",
-    href: "/reports",
-    icon: ChartNoAxesColumn,
-    divider: true,
-  },
+  { label: "Reports", href: "/reports", icon: ChartNoAxesColumn },
+  { label: "Analytics", href: "/analytics", icon: ChartLine, divider: true },
   { label: "Pipelines", href: "/pipelines", icon: Workflow },
   { label: "Sources", href: "/sources", icon: HardDriveDownload },
   { label: "Settings", href: "/settings", icon: Settings, adminOnly: true },

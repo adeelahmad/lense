@@ -130,6 +130,172 @@ export type AccountToken = {
 };
 
 /**
+ * ActionCounts
+ */
+export type ActionCounts = {
+  /**
+   * View
+   */
+  view?: number;
+  /**
+   * Play
+   */
+  play?: number;
+  /**
+   * Search
+   */
+  search?: number;
+  /**
+   * Download
+   */
+  download?: number;
+  /**
+   * Comment
+   */
+  comment?: number;
+  [key: string]: unknown | number | undefined;
+};
+
+/**
+ * ActivityEntry
+ */
+export type ActivityEntry = {
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Action
+   */
+  action: "view" | "play" | "search" | "download" | "comment";
+  /**
+   * Resource
+   */
+  resource?: number | null;
+  /**
+   * Title
+   * the resource's title, while you can still read it
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  [key: string]:
+    | unknown
+    | string
+    | "view"
+    | "play"
+    | "search"
+    | "download"
+    | "comment"
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * AnalyticsReport
+ * The numbers for a range of days.
+ */
+export type AnalyticsReport = {
+  /**
+   * From
+   * the first day, YYYY-MM-DD
+   */
+  from: string;
+  /**
+   * To
+   * the last day
+   */
+  to: string;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Collection
+   */
+  collection?: number | null;
+  totals: ActionCounts;
+  /**
+   * People
+   * different accounts that did any of it (within what's still kept: analytics.retention_days)
+   */
+  people: number;
+  /**
+   * Anonymous
+   * how many of the actions had no account: visitors, and files fetched by a signed link
+   */
+  anonymous: number;
+  /**
+   * Days
+   * every day of the range, in order
+   */
+  days: Array<DayCounts>;
+  /**
+   * Collections
+   * for a namespace: its collections with any activity
+   */
+  collections?: Array<CollectionCounts> | null;
+  /**
+   * Namespaces
+   * for the whole archive (admins): the namespaces with any
+   */
+  namespaces?: Array<NamespaceCounts> | null;
+  /**
+   * Resources
+   * the 20 most used resources
+   */
+  resources?: Array<ResourceCounts>;
+  [key: string]:
+    | unknown
+    | string
+    | string
+    | null
+    | number
+    | null
+    | ActionCounts
+    | number
+    | Array<DayCounts>
+    | Array<CollectionCounts>
+    | null
+    | Array<NamespaceCounts>
+    | null
+    | Array<ResourceCounts>
+    | undefined;
+};
+
+/**
+ * AnalyticsStatus
+ */
+export type AnalyticsStatus = {
+  /**
+   * Events
+   * actions kept with their account
+   */
+  events: number;
+  /**
+   * Oldest
+   */
+  oldest?: string | null;
+  /**
+   * Days
+   * daily counts kept (they hold no accounts)
+   */
+  days: number;
+  /**
+   * Retention Days
+   */
+  retention_days: number;
+  [key: string]: unknown | number | string | null | undefined;
+};
+
+/**
  * AnswerCheck
  */
 export type AnswerCheck = {
@@ -1352,6 +1518,46 @@ export type Collection = {
 };
 
 /**
+ * CollectionCounts
+ */
+export type CollectionCounts = {
+  /**
+   * View
+   */
+  view?: number;
+  /**
+   * Play
+   */
+  play?: number;
+  /**
+   * Search
+   */
+  search?: number;
+  /**
+   * Download
+   */
+  download?: number;
+  /**
+   * Comment
+   */
+  comment?: number;
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Path
+   * the collections from the namespace's top down to it
+   */
+  path?: Array<string>;
+  [key: string]: unknown | number | string | Array<string> | undefined;
+};
+
+/**
  * CollectionCreate
  */
 export type CollectionCreate = {
@@ -2081,6 +2287,38 @@ export type Created = {
    */
   id: number;
   [key: string]: unknown | boolean | number | undefined;
+};
+
+/**
+ * DayCounts
+ */
+export type DayCounts = {
+  /**
+   * View
+   */
+  view?: number;
+  /**
+   * Play
+   */
+  play?: number;
+  /**
+   * Search
+   */
+  search?: number;
+  /**
+   * Download
+   */
+  download?: number;
+  /**
+   * Comment
+   */
+  comment?: number;
+  /**
+   * Day
+   * YYYY-MM-DD (UTC)
+   */
+  day: string;
+  [key: string]: unknown | number | string | undefined;
 };
 
 /**
@@ -4440,6 +4678,37 @@ export type NamespaceAccess = {
 };
 
 /**
+ * NamespaceCounts
+ */
+export type NamespaceCounts = {
+  /**
+   * View
+   */
+  view?: number;
+  /**
+   * Play
+   */
+  play?: number;
+  /**
+   * Search
+   */
+  search?: number;
+  /**
+   * Download
+   */
+  download?: number;
+  /**
+   * Comment
+   */
+  comment?: number;
+  /**
+   * Name
+   */
+  name: string;
+  [key: string]: unknown | number | string | undefined;
+};
+
+/**
  * NamespaceCreate
  */
 export type NamespaceCreate = {
@@ -6482,6 +6751,33 @@ export type PublicTranscript = {
 };
 
 /**
+ * PurgeRequest
+ */
+export type PurgeRequest = {
+  /**
+   * Everything
+   * delete all of it, the daily counts too; default: only what's past its retention
+   */
+  everything?: boolean;
+};
+
+/**
+ * Purged
+ */
+export type Purged = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Deleted
+   * actions deleted
+   */
+  deleted: number;
+  [key: string]: unknown | boolean | number | undefined;
+};
+
+/**
  * Recording
  * The recording row (less its envelope) plus what the recording page needs.
  */
@@ -7170,6 +7466,45 @@ export type ResetPasswordRequest = {
    * Password
    */
   password: string;
+};
+
+/**
+ * ResourceCounts
+ */
+export type ResourceCounts = {
+  /**
+   * View
+   */
+  view?: number;
+  /**
+   * Play
+   */
+  play?: number;
+  /**
+   * Search
+   */
+  search?: number;
+  /**
+   * Download
+   */
+  download?: number;
+  /**
+   * Comment
+   */
+  comment?: number;
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  [key: string]: unknown | number | string | null | string | null | undefined;
 };
 
 /**
@@ -17990,6 +18325,199 @@ export type UpdateViewResponses = {
 };
 
 export type UpdateViewResponse = UpdateViewResponses[keyof UpdateViewResponses];
+
+export type GetAnalyticsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     * a namespace you own; without it, the whole archive (admins)
+     */
+    ns?: string | null;
+    /**
+     * Collection
+     * one of its collections, with the ones inside it (its admins, or the namespace's owners)
+     */
+    collection?: number | null;
+    /**
+     * Days
+     * how many days back from today, when `from` isn't given
+     */
+    days?: number;
+    /**
+     * From
+     * the first day
+     */
+    from?: string | null;
+    /**
+     * To
+     * the last day (default: today)
+     */
+    to?: string | null;
+  };
+  url: "/api/v1/analytics";
+};
+
+export type GetAnalyticsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetAnalyticsError = GetAnalyticsErrors[keyof GetAnalyticsErrors];
+
+export type GetAnalyticsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AnalyticsReport;
+};
+
+export type GetAnalyticsResponse = GetAnalyticsResponses[keyof GetAnalyticsResponses];
+
+export type MyActivityData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Before
+     * only what's earlier than this time (the `at` of the last entry you have)
+     */
+    before?: string | null;
+  };
+  url: "/api/v1/analytics/me";
+};
+
+export type MyActivityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MyActivityError = MyActivityErrors[keyof MyActivityErrors];
+
+export type MyActivityResponses = {
+  /**
+   * Response Analytics-My Activity
+   * Successful Response
+   */
+  200: Array<ActivityEntry>;
+};
+
+export type MyActivityResponse = MyActivityResponses[keyof MyActivityResponses];
+
+export type PlayedData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * S
+     */
+    s?: string;
+  };
+  url: "/api/v1/resources/{rid}/played";
+};
+
+export type PlayedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PlayedError = PlayedErrors[keyof PlayedErrors];
+
+export type PlayedResponses = {
+  /**
+   * Successful Response
+   */
+  204: void;
+};
+
+export type PlayedResponse = PlayedResponses[keyof PlayedResponses];
+
+export type PlayedPublicData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/public/recordings/{rid}/played";
+};
+
+export type PlayedPublicErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PlayedPublicError = PlayedPublicErrors[keyof PlayedPublicErrors];
+
+export type PlayedPublicResponses = {
+  /**
+   * Successful Response
+   */
+  204: void;
+};
+
+export type PlayedPublicResponse = PlayedPublicResponses[keyof PlayedPublicResponses];
+
+export type AnalyticsStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/analytics";
+};
+
+export type AnalyticsStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: AnalyticsStatus;
+};
+
+export type AnalyticsStatusResponse = AnalyticsStatusResponses[keyof AnalyticsStatusResponses];
+
+export type PurgeAnalyticsData = {
+  body: PurgeRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/analytics/purge";
+};
+
+export type PurgeAnalyticsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PurgeAnalyticsError = PurgeAnalyticsErrors[keyof PurgeAnalyticsErrors];
+
+export type PurgeAnalyticsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Purged;
+};
+
+export type PurgeAnalyticsResponse = PurgeAnalyticsResponses[keyof PurgeAnalyticsResponses];
 
 export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});

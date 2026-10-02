@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from app.api.deps import Acl, Cfg, CurrentUser, Db
+from app.api.deps import Acl, Cfg, CurrentUser, Db, Track
 from app.api.media import sign_urls
 from app.domain import embeddings, render, store
 from app.domain import graph as graphmod
@@ -22,6 +22,7 @@ def search_transcripts(
     user: CurrentUser,
     db: Db,
     cfg: Cfg,
+    track: Track,
     q: str = Query(description='words, "phrases", OR between alternatives'),
     ns: str | None = None,
     speaker: int | None = None,
@@ -46,6 +47,8 @@ def search_transcripts(
     filter keeps to what was said."""
     if ns:
         acl.scope(ns)  # 404 unless they see some of it
+    if offset == 0:  # a search, not its next page
+        track("search", space=acl.nsid(ns) if ns else None)
     also = acl.partial_recordings()
     res = searchmod.search(
         db,

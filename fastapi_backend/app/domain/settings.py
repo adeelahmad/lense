@@ -52,6 +52,7 @@ EDITABLE = {
     "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
     "uploads": None,
     "tokens": None,
+    "analytics": None,
     # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
     "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
@@ -244,6 +245,10 @@ def _check(section, key, value, default):
         if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0.05 <= value <= 0.95):
             raise ValueError("video.object_min_score is a number from 0.05 to 0.95")
         return float(value)
+    if (section, key) == ("analytics", "retention_days"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 3650):
+            raise ValueError("analytics.retention_days is a whole number of days from 1 to 3650")
+        return value
     if (section, key) == ("search", "semantic"):
         if not isinstance(value, bool):
             raise ValueError("search.semantic is true or false")

@@ -73,6 +73,7 @@ nav:
   - IIIF: iiif.md
   - API: api.md
   - MCP for assistants: mcp.md
+  - Analytics: analytics.md
   - API work the design needs: backend-gaps.md
   - Deployment: deployment.md
   - Technology: technology-selection.md

@@ -38,6 +38,8 @@ OWN = (
     "object_track",
     "description",
     "embedding",
+    "activity",
+    "activity_day",
     "share_link",
     "share_embed",
     "note",

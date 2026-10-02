@@ -127,6 +127,31 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       meaning, reads the transcript and the resource as Markdown, and is refused an import; an admin's, with write,
       is offered all 11, imports text, follows its job to the end, finds it and reaches it through its namespace's
       collections. The apps page shows the address and both apps. No console errors.
+- **Analytics for namespaces and collections.** Lens counts what's done with resources (views, plays, searches,
+  downloads and comments), so the people responsible for them see what's used. Decided with the project owner: each
+  action is kept 90 days (an admin setting) with the account, the resource and its collection, and the time, and
+  nothing else: no addresses, no browsers; visitors who aren't signed in count without an account; a namespace's
+  owners see its numbers, an admin of a collection their collection's, admins everything, and each person their own
+  activity.
+    - A view is opening a resource's page (once per person, resource and half hour), a play the player starting
+      (the web app reports it once per page load), a search its first page, a download a transcript export, a file,
+      a document or its PDF. What assistants do through MCP or an API key counts as the person's.
+    - API: `GET /api/v1/analytics?ns=&collection=&days=` (totals, every day of the range, per collection or per
+      namespace, the 20 most used resources, how many different people and how many actions without an account),
+      `GET /api/v1/analytics/me`, `POST /api/v1/resources/{rid}/played` and the public page's, `GET
+      /api/v1/admin/analytics` and `POST /api/v1/admin/analytics/purge` (audited as `analytics.purge`); new
+      `activity` and `activity_day` tables (docs/analytics.md, docs/api.md#analytics).
+    - New setting: `analytics.retention_days` (90; Settings → Analytics, docs/configuration.md#analytics). Workers
+      delete what's past it every hour; the daily counts, which hold no accounts, stay, so charts reach further
+      back. Deleting a resource deletes its analytics, and moving one takes them along.
+    - Web app: Analytics in the navigation (the namespace picked in the top bar, 7, 30 or 90 days, a collection
+      picker; five small charts of days with a table view, the collections and the most used resources; people who
+      aren't owners are told who is); Account → Your activity; Settings → Analytics with what's kept and purging.
+    - Checked in the browser: a visitor searches the public archive and opens a public resource; a viewer on a phone
+      in dark mode searches, opens two resources, finds all three under Your activity and is told that analytics are
+      for owners; an admin sees every namespace with the visitor's views counted without an account, the days as
+      charts and as a table, purges from Settings → Analytics, and in dark mode sees one namespace's collections and
+      most used resources. No console errors.
 - **Fix (security): only the server's own media links are signed.** Text shaped like a media link
   (`/api/v1/recordings/12/audio`) came back signed: titles and transcript lines in API responses, and anything in the
   embed and report pages, including the transcript data inside them. Someone who could rename a recording or correct

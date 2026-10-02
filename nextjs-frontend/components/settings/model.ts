@@ -77,6 +77,7 @@ export type SectionId =
   | "uploads"
   | "documents"
   | "tokens"
+  | "analytics"
   | "iiif"
   | "startup";
 
@@ -176,6 +177,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["tokens"],
     description:
       "How long the API keys people make for scripts last, how long apps they sign in to stay signed in, and everyone’s keys, to revoke any of them.",
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    backend: ["analytics"],
+    description:
+      "How long what people do (views, plays, searches, downloads, comments) is kept with their account, and purging it.",
   },
   {
     id: "iiif",
@@ -905,6 +913,15 @@ export const FIELDS: FieldSpec[] = [
     min: 1,
     max: 3650,
     hint: "Counted from when the app last renewed its access; at most as long as a key may last",
+  },
+  {
+    section: "analytics",
+    key: "retention_days",
+    label: "Keep each action for (days)",
+    kind: "int",
+    min: 1,
+    max: 3650,
+    hint: "With the account that did it; after that only the daily counts stay, which name nobody",
   },
   {
     section: "uploads",

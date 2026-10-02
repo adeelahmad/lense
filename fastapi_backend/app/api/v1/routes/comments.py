@@ -10,7 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.deps import Access, Acl, CurrentUser, Db, Principal, Writer, domain_errors
+from app.api.deps import Access, Acl, CurrentUser, Db, Principal, Track, Writer, domain_errors
 from app.domain import auth, comments, highlights, store
 from app.domain.store import DB
 from app.schemas.comments import Comment, CommentCreate, CommentUpdate, Highlight, HighlightCreate, HighlightUpdate
@@ -92,13 +92,14 @@ def list_comments(rid: int, user: CurrentUser, acl: Acl, db: Db) -> list[Comment
 
 
 @router.post("/comments")
-def create_comment(rid: int, body: CommentCreate, user: Writer, acl: Acl, db: Db) -> Comment:
+def create_comment(rid: int, body: CommentCreate, user: Writer, acl: Acl, db: Db, track: Track) -> Comment:
     """Comment on a moment or passage (`t0`–`t1`, with the `quote` picked in the text) or on the whole resource, or
     with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone who can read the resource
     can, up to 1,000 each on a resource."""
     rec = _recording(acl, db, rid)
     with domain_errors():
         cid = comments.create(db, rid, rec["space"], user.id, body.text, body.t0, body.t1, body.quote, body.parent, rec.get("duration_ms"))
+    track("comment", rid, rec["space"], rec.get("collection"))
     return _comments_out(db, [comments.get(db, cid)], _rank(acl, rec), user)[0]
 
 

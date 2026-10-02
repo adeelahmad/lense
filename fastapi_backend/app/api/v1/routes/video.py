@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 
-from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_errors
+from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Track, Writer, domain_errors
 from app.api.media import sign_urls
 from app.api.v1.routes.recordings import serve_audio
 from app.domain import auth, convert, documents, files, ingest, jobs, store, video
@@ -48,11 +48,12 @@ FRAME_RX = re.compile(r"[\w.-]+\.jpg")
         206: {"description": "a byte range"},
     },
 )
-def get_media(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Response:
+def get_media(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, track: Track, s: str = "") -> Response:
     """The video or audio file, with byte ranges; a document's or an image's file, to save. Accepts a bearer token, a
     share link (``?s=``) or a signed link."""
     rec = acl.recording(rid, share=s)
     if rec.get("source") in documents.KINDS:
+        track("download", rid, rec["space"], rec.get("collection"))  # a file to save; audio and video are played
         return serve_document(db, cfg, rec)
     return serve_audio(db, cfg, rec, rid, request)
 
@@ -69,13 +70,14 @@ def serve_document(db: DB, cfg: dict[str, Any], rec: dict[str, Any]) -> FileResp
 
 
 @router.get("/recordings/{rid}/pdf", response_class=FileResponse, responses={200: {"content": {"application/pdf": {}}}})
-def get_pdf(rid: int, acl: Acl, cfg: Cfg, s: str = "") -> FileResponse:
+def get_pdf(rid: int, acl: Acl, cfg: Cfg, track: Track, s: str = "") -> FileResponse:
     """The PDF made of a document that isn't one (a Word file, an email, …): what its pages are drawn from, to save.
     Accepts a bearer token, a share link (``?s=``) or a signed link."""
     rec = acl.recording(rid, share=s)
     path = convert.rendition_path(cfg, rid)
     if rec.get("source") != "document" or not path.is_file():
         raise HTTPException(404, "not found")
+    track("download", rid, rec["space"], rec.get("collection"))
     name = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "document")).stem or "document"
     return FileResponse(path, media_type="application/pdf", filename=f"{name}.pdf", headers=files.HEADERS)
 

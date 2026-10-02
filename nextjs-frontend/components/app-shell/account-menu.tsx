@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { KeyRound, Keyboard, LogOut, SunMoon, UserRound, Users } from "lucide-react";
+import { History, Keyboard, KeyRound, LogOut, SunMoon, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
@@ -74,6 +74,12 @@ export function AccountMenu({ name, email }: { name?: string | null; email: stri
             <KeyRound />
             <span className="flex-1">API tokens</span>
             {tokens.data && <span className="tabular text-[12px] font-normal text-fg-muted">{tokens.data.length}</span>}
+          </Link>
+        </MenuItem>
+        <MenuItem asChild className={ITEM}>
+          <Link href="/account/activity">
+            <History />
+            <span className="flex-1">Your activity</span>
           </Link>
         </MenuItem>
         {owns && (

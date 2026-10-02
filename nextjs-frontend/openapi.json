@@ -3748,7 +3748,7 @@
           "resources"
         ],
         "summary": "Get Player",
-        "description": "Player data. Works with a share link (``?s=``) as well as signed in; media links in it are signed.",
+        "description": "Player data. Works with a share link (``?s=``) as well as signed in; media links in it are signed. Counted as\na view of the resource (once per half hour and person).",
         "operationId": "get_player",
         "parameters": [
           {
@@ -12983,6 +12983,342 @@
           }
         }
       }
+    },
+    "/api/v1/analytics": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Get Analytics",
+        "description": "Views, plays, searches, downloads and comments for a range of days: totals, per day, per collection and the most\nused resources. Days are UTC.",
+        "operationId": "get_analytics",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a namespace you own; without it, the whole archive (admins)",
+              "title": "Ns"
+            },
+            "description": "a namespace you own; without it, the whole archive (admins)"
+          },
+          {
+            "name": "collection",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one of its collections, with the ones inside it (its admins, or the namespace's owners)",
+              "title": "Collection"
+            },
+            "description": "one of its collections, with the ones inside it (its admins, or the namespace's owners)"
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 366,
+              "minimum": 1,
+              "description": "how many days back from today, when `from` isn't given",
+              "default": 30,
+              "title": "Days"
+            },
+            "description": "how many days back from today, when `from` isn't given"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the first day",
+              "title": "From"
+            },
+            "description": "the first day"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the last day (default: today)",
+              "title": "To"
+            },
+            "description": "the last day (default: today)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/me": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "My Activity",
+        "description": "Your own activity, the latest first: what Lens keeps about what you did, for analytics.retention_days.",
+        "operationId": "my_activity",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only what's earlier than this time (the `at` of the last entry you have)",
+              "title": "Before"
+            },
+            "description": "only what's earlier than this time (the `at` of the last entry you have)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityEntry"
+                  },
+                  "title": "Response Analytics-My Activity"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/played": {
+      "post": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Played",
+        "description": "The player started playing this resource (the web app says so once per page load). Counted as a play.",
+        "operationId": "played",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "s",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "S"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/recordings/{rid}/played": {
+      "post": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Played Public",
+        "description": "The same from a resource's public page, for whoever may see it there.",
+        "operationId": "played_public",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/analytics": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Analytics Status",
+        "description": "How much is kept: actions with their accounts, since when, and for how long (analytics.retention_days).",
+        "operationId": "analytics_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/analytics/purge": {
+      "post": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Purge Analytics",
+        "description": "Delete the actions past their retention now (a job does it every hour anyway), or with `everything` all of\nthem and the daily counts. Audited as `analytics.purge`.",
+        "operationId": "purge_analytics",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurgeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Purged"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -13175,6 +13511,242 @@
         ],
         "title": "AccountToken",
         "description": "Anyone's key, for admins."
+      },
+      "ActionCounts": {
+        "properties": {
+          "view": {
+            "type": "integer",
+            "title": "View",
+            "default": 0
+          },
+          "play": {
+            "type": "integer",
+            "title": "Play",
+            "default": 0
+          },
+          "search": {
+            "type": "integer",
+            "title": "Search",
+            "default": 0
+          },
+          "download": {
+            "type": "integer",
+            "title": "Download",
+            "default": 0
+          },
+          "comment": {
+            "type": "integer",
+            "title": "Comment",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ActionCounts"
+      },
+      "ActivityEntry": {
+        "properties": {
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "view",
+              "play",
+              "search",
+              "download",
+              "comment"
+            ],
+            "title": "Action"
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "the resource's title, while you can still read it"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "at",
+          "action"
+        ],
+        "title": "ActivityEntry"
+      },
+      "AnalyticsReport": {
+        "properties": {
+          "from": {
+            "type": "string",
+            "title": "From",
+            "description": "the first day, YYYY-MM-DD"
+          },
+          "to": {
+            "type": "string",
+            "title": "To",
+            "description": "the last day"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ActionCounts"
+          },
+          "people": {
+            "type": "integer",
+            "title": "People",
+            "description": "different accounts that did any of it (within what's still kept: analytics.retention_days)"
+          },
+          "anonymous": {
+            "type": "integer",
+            "title": "Anonymous",
+            "description": "how many of the actions had no account: visitors, and files fetched by a signed link"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/DayCounts"
+            },
+            "type": "array",
+            "title": "Days",
+            "description": "every day of the range, in order"
+          },
+          "collections": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CollectionCounts"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collections",
+            "description": "for a namespace: its collections with any activity"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/NamespaceCounts"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespaces",
+            "description": "for the whole archive (admins): the namespaces with any"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceCounts"
+            },
+            "type": "array",
+            "title": "Resources",
+            "description": "the 20 most used resources"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "totals",
+          "people",
+          "anonymous",
+          "days"
+        ],
+        "title": "AnalyticsReport",
+        "description": "The numbers for a range of days."
+      },
+      "AnalyticsStatus": {
+        "properties": {
+          "events": {
+            "type": "integer",
+            "title": "Events",
+            "description": "actions kept with their account"
+          },
+          "oldest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldest"
+          },
+          "days": {
+            "type": "integer",
+            "title": "Days",
+            "description": "daily counts kept (they hold no accounts)"
+          },
+          "retention_days": {
+            "type": "integer",
+            "title": "Retention Days"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "events",
+          "days",
+          "retention_days"
+        ],
+        "title": "AnalyticsStatus"
       },
       "AnswerCheck": {
         "properties": {
@@ -15162,6 +15734,58 @@
         ],
         "title": "Collection"
       },
+      "CollectionCounts": {
+        "properties": {
+          "view": {
+            "type": "integer",
+            "title": "View",
+            "default": 0
+          },
+          "play": {
+            "type": "integer",
+            "title": "Play",
+            "default": 0
+          },
+          "search": {
+            "type": "integer",
+            "title": "Search",
+            "default": 0
+          },
+          "download": {
+            "type": "integer",
+            "title": "Download",
+            "default": 0
+          },
+          "comment": {
+            "type": "integer",
+            "title": "Comment",
+            "default": 0
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Path",
+            "description": "the collections from the namespace's top down to it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CollectionCounts"
+      },
       "CollectionCreate": {
         "properties": {
           "name": {
@@ -16370,6 +16994,46 @@
           "id"
         ],
         "title": "Created"
+      },
+      "DayCounts": {
+        "properties": {
+          "view": {
+            "type": "integer",
+            "title": "View",
+            "default": 0
+          },
+          "play": {
+            "type": "integer",
+            "title": "Play",
+            "default": 0
+          },
+          "search": {
+            "type": "integer",
+            "title": "Search",
+            "default": 0
+          },
+          "download": {
+            "type": "integer",
+            "title": "Download",
+            "default": 0
+          },
+          "comment": {
+            "type": "integer",
+            "title": "Comment",
+            "default": 0
+          },
+          "day": {
+            "type": "string",
+            "title": "Day",
+            "description": "YYYY-MM-DD (UTC)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "day"
+        ],
+        "title": "DayCounts"
       },
       "Description": {
         "properties": {
@@ -20069,6 +20733,45 @@
         ],
         "title": "NamespaceAccess"
       },
+      "NamespaceCounts": {
+        "properties": {
+          "view": {
+            "type": "integer",
+            "title": "View",
+            "default": 0
+          },
+          "play": {
+            "type": "integer",
+            "title": "Play",
+            "default": 0
+          },
+          "search": {
+            "type": "integer",
+            "title": "Search",
+            "default": 0
+          },
+          "download": {
+            "type": "integer",
+            "title": "Download",
+            "default": 0
+          },
+          "comment": {
+            "type": "integer",
+            "title": "Comment",
+            "default": 0
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "NamespaceCounts"
+      },
       "NamespaceCreate": {
         "properties": {
           "name": {
@@ -23133,6 +23836,39 @@
         ],
         "title": "PublicTranscript"
       },
+      "PurgeRequest": {
+        "properties": {
+          "everything": {
+            "type": "boolean",
+            "title": "Everything",
+            "description": "delete all of it, the daily counts too; default: only what's past its retention",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PurgeRequest"
+      },
+      "Purged": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "deleted": {
+            "type": "integer",
+            "title": "Deleted",
+            "description": "actions deleted"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "title": "Purged"
+      },
       "Recording": {
         "properties": {
           "id": {
@@ -24186,6 +24922,67 @@
           "password"
         ],
         "title": "ResetPasswordRequest"
+      },
+      "ResourceCounts": {
+        "properties": {
+          "view": {
+            "type": "integer",
+            "title": "View",
+            "default": 0
+          },
+          "play": {
+            "type": "integer",
+            "title": "Play",
+            "default": 0
+          },
+          "search": {
+            "type": "integer",
+            "title": "Search",
+            "default": 0
+          },
+          "download": {
+            "type": "integer",
+            "title": "Download",
+            "default": 0
+          },
+          "comment": {
+            "type": "integer",
+            "title": "Comment",
+            "default": 0
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ResourceCounts"
       },
       "ResourceFile": {
         "properties": {

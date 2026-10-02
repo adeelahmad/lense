@@ -1,11 +1,11 @@
 "use client";
 
-import { useMutation, useQueries } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlugZap, RefreshCw, Terminal } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { Admin, Metadata } from "@/app/openapi-client";
+import { Admin, Analytics, Metadata } from "@/app/openapi-client";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
@@ -17,6 +17,7 @@ import { Select, Switch } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
+import { count, shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type NsAccess = Record<string, string>;
@@ -314,6 +315,13 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <AllTokens />
         </>
       );
+    case "analytics":
+      return (
+        <>
+          <F ctx={ctx} id="analytics.retention_days" />
+          <AnalyticsKept />
+        </>
+      );
     case "uploads":
       return (
         <>
@@ -460,6 +468,67 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         </div>
       </div>
     </>
+  );
+}
+
+/** What analytics keep, and purging it (docs/analytics.md). */
+function AnalyticsKept() {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const [confirm, setConfirm] = useState(false);
+  const status = useQuery({
+    queryKey: ["analytics", "status"],
+    queryFn: () => data(Analytics.analyticsStatus({ client })),
+    staleTime: 0,
+  });
+  const purge = useMutation({
+    mutationFn: (everything: boolean) => data(Analytics.purgeAnalytics({ client, body: { everything } })),
+    onSuccess: () => {
+      setConfirm(false);
+      void qc.invalidateQueries({ queryKey: ["analytics"] });
+    },
+  });
+  const s = status.data;
+  return (
+    <div className="flex flex-col gap-2.5 rounded-md border border-border px-3.5 py-3">
+      <span className="text-[13px] font-bold text-fg-strong">What’s kept</span>
+      <span className="text-[13px] leading-[1.45] text-fg-secondary">
+        {status.isPending
+          ? "Counting…"
+          : status.isError
+            ? `Couldn’t tell: ${status.error.message}`
+            : s && s.events
+              ? `${count(s.events)} ${s.events === 1 ? "action" : "actions"} with their accounts, the oldest from ${shortDate(s.oldest)}; ${count(s.days)} daily counts.`
+              : `No actions with accounts${s?.days ? `; ${count(s.days)} daily counts` : ""}.`}{" "}
+        Each action is the account, the resource and the time: no addresses, no browsers. Workers delete what’s past its
+        days every hour.
+      </span>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="secondary" disabled={purge.isPending} onClick={() => purge.mutate(false)}>
+          Purge what’s past its days now
+        </Button>
+        {confirm ? (
+          <>
+            <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>
+              Keep
+            </Button>
+            <Button size="sm" variant="danger" disabled={purge.isPending} onClick={() => purge.mutate(true)}>
+              Delete all of it
+            </Button>
+          </>
+        ) : (
+          <Button size="sm" variant="danger-ghost" onClick={() => setConfirm(true)}>
+            Delete everything…
+          </Button>
+        )}
+        {purge.isSuccess && (
+          <span role="status" className="text-[12.5px] text-fg-secondary">
+            {count(purge.data.deleted)} deleted.
+          </span>
+        )}
+        {purge.isError && <span className="text-[12.5px] text-red-dark">{purge.error.message}</span>}
+      </div>
+    </div>
   );
 }
 

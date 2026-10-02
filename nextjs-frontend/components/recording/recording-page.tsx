@@ -4,6 +4,7 @@ import { FileQuestion, RotateCw, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { ReportPlay } from "@/components/analytics/play-report";
 import { keyToAction } from "@/components/player/keys";
 import { PlayerProvider, usePlayerApi, usePlayerState } from "@/components/player/media";
 import { AudioLayout } from "@/components/recording/audio-layout";
@@ -131,6 +132,7 @@ function PlayerShell(props: Omit<InnerProps, "turns" | "speakers">) {
       speech={props.model.segments}
       onSeek={onSeek}
     >
+      <ReportPlay rid={props.model.id} />
       <Inner {...props} turns={turns} speakers={speakers} />
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}

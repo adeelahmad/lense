@@ -738,10 +738,15 @@ class Worker:
         return n
 
     def loop(self, stop):
-        last = 0.0
+        last = purged = 0.0
         while not stop.is_set():
             try:
                 w = self.cfg_fn()["workers"]
+                if time.time() - purged > 3600:  # analytics past their retention go (domain/telemetry.py)
+                    from . import telemetry
+
+                    purged = time.time()
+                    telemetry.purge(self.db, self.cfg_fn())
                 if time.time() - last > 30:
                     reap(self.db, w["stale_minutes"], w["max_attempts"])
                     self.register()

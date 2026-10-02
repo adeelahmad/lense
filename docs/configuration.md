@@ -56,7 +56,7 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 ## Settings in the app
 
 Admins can change transcription, diarisation, voice-ID thresholds, analysis, LLM provider and key, graph, search (and search by meaning),
-reports, workers, IIIF, the assistant, video, uploads, documents and images, and server options (embed frame ancestors, transcript upload
+reports, workers, IIIF, the assistant, video, uploads, documents and images, analytics, and server options (embed frame ancestors, transcript upload
 limit, allowed hosts, trusted proxies, session length). The API refuses an allowed-host list that leaves out the address
 you are using.
 
@@ -220,6 +220,15 @@ Set at startup only:
 After switching it on, what's imported or reprocessed from then on is embedded by its pipeline (the standard one has
 the embed step; add it to pipelines of your own). For what's already there, run the embed step: Library → select →
 Reprocess, or a batch run. Workers listed in `workers.steps` need `embed` to run it.
+
+## Analytics
+
+What people do with resources is counted for the owners of namespaces and collections ([Analytics](analytics.md)).
+Settings → Analytics:
+
+| Setting | Default | |
+|---|---|---|
+| `analytics.retention_days` | 90 | how long each action is kept with the account that did it, 1–3650 days; the daily counts, which name nobody, stay |
 
 ## API keys
 

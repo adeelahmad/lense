@@ -32,6 +32,8 @@ SPACED = (
     "object_track",
     "description",
     "embedding",
+    "activity",
+    "activity_day",
     "job",
     "output",
     "share_link",

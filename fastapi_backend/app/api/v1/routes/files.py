@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import ClientDisconnect
 
-from app.api.deps import Access, Acl, Cfg, Db, Writer, domain_errors
+from app.api.deps import Access, Acl, Cfg, Db, Track, Writer, domain_errors
 from app.api.media import sign_urls
 from app.api.v1.routes.uploads import CHUNK
 from app.domain import access as acc
@@ -201,13 +201,14 @@ def delete_file(rid: int, fid: int, acl: Acl, user: Writer, db: Db, cfg: Cfg) ->
 
 
 @router.get("/{fid}/download", response_class=FileResponse, responses={200: {"content": {"application/octet-stream": {}}}})
-def download_file(rid: int, fid: int, acl: Acl, db: Db, cfg: Cfg) -> FileResponse:
+def download_file(rid: int, fid: int, acl: Acl, db: Db, cfg: Cfg, track: Track) -> FileResponse:
     """The file as it was added, to save. Accepts a bearer token or a signed link (from the list)."""
-    acl.recording(rid)
+    rec = acl.recording(rid)
     f = _file(db, rid, fid)
     path = files.path_of(cfg, f)
     if not path.is_file():
         raise HTTPException(404, "the file is missing on the server")
+    track("download", rid, rec["space"], rec.get("collection"))
     return FileResponse(path, media_type=files.served_type(f), filename=f["name"], headers=files.HEADERS)
 
 

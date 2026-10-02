@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Public } from "@/app/openapi-client";
+import { ReportPlay } from "@/components/analytics/play-report";
 import type { PublicRecording } from "@/app/openapi-client/types.gen";
 import { AccessBadge } from "@/components/access/access-fields";
 import { first, type Meta } from "@/components/iiif/metadata-model";
@@ -172,6 +173,7 @@ function RecordingBody({
   return (
     <PlayerProvider hasMedia={Boolean(rec.media)} durationMs={duration} speech={segments}>
       <StartAt start={start} />
+      <ReportPlay rid={rec.id} visitor />
       <article className="mx-auto flex w-full max-w-[1120px] flex-col gap-5 px-4 py-6 sm:px-6">
         {head}
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">

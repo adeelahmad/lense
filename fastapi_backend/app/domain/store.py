@@ -180,6 +180,8 @@ DEFAULTS = {
     # never expire; and how long the tokens of apps given access through OAuth last (domain/oauth.py): the access token,
     # and the grant after the app last renewed it
     "tokens": {"default_days": 90, "max_days": 365, "never_expire": False, "oauth_access_minutes": 60, "oauth_refresh_days": 30},
+    # what's done with the archive (domain/telemetry.py): how long each action is kept with its account
+    "analytics": {"retention_days": 90},
     # audio, video, documents and images uploaded in the web app, in pieces (docs/configuration.md); transcript files use
     # server.max_upload_mb
     "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT + DOCUMENT_EXT + IMAGE_EXT), "chunk_mb": 8, "expire_hours": 24},
@@ -594,6 +596,15 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS share_embed SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS share_embed_rec ON share_embed FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS share_embed_share ON share_embed FIELDS share",
+    # analytics (app/domain/telemetry.py): each action with its account, and the counts per day, resource and action
+    # (activity_day:⟨day|space|collection|resource|action⟩)
+    "DEFINE TABLE IF NOT EXISTS activity SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS activity_at ON activity FIELDS at",
+    "DEFINE INDEX IF NOT EXISTS activity_account ON activity FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS activity_rec ON activity FIELDS recording",
+    "DEFINE TABLE IF NOT EXISTS activity_day SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS activity_day_day ON activity_day FIELDS day",
+    "DEFINE INDEX IF NOT EXISTS activity_day_rec ON activity_day FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS audit_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS audit_at ON audit_log FIELDS at",
     # background work

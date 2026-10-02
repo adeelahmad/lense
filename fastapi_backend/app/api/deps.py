@@ -19,11 +19,11 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, HTTPException, Request
 
 from app.core import security
 from app.domain import access as acc
-from app.domain import auth, hierarchy, ipgroups, oauth, store
+from app.domain import auth, hierarchy, ipgroups, oauth, store, telemetry
 from app.domain.store import DB
 
 Config = dict[str, Any]
@@ -276,6 +276,26 @@ def get_access(request: Request, db: Db, user: OptionalUser) -> Access:
 
 
 Acl = Annotated[Access, Depends(get_access)]
+
+
+class Tracker:
+    """Counts what a request did, for analytics (domain/telemetry.py), once its answer is on its way: who (their
+    account, or nobody: a visitor, or a signed link), what, and which resource. Never an address or a browser."""
+
+    def __init__(self, request: Request, tasks: BackgroundTasks, user: OptionalUser):
+        self.request, self.tasks, self.user = request, tasks, user
+
+    def __call__(self, action: str, rid: int | None = None, space: int | None = None, collection: int | None = None) -> None:
+        state = self.request.app.state
+        account = self.user.id if self.user else None
+        self.tasks.add_task(telemetry.record, state.db, state.settings.current(), action, account, rid, space, collection)
+
+
+def get_tracker(request: Request, tasks: BackgroundTasks, user: OptionalUser) -> Tracker:
+    return Tracker(request, tasks, user)
+
+
+Track = Annotated[Tracker, Depends(get_tracker)]
 
 
 @contextlib.contextmanager

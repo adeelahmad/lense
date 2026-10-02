@@ -736,6 +736,23 @@ import type {
   UpdateViewData,
   UpdateViewResponses,
   UpdateViewErrors,
+  GetAnalyticsData,
+  GetAnalyticsResponses,
+  GetAnalyticsErrors,
+  MyActivityData,
+  MyActivityResponses,
+  MyActivityErrors,
+  PlayedData,
+  PlayedResponses,
+  PlayedErrors,
+  PlayedPublicData,
+  PlayedPublicResponses,
+  PlayedPublicErrors,
+  AnalyticsStatusData,
+  AnalyticsStatusResponses,
+  PurgeAnalyticsData,
+  PurgeAnalyticsResponses,
+  PurgeAnalyticsErrors,
 } from "./types.gen";
 import { client } from "./client.gen";
 
@@ -1823,7 +1840,8 @@ export class Resources {
 
   /**
    * Get Player
-   * Player data. Works with a share link (``?s=``) as well as signed in; media links in it are signed.
+   * Player data. Works with a share link (``?s=``) as well as signed in; media links in it are signed. Counted as
+   * a view of the resource (once per half hour and person).
    */
   public static getPlayer<ThrowOnError extends boolean = false>(options: Options<GetPlayerData, ThrowOnError>) {
     return (options.client ?? client).get<GetPlayerResponses, GetPlayerErrors, ThrowOnError>({
@@ -4370,6 +4388,84 @@ export class Views {
   public static updateView<ThrowOnError extends boolean = false>(options: Options<UpdateViewData, ThrowOnError>) {
     return (options.client ?? client).patch<UpdateViewResponses, UpdateViewErrors, ThrowOnError>({
       url: "/api/v1/views/{vid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Analytics {
+  /**
+   * Get Analytics
+   * Views, plays, searches, downloads and comments for a range of days: totals, per day, per collection and the most
+   * used resources. Days are UTC.
+   */
+  public static getAnalytics<ThrowOnError extends boolean = false>(options?: Options<GetAnalyticsData, ThrowOnError>) {
+    return (options?.client ?? client).get<GetAnalyticsResponses, GetAnalyticsErrors, ThrowOnError>({
+      url: "/api/v1/analytics",
+      ...options,
+    });
+  }
+
+  /**
+   * My Activity
+   * Your own activity, the latest first: what Lens keeps about what you did, for analytics.retention_days.
+   */
+  public static myActivity<ThrowOnError extends boolean = false>(options?: Options<MyActivityData, ThrowOnError>) {
+    return (options?.client ?? client).get<MyActivityResponses, MyActivityErrors, ThrowOnError>({
+      url: "/api/v1/analytics/me",
+      ...options,
+    });
+  }
+
+  /**
+   * Played
+   * The player started playing this resource (the web app says so once per page load). Counted as a play.
+   */
+  public static played<ThrowOnError extends boolean = false>(options: Options<PlayedData, ThrowOnError>) {
+    return (options.client ?? client).post<PlayedResponses, PlayedErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/played",
+      ...options,
+    });
+  }
+
+  /**
+   * Played Public
+   * The same from a resource's public page, for whoever may see it there.
+   */
+  public static playedPublic<ThrowOnError extends boolean = false>(options: Options<PlayedPublicData, ThrowOnError>) {
+    return (options.client ?? client).post<PlayedPublicResponses, PlayedPublicErrors, ThrowOnError>({
+      url: "/api/v1/public/recordings/{rid}/played",
+      ...options,
+    });
+  }
+
+  /**
+   * Analytics Status
+   * How much is kept: actions with their accounts, since when, and for how long (analytics.retention_days).
+   */
+  public static analyticsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<AnalyticsStatusData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<AnalyticsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/analytics",
+      ...options,
+    });
+  }
+
+  /**
+   * Purge Analytics
+   * Delete the actions past their retention now (a job does it every hour anyway), or with `everything` all of
+   * them and the daily counts. Audited as `analytics.purge`.
+   */
+  public static purgeAnalytics<ThrowOnError extends boolean = false>(
+    options: Options<PurgeAnalyticsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<PurgeAnalyticsResponses, PurgeAnalyticsErrors, ThrowOnError>({
+      url: "/api/v1/admin/analytics/purge",
       ...options,
       headers: {
         "Content-Type": "application/json",

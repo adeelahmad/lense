@@ -13,7 +13,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query, Request
 from fastapi.responses import Response
 
-from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_errors
+from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Track, Writer, domain_errors
 from app.api.media import sign_url, sign_urls
 from app.api.streaming import file_response, range_response
 from app.domain import access as acc
@@ -488,9 +488,11 @@ def decline_access_request(rid: int, account: int, acl: Acl, user: Writer, db: D
 
 
 @router.get("/{rid}/player")
-def get_player(rid: int, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Player:
-    """Player data. Works with a share link (``?s=``) as well as signed in; media links in it are signed."""
+def get_player(rid: int, acl: Acl, db: Db, cfg: Cfg, track: Track, s: str = "") -> Player:
+    """Player data. Works with a share link (``?s=``) as well as signed in; media links in it are signed. Counted as
+    a view of the resource (once per half hour and person)."""
     rec = acl.recording(rid, share=s)
+    track("view", rid, rec["space"], rec.get("collection"))
     return sign_urls(render.player_data(db, rid, audio_link(db, cfg, rid, s)), full=acl.member(rec))
 
 
@@ -614,11 +616,12 @@ def list_shares(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[Share]:
     response_class=Response,
     responses={200: {"content": {t: {} for t in EXPORT_TYPES.values()}}},
 )
-def export_recording(rid: int, fmt: str, acl: Acl, db: Db) -> Response:
+def export_recording(rid: int, fmt: str, acl: Acl, db: Db, track: Track) -> Response:
     """The transcript as txt, md, srt, vtt or json (a download)."""
-    acl.recording(rid)
+    rec = acl.recording(rid)
     if fmt not in EXPORT_TYPES:
         raise HTTPException(404, f"exports: {', '.join(EXPORT_TYPES)}")
+    track("download", rid, rec["space"], rec.get("collection"))
     d = render.player_data(db, rid)
     return Response(
         render.export_text(d, fmt),

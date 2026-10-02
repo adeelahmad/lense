@@ -79,6 +79,21 @@ Lens is an OAuth 2.1 authorization server for API and MCP clients ([Authenticati
 
 `GET /auth/me` says `via: "oauth"` for an app's token, with `scope` `read` or `write`.
 
+## analytics
+
+```
+GET    /api/v1/analytics
+GET    /api/v1/analytics/me
+POST   /api/v1/resources/{rid}/played
+POST   /api/v1/public/recordings/{rid}/played
+GET    /api/v1/admin/analytics
+POST   /api/v1/admin/analytics/purge
+```
+
+Views, plays, searches, downloads and comments, counted per day for a namespace's owners, a collection's admins and
+admins, and each person's own activity: see [Analytics](analytics.md), which says what is kept (the account, the
+resource and the time; nothing else) and for how long.
+
 ## users
 
 ```
