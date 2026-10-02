@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Install on Proxmox VE with one command.** A [community helper script](https://community-scripts.org/docs/ct/detailed_guide)
+  (`proxmox/ct/lens.sh`, run in the Proxmox host's shell) creates a Debian 13 LXC container running Lens without
+  Docker: SurrealDB 3.2.4, the API, a job worker and the web app as systemd services, with fresh secrets and the web
+  app on port 3000. `lens-setup-code` in the container prints the first-admin setup code; after the admin, the setup
+  wizard (`/welcome`) asks for the first namespace, the model provider and storage. `update` moves to the
+  latest published GitHub release (the newest `main` until there is one), building it beside the running version
+  so Lens stays up until the switch (proxmox/README.md).
 - **Synology package.** `packaging/synology/build.sh` builds a self-contained `.spk` for DSM 7.2.1+ (x86_64, or
   64-bit ARM with `ARCH=armv8`): Manual Install it in Package Center, answer a short wizard (port, address, setup
   code), and Lens runs. The package carries the API/worker, web app and SurrealDB images and hands them to Container
