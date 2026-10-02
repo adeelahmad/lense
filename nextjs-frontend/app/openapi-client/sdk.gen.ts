@@ -73,6 +73,20 @@ import type {
   GetHealthResponses,
   ReindexSearchData,
   ReindexSearchResponses,
+  GetSetupData,
+  GetSetupResponses,
+  SaveNamespaceData,
+  SaveNamespaceResponses,
+  SaveNamespaceErrors,
+  SaveLlmData,
+  SaveLlmResponses,
+  SaveLlmErrors,
+  SaveStorageData,
+  SaveStorageResponses,
+  SaveStorageErrors,
+  FinishData,
+  FinishResponses,
+  FinishErrors,
   ListNamespacesData,
   ListNamespacesResponses,
   CreateNamespaceData,
@@ -771,7 +785,8 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 export class Auth {
   /**
    * Status
-   * Whether the archive still needs its first admin (the sign-in page shows the setup form instead).
+   * Whether the archive still needs its first admin (the sign-in page shows the setup form instead), and whether
+   * the first-run wizard is still to be finished (the web app takes admins there).
    */
   public static status<ThrowOnError extends boolean = false>(options?: Options<StatusData, ThrowOnError>) {
     return (options?.client ?? client).get<StatusResponses, unknown, ThrowOnError>({
@@ -1130,6 +1145,79 @@ export class Admin {
     return (options?.client ?? client).post<ReindexSearchResponses, unknown, ThrowOnError>({
       url: "/api/v1/admin/reindex",
       ...options,
+    });
+  }
+}
+
+export class Setup {
+  /**
+   * Get Setup
+   * What is set already, and which fields .env or archive.yaml locks.
+   */
+  public static getSetup<ThrowOnError extends boolean = false>(options?: Options<GetSetupData, ThrowOnError>) {
+    return (options?.client ?? client).get<GetSetupResponses, unknown, ThrowOnError>({
+      url: "/api/v1/setup",
+      ...options,
+    });
+  }
+
+  /**
+   * Save Namespace
+   * Create the first namespace (or set the graph mode of one that exists).
+   */
+  public static saveNamespace<ThrowOnError extends boolean = false>(options: Options<SaveNamespaceData, ThrowOnError>) {
+    return (options.client ?? client).post<SaveNamespaceResponses, SaveNamespaceErrors, ThrowOnError>({
+      url: "/api/v1/setup/namespace",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Save Llm
+   * The model provider: an OpenAI-compatible server's address, the model, and its key (empty: unchanged).
+   */
+  public static saveLlm<ThrowOnError extends boolean = false>(options: Options<SaveLlmData, ThrowOnError>) {
+    return (options.client ?? client).put<SaveLlmResponses, SaveLlmErrors, ThrowOnError>({
+      url: "/api/v1/setup/llm",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Save Storage
+   * The upload limit, and optionally a folder on this machine (inside sources.local_roots) to watch.
+   */
+  public static saveStorage<ThrowOnError extends boolean = false>(options: Options<SaveStorageData, ThrowOnError>) {
+    return (options.client ?? client).put<SaveStorageResponses, SaveStorageErrors, ThrowOnError>({
+      url: "/api/v1/setup/storage",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Finish
+   * Finish (or skip) the wizard; the web app stops showing it. Everything stays changeable in Settings.
+   */
+  public static finish<ThrowOnError extends boolean = false>(options: Options<FinishData, ThrowOnError>) {
+    return (options.client ?? client).post<FinishResponses, FinishErrors, ThrowOnError>({
+      url: "/api/v1/setup/finish",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

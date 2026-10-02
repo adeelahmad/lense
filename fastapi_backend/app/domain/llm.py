@@ -3,6 +3,7 @@ structured output checked against a JSON Schema."""
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import re
@@ -63,9 +64,25 @@ def list_models(cfg, ttl=60):
     return names
 
 
+def _load(r):
+    """The server's JSON reply; LLMError when it isn't JSON (a proxy's error page, a reply cut off)."""
+    try:
+        return json.load(r)
+    except (ValueError, OSError, http.client.HTTPException):
+        raise LLMError("the LLM server's reply wasn't JSON") from None
+
+
+THINK = re.compile(r"^\s*<think>.*?(?:</think>\s*|$)", re.S)
+
+
+def unthink(text):
+    """The reply without the <think>...</think> block reasoning models (Qwen 3, DeepSeek R1) start with."""
+    return THINK.sub("", text or "", count=1)
+
+
 def _content(j):
     try:
-        return j["choices"][0]["message"]["content"] or ""
+        return unthink(j["choices"][0]["message"]["content"] or "")
     except (KeyError, IndexError, TypeError):
         raise LLMError("unexpected reply from the LLM server") from None
 
@@ -75,28 +92,66 @@ def chat(cfg, messages, model=None, max_tokens=None, temperature=0.2):
     if max_tokens:
         payload["max_tokens"] = max_tokens
     with _post(cfg, payload) as r:
-        return _content(json.load(r))
+        return _content(_load(r))
+
+
+def _visible(pieces):
+    """The streamed pieces without a leading <think>...</think> block, which can be split across pieces."""
+    buf, thinking = "", None  # None: not yet known whether the answer starts with one
+    for piece in pieces:
+        if thinking is False:
+            yield piece
+            continue
+        buf += piece
+        head = buf.lstrip()
+        if thinking is None:
+            if len(head) < len("<think>") and "<think>".startswith(head):
+                continue
+            thinking = head.startswith("<think>")
+            if not thinking:
+                yield buf
+                continue
+        if "</think>" in buf:
+            rest, buf, thinking = buf.split("</think>", 1)[1].lstrip(), "", False
+            if rest:
+                yield rest
+    if thinking is None and buf:
+        yield buf
 
 
 def stream_chat(cfg, messages, model=None, temperature=0.2):
-    r = _post(cfg, {"model": model or cfg["llm"]["model"], "messages": messages, "temperature": temperature, "stream": True})
+    """The answer in pieces as the server writes them, without any thinking. LLMError if the server stops mid-answer."""
+    yield from _visible(_stream(cfg, model or cfg["llm"]["model"], messages, temperature))
+
+
+def _stream(cfg, model, messages, temperature):
+    r = _post(cfg, {"model": model, "messages": messages, "temperature": temperature, "stream": True})
     try:
         if "text/event-stream" not in (r.headers.get("Content-Type") or ""):
-            yield _content(json.load(r))  # the server ignored stream=true
+            yield _content(_load(r))  # the server ignored stream=true
             return
-        for raw in r:
-            line = raw.decode("utf-8", "replace").strip()
-            if not line.startswith("data:"):
-                continue
-            data = line[5:].strip()
-            if data == "[DONE]":
-                break
-            try:
-                delta = json.loads(data)["choices"][0].get("delta", {}).get("content")
-            except (ValueError, KeyError, IndexError, TypeError):
-                continue
-            if delta:
-                yield delta
+        finished = False
+        try:
+            for raw in r:
+                line = raw.decode("utf-8", "replace").strip()
+                if not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    finished = True
+                    break
+                try:
+                    choice = json.loads(data)["choices"][0]
+                    delta = (choice.get("delta") or {}).get("content")
+                except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+                    continue
+                finished = finished or bool(choice.get("finish_reason"))
+                if delta:
+                    yield delta
+        except (OSError, http.client.HTTPException) as e:
+            raise LLMError(f"the LLM server stopped mid-answer: {e}") from None
+        if not finished:
+            raise LLMError("the LLM server stopped mid-answer")
     finally:
         r.close()
 
@@ -157,7 +212,7 @@ def json_out(cfg, system, user, schema, model=None):
     }
     try:
         with _post(cfg, payload) as r:
-            text = _content(json.load(r))
+            text = _content(_load(r))
     except LLMError as e:
         if not str(e)[:3] in ("400", "422", "404"):
             raise
@@ -181,7 +236,7 @@ def chat_message(cfg, messages, tools=None, model=None, temperature=0.2):
         payload.update(tools=tools, tool_choice="auto")
     try:
         with _post(cfg, payload) as r:
-            j = json.load(r)
+            j = _load(r)
     except LLMError as e:
         if tools and str(e)[:3] in ("400", "404", "422", "501"):
             raise ToolsUnsupported(str(e)) from None
@@ -190,4 +245,6 @@ def chat_message(cfg, messages, tools=None, model=None, temperature=0.2):
         msg = j["choices"][0]["message"]
     except (KeyError, IndexError, TypeError):
         raise LLMError("unexpected reply from the LLM server") from None
-    return {"content": msg.get("content") or "", "tool_calls": msg.get("tool_calls") or []}
+    if not isinstance(msg, dict):
+        raise LLMError("unexpected reply from the LLM server")
+    return {"content": unthink(msg.get("content") or ""), "tool_calls": msg.get("tool_calls") or []}

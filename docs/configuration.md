@@ -27,10 +27,33 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `ARCHIVE_ALLOWED_HOSTS` | | break-glass override of allowed Host headers if a bad setting locks everyone out |
 | `RUN_BACKGROUND` | follows `workers.inline` | run job workers and folder watching inside the API process |
 | `LENS_SETUP_CODE` | random | fix the first-run setup code (automation) |
+| `LENS_ADMIN_EMAIL` / `LENS_ADMIN_PASSWORD` / `LENS_ADMIN_NAME` | | create the first admin at startup, with no setup code ([First-run setup](#first-run-setup)) |
+| `LENS_NAMESPACE` | | create the first namespace at startup, while there is none |
+| `LENS_LLM_BASE_URL` / `LENS_LLM_MODEL` / `LENS_LLM_API_KEY` / `LENS_LLM_VISION_MODEL` | | the model provider; wins over Settings, which show these locked |
+| `LENS_SETUP_WIZARD` | | `off`: never show the setup wizard |
 | `FRONTEND_URL` | `http://localhost:3000` | links in emails |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | origins allowed to call the API from a browser |
 | `OPENAPI_URL` | `/openapi.json` | `""` disables `/docs` and the schema |
 | `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, `MAIL_STARTTLS`, `MAIL_SSL_TLS`, `USE_CREDENTIALS`, `VALIDATE_CERTS` | | SMTP for password reset and for telling owners about requests for access; without `MAIL_SERVER` the links are logged |
+
+## First-run setup
+
+A fresh install (no accounts when the API first starts) walks its first admin through setup in the web app:
+
+1. **Admin account**, with the one-time setup code from the log (`make setup-code`), so a stranger who finds a new
+   public server can't claim it. Skipped when `LENS_ADMIN_EMAIL` and `LENS_ADMIN_PASSWORD` create the admin at
+   startup; then you sign in with those.
+2. **Namespace**: the first one, with its knowledge graph shared or isolated. Already done when archive.yaml or
+   `LENS_NAMESPACE` names namespaces, or an install script made one.
+3. **Model provider**: an OpenAI-compatible server (OpenAI, Ollama, llama.cpp, LM Studio, vLLM), its model and key,
+   with a test.
+4. **Storage**: where data lives (shown; set in archive.yaml and `SURREAL_URL`), the largest upload, and optionally a
+   folder inside `sources.local_roots` to watch.
+
+Every step can be skipped, and the whole wizard too; all of it stays in Settings. Values from the environment win and
+show locked. Installs that already had accounts never see the wizard. The API side is `GET /api/v1/setup`,
+`POST /api/v1/setup/namespace`, `PUT /api/v1/setup/llm`, `PUT /api/v1/setup/storage` and `POST /api/v1/setup/finish`
+(admins); `GET /api/v1/auth/status` says whether it is still pending (`wizard_pending`).
 
 ## Frontend environment
 

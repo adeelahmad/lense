@@ -44,6 +44,6 @@ Start with [Get started](docs/get-started.md), then:
 - [Configuration](docs/configuration.md)
 - [Processing](docs/processing.md), [Video](docs/video.md), [Chat and batch runs](docs/assistant.md), [IIIF](docs/iiif.md)
 - [API](docs/api.md), [what the design needs from the API next](docs/backend-gaps.md)
-- [Deployment](docs/deployment.md), [Contributing](docs/contributing.md)
+- [Deployment](docs/deployment.md), [Contributing](CONTRIBUTING.md), [Security](SECURITY.md)
 
 Built on the [Next.js FastAPI Template](https://github.com/vintasoftware/nextjs-fastapi-template) (MIT).
