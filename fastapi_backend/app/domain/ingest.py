@@ -700,8 +700,12 @@ def read_doc(path):
                 return out.stdout
     office = shutil.which("soffice") or shutil.which("libreoffice")
     if office:
+        from .convert import _run
+
         with tempfile.TemporaryDirectory() as d:
-            subprocess.run([office, "--headless", "--convert-to", "txt:Text", "--outdir", d, str(path)], capture_output=True)
+            # a profile of its own, so it neither waits on nor disturbs a LibreOffice the user has open
+            argv = [office, "--headless", "--norestore", "--nolockcheck", "--nodefault", "--nofirststartwizard"]
+            _run(argv + [f"-env:UserInstallation=file://{d}/profile", "--convert-to", "txt:Text", "--outdir", d, str(path)], 300, cwd=d)
             for f in pathlib.Path(d).glob("*.txt"):
                 return f.read_text(encoding="utf-8", errors="replace")
     raise SystemExit("reading .doc needs antiword, catdoc or LibreOffice installed (or save it as .docx)")
