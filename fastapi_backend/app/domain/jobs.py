@@ -705,6 +705,7 @@ def control(db, name, action, by=None):
 class Worker:
     def __init__(self, db, cfg_fn, name=None, steps=None, log=None):
         self.db, self.cfg_fn, self.log = db, cfg_fn, log
+        cfg_fn()  # reads the saved settings now, so telemetry (if on) is set up before the first job's span
         self.name = name or f"{socket.gethostname()}-{os.getpid()}"
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
         if "llm" in self.can:  # a workflow needs what an llm step needs; lists written before workflows existed run them too

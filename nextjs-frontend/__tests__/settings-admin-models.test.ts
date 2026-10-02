@@ -221,6 +221,15 @@ describe("settings fields", () => {
     const on = { id: "telemetry.enabled", field: spec("telemetry.enabled"), before: false, after: true };
     expect(why(on)).toMatch(/start sending/);
     expect(why({ ...on, before: true, after: false })).toMatch(/Nothing more is sent/);
+    const moved = {
+      id: "telemetry.endpoint",
+      field: spec("telemetry.endpoint"),
+      before: "http://a:4318",
+      after: "http://b:4318",
+    };
+    expect(why(moved)).toMatch(/headers are removed/);
+    expect(why({ ...moved, after: "http://a:4318/otlp" })).toBeNull();
+    expect(why({ ...moved, before: null })).toBeNull();
   });
 });
 
