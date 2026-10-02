@@ -513,8 +513,8 @@ function Intro({ onPick }: { onPick: (example: string) => void }) {
       <div className="flex flex-col gap-1.5">
         <h2 className="text-[20px] font-bold leading-tight text-fg">Search what was said</h2>
         <p className="m-0 text-[14px] leading-normal text-fg-secondary">
-          Every word must appear in the same segment, and word forms match (English stemming). When search by meaning
-          is set up, passages about the same thing in other words come too, marked Related. Results only come from
+          Every word must appear in the same segment, and word forms match (English stemming). When search by meaning is
+          set up, passages about the same thing in other words come too, marked Related. Results only come from
           namespaces you can read, grouped by recording. Pick an example to start from it.
         </p>
       </div>

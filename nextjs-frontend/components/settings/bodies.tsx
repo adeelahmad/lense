@@ -588,8 +588,8 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
       <h3 className="m-0 mt-3 text-[15px] font-bold text-fg">Search by meaning</h3>
       <p className="m-0 text-[13px] leading-normal text-fg-secondary">
         Passages of transcripts, pages and descriptions are embedded by an OpenAI-compatible server (Ollama, llama.cpp,
-        vLLM, LM Studio, OpenAI), so a search also finds moments about the same thing in other words. A local model keeps
-        everything on your machine.
+        vLLM, LM Studio, OpenAI), so a search also finds moments about the same thing in other words. A local model
+        keeps everything on your machine.
       </p>
       <F ctx={ctx} id="embeddings.enabled" />
       {on && (
