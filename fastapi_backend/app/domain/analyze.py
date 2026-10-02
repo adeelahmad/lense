@@ -345,7 +345,9 @@ def talk_stats(segs):
     }
 
 
-def analyze_recording(db, cfg, rid):
+def analyze_recording(db, cfg, rid, seg_ents=None):
+    """Entities, keywords, sections and talk statistics. `seg_ents` (per line, [(name, type)]) replaces the extractor:
+    a workflow's save entities node passes what its nodes found."""
     nid = db.one("SELECT space FROM $r", r=R("recording", rid))["space"]
     segs = db.rows(
         "SELECT record::id(id) AS id, idx, t0, t1, speaker, text, emotion, event, lang FROM segment WHERE recording = $r ORDER BY idx",
@@ -353,9 +355,12 @@ def analyze_recording(db, cfg, rid):
     )
     gaz = parse_gazetteer(cfg["analysis"].get("gazetteer"))
     use_spacy = cfg["analysis"]["entities"] == "spacy"
-    seg_ents, toks, wc, tn, ts = [], [], [], Counter(), defaultdict(Counter)
-    for s in segs:
-        seg_ents.append(spacy_entities(s["text"], cfg["analysis"]["spacy_model"]) if use_spacy else extract_entities(s["text"], gaz))
+    given, seg_ents, toks, wc, tn, ts = seg_ents, [], [], [], Counter(), defaultdict(Counter)
+    for k, s in enumerate(segs):
+        if given is not None:
+            seg_ents.append(list(given[k]) if k < len(given) else [])
+        else:
+            seg_ents.append(spacy_entities(s["text"], cfg["analysis"]["spacy_model"]) if use_spacy else extract_entities(s["text"], gaz))
         ws = words(s["text"])
         toks.append([w for w, _ in ws])
         wc.append(len(s["text"].split()))

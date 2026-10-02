@@ -31,7 +31,7 @@ def steps_for(db, run):
         return pipelines.validate_steps(db, [step]), f"{t['name']} ({t['kind']})"
     if run.get("pipeline"):
         p = pipelines.get(db, int(run["pipeline"]))
-        return p["steps"], p["name"]
+        return pipelines.pin(db, p["steps"]), p["name"]
     steps = pipelines.validate_steps(db, run.get("steps"))
     return steps, ", ".join(s["type"] for s in steps)
 
