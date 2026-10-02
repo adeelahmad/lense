@@ -77,6 +77,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "importance": 9,
                 }
             )
+        elif "entities" in schema.get("properties", {}):
+            content = json.dumps(
+                {
+                    "entities": [
+                        {"name": "Dave", "type": "PERSON", "line": 1},
+                        {"name": "capsid samples", "type": "PRODUCT"},
+                        {"name": "", "type": "ORG"},
+                    ]
+                }
+            )
         elif body.get("response_format"):
             content = json.dumps(
                 {

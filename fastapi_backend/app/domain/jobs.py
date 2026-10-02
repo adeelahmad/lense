@@ -98,6 +98,14 @@ def _export(db, cfg, rid, say, spec=None):
     pipelines.run_export(db, cfg, rid, spec, say)
 
 
+def _workflow(db, cfg, rid, say, spec=None):
+    from . import workflows
+
+    done = workflows.run(db, cfg, rid, int(spec["workflow"]), spec.get("version"), say)
+    ran = sum(1 for v in done.values() if v == "done") - 1  # not counting the input
+    say(f"workflow ran {ran} of {len(done) - 1} nodes")
+
+
 def _shots(db, cfg, rid, say, spec=None):
     from . import video
 
@@ -141,17 +149,18 @@ STEPS = {
     "report": _report,
     "llm": _llm,
     "export": _export,
+    "workflow": _workflow,
 }
 
 
 def enqueue(db, rid, steps=None, by=None, priority=0, pipeline=None, batch=None):
     """Queue a recording for these steps (default: its namespace's pipeline); one already queued or running keeps its job."""
-    rec = db.one("SELECT space FROM $r", r=R("recording", rid))
+    rec = db.one("SELECT space, source, media FROM $r", r=R("recording", rid))
     if not rec:
         raise KeyError(rid)
     ref = None
     if steps is None:
-        steps, ref = pipelines.resolve(db, rec["space"], pipeline)
+        steps, ref = pipelines.resolve(db, rec["space"], pipeline, render.kind(rec))
     steps = [_spec(s) for s in steps]
     if not steps or any(s.get("type") not in STEPS for s in steps):
         raise ValueError(f"steps are {', '.join(STEPS)}")
@@ -686,6 +695,8 @@ class Worker:
         self.db, self.cfg_fn, self.log = db, cfg_fn, log
         self.name = name or f"{socket.gethostname()}-{os.getpid()}"
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
+        if "llm" in self.can:  # a workflow needs what an llm step needs; lists written before workflows existed run them too
+            self.can.add("workflow")
         self.was_paused = False
 
     def register(self, current=None):

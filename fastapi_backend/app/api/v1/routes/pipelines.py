@@ -20,12 +20,18 @@ from app.schemas.templates import VersionSaved
 router = APIRouter(prefix="/pipelines", tags=["pipelines"])
 
 
+def _graph(g):
+    return g.model_dump() if g is not None else None
+
+
 @router.get("")
 def list_pipelines(user: CurrentUser, db: Db) -> PipelineCatalog:
     """Saved pipelines, plus what a pipeline can be built from."""
     return PipelineCatalog(
         standard=pipelines.STANDARD,
         step_types=sorted(pipelines.TYPES),
+        asset_steps=list(pipelines.ASSET_STEPS),
+        content_types=list(pipelines.CONTENT_TYPES),
         conditions=list(pipelines.WHEN),
         pipelines=pipelines.list_pipelines(db),
     )
@@ -34,7 +40,7 @@ def list_pipelines(user: CurrentUser, db: Db) -> PipelineCatalog:
 @router.post("")
 def create_pipeline(body: PipelineCreate, user: AdminWriter, db: Db) -> Created:
     with domain_errors():
-        pid = pipelines.create(db, body.name, body.steps, body.description, user.email)
+        pid = pipelines.create(db, body.name, body.steps, body.description, user.email, _graph(body.graph))
     auth.audit(db, user.as_audit(), "pipeline.create", f"pipeline:{pid}")
     return Created(id=pid)
 
@@ -55,7 +61,7 @@ def get_pipeline(pid: int, user: CurrentUser, db: Db, version: int | None = None
 @router.post("/{pid}/versions")
 def create_pipeline_version(pid: int, body: PipelineVersionCreate, user: AdminWriter, db: Db) -> VersionSaved:
     with domain_errors():
-        n = pipelines.save_version(db, pid, body.steps, body.notes, user.email, body.publish)
+        n = pipelines.save_version(db, pid, body.steps, body.notes, user.email, body.publish, _graph(body.graph))
     auth.audit(db, user.as_audit(), "pipeline.save", f"pipeline:{pid}", {"version": n})
     return VersionSaved(version=n)
 

@@ -32,6 +32,7 @@ from app.api.v1.routes import (
     users,
     video,
     views,
+    workflows,
 )
 
 api_router = APIRouter()
@@ -60,6 +61,7 @@ for module in (
     sources,
     templates,
     pipelines,
+    workflows,
     chats,
     collections,
     batches,
