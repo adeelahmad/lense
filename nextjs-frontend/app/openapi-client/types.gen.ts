@@ -9138,13 +9138,7 @@ export type SetupView = {
   storage: SetupStorageView;
   telemetry: SetupTelemetryView;
   [key: string]:
-    | unknown
-    | boolean
-    | SetupAdmin
-    | SetupNamespaceView
-    | SetupLlmView
-    | SetupStorageView
-    | SetupTelemetryView;
+    unknown | boolean | SetupAdmin | SetupNamespaceView | SetupLlmView | SetupStorageView | SetupTelemetryView;
 };
 
 /**
