@@ -1,0 +1,9 @@
+######################################################################
+# Lens install and removal hooks, sourced by QDK's qinstall.sh (see QDK's package_routines template for what's
+# available). The containers, the image loading and the data folder are lens.sh's job, on the first start; removal
+# runs "lens.sh stop" and "lens.sh remove" itself, which keep the data folder.
+######################################################################
+
+pkg_post_install(){
+	$CMD_CHMOD 755 "$SYS_QPKG_DIR/lens.sh"
+}

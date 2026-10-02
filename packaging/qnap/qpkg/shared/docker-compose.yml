@@ -1,0 +1,73 @@
+# The Lens stack on a QNAP NAS, run by lens.sh in Container Station's Docker engine (project "lens").
+# The images come inside the QPKG (lens-backend, lens-frontend and SurrealDB, tagged with the package version) and
+# are loaded on the first start, so nothing is pulled or built on the NAS.
+# Settings and secrets: lens.env in the data folder (LENS_DATA), written on the first start. Everything Lens keeps
+# lives under LENS_DATA, which outlasts removing the app.
+
+x-backend: &backend
+  image: lens-backend:${LENS_VERSION:?}
+  environment:
+    ACCESS_SECRET_KEY: ${ACCESS_SECRET_KEY:?set ACCESS_SECRET_KEY in lens.env}
+    ARCHIVE_SECRET_KEY: ${ARCHIVE_SECRET_KEY:?set ARCHIVE_SECRET_KEY in lens.env}
+    LENS_SETUP_CODE: ${LENS_SETUP_CODE:-}
+    SURREAL_URL: ws://surrealdb:8000
+    SURREAL_USER: root
+    SURREAL_PASS: ${SURREAL_PASS:?set SURREAL_PASS in lens.env}
+    RUN_BACKGROUND: "false"
+    FRONTEND_URL: ${FRONTEND_URL:?set FRONTEND_URL in lens.env}
+    CORS_ORIGINS: '["${FRONTEND_URL}"]'
+    ARCHIVE_ALLOWED_HOSTS: ${ARCHIVE_ALLOWED_HOSTS:-backend,localhost,127.0.0.1}
+    MAIL_SERVER: ${MAIL_SERVER:-}
+    MAIL_PORT: ${MAIL_PORT:-587}
+    MAIL_USERNAME: ${MAIL_USERNAME:-}
+    MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+    MAIL_FROM: ${MAIL_FROM:-}
+  volumes:
+    - ${LENS_DATA:?}/archive:/data
+    - ${AUDIO_DIR:?set AUDIO_DIR in lens.env}:/audio:ro
+  depends_on:
+    surrealdb:
+      condition: service_healthy
+  restart: unless-stopped
+  networks: [lens]
+
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:v3.2.4
+    command: start --log info --user root --pass ${SURREAL_PASS:?} surrealkv:/data/lens.db
+    user: root
+    volumes:
+      - ${LENS_DATA:?}/surrealdb:/data
+    healthcheck:
+      test: ["CMD", "/surreal", "is-ready", "--endpoint", "http://localhost:8000"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+    restart: unless-stopped
+    networks: [lens]
+
+  backend:
+    <<: *backend
+
+  worker:
+    <<: *backend
+    command: lens worker
+    healthcheck:
+      disable: true
+
+  frontend:
+    image: lens-frontend:${LENS_VERSION:?}
+    environment:
+      API_BASE_URL: http://backend:8000
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in lens.env}
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: ${FRONTEND_URL:?}
+    ports:
+      - "${LENS_PORT:-3000}:3000"
+    depends_on: [backend]
+    restart: unless-stopped
+    networks: [lens]
+
+networks:
+  lens:
+    driver: bridge
