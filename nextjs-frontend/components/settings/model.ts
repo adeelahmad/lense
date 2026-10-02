@@ -173,7 +173,7 @@ export const SECTIONS: SectionSpec[] = [
     label: "API keys",
     backend: ["tokens"],
     description:
-      "How long the API keys people make for scripts and other apps last, and everyone’s keys, to revoke any of them.",
+      "How long the API keys people make for scripts last, how long apps they sign in to stay signed in, and everyone’s keys, to revoke any of them.",
   },
   {
     id: "iiif",
@@ -872,6 +872,24 @@ export const FIELDS: FieldSpec[] = [
     hint: "Off: every key expires. Keys made before a change keep their expiry; revoke them below.",
   },
   {
+    section: "tokens",
+    key: "oauth_access_minutes",
+    label: "An app’s access token lasts (minutes)",
+    kind: "int",
+    min: 5,
+    max: 1440,
+    hint: "Apps people sign in to with their Lens account renew it by themselves",
+  },
+  {
+    section: "tokens",
+    key: "oauth_refresh_days",
+    label: "An app stays signed in for (days)",
+    kind: "int",
+    min: 1,
+    max: 3650,
+    hint: "Counted from when the app last renewed its access; at most as long as a key may last",
+  },
+  {
     section: "uploads",
     key: "max_mb",
     label: "Largest audio or video file (MB)",
@@ -1155,6 +1173,9 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const md = n("tokens.max_days");
   if (typeof dd === "number" && typeof md === "number" && dd > md)
     e["tokens.default_days"] = "A new key can’t last longer than the most a key may last";
+  const od = n("tokens.oauth_refresh_days");
+  if (typeof od === "number" && typeof md === "number" && od > md)
+    e["tokens.oauth_refresh_days"] = "An app can’t stay signed in longer than the most a key may last";
   const mn = n("diarize.min_speakers");
   const mx = n("diarize.max_speakers");
   if (typeof mn === "number" && typeof mx === "number" && mn > mx)

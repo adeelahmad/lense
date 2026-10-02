@@ -18,8 +18,10 @@ async function proxy(req: Request): Promise<Response> {
   req.headers.forEach((v, k) => {
     if (!HOP.has(k)) headers.set(k, v);
   });
-  headers.set("x-forwarded-host", incoming.host);
-  headers.set("x-forwarded-proto", incoming.protocol.replace(":", ""));
+  // The address the browser used, for links the API writes back to this origin (OAuth discovery): what a reverse
+  // proxy in front reports, else the Host header (the URL Next hands over names the host it listens on).
+  headers.set("x-forwarded-host", req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? incoming.host);
+  headers.set("x-forwarded-proto", req.headers.get("x-forwarded-proto") ?? incoming.protocol.replace(":", ""));
   // Ask for identity so byte ranges and lengths stay exact.
   headers.set("accept-encoding", "identity");
 

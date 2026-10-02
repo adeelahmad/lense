@@ -509,6 +509,351 @@
         }
       }
     },
+    "/api/v1/oauth/register": {
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Register",
+        "description": "An app registers itself (RFC 7591), without signing in: it gets a `client_id`, and a `client_secret` if it\nasked for one. It can do nothing until someone gives it access. Audited as `oauth.client.register`.",
+        "operationId": "register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientRegistration"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientRegistered"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OAuth error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/oauth/authorize": {
+      "get": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Consent",
+        "description": "What the consent page shows for an app's request: the app, where it takes you back to and what it asks for.\n400 when the request can't be answered (an unknown app, an address it didn't register, no PKCE challenge).",
+        "operationId": "consent",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Client Id"
+            }
+          },
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Redirect Uri"
+            }
+          },
+          {
+            "name": "code_challenge",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Code Challenge"
+            }
+          },
+          {
+            "name": "code_challenge_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Code Challenge Method"
+            }
+          },
+          {
+            "name": "response_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "code",
+              "title": "Response Type"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scope"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Consent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Answer",
+        "description": "Your answer to an app's request. Yes gives it a one-time code (five minutes) at its redirect address, which\nit swaps for tokens that act as you, with your roles; no sends it `error=access_denied`. Audited as\n`oauth.grant`.",
+        "operationId": "answer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentAnswer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/oauth/token": {
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Token",
+        "description": "The app swaps its code (`grant_type=authorization_code`, with `code_verifier` and the same `redirect_uri`)\nor its refresh token (`grant_type=refresh_token`) for an access token and a new refresh token. Form-encoded, as\nOAuth has it; errors are `{error, error_description}`.",
+        "operationId": "token",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_oauth-token"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthTokens"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OAuth error"
+          },
+          "401": {
+            "description": "OAuth error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/oauth/revoke": {
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Revoke",
+        "description": "An app hands back a token, access or refresh (RFC 7009): the access it was given ends. Answers the same\nwhether or not the token was known. Audited as `oauth.revoke`.",
+        "operationId": "revoke",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_oauth-revoke"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "OAuth error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/oauth/grants": {
+      "get": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "List Grants",
+        "description": "The apps you gave access to, the latest first.",
+        "operationId": "list_grants",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OAuthGrant"
+                  },
+                  "type": "array",
+                  "title": "Response Oauth-List Grants"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/oauth/grants/{grant_id}": {
+      "delete": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Revoke Grant",
+        "description": "Take an app's access away: its tokens stop working now. Audited as `oauth.revoke`.",
+        "operationId": "revoke_grant",
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Grant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users": {
       "get": {
         "tags": [
@@ -13861,6 +14206,120 @@
         ],
         "title": "BatchSummary"
       },
+      "Body_oauth-revoke": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "Body_oauth-revoke"
+      },
+      "Body_oauth-token": {
+        "properties": {
+          "grant_type": {
+            "type": "string",
+            "title": "Grant Type"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "redirect_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Uri"
+          },
+          "code_verifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Verifier"
+          },
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grant_type"
+        ],
+        "title": "Body_oauth-token"
+      },
       "BrowseEntry": {
         "properties": {
           "path": {
@@ -14386,6 +14845,184 @@
         "additionalProperties": false,
         "type": "object",
         "title": "ChatUpdate"
+      },
+      "ClientRegistered": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret",
+            "description": "only for apps that asked for one; shown once"
+          },
+          "client_id_issued_at": {
+            "type": "integer",
+            "title": "Client Id Issued At"
+          },
+          "client_secret_expires_at": {
+            "type": "integer",
+            "title": "Client Secret Expires At",
+            "description": "0: it doesn't expire",
+            "default": 0
+          },
+          "client_name": {
+            "type": "string",
+            "title": "Client Name"
+          },
+          "client_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Uri"
+          },
+          "redirect_uris": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Redirect Uris"
+          },
+          "token_endpoint_auth_method": {
+            "type": "string",
+            "title": "Token Endpoint Auth Method"
+          },
+          "grant_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Grant Types",
+            "default": [
+              "authorization_code",
+              "refresh_token"
+            ]
+          },
+          "response_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Response Types",
+            "default": [
+              "code"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": "read write"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "client_id",
+          "client_id_issued_at",
+          "client_name",
+          "redirect_uris",
+          "token_endpoint_auth_method"
+        ],
+        "title": "ClientRegistered"
+      },
+      "ClientRegistration": {
+        "properties": {
+          "redirect_uris": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Redirect Uris",
+            "description": "https, http://localhost (any port), or the app's own scheme; 1 to 10"
+          },
+          "client_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Name",
+            "description": "shown on the consent page and in the list of apps with access"
+          },
+          "client_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Uri"
+          },
+          "token_endpoint_auth_method": {
+            "type": "string",
+            "title": "Token Endpoint Auth Method",
+            "description": "none (public apps), client_secret_post or client_secret_basic",
+            "default": "none"
+          },
+          "grant_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Types"
+          },
+          "response_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Types"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          }
+        },
+        "type": "object",
+        "required": [
+          "redirect_uris"
+        ],
+        "title": "ClientRegistration",
+        "description": "Dynamic client registration (RFC 7591). Metadata Lens has no use for is ignored, as the RFC asks."
       },
       "Collection": {
         "properties": {
@@ -15421,6 +16058,186 @@
         "additionalProperties": false,
         "type": "object",
         "title": "CommentUpdate"
+      },
+      "Consent": {
+        "properties": {
+          "client": {
+            "$ref": "#/components/schemas/ConsentClient"
+          },
+          "redirect_uri": {
+            "type": "string",
+            "title": "Redirect Uri"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "read",
+              "read write"
+            ],
+            "title": "Scope",
+            "description": "what the app asks for: read, or read and write"
+          },
+          "granted": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "read",
+                  "read write"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Granted",
+            "description": "what you gave this app before, if anything"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "client",
+          "redirect_uri",
+          "scope"
+        ],
+        "title": "Consent",
+        "description": "What the consent page shows."
+      },
+      "ConsentAnswer": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "redirect_uri": {
+            "type": "string",
+            "title": "Redirect Uri"
+          },
+          "response_type": {
+            "type": "string",
+            "title": "Response Type",
+            "default": "code"
+          },
+          "code_challenge": {
+            "type": "string",
+            "title": "Code Challenge"
+          },
+          "code_challenge_method": {
+            "type": "string",
+            "title": "Code Challenge Method",
+            "default": "S256"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource"
+          },
+          "approve": {
+            "type": "boolean",
+            "title": "Approve"
+          },
+          "grant": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "read",
+                  "read write"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant",
+            "description": "give less than was asked for (read); default: what was asked for"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "client_id",
+          "redirect_uri",
+          "code_challenge",
+          "approve"
+        ],
+        "title": "ConsentAnswer"
+      },
+      "ConsentClient": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uri"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ConsentClient"
+      },
+      "ConsentResult": {
+        "properties": {
+          "redirect_to": {
+            "type": "string",
+            "title": "Redirect To",
+            "description": "send the browser here: the app's address with its code, or with error=access_denied"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "redirect_to"
+        ],
+        "title": "ConsentResult"
       },
       "ContentState": {
         "properties": {
@@ -18590,7 +19407,8 @@
             "type": "string",
             "enum": [
               "access",
-              "token"
+              "token",
+              "oauth"
             ],
             "title": "Via"
           },
@@ -19723,6 +20541,119 @@
         "additionalProperties": false,
         "type": "object",
         "title": "NoteUpdate"
+      },
+      "OAuthGrant": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "client": {
+            "type": "string",
+            "title": "Client"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uri"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "read",
+              "read write"
+            ],
+            "title": "Scope"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "when its access ends unless the app renews it before"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "client",
+          "name",
+          "scope",
+          "created_at"
+        ],
+        "title": "OAuthGrant",
+        "description": "An app you gave access to."
+      },
+      "OAuthTokens": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "const": "Bearer",
+            "title": "Token Type",
+            "default": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "seconds until the access token expires"
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "read",
+              "read write"
+            ],
+            "title": "Scope"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "access_token",
+          "expires_in",
+          "refresh_token",
+          "scope"
+        ],
+        "title": "OAuthTokens"
       },
       "ObjectCount": {
         "properties": {

@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.iiif import router as iiif_router
 from app.api.pages import router as pages_router
 from app.api.v1.router import api_router
+from app.api.v1.routes.oauth import well_known as oauth_well_known
 from app.config import settings
 from app.core import middleware
 from app.core.runtime import Archive
@@ -77,6 +78,7 @@ def create_app(cfg: dict[str, Any] | None = None, db: store.DB | None = None, ba
     app.add_middleware(middleware.ResourcePaths)
 
     app.include_router(api_router, prefix="/api/v1")
+    app.include_router(oauth_well_known)
     app.include_router(iiif_router)
     app.include_router(pages_router)
     app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")

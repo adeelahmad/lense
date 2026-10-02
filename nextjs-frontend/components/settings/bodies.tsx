@@ -293,6 +293,10 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="tokens.max_days" />
           </div>
           <F ctx={ctx} id="tokens.never_expire" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="tokens.oauth_access_minutes" />
+            <F ctx={ctx} id="tokens.oauth_refresh_days" />
+          </div>
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             People make API keys on their API tokens page; a key acts as them, with their roles. These limits apply to
             new keys.
