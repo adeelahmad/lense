@@ -174,13 +174,31 @@ def _last_said(text):
 
 
 def _run(argv, seconds, env=None, cwd=None):
+    """Run a converter in a process group of its own, and leave nothing of it behind: soffice starts soffice.bin,
+    which kept the pipes open (so a timeout waited forever) and could outlive the run."""
+    p = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, cwd=cwd, start_new_session=True)
     try:
-        return subprocess.run(argv, capture_output=True, text=True, timeout=seconds, env=env, cwd=cwd)
-    except subprocess.TimeoutExpired as e:
-        said = _last_said(e.stderr)
+        out, err = p.communicate(timeout=seconds)
+    except subprocess.TimeoutExpired:
+        _kill_group(p)
+        _, err = p.communicate()
+        said = _last_said(err)
         raise ValueError(
             f"converting it took longer than {seconds} s (documents.convert_seconds){f'; it last said: {said}' if said else ''}"
         ) from None
+    except BaseException:
+        _kill_group(p)
+        p.communicate()
+        raise
+    _kill_group(p)  # whatever it left running
+    return subprocess.CompletedProcess(argv, p.returncode, out, err)
+
+
+def _kill_group(p):
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
 
 
 def office_pdf(cfg, src, out):
