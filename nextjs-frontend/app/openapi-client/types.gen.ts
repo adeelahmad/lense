@@ -115,18 +115,7 @@ export type AccountToken = {
    */
   email?: string | null;
   [key: string]:
-    | unknown
-    | number
-    | string
-    | "read"
-    | "write"
-    | string
-    | null
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+    unknown | number | string | "read" | "write" | string | null | string | null | string | null | undefined;
 };
 
 /**
@@ -2691,13 +2680,7 @@ export type EventInfo = {
    */
   label: string;
   [key: string]:
-    | unknown
-    | "job.succeeded"
-    | "job.failed"
-    | "job.cancelled"
-    | "batch.finished"
-    | "recording.added"
-    | string;
+    unknown | "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | string;
 };
 
 /**
@@ -5536,18 +5519,7 @@ export type OAuthGrant = {
    */
   expires_at?: string | null;
   [key: string]:
-    | unknown
-    | number
-    | string
-    | string
-    | null
-    | "read"
-    | "read write"
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+    unknown | number | string | string | null | "read" | "read write" | string | null | string | null | undefined;
 };
 
 /**
@@ -6865,19 +6837,7 @@ export type PublicPage = {
    */
   label?: string | null;
   [key: string]:
-    | unknown
-    | number
-    | number
-    | null
-    | number
-    | null
-    | string
-    | null
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+    unknown | number | number | null | number | null | string | null | string | null | string | null | undefined;
 };
 
 /**
@@ -7045,17 +7005,7 @@ export type PublicRequest = {
    */
   decided_at?: string | null;
   [key: string]:
-    | unknown
-    | "pending"
-    | "approved"
-    | "declined"
-    | string
-    | null
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+    unknown | "pending" | "approved" | "declined" | string | null | string | null | string | null | undefined;
 };
 
 /**
@@ -7430,13 +7380,7 @@ export type RecordingAccess = {
    */
   default: NamespaceAccess;
   [key: string]:
-    | unknown
-    | "public"
-    | "restricted"
-    | "private"
-    | Array<"media" | "transcript" | "index">
-    | boolean
-    | NamespaceAccess;
+    unknown | "public" | "restricted" | "private" | Array<"media" | "transcript" | "index"> | boolean | NamespaceAccess;
 };
 
 /**
@@ -9698,12 +9642,7 @@ export type SpeakerDirectory = {
    */
   cross?: Array<SpeakerCandidate>;
   [key: string]:
-    | unknown
-    | Array<Speaker>
-    | Array<SpeakerMerge>
-    | Array<SpeakerLink>
-    | Array<SpeakerCandidate>
-    | undefined;
+    unknown | Array<Speaker> | Array<SpeakerMerge> | Array<SpeakerLink> | Array<SpeakerCandidate> | undefined;
 };
 
 /**
@@ -10820,19 +10759,7 @@ export type UserPublic = {
    */
   last_login_at?: string | null;
   [key: string]:
-    | unknown
-    | number
-    | string
-    | string
-    | null
-    | boolean
-    | boolean
-    | null
-    | string
-    | null
-    | string
-    | null
-    | undefined;
+    unknown | number | string | string | null | boolean | boolean | null | string | null | string | null | undefined;
 };
 
 /**
@@ -11600,13 +11527,7 @@ export type WorkflowCatalog = {
    */
   workflows: Array<WorkflowSummary>;
   [key: string]:
-    | unknown
-    | Array<NodeType>
-    | Array<string>
-    | Array<string>
-    | Array<string>
-    | Array<WorkflowSummary>
-    | undefined;
+    unknown | Array<NodeType> | Array<string> | Array<string> | Array<string> | Array<WorkflowSummary> | undefined;
 };
 
 /**

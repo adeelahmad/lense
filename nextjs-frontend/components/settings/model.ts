@@ -29,17 +29,7 @@ export type SettingsView = Record<string, SectionView> & {
 };
 
 export type Kind =
-  | "text"
-  | "number"
-  | "int"
-  | "select"
-  | "switch"
-  | "lines"
-  | "checks"
-  | "secret"
-  | "pills"
-  | "cards"
-  | "days";
+  "text" | "number" | "int" | "select" | "switch" | "lines" | "checks" | "secret" | "pills" | "cards" | "days";
 export type Opt = { value: string; label: string; hint?: string };
 
 export type FieldSpec = {
