@@ -9,7 +9,10 @@ help: ## List the commands
 	@awk '/^[a-zA-Z_-]+:.*##/{split($$1, target, ":"); print "  " target[1] "\t" substr($$0, index($$0,"##")+3)}' $(MAKEFILE_LIST)
 
 # Local development
-.PHONY: start-backend test-backend lint-backend start-frontend test-frontend lint-frontend openapi worker docs
+.PHONY: start-backend test-backend lint-backend start-frontend test-frontend lint-frontend openapi worker docs hooks
+
+hooks: ## Install the git hooks: lint on commit, Conventional Commit messages
+	cd $(BACKEND_DIR) && uv run pre-commit install -c ../.pre-commit-config.yaml
 
 start-backend: $(BACKEND_DIR)/.env $(BACKEND_DIR)/archive.yaml ## Start the API with hot reload (and the OpenAPI watcher), on the embedded database
 	cd $(BACKEND_DIR) && ./start.sh

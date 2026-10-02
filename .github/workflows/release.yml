@@ -1,9 +1,12 @@
 name: Release
 
-# Cuts and publishes a release in one go, from the Actions tab (Run workflow) or `gh workflow run release.yml -f bump=minor`:
-# moves CHANGELOG.md's "Unreleased" entries under the new version, sets that version in the backend, frontend and
-# Cloudron manifest, commits that to the default branch, tags it vX.Y.Z and publishes the GitHub release with the
-# changelog section as its notes. Pushing a vX.Y.Z tag yourself publishes that tag the same way, without the commit.
+# Cuts and publishes a release in one go, from the Actions tab (Run workflow) or `gh workflow run release.yml`. The
+# version follows the Conventional Commit titles merged since the last release (a breaking change is major, minor
+# before 1.0; a feat minor; anything else patch) unless you give a bump. The new CHANGELOG.md section is the
+# "Unreleased" text, if any, then those changes listed by type; the version is set in the backend, frontend and
+# Cloudron manifest, committed to the default branch, tagged vX.Y.Z and published as the GitHub release with that
+# section as its notes (.github/scripts/release.py). Pushing a vX.Y.Z tag yourself publishes that tag the same way,
+# without the commit.
 #
 # Publishing starts the package workflows (cloudron.yml, qnap.yml, synology.yml). A release published with the
 # workflow's own token doesn't trigger `release: published` in other workflows, so this one starts them itself,
@@ -14,9 +17,9 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: "patch, minor, major, or the exact version (1.2.3)"
+        description: "auto (from the commit titles), patch, minor, major, or the exact version (1.2.3)"
         required: true
-        default: patch
+        default: auto
         type: string
   push:
     tags: ["v[0-9]+.[0-9]+.[0-9]+"]
@@ -44,6 +47,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.RELEASE_TOKEN || github.token }}
+          fetch-depth: 0 # the history and tags since the last release
 
       - name: Move Unreleased under the new version
         id: cut
@@ -62,10 +66,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "Release $TAG"
+          git commit -am "chore(release): $TAG"
           git tag "$TAG"
           # one push, so the tag never exists without the commit on the branch. With RELEASE_TOKEN this tag push
-          # starts this workflow again; the publish job skips "Release v…" commits, which are published from here.
+          # starts this workflow again; the publish job skips "chore(release): v…" commits, published from here.
           git push --atomic origin "HEAD:${GITHUB_REF_NAME}" "refs/tags/$TAG"
 
   publish:
@@ -74,7 +78,7 @@ jobs:
     # after the cut, or for a tag pushed by hand (not one the cut job pushed with RELEASE_TOKEN)
     if: >-
       always() && (needs.cut.result == 'success'
-      || (github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'Release v')))
+      || (github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore(release): v')))
     runs-on: ubuntu-latest
     permissions:
       contents: write

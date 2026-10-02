@@ -4,11 +4,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **Releases are cut by a workflow.** Running Release from the Actions tab (`patch`, `minor`, `major` or a version)
-  moves the Unreleased changelog entries under the new version, sets it in the backend, frontend and Cloudron
-  manifest, commits and tags `vX.Y.Z`, and publishes the GitHub release with that section as its notes; a tag
-  pushed by hand is published the same way. Publishing starts the Cloudron, QNAP and Synology package builds, which
-  attach to the release (docs/contributing.md). It replaces the template's draft-only workflow.
+- **Releases are automatic, from Conventional Commits.** PR titles are Conventional Commits (`feat(chat): …`,
+  `fix!: …`), checked on each PR and, with `make hooks`, on each commit message. Running Release from the Actions
+  tab picks the semantic version from the titles merged since the last release (or takes `patch`, `minor`, `major`
+  or a version), writes the changelog section from them under any hand-written Unreleased text, sets the version in
+  the backend, frontend and Cloudron manifest, commits and tags `vX.Y.Z`, and publishes the GitHub release with that
+  section as its notes; a tag pushed by hand is published the same way. Publishing starts the Cloudron, QNAP and
+  Synology package builds, which attach to the release. It replaces the template's draft-only workflow
+  (docs/contributing.md).
+    - The pre-commit hooks also check YAML, TOML and the GitHub workflows (actionlint), and the commit message.
 
 - **Fix: Chat answers no longer break off with "The answer stopped before it finished".** With some model servers an
   answer ended mid-stream with nothing saved, so the question sat unanswered in the conversation. Now each one ends
