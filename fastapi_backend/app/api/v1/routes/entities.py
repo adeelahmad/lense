@@ -218,7 +218,7 @@ def rename_entity(eid: int, body: EntityRename, request: Request, user: Writer, 
     with domain_errors():
         out = ents.rename(db, eid, body.name, body.keep_alias, body.correct, body.dry_run)
     if not body.dry_run:
-        out["jobs"] = [jobs.enqueue(db, rid, ["analyze", "report"], by=user.email) for rid in out.get("recordings") or []]
+        out["jobs"] = [jobs.add_steps(db, rid, ["analyze", "embed", "report"], by=user.email) for rid in out.get("recordings") or []]
         auth.audit(db, user.as_audit(), "entity.rename", f"entity:{eid}", {"name": out["name"], "lines": out["lines"]})
         _changed(request)
     return out

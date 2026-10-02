@@ -1,8 +1,8 @@
 """Questions answered from the archive, with numbered citations to the exact moments.
 
-Retrieval is keyword-first over the full-text index (English stemming), limited to the namespaces the asker can read
-and to the conversation's scope (namespaces, recordings, collections, speakers, dates). Each hit is widened to its neighbouring
-lines and numbered; the model is told to answer only from those excerpts and cite them as [n]. With no model
+Retrieval is keyword-first over the full-text index (English stemming), joined by passages found by meaning when an
+embedding model is set up (semantic.py), limited to the namespaces the asker can read and to the conversation's scope
+(namespaces, recordings, collections, speakers, dates). Each hit is widened to its neighbouring lines and numbered; the model is told to answer only from those excerpts and cite them as [n]. With no model
 configured, the best passages come back on their own.
 """
 
@@ -13,7 +13,7 @@ import re
 import time
 from collections import Counter, defaultdict
 
-from . import llm, recsets, render, store
+from . import llm, recsets, render, semantic, store
 
 R = store.R
 STOP = set(
@@ -64,9 +64,12 @@ def scope_filter(db, spaces, scope):
     return " AND ".join(where), p
 
 
-def retrieve(db, question, spaces, scope=None, k=8):
+def retrieve(db, question, spaces, scope=None, k=8, cfg=None):
+    """The excerpts that best answer a question: lines with its keywords and, when search by meaning is set up
+    (`cfg`), passages about it in other words, ranked together by reciprocal rank and widened to whole runs of lines."""
     words = keywords(question)
-    if not words or not spaces:
+    meaning = cfg is not None and semantic.available(db, cfg)
+    if not (words or meaning) or not spaces:
         return []
     where, p = scope_filter(db, spaces, scope)
     hits = {}
@@ -92,10 +95,23 @@ def retrieve(db, question, spaces, scope=None, k=8):
             h["score"] += abs(r.get("s") or 1.0)
             h["words"].add(w)
     top = sorted(hits.values(), key=lambda h: (-len(h["words"]), -h["score"]))[:k]
-    wanted, best = defaultdict(set), {}
-    for h in top:
+    # each excerpt ranks by its best line with the words plus its best passage found by meaning, by reciprocal rank
+    wanted, best, meant = defaultdict(set), {}, {}
+    for i, h in enumerate(top):
         wanted[h["recording"]].update({h["idx"] - 1, h["idx"], h["idx"] + 1})
-        best[(h["recording"], h["idx"])] = (len(h["words"]), h["score"])
+        best[(h["recording"], h["idx"])] = 1 / (60 + i + 1)
+    if meaning:
+        try:
+            near = semantic.nearest(
+                db, cfg, question, " AND " + where.replace("speaker IN $spk", "speakers CONTAINSANY $spk"), p, {"said", "page"}, k
+            )
+        except semantic.EmbedError:  # the excerpts with the words still answer
+            near = []
+        for i, x in enumerate(near):
+            span = range(x["idx0"], x["idx1"] + 1)
+            wanted[x["recording"]].update(span)
+            for j in span:
+                meant.setdefault((x["recording"], j), 1 / (60 + i + 1))
     passages = []
     for rid, idxs in wanted.items():
         segs = db.rows(
@@ -109,9 +125,15 @@ def retrieve(db, question, spaces, scope=None, k=8):
                 run.append(s)
                 continue
             if run:
-                passages.append({"recording_id": rid, "segs": run, "rank": max((best.get((rid, x["idx"]), (0, 0)) for x in run))})
+                passages.append(
+                    {
+                        "recording_id": rid,
+                        "segs": run,
+                        "rank": max(best.get((rid, x["idx"]), 0) for x in run) + max(meant.get((rid, x["idx"]), 0) for x in run),
+                    }
+                )
             run = [s] if s else []
-    passages.sort(key=lambda x: (-x["rank"][0], -x["rank"][1]))
+    passages.sort(key=lambda x: -x["rank"])
     names = render.speaker_names(db, [s.get("speaker") for x in passages for s in x["segs"]])
     recs = (
         {

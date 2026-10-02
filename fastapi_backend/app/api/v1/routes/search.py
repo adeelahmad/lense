@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.api.deps import Acl, Cfg, CurrentUser, Db
@@ -21,6 +23,7 @@ def search_transcripts(
     acl: Acl,
     user: CurrentUser,
     db: Db,
+    cfg: Cfg,
     q: str = Query(description='words, "phrases", OR between alternatives'),
     ns: str | None = None,
     speaker: int | None = None,
@@ -33,11 +36,17 @@ def search_transcripts(
         False,
         description="also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object",
     ),
+    mode: Literal["auto", "keyword", "semantic", "hybrid"] = Query(
+        "auto",
+        description='"keyword": the words (BM25); "semantic": by meaning (needs an embedding model, Settings → Search); '
+        '"hybrid": both, fused by rank; "auto": hybrid when search by meaning is set up and the query has no "phrases" '
+        "or OR, else keyword",
+    ),
 ) -> SearchResults:
     """Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
     transcripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),
     best first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion
-    filter keeps to what was said."""
+    filter keeps to what was said. By meaning, a moment is a passage about what was asked, though its words may differ."""
     if ns:
         acl.scope(ns)  # 404 unless they see some of it
     also = acl.partial_recordings()
@@ -57,6 +66,8 @@ def search_transcripts(
         objects=True,
         obj=object,
         described=True,
+        cfg=cfg,
+        mode=mode,
     )
     return sign_urls(res, full=True)
 

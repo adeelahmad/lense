@@ -95,10 +95,18 @@ PUT    /api/v1/namespaces/{name}/members
 GET    /api/v1/settings
 PUT    /api/v1/settings/{section}
 POST   /api/v1/settings/llm/test
+POST   /api/v1/settings/embeddings/test
 GET    /api/v1/audit
 GET    /api/v1/admin/health
 POST   /api/v1/admin/reindex
+GET    /api/v1/admin/semantic
+POST   /api/v1/admin/semantic/index
 ```
+
+`POST /settings/embeddings/test` embeds one sentence with the configured embedding model (`dimension`, `ms`, or the
+`error`). `GET /admin/semantic` says whether search by meaning is set up, with which model, and how many recordings
+and passages are indexed with it; `POST /admin/semantic/index?limit=500` queues the embed step for recordings not yet
+indexed with it (`remaining` when more are waiting).
 
 ## namespaces
 
@@ -615,6 +623,12 @@ shows, [Descriptions](#descriptions): the shot's time, or the `page`, and its `f
 supplementary file: its `file`, `file_role` and `file_label`, and which `line`). A file's lines have no `t0` when the
 file doesn't say when they are; the web app opens those in the resource's Files tab. A `speaker` or `emotion` filter
 keeps to what was said.
+
+`mode` says how the words are matched ([search by meaning](processing.md#search-by-meaning)): `keyword` (BM25),
+`semantic` (passages an embedding model finds alike), `hybrid` (both, fused by rank) or `auto` (the default: hybrid
+when search by meaning is set up and the query has no "phrases" or OR, else keyword). The reply's `mode` is how it was
+matched, `semantic` whether search by meaning is set up, and `meaning` why it wasn't used when asked for. Each hit's
+`match` is `words`, `meaning` (with its `similarity`, cosine, and shown at the passage's best line) or `both`.
 
 Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
 words said in the namespaces you can read (`ns` for one) that start with it, the most said first, with how often and

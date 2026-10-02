@@ -2359,6 +2359,34 @@ export type EmbedLink = {
 };
 
 /**
+ * EmbedTestResult
+ */
+export type EmbedTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Dimension
+   * how many numbers the model's vectors have
+   */
+  dimension?: number | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  [key: string]: unknown | boolean | string | null | number | null | number | null | string | null | undefined;
+};
+
+/**
  * EntityDetail
  */
 export type EntityDetail = {
@@ -3836,6 +3864,23 @@ export type ImportedAs = {
    */
   namespace: string;
   [key: string]: unknown | number | string;
+};
+
+/**
+ * IndexQueued
+ */
+export type IndexQueued = {
+  /**
+   * Recordings
+   * recordings queued to be indexed
+   */
+  recordings: number;
+  /**
+   * Remaining
+   * more are waiting than were queued; run it again, or let the hourly routine
+   */
+  remaining: boolean;
+  [key: string]: unknown | number | boolean;
 };
 
 /**
@@ -8227,7 +8272,7 @@ export type RoutineCatalog = {
   actions: Array<string>;
   /**
    * Recordings
-   * which recordings a pipeline or workflow action takes: new, unprocessed, all
+   * which recordings a pipeline or workflow action takes: new, unprocessed, all, unindexed (not yet searchable by meaning)
    */
   recordings: Array<string>;
   [key: string]: unknown | Array<Routine> | Array<string> | Array<string>;
@@ -8768,6 +8813,16 @@ export type SearchHit = {
    * file hits: which of its lines (from 0)
    */
   line?: number | null;
+  /**
+   * Match
+   * how it was found: by the query's "words" (BM25), by "meaning" (a passage an embedding model finds alike; shown at its line that fits best), or "both"
+   */
+  match?: "words" | "meaning" | "both";
+  /**
+   * Similarity
+   * found by meaning: how alike the passage is to the query (cosine, up to 1)
+   */
+  similarity?: number | null;
   [key: string]:
     | unknown
     | number
@@ -8810,6 +8865,11 @@ export type SearchHit = {
     | null
     | number
     | null
+    | "words"
+    | "meaning"
+    | "both"
+    | number
+    | null
     | undefined;
 };
 
@@ -8842,7 +8902,35 @@ export type SearchResults = {
    * with `facets=true`: counts over all the matching moments
    */
   facets?: SearchFacets | null;
-  [key: string]: unknown | string | number | boolean | Array<SearchHit> | SearchFacets | null | undefined;
+  /**
+   * Mode
+   * how the query was matched: by its words, by meaning, or both (fused by rank)
+   */
+  mode?: "keyword" | "semantic" | "hybrid";
+  /**
+   * Meaning
+   * why the search wasn't by meaning when that was asked for
+   */
+  meaning?: string | null;
+  /**
+   * Semantic
+   * search by meaning is set up, so `mode` may be semantic or hybrid
+   */
+  semantic?: boolean;
+  [key: string]:
+    | unknown
+    | string
+    | number
+    | boolean
+    | Array<SearchHit>
+    | SearchFacets
+    | null
+    | "keyword"
+    | "semantic"
+    | "hybrid"
+    | string
+    | null
+    | undefined;
 };
 
 /**
@@ -8965,6 +9053,79 @@ export type SegmentUpdate = {
    * Speaker
    */
   speaker?: number | null;
+};
+
+/**
+ * SemanticStatus
+ * Search by meaning: whether it's on, which model it uses, and how much of the archive it covers.
+ */
+export type SemanticStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Configured
+   * on, with an embeddings server and a model
+   */
+  configured: boolean;
+  /**
+   * Base Url
+   * the embeddings server: its own, else the LLM provider's
+   */
+  base_url?: string | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Indexed Model
+   * the model the stored vectors are from
+   */
+  indexed_model?: string | null;
+  /**
+   * Current
+   * the stored vectors are the configured model's, so searches can use them
+   */
+  current: boolean;
+  /**
+   * Dimension
+   */
+  dimension?: number | null;
+  /**
+   * Passages
+   * passages embedded
+   */
+  passages: number;
+  /**
+   * Recordings
+   * recordings in the archive
+   */
+  recordings: number;
+  /**
+   * Indexed
+   * recordings indexed with the configured model
+   */
+  indexed: number;
+  /**
+   * Min Similarity
+   * how alike a passage must be to a query to be a hit
+   */
+  min_similarity: number;
+  [key: string]:
+    | unknown
+    | boolean
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | number
+    | null
+    | number
+    | number
+    | undefined;
 };
 
 /**
@@ -12382,6 +12543,68 @@ export type TestLlmResponses = {
 
 export type TestLlmResponse = TestLlmResponses[keyof TestLlmResponses];
 
+export type TestEmbeddingsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/embeddings/test";
+};
+
+export type TestEmbeddingsResponses = {
+  /**
+   * Successful Response
+   */
+  200: EmbedTestResult;
+};
+
+export type TestEmbeddingsResponse = TestEmbeddingsResponses[keyof TestEmbeddingsResponses];
+
+export type SemanticStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/semantic";
+};
+
+export type SemanticStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: SemanticStatus;
+};
+
+export type SemanticStatusResponse = SemanticStatusResponses[keyof SemanticStatusResponses];
+
+export type IndexSemanticData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/admin/semantic/index";
+};
+
+export type IndexSemanticErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type IndexSemanticError = IndexSemanticErrors[keyof IndexSemanticErrors];
+
+export type IndexSemanticResponses = {
+  /**
+   * Successful Response
+   */
+  200: IndexQueued;
+};
+
+export type IndexSemanticResponse = IndexSemanticResponses[keyof IndexSemanticResponses];
+
 export type ListAuditData = {
   body?: never;
   path?: never;
@@ -15706,6 +15929,11 @@ export type SearchTranscriptsData = {
      * also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object
      */
     facets?: boolean;
+    /**
+     * Mode
+     * "keyword": the words (BM25); "semantic": by meaning (needs an embedding model, Settings → Search); "hybrid": both, fused by rank; "auto": hybrid when search by meaning is set up and the query has no "phrases" or OR, else keyword
+     */
+    mode?: "auto" | "keyword" | "semantic" | "hybrid";
   };
   url: "/api/v1/search";
 };

@@ -4,6 +4,20 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Search by meaning.** Search now also finds moments about what you asked in other words: "money worries" finds
+  "we can't afford the rent this month". A new `embed` pipeline step (in the standard pipeline, after analyze) has an
+  OpenAI-compatible embedding model embed each recording's passages (runs of transcript lines, page text, and what
+  shots and pages are described as showing) into SurrealDB's HNSW vector index; by default the LLM provider's server
+  with `nomic-embed-text`, which runs offline in Ollama, or a server of its own (Settings → Search, `embeddings` in
+  archive.yaml, `LENS_EMBED_*`). Searches fuse the keyword (BM25) hits with the passages found by meaning by
+  reciprocal rank; a query with "phrases" or OR stays exact, and the web app's Match switch (Words and meaning, Words
+  only, Meaning only; `mode` on `GET /search`) chooses. Moments found only by meaning are marked Related, with how
+  alike they are, and count in the facets. The assistant's search tool and chat's retrieval find passages by meaning
+  too. Only changed passages are embedded again (after corrections, splits, merges and entity renames). A seeded
+  hourly routine, **Index for search by meaning**, indexes recordings made before it was set up, or after the model
+  changes (which drops the old vectors); Settings → Search tests the model, shows how much is indexed and can queue
+  more now, and `lens embed` indexes from the command line (docs/processing.md#search-by-meaning).
+
 - **Install on Proxmox VE with one command.** A [community helper script](https://community-scripts.org/docs/ct/detailed_guide)
   (`proxmox/ct/lens.sh`, run in the Proxmox host's shell) creates a Debian 13 LXC container running Lens without
   Docker: SurrealDB 3.2.4, the API, a job worker and the web app as systemd services, with fresh secrets and the web

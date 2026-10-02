@@ -26,6 +26,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if self.path.endswith("/embeddings"):
+            return self._embeddings(body)
         Handler.seen.append(body)
         if body.get("tools"):
             if Handler.reject_tools:
@@ -122,8 +124,57 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _embeddings(self, body):
+        Handler.embedded.append(body)
+        if not Handler.embeddings or Handler.embed_fail:
+            data = b'{"error": "model not found"}'
+            self.send_response(404)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        texts = body["input"] if isinstance(body["input"], list) else [body["input"]]
+        return self._json(
+            {"object": "list", "model": body["model"], "data": [{"index": i, "embedding": embed(t)} for i, t in enumerate(texts)]}
+        )
+
     def log_message(self, *a):
         pass
+
+
+Handler.embeddings = False  # answer POST /embeddings (else 404, like a server without an embedding model)
+Handler.embed_fail = False
+Handler.embedded = []  # the embeddings requests seen
+
+# A toy embedding model: one dimension per topic, which its words (and their synonyms) point along, so texts about the
+# same thing in different words come out alike; other words spread thinly over the rest, so they still differ a little.
+TOPICS = [
+    {"money", "cash", "afford", "rent", "budget", "finances", "financial", "broke", "salary", "debt", "expensive", "bills"},
+    {"travel", "trip", "flight", "airport", "holiday", "vacation", "journey", "abroad", "plane", "luggage"},
+    {"sick", "ill", "illness", "doctor", "fever", "hospital", "health", "flu", "medicine", "unwell"},
+    {"food", "dinner", "cook", "recipe", "kitchen", "lunch", "meal", "eat", "pasta", "hungry"},
+    {"capsid", "protein", "virus", "vector", "gene", "therapy", "aav", "benchmark", "model"},
+    {"ship", "shipment", "delivery", "deliver", "parcel", "courier", "send", "samples", "friday"},
+]
+EXTRA = 8
+
+
+def embed(text):
+    import math
+    import zlib
+
+    v = [0.0] * (len(TOPICS) + EXTRA)
+    for w in re.findall(r"[a-z]+", text.lower()):
+        if w in ("search", "query", "document"):  # the prefixes some models are given
+            continue
+        hit = [k for k, t in enumerate(TOPICS) if w in t]
+        for k in hit:
+            v[k] += 1.0
+        if not hit:
+            v[len(TOPICS) + zlib.crc32(w.encode()) % EXTRA] += 0.15
+    n = math.sqrt(sum(x * x for x in v)) or 1.0
+    return [x / n for x in v] if any(v) else [1.0 / math.sqrt(len(v))] * len(v)
 
 
 def _picture(body):

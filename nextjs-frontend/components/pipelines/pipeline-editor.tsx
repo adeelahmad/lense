@@ -12,6 +12,7 @@ import {
   FlaskConical,
   GripVertical,
   ScanFace,
+  ScanSearch,
   ScanText,
   Shapes,
   Sparkles,
@@ -64,6 +65,7 @@ const ICON: Record<string, LucideIcon> = {
   objects: Shapes,
   describe: Eye,
   analyze: TextSearch,
+  embed: ScanSearch,
   summarize: Sparkles,
   llm: Sparkles,
   report: FileText,
@@ -79,6 +81,7 @@ const LIB_ORDER = [
   "objects",
   "describe",
   "analyze",
+  "embed",
   "summarize",
   "llm",
   "report",
@@ -220,7 +223,7 @@ export function PipelineEditor({ id }: { id?: number }) {
   // Load the version being viewed (or the standard steps for a new pipeline).
   useEffect(() => {
     if (creating && catalog.data && !steps.length)
-      setSteps(["transcribe", "diarize", "analyze", "summarize", "report"].map((t) => ({ type: t })));
+      setSteps(["transcribe", "diarize", "analyze", "embed", "summarize", "report"].map((t) => ({ type: t })));
   }, [creating, catalog.data]);
   useEffect(() => {
     if (base) {

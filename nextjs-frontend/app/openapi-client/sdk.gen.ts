@@ -81,6 +81,13 @@ import type {
   UpdateSettingsErrors,
   TestLlmData,
   TestLlmResponses,
+  TestEmbeddingsData,
+  TestEmbeddingsResponses,
+  SemanticStatusData,
+  SemanticStatusResponses,
+  IndexSemanticData,
+  IndexSemanticResponses,
+  IndexSemanticErrors,
   ListAuditData,
   ListAuditResponses,
   ListAuditErrors,
@@ -1269,6 +1276,46 @@ export class Admin {
   public static testLlm<ThrowOnError extends boolean = false>(options?: Options<TestLlmData, ThrowOnError>) {
     return (options?.client ?? client).post<TestLlmResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/llm/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Embeddings
+   * Embed one sentence with the configured model, to check the address, key and model name.
+   */
+  public static testEmbeddings<ThrowOnError extends boolean = false>(
+    options?: Options<TestEmbeddingsData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).post<TestEmbeddingsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/embeddings/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Semantic Status
+   * Search by meaning: whether it's set up, its model, and how many recordings are indexed with it.
+   */
+  public static semanticStatus<ThrowOnError extends boolean = false>(
+    options?: Options<SemanticStatusData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<SemanticStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/semantic",
+      ...options,
+    });
+  }
+
+  /**
+   * Index Semantic
+   * Queue the embed step for up to `limit` recordings not yet indexed with the configured model, oldest first (a
+   * recording with a job waiting or running is left for the next time).
+   */
+  public static indexSemantic<ThrowOnError extends boolean = false>(
+    options?: Options<IndexSemanticData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).post<IndexSemanticResponses, IndexSemanticErrors, ThrowOnError>({
+      url: "/api/v1/admin/semantic/index",
       ...options,
     });
   }
@@ -2788,7 +2835,7 @@ export class Search {
    * Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
    * transcripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),
    * best first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion
-   * filter keeps to what was said.
+   * filter keeps to what was said. By meaning, a moment is a passage about what was asked, though its words may differ.
    */
   public static searchTranscripts<ThrowOnError extends boolean = false>(
     options: Options<SearchTranscriptsData, ThrowOnError>,

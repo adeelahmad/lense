@@ -117,6 +117,39 @@ must appear as written; OR separates alternatives. Filter by namespace, speaker,
 aren't in English set `search.stemming: none` and run `lens reindex`. Prefix search (`expl*`) from the SQLite
 version is gone; stemming covers most of what it was used for.
 
+### Search by meaning
+
+With an embedding model set up (Settings → Search, or `embeddings` in archive.yaml: see
+[configuration](configuration.md#search-by-meaning)), search also finds moments about what was asked in other words:
+"money worries" finds "we can't afford the rent this month". The `embed` step (in the standard pipeline, after
+analyze) joins a recording's transcript lines into passages of about `embeddings.passage_chars` characters (each within
+one page of a document), adds what its shots or pages are described as showing, and has the model embed each; the
+vectors live in the `passage` table under SurrealDB's HNSW index. Indexing a recording again only embeds the passages
+whose text changed, so a corrected line costs one request; correcting, splitting or merging lines and renaming an
+entity across the transcript run the step again.
+
+A search is matched three ways (`mode` on `GET /search`, the Match switch in the web app):
+
+* **auto** (the default): by its words and by meaning, fused by reciprocal rank, when search by meaning is set up and
+  the query has no "quoted phrases" or OR (those ask for exactly those words); else by its words.
+* **keyword**: only the words, as above.
+* **semantic**: only by meaning.
+
+A passage found by meaning is shown at its line that best fits (the speaker or emotion filtered on, else the one with
+most of the query's words), marked Related, with how alike it is (`similarity`, cosine). One that holds a keyword hit
+adds to that hit's rank instead of showing twice. Only passages at least `embeddings.min_similarity` alike count, and
+none much further than the closest one, so an unrelated query finds nothing rather than whatever is least unlike it.
+Facets count the moments found by meaning too. The assistant's search tool and chat's retrieval use the same passages,
+so a question finds excerpts that answer it without sharing its words.
+
+The vectors are only comparable within one model. When the model (or `embeddings.document_prefix`) changes, the old
+vectors are dropped and searches go by the words until recordings are indexed again: the **Index for search by
+meaning** routine (seeded, hourly at :20) queues the embed step for up to 500 recordings not yet indexed with the
+current model each time, and does nothing (no run is recorded) while search by meaning is off or everything is indexed;
+Settings → Search shows how far it has got and can queue more now; `lens embed` indexes here and now. When the
+embeddings server can't be reached, the step is skipped (the routine tries again later) and searches go by the words,
+saying why.
+
 ## Background work
 
 Imports, pipeline runs and folder scans return at once and run as jobs stored in SurrealDB. The server runs

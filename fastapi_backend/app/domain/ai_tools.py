@@ -156,7 +156,9 @@ class Toolbox:
     # ---- read tools ----
     def t_search_transcripts(self, query, namespace=None, limit=8):
         # within the conversation's scope in the search itself, so out-of-scope matches don't crowd out the rest
-        res = searchmod.search(self.db, query, namespace, limit=min(int(limit), 20), spaces=self.readable, recordings=self.allowed)
+        res = searchmod.search(
+            self.db, query, namespace, limit=min(int(limit), 20), spaces=self.readable, recordings=self.allowed, cfg=self.cfg, mode="auto"
+        )
         hits = res["hits"]
         out = []
         for h in hits:

@@ -78,10 +78,42 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 
 ## Settings in the app
 
-Admins can change transcription, diarisation, voice-ID thresholds, analysis, LLM provider and key, graph, search,
+Admins can change transcription, diarisation, voice-ID thresholds, analysis, LLM provider and key, graph, search
+(and search by meaning),
 reports, workers, IIIF, the assistant, video, uploads, documents and images, and server options (embed frame ancestors, transcript upload
 limit, allowed hosts, trusted proxies, session length). The API refuses an allowed-host list that leaves out the address
 you are using.
+
+## Search by meaning
+
+Passages of transcripts, pages and descriptions are embedded by an OpenAI-compatible embeddings server (`POST
+/embeddings`), so search can find moments by meaning ([how it works](processing.md#search-by-meaning)). By default it
+asks the LLM provider's server (`llm.base_url`, with its key) for `nomic-embed-text`, a small model that runs offline
+in Ollama (`ollama pull nomic-embed-text`); set `embeddings.base_url` to use another server, such as Ollama next to
+LM Studio, or llama.cpp's `llama-server --embeddings`. Without a server, search goes by the words as before.
+
+```yaml
+embeddings:
+  base_url: http://localhost:11434/v1   # null: the LLM provider's
+  model: nomic-embed-text
+```
+
+| Setting | Default | |
+|---|---|---|
+| `embeddings.enabled` | true | off: no passages are embedded, and searches go by the words |
+| `embeddings.base_url` | null | the embeddings server; null: the LLM provider's (and its key). `LENS_EMBED_BASE_URL` sets it |
+| `embeddings.model` | nomic-embed-text | the embedding model (`LENS_EMBED_MODEL`); e.g. mxbai-embed-large, bge-m3, all-minilm, text-embedding-3-small |
+| `embeddings.api_key` / `api_key_env` | none | a key for the embeddings server, stored encrypted (`LENS_EMBED_API_KEY`), or the variable that holds it |
+| `embeddings.min_similarity` | null | how alike (cosine, 0–1) a passage must be to count; null: what suits the model (0.52 for nomic-embed-text) |
+| `embeddings.neighbours` | 40 | passages found per search, 5–500 (more when a page of results needs them) |
+| `embeddings.passage_chars` | 800 | how long passages are, 200–4000 characters |
+| `embeddings.batch_size` | 32 | passages sent per request, 1–256 |
+| `embeddings.timeout` | 60 | seconds per request (a search waits at most 15) |
+| `embeddings.query_prefix` / `document_prefix` | null | what searches and passages start with; null: what the model wants (`search_query: ` and `search_document: ` for nomic-embed-text, an instruction for mxbai and bge, `query: ` / `passage: ` for e5) |
+
+Changing the model drops the stored vectors (another model's can't be compared) until recordings are indexed again. When the server fails to index (it's down, or
+doesn't have the model), indexing jobs skip for ten minutes rather than each waiting on it, and the hourly routine
+waits too; **Test** in Settings → Search, **Index now**, or `lens embed` try again at once.
 
 ## Chat models
 

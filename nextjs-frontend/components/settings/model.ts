@@ -127,8 +127,8 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: "search",
     label: "Search",
-    backend: ["search"],
-    description: "How transcripts are indexed for search.",
+    backend: ["search", "embeddings"],
+    description: "How transcripts are indexed for search, and search by meaning with an embedding model.",
   },
   {
     id: "reports",
@@ -209,6 +209,7 @@ export const WORKER_STEPS = [
   "objects",
   "describe",
   "analyze",
+  "embed",
   "summarize",
   "llm",
   "report",
@@ -602,6 +603,105 @@ export const FIELDS: FieldSpec[] = [
       { value: "none", label: "None" },
     ],
     hint: "Changing this needs a reindex before results change",
+  },
+  // Search by meaning
+  {
+    section: "embeddings",
+    key: "enabled",
+    label: "Search by meaning",
+    kind: "switch",
+    hint: "Finds passages about what was searched for, in other words too. Needs an embedding model",
+  },
+  {
+    section: "embeddings",
+    key: "base_url",
+    label: "Embeddings server (OpenAI-compatible)",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "the LLM provider’s",
+    hint: "Ollama: http://localhost:11434/v1. Empty: the LLM provider’s address and key",
+  },
+  {
+    section: "embeddings",
+    key: "model",
+    label: "Embedding model",
+    kind: "text",
+    mono: true,
+    hint: "nomic-embed-text is small and runs offline (ollama pull nomic-embed-text)",
+  },
+  { section: "embeddings", key: "api_key", label: "API key", kind: "secret" },
+  {
+    section: "embeddings",
+    key: "api_key_env",
+    label: "Or read the key from this variable",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "OPENAI_API_KEY",
+  },
+  {
+    section: "embeddings",
+    key: "min_similarity",
+    label: "Least similarity for a match",
+    kind: "number",
+    min: 0,
+    max: 1,
+    nullable: true,
+    placeholder: "what suits the model",
+    hint: "0 to 1. Higher shows fewer, closer passages",
+  },
+  {
+    section: "embeddings",
+    key: "neighbours",
+    label: "Passages found per search",
+    kind: "int",
+    min: 5,
+    max: 500,
+  },
+  {
+    section: "embeddings",
+    key: "passage_chars",
+    label: "Passage length",
+    kind: "int",
+    min: 200,
+    max: 4000,
+    unit: "characters",
+    hint: "Lines are joined into passages this long",
+  },
+  {
+    section: "embeddings",
+    key: "batch_size",
+    label: "Passages per request",
+    kind: "int",
+    min: 1,
+    max: 256,
+  },
+  {
+    section: "embeddings",
+    key: "timeout",
+    label: "Timeout (seconds)",
+    kind: "int",
+    min: 5,
+    max: 600,
+  },
+  {
+    section: "embeddings",
+    key: "query_prefix",
+    label: "Searches start with",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "what the model wants",
+  },
+  {
+    section: "embeddings",
+    key: "document_prefix",
+    label: "Passages start with",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "what the model wants",
   },
   // Reports and graph
   {
@@ -1252,6 +1352,11 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   if (g) e["analysis.gazetteer"] = g;
   const llm = values["llm.base_url"] as string | null | undefined;
   if (llm && !URL_RX.test(llm)) e["llm.base_url"] = "Use an http(s) address, such as https://api.example.org/v1";
+  const embed = values["embeddings.base_url"] as string | null | undefined;
+  if (embed && !URL_RX.test(embed))
+    e["embeddings.base_url"] = "Use an http(s) address, such as http://localhost:11434/v1";
+  if (values["embeddings.model"] === "" || values["embeddings.model"] === null)
+    e["embeddings.model"] = "Name the embedding model, such as nomic-embed-text";
   const base = values["iiif.base_url"] as string | null | undefined;
   if (base && !URL_RX.test(base)) e["iiif.base_url"] = "Use an http(s) address";
   const appUrl = values["notifications.app_url"] as string | null | undefined;
@@ -1324,6 +1429,8 @@ export function why(c: Change): string | null {
     );
   }
   if (id === "search.stemming") return "Search keeps the old index until you rebuild it (Reindex).";
+  if (id === "embeddings.model" || id === "embeddings.document_prefix")
+    return "Vectors from another model can’t be compared: search by meaning stops until recordings are indexed again (the hourly routine, or Index now).";
   if (id === "iiif.base_url") return "Every IIIF identifier changes.";
   if (id === "transcribe.engine" || id === "transcribe.language")
     return "Applies to new transcriptions; existing transcripts stay until reprocessed.";

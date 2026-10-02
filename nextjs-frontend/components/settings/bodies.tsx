@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueries } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlugZap, RefreshCw, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
@@ -186,12 +186,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "ai":
       return <AiBody ctx={ctx} />;
     case "search":
-      return (
-        <>
-          <F ctx={ctx} id="search.stemming" />
-          <Reindex />
-        </>
-      );
+      return <SearchBody ctx={ctx} />;
     case "reports":
       return (
         <>
@@ -465,6 +460,121 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           <span className="text-fg-secondary">The same as an editor, in the namespaces they own.</span>
         </div>
       </div>
+    </>
+  );
+}
+
+function SearchBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const e = ctx.view.embeddings?.values ?? {};
+  const secret = (e.api_key ?? {}) as { set?: boolean };
+  const key = ctx.state("embeddings.api_key");
+  const on = Boolean(ctx.form["embeddings.enabled"]);
+  const status = useQuery({
+    queryKey: ["semantic-status"],
+    queryFn: () => data(Admin.semanticStatus({ client })),
+    refetchInterval: (q) => (q.state.data && q.state.data.indexed < q.state.data.recordings ? 15_000 : false),
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testEmbeddings({ client })) });
+  const index = useMutation({
+    mutationFn: () => data(Admin.indexSemantic({ client })),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["semantic-status"] }),
+  });
+  const s = status.data;
+  return (
+    <>
+      <F ctx={ctx} id="search.stemming" />
+      <Reindex />
+      <h3 className="m-0 mt-3 text-[15px] font-bold text-fg">Search by meaning</h3>
+      <p className="m-0 text-[13px] leading-normal text-fg-secondary">
+        Passages of transcripts, pages and descriptions are embedded by an OpenAI-compatible server (Ollama, llama.cpp,
+        vLLM, LM Studio, OpenAI), so a search also finds moments about the same thing in other words. A local model keeps
+        everything on your machine.
+      </p>
+      <F ctx={ctx} id="embeddings.enabled" />
+      {on && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="embeddings.base_url" />
+            <F ctx={ctx} id="embeddings.model" />
+          </div>
+          <SecretSetting
+            key={ctx.view.embeddings?.updated_at ?? "none"}
+            label="API key"
+            isSet={Boolean(secret.set)}
+            updatedBy={ctx.view.embeddings?.updated_by}
+            updatedAt={ctx.view.embeddings?.updated_at}
+            value={key.value as string | undefined}
+            onChange={(x) => key.onChange(x)}
+          />
+          <F ctx={ctx} id="embeddings.api_key_env" hint="Used only when no key is stored above" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="embeddings.min_similarity" />
+            <F ctx={ctx} id="embeddings.neighbours" />
+            <F ctx={ctx} id="embeddings.passage_chars" />
+            <F ctx={ctx} id="embeddings.batch_size" />
+            <F ctx={ctx} id="embeddings.query_prefix" />
+            <F ctx={ctx} id="embeddings.document_prefix" />
+            <F ctx={ctx} id="embeddings.timeout" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+              {test.isPending ? "Testing…" : "Test"}
+            </Button>
+            <span className="text-[12px] text-fg-muted">
+              {ctx.dirty
+                ? "Tests the saved settings, not your unsaved changes"
+                : "Embeds one sentence and reports the vector size and latency"}
+            </span>
+          </div>
+          {test.data &&
+            (test.data.ok ? (
+              <Banner tone="success" title="The model answered.">
+                {test.data.model ?? "Model"} · {test.data.dimension} dimensions · {test.data.ms} ms
+              </Banner>
+            ) : (
+              <Banner tone="error" title="The test failed.">
+                {test.data.error}
+              </Banner>
+            ))}
+          {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+        </>
+      )}
+      {s && (
+        <div className="flex flex-col gap-2 rounded-md border border-blue-border bg-blue-surface px-3.5 py-3">
+          <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold">
+            <span className="flex-1">
+              {!s.configured
+                ? "Search by meaning is off"
+                : s.current
+                  ? `${s.indexed} of ${s.recordings} recordings indexed with ${s.model}`
+                  : s.indexed_model
+                    ? `Indexed with ${s.indexed_model}; nothing yet with ${s.model}`
+                    : `Nothing indexed with ${s.model} yet`}
+            </span>
+            {s.configured && s.indexed < s.recordings && (
+              <Button
+                size="xs"
+                icon={<RefreshCw />}
+                onClick={() => index.mutate()}
+                disabled={index.isPending || ctx.dirty}
+                disabledReason={ctx.dirty ? "Save your changes first" : undefined}
+              >
+                {index.isPending ? "Queuing…" : "Index now"}
+              </Button>
+            )}
+          </div>
+          <span className="text-[12px] leading-[1.4] text-fg-secondary">
+            {s.configured
+              ? `${s.passages} passages${s.dimension ? ` of ${s.dimension} dimensions` : ""}. New recordings are indexed by their pipeline's Index for meaning step; the “${"Index for search by meaning"}” routine catches up every hour (Routines).`
+              : "Turn it on and name a model to start. Recordings are indexed by their pipelines and an hourly routine."}
+            {index.data &&
+              ` Queued ${index.data.recordings}${index.data.remaining ? "; more are waiting for the next run" : ""}.`}
+          </span>
+          {index.isError && <span className="text-[12px] text-red-dark">{index.error.message}</span>}
+        </div>
+      )}
     </>
   );
 }

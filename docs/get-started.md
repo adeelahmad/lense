@@ -82,12 +82,14 @@ The backend installs a `lens` command (run it with `uv run lens …`, or `docker
 
 ```bash
 lens init                                  # write a starter archive.yaml
-lens run                                   # scan, transcribe, diarize, analyze, summarize, report
+lens run                                   # scan, transcribe, diarize, analyze, embed, summarize, report
 lens import podcasts episode.docx --audio episode.mp3 --speakers "SPEAKER_00=Host A,SPEAKER_01=Host B"
 lens users add ana@example.com --name Ana --admin
 lens users role ana@example.com podcasts editor
 lens worker --steps transcribe,diarize     # a worker that only transcribes (e.g. mlx on a Mac)
 lens search "capsid" --ns podcasts
+lens search "money worries" --mode semantic   # by meaning (with an embedding model; see configuration.md)
+lens embed                                 # index what isn't yet searchable by meaning
 lens reindex                               # after changing search.stemming
 ```
 
