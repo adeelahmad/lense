@@ -9,7 +9,7 @@ import threading
 from typing import Any
 
 from app.config import settings as env
-from app.domain import auth, jobs, settings, sources, store, templates
+from app.domain import auth, content_types, jobs, settings, sources, store, templates
 
 log = logging.getLogger("lens")
 
@@ -30,6 +30,7 @@ class Archive:
 
     def prepare(self) -> None:
         templates.seed(self.db)
+        content_types.seed(self.db)
         # Pay for the embedded engine's full-text repair at startup rather than in someone's first search.
         self.db.ready_fulltext()
         if auth.account_count(self.db) == 0:

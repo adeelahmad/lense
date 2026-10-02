@@ -25,7 +25,7 @@ Todo:
 - [x] Default pipeline drawn as a chain of today's steps, so nothing changes until a graph is edited
 - [x] `workflow` step type in jobs, so a run records each workflow like any other step
 - [x] Pipelines attach workflows as `workflow` steps (`{type: workflow, workflow, version?, when?}`), pinned when queued
-- [x] Namespaces choose a pipeline per content type (`pipelines: {video: id, ...}`)
+- [x] Namespaces choose a pipeline per content type (`pipelines: {video: id, ...}`), reworked below into subtypes
 - [x] API: `/workflows` (catalog, create, get, versions, run on a recording)
 - [x] Tests for the API, validation and a run end to end
 - [x] Canvas editor in the web app (pipelines and workflows): drag nodes, connect ports, node settings, I/O, save versions
@@ -34,3 +34,16 @@ Todo:
 - [ ] Asset converter steps (video → audio, document → images) as pipeline steps
 - [ ] Workflow node types: HTTP call, template render, entity filter
 - [x] Docs: processing.md section on workflows
+
+Content types (2026-10-02, follow-up in the same PR):
+
+- [x] Four base types (video, audio, image, text), derived from the file; transcripts, documents and web pages are text
+- [x] Subtypes (the vocabulary) under a base type: label, description, pipeline, rules (extensions, filename pattern,
+      length); built-in defaults, editable and removable, plus your own
+- [x] A resource's subtype: chosen at import/upload or on the resource, else the first subtype whose rules match, else
+      the base type's general subtype
+- [x] Pipeline resolution: chosen for the run > namespace override for the subtype > subtype's pipeline > namespace
+      default > standard
+- [x] API: /content-types (list, create, update, delete), set a recording's subtype
+- [x] Web app: Content types tab under Pipelines; per-namespace overrides by subtype; picker on the resource's Details
+- [ ] Choose the content type at import and upload (today: on the resource, or recognised by rules)

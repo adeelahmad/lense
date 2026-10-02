@@ -143,11 +143,11 @@ def test_workflows_run_in_pipelines_drawn_as_graphs(client, new_client, db, cfg)
     g = client.get(f"/api/v1/pipelines/{legacy}", headers=h).json()["graph"]
     assert [n["step"]["type"] for n in g["nodes"]] == ["analyze", "report"] and g["edges"] == [{"source": "s1", "target": "s2"}]
 
-    # transcripts in pods get it; other content types keep the default
-    assert client.patch("/api/v1/namespaces/pods", headers=h, json={"pipelines": {"podcast": pid}}).status_code == 400
-    assert client.patch("/api/v1/namespaces/pods", headers=h, json={"pipelines": {"transcript": pid}}).status_code == 200
+    # text in pods gets it; other content types keep the default
+    assert client.patch("/api/v1/namespaces/pods", headers=h, json={"pipelines": {"podcasts_and_more": pid}}).status_code == 400
+    assert client.patch("/api/v1/namespaces/pods", headers=h, json={"pipelines": {"text": pid}}).status_code == 200
     listed = {x["id"]: x for x in client.get("/api/v1/pipelines", headers=h).json()["pipelines"]}
-    assert listed[pid]["content_types"] == [{"namespace": "pods", "content_type": "transcript"}]
+    assert listed[pid]["content_types"] == [{"namespace": "pods", "content_type": "text"}]
     assert pipelines.resolve(db, sid, content_type="audio")[1]["name"] == "Standard"
     jid = jobs.enqueue(db, rid, by="test")
     drain(db, cfg)

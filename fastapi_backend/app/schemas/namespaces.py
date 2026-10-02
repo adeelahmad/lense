@@ -64,7 +64,7 @@ class NamespaceUpdate(RequestModel):
     graph: GraphMode | None = None
     pipeline: int | None = None
     pipelines: dict[str, int | None] | None = Field(
-        default=None, description="a pipeline per content type (audio, video, transcript, document, image); null for the default"
+        default=None, description="the namespace's own pipeline per content subtype (by key); null drops the override"
     )
 
 

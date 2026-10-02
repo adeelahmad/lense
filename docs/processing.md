@@ -205,5 +205,16 @@ A pipeline runs a workflow as a Workflow step, pinned to the workflow's publishe
 means "runs after", and the graph is put in order (ties left to right) and kept as the version's steps, so runs and
 Activity work as before. A pipeline saved as a list is drawn as a chain.
 
-A namespace can choose a pipeline per content type (audio, video, transcript, document, image); a recording gets the
-one for its type, else the namespace default, else the standard pipeline. Nothing changes until one is chosen.
+## Content types
+
+Every resource is video, audio, image or text (transcripts, documents and web pages are text), read from its file.
+Under each base type is a vocabulary of content types (Pipelines → Content types): Lens starts with podcast, interview
+and meeting (audio), screen-share tutorial and recorded meeting (video), photo and scanned page (image), transcript,
+document and web page (text), plus a general type for each base. Admins can rename and change them, remove all but the
+general ones, and add their own.
+
+A resource's content type is the one someone chose (its Details tab, `PUT /api/v1/recordings/{id}/content-type`), else
+the first of its base type whose rules all match (file extensions, a pattern in the file name or title, a length),
+else the general one. The pipeline that runs is the one chosen for the run, else the namespace's override for the
+content type, else the content type's pipeline, else the namespace default, else the standard pipeline. Content types
+start without a pipeline, so nothing changes until someone sets one.

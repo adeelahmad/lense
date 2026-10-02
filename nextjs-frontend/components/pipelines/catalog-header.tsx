@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
-import { Pipelines, Templates, Workflows } from "@/app/openapi-client";
+import { ContentTypes, Pipelines, Templates, Workflows } from "@/app/openapi-client";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -37,18 +37,29 @@ export function useWorkflowCatalog() {
   });
 }
 
+export function useContentTypes() {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["content-types"],
+    queryFn: () => data(ContentTypes.listContentTypes({ client })),
+    staleTime: 30_000,
+  });
+}
+
 const NEW = {
   pipelines: ["/pipelines/new", "New pipeline"],
   workflows: ["/workflows/new", "New workflow"],
+  "content-types": ["/content-types#new", "New content type"],
   templates: ["/templates/new", "New template"],
 } as const;
 
 /** PL1 header: "Pipelines" with the Pipelines / Workflows / Templates tabs and the one "New" action. */
-export function CatalogHeader({ tab }: { tab: "pipelines" | "workflows" | "templates" }) {
+export function CatalogHeader({ tab }: { tab: "pipelines" | "workflows" | "content-types" | "templates" }) {
   const { admin } = useArchive();
   const pipelines = usePipelineCatalog();
   const workflows = useWorkflowCatalog();
   const templates = useTemplateList();
+  const types = useContentTypes();
   const [newHref, newLabel] = NEW[tab];
   return (
     <div className="flex flex-col gap-3">
@@ -67,7 +78,7 @@ export function CatalogHeader({ tab }: { tab: "pipelines" | "workflows" | "templ
         )}
       </div>
       <Tabs
-        aria-label="Pipelines, workflows and templates"
+        aria-label="Pipelines, workflows, content types and templates"
         value={tab}
         items={[
           {
@@ -81,6 +92,12 @@ export function CatalogHeader({ tab }: { tab: "pipelines" | "workflows" | "templ
             label: "Workflows",
             count: workflows.data?.workflows.length,
             href: "/workflows",
+          },
+          {
+            value: "content-types",
+            label: "Content types",
+            count: types.data?.types.length,
+            href: "/content-types",
           },
           {
             value: "templates",

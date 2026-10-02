@@ -11072,6 +11072,253 @@
         }
       }
     },
+    "/api/v1/content-types": {
+      "get": {
+        "tags": [
+          "content-types"
+        ],
+        "summary": "List Content Types",
+        "description": "Every subtype, by base type (general first).",
+        "operationId": "list_content_types",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentTypeCatalog"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "content-types"
+        ],
+        "summary": "Create Content Type",
+        "operationId": "create_content_type",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentTypeCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentType"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/content-types/{key}": {
+      "patch": {
+        "tags": [
+          "content-types"
+        ],
+        "summary": "Update Content Type",
+        "operationId": "update_content_type",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentTypeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentType"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "content-types"
+        ],
+        "summary": "Delete Content Type",
+        "description": "Remove a subtype (not a base type's general one). Resources that had it are recognised again.",
+        "operationId": "delete_content_type",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/content-type": {
+      "get": {
+        "tags": [
+          "content-types"
+        ],
+        "summary": "Get Recording Content Type",
+        "operationId": "get_recording_content_type",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingContentType"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "content-types"
+        ],
+        "summary": "Set Recording Content Type",
+        "description": "Choose the resource's subtype (null: recognise it from the file again). Editors. New runs use its pipeline.",
+        "operationId": "set_recording_content_type",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordingContentTypeSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingContentType"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workflows": {
       "get": {
         "tags": [
@@ -15698,6 +15945,63 @@
         "type": "object",
         "title": "CommentUpdate"
       },
+      "ContentRules": {
+        "properties": {
+          "extensions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extensions",
+            "description": "e.g. [.srt, .vtt]"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern",
+            "description": "a regular expression found in the file name or title"
+          },
+          "min_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Minutes"
+          },
+          "max_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Minutes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ContentRules",
+        "description": "How a subtype is recognised when nobody chose it: every rule given has to hold."
+      },
       "ContentState": {
         "properties": {
           "content_state": {
@@ -15730,6 +16034,228 @@
           "viewers"
         ],
         "title": "ContentState"
+      },
+      "ContentType": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "base": {
+            "type": "string",
+            "enum": [
+              "video",
+              "audio",
+              "image",
+              "text"
+            ],
+            "title": "Base"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline",
+            "description": "its pipeline; none: the namespace default runs"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules"
+          },
+          "general": {
+            "type": "boolean",
+            "title": "General",
+            "description": "the base type's catch-all: can be renamed, not removed"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "one Lens started with"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "key",
+          "base",
+          "label",
+          "general",
+          "builtin"
+        ],
+        "title": "ContentType"
+      },
+      "ContentTypeCatalog": {
+        "properties": {
+          "bases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bases"
+          },
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/ContentType"
+            },
+            "type": "array",
+            "title": "Types"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "bases",
+          "types"
+        ],
+        "title": "ContentTypeCatalog"
+      },
+      "ContentTypeCreate": {
+        "properties": {
+          "base": {
+            "type": "string",
+            "enum": [
+              "video",
+              "audio",
+              "image",
+              "text"
+            ],
+            "title": "Base"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key",
+            "description": "lowercase letters, digits and _; made from the label if left out"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentRules"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base",
+          "label"
+        ],
+        "title": "ContentTypeCreate"
+      },
+      "ContentTypeUpdate": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentRules"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ContentTypeUpdate",
+        "description": "Only what you send changes; its key and base type stay."
       },
       "ContentTypeUse": {
         "properties": {
@@ -19804,7 +20330,7 @@
               }
             ],
             "title": "Pipelines",
-            "description": "a pipeline per content type (audio, video, transcript, document, image); null for the default"
+            "description": "the namespace's own pipeline per content subtype (by key); null drops the override"
           }
         },
         "additionalProperties": false,
@@ -20749,13 +21275,13 @@
             "title": "Asset Steps",
             "description": "steps that make something of the media"
           },
-          "content_types": {
+          "base_types": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Content Types",
-            "description": "what a namespace can choose a pipeline for"
+            "title": "Base Types",
+            "description": "video, audio, image and text"
           },
           "conditions": {
             "items": {
@@ -20926,7 +21452,15 @@
             },
             "type": "array",
             "title": "Content Types",
-            "description": "namespaces that use it for one content type"
+            "description": "namespaces that use it for one content subtype"
+          },
+          "subtypes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Subtypes",
+            "description": "content subtypes whose pipeline it is"
           }
         },
         "additionalProperties": true,
@@ -22896,6 +23430,47 @@
         "type": "object",
         "title": "RecordingAccessUpdate",
         "description": "Send the settings to change. access or open set to null follow the namespace's default again."
+      },
+      "RecordingContentType": {
+        "properties": {
+          "content_type": {
+            "$ref": "#/components/schemas/ContentType"
+          },
+          "chosen": {
+            "type": "boolean",
+            "title": "Chosen",
+            "description": "someone chose it; otherwise it was recognised from the file"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "content_type",
+          "chosen"
+        ],
+        "title": "RecordingContentType"
+      },
+      "RecordingContentTypeSet": {
+        "properties": {
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type",
+            "description": "a subtype of the resource's base type; null to recognise it again"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "content_type"
+        ],
+        "title": "RecordingContentTypeSet"
       },
       "RecordingFacet": {
         "properties": {

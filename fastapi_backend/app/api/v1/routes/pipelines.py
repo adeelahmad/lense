@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import Acl, AdminWriter, CurrentUser, Db, Writer, domain_errors
-from app.domain import auth, jobs, pipelines
+from app.domain import auth, content_types, jobs, pipelines
 from app.schemas.common import Created
 from app.schemas.pipelines import (
     JobQueued,
@@ -31,7 +31,7 @@ def list_pipelines(user: CurrentUser, db: Db) -> PipelineCatalog:
         standard=pipelines.STANDARD,
         step_types=sorted(pipelines.TYPES),
         asset_steps=list(pipelines.ASSET_STEPS),
-        content_types=list(pipelines.CONTENT_TYPES),
+        base_types=list(content_types.BASES),
         conditions=list(pipelines.WHEN),
         pipelines=pipelines.list_pipelines(db),
     )

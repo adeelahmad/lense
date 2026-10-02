@@ -4,8 +4,9 @@ structured result is saved as a named output), report (built in, or from a repor
 rendered to a file, optionally copied to a storage source) and workflow (a workflow graph, workflows.py, that turns
 what the steps made into metadata). Any step can carry a condition.
 
-A namespace can also choose a pipeline per content type (audio, video, transcript, document, image); a recording gets
-the one for its type, else the namespace's default, else the standard pipeline.
+Which pipeline a recording gets also depends on its content type (content_types.py): the one chosen for the run, else
+the namespace's override for the recording's subtype, else the subtype's own pipeline, else the namespace's default,
+else the standard pipeline.
 
 A version can be saved as a graph, as the canvas draws it: `{nodes: [{id, step, x, y}], edges: [{source, target}]}`,
 an edge saying its target runs after its source. It is put in order (each step after the ones it follows, ties left to
@@ -26,7 +27,6 @@ TYPES = {
 }  # fmt: skip
 ASSET_STEPS = ("transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe")  # they make something of the media
 KEYS = {"type", "name", "when", "template", "version", "key", "filename", "destination", "model", "force", "workflow"}
-CONTENT_TYPES = ("audio", "video", "transcript", "document", "image")
 NODE_RX = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 WHEN = {"min_minutes": (int, float), "max_minutes": (int, float), "source": str, "languages": list}
 KEY_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
@@ -190,24 +190,32 @@ def get(db, pid, version=None):
 
 
 def list_pipelines(db):
-    used, typed = {}, {}
+    from . import content_types
+
+    used, typed, sub = {}, {}, {}
     for s in db.rows("SELECT name, pipeline, pipelines FROM space WHERE pipeline != NONE OR pipelines != NONE"):
         if s.get("pipeline"):
             used.setdefault(s["pipeline"], []).append(s["name"])
         for kind, pid in (s.get("pipelines") or {}).items():
             typed.setdefault(pid, []).append({"namespace": s["name"], "content_type": kind})
+    for t in content_types.all_types(db):
+        if t.get("pipeline"):
+            sub.setdefault(t["pipeline"], []).append(t["key"])
     return [
-        {**p, "namespaces": used.get(p["id"], []), "content_types": typed.get(p["id"], [])}
+        {**p, "namespaces": used.get(p["id"], []), "content_types": typed.get(p["id"], []), "subtypes": sub.get(p["id"], [])}
         for p in db.rows("SELECT record::id(id) AS id, name, description, current, updated_at FROM pipeline ORDER BY id")
     ]
 
 
 def set_content_types(db, space, mapping):
-    """A namespace's pipeline per content type ({type: pipeline id, or None for its default}); the others keep theirs."""
+    """A namespace's own pipeline per content subtype ({subtype: pipeline id, or None to drop the override})."""
+    from . import content_types
+
+    keys = {t["key"] for t in content_types.all_types(db)}
     cur = dict((db.one("SELECT pipelines FROM $s", s=R("space", space)) or {}).get("pipelines") or {})
     for kind, pid in (mapping or {}).items():
-        if kind not in CONTENT_TYPES:
-            raise ValueError(f"content types are {', '.join(CONTENT_TYPES)}")
+        if kind not in keys:
+            raise ValueError(f"no content type {kind}")
         if pid is None:
             cur.pop(kind, None)
             continue
@@ -221,9 +229,18 @@ def set_content_types(db, space, mapping):
 
 
 def resolve(db, space, pipeline_id=None, content_type=None):
-    """(steps, which pipeline): the one asked for, else the namespace's for the content type, else its default."""
+    """(steps, which pipeline): the one asked for, else the namespace's for the content subtype, else the subtype's,
+    else the namespace's default, else the standard one. `content_type` is a subtype ({key, pipeline}) or its key."""
+    from . import content_types
+
     sp = db.one("SELECT pipeline, pipelines FROM $s", s=R("space", space)) or {}
-    pid = pipeline_id or (sp.get("pipelines") or {}).get(content_type or "") or sp.get("pipeline")
+    if isinstance(content_type, str):
+        try:
+            content_type = content_types.get(db, content_type)
+        except KeyError:
+            content_type = None
+    key = (content_type or {}).get("key") or ""
+    pid = pipeline_id or (sp.get("pipelines") or {}).get(key) or (content_type or {}).get("pipeline") or sp.get("pipeline")
     if pid:
         p = get(db, int(pid))
         return pin(db, p["steps"]), {"id": p["id"], "version": p["version"], "name": p["name"]}

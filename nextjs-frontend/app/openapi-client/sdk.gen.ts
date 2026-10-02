@@ -619,6 +619,23 @@ import type {
   RunPipelineData,
   RunPipelineResponses,
   RunPipelineErrors,
+  ListContentTypesData,
+  ListContentTypesResponses,
+  CreateContentTypeData,
+  CreateContentTypeResponses,
+  CreateContentTypeErrors,
+  DeleteContentTypeData,
+  DeleteContentTypeResponses,
+  DeleteContentTypeErrors,
+  UpdateContentTypeData,
+  UpdateContentTypeResponses,
+  UpdateContentTypeErrors,
+  GetRecordingContentTypeData,
+  GetRecordingContentTypeResponses,
+  GetRecordingContentTypeErrors,
+  SetRecordingContentTypeData,
+  SetRecordingContentTypeResponses,
+  SetRecordingContentTypeErrors,
   ListWorkflowsData,
   ListWorkflowsResponses,
   CreateWorkflowData,
@@ -3780,6 +3797,103 @@ export class Pipelines {
   public static runPipeline<ThrowOnError extends boolean = false>(options: Options<RunPipelineData, ThrowOnError>) {
     return (options.client ?? client).post<RunPipelineResponses, RunPipelineErrors, ThrowOnError>({
       url: "/api/v1/pipelines/{pid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class ContentTypes {
+  /**
+   * List Content Types
+   * Every subtype, by base type (general first).
+   */
+  public static listContentTypes<ThrowOnError extends boolean = false>(
+    options?: Options<ListContentTypesData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ListContentTypesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/content-types",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Content Type
+   */
+  public static createContentType<ThrowOnError extends boolean = false>(
+    options: Options<CreateContentTypeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<CreateContentTypeResponses, CreateContentTypeErrors, ThrowOnError>({
+      url: "/api/v1/content-types",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Content Type
+   * Remove a subtype (not a base type's general one). Resources that had it are recognised again.
+   */
+  public static deleteContentType<ThrowOnError extends boolean = false>(
+    options: Options<DeleteContentTypeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<DeleteContentTypeResponses, DeleteContentTypeErrors, ThrowOnError>({
+      url: "/api/v1/content-types/{key}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Content Type
+   */
+  public static updateContentType<ThrowOnError extends boolean = false>(
+    options: Options<UpdateContentTypeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).patch<UpdateContentTypeResponses, UpdateContentTypeErrors, ThrowOnError>({
+      url: "/api/v1/content-types/{key}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Recording Content Type
+   */
+  public static getRecordingContentType<ThrowOnError extends boolean = false>(
+    options: Options<GetRecordingContentTypeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<
+      GetRecordingContentTypeResponses,
+      GetRecordingContentTypeErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/resources/{rid}/content-type",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Recording Content Type
+   * Choose the resource's subtype (null: recognise it from the file again). Editors. New runs use its pipeline.
+   */
+  public static setRecordingContentType<ThrowOnError extends boolean = false>(
+    options: Options<SetRecordingContentTypeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<
+      SetRecordingContentTypeResponses,
+      SetRecordingContentTypeErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/resources/{rid}/content-type",
       ...options,
       headers: {
         "Content-Type": "application/json",

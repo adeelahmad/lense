@@ -610,6 +610,7 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS pipeline_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS pipeline_version_p ON pipeline_version FIELDS pipeline",
     "DEFINE TABLE IF NOT EXISTS workflow SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS content_type SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS workflow_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS workflow_version_w ON workflow_version FIELDS workflow",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",

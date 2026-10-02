@@ -1,3 +1,4 @@
+import { rulesText } from "@/components/content-types/model";
 import { graphOrder, type PlGraph } from "@/components/pipelines/pipeline-model";
 import { cleanGraph, problems, starter, type WfGraph } from "@/components/workflows/workflow-model";
 
@@ -78,5 +79,14 @@ describe("pipeline graphs", () => {
     };
     expect(graphOrder(g)?.map((n) => n.id)).toEqual(["an", "rep", "sum", "wf"]);
     expect(graphOrder({ ...g, edges: [...g.edges, { source: "wf", target: "an" }] })).toBeNull();
+  });
+});
+
+describe("content types", () => {
+  it("say how a type is recognised", () => {
+    expect(rulesText({ extensions: [".srt", ".vtt"], pattern: "sync", min_minutes: 5 })).toBe(
+      ".srt .vtt · name ~ sync · ≥ 5 min",
+    );
+    expect(rulesText(null)).toBe("");
   });
 });

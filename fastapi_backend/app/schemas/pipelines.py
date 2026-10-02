@@ -23,7 +23,8 @@ class PipelineSummary(ResponseModel):
     current: int
     updated_at: str | None = None
     namespaces: list[str] = Field(default_factory=list, description="namespaces that use it by default")
-    content_types: list[ContentTypeUse] = Field(default_factory=list, description="namespaces that use it for one content type")
+    content_types: list[ContentTypeUse] = Field(default_factory=list, description="namespaces that use it for one content subtype")
+    subtypes: list[str] = Field(default_factory=list, description="content subtypes whose pipeline it is")
 
 
 class PipelineGraph(BaseModel):
@@ -37,7 +38,7 @@ class PipelineCatalog(ResponseModel):
     standard: list[str] = Field(description="the built-in pipeline")
     step_types: list[str]
     asset_steps: list[str] = Field(default_factory=list, description="steps that make something of the media")
-    content_types: list[str] = Field(default_factory=list, description="what a namespace can choose a pipeline for")
+    base_types: list[str] = Field(default_factory=list, description="video, audio, image and text")
     conditions: list[str] = Field(description="keys a step's `when` may use")
     pipelines: list[PipelineSummary]
 

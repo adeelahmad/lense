@@ -1755,6 +1755,31 @@ export type CommentUpdate = {
 };
 
 /**
+ * ContentRules
+ * How a subtype is recognised when nobody chose it: every rule given has to hold.
+ */
+export type ContentRules = {
+  /**
+   * Extensions
+   * e.g. [.srt, .vtt]
+   */
+  extensions?: Array<string> | null;
+  /**
+   * Pattern
+   * a regular expression found in the file name or title
+   */
+  pattern?: string | null;
+  /**
+   * Min Minutes
+   */
+  min_minutes?: number | null;
+  /**
+   * Max Minutes
+   */
+  max_minutes?: number | null;
+};
+
+/**
  * ContentState
  */
 export type ContentState = {
@@ -1783,6 +1808,129 @@ export type ContentState = {
       }
     | string
     | Array<ViewerLink>;
+};
+
+/**
+ * ContentType
+ */
+export type ContentType = {
+  /**
+   * Key
+   */
+  key: string;
+  /**
+   * Base
+   */
+  base: "video" | "audio" | "image" | "text";
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Pipeline
+   * its pipeline; none: the namespace default runs
+   */
+  pipeline?: number | null;
+  /**
+   * Rules
+   */
+  rules?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * General
+   * the base type's catch-all: can be renamed, not removed
+   */
+  general: boolean;
+  /**
+   * Builtin
+   * one Lens started with
+   */
+  builtin: boolean;
+  [key: string]:
+    | unknown
+    | string
+    | "video"
+    | "audio"
+    | "image"
+    | "text"
+    | string
+    | null
+    | number
+    | null
+    | {
+        [key: string]: unknown;
+      }
+    | null
+    | boolean
+    | undefined;
+};
+
+/**
+ * ContentTypeCatalog
+ */
+export type ContentTypeCatalog = {
+  /**
+   * Bases
+   */
+  bases: Array<string>;
+  /**
+   * Types
+   */
+  types: Array<ContentType>;
+  [key: string]: unknown | Array<string> | Array<ContentType>;
+};
+
+/**
+ * ContentTypeCreate
+ */
+export type ContentTypeCreate = {
+  /**
+   * Base
+   */
+  base: "video" | "audio" | "image" | "text";
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Key
+   * lowercase letters, digits and _; made from the label if left out
+   */
+  key?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Pipeline
+   */
+  pipeline?: number | null;
+  rules?: ContentRules | null;
+};
+
+/**
+ * ContentTypeUpdate
+ * Only what you send changes; its key and base type stay.
+ */
+export type ContentTypeUpdate = {
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Pipeline
+   */
+  pipeline?: number | null;
+  rules?: ContentRules | null;
 };
 
 /**
@@ -4406,7 +4554,7 @@ export type NamespaceUpdate = {
   pipeline?: number | null;
   /**
    * Pipelines
-   * a pipeline per content type (audio, video, transcript, document, image); null for the default
+   * the namespace's own pipeline per content subtype (by key); null drops the override
    */
   pipelines?: {
     [key: string]: number | null;
@@ -5037,10 +5185,10 @@ export type PipelineCatalog = {
    */
   asset_steps?: Array<string>;
   /**
-   * Content Types
-   * what a namespace can choose a pipeline for
+   * Base Types
+   * video, audio, image and text
    */
-  content_types?: Array<string>;
+  base_types?: Array<string>;
   /**
    * Conditions
    * keys a step's `when` may use
@@ -5148,9 +5296,14 @@ export type PipelineSummary = {
   namespaces?: Array<string>;
   /**
    * Content Types
-   * namespaces that use it for one content type
+   * namespaces that use it for one content subtype
    */
   content_types?: Array<ContentTypeUse>;
+  /**
+   * Subtypes
+   * content subtypes whose pipeline it is
+   */
+  subtypes?: Array<string>;
   [key: string]:
     | unknown
     | number
@@ -5161,6 +5314,7 @@ export type PipelineSummary = {
     | null
     | Array<string>
     | Array<ContentTypeUse>
+    | Array<string>
     | undefined;
 };
 
@@ -6448,6 +6602,30 @@ export type RecordingAccessUpdate = {
    * Featured
    */
   featured?: boolean | null;
+};
+
+/**
+ * RecordingContentType
+ */
+export type RecordingContentType = {
+  content_type: ContentType;
+  /**
+   * Chosen
+   * someone chose it; otherwise it was recognised from the file
+   */
+  chosen: boolean;
+  [key: string]: unknown | ContentType | boolean;
+};
+
+/**
+ * RecordingContentTypeSet
+ */
+export type RecordingContentTypeSet = {
+  /**
+   * Content Type
+   * a subtype of the resource's base type; null to recognise it again
+   */
+  content_type: string | null;
 };
 
 /**
@@ -16713,6 +16891,167 @@ export type RunPipelineResponses = {
 };
 
 export type RunPipelineResponse = RunPipelineResponses[keyof RunPipelineResponses];
+
+export type ListContentTypesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/content-types";
+};
+
+export type ListContentTypesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ContentTypeCatalog;
+};
+
+export type ListContentTypesResponse = ListContentTypesResponses[keyof ListContentTypesResponses];
+
+export type CreateContentTypeData = {
+  body: ContentTypeCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/content-types";
+};
+
+export type CreateContentTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateContentTypeError = CreateContentTypeErrors[keyof CreateContentTypeErrors];
+
+export type CreateContentTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: ContentType;
+};
+
+export type CreateContentTypeResponse = CreateContentTypeResponses[keyof CreateContentTypeResponses];
+
+export type DeleteContentTypeData = {
+  body?: never;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/content-types/{key}";
+};
+
+export type DeleteContentTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteContentTypeError = DeleteContentTypeErrors[keyof DeleteContentTypeErrors];
+
+export type DeleteContentTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteContentTypeResponse = DeleteContentTypeResponses[keyof DeleteContentTypeResponses];
+
+export type UpdateContentTypeData = {
+  body: ContentTypeUpdate;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/content-types/{key}";
+};
+
+export type UpdateContentTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateContentTypeError = UpdateContentTypeErrors[keyof UpdateContentTypeErrors];
+
+export type UpdateContentTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: ContentType;
+};
+
+export type UpdateContentTypeResponse = UpdateContentTypeResponses[keyof UpdateContentTypeResponses];
+
+export type GetRecordingContentTypeData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/content-type";
+};
+
+export type GetRecordingContentTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRecordingContentTypeError = GetRecordingContentTypeErrors[keyof GetRecordingContentTypeErrors];
+
+export type GetRecordingContentTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: RecordingContentType;
+};
+
+export type GetRecordingContentTypeResponse = GetRecordingContentTypeResponses[keyof GetRecordingContentTypeResponses];
+
+export type SetRecordingContentTypeData = {
+  body: RecordingContentTypeSet;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/content-type";
+};
+
+export type SetRecordingContentTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetRecordingContentTypeError = SetRecordingContentTypeErrors[keyof SetRecordingContentTypeErrors];
+
+export type SetRecordingContentTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: RecordingContentType;
+};
+
+export type SetRecordingContentTypeResponse = SetRecordingContentTypeResponses[keyof SetRecordingContentTypeResponses];
 
 export type ListWorkflowsData = {
   body?: never;

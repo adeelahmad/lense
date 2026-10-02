@@ -155,12 +155,14 @@ STEPS = {
 
 def enqueue(db, rid, steps=None, by=None, priority=0, pipeline=None, batch=None):
     """Queue a recording for these steps (default: its namespace's pipeline); one already queued or running keeps its job."""
-    rec = db.one("SELECT space, source, media FROM $r", r=R("recording", rid))
+    rec = db.one("SELECT space FROM $r", r=R("recording", rid))
     if not rec:
         raise KeyError(rid)
     ref = None
     if steps is None:
-        steps, ref = pipelines.resolve(db, rec["space"], pipeline, render.kind(rec))
+        from . import content_types
+
+        steps, ref = pipelines.resolve(db, rec["space"], pipeline, None if pipeline else content_types.of_recording(db, rid)[0])
     steps = [_spec(s) for s in steps]
     if not steps or any(s.get("type") not in STEPS for s in steps):
         raise ValueError(f"steps are {', '.join(STEPS)}")
