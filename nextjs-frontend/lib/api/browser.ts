@@ -5,6 +5,7 @@ import { useMemo } from "react";
 
 import { createClient, createConfig, type Client } from "@/app/openapi-client/client";
 import type { ClientOptions } from "@/app/openapi-client/types.gen";
+import { throwingNetworkErrors } from "@/lib/api/client";
 import { holdUntilSignedIn, refreshedToken } from "@/lib/auth/reauth";
 
 /**
@@ -36,12 +37,14 @@ export function useApiClient(): Client {
   const token = session?.accessToken;
   return useMemo(
     () =>
-      createClient(
-        createConfig<ClientOptions>({
-          baseUrl: "",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          fetch: fetchWithReauth,
-        }),
+      throwingNetworkErrors(
+        createClient(
+          createConfig<ClientOptions>({
+            baseUrl: "",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            fetch: fetchWithReauth,
+          }),
+        ),
       ),
     [token],
   );

@@ -22,6 +22,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   answer text, file names, titles, people, paths or addresses. Settings shows whether it is on and how the last
   exports went, and can send a test span; the API and each worker follow a change without a restart
   (docs/telemetry.md).
+- **Security: the API client generator is upgraded.** `@hey-api/openapi-ts` moves from 0.83 to 0.99, which removes
+  the critical handlebars and tar alerts it brought in and fixes a prototype-chain issue in the generated client
+  itself. `make openapi` regenerates `app/openapi-client` as before. The client keeps its old behaviour of failing
+  loudly when the API can't be reached (`throwingNetworkErrors` in `lib/api/client.ts`), so an API outage still shows
+  as an error rather than as "Wrong email or password".
 - **Security: frontend dependencies patched.** The web app's lockfile now pulls fixed versions of form-data, ws,
   brace-expansion, minimatch, picomatch, glob, js-yaml, flatted, browserslist, Babel and the other packages GitHub
   flagged, each kept inside the major version its parent asks for (`overrides` in `nextjs-frontend/pnpm-workspace.yaml`).
