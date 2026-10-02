@@ -49,7 +49,7 @@ export function RecordingPage({
   const player = usePlayer(id, state.phase === "processing" ? 5000 : false);
   const title = rec.data?.title;
   useEffect(() => {
-    if (title) document.title = `${title} · Lens Archive`;
+    if (title) document.title = `${title} · Lens`;
   }, [title]);
 
   if (rec.isError || player.isError) {

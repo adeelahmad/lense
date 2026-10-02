@@ -4,7 +4,7 @@ import { THEME_SCRIPT } from "@/components/app-shell/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Lens Archive", template: "%s · Lens Archive" },
+  title: { default: "Lens", template: "%s · Lens" },
   description: "An archive for recorded speech and video.",
 };
 

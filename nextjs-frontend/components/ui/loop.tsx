@@ -273,15 +273,3 @@ export function AgentChip({
     </span>
   );
 }
-
-/** The four-dot signature: Intent → RED → GREEN → Gate. */
-export function Signature({ size = 8, gap = 4, grid }: { size?: number; gap?: number; grid?: boolean }) {
-  const dots = ["var(--aladdin-blue)", "var(--aladdin-red)", "var(--aladdin-green)", "var(--aladdin-gold)"];
-  return (
-    <span aria-hidden className={grid ? "grid grid-cols-2" : "inline-flex"} style={{ gap }}>
-      {dots.map((c) => (
-        <span key={c} className="rounded-full" style={{ width: size, height: size, background: c }} />
-      ))}
-    </span>
-  );
-}

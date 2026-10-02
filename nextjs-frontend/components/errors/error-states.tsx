@@ -152,7 +152,7 @@ export function ServerUnreachable({
       className={className}
       icon={<ServerOff />}
       code={unreachableCode(error)}
-      title="Can’t reach Lens Archive"
+      title="Can’t reach Lens"
       bar={
         <div
           role="alert"

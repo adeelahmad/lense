@@ -68,7 +68,7 @@ export function PublicRecordingView({
   });
   const title = q.data?.title;
   useEffect(() => {
-    if (title) document.title = `${title} · Lens Archive`;
+    if (title) document.title = `${title} · Lens`;
   }, [title]);
 
   if (q.isPending) return <PageSkeleton />;

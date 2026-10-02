@@ -1,5 +1,5 @@
 /*
- * Lens Archive design tokens.
+ * Lens design tokens.
  * Base: the Aladdin design system (colour is semantic: blue = working/selection, green = ready, red = failed/destructive,
  * gold = needs a person's decision, grey = waiting). Lens adds a serif for transcripts, a dark theme, speaker and emotion
  * palettes, and highlight tokens. Generated from the design handoff (la-kit.js + _ds/tokens); edit here, not in components.

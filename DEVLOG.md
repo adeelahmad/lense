@@ -37,8 +37,8 @@ backend tests (both engines) → `make openapi` → web app → frontend tests �
   - [x] `GET /analytics` (owners; collection admins; admins), `/analytics/me`, admin status and purge; workers purge hourly; `analytics.retention_days`
   - [x] Web app: Analytics page with day charts, Your activity, Settings → Analytics, play reporting
   - [x] 5 backend tests (both engines), 11 frontend tests, docs/analytics.md, CHANGELOG, browser check
-  - [ ] Push <-- CURRENT
-- [ ] **4b. Logo** (asked 2026-10-03): an AI looking through a lens, in the current colours; the wordmark is "Lens", not "Lens Archive"
+  - [x] Pushed (9c3ff5d)
+- [x] **4b. Logo** (asked 2026-10-03): `LensMark` in `components/brand.tsx` (an AI head looking through a magnifying lens, the four brand colours), favicon, wordmark and app name "Lens" <-- commit, push
 - [ ] **5. Afterwards:** rows of `docs/backend-gaps.md`, smallest-useful first; remove a row when its slice lands
 
 ### Decisions (active)

@@ -79,7 +79,7 @@ def _prune(d):
 
 
 def site_label(cfg, base):
-    return (cfg["iiif"].get("provider") or {}).get("name") or urllib.parse.urlsplit(base).netloc or "Lens Archive"
+    return (cfg["iiif"].get("provider") or {}).get("name") or urllib.parse.urlsplit(base).netloc or "Lens"
 
 
 def probe_service(cfg, base, rid, what, heading="Sign in to listen"):

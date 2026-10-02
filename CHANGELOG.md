@@ -152,6 +152,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       for owners; an admin sees every namespace with the visitor's views counted without an account, the days as
       charts and as a table, purges from Settings → Analytics, and in dark mode sees one namespace's collections and
       most used resources. No console errors.
+- **A new logo, and the name is Lens.** The mark is an AI looking through a lens: a head with ring eyes and a spark
+  beside it, a magnifying glass in front of one eye, which shows larger behind the glass, in the four colours the
+  design already had (blue, gold, green, red), the same in light and dark. It replaces the four dots and the bar
+  under the wordmark, in the navigation, on the sign-in and public pages, and as the browser tab's icon. The wordmark
+  and every place the web app named itself say "Lens", no longer "Lens Archive": page titles, the "Can't reach Lens"
+  page, report footers, the embedded player's frame title, and the IIIF provider name used when none is configured.
 - **Fix (security): only the server's own media links are signed.** Text shaped like a media link
   (`/api/v1/recordings/12/audio`) came back signed: titles and transcript lines in API responses, and anything in the
   embed and report pages, including the transcript data inside them. Someone who could rename a recording or correct
