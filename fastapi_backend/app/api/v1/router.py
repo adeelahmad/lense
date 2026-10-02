@@ -24,6 +24,7 @@ from app.api.v1.routes import (
     public,
     recordings,
     requests,
+    routines,
     search,
     searches,
     sources,
@@ -70,5 +71,6 @@ for module in (
     public,
     requests,
     views,
+    routines,
 ):
     api_router.include_router(module.router)

@@ -2857,6 +2857,132 @@ export type Graph = {
 };
 
 /**
+ * GraphChange
+ */
+export type GraphChange = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Kind
+   */
+  kind: "merge" | "link";
+  /**
+   * A
+   */
+  a: {
+    [key: string]: unknown;
+  };
+  /**
+   * B
+   */
+  b: {
+    [key: string]: unknown;
+  };
+  /**
+   * Spaces
+   */
+  spaces: Array<number>;
+  /**
+   * Reason
+   */
+  reason?: string | null;
+  /**
+   * Confidence
+   */
+  confidence?: number | null;
+  /**
+   * Verdict
+   */
+  verdict?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Keep
+   */
+  keep?: number | null;
+  /**
+   * Status
+   */
+  status: "proposed" | "applied" | "dismissed" | "undone";
+  /**
+   * Routine
+   */
+  routine?: number | null;
+  /**
+   * Run
+   */
+  run?: number | null;
+  /**
+   * Workflow
+   */
+  workflow?: number | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Decided At
+   */
+  decided_at?: string | null;
+  /**
+   * Decided By
+   */
+  decided_by?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | "merge"
+    | "link"
+    | {
+        [key: string]: unknown;
+      }
+    | {
+        [key: string]: unknown;
+      }
+    | Array<number>
+    | string
+    | null
+    | number
+    | null
+    | {
+        [key: string]: unknown;
+      }
+    | null
+    | number
+    | null
+    | "proposed"
+    | "applied"
+    | "dismissed"
+    | "undone"
+    | number
+    | null
+    | number
+    | null
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * GraphChangeAccept
+ */
+export type GraphChangeAccept = {
+  /**
+   * Keep
+   * for a merge: the entity to keep (default: the one proposed)
+   */
+  keep?: number | null;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -4574,6 +4700,11 @@ export type NodeType = {
    */
   settings: Array<string>;
   /**
+   * Scopes
+   * the workflow scopes it can be used in
+   */
+  scopes?: Array<string>;
+  /**
    * Inputs
    * how many edges may come in: 0, 1, or -1 for any number
    */
@@ -4583,7 +4714,7 @@ export type NodeType = {
    * its outgoing ports: [] for none, ['out'], or a condition's ['yes', 'no']
    */
   outputs: Array<string>;
-  [key: string]: unknown | string | Array<string> | number | Array<string>;
+  [key: string]: unknown | string | Array<string> | Array<string> | number | Array<string> | undefined;
 };
 
 /**
@@ -7252,6 +7383,294 @@ export type ResourceFiles = {
 };
 
 /**
+ * Routine
+ */
+export type Routine = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Schedule
+   * five-field cron (minute hour day month weekday) or @daily...; none: by hand only
+   */
+  schedule?: string | null;
+  /**
+   * Schedule Text
+   */
+  schedule_text: string;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Namespaces
+   * namespace ids; none for every namespace
+   */
+  namespaces?: Array<number> | null;
+  /**
+   * Namespace Names
+   */
+  namespace_names?: Array<string | null> | null;
+  /**
+   * Actions
+   */
+  actions: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Next Run At
+   */
+  next_run_at?: string | null;
+  /**
+   * Last Run At
+   */
+  last_run_at?: string | null;
+  /**
+   * Last Status
+   */
+  last_status?: string | null;
+  /**
+   * Last Run
+   */
+  last_run?: number | null;
+  /**
+   * Running
+   */
+  running?: boolean;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | boolean
+    | string
+    | null
+    | Array<number>
+    | null
+    | Array<string | null>
+    | null
+    | Array<{
+        [key: string]: unknown;
+      }>
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | number
+    | null
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * RoutineCatalog
+ */
+export type RoutineCatalog = {
+  /**
+   * Routines
+   */
+  routines: Array<Routine>;
+  /**
+   * Actions
+   * what a routine can do: sync, pipeline, workflow
+   */
+  actions: Array<string>;
+  /**
+   * Recordings
+   * which recordings a pipeline or workflow action takes: new, unprocessed, all
+   */
+  recordings: Array<string>;
+  [key: string]: unknown | Array<Routine> | Array<string> | Array<string>;
+};
+
+/**
+ * RoutineCreate
+ */
+export type RoutineCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Actions
+   * in order: {type: sync, watches?}, {type: pipeline, pipeline?, steps?, recordings?, limit?}, {type: workflow, workflow, version?, recordings?, limit?, propose_only?}
+   */
+  actions: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Schedule
+   */
+  schedule?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<number> | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+};
+
+/**
+ * RoutineRun
+ */
+export type RoutineRun = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Routine
+   */
+  routine: number;
+  /**
+   * Trigger
+   */
+  trigger: string;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * Status
+   */
+  status: string;
+  /**
+   * Started At
+   */
+  started_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Results
+   */
+  results?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Changes
+   */
+  changes?: {
+    [key: string]: number;
+  } | null;
+  /**
+   * Log
+   */
+  log?: Array<string> | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | Array<{
+        [key: string]: unknown;
+      }>
+    | string
+    | null
+    | {
+        [key: string]: number;
+      }
+    | null
+    | Array<string>
+    | null
+    | undefined;
+};
+
+/**
+ * RoutineRunRequest
+ */
+export type RoutineRunRequest = {
+  /**
+   * Propose Only
+   * graph workflows propose every change instead of making the sure ones
+   */
+  propose_only?: boolean;
+};
+
+/**
+ * RoutineUpdate
+ */
+export type RoutineUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Actions
+   */
+  actions?: Array<{
+    [key: string]: unknown;
+  }> | null;
+  /**
+   * Schedule
+   */
+  schedule?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string | null;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<number> | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+};
+
+/**
  * SavedSearch
  */
 export type SavedSearch = {
@@ -7416,6 +7835,29 @@ export type SavedView = {
     | string
     | null
     | undefined;
+};
+
+/**
+ * SchedulePreview
+ */
+export type SchedulePreview = {
+  /**
+   * Schedule
+   */
+  schedule: string;
+  /**
+   * Timezone
+   */
+  timezone: string;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Next
+   */
+  next: Array<string>;
+  [key: string]: unknown | string | Array<string>;
 };
 
 /**
@@ -9144,6 +9586,17 @@ export type ToolStep = {
 };
 
 /**
+ * Undone
+ */
+export type Undone = {
+  /**
+   * Undone
+   */
+  undone: number;
+  [key: string]: unknown | number;
+};
+
+/**
  * Upload
  */
 export type Upload = {
@@ -10062,6 +10515,10 @@ export type Workflow = {
    */
   description?: string | null;
   /**
+   * Scope
+   */
+  scope?: string;
+  /**
    * Current
    */
   current: number;
@@ -10127,10 +10584,21 @@ export type WorkflowCatalog = {
    */
   entity_types: Array<string>;
   /**
+   * Scopes
+   */
+  scopes?: Array<string>;
+  /**
    * Workflows
    */
   workflows: Array<WorkflowSummary>;
-  [key: string]: unknown | Array<NodeType> | Array<string> | Array<string> | Array<WorkflowSummary>;
+  [key: string]:
+    | unknown
+    | Array<NodeType>
+    | Array<string>
+    | Array<string>
+    | Array<string>
+    | Array<WorkflowSummary>
+    | undefined;
 };
 
 /**
@@ -10146,6 +10614,10 @@ export type WorkflowCreate = {
    * Description
    */
   description?: string | null;
+  /**
+   * Scope
+   */
+  scope?: "recording" | "graph";
 };
 
 /**
@@ -10198,6 +10670,11 @@ export type WorkflowSummary = {
    * Description
    */
   description?: string | null;
+  /**
+   * Scope
+   * recording (run by pipelines) or graph (run over namespaces by routines)
+   */
+  scope?: string;
   /**
    * Current
    */
@@ -18168,6 +18645,426 @@ export type UpdateViewResponses = {
 };
 
 export type UpdateViewResponse = UpdateViewResponses[keyof UpdateViewResponses];
+
+export type ListRoutinesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/routines";
+};
+
+export type ListRoutinesResponses = {
+  /**
+   * Successful Response
+   */
+  200: RoutineCatalog;
+};
+
+export type ListRoutinesResponse = ListRoutinesResponses[keyof ListRoutinesResponses];
+
+export type CreateRoutineData = {
+  body: RoutineCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/routines";
+};
+
+export type CreateRoutineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateRoutineError = CreateRoutineErrors[keyof CreateRoutineErrors];
+
+export type CreateRoutineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type CreateRoutineResponse = CreateRoutineResponses[keyof CreateRoutineResponses];
+
+export type PreviewScheduleData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Schedule
+     */
+    schedule: string;
+    /**
+     * Timezone
+     */
+    timezone?: string;
+  };
+  url: "/api/v1/routines/schedule";
+};
+
+export type PreviewScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PreviewScheduleError = PreviewScheduleErrors[keyof PreviewScheduleErrors];
+
+export type PreviewScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: SchedulePreview;
+};
+
+export type PreviewScheduleResponse = PreviewScheduleResponses[keyof PreviewScheduleResponses];
+
+export type DeleteRoutineData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/routines/{rid}";
+};
+
+export type DeleteRoutineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteRoutineError = DeleteRoutineErrors[keyof DeleteRoutineErrors];
+
+export type DeleteRoutineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteRoutineResponse = DeleteRoutineResponses[keyof DeleteRoutineResponses];
+
+export type GetRoutineData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/routines/{rid}";
+};
+
+export type GetRoutineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRoutineError = GetRoutineErrors[keyof GetRoutineErrors];
+
+export type GetRoutineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Routine;
+};
+
+export type GetRoutineResponse = GetRoutineResponses[keyof GetRoutineResponses];
+
+export type UpdateRoutineData = {
+  body: RoutineUpdate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/routines/{rid}";
+};
+
+export type UpdateRoutineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateRoutineError = UpdateRoutineErrors[keyof UpdateRoutineErrors];
+
+export type UpdateRoutineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateRoutineResponse = UpdateRoutineResponses[keyof UpdateRoutineResponses];
+
+export type RunRoutineData = {
+  body: RoutineRunRequest;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/routines/{rid}/run";
+};
+
+export type RunRoutineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunRoutineError = RunRoutineErrors[keyof RunRoutineErrors];
+
+export type RunRoutineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RunRoutineResponse = RunRoutineResponses[keyof RunRoutineResponses];
+
+export type ListRunsData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/routines/{rid}/runs";
+};
+
+export type ListRunsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListRunsError = ListRunsErrors[keyof ListRunsErrors];
+
+export type ListRunsResponses = {
+  /**
+   * Response Routines-List Runs
+   * Successful Response
+   */
+  200: Array<RoutineRun>;
+};
+
+export type ListRunsResponse = ListRunsResponses[keyof ListRunsResponses];
+
+export type GetRunData = {
+  body?: never;
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: number;
+  };
+  query?: never;
+  url: "/api/v1/routine-runs/{run_id}";
+};
+
+export type GetRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRunError = GetRunErrors[keyof GetRunErrors];
+
+export type GetRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: RoutineRun;
+};
+
+export type GetRunResponse = GetRunResponses[keyof GetRunResponses];
+
+export type UndoRunData = {
+  body?: never;
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: number;
+  };
+  query?: never;
+  url: "/api/v1/routine-runs/{run_id}/undo";
+};
+
+export type UndoRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UndoRunError = UndoRunErrors[keyof UndoRunErrors];
+
+export type UndoRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: Undone;
+};
+
+export type UndoRunResponse = UndoRunResponses[keyof UndoRunResponses];
+
+export type ListGraphChangesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Status
+     */
+    status?: "proposed" | "applied" | "dismissed" | "undone" | null;
+    /**
+     * Run
+     */
+    run?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/graph-changes";
+};
+
+export type ListGraphChangesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListGraphChangesError = ListGraphChangesErrors[keyof ListGraphChangesErrors];
+
+export type ListGraphChangesResponses = {
+  /**
+   * Response Routines-List Graph Changes
+   * Successful Response
+   */
+  200: Array<GraphChange>;
+};
+
+export type ListGraphChangesResponse = ListGraphChangesResponses[keyof ListGraphChangesResponses];
+
+export type AcceptGraphChangeData = {
+  body: GraphChangeAccept;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/graph-changes/{cid}/accept";
+};
+
+export type AcceptGraphChangeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AcceptGraphChangeError = AcceptGraphChangeErrors[keyof AcceptGraphChangeErrors];
+
+export type AcceptGraphChangeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type AcceptGraphChangeResponse = AcceptGraphChangeResponses[keyof AcceptGraphChangeResponses];
+
+export type DismissGraphChangeData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/graph-changes/{cid}/dismiss";
+};
+
+export type DismissGraphChangeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DismissGraphChangeError = DismissGraphChangeErrors[keyof DismissGraphChangeErrors];
+
+export type DismissGraphChangeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DismissGraphChangeResponse = DismissGraphChangeResponses[keyof DismissGraphChangeResponses];
+
+export type UndoGraphChangeData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/graph-changes/{cid}/undo";
+};
+
+export type UndoGraphChangeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UndoGraphChangeError = UndoGraphChangeErrors[keyof UndoGraphChangeErrors];
+
+export type UndoGraphChangeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UndoGraphChangeResponse = UndoGraphChangeResponses[keyof UndoGraphChangeResponses];
 
 export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});

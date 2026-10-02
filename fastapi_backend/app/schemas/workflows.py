@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -17,6 +17,7 @@ class WorkflowGraph(BaseModel):
 class NodeType(ResponseModel):
     type: str
     settings: list[str]
+    scopes: list[str] = Field(default_factory=lambda: ["recording"], description="the workflow scopes it can be used in")
     inputs: int = Field(description="how many edges may come in: 0, 1, or -1 for any number")
     outputs: list[str] = Field(description="its outgoing ports: [] for none, ['out'], or a condition's ['yes', 'no']")
 
@@ -25,6 +26,7 @@ class WorkflowSummary(ResponseModel):
     id: int
     name: str
     description: str | None = None
+    scope: str = Field("recording", description="recording (run by pipelines) or graph (run over namespaces by routines)")
     current: int
     updated_at: str | None = None
     pipelines: list[str] = Field(default_factory=list, description="pipelines whose current version runs it")
@@ -34,6 +36,7 @@ class WorkflowCatalog(ResponseModel):
     node_types: list[NodeType]
     operators: list[str] = Field(description="what a condition node can test")
     entity_types: list[str]
+    scopes: list[str] = Field(default_factory=lambda: ["recording", "graph"])
     workflows: list[WorkflowSummary]
 
 
@@ -48,6 +51,7 @@ class Workflow(ResponseModel):
     id: int
     name: str
     description: str | None = None
+    scope: str = "recording"
     current: int
     created_at: str | None = None
     updated_at: str | None = None
@@ -62,6 +66,7 @@ class WorkflowCreate(RequestModel):
     name: str
     graph: WorkflowGraph
     description: str | None = None
+    scope: Literal["recording", "graph"] = "recording"
 
 
 class WorkflowVersionCreate(RequestModel):

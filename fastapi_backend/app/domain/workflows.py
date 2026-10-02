@@ -21,17 +21,22 @@ the value of the node feeding it (a merge node takes several):
 
 Nodes on a branch a condition didn't take are skipped (a merge runs when anything reaches it). Positions are only for
 the canvas.
+
+A workflow's scope says what it runs on: `recording` (the nodes above, run by pipelines) or `graph` (run over
+namespaces, usually by a routine, to organise their entities: see organize.py for its nodes).
 """
 
 from __future__ import annotations
 
 import re
 
-from . import analyze, fields as fieldmod, llm, metadata, pipelines, store, templates
+from . import analyze, fields as fieldmod, llm, metadata, organize, pipelines, store, templates
 
 R = store.R
-NODE_TYPES = ("input", "llm", "pick", "condition", "merge", "extract_rules", "extract_llm", "output", "field", "save_entities")
-TERMINAL = {"output", "field", "save_entities"}
+RECORDING_NODES = ("input", "llm", "pick", "condition", "merge", "extract_rules", "extract_llm", "output", "field", "save_entities")
+NODE_TYPES = RECORDING_NODES + tuple(t for t in organize.GRAPH_NODES if t not in RECORDING_NODES)
+SCOPES = {"recording": RECORDING_NODES, "graph": organize.GRAPH_NODES}
+TERMINAL = {"output", "field", "save_entities", "apply_changes"}
 OPS = ("exists", "empty", "equals", "not_equals", "contains", "gt", "lt")
 CONFIG = {
     "input": set(),
@@ -44,6 +49,7 @@ CONFIG = {
     "output": {"key"},
     "field": {"field"},
     "save_entities": set(),
+    **organize.CONFIG,
 }
 ENTITY_TYPES = ("PERSON", "ORG", "PRODUCT", "PLACE", "EVENT", "WORK", "TERM", "DATE", "NUMBER")
 ID_RX = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
@@ -75,8 +81,10 @@ def _num(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
-def validate_graph(db, graph):
+def validate_graph(db, graph, scope="recording"):
     """The graph, cleaned: ValueError naming the first problem."""
+    if scope not in SCOPES:
+        raise ValueError(f"a workflow's scope is {' or '.join(SCOPES)}")
     graph = dict(graph or {})
     nodes, edges = graph.get("nodes") or [], graph.get("edges") or []
     if not isinstance(nodes, list) or not isinstance(edges, list):
@@ -91,8 +99,8 @@ def validate_graph(db, graph):
             raise ValueError("node ids are 1 to 40 letters, digits, _ and -")
         if nid in by_id:
             raise ValueError(f"two nodes are called {nid}")
-        if t not in NODE_TYPES:
-            raise ValueError(f"node types are {', '.join(NODE_TYPES)}")
+        if t not in SCOPES[scope]:
+            raise ValueError(f"node types are {', '.join(SCOPES[scope])}")
         extra = sorted(set(cfg) - CONFIG[t])
         if extra:
             raise ValueError(f"{t} node has no setting {extra[0]}")
@@ -136,12 +144,16 @@ def validate_graph(db, graph):
     if len(order(out_nodes, out_edges)) != len(out_nodes):
         raise ValueError("the workflow has a loop")
     if not any(n["type"] in TERMINAL for n in out_nodes):
+        if scope == "graph":
+            raise ValueError("a graph workflow needs an apply changes node, or it changes nothing")
         raise ValueError("a workflow needs an output, field or save entities node, or it keeps nothing")
     return {"nodes": out_nodes, "edges": out_edges}
 
 
 def _check_config(db, nid, t, cfg):
-    if t == "llm":
+    if t in organize.CONFIG:
+        organize.check_config(nid, t, cfg)
+    elif t == "llm":
         try:
             tpl = templates.get(db, int(cfg.get("template") or 0), cfg.get("version"))
         except (KeyError, TypeError, ValueError):
@@ -212,16 +224,24 @@ def order(nodes, edges):
     return out
 
 
-def create(db, name, graph, description=None, user=None):
+def create(db, name, graph, description=None, user=None, scope="recording"):
     if not (name or "").strip():
         raise ValueError("give the workflow a name")
-    graph = validate_graph(db, graph)
+    graph = validate_graph(db, graph, scope)
     wid, t = db.next_id("workflow"), store.now()
     db.q(
         "CREATE $r CONTENT $d",
         r=R("workflow", wid),
         d=store.clean(
-            {"name": name.strip()[:80], "description": description, "current": 1, "created_at": t, "updated_at": t, "created_by": user}
+            {
+                "name": name.strip()[:80],
+                "description": description,
+                "scope": scope,
+                "current": 1,
+                "created_at": t,
+                "updated_at": t,
+                "created_by": user,
+            }
         ),
     )
     db.q(
@@ -233,9 +253,10 @@ def create(db, name, graph, description=None, user=None):
 
 
 def save_version(db, wid, graph, notes=None, user=None, publish=True):
-    if not db.one("SELECT id FROM $r", r=R("workflow", wid)):
+    w = db.one("SELECT scope FROM $r", r=R("workflow", wid))
+    if not w:
         raise KeyError(wid)
-    graph = validate_graph(db, graph)
+    graph = validate_graph(db, graph, w.get("scope") or "recording")
     n = max(db.values("SELECT VALUE version FROM workflow_version WHERE workflow = $w", w=wid) or [0]) + 1
     db.q(
         "CREATE $r CONTENT $d",
@@ -258,9 +279,10 @@ def rename(db, wid, name=None, description=None):
 
 
 def get(db, wid, version=None):
-    w = db.one("SELECT record::id(id) AS id, name, description, current, created_at, updated_at FROM $r", r=R("workflow", wid))
+    w = db.one("SELECT record::id(id) AS id, name, description, scope, current, created_at, updated_at FROM $r", r=R("workflow", wid))
     if not w:
         raise KeyError(wid)
+    w["scope"] = w.get("scope") or "recording"
     v = db.one("SELECT version, graph, notes, created_at, created_by FROM $r", r=R("workflow_version", f"{wid}-{version or w['current']}"))
     if not v:
         raise KeyError(f"{wid} v{version}")
@@ -279,8 +301,8 @@ def list_workflows(db):
             if isinstance(s, dict) and s.get("type") == "workflow" and p["name"] not in used.get(s.get("workflow"), []):
                 used.setdefault(s.get("workflow"), []).append(p["name"])
     return [
-        {**w, "pipelines": used.get(w["id"], [])}
-        for w in db.rows("SELECT record::id(id) AS id, name, description, current, updated_at FROM workflow ORDER BY id")
+        {**w, "scope": w.get("scope") or "recording", "pipelines": used.get(w["id"], [])}
+        for w in db.rows("SELECT record::id(id) AS id, name, description, scope, current, updated_at FROM workflow ORDER BY id")
     ]
 
 
@@ -416,6 +438,8 @@ def run(db, cfg, rid, wid, version=None, say=print, user=None):
     """Run one version (default: the current one) of a workflow on a recording. Returns what each node did:
     {node id: done | skipped}."""
     w = get(db, wid, version)
+    if w["scope"] != "recording":
+        raise ValueError(f"workflow {w['name']} organises the graph; a routine runs it, not a pipeline")
     graph = w["graph"]
     by_id = {n["id"]: n for n in graph["nodes"]}
     ctx = templates.context(db, cfg, rid)

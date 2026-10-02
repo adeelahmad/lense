@@ -36,6 +36,7 @@ def list_workflows(user: CurrentUser, db: Db) -> WorkflowCatalog:
             NodeType(
                 type=t,
                 settings=sorted(workflows.CONFIG[t]),
+                scopes=[sc for sc, types in workflows.SCOPES.items() if t in types],
                 inputs=0 if t == "input" else -1 if t == "merge" else 1,
                 outputs=_ports(t),
             )
@@ -50,7 +51,7 @@ def list_workflows(user: CurrentUser, db: Db) -> WorkflowCatalog:
 @router.post("")
 def create_workflow(body: WorkflowCreate, user: AdminWriter, db: Db) -> Created:
     with domain_errors():
-        wid = workflows.create(db, body.name, body.graph.model_dump(), body.description, user.email)
+        wid = workflows.create(db, body.name, body.graph.model_dump(), body.description, user.email, body.scope)
     auth.audit(db, user.as_audit(), "workflow.create", f"workflow:{wid}")
     return Created(id=wid)
 
@@ -91,6 +92,8 @@ def run_workflow(wid: int, body: WorkflowRunRequest, user: Writer, acl: Acl, db:
         w = workflows.get(db, wid, body.version)
     except KeyError:
         raise HTTPException(400, "no such workflow") from None
+    if w["scope"] != "recording":
+        raise HTTPException(400, "this workflow organises the graph; a routine runs it")
     return JobQueued(
         job=jobs.add_steps(db, body.recording, [{"type": "workflow", "workflow": wid, "version": w["version"]}], by=user.email)
     )

@@ -41,7 +41,7 @@ def test_workflow_graphs_are_checked(client, db):
     cat = client.get("/api/v1/workflows", headers=h).json()
     types = {n["type"]: n for n in cat["node_types"]}
     assert types["condition"]["outputs"] == ["yes", "no"] and types["merge"]["inputs"] == -1 and types["output"]["outputs"] == []
-    assert "PERSON" in cat["entity_types"] and cat["workflows"] == []
+    assert "PERSON" in cat["entity_types"] and [w for w in cat["workflows"] if w["scope"] == "recording"] == []
 
     def problem(nodes, edges):
         r = client.post("/api/v1/workflows", headers=h, json={"name": "x", "graph": {"nodes": nodes, "edges": edges}})
@@ -137,7 +137,8 @@ def test_workflows_run_in_pipelines_drawn_as_graphs(client, new_client, db, cfg)
     pid = r.json()["id"]
     p = client.get(f"/api/v1/pipelines/{pid}", headers=he).json()
     assert [s["type"] for s in p["steps"]] == ["analyze", "summarize", "workflow"] and len(p["graph"]["edges"]) == 3
-    assert [x["pipelines"] for x in client.get("/api/v1/workflows", headers=h).json()["workflows"]] == [["Transcripts"]]
+    listed = client.get("/api/v1/workflows", headers=h).json()["workflows"]
+    assert [x["pipelines"] for x in listed if x["scope"] == "recording"] == [["Transcripts"]]
     # a pipeline saved as a list is drawn as a chain
     legacy = pipelines.create(db, "Plain", ["analyze", "report"])
     g = client.get(f"/api/v1/pipelines/{legacy}", headers=h).json()["graph"]

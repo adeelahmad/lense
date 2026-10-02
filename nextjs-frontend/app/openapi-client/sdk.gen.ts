@@ -748,6 +748,47 @@ import type {
   UpdateViewData,
   UpdateViewResponses,
   UpdateViewErrors,
+  ListRoutinesData,
+  ListRoutinesResponses,
+  CreateRoutineData,
+  CreateRoutineResponses,
+  CreateRoutineErrors,
+  PreviewScheduleData,
+  PreviewScheduleResponses,
+  PreviewScheduleErrors,
+  DeleteRoutineData,
+  DeleteRoutineResponses,
+  DeleteRoutineErrors,
+  GetRoutineData,
+  GetRoutineResponses,
+  GetRoutineErrors,
+  UpdateRoutineData,
+  UpdateRoutineResponses,
+  UpdateRoutineErrors,
+  RunRoutineData,
+  RunRoutineResponses,
+  RunRoutineErrors,
+  ListRunsData,
+  ListRunsResponses,
+  ListRunsErrors,
+  GetRunData,
+  GetRunResponses,
+  GetRunErrors,
+  UndoRunData,
+  UndoRunResponses,
+  UndoRunErrors,
+  ListGraphChangesData,
+  ListGraphChangesResponses,
+  ListGraphChangesErrors,
+  AcceptGraphChangeData,
+  AcceptGraphChangeResponses,
+  AcceptGraphChangeErrors,
+  DismissGraphChangeData,
+  DismissGraphChangeResponses,
+  DismissGraphChangeErrors,
+  UndoGraphChangeData,
+  UndoGraphChangeResponses,
+  UndoGraphChangeErrors,
 } from "./types.gen";
 import { client } from "./client.gen";
 
@@ -4458,6 +4499,180 @@ export class Views {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class Routines {
+  /**
+   * List Routines
+   */
+  public static listRoutines<ThrowOnError extends boolean = false>(options?: Options<ListRoutinesData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListRoutinesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/routines",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Routine
+   */
+  public static createRoutine<ThrowOnError extends boolean = false>(options: Options<CreateRoutineData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateRoutineResponses, CreateRoutineErrors, ThrowOnError>({
+      url: "/api/v1/routines",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Preview Schedule
+   * What a schedule means and the next five times it runs, to check one before saving it.
+   */
+  public static previewSchedule<ThrowOnError extends boolean = false>(
+    options: Options<PreviewScheduleData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<PreviewScheduleResponses, PreviewScheduleErrors, ThrowOnError>({
+      url: "/api/v1/routines/schedule",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Routine
+   */
+  public static deleteRoutine<ThrowOnError extends boolean = false>(options: Options<DeleteRoutineData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteRoutineResponses, DeleteRoutineErrors, ThrowOnError>({
+      url: "/api/v1/routines/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Routine
+   */
+  public static getRoutine<ThrowOnError extends boolean = false>(options: Options<GetRoutineData, ThrowOnError>) {
+    return (options.client ?? client).get<GetRoutineResponses, GetRoutineErrors, ThrowOnError>({
+      url: "/api/v1/routines/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Routine
+   * Change what is sent: `schedule: null` makes it a routine run only by hand, `namespaces: null` runs it over
+   * every namespace.
+   */
+  public static updateRoutine<ThrowOnError extends boolean = false>(options: Options<UpdateRoutineData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateRoutineResponses, UpdateRoutineErrors, ThrowOnError>({
+      url: "/api/v1/routines/{rid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Run Routine
+   * Run it as soon as the scheduler next looks (within half a minute), even when it is off.
+   */
+  public static runRoutine<ThrowOnError extends boolean = false>(options: Options<RunRoutineData, ThrowOnError>) {
+    return (options.client ?? client).post<RunRoutineResponses, RunRoutineErrors, ThrowOnError>({
+      url: "/api/v1/routines/{rid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Runs
+   */
+  public static listRuns<ThrowOnError extends boolean = false>(options: Options<ListRunsData, ThrowOnError>) {
+    return (options.client ?? client).get<ListRunsResponses, ListRunsErrors, ThrowOnError>({
+      url: "/api/v1/routines/{rid}/runs",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Run
+   */
+  public static getRun<ThrowOnError extends boolean = false>(options: Options<GetRunData, ThrowOnError>) {
+    return (options.client ?? client).get<GetRunResponses, GetRunErrors, ThrowOnError>({
+      url: "/api/v1/routine-runs/{run_id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Undo Run
+   * Take back every graph change the run made.
+   */
+  public static undoRun<ThrowOnError extends boolean = false>(options: Options<UndoRunData, ThrowOnError>) {
+    return (options.client ?? client).post<UndoRunResponses, UndoRunErrors, ThrowOnError>({
+      url: "/api/v1/routine-runs/{run_id}/undo",
+      ...options,
+    });
+  }
+
+  /**
+   * List Graph Changes
+   * Changes to the entities of namespaces you can read, newest first.
+   */
+  public static listGraphChanges<ThrowOnError extends boolean = false>(
+    options?: Options<ListGraphChangesData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ListGraphChangesResponses, ListGraphChangesErrors, ThrowOnError>({
+      url: "/api/v1/graph-changes",
+      ...options,
+    });
+  }
+
+  /**
+   * Accept Graph Change
+   */
+  public static acceptGraphChange<ThrowOnError extends boolean = false>(
+    options: Options<AcceptGraphChangeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<AcceptGraphChangeResponses, AcceptGraphChangeErrors, ThrowOnError>({
+      url: "/api/v1/graph-changes/{cid}/accept",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Dismiss Graph Change
+   */
+  public static dismissGraphChange<ThrowOnError extends boolean = false>(
+    options: Options<DismissGraphChangeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<DismissGraphChangeResponses, DismissGraphChangeErrors, ThrowOnError>({
+      url: "/api/v1/graph-changes/{cid}/dismiss",
+      ...options,
+    });
+  }
+
+  /**
+   * Undo Graph Change
+   */
+  public static undoGraphChange<ThrowOnError extends boolean = false>(
+    options: Options<UndoGraphChangeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<UndoGraphChangeResponses, UndoGraphChangeErrors, ThrowOnError>({
+      url: "/api/v1/graph-changes/{cid}/undo",
+      ...options,
     });
   }
 }
