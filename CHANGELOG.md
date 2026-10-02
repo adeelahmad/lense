@@ -13,6 +13,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   recording at that moment in the web app. Streamable HTTP without sessions, in both protocol eras (the 2025
   `initialize` handshake and 2026-07-28's per-request envelope); an API token works for clients that can't sign in
   (docs/mcp.md).
+- **Security: frontend dependencies patched.** The web app's lockfile now pulls fixed versions of form-data, ws,
+  brace-expansion, minimatch, picomatch, glob, js-yaml, flatted, browserslist, Babel and the other packages GitHub
+  flagged, each kept inside the major version its parent asks for (`overrides` in `nextjs-frontend/pnpm-workspace.yaml`).
+  The unused `@hookform/resolvers` dependency is gone.
 - **Install on Proxmox VE with one command.** A [community helper script](https://community-scripts.org/docs/ct/detailed_guide)
   (`proxmox/ct/lens.sh`, run in the Proxmox host's shell) creates a Debian 13 LXC container running Lens without
   Docker: SurrealDB 3.2.4, the API, a job worker and the web app as systemd services, with fresh secrets and the web

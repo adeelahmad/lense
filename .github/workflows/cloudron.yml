@@ -42,10 +42,12 @@ jobs:
           [ -n "$version" ] || version=$(jq -r .version CloudronManifest.json)
           tags="$image:$version"
           [ -z "$RELEASE_TAG" ] || tags="$tags,$image:latest"
-          echo "image=$image" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tags=$tags" >> "$GITHUB_OUTPUT"
-          echo "push=$PUSH" >> "$GITHUB_OUTPUT"
+          {
+            echo "image=$image"
+            echo "version=$version"
+            echo "tags=$tags"
+            echo "push=$PUSH"
+          } >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
