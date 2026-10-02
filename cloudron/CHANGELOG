@@ -1,0 +1,2 @@
+[0.3.0]
+* First Cloudron package: SurrealDB 3.2.4, the API, a job worker and the web app in one app

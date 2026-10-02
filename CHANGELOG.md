@@ -4,6 +4,17 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Runs on Cloudron.** The repository is now a Cloudron package (`CloudronManifest.json`, `Dockerfile.cloudron`,
+  `cloudron/`): `cloudron install --location lens -f Dockerfile.cloudron` from a checkout installs Lens on your own
+  Cloudron, which builds the image itself (cloudron/README.md).
+    - One app runs SurrealDB, the API, a job worker and the web app; secrets are made on first start and kept in
+      `/app/data`, password-reset mail goes through Cloudron's mail server, and the first-admin setup code is in
+      the app's logs.
+    - The database is exported to `/app/data/backup/lens.surql` every six hours, so Cloudron's backups always hold
+      a consistent copy alongside the live files.
+    - It can also be published as a community app (`cloudron versions add`), with the image built and pushed to
+      GHCR by the new "Cloudron image" workflow.
+
 - **Fix: Chat answers no longer break off with "The answer stopped before it finished".** With some model servers an
   answer ended mid-stream with nothing saved, so the question sat unanswered in the conversation. Now each one ends
   in an answer, or an error that's shown and saved with the conversation.

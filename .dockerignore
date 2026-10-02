@@ -1,0 +1,23 @@
+# Build context of Dockerfile.cloudron (and the source Cloudron uploads on `cloudron install`)
+.git
+.github
+**/node_modules
+**/.next
+**/.next-*
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.env
+**/.env.*
+!**/.env.example
+fastapi_backend/archive-data
+fastapi_backend/archive.yaml
+fastapi_backend/tests
+fastapi_backend/coverage.xml
+nextjs-frontend/__tests__
+local-audio
+local-shared-data
+docs
+site

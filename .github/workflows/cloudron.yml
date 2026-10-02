@@ -1,0 +1,52 @@
+name: Cloudron image
+
+# Builds the Cloudron package (Dockerfile.cloudron) when it changes; run it by hand to push the image to GHCR for
+# `cloudron install --image` or `cloudron versions add` (cloudron/README.md).
+on:
+  pull_request:
+    paths: [Dockerfile.cloudron, CloudronManifest.json, cloudron/**, .dockerignore]
+  workflow_dispatch:
+    inputs:
+      push:
+        description: "Push to ghcr.io/<owner>/lens-cloudron"
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image name and tag (the manifest's version)
+        id: meta
+        run: |
+          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/lens-cloudron" >> "$GITHUB_OUTPUT"
+          echo "version=$(jq -r .version CloudronManifest.json)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - if: github.event_name == 'workflow_dispatch' && inputs.push
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.cloudron
+          push: ${{ github.event_name == 'workflow_dispatch' && inputs.push }}
+          tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        if: github.event_name == 'workflow_dispatch' && inputs.push
+        run: |
+          echo "Pushed \`${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "Make the package public on GitHub so Cloudron can pull it." >> "$GITHUB_STEP_SUMMARY"
