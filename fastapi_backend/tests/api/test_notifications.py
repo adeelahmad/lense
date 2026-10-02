@@ -247,4 +247,82 @@ def test_batch_runs_and_additions_are_told_as_one(client, db, env, inbox, folder
     texts = sorted(inbox.json(i)["content"] for i in range(len(inbox.got)))
     assert len(texts) == 2, texts  # no message per job of the batch run, nor per item added
     assert texts[0].startswith("7 items were added to pods, among them “Item 0”")
-    assert texts[1].startswith("Batch run “Summaries” finished: 1 done, 1 failed.")
+    assert texts[1].startswith("Batch run “Summaries” finished in pods: 1 done, 1 failed.")
+
+
+def test_a_batch_run_is_counted_per_namespace(client, db, env, inbox):
+    client.post(URL, json={"name": "Batches", "kind": "slack", "url": inbox.url, "events": ["batch.finished"]}, headers=env["ho"])
+    c = env["cfg"]
+    begin(db, c)
+    a, b, call = env["ids"]
+    bid = db.next_id("batch")
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("batch", bid),
+        d={"label": "All", "status": "running", "started": [a, b, call], "recordings": [a, b, call]},
+    )
+    finish_job(db, a, batch=bid)
+    finish_job(db, call, "failed", batch=bid)  # in calls, which pods' owners don't see
+    finish_job(db, b, batch=bid)
+    notify.scan(db, c)
+    notify.deliver_due(db, c)
+    assert len(inbox.got) == 1 and inbox.json()["text"].startswith("Batch run “All” finished in pods: 2 done.")
+
+
+def test_a_busy_minute_is_read_page_by_page(client, db, env, inbox, monkeypatch):
+    monkeypatch.setattr(notify, "PAGE", 3)
+    client.post(URL, json={"name": "Hook", "kind": "slack", "url": inbox.url, "events": ["job.failed"]}, headers=env["ho"])
+    c = env["cfg"]
+    begin(db, c)
+    a, b, _ = env["ids"]
+    for _ in range(8):  # more than a page in the same second
+        finish_job(db, a, "failed")
+    assert notify.scan(db, c) == 3 and notify.scan(db, c) == 3 and notify.scan(db, c) == 2
+    finish_job(db, b, "failed")  # and what comes after them still goes
+    assert notify.scan(db, c) == 1 and notify.scan(db, c) == 0
+    assert db.one("SELECT count() AS n FROM notify_delivery GROUP ALL")["n"] == 9
+
+
+def test_an_event_isnt_lost_when_queueing_it_fails(client, db, env, inbox, monkeypatch):
+    client.post(URL, json={"name": "Hook", "kind": "slack", "url": inbox.url, "events": ["job.failed"]}, headers=env["ho"])
+    c = env["cfg"]
+    begin(db, c)
+    finish_job(db, env["ids"][0], "failed")
+    real = db.run
+
+    def broken(*a, **k):
+        raise RuntimeError("the database went away")
+
+    monkeypatch.setattr(db, "run", broken)
+    with pytest.raises(RuntimeError):
+        notify.scan(db, c)
+    assert not db.rows("SELECT id FROM notify_event") and not db.rows("SELECT id FROM notify_delivery")  # nothing half done
+    monkeypatch.setattr(db, "run", real)
+    assert notify.scan(db, c) == 1 and notify.scan(db, c) == 0
+
+
+def test_a_slow_target_is_cut_off(env):
+    import socket
+
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen()
+
+    def trickle():
+        conn, _ = srv.accept()
+        conn.recv(65536)
+        conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n")
+        for _ in range(40):  # a byte every quarter second: never quiet long enough for the read timeout
+            try:
+                conn.sendall(b"x")
+            except OSError:
+                break
+            time.sleep(0.25)
+        conn.close()
+
+    threading.Thread(target=trickle, daemon=True).start()
+    t0 = time.monotonic()
+    with pytest.raises(TimeoutError):
+        notify.post(env["cfg"], f"http://127.0.0.1:{srv.getsockname()[1]}/", b"{}", {}, timeout=1, deadline=2)
+    assert time.monotonic() - t0 < 5
+    srv.close()

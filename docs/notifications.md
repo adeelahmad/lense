@@ -89,7 +89,7 @@ check that the timestamp is recent too, to refuse replays.
 | `job.succeeded` | a run finished | `job`, `recording`, `title`, `status`, `steps`, `finished_at`, `recording_url` |
 | `job.failed` | a run failed (the step it failed at is in `text`) | the same, with `error` |
 | `job.cancelled` | a run was cancelled | the same |
-| `batch.finished` | a batch run finished, or its sample did | `batch`, `label`, `status`, `counts`, `sample` |
+| `batch.finished` | a batch run finished, or its sample did; each namespace it ran in gets its own counts | `batch`, `label`, `status`, `counts`, `sample` |
 | `recording.added` | a recording, document, image or web page was added, however it came | `recording`, `title`, `source`, `created_at` |
 
 New targets get `job.failed` and `batch.finished`. A batch run's own runs aren't sent one by one: the batch run is,
@@ -105,7 +105,8 @@ A notifier runs in every process that does background work: the API server with 
 targets that want it. Each event is claimed once across all of them, so several workers don't send it twice, and a
 message that doesn't get through is tried again: after 30 seconds, then four times longer each time, up to six
 hours, until `notifications.max_attempts`. A target that refuses a message (a 4xx other than 408, 425 and 429) isn't
-tried again. Turning a target off drops what it still had waiting.
+tried again. A send gets 30 seconds in all; a target that answers slower than that counts as
+failed. Turning a target off drops what it still had waiting.
 
 Nothing that happened before notifications were set up, or while they were off, is sent.
 

@@ -12,8 +12,10 @@ A namespace's owners add targets, each with the events it wants:
 Nothing in the rest of the app calls in here when something happens. A notifier thread in every process that runs
 background work (the API's, `lens worker`) reads what changed since it last looked: runs that ended (job.finished_at)
 and recordings added (recording.created_at). Each event is claimed once across every process (notify_event:<hash of
-its key>, which only one CREATE wins), then queued per target (notify_delivery) and sent, with retries. It looks back
-a minute each time, so a row written just as it looked isn't missed; the claim keeps that from sending twice.
+its key>, which only one CREATE wins, in the same transaction that queues it per target in notify_delivery), then
+sent, with retries. Each source is read in (time, id) order from where the last look stopped, a page at a time; once
+caught up, a look also reads the last minute again, so a row written just as it looked isn't missed, and the claims
+keep that from sending twice. A send gets DEADLINE seconds in all.
 
 Targets reach public addresses only, unless an admin allows private networks (notifications.networks): a Matterbridge
 next to Lens on a LAN or a Docker network is one. Every address a target's host has is checked, and the connection goes
@@ -59,11 +61,14 @@ URL_MAX = 2000
 FIELDS = (
     "record::id(id) AS id, space, name, kind, events, enabled, gateway, username, by, at, updated_by, updated_at, last, url_hint, sealed"
 )
-LOOKBACK = 60  # seconds each look goes back over, for rows written as the last one ran
-MAX_EVENTS = 500  # rows read per look; the rest wait for the next
+LOOKBACK = 60  # seconds a caught-up look also goes back over, for rows written as the last one ran
+PAGE = 500  # rows read per look and source; a full page is followed by the next at once, without the lookback
 GROUP = 5  # more recordings than this added to a namespace in one look are one message
 BACKOFF = 30  # seconds before the first retry; each later one waits four times longer, up to 6 hours
-TIMEOUT = 10  # seconds a target has to answer
+TIMEOUT = 10  # seconds a target may stay quiet
+DEADLINE = 30  # seconds a send may take in all, well inside STALE
+STALE = 5 * 60  # seconds after which a send still marked sending is taken to have died with its process
+SEND_BUDGET = 60  # seconds a round spends sending before it looks for news again
 KEEP_DAYS = 30  # how long deliveries are kept, for the log
 UA = "Lens-Notifications/1"
 
@@ -273,9 +278,9 @@ class _PinnedHTTP(http.client.HTTPConnection):
         self.sock = socket.create_connection((self._ip, self.port), self.timeout)
 
 
-def post(cfg, url, body, headers, timeout=TIMEOUT):
-    """POST to a target: (status, the start of its answer). ValueError when the address isn't allowed; OSError and
-    http.client errors when it can't be reached."""
+def post(cfg, url, body, headers, timeout=TIMEOUT, deadline=DEADLINE):
+    """POST to a target: (status, the start of its answer), within `deadline` seconds in all. ValueError when the
+    address isn't allowed; OSError and http.client errors when it can't be reached or doesn't answer in time."""
     u = urllib.parse.urlsplit(url)
     port = u.port or (443 if u.scheme == "https" else 80)
     nets = networks(cfg)
@@ -292,12 +297,32 @@ def post(cfg, url, body, headers, timeout=TIMEOUT):
         conn = _Pinned(u.hostname, port, ip, timeout=timeout, context=ssl.create_default_context())
     else:
         conn = _PinnedHTTP(u.hostname, port, ip, timeout=timeout)
+
+    def cut():  # past the deadline, a target that trickles its answer is cut off
+        if conn.sock is not None:
+            try:
+                conn.sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+    timer = threading.Timer(deadline, cut)
+    timer.daemon = True
+    timer.start()
+    started = time.monotonic()
     try:
         conn.request("POST", path, body=body, headers={"User-Agent": UA, "Content-Type": "application/json", **headers})
         r = conn.getresponse()
-        return r.status, r.read(2000).decode("utf-8", "replace")
+        answer = r.status, r.read(2000).decode("utf-8", "replace")
+    except (OSError, http.client.HTTPException):
+        if time.monotonic() - started >= deadline:
+            raise TimeoutError(f"no full answer within {deadline} seconds") from None
+        raise
     finally:
+        timer.cancel()
         conn.close()
+    if time.monotonic() - started >= deadline:  # cut off part way: what came isn't the whole answer
+        raise TimeoutError(f"no full answer within {deadline} seconds")
+    return answer
 
 
 def sign(secret, msg_id, timestamp, body):
@@ -370,21 +395,18 @@ def _later(attempts):
     )
 
 
-def _queue(db, t, event):
-    db.q(
-        "CREATE notify_delivery CONTENT $d",
-        d={
-            "target": int(t["id"]),
-            "space": t["space"],
-            "event": event["type"],
-            "key": event["id"],
-            "payload": json.dumps(event),
-            "status": "pending",
-            "attempts": 0,
-            "next_at": store.now(),
-            "created_at": store.now(),
-        },
-    )
+def _delivery(t, event):
+    return {
+        "target": int(t["id"]),
+        "space": t["space"],
+        "event": event["type"],
+        "key": event["id"],
+        "payload": json.dumps(event),
+        "status": "pending",
+        "attempts": 0,
+        "next_at": store.now(),
+        "created_at": store.now(),
+    }
 
 
 DELIVERY_FIELDS = "record::id(id) AS id, target, event, key, status, attempts, code, error, created_at, sent_at, next_at"
@@ -405,14 +427,17 @@ def deliver_due(db, cfg, limit=20, worker=None):
     """Send the deliveries that are due, each claimed first so that only one process sends it. How many were tried."""
     t, n = store.now(), 0
     most = int((cfg.get("notifications") or {}).get("max_attempts") or 6)
-    stale = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=5)).isoformat(timespec="seconds")
+    stale = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=STALE)).isoformat(timespec="seconds")
     db.q("UPDATE notify_delivery SET status = 'pending' WHERE status = 'sending' AND claimed_at < $s", s=stale)  # its sender died
     rows = db.rows(
         "SELECT record::id(id) AS id, next_at FROM notify_delivery WHERE status = 'pending' AND next_at <= $t "
         f"ORDER BY next_at LIMIT {int(limit)}",
         t=t,
     )
+    began = time.monotonic()
     for row in rows:
+        if time.monotonic() - began > SEND_BUDGET:
+            break  # the rest wait for the next round, after its look for news
         dr = R("notify_delivery", row["id"])
         got = db.rows(
             "UPDATE $d SET status = 'sending', claimed_at = $t, claimed_by = $w WHERE status = 'pending' RETURN AFTER",
@@ -518,29 +543,41 @@ def _event(kind, key, space, ns, text, url, data):
     }
 
 
+JOB_FIELDS = "recording, space, batch, steps, step_index, status, error, finished_at"
+REC_FIELDS = "space, title, source, created_at"
+SOURCES = {
+    # source: (table, its time column, the fields read, more to match)
+    "jobs": ("job", "finished_at", JOB_FIELDS, "AND status IN ['succeeded', 'failed', 'cancelled']"),
+    "recordings": ("recording", "created_at", REC_FIELDS, ""),
+}
+JOB_EVENTS = {"job.succeeded", "job.failed", "job.cancelled", "batch.finished"}
+
+
+def _rows(db, source, pos, floor, spaces, since):
+    """A source's rows past `pos` ([time, id]) in (time, id) order, at most PAGE; and whether that page was full.
+    A page that isn't full has caught up, so the rows of the last LOOKBACK seconds (`since`) are read again too, for
+    one written as the last look ran; their claims keep them from being sent twice."""
+    table, col, fields, more = SOURCES[source]
+    head = f"SELECT id AS key, record::id(id) AS id, {fields} FROM {table} WHERE {col} > $f AND space IN $sp {more}"
+    page = db.rows(
+        f"{head} AND ({col} > $t OR ({col} = $t AND id > $i)) ORDER BY {col}, key LIMIT {PAGE}",
+        f=floor,
+        sp=spaces,
+        t=pos[0],
+        i=R(table, int(pos[1])),
+    )
+    if len(page) >= PAGE:
+        return page, True
+    have = {r["id"] for r in page}
+    back = db.rows(f"{head} AND {col} >= $c ORDER BY {col} DESC, key DESC LIMIT {PAGE}", f=floor, sp=spaces, c=since)
+    return page + [r for r in reversed(back) if r["id"] not in have], False
+
+
 def _q(title):
     return f"“{title}”" if title else "A recording"
 
 
-def _job_events(db, cfg, since, floor, spaces, names):
-    rows = db.rows(
-        "SELECT record::id(id) AS id, recording, space, batch, steps, step_index, status, error, finished_at FROM job "
-        f"WHERE finished_at >= $c AND finished_at > $f AND status IN ['succeeded', 'failed', 'cancelled'] AND space IN $sp ORDER BY finished_at LIMIT {MAX_EVENTS}",
-        c=since,
-        f=floor,
-        sp=spaces,
-    )
-    titles = (
-        {
-            r["id"]: r.get("title")
-            for r in db.rows(
-                "SELECT record::id(id) AS id, title FROM recording WHERE id IN $ids",
-                ids=[R("recording", i) for i in {j["recording"] for j in rows}],
-            )
-        }
-        if rows
-        else {}
-    )
+def _job_events(cfg, rows, names, titles):
     out, batches = [], set()
     for j in rows:
         if j.get("batch") is not None:
@@ -556,30 +593,23 @@ def _job_events(db, cfg, since, floor, spaces, names):
             text = f"{_q(title)} failed{f' at {step}' if step else ''} in {ns}: {j.get('error') or 'no reason given'}"
         else:
             text = f"Processing {_q(title)} was cancelled in {ns}."
-        out.append(
-            _event(
-                f"job.{st}",
-                f"job-{j['id']}-{st}-{j['finished_at']}",
-                j["space"],
-                ns,
-                text,
-                _link(cfg, f"/activity/{j['id']}"),
-                {
-                    "job": j["id"],
-                    "recording": j["recording"],
-                    "title": title,
-                    "status": st,
-                    "steps": steps,
-                    "error": j.get("error"),
-                    "finished_at": j["finished_at"],
-                    "recording_url": _link(cfg, f"/resources/{j['recording']}"),
-                },
-            )
-        )
-    return out, rows, batches
+        key = f"job-{j['id']}-{st}-{j['finished_at']}"
+        data = {
+            "job": j["id"],
+            "recording": j["recording"],
+            "title": title,
+            "status": st,
+            "steps": steps,
+            "error": j.get("error"),
+            "finished_at": j["finished_at"],
+            "recording_url": _link(cfg, f"/resources/{j['recording']}"),
+        }
+        out.append(([key], _event(f"job.{st}", key, j["space"], ns, text, _link(cfg, f"/activity/{j['id']}"), data)))
+    return out, batches
 
 
 def _batch_events(db, cfg, bids, spaces, names):
+    """A finished batch run, to each namespace it ran in, counted over that namespace's runs only."""
     from . import batches as bmod
 
     out = []
@@ -590,119 +620,117 @@ def _batch_events(db, cfg, bids, spaces, names):
             continue
         if b["status"] not in ("finished", "sample done"):
             continue
-        counts = b["progress"]["counts"]
-        ok, bad, gone = counts.get("succeeded", 0), counts.get("failed", 0), counts.get("cancelled", 0)
-        where = sorted(set(db.values("SELECT VALUE space FROM job WHERE batch = $b", b=bid)) & set(spaces))
         what = "The sample of batch run" if b["status"] == "sample done" else "Batch run"
-        parts = [f"{ok} done"] + ([f"{bad} failed"] if bad else []) + ([f"{gone} cancelled"] if gone else [])
-        for sp in where:
-            out.append(
-                _event(
-                    "batch.finished",
-                    f"batch-{bid}-{sp}-{b['status']}-{ok}-{bad}-{gone}",
-                    sp,
-                    names.get(sp),
-                    f"{what} “{b.get('label') or bid}” finished: {', '.join(parts)}.",
-                    _link(cfg, f"/batches/{bid}"),
-                    {
-                        "batch": bid,
-                        "label": b.get("label"),
-                        "status": b["status"],
-                        "counts": counts,
-                        "sample": b["status"] == "sample done",
-                    },
-                )
-            )
+        for sp in sorted(set(db.values("SELECT VALUE space FROM job WHERE batch = $b", b=bid)) & set(spaces)):
+            counts = {
+                r["status"]: r["n"]
+                for r in db.rows("SELECT status, count() AS n FROM job WHERE batch = $b AND space = $s GROUP BY status", b=bid, s=sp)
+            }
+            ok, bad, gone = counts.get("succeeded", 0), counts.get("failed", 0), counts.get("cancelled", 0)
+            parts = [f"{ok} done"] + ([f"{bad} failed"] if bad else []) + ([f"{gone} cancelled"] if gone else [])
+            key = f"batch-{bid}-{sp}-{b['status']}-{ok}-{bad}-{gone}"
+            data = {"batch": bid, "label": b.get("label"), "status": b["status"], "counts": counts, "sample": b["status"] == "sample done"}
+            text = f"{what} “{b.get('label') or bid}” finished in {names.get(sp)}: {', '.join(parts)}."
+            out.append(([key], _event("batch.finished", key, sp, names.get(sp), text, _link(cfg, f"/batches/{bid}"), data)))
     return out
 
 
-SOURCES = {"audio": "recording", "document": "document", "image": "image", "web": "web page"}
+def _added_events(cfg, rows, names):
+    """recording.added events, with a namespace's that came in one look past GROUP made into one (which claims
+    each of them)."""
+    by_space: dict = {}
+    for r in rows:
+        by_space.setdefault(r["space"], []).append(r)
+    out = []
+    for sp, rs in by_space.items():
+        rs.sort(key=lambda r: r["id"])
+        ns = names.get(sp)
+        keys = [f"recording-{r['id']}-added" for r in rs]
+        if len(rs) <= GROUP:
+            for k, r in zip(keys, rs):
+                data = {"recording": r["id"], "title": r.get("title"), "source": r.get("source"), "created_at": r["created_at"]}
+                text = f"{_q(r.get('title'))} was added to {ns}."
+                out.append(([k], _event("recording.added", k, sp, ns, text, _link(cfg, f"/resources/{r['id']}"), data)))
+            continue
+        named = ", ".join(f"“{r['title']}”" for r in rs[:3] if r.get("title"))
+        text = f"{len(rs)} items were added to {ns}" + (f", among them {named}." if named else ".")
+        data = {"recordings": [r["id"] for r in rs], "count": len(rs)}
+        key = f"recordings-{rs[0]['id']}-{len(rs)}"
+        out.append((keys, _event("recording.added", key, sp, ns, text, _link(cfg, "/library"), data)))
+    return out
 
 
-def _added_events(db, cfg, since, floor, spaces, names):
-    rows = db.rows(
-        "SELECT record::id(id) AS id, space, title, source, created_at FROM recording "
-        f"WHERE created_at >= $c AND created_at > $f AND space IN $sp ORDER BY created_at LIMIT {MAX_EVENTS}",
-        c=since,
-        f=floor,
-        sp=spaces,
-    )
-    return [
-        _event(
-            "recording.added",
-            f"recording-{r['id']}-added",
-            r["space"],
-            names.get(r["space"]),
-            f"{_q(r.get('title'))} was added to {names.get(r['space'])}.",
-            _link(cfg, f"/resources/{r['id']}"),
-            {"recording": r["id"], "title": r.get("title"), "source": r.get("source"), "created_at": r["created_at"]},
-        )
-        for r in rows
-    ], rows
-
-
-_CLAIMED: dict[str, None] = {}  # keys this process has claimed or seen claimed, so it doesn't ask again
+_CLAIMED: dict[str, None] = {}  # keys this process knows are claimed, so it doesn't ask the database again
 _CL = threading.Lock()
 
 
-def _claim(db, key):
-    """Whether this process is the one to send the event: the first CREATE of notify_event:<hash> across all of them."""
+def _ref(key):
+    return R("notify_event", hashlib.sha1(key.encode()).hexdigest())
+
+
+def _known(key):
     with _CL:
-        if key in _CLAIMED:
-            return False
         _CLAIMED[key] = None
         while len(_CLAIMED) > 20000:
             _CLAIMED.pop(next(iter(_CLAIMED)))
+
+
+def _unclaimed(db, keys):
+    """The keys no process has claimed yet."""
+    with _CL:
+        todo = [k for k in keys if k not in _CLAIMED]
+    if not todo:
+        return set()
+    taken = set(db.values("SELECT VALUE record::id(id) FROM notify_event WHERE id IN $ids", ids=[_ref(k) for k in todo]))
+    for k in todo:
+        if _ref(k).id in taken:
+            _known(k)
+    return {k for k in todo if _ref(k).id not in taken}
+
+
+def _emit(db, keys, event, targets):
+    """Claim the event's keys and queue it for its targets in one transaction: either this process sends it, or
+    another one already claimed it (0). Any other failure raises, and the look is made again."""
+    st, p = [], {}
+    for n, k in enumerate(keys):
+        st.append(f"CREATE $e{n} CONTENT $c{n}")
+        p[f"e{n}"], p[f"c{n}"] = _ref(k), {"key": k, "at": store.now()}
+    for n, t in enumerate(targets):
+        st.append(f"CREATE notify_delivery CONTENT $d{n}")
+        p[f"d{n}"] = _delivery(t, event)
     try:
-        db.q("CREATE $r CONTENT $d", r=R("notify_event", hashlib.sha1(key.encode()).hexdigest()), d={"key": key, "at": store.now()})
-        return True
-    except Exception:  # noqa: BLE001 - another process claimed it
-        return False
+        db.run(st, **p)
+    except Exception as e:  # noqa: BLE001 - only a claim that's already there means someone else has it
+        if "already exists" not in str(e):
+            raise
+        for k in keys:
+            _known(k)
+        return 0
+    for k in keys:
+        _known(k)
+    return len(targets)
 
 
-def _grouped(events, cfg):
-    """recording.added events, with a namespace's that came in one look past GROUP made into one."""
-    by_space: dict = {}
-    for e in events:
-        by_space.setdefault(e["space"], []).append(e)
-    out = []
-    for sp, evs in by_space.items():
-        evs.sort(key=lambda e: e["data"]["recording"])
-        if len(evs) <= GROUP:
-            out += evs
-            continue
-        ns = evs[0]["namespace"]
-        titles = [e["data"].get("title") for e in evs]
-        named = ", ".join(f"“{t}”" for t in titles[:3] if t)
-        out.append(
-            _event(
-                "recording.added",
-                f"recordings-{evs[0]['data']['recording']}-{len(evs)}",
-                sp,
-                ns,
-                f"{len(evs)} items were added to {ns}" + (f", among them {named}." if named else "."),
-                _link(cfg, "/library"),
-                {"recordings": [e["data"]["recording"] for e in evs], "count": len(evs)},
-            )
-        )
-    return out
-
-
-def _mark(db):
+def _mark(db, t=None):
     """Start from now: what happened before isn't sent, not even what the lookback would see."""
-    t = store.now()
-    db.q("UPSERT $s SET since = $t, floor = $t", s=R("notify_state", "scan"), t=t)
+    t = t or store.now()
+    db.q(
+        "UPSERT $s SET floor = $t, pos = $p",
+        s=R("notify_state", "scan"),
+        t=t,
+        p={k: [t, 0] for k in SOURCES},
+    )
 
 
 def scan(db, cfg):
     """Look for what happened since the last look and queue it for the targets that want it. How many deliveries
     were queued. The first look only marks where to start: nothing that happened before notifications were set up is
-    sent."""
+    sent. A source with more than a page waiting is read page by page, a page per look."""
     t_now = store.now()
-    st = db.one("SELECT since, floor FROM $s", s=R("notify_state", "scan"))
-    live = db.rows(f"SELECT {FIELDS} FROM notify_target WHERE enabled = true") if st else []
+    st = db.one("SELECT floor, pos FROM $s", s=R("notify_state", "scan"))
+    live = db.rows(f"SELECT {FIELDS} FROM notify_target WHERE enabled = true") if st and st.get("pos") else []
     if not live:
-        _mark(db)
+        _mark(db, t_now)
         return 0
     spaces = sorted({t["space"] for t in live})
     names = {
@@ -710,31 +738,36 @@ def scan(db, cfg):
         for r in db.rows("SELECT record::id(id) AS id, name FROM space WHERE id IN $ids", ids=[R("space", s) for s in spaces])
     }
     # the floor is where notifications started: what happened in that second may have come before, so it's left out
-    since, floor = _iso_ago(st["since"], LOOKBACK), st.get("floor") or ""
+    floor, pos = st["floor"], dict(st["pos"])
+    since = _iso_ago(t_now, LOOKBACK)
     wanted = {e for t in live for e in t.get("events") or []}
-    events, seen = [], [t_now]
-    if wanted & {"job.succeeded", "job.failed", "job.cancelled", "batch.finished"}:
-        evs, rows, bids = _job_events(db, cfg, since, floor, spaces, names)
-        events += evs
-        if "batch.finished" in wanted:
-            events += _batch_events(db, cfg, bids, spaces, names)
-        if len(rows) >= MAX_EVENTS:
-            seen.append(rows[-1]["finished_at"])
-    if "recording.added" in wanted:
-        evs, rows = _added_events(db, cfg, since, floor, spaces, names)
-        events += _grouped([e for e in evs if _claim(db, e["id"])], cfg)
-        if len(rows) >= MAX_EVENTS:
-            seen.append(rows[-1]["created_at"])
     n = 0
-    for e in events:
-        if e["type"] != "recording.added" and not _claim(db, e["id"]):
+    for source in SOURCES:
+        if not wanted & (JOB_EVENTS if source == "jobs" else {"recording.added"}):
+            pos[source] = [t_now, 0]  # nobody wants these: when someone does, they start from then
             continue
-        for t in live:
-            if t["space"] == e["space"] and e["type"] in (t.get("events") or []):
-                _queue(db, t, e)
-                n += 1
-    # a full page means more is waiting: start the next look where this one stopped (its own lookback covers the edge)
-    db.q("UPSERT $s SET since = $t", s=R("notify_state", "scan"), t=min(seen))
+        rows, full = _rows(db, source, pos[source], floor, spaces, since)
+        col = SOURCES[source][1]
+        page = rows[:PAGE] if full else [r for r in rows if (r[col], r["id"]) > tuple(pos[source])]
+        if source == "jobs":
+            ids = [R("recording", i) for i in {j["recording"] for j in rows}]
+            titles = {
+                r["id"]: r.get("title") for r in db.rows("SELECT record::id(id) AS id, title FROM recording WHERE id IN $ids", ids=ids)
+            }
+            events, bids = _job_events(cfg, rows, names, titles)
+            if "batch.finished" in wanted:
+                events += _batch_events(db, cfg, bids, spaces, names)
+        else:
+            fresh = _unclaimed(db, [f"recording-{r['id']}-added" for r in rows])
+            events = _added_events(cfg, [r for r in rows if f"recording-{r['id']}-added" in fresh], names)
+        for keys, e in events:
+            if not _unclaimed(db, keys) == set(keys):
+                continue
+            n += _emit(db, keys, e, [t for t in live if t["space"] == e["space"] and e["type"] in (t.get("events") or [])])
+        if page:
+            last = max(page, key=lambda r: (r[col], r["id"]))
+            pos[source] = max([last[col], last["id"]], list(pos[source]))
+    db.q("UPDATE $s SET pos = $p", s=R("notify_state", "scan"), p=pos)
     return n
 
 
