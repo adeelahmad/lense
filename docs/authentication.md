@@ -56,8 +56,8 @@ curl -H "Authorization: Bearer la_…" https://lens.example.org/api/v1/resources
 
 ## OAuth
 
-For apps that sign people in instead of asking them for a key: MCP clients (Claude, Cursor and others), desktop and
-web apps. Lens is the OAuth 2.1 authorization server itself: it issues the tokens, and people sign in with the Lens
+For apps that sign people in instead of asking them for a key: MCP clients (Claude, Cursor and others, connecting
+to [Lens's MCP server](mcp.md)), desktop and web apps. Lens is the OAuth 2.1 authorization server itself: it issues the tokens, and people sign in with the Lens
 account they have. Nothing here creates an account.
 
 ```

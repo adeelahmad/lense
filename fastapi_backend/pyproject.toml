@@ -64,6 +64,7 @@ dev = [
     "mkdocs-material[imaging]>=9.6.9",
     "onnxruntime>=1.18",  # the objects tests run a small YOLOX-shaped model
     "onnx>=1.16",  # ... which they build
+    "mcp>=2.2",  # the official MCP client, to test the MCP server with
 ]
 
 [tool.hatch.build.targets.wheel]
