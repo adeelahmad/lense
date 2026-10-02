@@ -23,6 +23,7 @@ const WATCH_STEPS = [
   "faces",
   "objects",
   "describe",
+  "embed",
   "analyze",
   "summarize",
   "report",

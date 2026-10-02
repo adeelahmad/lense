@@ -190,6 +190,16 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
         <>
           <F ctx={ctx} id="search.stemming" />
           <Reindex />
+          <F ctx={ctx} id="search.semantic" />
+          <F ctx={ctx} id="search.semantic_weight" />
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            Model:{" "}
+            <code className="break-all font-mono text-fg-secondary">
+              {ctx.view.bootstrap?.semantic_model?.model ?? "—"}
+            </code>
+            {ctx.view.bootstrap?.semantic_model?.reason ? ` · ${ctx.view.bootstrap.semantic_model.reason}` : " · ready"}
+            . Another model (a multilingual one, say) is set at startup: search.semantic_model.
+          </p>
         </>
       );
     case "reports":

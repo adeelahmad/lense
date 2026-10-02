@@ -5958,7 +5958,12 @@ export type PublicHit = {
    * a document's or an image's text: the page it's on (from 0)
    */
   page?: number | null;
-  [key: string]: unknown | number | string | number | null | undefined;
+  /**
+   * Match
+   * with `semantic=true`: words, meaning (it says the same in other words) or both
+   */
+  match?: string | null;
+  [key: string]: unknown | number | string | number | null | string | null | undefined;
 };
 
 /**
@@ -6398,7 +6403,12 @@ export type PublicSearch = {
    * Items
    */
   items: Array<PublicResult>;
-  [key: string]: unknown | string | number | boolean | Array<PublicResult>;
+  /**
+   * Semantic
+   * search by meaning is on here: `semantic=true` also finds lines that mean the same
+   */
+  semantic?: boolean;
+  [key: string]: unknown | string | number | boolean | Array<PublicResult> | undefined;
 };
 
 /**
@@ -7471,6 +7481,23 @@ export type SavedView = {
 };
 
 /**
+ * SearchCapabilities
+ */
+export type SearchCapabilities = {
+  /**
+   * Semantic
+   * search by meaning is on (an admin switches it on: search.semantic)
+   */
+  semantic: boolean;
+  /**
+   * Model
+   * the embedding model in use
+   */
+  model?: string | null;
+  [key: string]: unknown | boolean | string | null | undefined;
+};
+
+/**
  * SearchCreate
  */
 export type SearchCreate = {
@@ -7548,6 +7575,11 @@ export type SearchFacets = {
    * Objects
    */
   objects?: Array<ObjectFacet>;
+  /**
+   * Meaning
+   * with `semantic=true`: how many of the moments were found by their meaning only
+   */
+  meaning?: number;
   [key: string]:
     | unknown
     | number
@@ -7655,6 +7687,16 @@ export type SearchHit = {
    * file hits: which of its lines (from 0)
    */
   line?: number | null;
+  /**
+   * Match
+   * with `semantic=true`: whether its words matched, its meaning (it says the same in other words), or both
+   */
+  match?: "words" | "meaning" | "both" | null;
+  /**
+   * Similarity
+   * meaning and both: how alike it is to the query, 0 to 1
+   */
+  similarity?: number | null;
   [key: string]:
     | unknown
     | number
@@ -7697,6 +7739,12 @@ export type SearchHit = {
     | null
     | number
     | null
+    | "words"
+    | "meaning"
+    | "both"
+    | null
+    | number
+    | null
     | undefined;
 };
 
@@ -7729,7 +7777,21 @@ export type SearchResults = {
    * with `facets=true`: counts over all the matching moments
    */
   facets?: SearchFacets | null;
-  [key: string]: unknown | string | number | boolean | Array<SearchHit> | SearchFacets | null | undefined;
+  /**
+   * with `semantic=true`, where search by meaning is on: how it was used
+   */
+  semantic?: SemanticUse | null;
+  [key: string]:
+    | unknown
+    | string
+    | number
+    | boolean
+    | Array<SearchHit>
+    | SearchFacets
+    | null
+    | SemanticUse
+    | null
+    | undefined;
 };
 
 /**
@@ -7852,6 +7914,23 @@ export type SegmentUpdate = {
    * Speaker
    */
   speaker?: number | null;
+};
+
+/**
+ * SemanticUse
+ */
+export type SemanticUse = {
+  /**
+   * Model
+   * the embedding model
+   */
+  model: string;
+  /**
+   * Meaning
+   * hits found by their meaning only
+   */
+  meaning: number;
+  [key: string]: unknown | string | number;
 };
 
 /**
@@ -14041,6 +14120,11 @@ export type SearchTranscriptsData = {
      * also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object
      */
     facets?: boolean;
+    /**
+     * Semantic
+     * also find passages that mean the same, whatever words they use, where search by meaning is on (GET /search/capabilities); hits then say `match` and `similarity`
+     */
+    semantic?: boolean;
   };
   url: "/api/v1/search";
 };
@@ -14062,6 +14146,22 @@ export type SearchTranscriptsResponses = {
 };
 
 export type SearchTranscriptsResponse = SearchTranscriptsResponses[keyof SearchTranscriptsResponses];
+
+export type SearchCapabilitiesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/search/capabilities";
+};
+
+export type SearchCapabilitiesResponses = {
+  /**
+   * Successful Response
+   */
+  200: SearchCapabilities;
+};
+
+export type SearchCapabilitiesResponse = SearchCapabilitiesResponses[keyof SearchCapabilitiesResponses];
 
 export type SuggestTermsData = {
   body?: never;
@@ -17684,6 +17784,11 @@ export type SearchPublicData = {
      * Offset
      */
     offset?: number;
+    /**
+     * Semantic
+     * also find lines that mean the same, where search by meaning is on (`semantic` in the answer)
+     */
+    semantic?: boolean;
   };
   url: "/api/v1/public/search";
 };

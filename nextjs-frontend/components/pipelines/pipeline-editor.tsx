@@ -16,10 +16,11 @@ import {
   Shapes,
   Sparkles,
   TextSearch,
+  type LucideIcon,
+  Waypoints,
   Webhook,
   Workflow,
   X,
-  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -63,6 +64,7 @@ const ICON: Record<string, LucideIcon> = {
   faces: ScanFace,
   objects: Shapes,
   describe: Eye,
+  embed: Waypoints,
   analyze: TextSearch,
   summarize: Sparkles,
   llm: Sparkles,
@@ -77,6 +79,7 @@ const LIB_ORDER = [
   "faces",
   "objects",
   "describe",
+  "embed",
   "analyze",
   "summarize",
   "llm",

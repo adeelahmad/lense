@@ -78,7 +78,11 @@ describe("query helpers", () => {
         emotion: "Surprise",
         recording: undefined,
       },
+      meaning: false,
     });
+    // searching by meaning too is part of the address
+    expect(toParams("red teaming", {}, true)).toBe("q=red+teaming&meaning=1");
+    expect(fromParams(new URLSearchParams("q=red+teaming&meaning=1")).meaning).toBe(true);
     expect(fromParams(new URLSearchParams("speaker=abc")).filters.speaker).toBeUndefined();
     expect(activeFilterCount({ namespace: "podcasts", recording: 3 })).toBe(2);
   });

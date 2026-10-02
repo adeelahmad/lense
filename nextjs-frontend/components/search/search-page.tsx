@@ -12,6 +12,7 @@ import { useRecordingIndex } from "@/components/search/data";
 import { FacetPanel } from "@/components/search/facet-panel";
 import { fromServer, groupByRecording } from "@/components/search/facets";
 import { hasMedia } from "@/components/search/links";
+import { MeaningToggle } from "@/components/search/meaning";
 import { NoResults } from "@/components/search/no-results";
 import { InlinePlayerBar, useInlinePlayer } from "@/components/search/player";
 import {
@@ -66,7 +67,7 @@ export function SearchPage() {
   const qc = useQueryClient();
   const toast = useToast();
   const { namespaces, can } = useArchive();
-  const { q, filters } = useMemo(() => fromParams(new URLSearchParams(params.toString())), [params]);
+  const { q, filters, meaning } = useMemo(() => fromParams(new URLSearchParams(params.toString())), [params]);
   const [draft, setDraft] = useState(q);
   const [problem, setProblem] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -93,8 +94,14 @@ export function SearchPage() {
 
   const enabled = hasTerms(q);
   const nFilters = activeFilterCount(filters);
+  // whether search by meaning is on here (an admin's choice): the Meaning switch is offered, or says why not
+  const caps = useQuery({
+    queryKey: ["search-capabilities"],
+    queryFn: () => data(Search.searchCapabilities({ client })),
+    staleTime: 60_000,
+  });
   const results = useInfiniteQuery({
-    queryKey: ["search-results", q, filters],
+    queryKey: ["search-results", q, filters, meaning],
     queryFn: ({ pageParam }) =>
       data(
         Search.searchTranscripts({
@@ -110,6 +117,7 @@ export function SearchPage() {
             offset: pageParam,
             // without filters, the first page brings the facets too
             facets: nFilters === 0 && pageParam === 0,
+            semantic: meaning,
           },
         }),
       ),
@@ -123,8 +131,9 @@ export function SearchPage() {
   });
   // Facets and "without filters" counts come from the words alone.
   const base = useQuery({
-    queryKey: ["search-base", q],
-    queryFn: () => data(Search.searchTranscripts({ client, query: { q, limit: PAGE, facets: true } })),
+    queryKey: ["search-base", q, meaning],
+    queryFn: () =>
+      data(Search.searchTranscripts({ client, query: { q, limit: PAGE, facets: true, semantic: meaning } })),
     enabled: enabled && nFilters > 0,
     staleTime: 30_000,
   });
@@ -152,7 +161,10 @@ export function SearchPage() {
     return out;
   }, [filters, baseData, hits, index.byId]);
 
-  const go = useCallback((nq: string, f: SearchFilters) => router.push(`/search?${toParams(nq, f)}`), [router]);
+  const go = useCallback(
+    (nq: string, f: SearchFilters, m: boolean = meaning) => router.push(`/search?${toParams(nq, f, m)}`),
+    [router, meaning],
+  );
   const setFilter = (key: keyof SearchFilters, value: string | number | undefined) =>
     go(q, { ...filters, [key]: value });
   const clearFilter = (key: keyof SearchFilters | "all") =>
@@ -352,6 +364,7 @@ export function SearchPage() {
               ?
             </Button>
           </div>
+          <MeaningToggle checked={meaning} available={caps.data?.semantic} onChange={(on) => go(q, filters, on)} />
           {problem && (
             <p role="alert" className="m-0 text-[13px] text-red-dark">
               {problem}
@@ -375,6 +388,7 @@ export function SearchPage() {
                     · searched for <code className="font-mono text-[12.5px] text-fg-strong">{understood}</code>
                   </>
                 )}
+                {first.semantic && first.semantic.meaning > 0 && <> · {count(first.semantic.meaning)} by meaning</>}
                 {nFilters > 0 && base.data && base.data.total !== total && (
                   <> · {plural(base.data.total, "moment")} without filters</>
                 )}

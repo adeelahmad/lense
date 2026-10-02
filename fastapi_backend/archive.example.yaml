@@ -62,6 +62,9 @@ graph:
 
 search:
   stemming: english                 # english | none (run `lens-archive reindex` after changing)
+  semantic: false                   # search by meaning too (docs/configuration.md#search-by-meaning); the embed step embeds
+  semantic_weight: 0.5              # how much meaning counts in the order of results, 0 to 1
+  semantic_model: null              # startup only: a folder with another model's model.onnx and tokenizer.json
 
 server:
   host: 127.0.0.1

@@ -52,12 +52,13 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui \
        chromium fonts-dejavu-core fonts-liberation2 fonts-noto-core fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
-# objects: ONNX Runtime (the objects extra) and YOLOX-s, checked against its hash, where objects.py looks for it
+# objects: ONNX Runtime (the objects extra) and YOLOX-s, checked against its hash, where objects.py looks for it;
+# search by meaning: the semantic extra (its model is fetched into the data volume when it's first used)
 ARG EXTRAS=""
 ARG DEV=false
 ARG YOLOX_URL=https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx
 ARG YOLOX_SHA256=c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063
-RUN uv sync --frozen --extra objects $( [ "$DEV" = "true" ] || echo --no-dev ) $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done) \
+RUN uv sync --frozen --extra objects --extra semantic $( [ "$DEV" = "true" ] || echo --no-dev ) $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done) \
     && mkdir -p /opt/lens/models \
     && python -c "import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])" "$YOLOX_URL" /opt/lens/models/yolox_s.onnx \
     && echo "$YOLOX_SHA256  /opt/lens/models/yolox_s.onnx" | sha256sum -c -

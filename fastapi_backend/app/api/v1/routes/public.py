@@ -62,14 +62,18 @@ def get_public_collection(
 def search_public(
     acl: Acl,
     db: Db,
+    cfg: Cfg,
     q: str = Query("", description='words, "phrases", OR between alternatives'),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    semantic: bool = Query(
+        False, description="also find lines that mean the same, where search by meaning is on (`semantic` in the answer)"
+    ),
 ) -> PublicSearch:
     """Search what this visitor may see: titles of the recordings they see listed, and the lines of the transcripts
     they may read. Title matches come first. Restricted recordings (for signed-in people) and public ones with the
     transcript closed match on their title only."""
-    d = public.search(db, q, acl.who(), limit, offset)
+    d = public.search(db, q, acl.who(), limit, offset, cfg=cfg, semantic=semantic)
     _signed(d["items"])
     return PublicSearch.model_validate(d)
 

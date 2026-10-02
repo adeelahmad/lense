@@ -30,9 +30,9 @@ export function hitWhere(id: number, hit: { t0: number; page?: number | null }):
 }
 
 /** The search page for a query. */
-export function searchPath(q: string): string {
+export function searchPath(q: string, meaning = false): string {
   const t = q.trim();
-  return t ? `/explore/search?q=${encodeURIComponent(t)}` : "/explore/search";
+  return t ? `/explore/search?q=${encodeURIComponent(t)}${meaning ? "&meaning=1" : ""}` : "/explore/search";
 }
 
 /** A collection's page for visitors. */

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pathlib
 
-from . import access as acc, convert, documents, fields as fieldmod, files as filemod, iiif, metadata as md, render, store
+from . import access as acc, convert, documents, embeddings, fields as fieldmod, files as filemod, iiif, metadata as md, render, store
 from . import search as searchmod
 
 R = store.R
@@ -322,24 +322,27 @@ def _title_match(groups):
     return "(" + " OR ".join(alts) + ")", p
 
 
-def search(db, q, who, limit=20, offset=0):
+def search(db, q, who, limit=20, offset=0, cfg=None, semantic=False):
     """Public search: the recordings this visitor sees whose title matches, and the lines of the transcripts they may
     read. Title matches come first; a recording whose transcript they can't read (locked, or closed) matches on its
-    title only, so a search never tells what it says."""
+    title only, so a search never tells what it says. With semantic (where search by meaning is on), lines that mean
+    the same count too."""
     groups = searchmod.parse_query(q)
     if not groups:
-        return {"q": q, "total": 0, "capped": False, "items": []}
+        return {"q": q, "total": 0, "capped": False, "items": [], "semantic": cfg is not None and embeddings.why_not(cfg) is None}
     vis, vp = visible(db, who)
     tcond, tp = _title_match(groups)
     titled = db.rows(f"SELECT record::id(id) AS id, recorded_at FROM recording WHERE {vis} AND {tcond}", **vp, **tp)
     rcond, rp = readable(db, who)
     ids = db.values(f"SELECT VALUE record::id(id) FROM recording WHERE {rcond}", **rp)
-    found = searchmod.search(db, q, recordings=ids, screen=False, limit=500)
+    found = searchmod.search(db, q, recordings=ids, screen=False, limit=500, cfg=cfg, semantic=semantic)
     hits: dict[int, list[dict]] = {}
     for h in found["hits"]:  # best first
         hits.setdefault(h["recording_id"], [])
         if len(hits[h["recording_id"]]) < HITS_PER_RECORDING:
-            hits[h["recording_id"]].append(store.clean({"t0": h["t0"], "snippet": h["snippet"], "page": h.get("page")}))
+            hits[h["recording_id"]].append(
+                store.clean({"t0": h["t0"], "snippet": h["snippet"], "page": h.get("page"), "match": h.get("match")})
+            )
     rank = {rid: i for i, rid in enumerate(hits)}
     by_title = {r["id"] for r in titled}
     newest = sorted(titled, key=lambda r: r.get("recorded_at") or "", reverse=True)
@@ -350,4 +353,10 @@ def search(db, q, who, limit=20, offset=0):
     page = order[offset : offset + limit]
     rows = db.rows(f"SELECT {CARD} FROM recording WHERE id IN $ids", ids=[R("recording", i) for i in page]) if page else []
     items = {c["id"]: {**c, "hits": hits.get(c["id"], []) if c["view"] != "locked" else []} for c in cards(db, rows, who)}
-    return {"q": q, "total": len(order), "capped": found["capped"], "items": [items[i] for i in page if i in items]}
+    return {
+        "q": q,
+        "total": len(order),
+        "capped": found["capped"],
+        "items": [items[i] for i in page if i in items],
+        "semantic": cfg is not None and embeddings.why_not(cfg) is None,
+    }

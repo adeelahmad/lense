@@ -369,6 +369,8 @@ import type {
   SearchTranscriptsData,
   SearchTranscriptsResponses,
   SearchTranscriptsErrors,
+  SearchCapabilitiesData,
+  SearchCapabilitiesResponses,
   SuggestTermsData,
   SuggestTermsResponses,
   SuggestTermsErrors,
@@ -2610,6 +2612,19 @@ export class Search {
   ) {
     return (options.client ?? client).get<SearchTranscriptsResponses, SearchTranscriptsErrors, ThrowOnError>({
       url: "/api/v1/search",
+      ...options,
+    });
+  }
+
+  /**
+   * Search Capabilities
+   * What search can do here: whether it also searches by meaning (`semantic=true`), and with which model.
+   */
+  public static searchCapabilities<ThrowOnError extends boolean = false>(
+    options?: Options<SearchCapabilitiesData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<SearchCapabilitiesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/search/capabilities",
       ...options,
     });
   }

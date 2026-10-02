@@ -162,7 +162,9 @@ DEFAULTS = {
         "describe_max": 50,  # pages or shots of a resource described at most
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
-    "search": {"stemming": "english"},
+    # semantic: search by meaning too (domain/embeddings.py), off unless an admin switches it on; semantic_weight: how
+    # much meaning counts next to the words (0 to 1); semantic_model (startup only): a folder with another model
+    "search": {"stemming": "english", "semantic": False, "semantic_weight": 0.5, "semantic_model": None},
     "server": {
         "host": "127.0.0.1",
         "port": 8770,
@@ -207,6 +209,7 @@ DEFAULTS = {
             "faces",
             "objects",
             "describe",
+            "embed",
             "analyze",
             "summarize",
             "llm",
@@ -656,6 +659,10 @@ SCHEMA = [
     # objects: one row per kind of object on a recording (app/domain/objects.py)
     "DEFINE TABLE IF NOT EXISTS object_track SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS object_track_rec ON object_track FIELDS recording",
+    # search by meaning (embeddings.py): a vector per line and per description; embedding:s<segment id>, :d<resource>-<idx>
+    "DEFINE TABLE IF NOT EXISTS embedding SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS embedding_rec ON embedding FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS embedding_space ON embedding FIELDS space",
     # what a model that can see images says a page or a shot shows (descriptions.py)
     "DEFINE TABLE IF NOT EXISTS description SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS description_rec ON description FIELDS recording",

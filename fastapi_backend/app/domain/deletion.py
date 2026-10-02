@@ -37,6 +37,7 @@ OWN = (
     "face_track",
     "object_track",
     "description",
+    "embedding",
     "share_link",
     "share_embed",
     "note",

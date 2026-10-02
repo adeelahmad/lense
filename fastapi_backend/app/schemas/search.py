@@ -33,6 +33,10 @@ class SearchHit(ResponseModel):
     file_role: str | None = Field(None, description="file hits: its role (transcript, captions, translation or index)")
     file_label: str | None = Field(None, description="file hits: its label, or its name")
     line: int | None = Field(None, description="file hits: which of its lines (from 0)")
+    match: Literal["words", "meaning", "both"] | None = Field(
+        None, description="with `semantic=true`: whether its words matched, its meaning (it says the same in other words), or both"
+    )
+    similarity: float | None = Field(None, description="meaning and both: how alike it is to the query, 0 to 1")
 
 
 class FacetCount(ResponseModel):
@@ -69,6 +73,12 @@ class SearchFacets(ResponseModel):
     emotions: list[FacetCount] = Field(default_factory=list)
     recordings: list[RecordingFacet] = Field(default_factory=list)
     objects: list[ObjectFacet] = Field(default_factory=list)
+    meaning: int = Field(0, description="with `semantic=true`: how many of the moments were found by their meaning only")
+
+
+class SemanticUse(ResponseModel):
+    model: str = Field(description="the embedding model")
+    meaning: int = Field(description="hits found by their meaning only")
 
 
 class SearchResults(ResponseModel):
@@ -78,6 +88,12 @@ class SearchResults(ResponseModel):
     capped: bool
     hits: list[SearchHit]
     facets: SearchFacets | None = Field(None, description="with `facets=true`: counts over all the matching moments")
+    semantic: SemanticUse | None = Field(None, description="with `semantic=true`, where search by meaning is on: how it was used")
+
+
+class SearchCapabilities(ResponseModel):
+    semantic: bool = Field(description="search by meaning is on (an admin switches it on: search.semantic)")
+    model: str | None = Field(None, description="the embedding model in use")
 
 
 class TermSuggestion(ResponseModel):

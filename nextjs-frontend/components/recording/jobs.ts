@@ -294,6 +294,7 @@ export const STEP_ORDER = [
   "faces",
   "objects",
   "describe",
+  "embed",
   "analyze",
   "summarize",
   "report",
@@ -308,6 +309,7 @@ export const STEP_HELP: Record<StepKey, string> = {
   faces: "Detect people on screen (where the namespace allows it)",
   objects: "Find objects (people, cars, animals …) on the sampled frames or pages",
   describe: "Describe each shot or page with a model that can see images (needs one in Settings)",
+  embed: "Make its lines findable by their meaning (where search by meaning is on)",
   analyze: "Entities, chapters, keywords, talk-time stats",
   summarize: "Summary, topics and action items (needs an LLM)",
   report: "Recording report",
@@ -315,13 +317,14 @@ export const STEP_HELP: Record<StepKey, string> = {
 
 /** Ticking a step also ticks the later steps that use its output. */
 export const DEPENDENTS: Record<StepKey, StepKey[]> = {
-  transcribe: ["diarize", "analyze", "summarize", "report"],
+  transcribe: ["diarize", "embed", "analyze", "summarize", "report"],
   diarize: ["analyze", "summarize", "report"],
   shots: ["ocr", "faces", "objects", "describe"],
   ocr: [],
   faces: [],
   objects: [],
-  describe: [],
+  describe: ["embed"],
+  embed: [],
   analyze: ["report"],
   summarize: ["report"],
   report: [],

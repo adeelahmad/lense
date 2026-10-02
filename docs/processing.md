@@ -12,6 +12,11 @@ How recordings move through Lens: where they come from, what each step does, and
   ([Documents and images](configuration.md#documents-and-images)).
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
   matches voiceprints against the namespace's speakers.
+- `embed` turns each line of the transcript (or block of a document's text) and each description of a page or a shot
+  into a vector with a small sentence-embedding model, so that search can find them by what they mean
+  ([Search by meaning](configuration.md#search-by-meaning)). It embeds only what's new or changed since it last ran.
+  While search by meaning is off the step is skipped, and its job says so; it's also skipped, saying why, when
+  ONNX Runtime and tokenizers aren't installed or the model can't be fetched.
 - `analyze` finds entities, chapters, keywords and talk statistics; `summarize` (optional) calls any OpenAI-compatible
   server for a summary, key points, action items (with who will do them), topics, people, tone and importance, each
   key point and action item with the time of the line it comes from; `report` writes static HTML per recording and
@@ -116,6 +121,13 @@ All words must appear, matched after English stemming ("exploit" also finds expl
 must appear as written; OR separates alternatives. Filter by namespace, speaker, emotion or recording. For archives that
 aren't in English set `search.stemming: none` and run `lens reindex`. Prefix search (`expl*`) from the SQLite
 version is gone; stemming covers most of what it was used for.
+
+Where an admin switched it on, search also works **by meaning**: asked for "sailors", it finds the line about the ship
+leaving the harbour, which has none of the words. The search page's Meaning switch asks for it (`semantic=true` on the
+API). Passages the words find and passages that mean the same are ranked together, by `search.semantic_weight`; each
+hit says whether its words matched, its meaning, or both. Filters, facets and access work the same: a passage you may
+not read is never found, by words or by meaning. A corrected line is found by its old meaning no longer, and by its
+new one once the embed step has run again (the correction queues it).
 
 ## Background work
 

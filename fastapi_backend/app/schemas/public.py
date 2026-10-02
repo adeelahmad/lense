@@ -174,6 +174,7 @@ class PublicHit(ResponseModel):
     t0: int = Field(description="where the line starts, in ms")
     snippet: str = Field(description="the line around the match, HTML-escaped, with <mark> around what was found")
     page: int | None = Field(None, description="a document's or an image's text: the page it's on (from 0)")
+    match: str | None = Field(None, description="with `semantic=true`: words, meaning (it says the same in other words) or both")
 
 
 class PublicResult(PublicCard):
@@ -187,3 +188,4 @@ class PublicSearch(ResponseModel):
     total: int = Field(description="how many recordings match, on all pages")
     capped: bool = Field(description="there were too many matching lines to rank them all")
     items: list[PublicResult]
+    semantic: bool = Field(False, description="search by meaning is on here: `semantic=true` also finds lines that mean the same")

@@ -1622,6 +1622,10 @@ pyannote = [
 rapidocr = [
     { name = "rapidocr-onnxruntime" },
 ]
+semantic = [
+    { name = "onnxruntime" },
+    { name = "tokenizers" },
+]
 sensevoice = [
     { name = "funasr" },
     { name = "modelscope" },
@@ -1657,6 +1661,7 @@ dev = [
     { name = "pytest-xdist" },
     { name = "python-dotenv" },
     { name = "ruff" },
+    { name = "tokenizers" },
     { name = "types-pyyaml" },
     { name = "watchdog" },
 ]
@@ -1678,6 +1683,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.26" },
     { name = "onnxruntime", marker = "extra == 'insightface'" },
     { name = "onnxruntime", marker = "extra == 'objects'" },
+    { name = "onnxruntime", marker = "extra == 'semantic'" },
     { name = "opencv-python-headless", marker = "extra == 'faces'" },
     { name = "pillow", specifier = ">=10" },
     { name = "pyannote-audio", marker = "extra == 'pyannote'" },
@@ -1691,12 +1697,13 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.11" },
     { name = "speechbrain", marker = "extra == 'voices'" },
     { name = "surrealdb", specifier = ">=2.0,<3" },
+    { name = "tokenizers", marker = "extra == 'semantic'", specifier = ">=0.15" },
     { name = "torch", marker = "extra == 'sensevoice'" },
     { name = "torch", marker = "extra == 'voices'" },
     { name = "torchaudio", marker = "extra == 'sensevoice'" },
     { name = "torchaudio", marker = "extra == 'voices'" },
 ]
-provides-extras = ["sensevoice", "whisper", "mlx", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "validate", "msg"]
+provides-extras = ["sensevoice", "whisper", "mlx", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "semantic", "validate", "msg"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1716,6 +1723,7 @@ dev = [
     { name = "pytest-xdist", specifier = ">=3.6,<4" },
     { name = "python-dotenv", specifier = ">=1.0.1,<2" },
     { name = "ruff", specifier = ">=0.12,<0.13" },
+    { name = "tokenizers", specifier = ">=0.15" },
     { name = "types-pyyaml" },
     { name = "watchdog", specifier = ">=5.0.3,<6" },
 ]

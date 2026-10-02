@@ -36,6 +36,8 @@ insightface = ["insightface", "onnxruntime"]
 # Objects: YOLOX on ONNX Runtime (Apache-2.0; the model is a YOLOX .onnx file). Ultralytics YOLO also works if
 # installed by hand (pip install ultralytics): it's AGPL-3.0, so it isn't an extra here.
 objects = ["onnxruntime"]
+# Search by meaning: a small sentence-embedding model on ONNX Runtime (both Apache-2.0); the model is fetched on first use
+semantic = ["onnxruntime", "tokenizers>=0.15"]
 # Checking IIIF manifests against the official schema
 validate = ["jsonschema"]
 # Outlook .msg emails (extract-msg is GPL-3.0; .eml needs nothing)
@@ -64,6 +66,7 @@ dev = [
     "mkdocs-material[imaging]>=9.6.9",
     "onnxruntime>=1.18",  # the objects tests run a small YOLOX-shaped model
     "onnx>=1.16",  # ... which they build
+    "tokenizers>=0.15",  # the embedding tests build a small tokenizer too
 ]
 
 [tool.hatch.build.targets.wheel]

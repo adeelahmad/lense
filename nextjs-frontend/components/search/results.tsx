@@ -9,6 +9,7 @@ import type { SearchHit } from "@/app/openapi-client/types.gen";
 import type { HitGroup } from "@/components/search/facets";
 import { ROLE_LABEL, hitHref, type FileRole } from "@/components/recording/files-model";
 import { foundAs, onPage, recordingHref } from "@/components/search/links";
+import { ByMeaning } from "@/components/search/meaning";
 import type { InlinePlayer } from "@/components/search/player";
 import { splitSnippet } from "@/components/search/snippet";
 import { speakerTone } from "@/components/speakers/format";
@@ -147,7 +148,9 @@ function HitRow({
     }
   };
   const found = foundAs(hit);
-  const where = found ? `, ${found.toLowerCase()}` : hit.source === "file" ? `, in ${hit.file_label ?? "a file"}` : "";
+  const where =
+    (found ? `, ${found.toLowerCase()}` : hit.source === "file" ? `, in ${hit.file_label ?? "a file"}` : "") +
+    (hit.match === "meaning" ? ", found by meaning" : "");
   const color = speakerTone(hit.speaker_id);
   return (
     <div
@@ -182,10 +185,10 @@ function HitRow({
           </>
         )}
       </span>
-      <Snippet
-        html={hit.snippet}
-        className="col-span-3 font-serif text-[15.5px] leading-[1.5] text-fg [text-wrap:pretty] md:col-span-1"
-      />
+      <span className="col-span-3 font-serif text-[15.5px] leading-[1.5] text-fg [text-wrap:pretty] md:col-span-1">
+        {hit.match === "meaning" && <ByMeaning />}
+        <Snippet html={hit.snippet} />
+      </span>
     </div>
   );
 }

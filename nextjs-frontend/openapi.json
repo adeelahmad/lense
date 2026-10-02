@@ -6685,6 +6685,18 @@
               "title": "Facets"
             },
             "description": "also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object"
+          },
+          {
+            "name": "semantic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "also find passages that mean the same, whatever words they use, where search by meaning is on (GET /search/capabilities); hits then say `match` and `similarity`",
+              "default": false,
+              "title": "Semantic"
+            },
+            "description": "also find passages that mean the same, whatever words they use, where search by meaning is on (GET /search/capabilities); hits then say `match` and `similarity`"
           }
         ],
         "responses": {
@@ -6704,6 +6716,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search/capabilities": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Search Capabilities",
+        "description": "What search can do here: whether it also searches by meaning (`semantic=true`), and with which model.",
+        "operationId": "search_capabilities",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchCapabilities"
                 }
               }
             }
@@ -12630,6 +12664,18 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "semantic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "also find lines that mean the same, where search by meaning is on (`semantic` in the answer)",
+              "default": false,
+              "title": "Semantic"
+            },
+            "description": "also find lines that mean the same, where search by meaning is on (`semantic` in the answer)"
           }
         ],
         "responses": {
@@ -22270,6 +22316,18 @@
             ],
             "title": "Page",
             "description": "a document's or an image's text: the page it's on (from 0)"
+          },
+          "match": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match",
+            "description": "with `semantic=true`: words, meaning (it says the same in other words) or both"
           }
         },
         "additionalProperties": true,
@@ -22949,6 +23007,12 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "semantic": {
+            "type": "boolean",
+            "title": "Semantic",
+            "description": "search by meaning is on here: `semantic=true` also finds lines that mean the same",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -24579,6 +24643,33 @@
         ],
         "title": "SavedView"
       },
+      "SearchCapabilities": {
+        "properties": {
+          "semantic": {
+            "type": "boolean",
+            "title": "Semantic",
+            "description": "search by meaning is on (an admin switches it on: search.semantic)"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the embedding model in use"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "semantic"
+        ],
+        "title": "SearchCapabilities"
+      },
       "SearchCreate": {
         "properties": {
           "q": {
@@ -24714,6 +24805,12 @@
             },
             "type": "array",
             "title": "Objects"
+          },
+          "meaning": {
+            "type": "integer",
+            "title": "Meaning",
+            "description": "with `semantic=true`: how many of the moments were found by their meaning only",
+            "default": 0
           }
         },
         "additionalProperties": true,
@@ -24936,6 +25033,35 @@
             ],
             "title": "Line",
             "description": "file hits: which of its lines (from 0)"
+          },
+          "match": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "words",
+                  "meaning",
+                  "both"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match",
+            "description": "with `semantic=true`: whether its words matched, its meaning (it says the same in other words), or both"
+          },
+          "similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity",
+            "description": "meaning and both: how alike it is to the query, 0 to 1"
           }
         },
         "additionalProperties": true,
@@ -24986,6 +25112,17 @@
               }
             ],
             "description": "with `facets=true`: counts over all the matching moments"
+          },
+          "semantic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SemanticUse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "with `semantic=true`, where search by meaning is on: how it was used"
           }
         },
         "additionalProperties": true,
@@ -25198,6 +25335,27 @@
         "type": "object",
         "title": "SegmentUpdate",
         "description": "Send ``text``, ``speaker`` (a speaker id in the same namespace, or null), or both."
+      },
+      "SemanticUse": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "the embedding model"
+          },
+          "meaning": {
+            "type": "integer",
+            "title": "Meaning",
+            "description": "hits found by their meaning only"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "model",
+          "meaning"
+        ],
+        "title": "SemanticUse"
       },
       "SetupRequest": {
         "properties": {

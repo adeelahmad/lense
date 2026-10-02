@@ -92,6 +92,8 @@ export function hasTerms(text: string): boolean {
 export function fromParams(p: URLSearchParams): {
   q: string;
   filters: SearchFilters;
+  /** Also search by meaning (`meaning=1`). */
+  meaning: boolean;
 } {
   const int = (v: string | null) => (v && /^\d+$/.test(v) ? Number(v) : undefined);
   return {
@@ -103,11 +105,12 @@ export function fromParams(p: URLSearchParams): {
       recording: int(p.get("recording")),
       object: p.get("object") || undefined,
     },
+    meaning: p.get("meaning") === "1",
   };
 }
 
 /** The URL query for a search state (empty values left out). */
-export function toParams(q: string, f: SearchFilters): string {
+export function toParams(q: string, f: SearchFilters, meaning = false): string {
   const p = new URLSearchParams();
   if (q.trim()) p.set("q", q.trim());
   if (f.namespace) p.set("ns", f.namespace);
@@ -115,6 +118,7 @@ export function toParams(q: string, f: SearchFilters): string {
   if (f.emotion) p.set("emotion", f.emotion);
   if (f.recording != null) p.set("recording", String(f.recording));
   if (f.object) p.set("object", f.object);
+  if (meaning) p.set("meaning", "1");
   return p.toString();
 }
 

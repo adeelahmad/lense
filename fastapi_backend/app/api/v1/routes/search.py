@@ -6,10 +6,10 @@ from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.api.deps import Acl, Cfg, CurrentUser, Db
 from app.api.media import sign_urls
+from app.domain import embeddings, render, store
 from app.domain import graph as graphmod
-from app.domain import render, store
 from app.domain import search as searchmod
-from app.schemas.search import Graph, Mention, SearchResults, TermSuggestion
+from app.schemas.search import Graph, Mention, SearchCapabilities, SearchResults, TermSuggestion
 
 router = APIRouter(tags=["search"])
 
@@ -21,6 +21,7 @@ def search_transcripts(
     acl: Acl,
     user: CurrentUser,
     db: Db,
+    cfg: Cfg,
     q: str = Query(description='words, "phrases", OR between alternatives'),
     ns: str | None = None,
     speaker: int | None = None,
@@ -32,6 +33,11 @@ def search_transcripts(
     facets: bool = Query(
         False,
         description="also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object",
+    ),
+    semantic: bool = Query(
+        False,
+        description="also find passages that mean the same, whatever words they use, where search by meaning is on "
+        "(GET /search/capabilities); hits then say `match` and `similarity`",
     ),
 ) -> SearchResults:
     """Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
@@ -57,8 +63,17 @@ def search_transcripts(
         objects=True,
         obj=object,
         described=True,
+        cfg=cfg,
+        semantic=semantic,
     )
     return sign_urls(res, full=True)
+
+
+@router.get("/search/capabilities")
+def search_capabilities(user: CurrentUser, cfg: Cfg) -> SearchCapabilities:
+    """What search can do here: whether it also searches by meaning (`semantic=true`), and with which model."""
+    on = embeddings.why_not(cfg) is None
+    return SearchCapabilities(semantic=on, model=embeddings.model_name(cfg) if on else None)
 
 
 @router.get("/search/terms")

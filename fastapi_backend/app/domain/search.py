@@ -10,9 +10,11 @@ import html
 import re
 from collections import Counter
 
-from . import store
+from . import embeddings, store
 
 M0, M1 = "\x02", "\x03"
+MIN_SIM = 0.3  # passages less alike than this aren't hits by meaning (all-MiniLM-L6-v2's cosine runs from about 0 to 1)
+MEANING_CAP = 200  # passages looked at by meaning per search
 FACET_CAP = 20000  # moments counted for facets; more than this and the counts say they're partial
 FACET_VALUES = 50  # values listed per facet
 
@@ -80,6 +82,8 @@ def search(
     objects=False,
     obj=None,
     described=False,
+    cfg=None,
+    semantic=False,
 ):
     """Transcript lines (and, unless screen is false, text on screen in videos; with files, the lines of supplementary
     transcripts, captions, translations and indexes; with objects, the kinds of object seen in videos, documents and
@@ -87,7 +91,11 @@ def search(
     read beyond those (in collections they were given a role on); recordings limits it to a set of recordings (such as
     the transcripts a visitor may read), and obj to those a kind of object is seen in. With facets, also how many of
     all the matching moments (up to FACET_CAP) are in each namespace, speaker, emotion and recording, and which kinds
-    of object the recordings they're in have."""
+    of object the recordings they're in have.
+
+    With semantic (and cfg, where search by meaning is on), passages that mean the same are hits too, whatever words
+    they use, and the ranking blends how alike they are with the full-text score (search.semantic_weight); each hit
+    then says whether its words matched, its meaning, or both."""
     groups = parse_query(q)
     empty = {"q": q, "query": "", "total": 0, "capped": False, "hits": []}
     if obj:
@@ -159,6 +167,11 @@ def search(
         hits += _objects(db, groups, space_filter(ns, spaces, recording, params), cap, params)
     if described and not speaker and not emotion:  # nor what pages and shots show
         hits += _described(db, groups, space_filter(ns, spaces, recording, params), cap, params)
+    meant = None
+    if semantic and cfg is not None and embeddings.enabled(cfg):
+        where_m = space_filter(ns, spaces, recording, params) + (" AND recording IN $recs" if recordings is not None else "")
+        meant = _meaning(db, cfg, groups, where_m, params, speaker, emotion, described, hits)
+        hits += meant
     hits.sort(key=lambda r: (-r["_score"], r["recording"], r.get("idx") or 0))
     page = hits[offset : offset + limit]
     recs = (
@@ -210,6 +223,7 @@ def search(
             "namespace": spaces.get(h["space"]),
             "snippet": h["_snip"],
             "source": h["source"],
+            **({"match": h.get("_match", "words"), "similarity": h.get("_sim")} if meant is not None else {}),
             **(
                 {"frame": f"{store.API}/recordings/{h['recording']}/frames/{h['frame']}" if h.get("frame") else None, "box": h.get("box")}
                 if h["source"] in ("screen", "object", "described")
@@ -222,6 +236,8 @@ def search(
         for h in page
     ]
     res = {"q": q, "query": describe(groups), "total": len(hits), "capped": len(rows) >= cap, "hits": out}
+    if meant is not None:
+        res["semantic"] = {"model": embeddings.model_name(cfg), "meaning": len(meant)}
     if facets:
         alone = not speaker and not emotion
         res["facets"] = _facets(
@@ -236,8 +252,74 @@ def search(
             files and alone,
             objects and alone,
             described and alone,
+            meant or [],
         )
     return res
+
+
+def _meaning(db, cfg, groups, where_f, base, speaker, emotion, described, hits):
+    """Hits by meaning: the passages closest to the query that the words didn't find, as hits; those the words found
+    too are marked in `hits` instead. Every hit's score becomes the blend: (1 − w) × its full-text score (as a share of
+    the best one) + w × how alike it is."""
+    w = float(cfg["search"].get("semantic_weight", 0.5))
+    text = " ".join(x for g in groups for x in g["words"] + g["phrases"])
+    params = {k: v for k, v in base.items() if k in ("sp", "allowed", "also", "rec", "recs")}
+    kinds = ("segment", "description") if described and not speaker and not emotion else ("segment",)
+    near = [n for n in embeddings.nearest(db, cfg, text, where_f, params, MEANING_CAP, kinds) if (n.get("sim") or 0) >= MIN_SIM]
+    best = max((h["_score"] for h in hits), default=0) or 1
+    found = {(h["source"] in ("said", "page"), h["id"]): h for h in hits if h["source"] in ("said", "page", "described")}
+    for h in hits:
+        h["_match"], h["_score"] = "words", (1 - w) * h["_score"] / best
+    segs = {
+        s["id"]: s
+        for s in (
+            db.rows(
+                "SELECT record::id(id) AS id, recording, idx, t0, t1, emotion, speaker, space, text, page, box FROM segment WHERE id IN $ids",
+                ids=[store.R("segment", n["ref"]) for n in near if n["kind"] == "segment"],
+            )
+            if any(n["kind"] == "segment" for n in near)
+            else []
+        )
+    }
+    descs = {
+        (d["recording"], d["idx"]): d
+        for d in (
+            db.rows(
+                "SELECT record::id(id) AS id, recording, idx, t0, t1, space, text, frame, paged FROM description WHERE recording IN $r",
+                r=sorted({n["recording"] for n in near if n["kind"] == "description"}),
+            )
+            if any(n["kind"] == "description" for n in near)
+            else []
+        )
+    }
+    out = []
+    for n in near:
+        row = segs.get(n["ref"]) if n["kind"] == "segment" else descs.get((n["recording"], n["ref"]))
+        if not row or not embeddings.fresh(row["text"], n["h"]):  # corrected since: its vector is of what it said before
+            continue
+        if n["kind"] == "segment" and (
+            (speaker not in (None, "") and row.get("speaker") != int(speaker))
+            or (emotion not in (None, "") and row.get("emotion") != emotion)
+        ):
+            continue
+        sim = round(float(n["sim"]), 4)
+        both = found.get((n["kind"] == "segment", row["id"]))
+        if both:
+            both["_match"], both["_sim"] = "both", sim
+            both["_score"] += w * sim
+            continue
+        cut = row["text"][:220]
+        out.append(
+            {
+                **row,
+                "source": ("said" if row.get("page") is None else "page") if n["kind"] == "segment" else "described",
+                "_match": "meaning",
+                "_sim": sim,
+                "_score": w * sim,
+                "_snip": html.escape(cut) + ("…" if len(row["text"]) > len(cut) else ""),
+            }
+        )
+    return out
 
 
 def _in_file(f, line):
@@ -276,7 +358,7 @@ def _matches(db, groups, table, fields, where_f, base):
     return rows
 
 
-def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=False, objects=False, described=False):
+def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=False, objects=False, described=False, meant=()):
     """How many matching moments are in each namespace, speaker, emotion and recording, most first; and the kinds of
     object seen in the recordings they're in, with how many of those recordings each is in."""
     said = _matches(db, groups, "segment", "recording, space, speaker, emotion", where_f, base)
@@ -285,6 +367,7 @@ def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=Fals
     spotted = _matches(db, groups, "object_track", "recording, space", space_filter(ns, spaces, recording, base), base) if objects else []
     shown = _matches(db, groups, "description", "recording, space", space_filter(ns, spaces, recording, base), base) if described else []
     spotted += shown
+    spotted += list(meant)  # hits by meaning only: the passages closest to the query, not counted among the words' matches
     rows = (said + seen + filed + spotted)[:FACET_CAP]
     partial = len(said) + len(seen) + len(filed) + len(spotted) > FACET_CAP
     by_space, by_rec = Counter(r["space"] for r in rows), Counter(r["recording"] for r in rows)
@@ -338,6 +421,7 @@ def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=Fals
         "namespaces": order([{"name": space_names.get(k) or str(k), "count": n} for k, n in top(by_space)], "name"),
         "speakers": order(speakers, "name"),
         "emotions": order([{"name": k, "count": n} for k, n in top(by_emo)], "name"),
+        "meaning": len(meant),
         "recordings": order([{"id": k, "title": titles.get(k), "count": n} for k, n in recs], "id"),
     }
 

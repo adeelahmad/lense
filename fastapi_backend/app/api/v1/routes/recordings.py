@@ -662,7 +662,7 @@ def edit_segment(rid: int, idx: int, body: SegmentUpdate, acl: Acl, user: Writer
     }
     db.q("CREATE segment_edit CONTENT $d", d=store.clean(edit))
     auth.audit(db, user.as_audit(), "transcript.edit", f"recording:{rid}", {"segment": idx})
-    return JobQueued(job=jobs.enqueue(db, rid, ["analyze", "report"], by=user.email))
+    return JobQueued(job=jobs.enqueue(db, rid, jobs.AFTER_EDIT, by=user.email))
 
 
 def _changed(db: DB, rid: int, idx: int, kind: str, done: dict[str, Any], user: Any) -> JobQueued:
@@ -670,7 +670,7 @@ def _changed(db: DB, rid: int, idx: int, kind: str, done: dict[str, Any], user: 
     edit = {"recording": rid, "idx": idx, "kind": kind, **done, "by": user.email, "at": store.now(), "n": db.next_id("segment_edit")}
     db.q("CREATE segment_edit CONTENT $d", d=store.clean(edit))
     auth.audit(db, user.as_audit(), f"transcript.{kind}", f"recording:{rid}", {"segment": idx})
-    return JobQueued(job=jobs.enqueue(db, rid, ["analyze", "report"], by=user.email))
+    return JobQueued(job=jobs.enqueue(db, rid, jobs.AFTER_EDIT, by=user.email))
 
 
 @router.post("/{rid}/segments/{idx}/split")

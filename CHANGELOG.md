@@ -64,6 +64,35 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       in dark mode denies (the app hears `access_denied`), then allows: the app reads resources and can't read the
       audit log; Settings → API keys shows the two lifetimes. No console errors besides the 400 of the refused
       request.
+- **Search by meaning.** Switched on, search also finds passages that say the same in other words: asked for
+  "sailors", the line about the ship leaving the harbour. A new pipeline step, embed, turns each line of a transcript,
+  each block of a document's text and each description of a page or a shot into a vector with a small
+  sentence-embedding model. Decided with the project owner: off by default, switched on per installation by an admin;
+  a small English model, all-MiniLM-L6-v2 on ONNX Runtime (both Apache-2.0), with another model's folder as a startup
+  setting.
+    - The model (about 90 MB) is fetched from huggingface.co the first time something is embedded, into
+      `data_dir/models`, and checked against its hash; `pip install -e ".[semantic]"` (ONNX Runtime and tokenizers),
+      which the `lens:full` image has. New settings: `search.semantic` and `search.semantic_weight` (Settings →
+      Search), and at startup `search.semantic_model` (docs/configuration.md#search-by-meaning).
+    - The embed step is in the standard pipeline, after describe, and runs after imports and corrections; it embeds
+      only what's new or changed, into a new `embedding` table. While search by meaning is off, or without the
+      runtime or the model, it's skipped and says why (docs/processing.md). Vectors move with their resource and go
+      when it's deleted; a corrected line isn't found by what it used to say.
+    - API: `GET /api/v1/search?semantic=true` blends how alike a passage is with the full-text score; hits say
+      `match` (`words`, `meaning` or `both`) and `similarity`, the answer `semantic: {model, meaning}`, and facets
+      count the hits by meaning too. `GET /api/v1/search/capabilities` says whether it's on.
+      `GET /api/v1/public/search?semantic=true` does the same in the transcripts a visitor may read. Namespaces,
+      collections and transcripts someone may not read are never found by meaning either (docs/api.md#search).
+    - Web app: a Meaning switch on Search (kept in the address, `meaning=1`), disabled with the reason where an admin
+      hasn't switched it on, and on the public search where the archive has it; hits found by meaning only are marked
+      "By meaning", and the count says how many there are. Embed is in the step pickers (reprocess, batch runs,
+      pipelines, watched folders, workers). Settings → Search has the switch, the weight and the model in use.
+    - Checked in the browser with all-MiniLM-L6-v2: Settings → Search shows the switch, the weight and the model,
+      ready; an admin searches "sailors", which is said nowhere, switches Meaning on and gets the two lines about the
+      ship and the vessels, marked "By meaning", and not the ones about money; "money problems" finds the budget call
+      in another namespace; "harbour" puts the line that says it first; a viewer of one namespace on a phone in dark
+      mode finds nothing of the namespace they have no role in, by meaning either; a visitor's public search offers
+      the switch and finds the public resource by meaning. No console errors.
 - **Fix (security): only the server's own media links are signed.** Text shaped like a media link
   (`/api/v1/recordings/12/audio`) came back signed: titles and transcript lines in API responses, and anything in the
   embed and report pages, including the transcript data inside them. Someone who could rename a recording or correct

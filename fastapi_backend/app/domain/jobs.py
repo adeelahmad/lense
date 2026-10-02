@@ -16,8 +16,9 @@ import time
 from . import analyze, ingest, pipelines, render, speakers as spk, store
 
 R = store.R
-PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "summarize", "report"]
-AFTER_IMPORT = ["analyze", "summarize", "report"]
+PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "embed", "analyze", "summarize", "report"]
+AFTER_IMPORT = ["embed", "analyze", "summarize", "report"]
+AFTER_EDIT = ["embed", "analyze", "report"]  # after a correction to the transcript: what's derived from its text
 ACTIVE = ["queued", "running"]
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
@@ -128,6 +129,12 @@ def _describe(db, cfg, rid, say, spec=None):
     descriptions.step_describe(db, cfg, rid, say)
 
 
+def _embed(db, cfg, rid, say, spec=None):
+    from . import embeddings
+
+    embeddings.step_embed(db, cfg, rid, say)
+
+
 STEPS = {
     "transcribe": _transcribe,
     "diarize": _diarize,
@@ -136,6 +143,7 @@ STEPS = {
     "faces": _faces,
     "objects": _objects,
     "describe": _describe,
+    "embed": _embed,
     "analyze": _analyze,
     "summarize": _summarize,
     "report": _report,

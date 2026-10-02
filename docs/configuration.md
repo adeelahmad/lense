@@ -51,10 +51,11 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
   watched. These are bootstrap-only on purpose, so the web app can't choose what runs or open up the server's disk.
 * `video.yunet_model` / `video.sface_model`: face model files.
 * `video.yolox_model` / `video.ultralytics_model`: the object detector's model ([Objects](#objects)).
+* `search.semantic_model`: the folder of the model search by meaning uses ([Search by meaning](#search-by-meaning)).
 
 ## Settings in the app
 
-Admins can change transcription, diarisation, voice-ID thresholds, analysis, LLM provider and key, graph, search,
+Admins can change transcription, diarisation, voice-ID thresholds, analysis, LLM provider and key, graph, search (and search by meaning),
 reports, workers, IIIF, the assistant, video, uploads, documents and images, and server options (embed frame ancestors, transcript upload
 limit, allowed hosts, trusted proxies, session length). The API refuses an allowed-host list that leaves out the address
 you are using.
@@ -190,6 +191,35 @@ Set at startup only:
 
 On a CPU, YOLOX-s takes about a tenth of a second a frame. What's found is kept per kind and resource: where it's seen
 and its boxes on each frame or page (at most 500).
+
+## Search by meaning
+
+Search finds words. Switched on, it also finds passages that mean the same in other words ([API](api.md#search),
+[Processing](processing.md#search)): the embed step turns each line of a transcript, each block of a document's text
+and each description of a page or a shot into a vector with a sentence-embedding model, and a search into another;
+the closest ones are hits. It's off until an admin switches it on (Settings → Search).
+
+The model runs on ONNX Runtime with the tokenizers library (both Apache-2.0): `pip install -e ".[semantic]"`; the
+`lens:full` image has them. The default model is `sentence-transformers/all-MiniLM-L6-v2` (Apache-2.0; English; 384
+numbers a passage): about 90 MB, fetched from huggingface.co the first time something is embedded, into
+`data_dir/models/all-MiniLM-L6-v2`, and checked against its hash. Where the server can't reach huggingface.co, put its
+`onnx/model.onnx` (as `model.onnx`) and `tokenizer.json` there yourself. It embeds a few hundred lines a second on a
+CPU; a vector takes about 3 KB in the database.
+
+| Setting | Default | |
+|---|---|---|
+| `search.semantic` | false | whether search works by meaning too, and the embed step embeds |
+| `search.semantic_weight` | 0.5 | how much meaning counts in the order of results next to the words, 0–1 (0: passages found by meaning only come last) |
+
+Set at startup only:
+
+| Setting | Default | |
+|---|---|---|
+| `search.semantic_model` | none: all-MiniLM-L6-v2, fetched | a folder with another model's `model.onnx` and `tokenizer.json`, such as `paraphrase-multilingual-MiniLM-L12-v2` for archives that aren't in English. The folder's name is the model's name; vectors of another model aren't searched, so run the embed step again after changing it |
+
+After switching it on, what's imported or reprocessed from then on is embedded by its pipeline (the standard one has
+the embed step; add it to pipelines of your own). For what's already there, run the embed step: Library → select →
+Reprocess, or a batch run. Workers listed in `workers.steps` need `embed` to run it.
 
 ## API keys
 

@@ -575,6 +575,7 @@ recording later leaves its uploaded file in place, like any other media file.
 
 ```
 GET    /api/v1/search
+GET    /api/v1/search/capabilities
 GET    /api/v1/search/terms
 GET    /api/v1/graph
 GET    /api/v1/mentions
@@ -598,6 +599,14 @@ shows, [Descriptions](#descriptions): the shot's time, or the `page`, and its `f
 supplementary file: its `file`, `file_role` and `file_label`, and which `line`). A file's lines have no `t0` when the
 file doesn't say when they are; the web app opens those in the resource's Files tab. A `speaker` or `emotion` filter
 keeps to what was said.
+
+With `semantic=true`, where search by meaning is on ([Configuration](configuration.md#search-by-meaning);
+`GET /search/capabilities` says `{semantic, model}`), passages that mean the same as the query are hits too, whatever
+words they use: lines of transcripts and of documents' text, and descriptions. Each hit then has `match` (`words`,
+`meaning` or `both`) and, for the last two, `similarity` (0 to 1); a hit by meaning only has no `<mark>` in its
+`snippet`. The order blends the full-text score with the similarity (`search.semantic_weight`). The answer's
+`semantic` says `{model, meaning}`, how many hits were found by meaning only, and `facets` count them too
+(`facets.meaning`). The same filters and the same access apply. Where it's off, `semantic=true` changes nothing.
 
 Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
 words said in the namespaces you can read (`ns` for one) that start with it, the most said first, with how often and
@@ -986,7 +995,9 @@ frame comes only with media the caller may play. A collection with nothing for t
 `GET /public/search?q=` (`limit`, `offset`) finds the recordings the caller sees by their title, and by the lines of
 the transcripts they may read (the same query syntax as `/search`: words, "phrases", OR). Title matches come first;
 each result is a card with up to three matching `hits` (`t0` and an HTML-escaped `snippet` with `<mark>`, and the
-`page` of a document's text). Restricted recordings and closed transcripts match on the title only.
+`page` of a document's text). Restricted recordings and closed transcripts match on the title only. The answer's
+`semantic` says whether the archive searches by meaning; with `semantic=true` it then also finds lines that mean the
+same in the transcripts the caller may read, each hit saying its `match` (`words`, `meaning` or `both`).
 
 `GET /public/recordings/{rid}` is a recording's public page as the caller may see it. `view` says how:
 

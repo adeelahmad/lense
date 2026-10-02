@@ -40,6 +40,7 @@ const STEP_ORDER = [
   "faces",
   "objects",
   "describe",
+  "embed",
   "analyze",
   "summarize",
   "report",

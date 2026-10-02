@@ -17,7 +17,7 @@ import re
 import secrets
 import threading
 
-from . import convert, ipgroups, objects, store
+from . import convert, embeddings, ipgroups, objects, store
 
 R = store.R
 EDITABLE = {
@@ -27,7 +27,7 @@ EDITABLE = {
     "analysis": None,
     "llm": None,
     "graph": None,
-    "search": None,
+    "search": ("stemming", "semantic", "semantic_weight"),  # the model's folder (semantic_model) is a startup setting
     "reports": None,
     "workers": None,
     "iiif": None,
@@ -189,6 +189,7 @@ def view(db, base):
         "local_roots": base["sources"].get("local_roots") or [],
         **convert.bootstrap(base),
         "yolox_model": objects.yolox_model(base) or "not found",
+        "semantic_model": embeddings.status(effective(db, base)),
     }
     return out
 
@@ -242,6 +243,14 @@ def _check(section, key, value, default):
     if (section, key) == ("video", "object_min_score"):
         if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0.05 <= value <= 0.95):
             raise ValueError("video.object_min_score is a number from 0.05 to 0.95")
+        return float(value)
+    if (section, key) == ("search", "semantic"):
+        if not isinstance(value, bool):
+            raise ValueError("search.semantic is true or false")
+        return value
+    if (section, key) == ("search", "semantic_weight"):
+        if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 1):
+            raise ValueError("search.semantic_weight is a number from 0 to 1")
         return float(value)
     if (section, key) == ("tokens", "oauth_access_minutes"):
         lo, hi = OAUTH_ACCESS_MINUTES

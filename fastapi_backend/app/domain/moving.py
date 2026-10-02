@@ -31,6 +31,7 @@ SPACED = (
     "face_track",
     "object_track",
     "description",
+    "embedding",
     "job",
     "output",
     "share_link",

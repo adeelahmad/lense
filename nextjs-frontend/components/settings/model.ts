@@ -25,6 +25,8 @@ export type SettingsView = Record<string, SectionView> & {
     web_networks?: string[];
     /** The YOLOX model the objects step uses, or "not found". */
     yolox_model?: string;
+    /** The model search by meaning uses, and why it isn't ready when it isn't. */
+    semantic_model?: { enabled?: boolean; model?: string; path?: string; ready?: boolean; reason?: string | null };
   } & Record<string, unknown>;
 };
 
@@ -200,6 +202,7 @@ export const WORKER_STEPS = [
   "faces",
   "objects",
   "describe",
+  "embed",
   "analyze",
   "summarize",
   "llm",
@@ -594,6 +597,20 @@ export const FIELDS: FieldSpec[] = [
       { value: "none", label: "None" },
     ],
     hint: "Changing this needs a reindex before results change",
+  },
+  {
+    section: "search",
+    key: "semantic",
+    label: "Search by meaning",
+    kind: "switch",
+    hint: "Also finds passages that say the same in other words. New and reprocessed resources are embedded by the embed step; run it on the rest (Library → Reprocess, or a batch run).",
+  },
+  {
+    section: "search",
+    key: "semantic_weight",
+    label: "How much meaning counts",
+    ...pct(),
+    hint: "0: the words decide the order, and passages found by meaning come last. 1: meaning decides.",
   },
   // Reports and graph
   {

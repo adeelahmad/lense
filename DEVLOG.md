@@ -17,12 +17,14 @@ backend tests (both engines) → `make openapi` → web app → frontend tests �
   - [x] Security review applied (see Mistakes & Lessons)
   - [x] Web app: `/oauth/authorize`, Apps with access, settings fields, `/.well-known` proxy; 13 frontend tests
   - [x] Docs, CHANGELOG, browser check (viewer and admin, dark, 390 px)
+  - [x] Pushed; CI green on both engines (run 37005738001)
+- [x] **2. Semantic search with ONNX text embeddings (#47)** (own commit)
+  - [x] `app/domain/embeddings.py`: model fetch with hash check, embedder, `embed` step, `embedding` table, `nearest`
+  - [x] `search.semantic`, `search.semantic_weight` (app), `search.semantic_model` (startup); `semantic` extra; lens:full has it
+  - [x] Search blends similarity with BM25; `match`/`similarity` on hits; facets count hits by meaning; public search too
+  - [x] Web app: Meaning switch (`meaning=1`), "By meaning" marks, embed in the step pickers, Settings → Search
+  - [x] 6 backend tests (both engines), 7 frontend tests, docs, CHANGELOG, browser check with the real model
   - [ ] Push, CI green <-- CURRENT
-- [ ] **2. Semantic search with ONNX text embeddings (#47)**
-  - [ ] `search.semantic` settings (off by default), model fetch like YOLOX, `embed` pipeline step, `embedding` table
-  - [ ] Search blends cosine similarity with full-text ranking; facets keep working
-  - [ ] Web app: Settings → Search; "Meaning" toggle in `/search` and `/explore/search`
-  - [ ] Tests, docs (`configuration.md`, `processing.md`, `api.md`), CHANGELOG, browser check, commit, push, CI
 - [ ] **3. MCP server for agents (#44)**
   - [ ] `/mcp` (streamable HTTP), OAuth and API tokens, `WWW-Authenticate` with resource metadata
   - [ ] Tools: search, get resource/transcript/pages, list namespaces/collections, navigate, start import; resources for documents; roles honoured
@@ -39,6 +41,10 @@ backend tests (both engines) → `make openapi` → web app → frontend tests �
 - An admin's OAuth app gets the admin's namespace roles but not the administration (`deps._admin`): consent plus open registration is a phishing target. To confirm with the owner.
 - Discovery names the web app's address only from a trusted proxy's `X-Forwarded-Host`, else `FRONTEND_URL`.
 - Custom redirect schemes are allowed without a dot (`cursor://`), with a denylist of browser and OS handler schemes: requiring reverse-DNS schemes would lock out Cursor and VS Code.
+
+- Embedding rows are keyed by segment id (positional), so each carries a hash of its text: search drops a vector whose line changed, and the correction's job embeds it again.
+- Similarity is computed in SurrealDB (`vector::similarity::cosine`, brute force with the access filters in the WHERE). Fine for tens of thousands of passages; an HNSW index is the next step if it gets slow (Technical Debt).
+- The embed step is in the standard pipeline even while search by meaning is off (it skips, saying why), so switching it on needs no pipeline change.
 
 ### Blockers
 - None.
@@ -70,3 +76,7 @@ backend tests (both engines) → `make openapi` → web app → frontend tests �
 **Lesson:** Every router here needs a tag, in the schema or not.
 
 ## Technical Debt & Future Ideas
+- Search by meaning scans every vector the asker may read; add a vector index (HNSW) when archives get large.
+- The no-results page still says "every word has to appear" when Meaning is on and nothing is close enough.
+- A one-click "embed everything" after switching search by meaning on (today: Reprocess or a batch run).
+- The assistant's and the MCP server's search tools should use search by meaning where it's on.

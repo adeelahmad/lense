@@ -12,6 +12,7 @@ import { KIND_ICON } from "@/components/public/cards";
 import { usePublicClient } from "@/components/public/hooks";
 import { cardLine, collectionPath, hitWhere, publicPath, searchPath } from "@/components/public/model";
 import { LoadError } from "@/components/public/states";
+import { ByMeaning, MeaningToggle } from "@/components/search/meaning";
 import { splitSnippet } from "@/components/search/snippet";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/field";
@@ -24,13 +25,22 @@ import { cn } from "@/lib/utils";
 const PAGE = 20;
 
 /** The search box for the pages visitors see; it opens the search page. */
-export function PublicSearchForm({ initial = "", className }: { initial?: string; className?: string }) {
+export function PublicSearchForm({
+  initial = "",
+  meaning = false,
+  className,
+}: {
+  initial?: string;
+  /** Keep searching by meaning too. */
+  meaning?: boolean;
+  className?: string;
+}) {
   const router = useRouter();
   const [q, setQ] = useState(initial);
   useEffect(() => setQ(initial), [initial]);
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    router.push(searchPath(q));
+    router.push(searchPath(q, meaning));
   };
   return (
     <form role="search" onSubmit={submit} className={cn("flex min-w-0 gap-2", className)}>
@@ -52,21 +62,26 @@ export function PublicSearchForm({ initial = "", className }: { initial?: string
  * Search for visitors (Aviary's search results page): titles of the recordings they see, and lines of the transcripts
  * they may read. Restricted recordings show signed-in people their title behind a lock.
  */
-export function PublicSearchView({ q }: { q: string }) {
+export function PublicSearchView({ q, meaning = false }: { q: string; meaning?: boolean }) {
+  const router = useRouter();
   const { client, signedIn, ready } = usePublicClient();
   const [offset, setOffset] = useState(0);
-  useEffect(() => setOffset(0), [q]);
+  useEffect(() => setOffset(0), [q, meaning]);
   const query = q.trim();
   const res = useQuery({
-    queryKey: ["public", "search", query, offset, signedIn],
-    queryFn: () => data(Public.searchPublic({ client, query: { q: query, limit: PAGE, offset } })),
+    queryKey: ["public", "search", query, offset, signedIn, meaning],
+    queryFn: () => data(Public.searchPublic({ client, query: { q: query, limit: PAGE, offset, semantic: meaning } })),
     enabled: ready && Boolean(query),
     placeholderData: keepPreviousData,
   });
   return (
     <div className="mx-auto flex w-full max-w-[880px] flex-col gap-5 px-4 py-8 sm:px-6">
       <h1 className="text-[24px] font-bold leading-tight text-fg">Search the archive</h1>
-      <PublicSearchForm initial={q} />
+      <PublicSearchForm initial={q} meaning={meaning} />
+      {/* offered where the archive searches by meaning (the first answer says so) */}
+      {res.data?.semantic && (
+        <MeaningToggle checked={meaning} available onChange={(on) => router.push(searchPath(q, on))} />
+      )}
       {!query ? (
         <EmptyState icon={<Search />} title="What are you looking for?">
           Search finds recordings by their title, and by what’s said in the transcripts open to you.
@@ -168,6 +183,7 @@ function Result({ r }: { r: PublicResult }) {
                     {where.label}
                   </Link>
                   <span className="font-serif text-fg">
+                    {h.match === "meaning" && <ByMeaning />}
                     {splitSnippet(h.snippet).map((p, k) =>
                       p.mark ? (
                         <mark key={k} className="rounded-[2px] bg-hl-word text-fg">
