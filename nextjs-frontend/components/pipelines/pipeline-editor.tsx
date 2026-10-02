@@ -68,6 +68,7 @@ const ICON: Record<string, LucideIcon> = {
   llm: Sparkles,
   report: FileText,
   export: FileOutput,
+  workflow: Workflow,
 };
 const LIB_ORDER = [
   "transcribe",
@@ -82,6 +83,7 @@ const LIB_ORDER = [
   "llm",
   "report",
   "export",
+  "workflow",
 ];
 const TONE_BG: Record<string, string> = {
   intent: "bg-blue",
@@ -94,7 +96,7 @@ const TONE_BG: Record<string, string> = {
 type TestRun = { job: number; recording: string };
 
 /** "Run on a recording": a real run of the published version (the backend has no dry run yet). */
-function RunDialog({
+export function RunDialog({
   open,
   onOpenChange,
   onRun,
@@ -427,6 +429,13 @@ export function PipelineEditor({ id }: { id?: number }) {
           </span>
         )}
         <span className="flex-1" />
+        {!creating && (
+          <Button asChild size="sm" variant="ghost">
+            <Link href={`/pipelines/${id}/canvas`}>
+              <Workflow /> Canvas
+            </Link>
+          </Button>
+        )}
         {!creating && (base?.history?.length ?? 0) > 1 && (
           <Menu>
             <MenuTrigger asChild>

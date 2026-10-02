@@ -1,6 +1,18 @@
 "use client";
 
-import { Box, Cloud, Folder, Globe, HardDrive, ListOrdered, Network, Server, type LucideIcon } from "lucide-react";
+import {
+  Box,
+  CalendarDays,
+  Cloud,
+  Folder,
+  Globe,
+  HardDrive,
+  ListOrdered,
+  Mail,
+  Network,
+  Server,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 
 import type { Source, Watch } from "@/app/openapi-client/types.gen";
@@ -18,6 +30,8 @@ const ICON: Record<string, LucideIcon> = {
   smb: Network,
   webdav: Globe,
   local: Folder,
+  imap: Mail,
+  ical: CalendarDays,
 };
 
 type ChipState = { meta: string; tone: "muted" | "red"; tip: string };

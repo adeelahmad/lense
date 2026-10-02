@@ -15,6 +15,7 @@ import {
 import type { ReactNode } from "react";
 
 import { uploadKindName } from "@/components/import/files";
+import { ContentTypePicker } from "@/components/recording/content-type";
 import { useRec } from "@/components/recording/context";
 import { emailRows, renditionNote, webRows, type EmailInfo } from "@/components/recording/document/model";
 import { sourceLabel, transcriptOrigin } from "@/components/recording/labels";
@@ -25,7 +26,7 @@ type Row = [string, ReactNode, boolean?];
 
 /** Details tab (Recording Pages §2): file, streams, provenance and processing — what the recording row records. */
 export function DetailsTab() {
-  const { rec, model, paged } = useRec();
+  const { id, rec, model, paged, canEdit } = useRec();
   const video = model.media.kind === "video";
   const src = sourceLabel(rec);
   // Pasted transcripts have no file name ("paste:<hash>" is an internal key); uploads drop their "upload:" prefix.
@@ -51,6 +52,7 @@ export function DetailsTab() {
               ? "Audio"
               : "Transcript only (no audio)",
     ],
+    ["Content type", <ContentTypePicker key="ct" rid={id} editable={canEdit} />],
     paged ? ["Pages", count(model.pages.length)] : ["Duration", tc(model.durationMs)],
     ["Size", rec.size ? bytes(rec.size) : null],
     paged

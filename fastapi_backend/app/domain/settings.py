@@ -71,7 +71,32 @@ ENUMS = {
     ("video", "face_engine"): {"opencv", "insightface", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "off"},
 }
-ENV_OVERRIDES = {("server", "allowed_hosts"): "ARCHIVE_ALLOWED_HOSTS"}
+# Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
+# break-glass allowed hosts, and the model provider so an install can be configured without the setup wizard.
+ENV_OVERRIDES = {
+    ("server", "allowed_hosts"): "ARCHIVE_ALLOWED_HOSTS",
+    ("llm", "base_url"): "LENS_LLM_BASE_URL",
+    ("llm", "model"): "LENS_LLM_MODEL",
+    ("llm", "api_key"): "LENS_LLM_API_KEY",
+    ("llm", "vision_model"): "LENS_LLM_VISION_MODEL",
+}
+
+
+def env_value(section, key):
+    """The environment's value for a setting in ENV_OVERRIDES, parsed; None when it isn't set."""
+    raw = os.environ.get(ENV_OVERRIDES.get((section, key)) or "", "").strip()
+    if not raw:
+        return None
+    if isinstance(store.DEFAULTS.get(section, {}).get(key), list):
+        return [x.strip() for x in raw.split(",") if x.strip()]
+    return raw
+
+
+def locked(section):
+    """The keys of a section the environment sets."""
+    return [k for (s, k) in ENV_OVERRIDES if s == section and env_value(s, k) is not None]
+
+
 # The types uploads.extensions may name: what the folder scans import, a few more that ffmpeg reads, and documents and
 # images.
 UPLOAD_TYPES = frozenset([*store.MEDIA_EXT, ".aif", ".aiff", ".wma", ".mpg", ".mpeg", ".3gp", *store.DOCUMENT_EXT, *store.IMAGE_EXT])
@@ -145,9 +170,10 @@ def effective(db, base, reveal=True):
                 cfg[sec][k] = unseal(base, sealed, f"setting:{sec}.{k}")
             except Exception:  # noqa: BLE001 - key changed since it was saved
                 cfg[sec][k] = None
-    for (sec, key), env in ENV_OVERRIDES.items():
-        if os.environ.get(env):
-            cfg[sec][key] = [x.strip() for x in os.environ[env].split(",") if x.strip()]
+    for sec, key in ENV_OVERRIDES:
+        v = env_value(sec, key)
+        if v is not None:
+            cfg[sec][key] = {"secret": True, "set": True} if not reveal and key in SECRETS.get(sec, ()) else v
     return cfg
 
 
@@ -180,7 +206,7 @@ def view(db, base):
             "values": vals,
             "updated_at": (meta.get(sec) or {}).get("updated_at"),
             "updated_by": (meta.get(sec) or {}).get("updated_by"),
-            "locked": [k for (s, k), env in ENV_OVERRIDES.items() if s == sec and os.environ.get(env)],
+            "locked": locked(sec),
         }
     out["bootstrap"] = {
         "database": db.url,
