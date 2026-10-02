@@ -2,7 +2,16 @@ name: pre-commit
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+# Pushes to a pull request cancel its older runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
   pre-commit:
