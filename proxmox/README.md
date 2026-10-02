@@ -20,7 +20,7 @@ the script's advanced settings, or with `var_cpu=… var_ram=… var_disk=…` b
 
 | | |
 |---|---|
-| Code | `/opt/lens` (a shallow clone of `main`) |
+| Code | `/opt/lens` (a shallow clone of the latest GitHub release, or of `main` while there is none) |
 | Settings | `/etc/lens/lens.env` (API and worker), `/etc/lens/web.env` (web app), `/etc/lens/archive.yaml` |
 | Data | `/var/lib/lens` (archive data and uploads; `media/` is the folder of the starting `media` namespace), `/var/lib/surrealdb` |
 | Services | `surrealdb` (127.0.0.1:8001), `lens-api` (127.0.0.1:8000), `lens-worker`, `lens-web` (port 3000) |
@@ -35,8 +35,10 @@ see [Deployment](../docs/deployment.md) for HTTPS, allowed hosts and backups, wh
 
 ## Updating
 
-Run `update` in the container's console. It pulls the newest commit of `main`, rebuilds the API and the web app, and
-restarts the services; it does nothing when the container is already on the latest commit. SurrealDB is upgraded when
+Run `update` in the container's console. It moves to the latest published GitHub release (the newest commit of `main`
+while the repository has no release), rebuilds the API and the web app, and restarts the services; it does nothing when
+the container is already there. Publishing a release is all it takes for containers to pick it up: there are no
+release assets to build for Proxmox. SurrealDB is upgraded when
 the pinned version in `ct/lens.sh` changes.
 
 ## Testing a branch
@@ -48,4 +50,4 @@ _CS_DEFAULT_URL=https://raw.githubusercontent.com/adeelahmad/lense/<branch>/prox
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/<branch>/proxmox/ct/lens.sh)"
 ```
 
-This picks the scripts from that branch; the container still installs Lens from `main` (`LENS_BRANCH` in both scripts).
+This picks the scripts from that branch; the container still installs the latest release of Lens (or `main`).

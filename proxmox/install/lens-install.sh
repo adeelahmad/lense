@@ -14,13 +14,13 @@ network_check
 update_os
 
 LENS_REPO="https://github.com/adeelahmad/lense.git"
-LENS_BRANCH="main"
 SURREALDB_VERSION="3.2.4"
 
 msg_info "Installing Dependencies"
 # ffmpeg: audio and video; tesseract: text on screen; poppler: PDF fallback (as in fastapi_backend/Dockerfile)
 $STD apt install -y \
   git \
+  jq \
   ca-certificates \
   ffmpeg \
   tesseract-ocr \
@@ -44,9 +44,12 @@ mkdir -p /var/lib/surrealdb
 msg_ok "Installed SurrealDB ${SURREALDB_VERSION}"
 
 msg_info "Fetching Lens"
-$STD git clone --depth 1 --branch "${LENS_BRANCH}" "${LENS_REPO}" /opt/lens
+# The latest published GitHub release; main until there is one
+LENS_REF="$(curl -fsSL https://api.github.com/repos/adeelahmad/lense/releases/latest 2>/dev/null | jq -r '.tag_name // empty' || true)"
+LENS_REF="${LENS_REF:-main}"
+$STD git clone --depth 1 --branch "${LENS_REF}" "${LENS_REPO}" /opt/lens
 git -C /opt/lens rev-parse HEAD >~/.lens
-msg_ok "Fetched Lens ($(cut -c1-7 ~/.lens))"
+msg_ok "Fetched Lens ${LENS_REF} ($(cut -c1-7 ~/.lens))"
 
 msg_info "Configuring Lens"
 LENS_IP="${LOCAL_IP:-$(hostname -I | awk '{print $1}')}"

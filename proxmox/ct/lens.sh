@@ -32,21 +32,30 @@ function update_script() {
     exit
   fi
 
-  LENS_BRANCH="main"
   SURREALDB_VERSION="3.2.4"
 
+  ensure_dependencies jq
   msg_info "Checking for update: ${APP}"
+  # The latest published GitHub release; main until there is one
+  LENS_REF="$(curl -fsSL https://api.github.com/repos/adeelahmad/lense/releases/latest 2>/dev/null | jq -r '.tag_name // empty' || true)"
+  LENS_REF="${LENS_REF:-main}"
+  if [[ "$LENS_REF" == "main" ]]; then
+    REFSPEC="refs/heads/main"
+  else
+    REFSPEC="refs/tags/${LENS_REF}"
+  fi
   CURRENT="$(git -C /opt/lens rev-parse HEAD)"
-  LATEST="$(git -C /opt/lens ls-remote origin "refs/heads/${LENS_BRANCH}" | cut -f1)"
+  # An annotated tag lists its commit last, as <tag>^{}
+  LATEST="$(git -C /opt/lens ls-remote origin "${REFSPEC}" "${REFSPEC}^{}" | tail -1 | cut -f1)"
   if [[ -z "$LATEST" ]]; then
     msg_error "Could not reach the Lens repository"
     exit
   fi
   if [[ "$CURRENT" == "$LATEST" ]]; then
-    msg_ok "No update available: ${APP} (${CURRENT:0:7})"
+    msg_ok "No update available: ${APP} ${LENS_REF} (${CURRENT:0:7})"
     exit
   fi
-  msg_ok "Update available: ${APP} ${CURRENT:0:7} → ${LATEST:0:7}"
+  msg_ok "Update available: ${APP} ${CURRENT:0:7} → ${LENS_REF} (${LATEST:0:7})"
 
   msg_info "Stopping Services"
   systemctl stop lens-web lens-worker lens-api
@@ -63,7 +72,7 @@ function update_script() {
   fi
 
   msg_info "Fetching Lens"
-  $STD git -C /opt/lens fetch --depth 1 origin "${LENS_BRANCH}"
+  $STD git -C /opt/lens fetch --depth 1 origin "${REFSPEC}"
   $STD git -C /opt/lens reset --hard FETCH_HEAD
   git -C /opt/lens rev-parse HEAD >~/.lens
   msg_ok "Fetched Lens"
