@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
   DRIVE_SCOPES,
   FIELD_LABEL,
+  IMAP_SECURITY,
   S3_PROVIDERS,
   WEBDAV_VENDORS,
   type BackendSpec,
@@ -255,6 +256,43 @@ export function ConnectionFields({
             {text("user")}
             {secret("pass")}
           </div>
+        </div>
+      );
+    case "imap":
+      return (
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-[1fr_90px] gap-2.5">
+            {text("host", { mono: true, placeholder: "imap.example.com" })}
+            {text("port", { placeholder: "993" })}
+          </div>
+          {select("security", IMAP_SECURITY)}
+          <div className="grid grid-cols-2 gap-2.5">
+            {text("user", { mono: true, placeholder: "you@example.com" })}
+            {secret("pass", { hint: "An app password where the provider has them; never shown again after saving" })}
+          </div>
+          <p className="text-[12.5px] leading-normal text-fg-secondary">
+            Mailboxes are folders and each message is an email. Lens only reads: messages stay unread and nothing is
+            moved or deleted.
+          </p>
+        </div>
+      );
+    case "ical":
+      return (
+        <div className="flex flex-col gap-3">
+          {text("url", {
+            mono: true,
+            label: "Calendar address",
+            placeholder: "https://calendar.example.com/team.ics or webcal://…",
+            hint: "The iCal (.ics) link the calendar shares; a secret link works as it is",
+          })}
+          <div className="grid grid-cols-2 gap-2.5">
+            {text("user", { optional: true })}
+            {secret("pass", { label: "Password", hint: "Only if the address asks for one" })}
+          </div>
+          <p className="text-[12.5px] leading-normal text-fg-secondary">
+            Each event becomes text: its title, when and where, who, and its description. An event that changes is read
+            again.
+          </p>
         </div>
       );
     default:

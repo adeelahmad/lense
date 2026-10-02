@@ -146,7 +146,7 @@ has left.
 ## Storage sources
 
 Admins add sources in the app (`/api/v1/sources`): S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB,
-WebDAV, or a folder on this machine. A watched folder maps a path on a source to a namespace, with include/exclude
+WebDAV, or a folder on this machine; or an email account (IMAP) or a calendar feed (iCal), below. A watched folder maps a path on a source to a namespace, with include/exclude
 patterns, audio and/or transcripts, a polling interval, how long a file must be unchanged before it is picked up, and
 whether files already there are imported (backfill). New audio is queued for the full pipeline; new transcripts are
 imported and analysed. Audio stays where it is: it is copied to a cache for processing and streamed from the source for
@@ -161,6 +161,25 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
   `rclone authorize dropbox` (or drive, onedrive); tokens rclone refreshes are saved back.
 - Folders on this machine can only be watched inside `sources.local_roots`, and the rclone binary can only be set in
   archive.yaml: the web app can neither open up the server's disk nor choose what runs.
+
+### Email (IMAP) and calendar feeds (iCal)
+
+Two kinds of source aren't storage and don't use rclone; their messages and events are shown as files, so browsing,
+importing chosen ones and watching work as above.
+
+- **Email (IMAP)**: host, port, security (SSL/TLS, STARTTLS or none), user and password (an app password where the
+  provider has them). Mailboxes are the folders, and each message is a file `<mailbox>/<uid>.eml`, named by its
+  subject. A message is an email like any uploaded one: a document whose attachments are kept and made resources of
+  their own, titled by its subject and dated when it was sent. On a server that can't make PDFs (no Chromium or
+  LibreOffice) it comes in as text instead, without its attachments. Watching the whole account (no path) takes every
+  mailbox but the bin, junk and drafts. Lens only reads: mailboxes are opened read-only and messages fetched without
+  marking them read.
+- **Calendar feed (iCal)**: the calendar's iCal address (`https://` or `webcal://`; a user and password if it asks for
+  one). The feed is one folder of events, each a file `<id>.ics` named by its date and title; a moved occurrence of a
+  repeating event is an event of its own. An event comes in as text (its title, when and where, the organizer and
+  attendees, how it repeats, and its description), dated when it starts. An event that changes (its LAST-MODIFIED,
+  or its size) is read again into the resource it already is, rather than made a second one.
+- `.eml` and `.ics` files in any source, and uploaded through Import, can be read as text this way too.
 
 ## Pipelines and templates
 

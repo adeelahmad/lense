@@ -219,12 +219,12 @@ def test_documents_the_server_cannot_convert(client, env, db, cfg, monkeypatch):
     r = _start(client, he, b"x", "deck.pptx")
     assert r.status_code == 400 and r.json()["detail"].endswith("(the lens:full image)")
     assert _start(client, he, b"%PDF", "a.pdf").status_code == 201
-    # a source's files: read as transcripts where they can be, else left
+    # a source's files: read as transcripts where they can be (an email's text, without its attachments), else left
     assert [sources.file_kind(cfg, n) for n in ("a.docx", "a.txt", "a.pptx", "a.eml", "a.pdf")] == [
         "transcript",
         "transcript",
         None,
-        None,
+        "transcript",
         "document",
     ]
     monkeypatch.setattr(convert, "soffice", lambda cfg: "/usr/bin/soffice")

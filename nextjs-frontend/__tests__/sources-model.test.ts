@@ -131,6 +131,31 @@ describe("connections", () => {
       token: '{"access_token":"a"}',
     });
   });
+  it("takes email accounts and calendar feeds", () => {
+    const IMAP: BackendSpec = {
+      label: "Email (IMAP)",
+      fields: { host: "", port: "993", security: "ssl", user: "" },
+      secrets: ["pass"],
+    };
+    const ICAL: BackendSpec = { label: "Calendar feed (iCal)", fields: { url: "", user: "" }, secrets: ["pass"] };
+    expect(sourceSubtitle({ type: "imap", params: { host: "imap.example.com", port: "993", user: "lens" } })).toBe(
+      "IMAP · lens@imap.example.com:993",
+    );
+    expect(sourceSubtitle({ type: "ical", params: { url: "webcal://cal.example.org/team.ics" } })).toBe(
+      "Calendar · cal.example.org/team.ics",
+    );
+    expect(Object.keys(validateForm("imap", IMAP, emptyForm(IMAP), false))).toEqual(["host", "user", "pass"]);
+    const mail = {
+      ...emptyForm(IMAP),
+      params: { host: "imap.example.com", port: "993", security: "ssl", user: "lens" },
+    };
+    expect(validateForm("imap", IMAP, { ...mail, secrets: { pass: "p" } }, false)).toEqual({});
+    expect(validateForm("ical", ICAL, emptyForm(ICAL), false)).toHaveProperty("url");
+    const cal = { ...emptyForm(ICAL), params: { url: "webcal://cal.example.org/team.ics", user: "" } };
+    expect(validateForm("ical", ICAL, cal, false)).toEqual({});
+    expect(suggestName("ical", cal.params)).toBe("Calendar feed · cal.example.org");
+    expect([fileKind("Harbour report.eml"), fileKind("2026-10-02 Stand-up.ics")]).toEqual(["document", "transcript"]);
+  });
   it("confirms deletes by name, loosely", () => {
     expect(confirms(" dropbox ·  callrecorder", "Dropbox · CallRecorder")).toBe(true);
     expect(confirms("Dropbox", "Dropbox · CallRecorder")).toBe(false);

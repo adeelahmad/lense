@@ -7,7 +7,18 @@ import { plural } from "@/lib/format";
 
 export type SourceType = Source["type"];
 
-export const TYPE_ORDER: SourceType[] = ["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local"];
+export const TYPE_ORDER: SourceType[] = [
+  "s3",
+  "dropbox",
+  "drive",
+  "onedrive",
+  "sftp",
+  "smb",
+  "webdav",
+  "local",
+  "imap",
+  "ical",
+];
 
 /** Short names for the type picker and rows (the backend's labels are longer). */
 export const TYPE_NAME: Record<SourceType, string> = {
@@ -19,6 +30,8 @@ export const TYPE_NAME: Record<SourceType, string> = {
   smb: "SMB",
   webdav: "WebDAV",
   local: "This machine",
+  imap: "Email (IMAP)",
+  ical: "Calendar feed",
 };
 
 /** How to name the storage itself in sentences ("Files in the bucket aren’t touched"). */
@@ -31,6 +44,8 @@ export const STORAGE_NOUN: Record<SourceType, string> = {
   smb: "the share",
   webdav: "the WebDAV server",
   local: "the folder",
+  imap: "the mailbox",
+  ical: "the calendar",
 };
 
 /** Field labels for the backend's parameter and secret names. */
@@ -53,6 +68,7 @@ export const FIELD_LABEL: Record<string, string> = {
   domain: "Domain",
   url: "URL",
   vendor: "Vendor",
+  security: "Security",
 };
 
 export const S3_PROVIDERS = [
@@ -71,6 +87,12 @@ export const WEBDAV_VENDORS = [
   { value: "owncloud", label: "ownCloud" },
   { value: "sharepoint", label: "SharePoint" },
   { value: "other", label: "Other" },
+];
+
+export const IMAP_SECURITY = [
+  { value: "ssl", label: "SSL/TLS (port 993)" },
+  { value: "starttls", label: "STARTTLS (port 143)" },
+  { value: "none", label: "None (not encrypted)" },
 ];
 
 const str = (v: unknown) => (v == null ? "" : String(v)).trim();
@@ -95,6 +117,10 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
       return `SMB · ${str(p.domain) ? `${str(p.domain)}\\` : ""}${str(p.user) ? `${str(p.user)}@` : ""}${str(p.host) || "no host"}`;
     case "webdav":
       return `WebDAV · ${str(p.url) || "no URL"}`;
+    case "imap":
+      return `IMAP · ${str(p.user) ? `${str(p.user)}@` : ""}${str(p.host) || "no host"}${str(p.port) ? `:${str(p.port)}` : ""}`;
+    case "ical":
+      return `Calendar · ${str(p.url).replace(/^(https?|webcals?):\/\//i, "") || "no address"}`;
     default:
       return "Folder on this machine";
   }
@@ -188,7 +214,7 @@ const AUDIO = [
   ".m4v",
   ".avi",
 ];
-const TRANSCRIPT = [".srt", ".vtt", ".json", ".jsonl"];
+const TRANSCRIPT = [".srt", ".vtt", ".json", ".jsonl", ".ics"];
 const DOCUMENT = [
   ".pdf",
   ".doc",
@@ -218,7 +244,7 @@ export type SourceFileKind = "audio" | "transcript" | "document" | "image" | "ot
 /**
  * What a watched folder would make of a file, by extension (the backend's default lists): PDFs, Office files, text,
  * Markdown, web pages and emails are documents, as they are for new watched folders (those set to audio and
- * transcripts read PDFs, Word and text files as transcripts); subtitles and JSON are transcripts.
+ * transcripts read PDFs, Word and text files as transcripts); subtitles, JSON and calendar events are transcripts.
  */
 export function fileKind(name: string): SourceFileKind {
   const n = name.toLowerCase();
@@ -357,7 +383,7 @@ export function emptyForm(spec: BackendSpec, source?: Pick<Source, "name" | "par
 
 /** A name for a new connection, from what was typed ("SFTP · calls-gw", "S3 · eu-central-1", "Dropbox"). */
 export function suggestName(type: SourceType, params: Record<string, string>): string {
-  const host = (params.host || params.url || "").replace(/^https?:\/\//, "").split(/[/:]/)[0];
+  const host = (params.host || params.url || "").replace(/^(https?|webcals?):\/\//i, "").split(/[/:]/)[0];
   const extra =
     type === "s3" ? [params.provider !== "AWS" ? params.provider : "", params.region].filter(Boolean).join(" ") : host;
   return extra
@@ -401,6 +427,16 @@ export function validateForm(
   if (type === "smb") need("host", "Enter the host name.");
   if (type === "webdav") {
     if (!/^https?:\/\/\S+$/.test(str(form.params.url))) e.url = "Enter the full URL, starting with https://";
+  }
+  if (type === "imap") {
+    need("host", "Enter the mail server’s host name.");
+    need("user", "Enter the user name (often the email address).");
+    if (form.params.port && !/^\d{1,5}$/.test(form.params.port.trim())) e.port = "A port is a number, e.g. 993.";
+    if (!secret("pass")) e.pass = "Enter the password (an app password, where the provider has them).";
+  }
+  if (type === "ical") {
+    if (!/^(https?|webcals?):\/\/\S+$/i.test(str(form.params.url)))
+      e.url = "Enter the calendar’s address, starting with https:// or webcal://";
   }
   return e;
 }

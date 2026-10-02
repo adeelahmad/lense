@@ -4,6 +4,19 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Email and calendars as sources.** Sources can now be an email account (IMAP) or a calendar feed (iCal), next to
+  S3, Drive, SFTP and the rest. Browse them, import chosen messages or events, or watch them like a folder
+  (docs/processing.md#email-imap-and-calendar-feeds-ical).
+    - IMAP: mailboxes are folders and messages are `.eml` files named by their subjects. Each message becomes an
+      email document, titled by its subject and dated when it was sent, and its attachments are kept and become
+      resources of their own. Watching the whole account skips the bin, junk and drafts. Lens only reads: messages
+      stay unread and nothing is moved or deleted.
+    - iCal: an `https://` or `webcal://` address, with a password if it needs one. Each event becomes text (title,
+      when and where, organizer and attendees, how it repeats, description), dated when it starts. An event that
+      changes is read again into the same resource instead of making a second one.
+    - `.eml` and `.ics` files can be read as text everywhere else too: in a storage source or uploaded through
+      Import. Where the server can't make PDFs, an email from a source is read as text instead of being skipped.
+
 - **Fix: Chat answers no longer break off with "The answer stopped before it finished".** With some model servers an
   answer ended mid-stream with nothing saved, so the question sat unanswered in the conversation. Now each one ends
   in an answer, or an error that's shown and saved with the conversation.
