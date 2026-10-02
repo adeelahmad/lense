@@ -302,17 +302,21 @@ def test_an_event_isnt_lost_when_queueing_it_fails(client, db, env, inbox, monke
 
 
 def test_a_slow_target_is_cut_off(env):
+    """The deadline ends a send that a target drags out, long before the target would. The bounds are wide on
+    purpose: under a loaded parallel run threads get scheduled late, and only the order of magnitude matters."""
     import socket
 
     srv = socket.socket()
     srv.bind(("127.0.0.1", 0))
     srv.listen()
+    trickle_for = 30  # seconds the target would take to answer in full
 
     def trickle():
         conn, _ = srv.accept()
         conn.recv(65536)
         conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n")
-        for _ in range(40):  # a byte every quarter second: never quiet long enough for the read timeout
+        end = time.monotonic() + trickle_for
+        while time.monotonic() < end:  # a byte every quarter second: never quiet long enough for the read timeout
             try:
                 conn.sendall(b"x")
             except OSError:
@@ -321,8 +325,10 @@ def test_a_slow_target_is_cut_off(env):
         conn.close()
 
     threading.Thread(target=trickle, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.getsockname()[1]}/"
     t0 = time.monotonic()
     with pytest.raises(TimeoutError):
-        notify.post(env["cfg"], f"http://127.0.0.1:{srv.getsockname()[1]}/", b"{}", {}, timeout=1, deadline=2)
-    assert time.monotonic() - t0 < 5
+        notify.post(env["cfg"], url, b"{}", {}, timeout=10, deadline=1)
+    took = time.monotonic() - t0
+    assert 1 <= took < trickle_for / 2, took
     srv.close()
