@@ -98,15 +98,18 @@ def test_search_is_reranked_by_what_answers_the_query(client, people, db, cfg, j
     res = _search(client, hv, "harbour", rerank=True)
     assert (res["rerank"], res["reranked"]) == (True, 3) and {h["recording_id"] for h in res["hits"]} == {rid}
     asked = handler.seen[-1]
-    assert asked["state"] == {"search_query": "harbour"} and len(asked["questions"]) == 3
-    assert asked["questions"]["h0"]["type"] == "noul" and "harbour" in asked["questions"]["h0"]["instructions"]["passage"]
+    assert asked["state"]["search_query"] == "harbour" and len(asked["questions"]) == 3
+    # the passages are data; a question only names the one it's about
+    assert asked["questions"]["h0"]["type"] == "noul" and "passage h0" in asked["questions"]["h0"]["instructions"]
+    assert "harbour" in asked["state"]["passages"]["h0"] and set(asked["state"]["passages"]) == {"h0", "h1", "h2"}
     handler.script = {"painted": {"noul": 0.05}, "ship": {"noul": 0.97}, "invoice": {"noul": 0.4}}
     res = _search(client, hv, "harbour")  # reranking is the default where it's set up
     assert [h["idx"] for h in res["hits"]] == [1, 0, 2] and [h["relevance"] for h in res["hits"]] == [0.97, 0.4, 0.05]
-    # asked not to, or on a later page, the order is the words'
+    # asked not to, the order is the words'
     assert [h["idx"] for h in _search(client, hv, "harbour", rerank=False)["hits"]] == [h["idx"] for h in plain["hits"]]
-    later = _search(client, hv, "harbour", offset=1)
-    assert later["reranked"] is None and len(later["hits"]) == 2
+    # pages are cut from the same judged order: none repeats a hit, none skips one
+    pages = [_search(client, hv, "harbour", limit=1, offset=n)["hits"][0]["idx"] for n in range(3)]
+    assert pages == [1, 0, 2]
     # only the best are judged
     assert _put(client, hr, {"rerank_top": 4}).status_code == 200
     assert _search(client, hv, "harbour")["reranked"] == 3
@@ -124,3 +127,19 @@ def test_search_is_reranked_by_what_answers_the_query(client, people, db, cfg, j
     down = _search(client, hv, "harbour")
     assert down["total"] == 3 and down["reranked"] is None and down["rerank"] is True
     assert [h["idx"] for h in down["hits"]] == [h["idx"] for h in plain["hits"]]
+
+
+def test_the_key_stays_with_its_server(client, people, jev):
+    """A saved key was for the server it was saved with: pointing decisions at another host drops it, and an address
+    can't carry a login of its own."""
+    hr, url = people["root"], jev[1]
+    put = lambda body: _put(client, hr, body)  # noqa: E731
+    assert put({"enabled": True, "base_url": url, "model": "fake-jev", "api_key": "ts-secret"}).status_code == 200
+    assert client.get("/api/v1/admin/decisions", headers=hr).json()["key"] is True
+    assert put({"timeout": 12}).status_code == 200 and client.get("/api/v1/admin/decisions", headers=hr).json()["key"] is True
+    assert put({"base_url": "http://127.0.0.1:9"}).status_code == 200
+    assert client.get("/api/v1/admin/decisions", headers=hr).json()["key"] is False
+    assert put({"base_url": "http://user:pass@127.0.0.1:9"}).status_code == 400
+    # the test says what went wrong to the admin, with the address
+    r = client.post("/api/v1/settings/decisions/test", headers=hr).json()
+    assert r["ok"] is False and "127.0.0.1:9" in r["error"]

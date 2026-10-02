@@ -197,6 +197,7 @@ function Inner({ id, start, focus, page, rec, model, state, jobs, turns, speaker
   // #access (Home's "Needs attention" and access request emails link that way) opens the access settings.
   useEffect(() => {
     if (window.location.hash === "#access") setDialog({ kind: "access" });
+    if (window.location.hash === "#comments") setTab("comments"); // a flagged comment to review
   }, []);
 
   const value = useMemo<RecordingCtx>(

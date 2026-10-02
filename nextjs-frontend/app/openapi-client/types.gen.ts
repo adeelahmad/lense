@@ -1701,6 +1701,12 @@ export type Comment = {
    * you wrote it, or you own the resource
    */
   can_delete: boolean;
+  /**
+   * Flagged
+   *
+   * why a decision model flagged it for review; only owners of the resource see this
+   */
+  flagged?: Array<FlagReason>;
   [key: string]: unknown;
 };
 
@@ -2989,6 +2995,78 @@ export type FileUpdate = {
    * null clears it
    */
   description?: string | null;
+};
+
+/**
+ * FlagReason
+ */
+export type FlagReason = {
+  /**
+   * Reason
+   */
+  reason: "spam" | "abuse" | "personal";
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * P
+   *
+   * how sure the decision model was, 0 to 1
+   */
+  p: number;
+  [key: string]: unknown;
+};
+
+/**
+ * FlaggedComment
+ *
+ * A comment waiting for an owner's look.
+ */
+export type FlaggedComment = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Title
+   *
+   * the resource's title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * Created By Name
+   */
+  created_by_name?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Flagged
+   */
+  flagged: Array<FlagReason>;
+  /**
+   * Flagged At
+   */
+  flagged_at?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -6829,6 +6907,12 @@ export type Recording = {
    */
   tags?: Array<string>;
   /**
+   * Suggestions
+   *
+   * waiting for an editor to accept or dismiss; editors only
+   */
+  suggestions?: Array<Suggestion>;
+  /**
    * an email: its subject, sender, recipients and date
    */
   email?: EmailInfo | null;
@@ -9440,6 +9524,39 @@ export type StopResult = {
    * an answer was being written, and stops after its current piece or step
    */
   stopping: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * Suggestion
+ *
+ * Something a decision model thinks fits the resource but wasn't sure enough to apply (docs/processing.md#classify).
+ */
+export type Suggestion = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Kind
+   */
+  kind: "tag" | "content_type" | "collection";
+  /**
+   * Value
+   *
+   * the tag, the content type's key, or the collection's id
+   */
+  value: string | number;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * P
+   *
+   * how sure the model was, 0 to 1
+   */
+  p: number;
   [key: string]: unknown;
 };
 
@@ -13103,6 +13220,74 @@ export type UpdateRecordingResponses = {
 
 export type UpdateRecordingResponse = UpdateRecordingResponses[keyof UpdateRecordingResponses];
 
+export type DismissSuggestionData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/suggestions/{sid}";
+};
+
+export type DismissSuggestionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DismissSuggestionError = DismissSuggestionErrors[keyof DismissSuggestionErrors];
+
+export type DismissSuggestionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Suggestion;
+};
+
+export type DismissSuggestionResponse = DismissSuggestionResponses[keyof DismissSuggestionResponses];
+
+export type AcceptSuggestionData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/suggestions/{sid}";
+};
+
+export type AcceptSuggestionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AcceptSuggestionError = AcceptSuggestionErrors[keyof AcceptSuggestionErrors];
+
+export type AcceptSuggestionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Suggestion;
+};
+
+export type AcceptSuggestionResponse = AcceptSuggestionResponses[keyof AcceptSuggestionResponses];
+
 export type MoveRecordingData = {
   body: RecordingMove;
   path: {
@@ -14269,6 +14454,40 @@ export type UpdateCommentResponses = {
 
 export type UpdateCommentResponse = UpdateCommentResponses[keyof UpdateCommentResponses];
 
+export type KeepCommentData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/comments/{cid}/flag";
+};
+
+export type KeepCommentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type KeepCommentError = KeepCommentErrors[keyof KeepCommentErrors];
+
+export type KeepCommentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Comment;
+};
+
+export type KeepCommentResponse = KeepCommentResponses[keyof KeepCommentResponses];
+
 export type ListHighlightsData = {
   body?: never;
   path: {
@@ -15298,7 +15517,7 @@ export type SearchTranscriptsData = {
     /**
      * Rerank
      *
-     * where a decision model is set up (Settings → Decisions), have it judge whether each of the best hits answers the query and order them by that; hits then carry `relevance`. Only the first page is reranked
+     * where a decision model is set up (Settings → Decisions), have it judge whether each of the best hits answers the query and order them by that; hits then carry `relevance`. Pages past those hits come as matched
      */
     rerank?: boolean;
   };
@@ -20161,3 +20380,37 @@ export type UndoGraphChangeResponses = {
 };
 
 export type UndoGraphChangeResponse = UndoGraphChangeResponses[keyof UndoGraphChangeResponses];
+
+export type FlaggedCommentsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     *
+     * one namespace
+     */
+    ns?: string | null;
+  };
+  url: "/api/v1/comments/flagged";
+};
+
+export type FlaggedCommentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FlaggedCommentsError = FlaggedCommentsErrors[keyof FlaggedCommentsErrors];
+
+export type FlaggedCommentsResponses = {
+  /**
+   * Response Comments-Flagged Comments
+   *
+   * Successful Response
+   */
+  200: Array<FlaggedComment>;
+};
+
+export type FlaggedCommentsResponse = FlaggedCommentsResponses[keyof FlaggedCommentsResponses];

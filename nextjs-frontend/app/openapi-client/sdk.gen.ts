@@ -14,6 +14,9 @@ import type {
   AcceptGraphChangeData,
   AcceptGraphChangeErrors,
   AcceptGraphChangeResponses,
+  AcceptSuggestionData,
+  AcceptSuggestionErrors,
+  AcceptSuggestionResponses,
   AddFileData,
   AddFileErrors,
   AddFileResponses,
@@ -219,6 +222,9 @@ import type {
   DismissGraphChangeData,
   DismissGraphChangeErrors,
   DismissGraphChangeResponses,
+  DismissSuggestionData,
+  DismissSuggestionErrors,
+  DismissSuggestionResponses,
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
@@ -246,6 +252,9 @@ import type {
   FixScreenTextData,
   FixScreenTextErrors,
   FixScreenTextResponses,
+  FlaggedCommentsData,
+  FlaggedCommentsErrors,
+  FlaggedCommentsResponses,
   ForgotPasswordData,
   ForgotPasswordErrors,
   ForgotPasswordResponses,
@@ -395,6 +404,9 @@ import type {
   IndexSemanticData,
   IndexSemanticErrors,
   IndexSemanticResponses,
+  KeepCommentData,
+  KeepCommentErrors,
+  KeepCommentResponses,
   LinkEntityData,
   LinkEntityErrors,
   LinkEntityResponses,
@@ -2087,6 +2099,35 @@ export class Resources {
   }
 
   /**
+   * Dismiss Suggestion
+   *
+   * Dismiss a suggestion (editors); it isn't suggested for this resource again.
+   */
+  public static dismissSuggestion<ThrowOnError extends boolean = false>(
+    options: Options<DismissSuggestionData, ThrowOnError>,
+  ): RequestResult<DismissSuggestionResponses, DismissSuggestionErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DismissSuggestionResponses, DismissSuggestionErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/suggestions/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Accept Suggestion
+   *
+   * Accept what a decision model suggested for a resource (editors): the tag is added, the content type set, or the
+   * resource moved into the collection (editors of that collection too; audited as `recording.collection`).
+   */
+  public static acceptSuggestion<ThrowOnError extends boolean = false>(
+    options: Options<AcceptSuggestionData, ThrowOnError>,
+  ): RequestResult<AcceptSuggestionResponses, AcceptSuggestionErrors, ThrowOnError> {
+    return (options.client ?? client).post<AcceptSuggestionResponses, AcceptSuggestionErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/suggestions/{sid}",
+      ...options,
+    });
+  }
+
+  /**
    * Move Recording
    *
    * Move a recording to another namespace (owners of its namespace, editors of the new one).
@@ -2653,6 +2694,21 @@ export class Comments {
   }
 
   /**
+   * Keep Comment
+   *
+   * An owner of the resource looked at a flagged comment and it stays: the flag is cleared, and that text isn't
+   * flagged again. Audited (`comment.flag.keep`). To remove the comment instead, delete it.
+   */
+  public static keepComment<ThrowOnError extends boolean = false>(
+    options: Options<KeepCommentData, ThrowOnError>,
+  ): RequestResult<KeepCommentResponses, KeepCommentErrors, ThrowOnError> {
+    return (options.client ?? client).delete<KeepCommentResponses, KeepCommentErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/comments/{cid}/flag",
+      ...options,
+    });
+  }
+
+  /**
    * List Highlights
    *
    * The resource's highlights, by passage, for everyone who can read it.
@@ -2714,6 +2770,21 @@ export class Comments {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Flagged Comments
+   *
+   * The comments a decision model flagged (spam, abuse, personal details) in the namespaces you own, the newest
+   * first. Each waits for an owner to keep it (`DELETE …/comments/{cid}/flag`) or delete it.
+   */
+  public static flaggedComments<ThrowOnError extends boolean = false>(
+    options?: Options<FlaggedCommentsData, ThrowOnError>,
+  ): RequestResult<FlaggedCommentsResponses, FlaggedCommentsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<FlaggedCommentsResponses, FlaggedCommentsErrors, ThrowOnError>({
+      url: "/api/v1/comments/flagged",
+      ...options,
     });
   }
 }

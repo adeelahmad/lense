@@ -1,12 +1,13 @@
 /**
  * Home's "Needs attention": only what the person can act on, each linking to where it gets fixed. Built from failed
  * jobs, recordings in error, unreachable sources and failing watched folders (admins/owners), voice matches to review
- * (editors), requests for access to answer (owners) and API tokens about to expire. Resolved items drop out on their
+ * (editors), requests for access to answer and comments flagged for review (owners), and API tokens about to expire. Resolved items drop out on their
  * own because the data no longer has them.
  */
 import type {
   AccessRequest,
   ApiToken,
+  FlaggedComment,
   Job,
   RecordingSummary,
   Source,
@@ -55,6 +56,7 @@ export function buildAttention(input: {
   watches?: Watch[];
   reviews?: { namespace: string; speakers: Speaker[] }[];
   requests?: AccessRequest[];
+  flagged?: FlaggedComment[];
   tokens?: ApiToken[];
   now?: number;
 }): AttentionItem[] {
@@ -159,6 +161,18 @@ export function buildAttention(input: {
         .join(" · "),
       action: { label: "Review", do: { type: "link", href: `/resources/${r.recording}#access` } },
       namespace: r.namespace ?? null,
+    });
+  }
+
+  // A decision model flagged a comment in a namespace this person owns: they keep it or delete it, on the resource.
+  for (const c of input.flagged ?? []) {
+    out.push({
+      key: `flag-${c.id}`,
+      kind: "gate",
+      title: `A comment on ${c.title || `resource ${c.recording}`} was flagged: ${c.flagged.map((f) => f.label.toLowerCase()).join(", ")}`,
+      meta: [`“${short(c.text, 70)}”`, c.created_by_name || c.created_by, c.namespace].filter(Boolean).join(" · "),
+      action: { label: "Review", do: { type: "link", href: `/resources/${c.recording}#comments` } },
+      namespace: c.namespace ?? null,
     });
   }
 

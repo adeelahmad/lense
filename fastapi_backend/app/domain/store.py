@@ -189,6 +189,7 @@ DEFAULTS = {
         "rerank": True,  # reorder the top hits of a search by whether each answers the query
         "rerank_top": 24,
         "classify": True,  # the classify step suggests tags, a subtype and a collection
+        "route": False,  # and moves a resource into a collection by itself when sure (that changes who can read it)
         "apply_above": 0.85,  # a suggestion this sure is applied; less sure, it waits for a person
         "moderate": True,  # comments get flags for owners to review
         "flag_above": 0.7,
@@ -240,6 +241,7 @@ DEFAULTS = {
             "describe",
             "analyze",
             "embed",
+            "classify",
             "summarize",
             "llm",
             "report",

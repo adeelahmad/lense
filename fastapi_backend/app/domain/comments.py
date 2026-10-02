@@ -16,7 +16,7 @@ MAX_COMMENTS = 1000  # per person, on one resource
 TEXT_MAX = 5000
 FIELDS = (
     "record::id(id) AS id, recording, space, account, parent, text, t0, t1, quote, resolved ?? false AS resolved, "
-    "resolved_by, resolved_at, created_at, updated_at, edited_at"
+    "resolved_by, resolved_at, created_at, updated_at, edited_at, flag"
 )
 
 

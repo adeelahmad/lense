@@ -50,6 +50,8 @@ def update_settings(section: str, body: dict[str, Any], user: AdminWriter, reque
     with domain_errors():
         settings.save(db, request.app.state.archive.base, section, body, user.email)
     auth.audit(db, user.as_audit(), "settings.save", section, sorted(body))
+    if section == "decisions":
+        decide.recovered()  # a server marked as failing is asked again with the new settings
     return Ok()
 
 
@@ -98,7 +100,7 @@ def test_decisions(user: AdminWriter, cfg: Cfg) -> DecisionTestResult:
             timeout=20,
         )
     except decide.DecideError as e:
-        return DecisionTestResult(ok=False, error=str(e))
+        return DecisionTestResult(ok=False, error=e.detail)  # admins get the address and what the server said
     return DecisionTestResult(
         ok=True,
         ms=int((time.time() - t0) * 1000),

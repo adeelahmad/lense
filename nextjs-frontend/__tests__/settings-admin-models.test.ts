@@ -29,6 +29,7 @@ import {
   type Change,
   type SettingsView,
 } from "@/components/settings/model";
+import { suggestionLabel } from "@/components/recording/suggestions";
 import { ApiError } from "@/lib/api/browser";
 import { passwordShortBy } from "@/lib/definitions";
 
@@ -447,5 +448,13 @@ describe("decision settings", () => {
     expect(crossErrors({ "decisions.base_url": "api.typesafe.ai" })["decisions.base_url"]).toMatch(/http\(s\) address/);
     expect(crossErrors({ "decisions.base_url": "https://api.typesafe.ai" })["decisions.base_url"]).toBeUndefined();
     expect(crossErrors({ "decisions.model": "" })["decisions.model"]).toMatch(/jev-latest/);
+  });
+});
+
+describe("suggestions", () => {
+  it("say what accepting one does", () => {
+    expect(suggestionLabel({ kind: "tag", label: "finance" })).toBe("Add the tag finance");
+    expect(suggestionLabel({ kind: "collection", label: "Finance / Budgets" })).toBe("Move into Finance / Budgets");
+    expect(suggestionLabel({ kind: "content_type", label: "Lecture" })).toBe("It’s a Lecture");
   });
 });

@@ -25,6 +25,7 @@ const WATCH_STEPS = [
   "describe",
   "analyze",
   "embed",
+  "classify",
   "summarize",
   "report",
 ];

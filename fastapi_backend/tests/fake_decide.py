@@ -60,7 +60,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         for qid, q in (body.get("questions") or {}).items():
             fixed = Handler.script.get(qid)
             if fixed is None:
-                text = json.dumps(q.get("instructions")).lower()
+                text = json.dumps(q.get("instructions"), ensure_ascii=False).lower()
+                named = re.search(r"passage ([a-z]\d+)", text)
+                if named and isinstance(state, dict):  # a word of the passage it's about counts too
+                    text += " " + str((state.get("passages") or {}).get(named.group(1), "")).lower()
                 fixed = next((v for k, v in Handler.script.items() if k in text), None)
             answers[qid] = {"type": q["type"], **(fixed if fixed is not None else self._answer(state, q))}
         self._send(200, {"model": Handler.model, "answers": answers, "usage": {"input_tokens": 100, "output_tokens": len(answers)}})
@@ -68,18 +71,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
     @staticmethod
     def _answer(state, q):
         what, crit = q.get("instructions"), q.get("criteria")
-        about = what if isinstance(what, dict) else {}
+        # a question about one of the state's passages names it: "… passage p3 …"
+        named = re.search(r"passage ([a-z]\d+)", what) if isinstance(what, str) and isinstance(state, dict) else None
+        passage = (state.get("passages") or {}).get(named.group(1)) if named else None
         if q["type"] == "noul":
-            # asked about a passage the question carries itself (a rerank or an ask question), or about the state
-            if "passage" in about:
-                p = round(min(0.98, 0.04 + overlap(about.get("question") or state, about["passage"])), 3)
+            if passage is not None:
+                subject = state.get("search_query") or state.get("question") or ""
+                p = round(min(0.98, 0.04 + overlap(subject, passage)), 3)
             else:
                 p = round(min(0.98, 0.04 + overlap(what, state)), 3)
             return {"noul": p, "confidence": round(max(p, 1 - p), 3)}
         if q["type"] == "choice":
-            if "statement" in about:  # a check: the passage says it, says it isn't so, or doesn't say
-                alike = overlap(about["statement"], about["passage"])
-                denies = (" not " in f" {about['passage'].lower()} ") != (" not " in f" {about['statement'].lower()} ")
+            if passage is not None and "question" in state:  # an ask: yes when the passage shares the question's words
+                pick = "yes" if overlap(state["question"], passage) >= 0.5 else "silent"
+                return {"choice": pick, "probabilities": {k: (0.9 if k == pick else 0.05) for k in crit}, "confidence": 0.9}
+            if passage is not None and "statement" in state:  # a check: it says it, says it isn't so, or doesn't say
+                alike = overlap(state["statement"], passage)
+                denies = (" not " in f" {passage.lower()} ") != (" not " in f" {state['statement'].lower()} ")
                 pick = "silent" if alike < 0.5 else "contradicts" if denies else "supports"
                 probs = {k: (0.9 if k == pick else 0.05) for k in crit}
                 return {"choice": pick, "probabilities": probs, "confidence": 0.9}

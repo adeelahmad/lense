@@ -167,3 +167,8 @@ export function highlightRuns(
   }
   return out.length ? out : [{ text, kind: null, hl: null }];
 }
+
+/** Why a comment was flagged, as owners read it: "spam (93% sure), personal details (75% sure)". */
+export function flagSummary(reasons: { label: string; p: number }[]): string {
+  return reasons.map((r) => `${r.label.toLowerCase()} (${Math.round(r.p * 100)}% sure)`).join(", ");
+}

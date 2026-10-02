@@ -33,7 +33,12 @@ _L = threading.Lock()
 
 
 class DecideError(RuntimeError):
-    pass
+    """The model couldn't be asked. Its text is safe for anyone (no address, nothing the server said); `detail` has
+    the address and the server's words, for the log and for admins testing the settings."""
+
+    def __init__(self, message, detail=None):
+        super().__init__(message)
+        self.detail = detail or message
 
 
 def _section(cfg):
@@ -42,10 +47,14 @@ def _section(cfg):
 
 def endpoint(cfg):
     """(base URL, API key or None, model) of the decision server. The key is the one saved in the app, else the
-    environment variable decisions.api_key_env names, else TYPESAFE_API_KEY (what TypeSafe's own tools read)."""
+    environment variable decisions.api_key_env names, else, for the hosted server only, TYPESAFE_API_KEY (what
+    TypeSafe's own tools read)."""
     d = _section(cfg)
-    key = d.get("api_key") or os.environ.get(d.get("api_key_env") or "TYPESAFE_API_KEY")
-    return (d.get("base_url") or HOSTED).rstrip("/"), key or None, (d.get("model") or "").strip() or None
+    base = (d.get("base_url") or HOSTED).rstrip("/")
+    key = d.get("api_key") or (os.environ.get(d["api_key_env"]) if d.get("api_key_env") else None)
+    if not key and base == HOSTED:  # TypeSafe's key only ever goes to TypeSafe
+        key = os.environ.get("TYPESAFE_API_KEY")
+    return base, key or None, (d.get("model") or "").strip() or None
 
 
 def configured(cfg):
@@ -117,14 +126,20 @@ def _client(sdk, base, key, timeout):
 
 def _mark_down(base, err):
     with _L:
-        _DOWN[base] = (time.time() + DOWN_SECONDS, err)
+        _DOWN[base] = (time.time() + DOWN_SECONDS, err)  # err: (public message, detail)
 
 
 def recovered(cfg=None):
     """Forget that a server failed (after its settings change, or to test it)."""
     with _L:
         _DOWN.clear()
+        old = list(_CLIENTS.values())
         _CLIENTS.clear()
+    for c in old:
+        try:
+            c.close()
+        except Exception:  # noqa: BLE001  (a client that won't close is only a connection left to time out)
+            pass
 
 
 def ask(cfg, state, questions, timeout=None):
@@ -141,7 +156,7 @@ def ask(cfg, state, questions, timeout=None):
     with _L:
         until, why = _DOWN.get(base, (0, None))
     if until > time.time():
-        raise DecideError(why)
+        raise DecideError(*why)
     if isinstance(state, str):
         state = state[:STATE_CHARS]
     sdk = _sdk()
@@ -150,12 +165,18 @@ def ask(cfg, state, questions, timeout=None):
         r = _client(sdk, base, key, timeout).system_one(state, {k: _question(sdk, q) for k, q in questions.items()}, model=model)
     except sdk.TypeSafeAPIError as e:
         status = getattr(e, "status", None)
-        err = f"{status or 'no answer'} from the decision server at {base}: {str(e)[:300]}"
+        said = f"the decision server answered {status}" if status else "the decision server didn't answer"
+        err = (said, f"{said} ({base}): {str(e)[:300]}")
+        log.warning("%s", err[1])
         if status is None or status in (401, 403, 429, 529) or status >= 500:
             _mark_down(base, err)
-        raise DecideError(err) from None
+        raise DecideError(*err) from None
     except sdk.TypeSafeError as e:
-        raise DecideError(f"the decision server's reply couldn't be used: {str(e)[:300]}") from None
+        # it couldn't be reached, or what it sent wasn't an answer: either way it isn't asked again for a while
+        err = ("the decision server couldn't be reached or didn't give an answer", f"no usable answer from {base}: {str(e)[:300]}")
+        log.warning("%s", err[1])
+        _mark_down(base, err)
+        raise DecideError(*err) from None
     out = {}
     for qid, q in questions.items():
         try:

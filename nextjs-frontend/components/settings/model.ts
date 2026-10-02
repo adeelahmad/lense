@@ -216,6 +216,7 @@ export const WORKER_STEPS = [
   "describe",
   "analyze",
   "embed",
+  "classify",
   "summarize",
   "llm",
   "report",
@@ -675,6 +676,13 @@ export const FIELDS: FieldSpec[] = [
     label: "Suggest tags, content type and collection",
     kind: "switch",
     hint: "The classify step asks about each new resource",
+  },
+  {
+    section: "decisions",
+    key: "route",
+    label: "Move resources into collections by itself",
+    kind: "switch",
+    hint: "Off: a collection is only suggested. Moving changes who can read a resource: people with a role on that collection",
   },
   {
     section: "decisions",

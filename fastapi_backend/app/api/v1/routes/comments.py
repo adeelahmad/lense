@@ -8,16 +8,26 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 
-from app.api.deps import Access, Acl, CurrentUser, Db, Principal, Writer, domain_errors
-from app.domain import auth, comments, highlights, store
+from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
+from app.domain import auth, comments, highlights, moderation, store
 from app.domain.store import DB
-from app.schemas.comments import Comment, CommentCreate, CommentUpdate, Highlight, HighlightCreate, HighlightUpdate
+from app.schemas.comments import (
+    Comment,
+    CommentCreate,
+    CommentUpdate,
+    FlaggedComment,
+    FlagReason,
+    Highlight,
+    HighlightCreate,
+    HighlightUpdate,
+)
 from app.schemas.common import Ok
 
 R = store.R
 router = APIRouter(prefix="/recordings/{rid}", tags=["comments"])
+review = APIRouter(prefix="/comments", tags=["comments"])  # across resources: what waits for owners
 
 
 def _recording(acl: Access, db: DB, rid: int, role: str = "viewer") -> dict[str, Any]:
@@ -50,6 +60,12 @@ def _comment(db: DB, rid: int, cid: int) -> dict[str, Any]:
     return c
 
 
+def _reasons(c: dict[str, Any]) -> list[FlagReason]:
+    return [
+        FlagReason(reason=x["reason"], label=moderation.LABELS[x["reason"]], p=x["p"]) for x in (c.get("flag") or {}).get("reasons") or []
+    ]
+
+
 def _comments_out(db: DB, rows: list[dict[str, Any]], rank: int, user: Principal) -> list[Comment]:
     people = _people(db, {c["account"] for c in rows} | {c["resolved_by"] for c in rows if c.get("resolved_by") is not None})
     editor, owner = rank >= auth.ROLES["editor"], rank >= auth.ROLES["owner"]
@@ -78,6 +94,7 @@ def _comments_out(db: DB, rows: list[dict[str, Any]], rank: int, user: Principal
                 mine=mine,
                 can_resolve=c.get("parent") is None and (mine or editor),
                 can_delete=mine or owner,
+                flagged=_reasons(c) if owner else [],
             )
         )
     return out
@@ -92,18 +109,19 @@ def list_comments(rid: int, user: CurrentUser, acl: Acl, db: Db) -> list[Comment
 
 
 @router.post("/comments")
-def create_comment(rid: int, body: CommentCreate, user: Writer, acl: Acl, db: Db) -> Comment:
+def create_comment(rid: int, body: CommentCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg, tasks: BackgroundTasks) -> Comment:
     """Comment on a moment or passage (`t0`–`t1`, with the `quote` picked in the text) or on the whole resource, or
     with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone who can read the resource
     can, up to 1,000 each on a resource."""
     rec = _recording(acl, db, rid)
     with domain_errors():
         cid = comments.create(db, rid, rec["space"], user.id, body.text, body.t0, body.t1, body.quote, body.parent, rec.get("duration_ms"))
+    tasks.add_task(moderation.check_comment, db, cfg, cid)  # after the answer: commenting never waits for the model
     return _comments_out(db, [comments.get(db, cid)], _rank(acl, rec), user)[0]
 
 
 @router.patch("/comments/{cid}")
-def update_comment(rid: int, cid: int, body: CommentUpdate, user: Writer, acl: Acl, db: Db) -> Comment:
+def update_comment(rid: int, cid: int, body: CommentUpdate, user: Writer, acl: Acl, db: Db, cfg: Cfg, tasks: BackgroundTasks) -> Comment:
     """Change its text (its writer only), or resolve or reopen its thread (`resolved`, on the thread's first
     comment: its writer, or an editor of the resource; audited as `comment.resolve` and `comment.reopen`)."""
     rec = _recording(acl, db, rid)
@@ -118,6 +136,7 @@ def update_comment(rid: int, cid: int, body: CommentUpdate, user: Writer, acl: A
     with domain_errors():
         if body.text is not None:
             comments.update(db, cid, body.text)
+            tasks.add_task(moderation.check_comment, db, cfg, cid)
         if body.resolved is not None and body.resolved != bool(c.get("resolved")):
             comments.resolve(db, cid, user.id, body.resolved)
             auth.audit(db, user.as_audit(), "comment.resolve" if body.resolved else "comment.reopen", f"recording:{rid}", {"comment": cid})
@@ -137,6 +156,57 @@ def delete_comment(rid: int, cid: int, user: Writer, acl: Acl, db: Db) -> Ok:
         db, user.as_audit(), "comment.delete", f"recording:{rid}", {"comment": cid, "writer": c["account"] == user.id, "replies": replies}
     )
     return Ok()
+
+
+@router.delete("/comments/{cid}/flag")
+def keep_comment(rid: int, cid: int, user: Writer, acl: Acl, db: Db) -> Comment:
+    """An owner of the resource looked at a flagged comment and it stays: the flag is cleared, and that text isn't
+    flagged again. Audited (`comment.flag.keep`). To remove the comment instead, delete it."""
+    rec = _recording(acl, db, rid, "owner")
+    _comment(db, rid, cid)
+    try:
+        reasons = moderation.keep(db, cid)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    auth.audit(db, user.as_audit(), "comment.flag.keep", f"recording:{rid}", {"comment": cid, "reasons": [x["reason"] for x in reasons]})
+    return _comments_out(db, [comments.get(db, cid)], _rank(acl, rec), user)[0]
+
+
+@review.get("/flagged")
+def flagged_comments(
+    user: CurrentUser, acl: Acl, db: Db, ns: str | None = Query(None, description="one namespace")
+) -> list[FlaggedComment]:
+    """The comments a decision model flagged (spam, abuse, personal details) in the namespaces you own, the newest
+    first. Each waits for an owner to keep it (`DELETE …/comments/{cid}/flag`) or delete it."""
+    names = store.space_names(db)
+    mine = [sid for sid, name in names.items() if acl.roles.get(sid) == "owner" and (ns is None or name == ns)]
+    rows = moderation.flagged(db, mine)
+    people = _people(db, {c["account"] for c in rows})
+    titles = {
+        r["id"]: r.get("title")
+        for r in (
+            db.rows(
+                "SELECT record::id(id) AS id, title FROM recording WHERE id IN $ids", ids=[R("recording", c["recording"]) for c in rows]
+            )
+            if rows
+            else []
+        )
+    }
+    return [
+        FlaggedComment(
+            id=c["id"],
+            recording=c["recording"],
+            title=titles.get(c["recording"]),
+            namespace=names.get(c["space"]),
+            text=c["text"],
+            created_by=people.get(c["account"], {}).get("email"),
+            created_by_name=people.get(c["account"], {}).get("name") or None,
+            created_at=c.get("created_at"),
+            flagged=_reasons(c),
+            flagged_at=c["flag"].get("at"),
+        )
+        for c in rows
+    ]
 
 
 def _highlight(db: DB, rid: int, hid: int) -> dict[str, Any]:

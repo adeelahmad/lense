@@ -22,9 +22,9 @@ import re
 from . import llm, render, sources, store, templates
 
 R = store.R
-STANDARD = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
+STANDARD = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "classify", "summarize", "report"]
 TYPES = {
-    "transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "llm", "report", "export",
+    "transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "classify", "summarize", "llm", "report", "export",
     "workflow",
 }  # fmt: skip
 ASSET_STEPS = ("transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe")  # they make something of the media

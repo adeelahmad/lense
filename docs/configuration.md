@@ -132,16 +132,24 @@ Python SDK. With the hosted model, the passages being judged leave your server; 
 | `decisions.enabled` | false | whether decisions are asked for at all (`LENS_DECISIONS`) |
 | `decisions.base_url` | `https://api.typesafe.ai` | the server (`LENS_DECISIONS_BASE_URL`) |
 | `decisions.model` | `jev-latest` | the model (`LENS_DECISIONS_MODEL`) |
-| `decisions.api_key` / `api_key_env` | none | the key, stored encrypted (`LENS_DECISIONS_API_KEY`), or the name of an environment variable to read it from. Without either, `TYPESAFE_API_KEY` is read, as TypeSafe's own tools do; with none at all the request goes out with a placeholder, for a gateway that puts its own key in |
+| `decisions.api_key` / `api_key_env` | none | the key, stored encrypted (`LENS_DECISIONS_API_KEY`), or the name of an environment variable to read it from. Without either, and only for the hosted server, `TYPESAFE_API_KEY` is read, as TypeSafe's own tools do; with none at all the request goes out with a placeholder, for a gateway that puts its own key in. A stored key belongs to its server: changing `base_url` to another host drops it |
 | `decisions.timeout` | 10 | seconds before giving up on a request, 1–120; what was waiting on it carries on without |
 | `decisions.rerank` | true | searches are reranked ([API](api.md#search)) |
 | `decisions.rerank_top` | 24 | how many of the best hits are judged, 4–64: one yes/no question each, eight to a request, requests in parallel |
-| `decisions.classify`, `apply_above` | true, 0.85 | suggestions for new resources, and how sure one must be to be applied by itself |
-| `decisions.moderate`, `flag_above` | true, 0.7 | flags on comments, and how sure one must be to be raised |
+| `decisions.classify`, `apply_above` | true, 0.85 | the classify step ([Processing](processing.md#classify)): tags, content type and collection for new resources, and how sure an answer must be to be applied by itself, 0.5–1 |
+| `decisions.route` | false | whether a collection is applied by itself too. Off, it is only suggested: moving changes who can read a resource |
+| `decisions.moderate`, `flag_above` | true, 0.7 | flags on comments for owners to review ([API](api.md#comments)), and how sure the model must be to raise one, 0.5–1. Nothing is hidden or deleted by a flag |
 | `decisions.mcp` | true | the ask and check tools for assistants ([MCP](mcp.md)) |
 
-A server that refuses the key, is overloaded or can't be reached isn't asked again for 30 seconds; searches, imports
-and comments carry on meanwhile. Settings → Decisions has a Test that asks one yes/no question and one choice.
+A server that refuses the key, is overloaded or can't be reached isn't asked again for 30 seconds (saving the
+settings asks it again at once); searches, imports and comments carry on meanwhile. What went wrong is said in full,
+with the address and the server's words, only to admins (the Test) and in the server log.
+
+What the model reads is the archive's own text, and whoever can put text into the archive can try to sway it. So
+passages are always sent as data, never as part of a question; the model only ever picks among options Lens built
+(tags already in use, existing content types and collections); what it applies by itself is in the audit log as
+`recording.classify.*` by "decision model"; and its answers to assistants are evidence to weigh, not facts. There is no
+per-person limit on how many requests searches, comments and assistants cause yet: on the hosted model, they are paid. Settings → Decisions has a Test that asks one yes/no question and one choice.
 
 ## Chat models
 

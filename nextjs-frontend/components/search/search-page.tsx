@@ -127,7 +127,8 @@ export function SearchPage() {
   // Facets and "without filters" counts come from the words alone.
   const base = useQuery({
     queryKey: ["search-base", q, mode],
-    queryFn: () => data(Search.searchTranscripts({ client, query: { q, mode, limit: PAGE, facets: true } })),
+    queryFn: () =>
+      data(Search.searchTranscripts({ client, query: { q, mode, limit: PAGE, facets: true, rerank: false } })),
     enabled: enabled && nFilters > 0,
     staleTime: 30_000,
   });

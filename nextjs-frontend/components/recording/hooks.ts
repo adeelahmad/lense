@@ -300,11 +300,21 @@ export function useCommentActions(id: number) {
     mutationFn: (cid: number) => data(Comments.deleteComment({ client, path: { rid: id, cid } })),
     onSuccess: () => {
       void refresh();
+      void qc.invalidateQueries({ queryKey: ["flagged-comments"] });
       toast({ title: "Comment deleted", tone: "green" });
     },
     onError: fail("Couldn't delete the comment"),
   });
-  return { create, update, remove };
+  const keep = useMutation({
+    mutationFn: (cid: number) => data(Comments.keepComment({ client, path: { rid: id, cid } })),
+    onSuccess: () => {
+      void refresh();
+      void qc.invalidateQueries({ queryKey: ["flagged-comments"] });
+      toast({ title: "Kept", body: "It won’t be flagged again unless it changes.", tone: "green" });
+    },
+    onError: fail("Couldn't clear the flag"),
+  });
+  return { create, update, remove, keep };
 }
 
 /** The resource's highlights, by passage (the Highlights tab, and the marks on the text). */

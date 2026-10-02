@@ -5,7 +5,7 @@ import { AudioLines, ChartNoAxesColumn, FileAudio, MessagesSquare } from "lucide
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { AccessRequests, Resources, Sources, Speakers, Tokens } from "@/app/openapi-client";
+import { AccessRequests, Comments, Resources, Sources, Speakers, Tokens } from "@/app/openapi-client";
 import { buildAttention, greeting, type AttentionItem } from "@/components/home/attention";
 import { QuickImport } from "@/components/home/quick-import";
 import { rememberView, useRecentViews, type ViewedKind } from "@/components/home/recently-viewed";
@@ -130,6 +130,12 @@ export function HomeScreen() {
     enabled: owns,
     staleTime: 30_000,
   });
+  const flagged = useQuery({
+    queryKey: ["flagged-comments"],
+    queryFn: () => data(Comments.flaggedComments({ client })),
+    enabled: owns,
+    staleTime: 30_000,
+  });
   const reviewable = namespaces.map((n) => n.name).filter((n) => (!namespace || n === namespace) && can("editor", n));
   const speakerQs = useQueries({
     queries: reviewable.map((ns) => ({
@@ -160,6 +166,7 @@ export function HomeScreen() {
         speakers: speakerQs[i]?.data?.speakers ?? [],
       })),
       requests: (requests.data ?? []).filter((r) => inScope(r.namespace)),
+      flagged: (flagged.data ?? []).filter((c) => inScope(c.namespace)),
       tokens: tokens.data,
     });
     // Only what this person can act on: failures in namespaces where they can't edit stay out of their way.
@@ -172,6 +179,7 @@ export function HomeScreen() {
     sources.data,
     watches.data,
     requests.data,
+    flagged.data,
     tokens.data,
     namespace,
     reviewKey,

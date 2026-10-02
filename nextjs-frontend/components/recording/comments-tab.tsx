@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Ellipsis, MessageSquare, Pencil, Reply, RotateCcw, Trash2, X } from "lucide-react";
+import { Check, Ellipsis, Flag, MessageSquare, Pencil, Reply, RotateCcw, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import type { Comment } from "@/app/openapi-client/types.gen";
@@ -16,6 +16,7 @@ import {
 } from "@/components/recording/comments-model";
 import { useRec } from "@/components/recording/context";
 import { useCommentActions, useComments } from "@/components/recording/hooks";
+import { flagSummary } from "@/components/recording/comments-model";
 import { momentLabel, writer, type NoteDraft } from "@/components/recording/notes-model";
 import { Button, IconButton } from "@/components/ui/button";
 import { Checkbox, Textarea } from "@/components/ui/field";
@@ -268,7 +269,7 @@ function ThreadView({ t }: { t: Thread }) {
 function CommentRow({ c, replies }: { c: Comment; replies: number }) {
   const { id, ns, paged, where } = useRec();
   const api = usePlayerApi();
-  const { update, remove } = useCommentActions(id);
+  const { update, remove, keep } = useCommentActions(id);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(c.text);
   const [confirm, setConfirm] = useState(false);
@@ -344,6 +345,20 @@ function CommentRow({ c, replies }: { c: Comment; replies: number }) {
           </MenuContent>
         </Menu>
       </div>
+      {(c.flagged?.length ?? 0) > 0 && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-gold-border bg-gold-surface px-2.5 py-1.5 text-[12.5px] text-fg"
+        >
+          <Flag aria-hidden className="size-3.5 shrink-0 text-gold-dark" />
+          <span className="min-w-0 flex-1">
+            Flagged for review: {flagSummary(c.flagged ?? [])}. Only owners see this; the comment is still shown.
+          </span>
+          <Button size="sm" variant="secondary" disabled={keep.isPending} onClick={() => keep.mutate(c.id)}>
+            Keep it
+          </Button>
+        </div>
+      )}
       {c.quote && (
         <blockquote className="line-clamp-4 border-l-2 border-border pl-2.5 text-[13px] italic leading-snug text-fg-secondary">
           “{c.quote}”

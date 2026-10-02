@@ -45,7 +45,7 @@ def search_transcripts(
     rerank: bool = Query(
         True,
         description="where a decision model is set up (Settings → Decisions), have it judge whether each of the best "
-        "hits answers the query and order them by that; hits then carry `relevance`. Only the first page is reranked",
+        "hits answers the query and order them by that; hits then carry `relevance`. Pages past those hits come as matched",
     ),
 ) -> SearchResults:
     """Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
@@ -73,7 +73,7 @@ def search_transcripts(
         described=True,
         cfg=cfg,
         mode=mode,
-        rerank=rerank and offset == 0,
+        rerank=rerank,
     )
     return sign_urls(res, full=True)
 

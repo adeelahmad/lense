@@ -17,7 +17,22 @@ from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_error
 from app.api.media import sign_url, sign_urls
 from app.api.streaming import file_response, range_response
 from app.domain import access as acc
-from app.domain import analyze, auth, deletion, hierarchy, ipgroups, jobs, library, moving, render, sources, store, transcript, video
+from app.domain import (
+    analyze,
+    auth,
+    classify,
+    deletion,
+    hierarchy,
+    ipgroups,
+    jobs,
+    library,
+    moving,
+    render,
+    sources,
+    store,
+    transcript,
+    video,
+)
 from app.domain import fields as fieldmod
 from app.domain import metadata as md
 from app.domain.store import API, DB
@@ -56,6 +71,7 @@ from app.schemas.recordings import (
     ShareCreate,
     ShareLink,
     ShareSite,
+    Suggestion,
     TagCount,
     TagsChanged,
 )
@@ -253,7 +269,18 @@ def retag_recordings(body: RecordingsRetag, acl: Acl, user: Writer, db: Db) -> T
 def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     r = acl.recording(rid)
     space = db.one("SELECT name FROM $s", s=R("space", r["space"])) or {}
-    d = {k: v for k, v in r.items() if k not in ("envelope", "stats", "summary", "access_parts")}
+    d = {
+        k: v
+        for k, v in r.items()
+        if k not in ("envelope", "stats", "summary", "access_parts", "suggestions", "suggestions_dismissed", "suggestions_applied")
+    }
+    if acl.user and acl.rank_in(r["space"], r.get("collection")) >= auth.ROLES["editor"]:
+        # a collection they have no role on isn't named to them
+        d["suggestions"] = [
+            s
+            for s in r.get("suggestions") or []
+            if s["kind"] != "collection" or acl.rank_in(r["space"], s["value"]) >= auth.ROLES["editor"]
+        ]
     a = acc.of(db, rid)
     d.update(access=a["access"], open=a["open"], featured=a["featured"], access_inherited=a["inherited"])
     d.update(
@@ -305,6 +332,42 @@ def update_recording(rid: int, body: RecordingUpdate, acl: Acl, user: Writer, db
                 if rec.get("analyzed_at"):
                     jobs.enqueue(db, rid, ["report"], by=user.email)
     return get_recording(rid, acl, db, cfg)
+
+
+@router.post("/{rid}/suggestions/{sid:path}")  # a tag can have a slash in it
+def accept_suggestion(rid: int, sid: str, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Suggestion:
+    """Accept what a decision model suggested for a resource (editors): the tag is added, the content type set, or the
+    resource moved into the collection (editors of that collection too; audited as `recording.collection`)."""
+    acl.recording(rid, "editor")
+    s = next((x for x in classify.suggestions(db, rid) if x["id"] == sid), None)
+    if s is None:
+        raise HTTPException(404, "not found")
+    if s["kind"] == "collection":
+        try:
+            c = hierarchy.get(db, s["value"])
+        except KeyError:
+            raise HTTPException(400, "That collection is gone.") from None
+        acl.need_in(c["space"], c["id"], "editor")
+    with domain_errors():
+        classify.settle(db, rid, sid, accept=True)
+    if s["kind"] == "collection":
+        md.touched(db, cfg, rid)
+        auth.audit(
+            db,
+            user.as_audit(),
+            "recording.collection",
+            f"collection:{s['value']}",
+            {"recordings": [rid], "name": s["label"], "suggested": s["p"]},
+        )
+    return Suggestion.model_validate(s)
+
+
+@router.delete("/{rid}/suggestions/{sid:path}")
+def dismiss_suggestion(rid: int, sid: str, acl: Acl, user: Writer, db: Db) -> Suggestion:
+    """Dismiss a suggestion (editors); it isn't suggested for this resource again."""
+    acl.recording(rid, "editor")
+    with domain_errors():
+        return Suggestion.model_validate(classify.settle(db, rid, sid, accept=False))
 
 
 @router.delete("/{rid}")

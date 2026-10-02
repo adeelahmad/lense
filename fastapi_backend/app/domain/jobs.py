@@ -16,8 +16,8 @@ import time
 from . import analyze, ingest, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
-PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
-AFTER_IMPORT = ["analyze", "embed", "summarize", "report"]
+PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "classify", "summarize", "report"]
+AFTER_IMPORT = ["analyze", "embed", "classify", "summarize", "report"]
 ACTIVE = ["queued", "running"]
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
@@ -82,6 +82,20 @@ def _embed(db, cfg, rid, say, spec=None):
     if not made and not kept:
         return say("no text to index for search by meaning")
     say(f"indexed for search by meaning: {made} passage(s) embedded" + (f", {kept} unchanged" if kept else ""))
+
+
+def _classify(db, cfg, rid, say, spec=None):
+    from . import classify, decide
+
+    if not decide.uses(cfg, "classify"):
+        raise Skip("no decision model is set up to suggest tags and collections (Settings → Decisions)")
+    try:
+        applied, waiting = classify.classify_recording(db, cfg, rid, say)
+    except decide.DecideError as e:  # the server is down or refuses: the resource is fine without suggestions
+        raise Skip(f"couldn't ask the decision model: {e}") from None
+    if not applied and not waiting:
+        return say("nothing to suggest")
+    say(f"{len(applied)} applied, {len(waiting)} waiting for a person")
 
 
 def _summarize(db, cfg, rid, say, spec=None):
@@ -161,6 +175,7 @@ STEPS = {
     "describe": _describe,
     "analyze": _analyze,
     "embed": _embed,
+    "classify": _classify,
     "summarize": _summarize,
     "report": _report,
     "llm": _llm,
@@ -732,6 +747,7 @@ class Worker:
             self.can |= VIDEO_STEPS
         if self.can & {"analyze", "summarize"}:  # embedding needs what they need; lists written before it existed run it too
             self.can.add("embed")
+            self.can.add("classify")  # and so does asking a decision model about it
         if not steps and log and (missing := sorted(set(STEPS) - self.can)):
             log(f"worker {self.name}: workers.steps leaves out {', '.join(missing)}; jobs with those steps wait for another worker")
         self.was_paused = False

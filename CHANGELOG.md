@@ -4,9 +4,22 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Comments flagged for owners to review.** With a decision model set up, a new or edited comment is judged for spam,
+  abuse and personal details after it's saved. One the model is sure about (70% unless changed) is flagged: the
+  resource's owners see why on the comment and under "Needs attention" on Home, and keep it or delete it. Nobody else
+  sees the flag, the comment stays visible, and nothing is hidden or removed by a flag itself. Keeping is audited
+  (`comment.flag.keep`) and that text isn't flagged again. `GET /comments/flagged` lists what waits
+  (docs/api.md#comments).
+- **New resources are tagged and sorted by a decision model.** A `classify` step, after every import and in the
+  standard pipeline, asks the decision model which of the tags the namespace already uses fit a new resource, which
+  content type it is and which collection it belongs in. What the model is sure of (85% unless changed) is applied;
+  what's likely waits on the resource's Details tab as a suggestion for an editor to accept or dismiss, and a
+  dismissed one doesn't come back. The model only picks from tags already in use. A collection is only suggested,
+  however sure the model is, because moving a resource changes who can read it; `decisions.route` lets an admin switch
+  that on. Without a decision model, or when it can't be reached, the step is skipped (docs/processing.md#classify).
 - **Assistants can ask the archive and check their answers.** Two MCP tools on top of typed decisions, for answers
   that rest on what the archive says. `ask` puts a yes/no question to the passages most related to it (or to one
-  recording): each is judged for whether it says the answer is yes, and they come back most supportive first with the
+  recording): each is judged for what it says (yes, no, or nothing either way; a silent archive is "unclear", not "no"), and they come back most supportive first with the
   probability and a link. `check` takes a statement and the moments an assistant would cite for it (`recording:line`),
   and judges each passage as supporting it, contradicting it or silent on it; the verdict is supported, contradicted,
   mixed or unsupported, and an answer the model isn't sure of supports nothing. Both read only what the person may

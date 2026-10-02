@@ -71,8 +71,11 @@ def test_ask_judges_the_passages_you_may_read(client, env):
     )
     assert {p["recording_id"] for p in out["passages"]} == {env["pods"]}  # never the namespace the viewer has no role in
     assert [p["says_yes"] for p in out["passages"]] == sorted((p["says_yes"] for p in out["passages"]), reverse=True)
-    asked = env["jev"].seen[-1]["questions"]["p0"]
-    assert asked["type"] == "noul" and asked["instructions"]["question"] == "Does the shipment leave on Friday?"
+    asked = env["jev"].seen[-1]
+    assert asked["questions"]["p0"]["type"] == "choice" and "passage p0" in asked["questions"]["p0"]["instructions"]
+    # what the archive says is data, never part of a question
+    assert asked["state"]["question"] == "Does the shipment leave on Friday?" and "leaves on Friday" in asked["state"]["passages"]["p0"]
+    assert len(env["jev"].seen) == 1  # one request: the searches that found the passages weren't reranked
     # an admin's assistant reads both namespaces
     assert {p["recording_id"] for p in tool(client, hr, "ask", question="Does the shipment leave?")["passages"]} == {
         env["pods"],
@@ -85,16 +88,24 @@ def test_ask_judges_the_passages_you_may_read(client, env):
     before = len(env["jev"].seen)
     nothing = tool(client, hv, "ask", question="zeppelin")
     assert (nothing["answer"], nothing["passages"]) == ("unclear", []) and len(env["jev"].seen) == before
-    # the passages found don't say so
-    env["jev"].script = {"p0": {"noul": 0.1}, "p1": {"noul": 0.05}, "p2": {"noul": 0.02}}
+    # passages that are about it but don't say: the archive is silent, which isn't a no
+    says = lambda c, p=0.9: {"choice": c, "probabilities": {c: p}, "confidence": p}  # noqa: E731
+    env["jev"].script = {f"p{n}": says("silent") for n in range(3)}
+    quiet = tool(client, hv, "ask", question="shipment harbour budget")
+    assert quiet["answer"] == "unclear" and {p["says"] for p in quiet["passages"]} == {"silent"}
+    env["jev"].script = {"p0": says("no"), "p1": says("silent"), "p2": says("silent")}
     assert tool(client, hv, "ask", question="shipment harbour budget")["answer"] == "no"
-    env["jev"].script = {"p0": {"noul": 0.5}}
+    env["jev"].script = {"p0": says("no"), "p1": says("yes"), "p2": says("silent")}  # they disagree
+    assert tool(client, hv, "ask", question="shipment harbour budget")["answer"] == "unclear"
+    env["jev"].script = {"p0": says("yes", 0.5), "p1": says("silent"), "p2": says("silent")}  # not sure enough
     assert tool(client, hv, "ask", question="shipment harbour budget")["answer"] == "unclear"
     assert "is required" in tool_error(client, hv, "ask")
     # the model failing is said, not guessed around
     env["jev"].script, env["jev"].fail = {}, (529, {"detail": "overloaded"})
     decide.recovered()
-    assert "the decision model couldn't answer" in tool_error(client, hv, "ask", question="shipment?")
+    said = tool_error(client, hv, "ask", question="shipment?")
+    # said without the server's address or its words: those are for admins and the log
+    assert said == "the decision model couldn't answer: the decision server answered 529" and env["url"] not in said
 
 
 def test_check_judges_a_statement_against_what_it_cites(client, env):

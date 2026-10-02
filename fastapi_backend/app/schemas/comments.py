@@ -12,6 +12,12 @@ from app.schemas.common import RequestModel, ResponseModel
 Colour = Literal["yellow", "green", "blue", "red"]
 
 
+class FlagReason(ResponseModel):
+    reason: Literal["spam", "abuse", "personal"]
+    label: str
+    p: float = Field(description="how sure the decision model was, 0 to 1")
+
+
 class Comment(ResponseModel):
     id: int
     recording: int
@@ -32,6 +38,24 @@ class Comment(ResponseModel):
     mine: bool = Field(description="you wrote it: only you can change its text")
     can_resolve: bool = Field(description="you can resolve or reopen the thread: you started it, or you edit the resource")
     can_delete: bool = Field(description="you wrote it, or you own the resource")
+    flagged: list[FlagReason] = Field(
+        default_factory=list, description="why a decision model flagged it for review; only owners of the resource see this"
+    )
+
+
+class FlaggedComment(ResponseModel):
+    """A comment waiting for an owner's look."""
+
+    id: int
+    recording: int
+    title: str | None = Field(None, description="the resource's title")
+    namespace: str | None = None
+    text: str
+    created_by: str | None = None
+    created_by_name: str | None = None
+    created_at: str | None = None
+    flagged: list[FlagReason]
+    flagged_at: str | None = None
 
 
 class CommentCreate(RequestModel):

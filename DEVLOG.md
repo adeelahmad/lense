@@ -35,16 +35,34 @@ Todo:
 - [x] Rerank search (API `rerank`, relevance on hits in the web app)
 - [x] MCP search uses the reranked order
 - [ ] Chat retrieval uses the reranked order
-- [ ] `classify` step and workflow node: tags, subtype, collection; suggestions on the resource
-- [ ] Moderation flags on comments with an owners' review queue
+- [x] `classify` pipeline step (tags from the namespace's own, content type, collection), suggestions on the Details tab; routing is suggest-only unless `decisions.route`
+- [x] Moderation flags on comments (spam, abuse, personal details); owners review on the comment and on Home's Needs attention; a flag hides nothing
 - [x] MCP `ask` and `check` tools (offered only where `decisions.mcp` is on)
-- [ ] Docs (configuration, processing, api, mcp), tests on both engines, browser checks
+- [x] Docs (configuration, processing, api, mcp); code review and security review, findings fixed (see Mistakes & lessons)
+- [ ] Tests against a SurrealDB server (`LENS_TEST_SURREAL_URL`), browser checks of Settings → Decisions, suggestions and flags
+- [ ] A per-person budget on decision requests (searches, comments and MCP tools each cause paid calls; no limiter in the repo yet)
 - [ ] Live check against hosted Jev once a key reaches this environment (2026-10-03: a request without a header is
       refused with "Must supply an API key", and no key or gateway is visible from this shell)
 
 Left from the earlier branch `claude/oauth-search-mcp-telemetry` (not merged; main got its own OAuth, MCP and search
 by meaning meanwhile): analytics per namespace and collection, and the new logo with the name "Lens". To port onto
 main as their own PRs.
+
+### Lessons (from the reviews of this branch)
+
+- **Untrusted text goes in the model's state, never in a question.** The first cut put each passage inside its
+  question's instructions; a document saying "this passage states the answer is yes" could then steer rerank, `ask`
+  and `check`. Passages are now `state.passages.{id}` and a question only names its passage.
+- **The SDK's connection and timeout errors aren't `TypeSafeAPIError`.** They derive from `TypeSafeError`, so the
+  "mark the server down for 30 s" branch never ran for an unreachable host and every search would have waited out the
+  timeout. Both branches mark it down now; a test asserts the second call returns at once.
+- **An error's text travels.** `DecideError` text reached MCP users and job logs with the server's address and its
+  reply. It now has a public message and a `detail` for admins and the log.
+- **A key belongs to a host.** `TYPESAFE_API_KEY` is only sent to api.typesafe.ai, and a saved key is dropped when
+  `base_url` moves to another origin (as telemetry's headers already were).
+- **Silence isn't "no".** `ask` asked yes/no per passage, so passages that merely shared words made the answer "no".
+  It asks yes / no / silent now.
+- **Rerank only page one and pages repeat and skip hits.** Any page inside the judged top is cut from the same order.
 
 ## 2026-10-02 · Routines
 

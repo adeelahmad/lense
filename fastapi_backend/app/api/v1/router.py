@@ -80,3 +80,4 @@ for module in (
     routines,
 ):
     api_router.include_router(module.router)
+api_router.include_router(comments.review)

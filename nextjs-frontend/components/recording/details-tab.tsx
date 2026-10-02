@@ -19,6 +19,7 @@ import { ContentTypePicker } from "@/components/recording/content-type";
 import { useRec } from "@/components/recording/context";
 import { emailRows, renditionNote, webRows, type EmailInfo } from "@/components/recording/document/model";
 import { sourceLabel, transcriptOrigin } from "@/components/recording/labels";
+import { Suggestions } from "@/components/recording/suggestions";
 import { Button } from "@/components/ui/button";
 import { absolute, bytes, count, plural, tc } from "@/lib/format";
 
@@ -144,6 +145,7 @@ export function DetailsTab() {
           </Button>
         )}
       </div>
+      {canEdit && <Suggestions rid={id} suggestions={rec.suggestions ?? []} />}
       <Group icon={video ? FileVideo : model.audio ? FileAudio : FileText} title="File" rows={file} />
       {(video || rec.channels) && <Group icon={Film} title={video ? "Video and audio" : "Audio"} rows={media} />}
       {rec.email && <Group icon={Mail} title="Email" rows={emailRows(rec.email as EmailInfo, absolute)} />}

@@ -42,6 +42,7 @@ const STEP_ORDER = [
   "describe",
   "analyze",
   "embed",
+  "classify",
   "summarize",
   "report",
 ];

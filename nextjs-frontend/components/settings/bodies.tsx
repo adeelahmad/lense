@@ -638,6 +638,7 @@ function DecisionsBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="decisions.rerank_top" />
           <F ctx={ctx} id="decisions.classify" />
           <F ctx={ctx} id="decisions.apply_above" />
+          <F ctx={ctx} id="decisions.route" />
           <F ctx={ctx} id="decisions.moderate" />
           <F ctx={ctx} id="decisions.flag_above" />
           <F ctx={ctx} id="decisions.mcp" />

@@ -147,6 +147,16 @@ class AttachedTo(ResponseModel):
     title: str | None = None
 
 
+class Suggestion(ResponseModel):
+    """Something a decision model thinks fits the resource but wasn't sure enough to apply (docs/processing.md#classify)."""
+
+    id: str
+    kind: Literal["tag", "content_type", "collection"]
+    value: str | int = Field(description="the tag, the content type's key, or the collection's id")
+    label: str
+    p: float = Field(description="how sure the model was, 0 to 1")
+
+
 class Recording(ResponseModel):
     """The recording row (less its envelope) plus what the recording page needs."""
 
@@ -170,6 +180,7 @@ class Recording(ResponseModel):
     featured: bool = False
     access_inherited: bool = Field(True, description="the access comes from the namespace's default")
     tags: list[str] = Field(default_factory=list)
+    suggestions: list[Suggestion] = Field(default_factory=list, description="waiting for an editor to accept or dismiss; editors only")
     email: EmailInfo | None = Field(None, description="an email: its subject, sender, recipients and date")
     rendition: Rendition | None = Field(None, description="a document that isn't a PDF: how the PDF it's read from was made")
     attached_to: AttachedTo | None = Field(None, description="an email's attachment made a resource of its own: that email")

@@ -218,6 +218,8 @@ POST   /api/v1/resources/collection
 GET    /api/v1/resources/{rid}
 PATCH  /api/v1/resources/{rid}
 DELETE /api/v1/resources/{rid}
+POST   /api/v1/resources/{rid}/suggestions/{id}       accept what a decision model suggested (editors)
+DELETE /api/v1/resources/{rid}/suggestions/{id}       dismiss it
 POST   /api/v1/resources/{rid}/move
 GET    /api/v1/resources/{rid}/access
 PUT    /api/v1/resources/{rid}/access
@@ -435,6 +437,8 @@ GET    /api/v1/resources/{rid}/comments
 POST   /api/v1/resources/{rid}/comments
 PATCH  /api/v1/resources/{rid}/comments/{cid}
 DELETE /api/v1/resources/{rid}/comments/{cid}
+DELETE /api/v1/resources/{rid}/comments/{cid}/flag    an owner keeps a flagged comment
+GET    /api/v1/comments/flagged                       flagged comments in the namespaces you own
 ```
 
 Comments on a resource: a conversation everyone with a role on the resource (in its namespace, or on its collection)
@@ -453,6 +457,15 @@ resource (of its namespace, or an admin of its collection), deletes a comment; a
 replies with it. Resolving, reopening and deleting are audited (`comment.resolve`, `comment.reopen`, `comment.delete`
 with whether its writer did it and how many replies went, on the resource). Comments move with their resource and go
 when it's deleted.
+
+Where a decision model is set up ([Configuration](configuration.md#decisions), `decisions.moderate`), a new or edited
+comment is judged after it's saved (commenting never waits for the model) for **spam**, **abuse** and **personal
+details**. One the model is at least `decisions.flag_above` sure about is **flagged**: owners of the resource see
+`flagged` on it (`reason`, `label`, `p`), nobody else does, and the comment stays visible; a flag hides and removes
+nothing by itself. `GET /comments/flagged` (optionally `?ns=`) lists what waits in the namespaces you own, the newest
+flag first; Home shows them under "Needs attention". An owner keeps a comment with `DELETE …/comments/{cid}/flag`
+(audited as `comment.flag.keep` with the reasons; that text isn't flagged again, an edit is judged afresh) or deletes
+it. When the model can't be asked, the comment just isn't judged.
 
 ## highlights
 
@@ -632,8 +645,8 @@ matched, `semantic` whether search by meaning is set up, and `meaning` why it wa
 `match` is `words`, `meaning` (with its `similarity`, cosine, and shown at the passage's best line) or `both`.
 
 Where a decision model is set up ([Configuration](configuration.md#decisions); the answer's `rerank` says so), the
-first page is **reranked**: each of the best hits (`decisions.rerank_top`) is judged for whether it answers the query,
-and they're ordered by that. A judged hit carries `relevance` (0 to 1), and `reranked` says how many were judged.
+best hits are **reranked**: each of the first `decisions.rerank_top` is judged for whether it answers the query, and
+they're ordered by that (pages within them are cut from the same order; later pages come as matched). A judged hit carries `relevance` (0 to 1), and `reranked` says how many were judged.
 `rerank=false` leaves the order as matched; when the model can't answer, the order stays and `reranked` is null.
 `POST /settings/decisions/test` and `GET /admin/decisions` (admins) test the model and say how it's set up.
 

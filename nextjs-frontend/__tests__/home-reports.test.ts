@@ -8,6 +8,7 @@ import type {
   Watch,
 } from "@/app/openapi-client/types.gen";
 import { buildAttention, greeting } from "@/components/home/attention";
+import { flagSummary } from "@/components/recording/comments-model";
 import { latestJobs } from "@/components/library/model";
 import {
   cloudSizes,
@@ -316,5 +317,40 @@ describe("report HTML", () => {
     expect(isTemplateReport("/reports/podcasts/ep-12-1.html?exp=1&sig=a--b")).toBe(false);
     expect(htmlName("Episode 12 — Reading a model system card")).toBe("episode-12-reading-a-model-system-card.html");
     expect(htmlName("")).toBe("report.html");
+  });
+});
+
+describe("flagged comments on Home", () => {
+  it("wait for an owner, with why and a link to the resource's comments", () => {
+    const items = buildAttention({
+      latestJobs: new Map(),
+      recent: [],
+      nsById: new Map(),
+      flagged: [
+        {
+          id: 9,
+          recording: 4,
+          title: "Shipping notes",
+          namespace: "pods",
+          text: "Buy cheap watches",
+          created_by: "vi@x.io",
+          flagged: [
+            { reason: "spam", label: "Spam", p: 0.93 },
+            { reason: "personal", label: "Personal details", p: 0.75 },
+          ],
+        },
+      ],
+    });
+    expect(items).toEqual([
+      {
+        key: "flag-9",
+        kind: "gate",
+        title: "A comment on Shipping notes was flagged: spam, personal details",
+        meta: "“Buy cheap watches” · vi@x.io · pods",
+        action: { label: "Review", do: { type: "link", href: "/resources/4#comments" } },
+        namespace: "pods",
+      },
+    ]);
+    expect(flagSummary([{ label: "Spam", p: 0.93 }])).toBe("spam (93% sure)");
   });
 });

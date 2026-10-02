@@ -330,7 +330,7 @@ def _check(section, key, value, default):
     return value
 
 
-DECISION_FLAGS = ("enabled", "rerank", "classify", "moderate", "mcp")
+DECISION_FLAGS = ("enabled", "rerank", "classify", "route", "moderate", "mcp")
 DECISION_RANGES = {"timeout": (1, 120), "rerank_top": (4, 64)}
 
 
@@ -342,7 +342,7 @@ def _decision_setting(key, value):
     if key == "base_url":
         if value is None or value == "":
             return store.DEFAULTS["decisions"]["base_url"]
-        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())) or urllib.parse.urlsplit(value.strip()).username is not None:
             raise ValueError("decisions.base_url is the http(s) address of a System One server, such as https://api.typesafe.ai")
         return value.strip().rstrip("/")
     if key in ("model", "api_key_env"):
@@ -549,6 +549,8 @@ def save(db, base, section, changes, user=None):
             # the saved headers (an auth token) were for the old collector: they don't go to a new host
             if before:
                 sealed.pop("headers", None)
+        if (section, k) == ("decisions", "base_url") and "api_key" not in (changes or {}) and _origin(before) != _origin(data[k]):
+            sealed.pop("api_key", None)  # the saved key was for the old server: it doesn't go to a new host
     if section == "speakers":
         m = data.get("match_threshold", defaults["match_threshold"])
         r = data.get("review_threshold", defaults["review_threshold"])

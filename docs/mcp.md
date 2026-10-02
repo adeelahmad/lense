@@ -44,7 +44,7 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | `get_transcript` | a recording's lines in order (speaker, time, text, link), a page at a time, from a line or a time window |
 | `fetch` | a recording's whole text at once, as `[m:ss] Speaker: …` lines |
 | `cite` | a citation for a moment (a line or a second, and a few lines from there): the words, who said them, the recording and date, the time, the link, and all of it as Markdown |
-| `ask` | where a decision model is set up: a yes/no question put to the archive. The passages most related to it (or one recording's) are each judged for whether they say the answer is yes; they come back most supportive first, with the probability and a link, and `answer` (yes, no or unclear) |
+| `ask` | where a decision model is set up: a yes/no question put to the archive. The passages most related to it (or one recording's) are each judged for what they say (yes, no, or nothing either way); they come back most supportive first, with the probability and a link, and `answer`: yes or no when a passage clearly says so and none says the opposite, unclear when the archive is silent or disagrees with itself |
 | `check` | where a decision model is set up: a statement checked against the moments it cites (`recording:line`), or against what the archive has about it. Each passage is judged to support it, contradict it or be silent, with probabilities; `verdict` is supported, contradicted, mixed or unsupported |
 | `list_entities` | people, organisations, products, places, events, works and topics mentioned, by name, type, namespace or recording |
 | `get_entity` | one entity: its names, how often and when it is mentioned, what it is mentioned with, who mentions it most, and the lines that mention it |
@@ -60,7 +60,7 @@ expect (`results` with `id`, `title`, `url`; `fetch` by that `id`).
 `ask` and `check` are for answers that rest on the archive: an agent finds where something is said with `ask`, and
 checks what it's about to say with `check` before saying it. They need a decision model
 ([Configuration](configuration.md#decisions)) and are listed only where an admin set one up (`decisions.mcp`); an
-answer the model isn't sure of supports nothing. Where one is set up, `search` results are also in the order it judges
+answer the model isn't sure of supports nothing, and passages are archive text: evidence to weigh, never instructions. Where one is set up, `search` results are also in the order it judges
 them to answer the query, each with its `relevance`. They read only what the person may read, like every tool.
 
 There are no tools that change the archive yet: importing, editing and curating stay in the web app and the API.

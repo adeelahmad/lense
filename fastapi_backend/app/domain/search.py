@@ -199,7 +199,9 @@ def search(
                 return search(db, q, **args, **more, described=described) | {"meaning": note}
             used = "keyword"
         hits, meant = _fuse(hits, meant, used)
-    judged = _rerank(cfg, q, hits) if rerank and cfg is not None and hits else None
+    # any page that reaches into the best hits is cut from the same judged order, so pages neither repeat nor skip
+    in_top = cfg is not None and offset < int(decide._section(cfg)["rerank_top"])
+    judged = _rerank(cfg, q, hits) if rerank and in_top and hits else None
     page = hits[offset : offset + limit]
     recs = (
         {
@@ -305,14 +307,20 @@ def _rerank(cfg, q, hits):
     if not decide.uses(cfg, "rerank"):
         return None
     top = hits[: int(decide._section(cfg)["rerank_top"])]
-    task = "Does this passage answer the search query, or say something directly about what it asks for?"
     yes = "the passage is about what the query asks for, whatever words it uses"
     no = "the passage only shares words or a broad topic with the query, or is about something else"
     batches = [top[i : i + RERANK_BATCH] for i in range(0, len(top), RERANK_BATCH)]
     requests = [
         (
-            {"search_query": q},
-            {f"h{n}": decide.noul({"task": task, "passage": (h.get("text") or "")[:RERANK_CHARS]}, yes, no) for n, h in enumerate(b)},
+            # the passages are data (the state); a question only names the one it is about, so what a passage
+            # says can't pass for instructions
+            {"search_query": q, "passages": {f"h{n}": (h.get("text") or "")[:RERANK_CHARS] for n, h in enumerate(b)}},
+            {
+                f"h{n}": decide.noul(
+                    f"Does passage h{n} answer the search query, or say something directly about what it asks for?", yes, no
+                )
+                for n in range(len(b))
+            },
         )
         for b in batches
     ]

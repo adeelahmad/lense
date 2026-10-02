@@ -169,6 +169,11 @@ const STEP_CHOICES = [
     hint: "Needs an embedding model in Settings → Search.",
   },
   {
+    value: "classify",
+    label: "Suggest tags and collections",
+    hint: "Needs a decision model in Settings → Decisions.",
+  },
+  {
     value: "summarize",
     label: "Summarize",
     hint: "Needs a language model in Settings.",

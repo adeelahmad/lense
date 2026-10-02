@@ -3,6 +3,8 @@ as probabilities, and failures that never reach a request."""
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from app.domain import decide
@@ -47,10 +49,12 @@ def test_the_key_is_the_apps_then_the_environments(cfg, jev, monkeypatch):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     decide.ask(cfg, "harbour", q)
     assert jev.keys[-1] == "Bearer none" and decide.status(cfg)["key"] is False  # a gateway in front adds its own
+    # TypeSafe's own variable is for TypeSafe's server only: it never goes to another host
     monkeypatch.setenv("TYPESAFE_API_KEY", "ts-env")
     decide.recovered()
     decide.ask(cfg, "harbour", q)
-    assert jev.keys[-1] == "Bearer ts-env"
+    assert jev.keys[-1] == "Bearer none"
+    assert decide.endpoint({"decisions": {"enabled": True}})[:2] == (decide.HOSTED, "ts-env")
     monkeypatch.setenv("MY_JEV_KEY", "ts-named")
     cfg["decisions"]["api_key_env"] = "MY_JEV_KEY"
     decide.ask(cfg, "harbour", q)
@@ -103,5 +107,11 @@ def test_failures_are_decide_errors_and_a_failing_server_is_left_alone_for_a_whi
     assert decide.ask(cfg, "harbour", q)["q"]["p"] > 0.5
     # a server that isn't there
     cfg["decisions"]["base_url"] = "http://127.0.0.1:9"
-    with pytest.raises(decide.DecideError, match="decision server"):
+    with pytest.raises(decide.DecideError, match="couldn't be reached") as e:
         decide.ask(cfg, "x", q, timeout=1)
+    assert "127.0.0.1" not in str(e.value) and "127.0.0.1:9" in e.value.detail  # the address is for admins and the log
+    # and it isn't tried again for a while: what waits on it carries on at once
+    t0 = time.time()
+    with pytest.raises(decide.DecideError, match="couldn't be reached"):
+        decide.ask(cfg, "x", q, timeout=30)
+    assert time.time() - t0 < 0.2

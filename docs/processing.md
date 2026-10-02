@@ -12,6 +12,7 @@ How recordings move through Lens: where they come from, what each step does, and
   ([Documents and images](configuration.md#documents-and-images)).
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
   matches voiceprints against the namespace's speakers.
+- `classify` (optional) asks a decision model which tags, content type and collection fit ([Classify](#classify)).
 - `analyze` finds entities, chapters, keywords and talk statistics; `summarize` (optional) calls any OpenAI-compatible
   server for a summary, key points, action items (with who will do them), topics, people, tone and importance, each
   key point and action item with the time of the line it comes from; `report` writes static HTML per recording and
@@ -149,6 +150,26 @@ current model each time, and does nothing (no run is recorded) while search by m
 Settings → Search shows how far it has got and can queue more now; `lens embed` indexes here and now. When the
 embeddings server can't be reached, the step is skipped (the routine tries again later) and searches go by the words,
 saying why.
+
+### Classify
+
+Where a decision model is set up ([Configuration](configuration.md#decisions)), the `classify` step (after `embed`,
+in the standard pipeline and after every import) asks it three things about a new resource, in one request, from its
+title and the start of its text: which of the **tags the namespace already uses** fit it (the forty most used; the
+model can't invent tags), which **content type** of its kind it is (when nobody chose one), and which **collection**
+it belongs in (when nobody placed it: it's still in the namespace's default collection).
+
+An answer at least `decisions.apply_above` sure (85%) is applied: the tag is added, the content type set. A likely one
+(over 50%) waits on the resource as a **suggestion**: editors see them on the Details tab and accept or dismiss each
+(`POST` and `DELETE /resources/{rid}/suggestions/{id}`); a dismissed one isn't suggested for that resource again,
+and a tag the model applied that a person took off isn't put back. What is applied without a person is in the audit
+log (`recording.classify.tag`, `.content_type`, `.collection`, by "decision model", with how sure it was).
+Moving into a collection changes who can read a resource (people with a role on that collection), so a collection is
+only ever suggested, however sure the model is, unless an admin switches `decisions.route` on; accepting one needs
+editing rights on that collection too and is audited as `recording.collection`.
+
+Without a decision model the step is skipped, and so it is when the model can't be reached: the resource is complete
+without suggestions, and running the step again later asks again.
 
 ## Background work
 

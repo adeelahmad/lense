@@ -3531,6 +3531,108 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/suggestions/{sid}": {
+      "post": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Accept Suggestion",
+        "description": "Accept what a decision model suggested for a resource (editors): the tag is added, the content type set, or the\nresource moved into the collection (editors of that collection too; audited as `recording.collection`).",
+        "operationId": "accept_suggestion",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Suggestion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Dismiss Suggestion",
+        "description": "Dismiss a suggestion (editors); it isn't suggested for this resource again.",
+        "operationId": "dismiss_suggestion",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Suggestion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/move": {
       "post": {
         "tags": [
@@ -5365,6 +5467,58 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/comments/{cid}/flag": {
+      "delete": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Keep Comment",
+        "description": "An owner of the resource looked at a flagged comment and it stays: the flag is cleared, and that text isn't\nflagged again. Audited (`comment.flag.keep`). To remove the comment instead, delete it.",
+        "operationId": "keep_comment",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/highlights": {
       "get": {
         "tags": [
@@ -7120,11 +7274,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "where a decision model is set up (Settings \u2192 Decisions), have it judge whether each of the best hits answers the query and order them by that; hits then carry `relevance`. Only the first page is reranked",
+              "description": "where a decision model is set up (Settings \u2192 Decisions), have it judge whether each of the best hits answers the query and order them by that; hits then carry `relevance`. Pages past those hits come as matched",
               "default": true,
               "title": "Rerank"
             },
-            "description": "where a decision model is set up (Settings \u2192 Decisions), have it judge whether each of the best hits answers the query and order them by that; hits then carry `relevance`. Only the first page is reranked"
+            "description": "where a decision model is set up (Settings \u2192 Decisions), have it judge whether each of the best hits answers the query and order them by that; hits then carry `relevance`. Pages past those hits come as matched"
           }
         ],
         "responses": {
@@ -14932,6 +15086,62 @@
           }
         }
       }
+    },
+    "/api/v1/comments/flagged": {
+      "get": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Flagged Comments",
+        "description": "The comments a decision model flagged (spam, abuse, personal details) in the namespaces you own, the newest\nfirst. Each waits for an owner to keep it (`DELETE \u2026/comments/{cid}/flag`) or delete it.",
+        "operationId": "flagged_comments",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace",
+              "title": "Ns"
+            },
+            "description": "one namespace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FlaggedComment"
+                  },
+                  "title": "Response Comments-Flagged Comments"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -17969,6 +18179,14 @@
             "type": "boolean",
             "title": "Can Delete",
             "description": "you wrote it, or you own the resource"
+          },
+          "flagged": {
+            "items": {
+              "$ref": "#/components/schemas/FlagReason"
+            },
+            "type": "array",
+            "title": "Flagged",
+            "description": "why a decision model flagged it for review; only owners of the resource see this"
           }
         },
         "additionalProperties": true,
@@ -20109,6 +20327,136 @@
         "additionalProperties": false,
         "type": "object",
         "title": "FileUpdate"
+      },
+      "FlagReason": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": [
+              "spam",
+              "abuse",
+              "personal"
+            ],
+            "title": "Reason"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "p": {
+            "type": "number",
+            "title": "P",
+            "description": "how sure the decision model was, 0 to 1"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "reason",
+          "label",
+          "p"
+        ],
+        "title": "FlagReason"
+      },
+      "FlaggedComment": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "the resource's title"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Name"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "flagged": {
+            "items": {
+              "$ref": "#/components/schemas/FlagReason"
+            },
+            "type": "array",
+            "title": "Flagged"
+          },
+          "flagged_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flagged At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "recording",
+          "text",
+          "flagged"
+        ],
+        "title": "FlaggedComment",
+        "description": "A comment waiting for an owner's look."
       },
       "ForgotPasswordRequest": {
         "properties": {
@@ -26737,6 +27085,14 @@
             "type": "array",
             "title": "Tags"
           },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/Suggestion"
+            },
+            "type": "array",
+            "title": "Suggestions",
+            "description": "waiting for an editor to accept or dismiss; editors only"
+          },
           "email": {
             "anyOf": [
               {
@@ -31259,6 +31615,55 @@
           "stopping"
         ],
         "title": "StopResult"
+      },
+      "Suggestion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "tag",
+              "content_type",
+              "collection"
+            ],
+            "title": "Kind"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Value",
+            "description": "the tag, the content type's key, or the collection's id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "p": {
+            "type": "number",
+            "title": "P",
+            "description": "how sure the model was, 0 to 1"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "value",
+          "label",
+          "p"
+        ],
+        "title": "Suggestion",
+        "description": "Something a decision model thinks fits the resource but wasn't sure enough to apply (docs/processing.md#classify)."
       },
       "TagCount": {
         "properties": {
