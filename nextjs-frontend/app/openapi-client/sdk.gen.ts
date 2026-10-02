@@ -73,6 +73,20 @@ import type {
   GetHealthResponses,
   ReindexSearchData,
   ReindexSearchResponses,
+  GetSetupData,
+  GetSetupResponses,
+  SaveNamespaceData,
+  SaveNamespaceResponses,
+  SaveNamespaceErrors,
+  SaveLlmData,
+  SaveLlmResponses,
+  SaveLlmErrors,
+  SaveStorageData,
+  SaveStorageResponses,
+  SaveStorageErrors,
+  FinishData,
+  FinishResponses,
+  FinishErrors,
   ListNamespacesData,
   ListNamespacesResponses,
   CreateNamespaceData,
@@ -619,6 +633,40 @@ import type {
   RunPipelineData,
   RunPipelineResponses,
   RunPipelineErrors,
+  ListContentTypesData,
+  ListContentTypesResponses,
+  CreateContentTypeData,
+  CreateContentTypeResponses,
+  CreateContentTypeErrors,
+  DeleteContentTypeData,
+  DeleteContentTypeResponses,
+  DeleteContentTypeErrors,
+  UpdateContentTypeData,
+  UpdateContentTypeResponses,
+  UpdateContentTypeErrors,
+  GetRecordingContentTypeData,
+  GetRecordingContentTypeResponses,
+  GetRecordingContentTypeErrors,
+  SetRecordingContentTypeData,
+  SetRecordingContentTypeResponses,
+  SetRecordingContentTypeErrors,
+  ListWorkflowsData,
+  ListWorkflowsResponses,
+  CreateWorkflowData,
+  CreateWorkflowResponses,
+  CreateWorkflowErrors,
+  GetWorkflowData,
+  GetWorkflowResponses,
+  GetWorkflowErrors,
+  UpdateWorkflowData,
+  UpdateWorkflowResponses,
+  UpdateWorkflowErrors,
+  CreateWorkflowVersionData,
+  CreateWorkflowVersionResponses,
+  CreateWorkflowVersionErrors,
+  RunWorkflowData,
+  RunWorkflowResponses,
+  RunWorkflowErrors,
   ListChatsData,
   ListChatsResponses,
   CreateChatData,
@@ -714,6 +762,47 @@ import type {
   UpdateViewData,
   UpdateViewResponses,
   UpdateViewErrors,
+  ListRoutinesData,
+  ListRoutinesResponses,
+  CreateRoutineData,
+  CreateRoutineResponses,
+  CreateRoutineErrors,
+  PreviewScheduleData,
+  PreviewScheduleResponses,
+  PreviewScheduleErrors,
+  DeleteRoutineData,
+  DeleteRoutineResponses,
+  DeleteRoutineErrors,
+  GetRoutineData,
+  GetRoutineResponses,
+  GetRoutineErrors,
+  UpdateRoutineData,
+  UpdateRoutineResponses,
+  UpdateRoutineErrors,
+  RunRoutineData,
+  RunRoutineResponses,
+  RunRoutineErrors,
+  ListRunsData,
+  ListRunsResponses,
+  ListRunsErrors,
+  GetRunData,
+  GetRunResponses,
+  GetRunErrors,
+  UndoRunData,
+  UndoRunResponses,
+  UndoRunErrors,
+  ListGraphChangesData,
+  ListGraphChangesResponses,
+  ListGraphChangesErrors,
+  AcceptGraphChangeData,
+  AcceptGraphChangeResponses,
+  AcceptGraphChangeErrors,
+  DismissGraphChangeData,
+  DismissGraphChangeResponses,
+  DismissGraphChangeErrors,
+  UndoGraphChangeData,
+  UndoGraphChangeResponses,
+  UndoGraphChangeErrors,
 } from "./types.gen";
 import { client } from "./client.gen";
 
@@ -737,7 +826,8 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 export class Auth {
   /**
    * Status
-   * Whether the archive still needs its first admin (the sign-in page shows the setup form instead).
+   * Whether the archive still needs its first admin (the sign-in page shows the setup form instead), and whether
+   * the first-run wizard is still to be finished (the web app takes admins there).
    */
   public static status<ThrowOnError extends boolean = false>(options?: Options<StatusData, ThrowOnError>) {
     return (options?.client ?? client).get<StatusResponses, unknown, ThrowOnError>({
@@ -1100,6 +1190,79 @@ export class Admin {
   }
 }
 
+export class Setup {
+  /**
+   * Get Setup
+   * What is set already, and which fields .env or archive.yaml locks.
+   */
+  public static getSetup<ThrowOnError extends boolean = false>(options?: Options<GetSetupData, ThrowOnError>) {
+    return (options?.client ?? client).get<GetSetupResponses, unknown, ThrowOnError>({
+      url: "/api/v1/setup",
+      ...options,
+    });
+  }
+
+  /**
+   * Save Namespace
+   * Create the first namespace (or set the graph mode of one that exists).
+   */
+  public static saveNamespace<ThrowOnError extends boolean = false>(options: Options<SaveNamespaceData, ThrowOnError>) {
+    return (options.client ?? client).post<SaveNamespaceResponses, SaveNamespaceErrors, ThrowOnError>({
+      url: "/api/v1/setup/namespace",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Save Llm
+   * The model provider: an OpenAI-compatible server's address, the model, and its key (empty: unchanged).
+   */
+  public static saveLlm<ThrowOnError extends boolean = false>(options: Options<SaveLlmData, ThrowOnError>) {
+    return (options.client ?? client).put<SaveLlmResponses, SaveLlmErrors, ThrowOnError>({
+      url: "/api/v1/setup/llm",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Save Storage
+   * The upload limit, and optionally a folder on this machine (inside sources.local_roots) to watch.
+   */
+  public static saveStorage<ThrowOnError extends boolean = false>(options: Options<SaveStorageData, ThrowOnError>) {
+    return (options.client ?? client).put<SaveStorageResponses, SaveStorageErrors, ThrowOnError>({
+      url: "/api/v1/setup/storage",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Finish
+   * Finish (or skip) the wizard; the web app stops showing it. Everything stays changeable in Settings.
+   */
+  public static finish<ThrowOnError extends boolean = false>(options: Options<FinishData, ThrowOnError>) {
+    return (options.client ?? client).post<FinishResponses, FinishErrors, ThrowOnError>({
+      url: "/api/v1/setup/finish",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
 export class Namespaces {
   /**
    * List Namespaces
@@ -1133,7 +1296,8 @@ export class Namespaces {
 
   /**
    * Update Namespace
-   * Owners: the graph mode (shared or isolated) and the default pipeline (null for the built-in one).
+   * Owners: the graph mode (shared or isolated), the default pipeline (null for the built-in one) and a pipeline per
+   * content type.
    */
   public static updateNamespace<ThrowOnError extends boolean = false>(
     options: Options<UpdateNamespaceData, ThrowOnError>,
@@ -3771,6 +3935,193 @@ export class Pipelines {
   }
 }
 
+export class ContentTypes {
+  /**
+   * List Content Types
+   * Every subtype, by base type (general first).
+   */
+  public static listContentTypes<ThrowOnError extends boolean = false>(
+    options?: Options<ListContentTypesData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ListContentTypesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/content-types",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Content Type
+   */
+  public static createContentType<ThrowOnError extends boolean = false>(
+    options: Options<CreateContentTypeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<CreateContentTypeResponses, CreateContentTypeErrors, ThrowOnError>({
+      url: "/api/v1/content-types",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Content Type
+   * Remove a subtype (not a base type's general one). Resources that had it are recognised again.
+   */
+  public static deleteContentType<ThrowOnError extends boolean = false>(
+    options: Options<DeleteContentTypeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<DeleteContentTypeResponses, DeleteContentTypeErrors, ThrowOnError>({
+      url: "/api/v1/content-types/{key}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Content Type
+   */
+  public static updateContentType<ThrowOnError extends boolean = false>(
+    options: Options<UpdateContentTypeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).patch<UpdateContentTypeResponses, UpdateContentTypeErrors, ThrowOnError>({
+      url: "/api/v1/content-types/{key}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Recording Content Type
+   */
+  public static getRecordingContentType<ThrowOnError extends boolean = false>(
+    options: Options<GetRecordingContentTypeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<
+      GetRecordingContentTypeResponses,
+      GetRecordingContentTypeErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/resources/{rid}/content-type",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Recording Content Type
+   * Choose the resource's subtype (null: recognise it from the file again). Editors. New runs use its pipeline.
+   */
+  public static setRecordingContentType<ThrowOnError extends boolean = false>(
+    options: Options<SetRecordingContentTypeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).put<
+      SetRecordingContentTypeResponses,
+      SetRecordingContentTypeErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/resources/{rid}/content-type",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Workflows {
+  /**
+   * List Workflows
+   * Saved workflows, plus the nodes a workflow can be built from.
+   */
+  public static listWorkflows<ThrowOnError extends boolean = false>(
+    options?: Options<ListWorkflowsData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ListWorkflowsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/workflows",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Workflow
+   */
+  public static createWorkflow<ThrowOnError extends boolean = false>(
+    options: Options<CreateWorkflowData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<CreateWorkflowResponses, CreateWorkflowErrors, ThrowOnError>({
+      url: "/api/v1/workflows",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Workflow
+   * One version (default: the current one) and the list of versions.
+   */
+  public static getWorkflow<ThrowOnError extends boolean = false>(options: Options<GetWorkflowData, ThrowOnError>) {
+    return (options.client ?? client).get<GetWorkflowResponses, GetWorkflowErrors, ThrowOnError>({
+      url: "/api/v1/workflows/{wid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Workflow
+   * Its name and description (the graph changes by saving a version).
+   */
+  public static updateWorkflow<ThrowOnError extends boolean = false>(
+    options: Options<UpdateWorkflowData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).patch<UpdateWorkflowResponses, UpdateWorkflowErrors, ThrowOnError>({
+      url: "/api/v1/workflows/{wid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create Workflow Version
+   */
+  public static createWorkflowVersion<ThrowOnError extends boolean = false>(
+    options: Options<CreateWorkflowVersionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<CreateWorkflowVersionResponses, CreateWorkflowVersionErrors, ThrowOnError>({
+      url: "/api/v1/workflows/{wid}/versions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Run Workflow
+   * Run this workflow on one recording now, as a job (after anything its current job still has to do).
+   */
+  public static runWorkflow<ThrowOnError extends boolean = false>(options: Options<RunWorkflowData, ThrowOnError>) {
+    return (options.client ?? client).post<RunWorkflowResponses, RunWorkflowErrors, ThrowOnError>({
+      url: "/api/v1/workflows/{wid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
 export class Chats {
   /**
    * List Chats
@@ -4236,6 +4587,180 @@ export class Views {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class Routines {
+  /**
+   * List Routines
+   */
+  public static listRoutines<ThrowOnError extends boolean = false>(options?: Options<ListRoutinesData, ThrowOnError>) {
+    return (options?.client ?? client).get<ListRoutinesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/routines",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Routine
+   */
+  public static createRoutine<ThrowOnError extends boolean = false>(options: Options<CreateRoutineData, ThrowOnError>) {
+    return (options.client ?? client).post<CreateRoutineResponses, CreateRoutineErrors, ThrowOnError>({
+      url: "/api/v1/routines",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Preview Schedule
+   * What a schedule means and the next five times it runs, to check one before saving it.
+   */
+  public static previewSchedule<ThrowOnError extends boolean = false>(
+    options: Options<PreviewScheduleData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<PreviewScheduleResponses, PreviewScheduleErrors, ThrowOnError>({
+      url: "/api/v1/routines/schedule",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Routine
+   */
+  public static deleteRoutine<ThrowOnError extends boolean = false>(options: Options<DeleteRoutineData, ThrowOnError>) {
+    return (options.client ?? client).delete<DeleteRoutineResponses, DeleteRoutineErrors, ThrowOnError>({
+      url: "/api/v1/routines/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Routine
+   */
+  public static getRoutine<ThrowOnError extends boolean = false>(options: Options<GetRoutineData, ThrowOnError>) {
+    return (options.client ?? client).get<GetRoutineResponses, GetRoutineErrors, ThrowOnError>({
+      url: "/api/v1/routines/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Routine
+   * Change what is sent: `schedule: null` makes it a routine run only by hand, `namespaces: null` runs it over
+   * every namespace.
+   */
+  public static updateRoutine<ThrowOnError extends boolean = false>(options: Options<UpdateRoutineData, ThrowOnError>) {
+    return (options.client ?? client).patch<UpdateRoutineResponses, UpdateRoutineErrors, ThrowOnError>({
+      url: "/api/v1/routines/{rid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Run Routine
+   * Run it as soon as the scheduler next looks (within half a minute), even when it is off.
+   */
+  public static runRoutine<ThrowOnError extends boolean = false>(options: Options<RunRoutineData, ThrowOnError>) {
+    return (options.client ?? client).post<RunRoutineResponses, RunRoutineErrors, ThrowOnError>({
+      url: "/api/v1/routines/{rid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Runs
+   */
+  public static listRuns<ThrowOnError extends boolean = false>(options: Options<ListRunsData, ThrowOnError>) {
+    return (options.client ?? client).get<ListRunsResponses, ListRunsErrors, ThrowOnError>({
+      url: "/api/v1/routines/{rid}/runs",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Run
+   */
+  public static getRun<ThrowOnError extends boolean = false>(options: Options<GetRunData, ThrowOnError>) {
+    return (options.client ?? client).get<GetRunResponses, GetRunErrors, ThrowOnError>({
+      url: "/api/v1/routine-runs/{run_id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Undo Run
+   * Take back every graph change the run made.
+   */
+  public static undoRun<ThrowOnError extends boolean = false>(options: Options<UndoRunData, ThrowOnError>) {
+    return (options.client ?? client).post<UndoRunResponses, UndoRunErrors, ThrowOnError>({
+      url: "/api/v1/routine-runs/{run_id}/undo",
+      ...options,
+    });
+  }
+
+  /**
+   * List Graph Changes
+   * Changes to the entities of namespaces you can read, newest first.
+   */
+  public static listGraphChanges<ThrowOnError extends boolean = false>(
+    options?: Options<ListGraphChangesData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ListGraphChangesResponses, ListGraphChangesErrors, ThrowOnError>({
+      url: "/api/v1/graph-changes",
+      ...options,
+    });
+  }
+
+  /**
+   * Accept Graph Change
+   */
+  public static acceptGraphChange<ThrowOnError extends boolean = false>(
+    options: Options<AcceptGraphChangeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<AcceptGraphChangeResponses, AcceptGraphChangeErrors, ThrowOnError>({
+      url: "/api/v1/graph-changes/{cid}/accept",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Dismiss Graph Change
+   */
+  public static dismissGraphChange<ThrowOnError extends boolean = false>(
+    options: Options<DismissGraphChangeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<DismissGraphChangeResponses, DismissGraphChangeErrors, ThrowOnError>({
+      url: "/api/v1/graph-changes/{cid}/dismiss",
+      ...options,
+    });
+  }
+
+  /**
+   * Undo Graph Change
+   */
+  public static undoGraphChange<ThrowOnError extends boolean = false>(
+    options: Options<UndoGraphChangeData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<UndoGraphChangeResponses, UndoGraphChangeErrors, ThrowOnError>({
+      url: "/api/v1/graph-changes/{cid}/undo",
+      ...options,
     });
   }
 }

@@ -211,6 +211,7 @@ DEFAULTS = {
             "llm",
             "report",
             "export",
+            "workflow",
         ],
     },
     # video: sampling, shot detection, OCR and faces. Model paths are bootstrap-only (the app can't point at arbitrary files).
@@ -492,6 +493,12 @@ class DB:
 
 
 SCHEMA = [
+    # counters (next_id), the migration marker and the settings version. Defined up front: SurrealDB 3 refuses to
+    # SELECT from a table nobody has written to yet ("table 'seq' does not exist"), which a fresh database with no
+    # namespaces in archive.yaml would otherwise hit in migrate() before anything had created it.
+    "DEFINE TABLE IF NOT EXISTS seq SCHEMALESS",
+    # first-run setup (domain/setup.py): setup:wizard while the web wizard is still to be finished
+    "DEFINE TABLE IF NOT EXISTS setup SCHEMALESS",
     # No composite indexes: on SurrealDB 2.x a (space, x) index makes "space = $s" lookups return nothing, so
     # uniqueness is enforced on single "<space>:<value>" key fields instead.
     "DEFINE TABLE IF NOT EXISTS space SCHEMALESS",
@@ -608,6 +615,19 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS pipeline SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS pipeline_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS pipeline_version_p ON pipeline_version FIELDS pipeline",
+    "DEFINE TABLE IF NOT EXISTS workflow SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS content_type SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS workflow_version SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS workflow_version_w ON workflow_version FIELDS workflow",
+    # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
+    "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
+    "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS routine_run SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS routine_run_r ON routine_run FIELDS routine",
+    "DEFINE TABLE IF NOT EXISTS graph_change SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS graph_change_run ON graph_change FIELDS run",
+    "DEFINE INDEX IF NOT EXISTS graph_change_status ON graph_change FIELDS status",
+    "DEFINE INDEX IF NOT EXISTS graph_change_pair ON graph_change FIELDS pair",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",

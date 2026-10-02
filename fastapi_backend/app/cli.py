@@ -188,7 +188,7 @@ def platform_main(argv, config):
     import threading
     import time
 
-    from .domain import auth, jobs, settings, sources
+    from .domain import auth, jobs, routines, settings, sources
 
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -212,7 +212,7 @@ def platform_main(argv, config):
     w.add_argument("--name")
     w.add_argument("--steps", help="comma-separated steps this worker runs (default: all)")
     w.add_argument("--once", action="store_true", help="run what is queued, then exit")
-    x = sub.add_parser("watch", help="scan watched folders on storage sources")
+    x = sub.add_parser("watch", help="scan watched folders on storage sources and run the routines that are due")
     x.add_argument("--once", action="store_true")
     a = ap.parse_args(argv)
     cfg = store.load_config(config)
@@ -256,24 +256,39 @@ def platform_main(argv, config):
             else:
                 print(f"worker {wk.name} runs {', '.join(sorted(wk.can))}; Ctrl-C to stop")
                 stop = threading.Event()
+                _stop_on_term()
                 try:
                     wk.loop(stop)
                 except KeyboardInterrupt:
                     stop.set()
         elif a.once:
             print(f"scanned {sources.poll_due(db, C(), print)} folder(s)")
+            print(f"ran {routines.run_due(db, C(), print)} routine(s)")
         else:
-            print("watching storage sources; Ctrl-C to stop")
+            print("watching storage sources and running routines; Ctrl-C to stop")
+            _stop_on_term()
             try:
                 while True:
                     sources.poll_due(db, C(), print)
-                    time.sleep(max(5, C()["sources"]["check_seconds"]))
+                    routines.run_due(db, C(), print)
+                    time.sleep(max(5, min(C()["sources"]["check_seconds"], routines.CHECK_SECONDS)))
             except KeyboardInterrupt:
                 pass
     except (ValueError, KeyError) as e:
         raise SystemExit(str(e)) from None
     finally:
         db.close()
+
+
+def _stop_on_term():
+    """`docker stop` and service managers send TERM: stop as Ctrl-C does. (As a container's first process Python
+    would otherwise ignore it, and be killed ten seconds later.)"""
+    import signal
+
+    def stop(*_):
+        raise KeyboardInterrupt
+
+    signal.signal(signal.SIGTERM, stop)
 
 
 def main(argv=None):
