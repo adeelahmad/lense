@@ -33,6 +33,37 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - The backend's OpenAPI watcher no longer runs mypy on every save (it took longer than the reload) and leaves
       `openapi.json` alone when the schema hasn't changed, so the frontend doesn't regenerate its client for nothing.
 
+- **OAuth sign-in for API and MCP clients.** Apps can sign people in with their Lens account instead of asking them
+  for a key: Lens is an OAuth 2.1 authorization server with PKCE (S256, required), dynamic client registration
+  (RFC 7591) and discovery (`/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`), as MCP
+  clients expect. Decided with the project owner: Lens issues the tokens itself; they carry the person's roles and
+  last as long as the token-lifetime settings say; no account is created through OAuth.
+    - API: `POST /api/v1/oauth/register`, `GET`/`POST …/authorize` (the consent page's question and answer),
+      `POST …/token` (authorization code and refresh token; refresh tokens rotate, and one that comes back after it
+      was swapped ends the access), `POST …/revoke`, `GET …/grants` and `DELETE …/grants/{id}`; new `oauth_client`,
+      `oauth_code`, `oauth_grant` and `oauth_token` tables, holding only hashes of codes, tokens and app secrets
+      (docs/authentication.md#oauth, docs/api.md#oauth). The bearer path takes an app's access token (`lo_…`) next to
+      sessions and API keys; `GET /auth/me` says `via: "oauth"`. Audited as `oauth.client.register`, `oauth.grant`
+      and `oauth.revoke`.
+    - An app asks for `read` or `read write`, and the person may give read only. An admin's app has the admin's roles
+      in every namespace but can't administer the archive (people, settings, the audit log, everyone's keys).
+    - New settings (Settings → API keys, docs/configuration.md#api-keys): `tokens.oauth_access_minutes` (60) and
+      `tokens.oauth_refresh_days` (30, at most `tokens.max_days`).
+    - Redirect addresses are https, this machine's (any port) or the app's own scheme; ones with a user name or a
+      backslash in them, and the browser's and the system's own schemes, are refused. Discovery names the web app's
+      address only as a trusted proxy reports it, else `FRONTEND_URL`.
+    - Web app: the consent page at `/oauth/authorize` (signing in first when needed) names the app, where it returns
+      you to and what it asks for, with Allow and Deny; API tokens → Apps with access lists the apps you allowed,
+      with Revoke; `/.well-known/…` is served on the web app's address too. The web app now passes the address the
+      browser used (its `Host`, or what a reverse proxy in front reports) on to the API.
+    - Checked in the browser, playing the app: it finds the endpoints on the web app's address and registers; a
+      signed-out viewer is sent to sign in and comes back to the consent page, switches "Make changes" off and
+      allows; the app gets its code with its state, swaps it for tokens that have the viewer's one role, and renews
+      them; on a phone in dark mode the viewer sees the app under Apps with access and revokes it, and its token
+      stops working; a request with an address the app didn't register says so and sends nobody anywhere; an admin
+      in dark mode denies (the app hears `access_denied`), then allows: the app reads resources and can't read the
+      audit log; Settings → API keys shows the two lifetimes. No console errors besides the 400 of the refused
+      request.
 - **Fix (security): only the server's own media links are signed.** Text shaped like a media link
   (`/api/v1/recordings/12/audio`) came back signed: titles and transcript lines in API responses, and anything in the
   embed and report pages, including the transcript data inside them. Someone who could rename a recording or correct

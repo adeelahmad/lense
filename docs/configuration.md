@@ -27,7 +27,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `ARCHIVE_ALLOWED_HOSTS` | | break-glass override of allowed Host headers if a bad setting locks everyone out |
 | `RUN_BACKGROUND` | follows `workers.inline` | run job workers and folder watching inside the API process |
 | `LENS_SETUP_CODE` | random | fix the first-run setup code (automation) |
-| `FRONTEND_URL` | `http://localhost:3000` | links in emails |
+| `FRONTEND_URL` | `http://localhost:3000` | the web app's address as people use it: links in emails, and where apps send people to sign in ([OAuth](authentication.md#oauth)) |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | origins allowed to call the API from a browser |
 | `OPENAPI_URL` | `/openapi.json` | `""` disables `/docs` and the schema |
 | `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, `MAIL_STARTTLS`, `MAIL_SSL_TLS`, `USE_CREDENTIALS`, `VALIDATE_CERTS` | | SMTP for password reset and for telling owners about requests for access; without `MAIL_SERVER` the links are logged |
@@ -201,8 +201,11 @@ Settings → API keys:
 | `tokens.default_days` | 90 | how long a new key lasts when its maker doesn't say, 1–3650 days (at most `tokens.max_days`) |
 | `tokens.max_days` | 365 | the longest a key may last, 1–3650 days |
 | `tokens.never_expire` | false | whether keys may be made that never expire |
+| `tokens.oauth_access_minutes` | 60 | how long the access token of an app someone signed in to lasts ([OAuth](authentication.md#oauth)), 5–1440 minutes; the app renews it by itself |
+| `tokens.oauth_refresh_days` | 30 | how long such an app stays signed in after it last renewed its access, 1–3650 days (at most `tokens.max_days`) |
 
-The limits apply to keys made after a change: keys made before keep their expiry. Settings → API keys also lists
+The limits apply to keys made after a change: keys made before keep their expiry; apps get the new lifetimes the
+next time they renew. Settings → API keys also lists
 everyone's keys (whose, what scope, when they expire and were last used), and an admin can revoke any of them; that's
 audited as `token.revoke`.
 

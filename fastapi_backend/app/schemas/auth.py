@@ -51,7 +51,7 @@ class Me(ResponseModel):
     partial: list[str] = Field(
         default_factory=list, description="namespaces you have no role in but see some collections of (roles on collections)"
     )
-    via: Literal["access", "token"]
+    via: Literal["access", "token", "oauth"]
     scope: Literal["read", "write"]
 
 

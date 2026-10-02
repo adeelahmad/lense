@@ -2,7 +2,7 @@
 
 The API lives under `/api/v1`. Interactive docs with every request and response schema are at `/docs` (Swagger UI) and `/redoc` on the backend; the schema at `/openapi.json` generates the frontend's typed client (one class per tag, e.g. `Recordings.getRecording`).
 
-Authenticate with `Authorization: Bearer <token>`: an access token from `POST /api/v1/auth/login`, or an API token (`la_…`). See [Authentication](authentication.md). Errors are JSON `{"detail": …}`; validation errors answer 422. Namespaces you can't read answer 404.
+Authenticate with `Authorization: Bearer <token>`: an access token from `POST /api/v1/auth/login`, an API token (`la_…`), or the access token of an app someone gave access to through OAuth (`lo_…`). See [Authentication](authentication.md). Errors are JSON `{"detail": …}`; validation errors answer 422. Namespaces you can't read answer 404.
 
 Outside `/api/v1`: IIIF resources under `/iiif/…` ([IIIF](iiif.md)), the embeddable player at `/embed/<id>` (and at a share link's short address, `/s/<code>`) and stored reports at `/reports/<namespace>/…`.
 
@@ -39,6 +39,45 @@ DELETE /api/v1/admin/tokens/{token_id}
 than `tokens.max_days`, or `0` (never expires) when `tokens.never_expire` is off, is a 400. `GET /tokens/limits` says
 `{default_days, max_days, never_expire}`. `/admin/tokens` lists everyone's keys with their owner's `email` (admins), and
 `DELETE /admin/tokens/{token_id}` revokes any of them; revoking is audited as `token.revoke`.
+
+## oauth
+
+```
+GET    /.well-known/oauth-authorization-server
+GET    /.well-known/oauth-protected-resource
+POST   /api/v1/oauth/register
+GET    /api/v1/oauth/authorize
+POST   /api/v1/oauth/authorize
+POST   /api/v1/oauth/token
+POST   /api/v1/oauth/revoke
+GET    /api/v1/oauth/grants
+DELETE /api/v1/oauth/grants/{grant_id}
+```
+
+Lens is an OAuth 2.1 authorization server for API and MCP clients ([Authentication](authentication.md#oauth)).
+
+* `POST /oauth/register {redirect_uris, client_name?, client_uri?, token_endpoint_auth_method?}` (RFC 7591, no sign-in,
+  201) registers an app: `client_id` (`lc_…`), and a `client_secret` (`ls_…`, shown once) when it asked for
+  `client_secret_post` or `client_secret_basic` instead of `none`. Redirect addresses are https, `http://localhost`
+  or `127.0.0.1` (any port), or the app's own scheme; other metadata is ignored. Errors are
+  `{error, error_description}`; more than 8 apps from one address in 15 minutes is a 429.
+* `GET /oauth/authorize?client_id=&redirect_uri=&code_challenge=&code_challenge_method=S256&scope=` (signed in, as a
+  person) answers what the consent page shows: `{client: {id, name, uri}, redirect_uri, scope, granted}`, `scope`
+  being `read` or `read write` and `granted` what this app was given before. A request that can't be answered (an
+  unknown app, an address it didn't register, no S256 challenge) is a 400 with the reason.
+* `POST /oauth/authorize {client_id, redirect_uri, code_challenge, code_challenge_method, scope?, state?, resource?,
+  approve, grant?}` answers it: `{redirect_to}`, the app's address with `code` and `state`, or with
+  `error=access_denied`. `grant: "read"` gives less than was asked for.
+* `POST /oauth/token` (form-encoded) with `grant_type=authorization_code`, `code`, `redirect_uri`, `code_verifier` and
+  `client_id` (and `client_secret`, or HTTP Basic, for apps that have one), or with `grant_type=refresh_token` and
+  `refresh_token`: `{access_token, token_type: "Bearer", expires_in, refresh_token, scope}`. Errors are
+  `{error, error_description}` (`invalid_grant`, `invalid_client` with 401, `unsupported_grant_type`).
+* `POST /oauth/revoke` (form-encoded: `token`, `client_id`) ends the access the token belongs to; it answers
+  `{ok: true}` whether or not the token was known.
+* `GET /oauth/grants` lists the apps you gave access to (`id`, `client`, `name`, `uri`, `scope`, `created_at`,
+  `last_used_at`, `expires_at`); `DELETE /oauth/grants/{grant_id}` takes one's access away.
+
+`GET /auth/me` says `via: "oauth"` for an app's token, with `scope` `read` or `write`.
 
 ## users
 
