@@ -11,6 +11,7 @@
 #
 # Needs Docker with buildx. Writes dist/synology/lens-<version>-<arch>.spk.
 set -eu
+export COPYFILE_DISABLE=1 # macOS tar: no ._ resource-fork files in the package
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
@@ -64,7 +65,9 @@ chmod 755 "$WORK/spk/scripts/"*
 cp "$HERE/icons/lens_64.png" "$WORK/spk/PACKAGE_ICON.PNG"
 cp "$HERE/icons/lens_256.png" "$WORK/spk/PACKAGE_ICON_256.PNG"
 sed -e "s/@VERSION@/$VERSION/" -e "s/@ARCH@/$ARCH/" "$HERE/INFO.in" > "$WORK/spk/INFO"
-echo "checksum=\"$(md5sum "$WORK/spk/package.tgz" | cut -d' ' -f1)\"" >> "$WORK/spk/INFO"
+# md5sum on Linux, md5 on macOS
+SUM=$( (md5sum "$WORK/spk/package.tgz" 2>/dev/null || md5 -r "$WORK/spk/package.tgz") | cut -d' ' -f1)
+echo "checksum=\"$SUM\"" >> "$WORK/spk/INFO"
 echo "extractsize=\"$(du -sk "$WORK/package" | cut -f1)\"" >> "$WORK/spk/INFO"
 
 SPK=$OUT/lens-$VERSION-$ARCH.spk
