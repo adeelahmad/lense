@@ -2,7 +2,10 @@
 #   ACCESS_SECRET_KEY=... AUTH_SECRET=... SURREAL_PASS=... ARCHIVE_SECRET_KEY=... docker compose -f docker-compose.prod.yml up -d
 # Put an HTTPS reverse proxy in front of the frontend (port 3000) before exposing it; IIIF auth requires HTTPS.
 
+# Image names of their own: under the same project, the dev stack's default names (<project>-backend, ...) would be
+# overwritten by these builds, and a later `docker compose up` would run the production images without hot reload.
 x-backend: &backend
+  image: lens-backend:prod
   build:
     context: fastapi_backend
     target: ${LENS_TARGET:-lean}  # full: LibreOffice and Chromium, to read Office files, text, web pages and emails
@@ -57,6 +60,7 @@ services:
       disable: true
 
   frontend:
+    image: lens-frontend:prod
     build:
       context: ./nextjs-frontend
       dockerfile: Dockerfile.prod

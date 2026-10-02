@@ -12,6 +12,8 @@ x-backend: &backend
       DEV: "true"
       EXTRAS: ${EXTRAS:-}
   env_file:
+    - path: .env                    # ARCHIVE_SECRET_KEY: the one native runs use, so both read stored credentials
+      required: false
     - path: fastapi_backend/.env
       required: false
   environment: &backend-env
