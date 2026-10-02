@@ -619,6 +619,15 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS content_type SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS workflow_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS workflow_version_w ON workflow_version FIELDS workflow",
+    # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
+    "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
+    "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS routine_run SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS routine_run_r ON routine_run FIELDS routine",
+    "DEFINE TABLE IF NOT EXISTS graph_change SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS graph_change_run ON graph_change FIELDS run",
+    "DEFINE INDEX IF NOT EXISTS graph_change_status ON graph_change FIELDS status",
+    "DEFINE INDEX IF NOT EXISTS graph_change_pair ON graph_change FIELDS pair",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",

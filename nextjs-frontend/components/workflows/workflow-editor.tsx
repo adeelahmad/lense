@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Fields, Workflows } from "@/app/openapi-client";
 import type { TemplateSummary, Workflow } from "@/app/openapi-client/types.gen";
 import { FlowCanvas, PaletteItem, freshId, type CanvasEdge, type CanvasNode } from "@/components/canvas/flow-canvas";
-import { useTemplateList } from "@/components/pipelines/catalog-header";
+import { useTemplateList, useWorkflowCatalog } from "@/components/pipelines/catalog-header";
 import { RunDialog } from "@/components/pipelines/pipeline-editor";
 import { NodeSettings, type NsField } from "@/components/workflows/node-settings";
 import {
@@ -17,10 +17,13 @@ import {
   NODES,
   cleanGraph,
   defaultConfig,
+  inScope,
+  infoFor,
   nodeSummary,
   problems as findProblems,
   sameGraph,
   starter,
+  type Scope,
   type WfEdge,
   type WfGraph,
   type WfNode,
@@ -29,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/components/ui/menu";
 import { EmptyState, Skeleton } from "@/components/ui/states";
+import { Segmented } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { relative } from "@/lib/format";
@@ -51,6 +55,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
     enabled: !creating,
   });
   const templates = useTemplateList();
+  const catalog = useWorkflowCatalog();
   const tpl = useMemo(
     () => new Map(((templates.data ?? []) as TemplateSummary[]).map((t) => [t.id, t])),
     [templates.data],
@@ -71,6 +76,8 @@ export function WorkflowEditor({ id }: { id?: number }) {
   };
 
   const base: Workflow | undefined = q.data;
+  const [newScope, setNewScope] = useState<Scope>("recording");
+  const scope: Scope = creating ? newScope : base?.scope === "graph" ? "graph" : "recording";
   const [graph, setGraph] = useState<WfGraph>(() => (creating ? starter() : { nodes: [], edges: [] }));
   const [sel, setSel] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -89,7 +96,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
   const why = readOnly ? "Only admins can change workflows" : undefined;
   const latest = base ? Math.max(base.current, ...(base.history ?? []).map((h) => h.version)) : 0;
   const dirty = creating ? true : base ? !sameGraph(base.graph as WfGraph, graph) : false;
-  const problems = findProblems(graph, (tid) => tpl.get(tid)?.kind);
+  const problems = findProblems(graph, (tid) => tpl.get(tid)?.kind, scope);
   const firstProblem = Object.entries(problems)[0];
   const nextV = latest + 1;
   const publishReason =
@@ -104,7 +111,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
     mutationFn: async (publish: boolean) => {
       const body = cleanGraph(graph);
       if (creating) {
-        const r = await data(Workflows.createWorkflow({ client, body: { name: name.trim(), graph: body } }));
+        const r = await data(Workflows.createWorkflow({ client, body: { name: name.trim(), graph: body, scope } }));
         return { id: r.id, version: 1 };
       }
       const r = await data(
@@ -129,7 +136,9 @@ export function WorkflowEditor({ id }: { id?: number }) {
       toast({
         tone: "green",
         title: publish ? `Published v${r.version}` : `Saved draft v${r.version}`,
-        body: publish ? "Pipelines that run it use this version from their next run." : "Publish it when it’s ready.",
+        body: publish
+          ? `${scope === "graph" ? "Routines" : "Pipelines"} that run it use this version from their next run.`
+          : "Publish it when it’s ready.",
       });
     },
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t save", body: e.message }),
@@ -196,7 +205,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
   const update = (n: WfNode) => setGraph((g) => ({ ...g, nodes: g.nodes.map((x) => (x.id === n.id ? n : x)) }));
 
   const canvasNodes: CanvasNode[] = graph.nodes.map((n) => {
-    const info = NODES[n.type];
+    const info = infoFor(n.type, scope);
     return {
       id: n.id,
       x: n.x ?? 0,
@@ -266,6 +275,21 @@ export function WorkflowEditor({ id }: { id?: number }) {
         ) : (
           <h1 className="text-[18px] font-bold text-fg">{base?.name}</h1>
         )}
+        {creating && (
+          <Segmented
+            label="What it runs on"
+            value={scope}
+            onChange={(v) => {
+              setNewScope(v as Scope);
+              setGraph(starter(v as Scope));
+              setSel(null);
+            }}
+            items={[
+              { value: "recording", label: "On recordings" },
+              { value: "graph", label: "Organise the graph" },
+            ]}
+          />
+        )}
         {!creating && (
           <span
             className={cn(
@@ -306,7 +330,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
             </MenuContent>
           </Menu>
         )}
-        {!creating && (
+        {!creating && scope === "recording" && (
           <Button
             size="sm"
             variant="secondary"
@@ -378,7 +402,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
             <div key={g} className="flex flex-col gap-1.5 pb-2">
               <span className="label-caps pt-1">{g}</span>
               {Object.entries(NODES)
-                .filter(([, info]) => info.group === g)
+                .filter(([type, info]) => info.group === g && inScope(type, scope, catalog.data?.node_types))
                 .map(([type, info]) => (
                   <PaletteItem
                     key={type}
@@ -404,7 +428,9 @@ export function WorkflowEditor({ id }: { id?: number }) {
             onConnect={connect}
             onDeleteNodes={removeNodes}
             onDeleteEdges={removeEdges}
-            onDrop={(type, x, y) => NODES[type] && type !== "input" && add(type, x, y)}
+            onDrop={(type, x, y) =>
+              NODES[type] && type !== "input" && inScope(type, scope, catalog.data?.node_types) && add(type, x, y)
+            }
           />
         </section>
         <aside aria-label="Node settings" className="overflow-y-auto border-border p-4 lg:border-l">
@@ -416,7 +442,21 @@ export function WorkflowEditor({ id }: { id?: number }) {
               fields={fields}
               readOnly={readOnly}
               problem={problems[cur.id]}
+              scope={scope}
             />
+          ) : scope === "graph" ? (
+            <div className="flex flex-col gap-2 text-[13px] text-fg-secondary">
+              <h2 className="text-[15px] font-bold text-fg">How graph workflows run</h2>
+              <p>
+                A graph workflow starts from the namespaces a routine runs it over. Look-alike entities finds pairs that
+                may be one thing, Ask the model judges each pair, and Apply changes merges or links the sure ones and
+                proposes the rest.
+              </p>
+              <p>
+                Run it from a routine. Proposed changes wait in Routines → Proposed changes, and every change can be
+                undone.
+              </p>
+            </div>
           ) : (
             <div className="flex flex-col gap-2 text-[13px] text-fg-secondary">
               <h2 className="text-[15px] font-bold text-fg">How workflows run</h2>

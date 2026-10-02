@@ -4,6 +4,7 @@ import { Workflow } from "lucide-react";
 import Link from "next/link";
 
 import { CatalogHeader, useWorkflowCatalog } from "@/components/pipelines/catalog-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState, SkeletonRows } from "@/components/ui/states";
 import { Table, Td, Th, THead, Tr } from "@/components/ui/table";
@@ -43,19 +44,24 @@ export function WorkflowsPage() {
                 <Tr key={w.id} className="h-[54px]">
                   <Td>
                     <div className="flex min-w-0 flex-col gap-0.5">
-                      <Link
-                        href={`/workflows/${w.id}`}
-                        className="font-semibold text-fg hover:text-fg-accent hover:underline"
-                      >
-                        {w.name}
-                      </Link>
+                      <span className="flex items-center gap-2">
+                        <Link
+                          href={`/workflows/${w.id}`}
+                          className="font-semibold text-fg hover:text-fg-accent hover:underline"
+                        >
+                          {w.name}
+                        </Link>
+                        {w.scope === "graph" && <Badge tone="intent">Graph</Badge>}
+                      </span>
                       {w.description && <span className="line-clamp-1 text-[12px] text-fg-muted">{w.description}</span>}
                     </div>
                   </Td>
                   <Td>
                     <code className="font-mono text-[12px] font-medium text-fg">v{w.current}</code>
                   </Td>
-                  <Td className="text-fg-secondary">{w.pipelines?.length ? w.pipelines.join(", ") : "—"}</Td>
+                  <Td className="text-fg-secondary">
+                    {w.scope === "graph" ? "Routines" : w.pipelines?.length ? w.pipelines.join(", ") : "—"}
+                  </Td>
                   <Td className="tabular whitespace-nowrap text-fg-muted">{relative(w.updated_at)}</Td>
                 </Tr>
               ))}

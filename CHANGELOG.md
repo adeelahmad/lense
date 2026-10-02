@@ -4,6 +4,29 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Routines: things the archive does on a schedule.** A routine runs its actions over chosen namespaces (or all) on
+  a cron schedule in a time zone, or when someone presses Run now: sync watched folders, queue a pipeline for new,
+  unprocessed or all recordings, or run a workflow. Runs keep per-action results and a log (docs/processing.md,
+  Routines). `GET/POST/PATCH/DELETE /api/v1/routines`, `POST /api/v1/routines/{id}/run`,
+  `GET /api/v1/routines/{id}/runs`, `GET /api/v1/routines/schedule` to preview a schedule.
+    - The API process checks for due routines every 30 seconds in its own thread, and `lens watch` runs them too. A
+      run is claimed before it starts, so two processes never run the same routine twice; a run that stops reporting
+      for three hours is taken as dead.
+    - "New recordings" means recordings made since the routine last looked, by recording id, so nothing made during a
+      run is missed or taken twice.
+- **Organising the graph with a workflow.** Workflows have a scope: recordings (as before) or the graph. Graph
+  workflows find look-alike entities in each namespace and across shared ones, ask the model whether each pair is one
+  thing, and merge or link the pairs it is sure of while proposing the rest. Every change is recorded and can be
+  accepted, dismissed or undone (`/api/v1/graph-changes`), and a whole run can be undone at once. A fresh archive gets
+  the workflow *Organise the entity graph* and a nightly routine that runs it, switched off.
+    - Graph workflows can't be attached to pipelines or run on one recording; recording workflows can't use graph
+      nodes.
+    - Web app: Routines (admins) lists routines with their schedule, next run and last result, and turns them on
+      and off; the editor has schedule presets with a live preview of the next runs, namespaces, and an ordered list
+      of actions. Each routine's page shows its runs with results and logs, and undoes a run's changes. Proposed
+      changes (`/routines/changes`, also linked from the Graph page) shows both entities side by side with the
+      model's verdict, to merge, link, dismiss or undo. On the canvas a new workflow can organise the graph, with its
+      own nodes.
 - **Workflows on a canvas, and content types.** Pipelines make assets (transcripts, shots, OCR text, faces); workflows
   are shared, versioned node graphs that make metadata (outputs, custom field values, entities). Both are drawn on a
   canvas (Pipelines → Workflows, and Canvas on a pipeline): drag nodes, connect them, set each node's options, save a

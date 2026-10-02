@@ -2,6 +2,32 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-02 · Routines
+
+Goal: run syncs, pipelines and workflows on a schedule, including a daily LLM pass that organises the entity graph per
+namespace or across all of them.
+
+Model:
+
+- A routine has a cron schedule (or none: by hand), a time zone, namespaces (or all) and ordered actions: sync,
+  pipeline, workflow.
+- Workflows get a scope. Graph workflows run over namespaces and are drawn on the same canvas: candidates → ask the
+  model → filter → apply changes. Sure pairs are merged or linked, the rest proposed; everything is undoable.
+
+Todo:
+
+- [x] Cron schedules with time zones (no new dependency)
+- [x] Routines: CRUD, run now, runs with results and logs, claimed so they run once
+- [x] Scheduler thread in the API process; `lens watch` runs routines too
+- [x] Graph scope for workflows; candidates, llm_judge, filter, apply_changes nodes
+- [x] Graph changes: proposed / applied / dismissed / undone; undo a whole run
+- [x] Seed the graph workflow and a nightly routine (off)
+- [x] API tests
+- [x] Web app: Routines page, run history, proposed changes review, graph nodes on the canvas
+- [ ] Notify (Matterbridge/webhooks thread) when a run fails or leaves proposals
+- [ ] More graph nodes: retype entities, hide noise, cluster topics
+- [ ] Routing rules (shared IMAP inbox → namespaces) slot in between sync and ingest
+
 ## 2026-10-02 · Workflow canvas
 
 Goal: design custom workflows on a canvas and attach them to pipelines.

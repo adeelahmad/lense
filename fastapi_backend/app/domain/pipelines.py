@@ -49,9 +49,11 @@ def validate_steps(db, steps):
             from . import workflows
 
             try:
-                workflows.get(db, int(s.get("workflow") or 0), s.get("version"))
+                w = workflows.get(db, int(s.get("workflow") or 0), s.get("version"))
             except (KeyError, TypeError, ValueError):
                 raise ValueError("workflow step: choose a workflow") from None
+            if w["scope"] != "recording":
+                raise ValueError(f"workflow step: {w['name']} organises the graph; run it from a routine")
         need = {"llm": "prompt", "export": "export", "report": "report"}.get(t)
         if need and (s.get("template") or t != "report"):
             try:
