@@ -94,16 +94,14 @@ NEXT_TELEMETRY_DISABLED=1
 EOF
 cat <<EOF >/etc/lens/archive.yaml
 # Lens processing configuration; settings saved in the web app take precedence. See archive.example.yaml.
+# No namespaces here: the setup wizard asks for the first one after the admin account is created.
 data_dir: /var/lib/lens
-namespaces:
-  media:                         # a starting namespace and its folder; add more in the web app
-    paths: [/var/lib/lens/media]
 server:
   allowed_hosts: [127.0.0.1, localhost]
 workers:
   inline: 0                      # lens-worker.service does the work
 sources:
-  local_roots: [/var/lib/lens/media]
+  local_roots: [/var/lib/lens/media]   # the setup wizard (/welcome) can watch a folder inside it
 EOF
 chmod 600 /etc/lens/*.env
 msg_ok "Configured Lens"

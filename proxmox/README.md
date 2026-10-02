@@ -11,7 +11,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/pr
 
 The script uses the community-scripts engine (`community-scripts/core`) for the container, and takes its own
 `ct/lens.sh` and `install/lens-install.sh` from this folder. When it finishes, open `http://<container-ip>:3000` and
-create the first admin with the setup code: run `lens-setup-code` in the container.
+create the first admin with the setup code (run `lens-setup-code` in the container). The setup wizard at `/welcome`
+then asks for the first namespace, the model provider and storage; every step can be skipped.
 
 Defaults: 4 cores, 4 GB RAM (the web app's build needs it), 20 GB disk, unprivileged, amd64 or arm64. Override them in
 the script's advanced settings, or with `var_cpu=… var_ram=… var_disk=…` before the command.
@@ -22,7 +23,7 @@ the script's advanced settings, or with `var_cpu=… var_ram=… var_disk=…` b
 |---|---|
 | Code | `/opt/lens`, a link to `/opt/lens-<commit>`: a shallow clone of the latest GitHub release, or of `main` while there is none |
 | Settings | `/etc/lens/lens.env` (API and worker), `/etc/lens/web.env` (web app), `/etc/lens/archive.yaml` |
-| Data | `/var/lib/lens` (archive data and uploads; `media/` is the folder of the starting `media` namespace), `/var/lib/surrealdb` |
+| Data | `/var/lib/lens` (archive data and uploads; folders to watch go in `media/`), `/var/lib/surrealdb` |
 | Services | `surrealdb` (127.0.0.1:8001), `lens-api` (127.0.0.1:8000), `lens-worker`, `lens-web` (port 3000) |
 
 Only the web app listens on the network; it proxies the API's paths. The secrets in `/etc/lens/*.env` are generated
