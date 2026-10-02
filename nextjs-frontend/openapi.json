@@ -1171,6 +1171,96 @@
         }
       }
     },
+    "/api/v1/settings/embeddings/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Embeddings",
+        "description": "Embed one sentence with the configured model, to check the address, key and model name.",
+        "operationId": "test_embeddings",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbedTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/semantic": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Semantic Status",
+        "description": "Search by meaning: whether it's set up, its model, and how many recordings are indexed with it.",
+        "operationId": "semantic_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SemanticStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/semantic/index": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Index Semantic",
+        "description": "Queue the embed step for up to `limit` recordings not yet indexed with the configured model, oldest first (a\nrecording with a job waiting or running is left for the next time).",
+        "operationId": "index_semantic",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 5000,
+              "minimum": 1,
+              "default": 500,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/telemetry/status": {
       "get": {
         "tags": [
@@ -6830,7 +6920,7 @@
           "search"
         ],
         "summary": "Search Transcripts",
-        "description": "Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary\ntranscripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),\nbest first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion\nfilter keeps to what was said.",
+        "description": "Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary\ntranscripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),\nbest first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion\nfilter keeps to what was said. By meaning, a moment is a passage about what was asked, though its words may differ.",
         "operationId": "search_transcripts",
         "parameters": [
           {
@@ -6961,6 +7051,24 @@
               "title": "Facets"
             },
             "description": "also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object"
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "auto",
+                "keyword",
+                "semantic",
+                "hybrid"
+              ],
+              "type": "string",
+              "description": "\"keyword\": the words (BM25); \"semantic\": by meaning (needs an embedding model, Settings \u2192 Search); \"hybrid\": both, fused by rank; \"auto\": hybrid when search by meaning is set up and the query has no \"phrases\" or OR, else keyword",
+              "default": "auto",
+              "title": "Mode"
+            },
+            "description": "\"keyword\": the words (BM25); \"semantic\": by meaning (needs an embedding model, Settings \u2192 Search); \"hybrid\": both, fused by rank; \"auto\": hybrid when search by meaning is set up and the query has no \"phrases\" or OR, else keyword"
           }
         ],
         "responses": {
@@ -18627,6 +18735,65 @@
         ],
         "title": "EmbedLink"
       },
+      "EmbedTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "dimension": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dimension",
+            "description": "how many numbers the model's vectors have"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "EmbedTestResult"
+      },
       "EntityDetail": {
         "properties": {
           "id": {
@@ -20867,6 +21034,27 @@
           "namespace"
         ],
         "title": "ImportedAs"
+      },
+      "IndexQueued": {
+        "properties": {
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "description": "recordings queued to be indexed"
+          },
+          "remaining": {
+            "type": "boolean",
+            "title": "Remaining",
+            "description": "more are waiting than were queued; run it again, or let the hourly routine"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recordings",
+          "remaining"
+        ],
+        "title": "IndexQueued"
       },
       "IpGroup": {
         "properties": {
@@ -27703,7 +27891,7 @@
             },
             "type": "array",
             "title": "Recordings",
-            "description": "which recordings a pipeline or workflow action takes: new, unprocessed, all"
+            "description": "which recordings a pipeline or workflow action takes: new, unprocessed, all, unindexed (not yet searchable by meaning)"
           }
         },
         "additionalProperties": true,
@@ -28632,6 +28820,29 @@
             ],
             "title": "Line",
             "description": "file hits: which of its lines (from 0)"
+          },
+          "match": {
+            "type": "string",
+            "enum": [
+              "words",
+              "meaning",
+              "both"
+            ],
+            "title": "Match",
+            "description": "how it was found: by the query's \"words\" (BM25), by \"meaning\" (a passage an embedding model finds alike; shown at its line that fits best), or \"both\"",
+            "default": "words"
+          },
+          "similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity",
+            "description": "found by meaning: how alike the passage is to the query (cosine, up to 1)"
           }
         },
         "additionalProperties": true,
@@ -28682,6 +28893,35 @@
               }
             ],
             "description": "with `facets=true`: counts over all the matching moments"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "keyword",
+              "semantic",
+              "hybrid"
+            ],
+            "title": "Mode",
+            "description": "how the query was matched: by its words, by meaning, or both (fused by rank)",
+            "default": "keyword"
+          },
+          "meaning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meaning",
+            "description": "why the search wasn't by meaning when that was asked for"
+          },
+          "semantic": {
+            "type": "boolean",
+            "title": "Semantic",
+            "description": "search by meaning is set up, so `mode` may be semantic or hybrid",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -28894,6 +29134,103 @@
         "type": "object",
         "title": "SegmentUpdate",
         "description": "Send ``text``, ``speaker`` (a speaker id in the same namespace, or null), or both."
+      },
+      "SemanticStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured",
+            "description": "on, with an embeddings server and a model"
+          },
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url",
+            "description": "the embeddings server: its own, else the LLM provider's"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "indexed_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indexed Model",
+            "description": "the model the stored vectors are from"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current",
+            "description": "the stored vectors are the configured model's, so searches can use them"
+          },
+          "dimension": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dimension"
+          },
+          "passages": {
+            "type": "integer",
+            "title": "Passages",
+            "description": "passages embedded"
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "description": "recordings in the archive"
+          },
+          "indexed": {
+            "type": "integer",
+            "title": "Indexed",
+            "description": "recordings indexed with the configured model"
+          },
+          "min_similarity": {
+            "type": "number",
+            "title": "Min Similarity",
+            "description": "how alike a passage must be to a query to be a hit"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "configured",
+          "current",
+          "passages",
+          "recordings",
+          "indexed",
+          "min_similarity"
+        ],
+        "title": "SemanticStatus",
+        "description": "Search by meaning: whether it's on, which model it uses, and how much of the archive it covers."
       },
       "SetupAdmin": {
         "properties": {

@@ -47,6 +47,7 @@ OWN = (
     "resource_file",
     "file_line",
     "page",
+    "passage",
 )
 
 

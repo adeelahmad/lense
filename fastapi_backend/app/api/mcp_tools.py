@@ -299,6 +299,7 @@ def search(
         ctx.acl,
         ctx.user,
         ctx.db,
+        ctx.cfg,
         q=query,
         ns=namespace,
         speaker=speaker_id,
@@ -308,6 +309,7 @@ def search(
         limit=limit,
         offset=offset,
         facets=False,
+        mode="auto",  # by meaning too, when it's set up
     )
     found = SearchResults.model_validate(res)  # the route hands back the dict it signed
     results = []

@@ -23,6 +23,35 @@ class LlmTestResult(ResponseModel):
     model: str | None = None
 
 
+class EmbedTestResult(ResponseModel):
+    ok: bool
+    error: str | None = None
+    dimension: int | None = Field(None, description="how many numbers the model's vectors have")
+    ms: int | None = None
+    model: str | None = None
+
+
+class SemanticStatus(ResponseModel):
+    """Search by meaning: whether it's on, which model it uses, and how much of the archive it covers."""
+
+    enabled: bool
+    configured: bool = Field(description="on, with an embeddings server and a model")
+    base_url: str | None = Field(None, description="the embeddings server: its own, else the LLM provider's")
+    model: str | None = None
+    indexed_model: str | None = Field(None, description="the model the stored vectors are from")
+    current: bool = Field(description="the stored vectors are the configured model's, so searches can use them")
+    dimension: int | None = None
+    passages: int = Field(description="passages embedded")
+    recordings: int = Field(description="recordings in the archive")
+    indexed: int = Field(description="recordings indexed with the configured model")
+    min_similarity: float = Field(description="how alike a passage must be to a query to be a hit")
+
+
+class IndexQueued(ResponseModel):
+    recordings: int = Field(description="recordings queued to be indexed")
+    remaining: bool = Field(description="more are waiting than were queued; run it again, or let the hourly routine")
+
+
 class TelemetryExport(ResponseModel):
     at: float
     ok: bool

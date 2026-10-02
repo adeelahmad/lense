@@ -30,6 +30,7 @@ EDITABLE = {
     "llm": None,
     "graph": None,
     "search": None,
+    "embeddings": None,
     "reports": None,
     "workers": None,
     "iiif": None,
@@ -59,7 +60,7 @@ EDITABLE = {
     # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
     "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
-SECRETS = {"llm": ("api_key",), "telemetry": ("headers",)}
+SECRETS = {"llm": ("api_key",), "embeddings": ("api_key",), "telemetry": ("headers",)}
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"},
     ("transcribe", "device"): {"auto", "cpu", "cuda", "mps"},
@@ -82,6 +83,9 @@ ENV_OVERRIDES = {
     ("llm", "model"): "LENS_LLM_MODEL",
     ("llm", "api_key"): "LENS_LLM_API_KEY",
     ("llm", "vision_model"): "LENS_LLM_VISION_MODEL",
+    ("embeddings", "base_url"): "LENS_EMBED_BASE_URL",
+    ("embeddings", "model"): "LENS_EMBED_MODEL",
+    ("embeddings", "api_key"): "LENS_EMBED_API_KEY",
     ("telemetry", "enabled"): "LENS_TELEMETRY",
     ("telemetry", "endpoint"): "LENS_TELEMETRY_ENDPOINT",
     ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
@@ -266,6 +270,8 @@ def _check(section, key, value, default):
         if names is None or not all(names) or len(names) > 50 or any(len(n) > 200 for n in names):
             raise ValueError("llm.chat_models is a list of up to 50 model names")
         return list(dict.fromkeys(names))
+    if section == "embeddings":
+        return _embed_setting(key, value)
     if section == "uploads":
         return _upload_setting(key, value)
     if section == "notifications":
@@ -314,6 +320,44 @@ def _check(section, key, value, default):
         ok = True
     if not ok:
         raise ValueError(f"{section}.{key} should be {type(default).__name__}")
+    return value
+
+
+EMBED_RANGES = {"passage_chars": (200, 4000), "batch_size": (1, 256), "neighbours": (5, 500), "timeout": (5, 600)}
+
+
+def _embed_setting(key, value):
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("embeddings.enabled is true or false")
+        return value
+    if key == "base_url":
+        if value is None or value == "":
+            return None
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("embeddings.base_url is the http(s) address of an OpenAI-compatible server, such as http://localhost:11434/v1")
+        return value.strip().rstrip("/")
+    if key in ("model", "api_key_env"):
+        if value is None or value == "":
+            if key == "model":
+                raise ValueError("embeddings.model names the embedding model, such as nomic-embed-text")
+            return None
+        if not (isinstance(value, str) and len(value.strip()) <= 200):
+            raise ValueError(f"embeddings.{key} is a name")
+        return value.strip()
+    if key in ("query_prefix", "document_prefix"):
+        if value is not None and not (isinstance(value, str) and len(value) <= 200):
+            raise ValueError(f"embeddings.{key} is text of up to 200 characters, or none for what suits the model")
+        return value
+    if key == "min_similarity":
+        if value is None:
+            return None
+        if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 1):
+            raise ValueError("embeddings.min_similarity is a number from 0 to 1, or none for what suits the model")
+        return float(value)
+    lo, hi = EMBED_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"embeddings.{key} is a whole number from {lo} to {hi}")
     return value
 
 

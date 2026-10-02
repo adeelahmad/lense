@@ -394,7 +394,7 @@ def write_transcript(db, rid, nid, segs, patch):
     """Replace a recording's transcript and everything derived from it, atomically."""
     rows = segment_rows(rid, nid, segs)  # overwrite segments in place and drop the extra ones (see store.DOWNSTREAM)
     db.run(
-        store.DOWNSTREAM + ["FOR $s IN $segs { UPSERT $s.id CONTENT $s; }", "UPDATE $rec MERGE $patch"],
+        store.DOWNSTREAM + ["FOR $s IN $segs { UPSERT $s.id CONTENT $s; }", "UPDATE $rec MERGE $patch", "UPDATE $rec SET embedded = NONE"],
         rid=rid,
         keep=len(rows),
         segs=rows,

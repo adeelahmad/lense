@@ -173,7 +173,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         chat.add(db, cid, "user", q)
         if not past and c["title"] == "New conversation":
             db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
-        return past, chat.retrieve(db, q, readable, c.get("scope"))
+        return past, chat.retrieve(db, q, readable, c.get("scope"), cfg=cfg)
 
     past, passages = await run_in_threadpool(prepare)
 

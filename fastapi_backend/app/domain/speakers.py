@@ -343,7 +343,7 @@ def diarize_one(db, cfg, rid, log=print):
     for k, (l, g) in enumerate(groups.items()):
         stmts.append(f"UPDATE $g{k} SET local_speaker = $l{k}, speaker = $s{k}")
         params.update({f"g{k}": [R("segment", s["id"]) for s in g], f"l{k}": l, f"s{k}": ids[l][0]})
-    stmts.append("UPDATE $rec SET status = 'diarized', diarizer = $how, diarized_at = $t, analyzed_at = NONE")
+    stmts.append("UPDATE $rec SET status = 'diarized', diarizer = $how, diarized_at = $t, analyzed_at = NONE, embedded = NONE")
     db.run(stmts, **params)
     log(f"  {r['title']}: {len(groups)} speaker(s) by {how}")
     return len(groups)
@@ -433,6 +433,9 @@ def merge(db, src, dst, by=None):
     }
     if patch:
         stmts.append("UPDATE $dstr MERGE $patch")
+    # their passages for search by meaning name the speaker: the next indexing updates them
+    stmts.append("UPDATE $recs SET embedded = NONE")
+    params["recs"] = [R("recording", x) for x in set(db.values("SELECT VALUE recording FROM segment WHERE speaker = $s", s=src))]
     for k, (x, y) in enumerate(moved):
         stmts.append(f"RELATE $la{k}->same_as->$lb{k}")
         params.update({f"la{k}": R("speaker", x), f"lb{k}": R("speaker", y)})
@@ -453,6 +456,7 @@ def undo(db, merge_id, by=None):
         "UPDATE mentions SET speaker = $src WHERE in IN $segs",
         "UPDATE $dstr MERGE $dpatch",
         "UPDATE $mr SET undone = true, undone_by = $by, undone_at = $t",
+        "UPDATE $recs SET embedded = NONE",
     ]
     params = {
         "src": src,
@@ -461,6 +465,7 @@ def undo(db, merge_id, by=None):
         "mr": R("merge", merge_id),
         "sp": {**store.clean(sn["speaker"]), "label_key": f"{sn['speaker']['space']}:{sn['speaker']['label']}"},
         "segs": [R("segment", i) for i in sn["segments"]],
+        "recs": [R("recording", r) for r in {i // store.SEG for i in sn["segments"]}],
         "apps": [R("appearance", i) for i in sn["appearances"]],
         "dpatch": {"embedding": d.get("embedding"), "n_obs": d.get("n_obs"), "name": d.get("name")},
         "by": by,

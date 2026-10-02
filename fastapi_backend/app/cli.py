@@ -22,6 +22,14 @@ def run_steps(db, cfg, which, ns=None, limit=0, force=False, recording=None, aud
         log("diarize:", spk.diarize_pending(db, cfg, ns, limit, force, log), "recording(s)")
     if "analyze" in which:
         log("analyze:", analyze.analyze_pending(db, cfg, ns, limit, force, log), "recording(s)")
+    if "embed" in which:
+        from .domain import semantic, settings
+
+        ecfg = settings.effective(db, cfg)
+        if semantic.configured(ecfg):
+            log("embed:", semantic.index_pending(db, ecfg, ns, limit, force, log), "recording(s)")
+        else:
+            log("embed: skipped; search by meaning is off, or has no embeddings server and model (embeddings in archive.yaml)")
     if "summarize" in which:
         log("summarize:", analyze.summarize_pending(db, cfg, ns, limit, force, log), "recording(s)")
     if "report" in which:
@@ -44,8 +52,9 @@ def _main_base(argv=None):
         ("transcribe", "transcribe new recordings"),
         ("diarize", "split speakers and match voice IDs within each namespace"),
         ("analyze", "named things, keywords, sections and talk statistics"),
+        ("embed", "index passages for search by meaning (with the configured embedding model)"),
         ("summarize", "optional LLM summaries"),
-        ("run", "scan, transcribe, diarize, analyze, summarize and report, resuming where it stopped"),
+        ("run", "scan, transcribe, diarize, analyze, embed, summarize and report, resuming where it stopped"),
     ):
         p = sub.add_parser(name, help=helptext)
         p.add_argument("--ns")
@@ -79,6 +88,7 @@ def _main_base(argv=None):
     p.add_argument("q")
     p.add_argument("--ns")
     p.add_argument("--limit", type=int, default=20)
+    p.add_argument("--mode", choices=["auto", "keyword", "semantic", "hybrid"], default="auto", help="by words, by meaning, or both")
     p = sub.add_parser("graph")
     p.add_argument("--scope", default="global", help="global, or ns:<name>")
     p.add_argument("--out")
@@ -112,8 +122,8 @@ def _main_base(argv=None):
         return
     conn = store.connect(cfg)
     try:
-        if a.cmd in ("scan", "transcribe", "diarize", "analyze", "summarize", "run", "report"):
-            which = ["scan", "transcribe", "diarize", "analyze", "summarize", "report"] if a.cmd == "run" else [a.cmd]
+        if a.cmd in ("scan", "transcribe", "diarize", "analyze", "embed", "summarize", "run", "report"):
+            which = ["scan", "transcribe", "diarize", "analyze", "embed", "summarize", "report"] if a.cmd == "run" else [a.cmd]
             with store.lock(cfg, "pipeline"):
                 run_steps(
                     conn,
@@ -146,11 +156,14 @@ def _main_base(argv=None):
             elif a.action == "link":
                 spk.link(conn, a.a, a.b)
         elif a.cmd == "search":
-            res = searchmod.search(conn, a.q, a.ns, limit=a.limit)
-            print(f"{res['total']} match(es) for {res['query']}")
+            from .domain import settings
+
+            res = searchmod.search(conn, a.q, a.ns, limit=a.limit, cfg=settings.effective(conn, cfg), mode=a.mode)
+            print(f"{res['total']} match(es) for {res['query']} ({res['mode']})" + (f"; {res['meaning']}" if res.get("meaning") else ""))
             for h in res["hits"]:
                 snip = h["snippet"].replace("<mark>", "[").replace("</mark>", "]")
-                print(f"  {h['namespace']}/{h['recording_id']} {store.tc(h['t0'])} {h['speaker'] or '?'}: {snip}")
+                how = {"meaning": " ~", "both": " +"}.get(h.get("match") or "", "")
+                print(f"  {h['namespace']}/{h['recording_id']} {store.tc(h['t0'])} {h['speaker'] or '?'}{how}: {snip}")
         elif a.cmd == "graph":
             g = graph.build(conn, cfg, a.scope)
             text = json.dumps(g, ensure_ascii=False, indent=1)

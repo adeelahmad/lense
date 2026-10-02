@@ -16,8 +16,8 @@ import time
 from . import analyze, ingest, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
-PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "summarize", "report"]
-AFTER_IMPORT = ["analyze", "summarize", "report"]
+PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
+AFTER_IMPORT = ["analyze", "embed", "summarize", "report"]
 ACTIVE = ["queued", "running"]
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
@@ -68,6 +68,20 @@ def _diarize(db, cfg, rid, say, spec=None):
 def _analyze(db, cfg, rid, say, spec=None):
     analyze.analyze_recording(db, cfg, rid)
     say("analysed")
+
+
+def _embed(db, cfg, rid, say, spec=None):
+    from . import semantic
+
+    if not semantic.configured(cfg):
+        raise Skip("search by meaning is off, or has no embeddings server (Settings → Search)")
+    try:
+        made, kept = semantic.index_recording(db, cfg, rid, say)
+    except semantic.EmbedError as e:  # the server is down or lacks the model: the routine indexes it later
+        raise Skip(f"couldn't index it for search by meaning: {e}") from None
+    if not made and not kept:
+        return say("no text to index for search by meaning")
+    say(f"indexed for search by meaning: {made} passage(s) embedded" + (f", {kept} unchanged" if kept else ""))
 
 
 def _summarize(db, cfg, rid, say, spec=None):
@@ -146,6 +160,7 @@ STEPS = {
     "objects": _objects,
     "describe": _describe,
     "analyze": _analyze,
+    "embed": _embed,
     "summarize": _summarize,
     "report": _report,
     "llm": _llm,
@@ -715,6 +730,8 @@ class Worker:
             # a workers.steps list written before the video steps existed (archive.yaml copied from an older example):
             # without them every import would wait for a worker that can run shots
             self.can |= VIDEO_STEPS
+        if self.can & {"analyze", "summarize"}:  # embedding needs what they need; lists written before it existed run it too
+            self.can.add("embed")
         if not steps and log and (missing := sorted(set(STEPS) - self.can)):
             log(f"worker {self.name}: workers.steps leaves out {', '.join(missing)}; jobs with those steps wait for another worker")
         self.was_paused = False

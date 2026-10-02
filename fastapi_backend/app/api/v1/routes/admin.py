@@ -12,8 +12,18 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
-from app.domain import auth, jobs, llm, settings, sources, store, telemetry
-from app.schemas.admin import AuditEntry, Health, LlmTestResult, Started, TelemetryStatus, TelemetryTestResult
+from app.domain import auth, jobs, llm, semantic, settings, sources, store, telemetry
+from app.schemas.admin import (
+    AuditEntry,
+    EmbedTestResult,
+    Health,
+    IndexQueued,
+    LlmTestResult,
+    SemanticStatus,
+    Started,
+    TelemetryStatus,
+    TelemetryTestResult,
+)
 from app.schemas.auth import AccountToken
 from app.schemas.common import Ok
 
@@ -52,6 +62,40 @@ def test_llm(user: AdminWriter, cfg: Cfg) -> LlmTestResult:
     except llm.LLMError as e:
         return LlmTestResult(ok=False, error=str(e))
     return LlmTestResult(ok=True, reply=reply.strip()[:40], ms=int((time.time() - t0) * 1000), model=cfg["llm"]["model"])
+
+
+@router.post("/settings/embeddings/test")
+def test_embeddings(user: AdminWriter, cfg: Cfg, db: Db) -> EmbedTestResult:
+    """Embed one sentence with the configured model, to check the address, key and model name."""
+    if not semantic.configured(cfg):
+        return EmbedTestResult(ok=False, error="turn search by meaning on, with a base URL (or the LLM provider's) and a model")
+    t0 = time.time()
+    try:
+        vec = semantic.embed(cfg, ["Lens checks that it can search by meaning."], timeout=30)[0]
+    except semantic.EmbedError as e:
+        return EmbedTestResult(ok=False, error=str(e))
+    semantic.recovered(db)
+    return EmbedTestResult(ok=True, dimension=len(vec), ms=int((time.time() - t0) * 1000), model=semantic.endpoint(cfg)[2])
+
+
+@router.get("/admin/semantic")
+def semantic_status(user: AdminReader, cfg: Cfg, db: Db) -> SemanticStatus:
+    """Search by meaning: whether it's set up, its model, and how many recordings are indexed with it."""
+    return SemanticStatus(**semantic.status(db, cfg))
+
+
+@router.post("/admin/semantic/index")
+def index_semantic(user: AdminWriter, cfg: Cfg, db: Db, limit: int = Query(500, ge=1, le=5000)) -> IndexQueued:
+    """Queue the embed step for up to `limit` recordings not yet indexed with the configured model, oldest first (a
+    recording with a job waiting or running is left for the next time)."""
+    if not semantic.configured(cfg):
+        raise HTTPException(400, "turn search by meaning on, with an embeddings server and a model, first")
+    semantic.recovered(db)
+    rids = semantic.unindexed(db, cfg, sorted(store.space_names(db)), limit + 1)
+    for rid in rids[:limit]:
+        jobs.enqueue(db, rid, ["embed"], by=user.email)
+    auth.audit(db, user.as_audit(), "search.index_meaning", None, {"recordings": len(rids[:limit])})
+    return IndexQueued(recordings=len(rids[:limit]), remaining=len(rids) > limit)
 
 
 @router.get("/settings/telemetry/status")

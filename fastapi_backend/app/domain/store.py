@@ -163,6 +163,21 @@ DEFAULTS = {
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {"stemming": "english"},
+    # search by meaning (app/domain/semantic.py): an OpenAI-compatible embeddings server (null: the LLM provider's),
+    # the model, how long passages are, and how alike a passage must be to a query (null: what suits the model)
+    "embeddings": {
+        "enabled": True,
+        "base_url": None,
+        "model": "nomic-embed-text",
+        "api_key_env": None,
+        "query_prefix": None,
+        "document_prefix": None,
+        "passage_chars": 800,
+        "batch_size": 32,
+        "neighbours": 40,
+        "min_similarity": None,
+        "timeout": 60,
+    },
     "server": {
         "host": "127.0.0.1",
         "port": 8770,
@@ -208,6 +223,7 @@ DEFAULTS = {
             "objects",
             "describe",
             "analyze",
+            "embed",
             "summarize",
             "llm",
             "report",
@@ -710,6 +726,12 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS description SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS description_rec ON description FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS face_merge SCHEMALESS",
+    # passages embedded for search by meaning (app/domain/semantic.py), and which model's vectors they hold; their
+    # HNSW index is defined when the first vector is stored, since its dimension is the model's
+    "DEFINE TABLE IF NOT EXISTS passage SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS passage_rec ON passage FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS passage_space ON passage FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS embedding_state SCHEMALESS",
     # collections, batch runs, assistant approvals
     "DEFINE TABLE IF NOT EXISTS saved_collection SCHEMALESS",
     # saved views of the Library (app/domain/views.py)
@@ -889,12 +911,13 @@ DOWNSTREAM = [
     "DELETE section WHERE recording = $rid",
     "DELETE appearance WHERE recording = $rid",
     "DELETE segment WHERE recording = $rid AND idx >= $keep",
+    "DELETE passage WHERE recording = $rid",
 ]
 
 
 def reset_downstream(db, rid):
     """Remove everything derived from a recording's transcript."""
-    db.run(DOWNSTREAM, rid=rid, keep=0)
+    db.run(DOWNSTREAM + ["UPDATE $rec SET embedded = NONE"], rid=rid, keep=0, rec=R("recording", rid))
 
 
 def clean(d):
