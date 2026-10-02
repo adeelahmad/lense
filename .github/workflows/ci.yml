@@ -123,7 +123,7 @@ jobs:
         working-directory: ./nextjs-frontend
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           # the pnpm version comes from packageManager in the frontend's package.json
           package_json_file: nextjs-frontend/package.json
