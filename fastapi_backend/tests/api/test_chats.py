@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 
 import pytest
@@ -305,3 +306,86 @@ def test_scoped_by_a_collection(plain, client, new_client, db, cfg, folder):
     client.delete(f"/api/v1/collections/{fixed}", headers=hv)
     assert recsets.within(db, {store.ns_id(db, "pods")}, collections=[fixed]) == set()
     assert client.patch(f"/api/v1/chats/{cid}", headers=hv, json={"scope": {"collections": [fixed]}}).status_code == 404
+
+
+def test_answers_survive_unusual_model_servers(app, db, cfg, folder, new_client, llm, monkeypatch):
+    """Tool arguments sent as an object, thinking before the answer, a reply that isn't JSON, a stream cut off and a
+    tool that breaks: each ends in an answer or an error that's saved, never a stream that just stops."""
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+
+    def ask(q, cid=None):
+        cid = cid or c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+        return cid, sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": q}).text)
+
+    def last(cid):
+        return c.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]
+
+    llm.tool_script = [
+        {
+            "content": None,
+            "tool_calls": [{"id": "a", "type": "function", "function": {"name": "search_transcripts", "arguments": {"query": "capsid"}}}],
+        },
+        {"content": "<think>They want the capsid.</think>\n\nThe capsid model won [1]."},
+    ]
+    cid, ev = ask("capsid?")
+    assert ev["step"][0]["args"] == {"query": "capsid"} and ev["token"][0]["text"] == "The capsid model won [1]."
+    assert last(cid)["content"] == "The capsid model won [1]."
+
+    # a tool that breaks tells the model, and the answer carries on
+    monkeypatch.setattr(ai_tools.Toolbox, "t_find_entities", lambda self, **k: 1 / 0)
+    llm.tool_script = [
+        {"content": "", "tool_calls": [{"id": "b", "type": "function", "function": {"name": "find_entities", "arguments": "{}"}}]},
+        {"content": "No entities to show."},
+    ]
+    cid, ev = ask("who?")
+    assert ev["step"][0]["summary"] == "find_entities failed" and ev["token"][0]["text"] == "No entities to show."
+
+    # a proxy's error page instead of the model's reply
+    with monkeypatch.context() as m:
+        m.setattr(llm_mod, "_post", lambda cfg, payload: io.BytesIO(b"<html>Bad gateway</html>"))
+        cid, ev = ask("capsid?")
+    assert ev["error"][0]["message"] == "the LLM server's reply wasn't JSON" and last(cid)["content"] == "(no answer)"
+
+    # anything else that breaks the answer is an error, saved with the conversation
+    def broken(*a, **k):
+        raise RuntimeError("x")
+        yield
+
+    monkeypatch.setattr(chat, "tool_answer", broken)
+    cid, ev = ask("again?")
+    assert ev["error"] and ev["done"] and last(cid)["error"] == ev["error"][0]["message"]
+
+
+def test_streamed_answers_without_thinking_or_cut_off(monkeypatch):
+    def server(*lines):
+        class R(io.BytesIO):
+            headers = {"Content-Type": "text/event-stream"}
+
+        body = "".join(f"data: {json.dumps({'choices': [{'delta': {'content': p}}]})}\n\n" for p in lines)
+        return lambda cfg, payload: R((body + "data: [DONE]\n\n" if lines[-1] != "CUT" else body).encode())
+
+    cfg = {"llm": {"base_url": "http://x", "model": "m"}}
+    monkeypatch.setattr(llm_mod, "_post", server("<th", "ink>Let me ", "see.</th", "ink>\n", "Friday ", "[1]."))
+    assert "".join(llm_mod.stream_chat(cfg, [])) == "Friday [1]."
+    monkeypatch.setattr(llm_mod, "_post", server("<b>Friday</b>", " [1]."))
+    assert "".join(llm_mod.stream_chat(cfg, [])) == "<b>Friday</b> [1]."
+    monkeypatch.setattr(llm_mod, "_post", server("Fri", "CUT"))
+    got = []
+    with pytest.raises(llm_mod.LLMError, match="stopped mid-answer"):
+        for piece in llm_mod.stream_chat(cfg, []):
+            got.append(piece)
+    assert got[0] == "Fri"
+    assert llm_mod.unthink('<think>\nhmm {not json}\n</think>\n{"a": 1}') == '{"a": 1}'
+
+
+def test_tools_stay_in_scope_and_say_what_is_missing(app, db, cfg, folder, new_client, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    pods = {s.pods}
+    box = ai_tools.Toolbox(db, cfg, {"id": 1, "email": "e"}, pods, pods, {"recordings": [s.b]}, None)
+    out = json.loads(box.call("search_transcripts", {"query": "Dyno Therapeutics", "limit": 1})[0])
+    assert [r["recording_id"] for r in out["results"]] == [s.b]  # not crowded out by matches elsewhere
+    assert box.call("entity_mentions", {"entity_id": 999})[1] == "entity_mentions: not found"
+    assert box.call("graph_neighbours", {})[1] == "graph_neighbours: give an entity_id or a speaker_id"
+    assert box.call("propose_entity_change", {"action": "retype", "entity_id": 1})[1] == "propose_entity_change: retype needs new_type"
+    assert box.approvals == []
