@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Releases are cut by a workflow.** Running Release from the Actions tab (`patch`, `minor`, `major` or a version)
+  moves the Unreleased changelog entries under the new version, sets it in the backend, frontend and Cloudron
+  manifest, commits and tags `vX.Y.Z`, and publishes the GitHub release with that section as its notes; a tag
+  pushed by hand is published the same way. Publishing starts the Cloudron, QNAP and Synology package builds, which
+  attach to the release (docs/contributing.md). It replaces the template's draft-only workflow.
+
 - **Fix: Chat answers no longer break off with "The answer stopped before it finished".** With some model servers an
   answer ended mid-stream with nothing saved, so the question sat unanswered in the conversation. Now each one ends
   in an answer, or an error that's shown and saved with the conversation.

@@ -51,8 +51,17 @@ The docs are these Markdown files, built with mkdocs-material: `cd fastapi_backe
 
 ## Release
 
-The backend and frontend share a version number.
+The backend and frontend share a version number. Each PR adds its entry under `## Unreleased` in `CHANGELOG.md`.
 
-1. Update the version in `fastapi_backend/pyproject.toml` and `nextjs-frontend/package.json`.
-2. Add a `CHANGELOG.md` entry.
-3. Open a PR; once merged, run the Release workflow to draft the GitHub release.
+To release, run the Release workflow on `main` (Actions > Release > Run workflow, or
+`gh workflow run release.yml -f bump=minor`) with `patch`, `minor`, `major` or an exact version. It moves the
+Unreleased entries under the new version, sets the version in `fastapi_backend/pyproject.toml`, `uv.lock`,
+`nextjs-frontend/package.json` and `CloudronManifest.json`, commits that to `main`, tags it `vX.Y.Z` and publishes
+the GitHub release with that changelog section as its notes. Pushing a `vX.Y.Z` tag yourself publishes it the same
+way, without the commit.
+
+Publishing starts the package builds (Cloudron, QNAP, Synology), which attach their files to the release; the
+Proxmox script installs the latest release. If `main` is protected, add a `RELEASE_TOKEN` secret: a fine-grained
+token with Contents: write on the repository, allowed to push past the protection. The workflow then commits and
+publishes with it, and the package workflows start from the `release: published` event instead of being started
+by the Release workflow.
