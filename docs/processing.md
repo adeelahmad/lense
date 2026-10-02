@@ -207,14 +207,18 @@ Activity work as before. A pipeline saved as a list is drawn as a chain.
 
 ## Content types
 
-Every resource is video, audio, image or text (transcripts, documents and web pages are text), read from its file.
+Every resource is video, audio, image or text (transcripts, documents, web pages, emails and calendar events are
+text), read from its file; a video file that hasn't been probed yet is told by its extension.
 Under each base type is a vocabulary of content types (Pipelines → Content types): Lens starts with podcast, interview
 and meeting (audio), screen-share tutorial and recorded meeting (video), photo and scanned page (image), transcript,
-document and web page (text), plus a general type for each base. Admins can rename and change them, remove all but the
-general ones, and add their own.
+document, web page, email and calendar event (text), plus a general type for each base. Admins can rename and change
+them, remove all but the general ones, and add their own. A default that's removed stays removed; defaults added in a
+later release appear on upgrade.
 
 A resource's content type is the one someone chose (its Details tab, `PUT /api/v1/recordings/{id}/content-type`), else
 the first of its base type whose rules all match (file extensions, a pattern in the file name or title, a length),
-else the general one. The pipeline that runs is the one chosen for the run, else the namespace's override for the
+else the general one. Patterns ignore case and see `_` as a space, so `\bcalls?\b` matches `team_call.mp3` but not
+`recall.mp3`. The pipeline that runs is the one chosen for the run, else the namespace's override for the
 content type, else the content type's pipeline, else the namespace default, else the standard pipeline. Content types
-start without a pipeline, so nothing changes until someone sets one.
+start without a pipeline, so nothing changes until someone sets one. Files found by a folder scan go through the same
+choice as uploads.

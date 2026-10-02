@@ -4,7 +4,8 @@ Every resource has one of four base types, read from its file: video, audio, ima
 web pages are text). Under each base type is a vocabulary of subtypes, e.g. podcast or interview under audio, or a
 screen-share tutorial under video. A subtype has a label, a description, an optional pipeline and optional rules that
 recognise it (file extensions, a pattern in the file name, a length). Lens starts with a few; they can all be edited,
-the ones that aren't a base type's general subtype can be removed, and people can add their own.
+the ones that aren't a base type's general subtype can be removed (a removed default stays removed), and people can
+add their own.
 
 A resource's subtype is the one someone chose (`recording.content_type`), else the first subtype of its base type
 whose rules all match, else its base type's general subtype. The pipeline that runs is, in order: the one chosen for
@@ -30,56 +31,75 @@ MAX_TYPES = 200
 DEFAULTS = [
     ("video", "video", "Video", "Any video", {}),
     ("screen_tutorial", "video", "Screen-share tutorial", "A recorded screen: demos, walkthroughs, tutorials",
-     {"pattern": r"screen|tutorial|demo|walkthrough|how[ _-]?to"}),
-    ("meeting_video", "video", "Recorded meeting", "A video call: Zoom, Teams, Meet", {"pattern": r"zoom|teams|meet|meeting"}),
+     {"pattern": r"\b(screen[ -]?(share|sharing|cast|recording|capture)s?|tutorials?|demos?|walkthroughs?|how[ -]?to)\b"}),
+    ("meeting_video", "video", "Recorded meeting", "A video call: Zoom, Teams, Meet",
+     {"pattern": r"\b(zoom|teams|meet|meetings?)\b"}),
     ("audio", "audio", "Audio", "Any audio", {}),
-    ("podcast", "audio", "Podcast", "An episode of a show", {"pattern": r"podcast|episode|\bep\s?\d+"}),
-    ("interview", "audio", "Interview", "One person asking, another answering", {"pattern": r"interview"}),
-    ("meeting_audio", "audio", "Meeting", "A call or a meeting", {"pattern": r"meeting|call|standup|sync"}),
+    ("podcast", "audio", "Podcast", "An episode of a show", {"pattern": r"\b(podcasts?|episodes?|ep[ -]?\d+)\b"}),
+    ("interview", "audio", "Interview", "One person asking, another answering", {"pattern": r"\binterview(s|ed|ing)?\b"}),
+    ("meeting_audio", "audio", "Meeting", "A call or a meeting", {"pattern": r"\b(meetings?|calls?|stand-?ups?|syncs?|1[ -]?on[ -]?1)\b"}),
     ("image", "image", "Image", "Any picture", {}),
-    ("scan", "image", "Scanned page", "A page from a scanner or a phone", {"pattern": r"scan"}),
+    ("scan", "image", "Scanned page", "A page from a scanner or a phone", {"pattern": r"\bscan(s|ned|ning)?\b"}),
     ("photo", "image", "Photo", "A photograph", {"extensions": [".jpg", ".jpeg", ".heic"]}),
     ("text", "text", "Text", "Any text", {}),
     ("transcript", "text", "Transcript", "Who said what, imported as text", {"extensions": [".srt", ".vtt", ".json", ".jsonl"]}),
     ("document", "text", "Document", "A PDF, Word or Markdown file", {"extensions": [".pdf", ".docx", ".doc", ".md", ".odt", ".rtf"]}),
     ("web_page", "text", "Web page", "A captured web page", {"extensions": [".html", ".htm"]}),
+    ("email", "text", "Email", "A message, with its attachments", {"extensions": [".eml", ".msg"]}),
+    ("calendar_event", "text", "Calendar event", "An invitation or a calendar entry", {"extensions": [".ics"]}),
 ]  # fmt: skip
 
 
 def base_of(rec):
-    """A resource's base type from its file."""
+    """A resource's base type from its file. Uploads and scanned files start as audio until a step probes them, so a
+    video file not probed yet is told by its extension."""
     k = render.kind(rec)
+    if k == "audio" and not (rec.get("media") or {}).get("kind"):
+        from . import video
+
+        if pathlib.PurePosixPath(rec.get("path") or "").suffix.lower() in video.VIDEO_TYPES:
+            return "video"
     return k if k in BASES else "text"
 
 
 def seed(db):
-    """The starting vocabulary, on an archive that has none."""
-    if db.values("SELECT VALUE id FROM content_type LIMIT 1"):
+    """The starting vocabulary: every default subtype the archive hasn't had yet, so defaults added in a later release
+    reach archives made before it. A removed default leaves a marker (`removed`) and isn't brought back."""
+    have = set(db.values("SELECT VALUE record::id(id) FROM content_type"))
+    if len(have) >= len(DEFAULTS) and all(d[0] in have for d in DEFAULTS):
         return
-    seen = set()
+    generals = set(db.values("SELECT VALUE base FROM content_type WHERE general = true"))
     for k, (key, base, label, desc, rules) in enumerate(DEFAULTS):
-        db.q(
-            "CREATE $r CONTENT $d",
-            r=R("content_type", key),
-            d=store.clean(
-                {
-                    "base": base,
-                    "label": label,
-                    "description": desc,
-                    "rules": rules or None,
-                    "general": base not in seen,
-                    "builtin": True,
-                    "ord": k,
-                    "created_at": store.now(),
-                }
-            ),
-        )
-        seen.add(base)
+        if key in have:
+            continue
+        general = base not in generals and not any(d[1] == base for d in DEFAULTS[:k])
+        try:
+            db.q(
+                "CREATE $r CONTENT $d",
+                r=R("content_type", key),
+                d=store.clean(
+                    {
+                        "base": base,
+                        "label": label,
+                        "description": desc,
+                        "rules": rules or None,
+                        "general": general,
+                        "builtin": True,
+                        "ord": k,
+                        "created_at": store.now(),
+                    }
+                ),
+            )
+        except Exception:  # noqa: BLE001 - another process seeded it first
+            if not db.one("SELECT id FROM $r", r=R("content_type", key)):
+                raise
+        if general:
+            generals.add(base)
 
 
 def all_types(db):
     seed(db)
-    rows = db.rows(f"SELECT {FIELDS} FROM content_type")
+    rows = db.rows(f"SELECT {FIELDS} FROM content_type WHERE removed != true")
     for r in rows:
         r["general"], r["builtin"] = bool(r.get("general")), bool(r.get("builtin"))
     return sorted(rows, key=lambda r: (BASES.index(r["base"]), not r["general"], r.get("ord") or 0, r["key"]))
@@ -87,8 +107,8 @@ def all_types(db):
 
 def get(db, key):
     seed(db)
-    t = db.one(f"SELECT {FIELDS} FROM $r", r=R("content_type", str(key)))
-    if not t:
+    t = db.one(f"SELECT {FIELDS}, removed FROM $r", r=R("content_type", str(key)))
+    if not t or t.pop("removed", None):
         raise KeyError(key)
     return t
 
@@ -143,13 +163,14 @@ def create(db, base, label, key=None, description=None, pipeline=None, rules=Non
         key = "t_" + key
     if not KEY_RX.match(key or ""):
         raise ValueError("its key is lowercase letters, digits and _, starting with a letter")
-    if db.one("SELECT id FROM $r", r=R("content_type", key)):
+    old = db.one("SELECT removed FROM $r", r=R("content_type", key))
+    if old and not old.get("removed"):
         raise ValueError(f"there's a content type called {key} already")
-    if len(db.values("SELECT VALUE id FROM content_type")) >= MAX_TYPES:
+    if len(db.values("SELECT VALUE id FROM content_type WHERE removed != true")) >= MAX_TYPES:
         raise ValueError(f"there can be up to {MAX_TYPES} content types")
     ords = db.values("SELECT VALUE ord FROM content_type WHERE base = $b", b=base) or [0]
     db.q(
-        "CREATE $r CONTENT $d",
+        ("UPDATE $r CONTENT $d" if old else "CREATE $r CONTENT $d"),
         r=R("content_type", key),
         d=store.clean(
             {
@@ -192,7 +213,8 @@ def update(db, key, changes):
 
 
 def delete(db, key):
-    """Remove a subtype; resources that had it go back to being recognised, namespaces' overrides for it go."""
+    """Remove a subtype; resources that had it go back to being recognised, namespaces' overrides for it go. A removed
+    default stays as a marker so seeding doesn't bring it back."""
     t = get(db, key)
     if t.get("general"):
         raise ValueError(f"{t['label']} is the general {t['base']} type; it can be renamed, not removed")
@@ -201,7 +223,10 @@ def delete(db, key):
         m = dict(s.get("pipelines") or {})
         if m.pop(key, None) is not None:
             db.q("UPDATE $s SET pipelines = $m", s=R("space", s["id"]), m=m or None)
-    db.q("DELETE $r", r=R("content_type", key))
+    if t.get("builtin"):
+        db.q("UPDATE $r CONTENT $d", r=R("content_type", key), d={"removed": True, "builtin": True, "base": t["base"]})
+    else:
+        db.q("DELETE $r", r=R("content_type", key))
 
 
 def matches(rules, filename, text, minutes):
@@ -209,9 +234,10 @@ def matches(rules, filename, text, minutes):
     if not rules:
         return False
     ext = pathlib.PurePosixPath(filename or "").suffix.lower()
+    text = (text or "").replace("_", " ")  # so \b sees the words in team_call.mp3
     return not (
         ("extensions" in rules and ext not in rules["extensions"])
-        or ("pattern" in rules and not re.search(rules["pattern"], text or "", re.I))
+        or ("pattern" in rules and not re.search(rules["pattern"], text, re.I))
         or ("min_minutes" in rules and (minutes is None or minutes < rules["min_minutes"]))
         or ("max_minutes" in rules and (minutes is None or minutes > rules["max_minutes"]))
     )
@@ -245,13 +271,14 @@ def of_recording(db, rid):
 
 def choose(db, rid, key):
     """Set a resource's subtype (None: recognise it from the file again). It has to be of the resource's base type."""
-    rec = db.one("SELECT source, media FROM $r", r=R("recording", int(rid)))
+    rec = db.one("SELECT source, media, path FROM $r", r=R("recording", int(rid)))
     if not rec:
         raise KeyError(rid)
     if key is not None:
-        t = get(db, key) if db.one("SELECT id FROM $r", r=R("content_type", str(key))) else None
-        if not t:
-            raise ValueError("no such content type")
+        try:
+            t = get(db, key)
+        except KeyError:
+            raise ValueError("no such content type") from None
         if t["base"] != base_of(rec):
             raise ValueError(f"this is {base_of(rec)}; {t['label']} is a {t['base']} type")
     db.q("UPDATE $r SET content_type = $k", r=R("recording", int(rid)), k=key)

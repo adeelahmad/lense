@@ -85,3 +85,48 @@ def test_content_types_choose_the_pipeline(client, new_client, db, cfg):
     assert client.delete("/api/v1/content-types/minutes", headers=h).status_code == 200
     assert content_types.of_recording(db, rid)[1] is False
     assert db.one("SELECT pipelines FROM $s", s=store.R("space", sid))["pipelines"] == {"document": b}
+
+
+def test_base_types_and_default_rules(db, cfg):
+    types = content_types.all_types(db)
+
+    def sub(path, media=None, source="audio"):
+        rec = {"source": source, "path": path, "title": None, "media": media}
+        return content_types.base_of(rec), content_types.recognise(db, rec, types)["key"]
+
+    # uploads and scans start as audio; a video file not probed yet is still video
+    assert sub("/in/zoom meeting.mp4") == ("video", "meeting_video")
+    assert sub("/in/zoom meeting.mp4", {"kind": "audio"}) == ("audio", "meeting_audio")  # probed: no picture in it
+    assert sub("/in/lecture.mp4", {"kind": "video"}) == ("video", "video")
+    # default patterns match words, not parts of words; _ separates words
+    assert sub("/in/team_call.mp3")[1] == "meeting_audio"
+    assert sub("/in/total recall.mp3")[1] == "audio"
+    assert sub("/in/async notes.mp3")[1] == "audio"
+    assert sub("/in/meetup 2024.mp4")[1] == "video"
+    assert sub("/in/My Podcast Ep 12.mp3")[1] == "podcast"
+    assert sub("/in/invite.ics", source="document")[1] == "calendar_event"
+    assert sub("/in/re: contract.eml", source="document")[1] == "email"
+
+
+def test_seeding_adds_new_defaults_and_keeps_removals(db):
+    content_types.seed(db)
+    db.q("DELETE content_type:email")  # an archive from before email was a default
+    assert content_types.delete(db, "podcast") is None
+    content_types.seed(db)
+    keys = {t["key"] for t in content_types.all_types(db)}
+    assert "email" in keys and "podcast" not in keys  # a removed default stays removed
+    with pytest.raises(KeyError):
+        content_types.get(db, "podcast")
+    assert content_types.create(db, "audio", "Podcast") == "podcast"  # its key can be used again
+    t = content_types.get(db, "podcast")
+    assert (t["builtin"], t["general"], t["base"]) == (False, False, "audio")
+    assert len([t for t in content_types.all_types(db) if t["general"]]) == 4
+
+
+def test_scanned_files_run_their_content_types_pipeline(db, cfg):
+    rid = ingest.import_text(db, cfg, "pods", "Alice: Hi.", title="Weekly sync")
+    db.q("UPDATE $r SET source = 'audio', status = 'new', path = '/in/standup.mp3'", r=store.R("recording", rid))
+    content_types.update(db, "meeting_audio", {"pipeline": pipelines.create(db, "Meetings", ["transcribe", "analyze"])})
+    (jid,) = jobs.enqueue_pending(db, by="test")
+    job = db.one("SELECT pipeline, steps FROM $j", j=store.R("job", jid))
+    assert job["pipeline"]["name"] == "Meetings" and [s["type"] for s in job["steps"]] == ["transcribe", "analyze"]

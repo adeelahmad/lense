@@ -4,6 +4,19 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Workflows on a canvas, and content types.** Pipelines make assets (transcripts, shots, OCR text, faces); workflows
+  are shared, versioned node graphs that make metadata (outputs, custom field values, entities). Both are drawn on a
+  canvas (Pipelines → Workflows, and Canvas on a pipeline): drag nodes, connect them, set each node's options, save a
+  version. A pipeline runs a workflow as a `workflow` step, pinned to its version when the run is queued.
+    - Workflow nodes: input, LLM template, pick, condition (yes/no), merge, output, custom field, and entity
+      extraction as nodes (by rules: the built-in extractor, terms and patterns; by the model, as structured output;
+      save entities). `/api/v1/workflows` lists, creates, versions and runs them.
+    - Every resource is video, audio, image or text, and under each is an editable vocabulary of content types
+      (podcast, interview, screen-share tutorial, email, ...) that recognise files by extension, name and length.
+      A content type can have a pipeline, and a namespace can override it. `/api/v1/content-types`.
+    - Nothing changes until someone sets something: the standard pipeline is drawn as a chain of today's steps, and
+      content types start without a pipeline.
+
 - **Faster to run.** `make run` builds the images once and runs the whole stack without hot reload
   (`docker-compose.prod.yml`, with a `.env` of fresh secrets written on first use): the web app is built ahead of
   time, so every page opens at once instead of compiling on its first visit. `make dev` is the hot-reload stack;

@@ -224,8 +224,15 @@ def steps_for(rec):
 
 
 def enqueue_pending(db, space=None, by=None):
+    """Queue what scans and imports left waiting. A new file runs the pipeline its content type and namespace resolve
+    to, as an upload does; a transcript imported part-way runs what's left after import."""
     q = "SELECT record::id(id) AS id, status, source FROM recording WHERE status IN ['new', 'error', 'transcribed', 'diarized']"
-    return [enqueue(db, r["id"], steps_for(r), by) for r in db.rows(q + (" AND space = $s" if space else ""), s=space) if steps_for(r)]
+    out = []
+    for r in db.rows(q + (" AND space = $s" if space else ""), s=space):
+        steps = steps_for(r)
+        if steps:
+            out.append(enqueue(db, r["id"], None if steps is PIPELINE else steps, by))
+    return out
 
 
 def claim(db, worker, can):
