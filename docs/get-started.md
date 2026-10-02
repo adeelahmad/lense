@@ -18,11 +18,16 @@ rebuilds.
 To work on the code, run the hot-reload stack instead:
 
 ```bash
-make dev          # docker compose up --build
+make dev          # docker compose up --build --renew-anon-volumes
 ```
 
+`make` uses `docker compose`, or the standalone `docker-compose` where that's what is installed (Colima, Podman);
+`make dev DOCKER_COMPOSE="podman compose"` chooses another. After a dependency changes (`uv.lock`,
+`pnpm-lock.yaml`), `make dev` rebuilds the images and starts from their packages; `make docker-up` starts what's
+there without rebuilding.
+
 This starts SurrealDB, the API with hot reload (<http://localhost:8000/docs>), a job worker, the web app
-(<http://localhost:3000>) and MailHog for password-reset emails (<http://localhost:8025>). Pages are compiled the
+(<http://localhost:3000>) and Mailpit for password-reset emails (<http://localhost:8025>). Pages are compiled the
 first time they are visited, so the first visit to each takes a few seconds; both stacks share the same volumes, so
 `make run` and `make dev` see the same archive (stop one before starting the other). On a Mac the web app's dev server
 is much faster run natively than through Docker's file sharing: keep the rest in Docker and run `cd nextjs-frontend &&

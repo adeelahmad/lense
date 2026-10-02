@@ -4,8 +4,9 @@
 
 # Image names of their own: under the same project, the dev stack's default names (<project>-backend, ...) would be
 # overwritten by these builds, and a later `docker compose up` would run the production images without hot reload.
+# LENS_VERSION tags them (default `prod`), for NAS setups (Synology, QNAP) that run a named image.
 x-backend: &backend
-  image: lens-backend:prod
+  image: lens-backend:${LENS_VERSION:-prod}
   build:
     context: fastapi_backend
     target: ${LENS_TARGET:-lean}  # full: LibreOffice and Chromium, to read Office files, text, web pages and emails
@@ -60,7 +61,7 @@ services:
       disable: true
 
   frontend:
-    image: lens-frontend:prod
+    image: lens-frontend:${LENS_VERSION:-prod}
     build:
       context: ./nextjs-frontend
       dockerfile: Dockerfile.prod
