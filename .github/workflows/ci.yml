@@ -154,7 +154,7 @@ jobs:
 
   frontend:
     name: Next.js
-    runs-on: self-hosted # any of them
+    runs-on: [self-hosted, Linux, X64]
     defaults:
       run:
         working-directory: ./nextjs-frontend
