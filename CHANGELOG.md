@@ -4,6 +4,20 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Releases are automatic, from Conventional Commits.** PR titles are Conventional Commits (`feat(chat): …`,
+  `fix!: …`), checked on each PR and, with `make hooks`, on each commit message. Running Release from the Actions
+  tab picks the semantic version from the titles merged since the last release (or takes `patch`, `minor`, `major`
+  or a version), writes the changelog section from them under any hand-written Unreleased text, sets the version in
+  the backend, frontend and Cloudron manifest, commits and tags `vX.Y.Z`, and publishes the GitHub release with that
+  section as its notes; a tag pushed by hand is published the same way. Publishing starts the Cloudron, QNAP and
+  Synology package builds, which attach to the release. It replaces the template's draft-only workflow
+  (docs/contributing.md).
+    - The pre-commit hooks also check YAML, TOML and the GitHub workflows (actionlint), and the commit message.
+    - The repository has a CONTRIBUTING.md, SECURITY.md (report vulnerabilities privately to the maintainer), a code of
+      conduct (Contributor Covenant 2.1), bug and feature issue forms, a PR template that asks for a Conventional
+      Commit title, and Dependabot updates for Python, JavaScript, Docker images and Actions, titled `build(deps): …`
+      so the changelog lists them under Dependencies.
+
 - **First-run setup wizard.** A fresh install now walks its first admin through setup in the web app: after the
   admin account (still with the one-time setup code, so a stranger can't claim a public server) come the first
   namespace, the model provider (with a connection test) and storage (the upload limit, and a folder to watch).
