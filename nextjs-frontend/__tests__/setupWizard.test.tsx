@@ -13,9 +13,10 @@ jest.mock("@/app/openapi-client", () => ({
     saveNamespace: jest.fn(),
     saveLlm: jest.fn(),
     saveStorage: jest.fn(),
+    saveTelemetry: jest.fn(),
     finish: jest.fn(),
   },
-  Admin: { testLlm: jest.fn() },
+  Admin: { testLlm: jest.fn(), testTelemetry: jest.fn() },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 const replace = jest.fn();
@@ -38,6 +39,7 @@ const VIEW = (over: Partial<SetupView> = {}): SetupView => ({
     max_upload_mb: 4096,
     watches: 0,
   },
+  telemetry: { enabled: false, endpoint: null, locked: [] },
   ...over,
 });
 
@@ -53,12 +55,13 @@ function wrap(ui: ReactNode) {
 beforeEach(() => jest.clearAllMocks());
 
 describe("SetupWizard", () => {
-  it("walks through namespace, model provider and storage, then finishes", async () => {
+  it("walks through namespace, model provider, storage and telemetry, then finishes", async () => {
     m(Setup.getSetup).mockImplementation(() => ok(VIEW()));
     m(Setup.saveNamespace).mockImplementation(() => ok({ ok: true }));
     m(Setup.saveLlm).mockImplementation(() => ok({ ok: true }));
     m(Admin.testLlm).mockImplementation(() => ok({ ok: true, reply: "OK", ms: 120, model: "llama3" }));
     m(Setup.saveStorage).mockImplementation(() => ok({ ok: true }));
+    m(Setup.saveTelemetry).mockImplementation(() => ok({ ok: true }));
     m(Setup.finish).mockImplementation(() => ok({ ok: true }));
     wrap(<SetupWizard />);
 
@@ -86,12 +89,40 @@ describe("SetupWizard", () => {
     });
 
     fireEvent.change(await screen.findByLabelText(/Largest upload/), { target: { value: "2048" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await waitFor(() => expect(Setup.saveStorage).toHaveBeenCalled());
+    expect(m(Setup.saveStorage).mock.calls[0][0].body).toEqual({ max_upload_mb: 2048, folder: null, namespace: null });
+
+    // telemetry is off unless chosen: finishing with it off sends nothing anywhere
+    expect(await screen.findByText(/off unless you turn it on/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("OTLP endpoint")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Save and finish" }));
     await waitFor(() =>
       expect(Setup.finish).toHaveBeenCalledWith(expect.objectContaining({ body: { skipped: false } })),
     );
-    expect(m(Setup.saveStorage).mock.calls[0][0].body).toEqual({ max_upload_mb: 2048, folder: null, namespace: null });
+    expect(m(Setup.saveTelemetry).mock.calls[0][0].body).toEqual({ enabled: false, endpoint: null });
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+  });
+
+  it("opts in to telemetry with an endpoint, after a test span", async () => {
+    m(Setup.getSetup).mockImplementation(() => ok(VIEW({ namespace: { existing: ["media"], locked: false } })));
+    m(Setup.saveTelemetry).mockImplementation(() => ok({ ok: true }));
+    m(Admin.testTelemetry).mockImplementation(() => ok({ ok: true, ms: 12 }));
+    m(Setup.finish).mockImplementation(() => ok({ ok: true }));
+    wrap(<SetupWizard />);
+    fireEvent.click(await screen.findByRole("button", { name: /Telemetry/ }));
+    fireEvent.click(await screen.findByRole("radio", { name: "On" }));
+    const save = screen.getByRole("button", { name: "Save and finish" });
+    expect(save).toBeDisabled(); // on needs somewhere to send to
+    fireEvent.change(screen.getByLabelText("OTLP endpoint"), { target: { value: "localhost:4318" } });
+    expect(save).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("OTLP endpoint"), { target: { value: "http://localhost:4318" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send a test span" }));
+    expect(await screen.findByText(/took a test span in 12 ms/)).toBeInTheDocument();
+    expect(m(Setup.saveTelemetry).mock.calls[0][0].body).toEqual({ enabled: false, endpoint: "http://localhost:4318" });
+    fireEvent.click(save);
+    await waitFor(() => expect(Setup.finish).toHaveBeenCalled());
+    expect(m(Setup.saveTelemetry).mock.calls[1][0].body).toEqual({ enabled: true, endpoint: "http://localhost:4318" });
   });
 
   it("shows what .env sets as locked", async () => {

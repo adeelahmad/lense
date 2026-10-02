@@ -9,7 +9,7 @@ import re
 import urllib.request
 from collections import Counter, defaultdict
 
-from . import store
+from . import store, telemetry
 
 STOP = set(
     """a about above after again against all almost also am an and any are aren as at be because been before being
@@ -628,8 +628,8 @@ def _llm(cfg, user, system=SUMMARY_SYSTEM):
     req = urllib.request.Request(
         l["base_url"].rstrip("/") + "/chat/completions", data=json.dumps(body).encode(), headers=headers, method="POST"
     )
-    with urllib.request.urlopen(req, timeout=l.get("timeout", 300)) as r:
-        text = json.loads(r.read().decode())["choices"][0]["message"]["content"]
+    with telemetry.model_call(cfg, body) as call, urllib.request.urlopen(req, timeout=l.get("timeout", 300)) as r:
+        text = call.reply(json.loads(r.read().decode()))["choices"][0]["message"]["content"]
     text = re.sub(r"^```(?:json)?|```$", "", text.strip()).strip()
     obj = json.loads(text[text.find("{") : text.rfind("}") + 1])
     missing = [k for k in SUMMARY_NEEDS if k not in obj]

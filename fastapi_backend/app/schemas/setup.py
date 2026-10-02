@@ -30,12 +30,20 @@ class SetupStorageView(ResponseModel):
     watches: int
 
 
+class SetupTelemetryView(ResponseModel):
+    enabled: bool
+    endpoint: str | None = None
+    # what .env sets (LENS_TELEMETRY, LENS_TELEMETRY_ENDPOINT): shown locked
+    locked: list[str]
+
+
 class SetupView(ResponseModel):
     pending: bool
     admin: SetupAdmin
     namespace: SetupNamespaceView
     llm: SetupLlmView
     storage: SetupStorageView
+    telemetry: SetupTelemetryView
 
 
 class SetupNamespace(RequestModel):
@@ -55,6 +63,12 @@ class SetupStorage(RequestModel):
     # a folder inside sources.local_roots to watch into `namespace`
     folder: str | None = Field(default=None, max_length=4096)
     namespace: str | None = None
+
+
+class SetupTelemetry(RequestModel):
+    enabled: bool = False
+    # the OTLP/HTTP address of a collector, like http://localhost:4318; needed to turn telemetry on
+    endpoint: str | None = Field(default=None, max_length=500)
 
 
 class SetupFinish(RequestModel):

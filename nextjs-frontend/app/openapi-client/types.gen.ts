@@ -9092,6 +9092,39 @@ export type SetupStorageView = {
 };
 
 /**
+ * SetupTelemetry
+ */
+export type SetupTelemetry = {
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+  /**
+   * Endpoint
+   */
+  endpoint?: string | null;
+};
+
+/**
+ * SetupTelemetryView
+ */
+export type SetupTelemetryView = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Endpoint
+   */
+  endpoint?: string | null;
+  /**
+   * Locked
+   */
+  locked: Array<string>;
+  [key: string]: unknown | boolean | string | null | Array<string> | undefined;
+};
+
+/**
  * SetupView
  */
 export type SetupView = {
@@ -9103,7 +9136,9 @@ export type SetupView = {
   namespace: SetupNamespaceView;
   llm: SetupLlmView;
   storage: SetupStorageView;
-  [key: string]: unknown | boolean | SetupAdmin | SetupNamespaceView | SetupLlmView | SetupStorageView;
+  telemetry: SetupTelemetryView;
+  [key: string]:
+    unknown | boolean | SetupAdmin | SetupNamespaceView | SetupLlmView | SetupStorageView | SetupTelemetryView;
 };
 
 /**
@@ -10044,6 +10079,70 @@ export type TagsChanged = {
    */
   changed: number;
   [key: string]: unknown | boolean | number | undefined;
+};
+
+/**
+ * TelemetryExport
+ */
+export type TelemetryExport = {
+  /**
+   * At
+   */
+  at: number;
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown | number | boolean | string | null | undefined;
+};
+
+/**
+ * TelemetryStatus
+ * What the API process does with telemetry now; each worker follows the same settings on its own.
+ */
+export type TelemetryStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Endpoint
+   */
+  endpoint?: string | null;
+  /**
+   * Traces
+   */
+  traces: boolean;
+  /**
+   * Metrics
+   */
+  metrics: boolean;
+  last_traces?: TelemetryExport | null;
+  last_metrics?: TelemetryExport | null;
+  [key: string]: unknown | boolean | string | null | TelemetryExport | null | TelemetryExport | null | undefined;
+};
+
+/**
+ * TelemetryTestResult
+ */
+export type TelemetryTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  [key: string]: unknown | boolean | string | null | number | null | undefined;
 };
 
 /**
@@ -12303,6 +12402,38 @@ export type TestLlmResponses = {
 
 export type TestLlmResponse = TestLlmResponses[keyof TestLlmResponses];
 
+export type TelemetryStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/telemetry/status";
+};
+
+export type TelemetryStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: TelemetryStatus;
+};
+
+export type TelemetryStatusResponse = TelemetryStatusResponses[keyof TelemetryStatusResponses];
+
+export type TestTelemetryData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/telemetry/test";
+};
+
+export type TestTelemetryResponses = {
+  /**
+   * Successful Response
+   */
+  200: TelemetryTestResult;
+};
+
+export type TestTelemetryResponse = TestTelemetryResponses[keyof TestTelemetryResponses];
+
 export type ListAuditData = {
   body?: never;
   path?: never;
@@ -12503,6 +12634,31 @@ export type SaveStorageResponses = {
 };
 
 export type SaveStorageResponse = SaveStorageResponses[keyof SaveStorageResponses];
+
+export type SaveTelemetryData = {
+  body: SetupTelemetry;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/telemetry";
+};
+
+export type SaveTelemetryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveTelemetryError = SaveTelemetryErrors[keyof SaveTelemetryErrors];
+
+export type SaveTelemetryResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveTelemetryResponse = SaveTelemetryResponses[keyof SaveTelemetryResponses];
 
 export type FinishData = {
   body: SetupFinish;

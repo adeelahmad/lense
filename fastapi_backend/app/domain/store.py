@@ -255,6 +255,20 @@ DEFAULTS = {
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)
     "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
+    # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
+    # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the
+    # endpoint's auth. prices: {model: {input, output}} in USD per million tokens, for cost estimates.
+    "telemetry": {
+        "enabled": False,
+        "endpoint": None,
+        "headers": None,
+        "traces": True,
+        "metrics": True,
+        "sample_ratio": 1.0,
+        "export_seconds": 60,
+        "service_name": "lens",
+        "prices": {},
+    },
     # IIIF: identifiers are built from base_url (set it to the stable public HTTPS address; null: the request's address)
     "iiif": {
         "base_url": None,
