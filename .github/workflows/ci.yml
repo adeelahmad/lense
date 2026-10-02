@@ -57,6 +57,8 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
         with:
+          # a cache that outlives the job on the self-hosted runner (the default is in the job's temp folder)
+          cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
           python-version: "3.12"
 
       - name: Install
@@ -132,6 +134,8 @@ jobs:
         run: for p in ffmpeg tesseract poppler; do brew list "$p" >/dev/null 2>&1 || brew install "$p"; done
       - uses: astral-sh/setup-uv@v5
         with:
+          # a cache that outlives the job on the self-hosted runner (the default is in the job's temp folder)
+          cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
           python-version: "3.12"
       - run: uv sync --frozen
       - name: Tests against the server
@@ -154,7 +158,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: pnpm
+          # on the self-hosted runner pnpm's store stays on disk; saving it to GitHub's cache took minutes
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
           cache-dependency-path: nextjs-frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
