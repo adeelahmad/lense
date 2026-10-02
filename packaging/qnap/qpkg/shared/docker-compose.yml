@@ -1,12 +1,13 @@
 # The Lens stack on a QNAP NAS, run by lens.sh in Container Station's Docker engine (project "lens").
-# The images come inside the QPKG (lens-backend, lens-frontend and SurrealDB, tagged with the package version) and
+# The images come inside the QPKG (lens-backend and lens-frontend tagged qnap-<version>, and SurrealDB) and
 # are loaded on the first start, so nothing is pulled or built on the NAS.
 # Settings and secrets: lens.env in the data folder (LENS_DATA), written on the first start. Everything Lens keeps
 # lives under LENS_DATA, which outlasts removing the app.
 
 x-backend: &backend
-  image: lens-backend:${LENS_VERSION:?}
+  image: lens-backend:qnap-${LENS_VERSION:?}
   environment:
+    ARCHIVE_CONFIG: /qnap/archive.yaml
     ACCESS_SECRET_KEY: ${ACCESS_SECRET_KEY:?set ACCESS_SECRET_KEY in lens.env}
     ARCHIVE_SECRET_KEY: ${ARCHIVE_SECRET_KEY:?set ARCHIVE_SECRET_KEY in lens.env}
     LENS_SETUP_CODE: ${LENS_SETUP_CODE:-}
@@ -22,7 +23,18 @@ x-backend: &backend
     MAIL_USERNAME: ${MAIL_USERNAME:-}
     MAIL_PASSWORD: ${MAIL_PASSWORD:-}
     MAIL_FROM: ${MAIL_FROM:-}
+    # Optional answers to the first-run setup (empty means the web app asks)
+    LENS_ADMIN_EMAIL: ${LENS_ADMIN_EMAIL:-}
+    LENS_ADMIN_PASSWORD: ${LENS_ADMIN_PASSWORD:-}
+    LENS_ADMIN_NAME: ${LENS_ADMIN_NAME:-}
+    LENS_NAMESPACE: ${LENS_NAMESPACE:-}
+    LENS_LLM_BASE_URL: ${LENS_LLM_BASE_URL:-}
+    LENS_LLM_MODEL: ${LENS_LLM_MODEL:-}
+    LENS_LLM_API_KEY: ${LENS_LLM_API_KEY:-}
+    LENS_LLM_VISION_MODEL: ${LENS_LLM_VISION_MODEL:-}
+    LENS_SETUP_WIZARD: ${LENS_SETUP_WIZARD:-}
   volumes:
+    - ./archive.yaml:/qnap/archive.yaml:ro
     - ${LENS_DATA:?}/archive:/data
     - ${AUDIO_DIR:?set AUDIO_DIR in lens.env}:/audio:ro
   depends_on:
@@ -56,7 +68,7 @@ services:
       disable: true
 
   frontend:
-    image: lens-frontend:${LENS_VERSION:?}
+    image: lens-frontend:qnap-${LENS_VERSION:?}
     environment:
       API_BASE_URL: http://backend:8000
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in lens.env}

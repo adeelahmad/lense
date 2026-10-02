@@ -9,7 +9,7 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Manually: it carries the Lens images and SurrealDB, loads them into Container Station on its first start, and runs
   the stack there, so there are no containers to set up by hand. The first start writes the settings with fresh
   secrets to a data folder (`/share/Container/lens`) that outlasts removing the app, and puts the first-admin setup
-  code in the QTS system log; the NAS's `Multimedia` share appears in Lens as `/audio` for watched folders.
+  code in the QTS system log; files put in `Multimedia/Lens` on the NAS are picked up into a `media` namespace.
   Upgrades install over the old version and remove its images. Publishing a GitHub release builds both packages and
   attaches them to it (`.github/workflows/qnap.yml`). Steps in packaging/qnap/README.md.
 

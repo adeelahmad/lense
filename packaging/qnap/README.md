@@ -6,7 +6,7 @@ Lens images (API and worker, web app) and SurrealDB, loads them on its first sta
 built or downloaded on the NAS.
 
 - **NAS:** QTS 5 or QuTS hero 5 with Container Station 3, on an Intel/AMD (`x86_64`) or ARM 64-bit (`arm_64`) model.
-  4 GB of RAM or more; transcription and the full image's document conversion are heavy.
+  4 GB of RAM or more; transcription is heavy.
 - **Space:** a few GB on the volume: the package's image files while they're loaded on the first start (they're
   deleted afterwards), the images in Container Station, and whatever your archive holds.
 
@@ -20,15 +20,16 @@ packaging/qnap/build.sh --arch arm_64      # ARM NAS:       packaging/qnap/build
 ```
 
 - The version comes from `fastapi_backend/pyproject.toml` (`--version` overrides it, 10 characters at most).
-- The backend image is the `full` target by default, as `make run` uses: LibreOffice and Chromium to read Office files,
-  text, web pages and emails, and object detection. `--target lean` makes a much smaller package that reads PDFs
-  and images only. `--extras "msg"` adds Outlook `.msg` emails (see docs/deployment.md).
+- The backend image is the `lean` target by default: it reads audio, video, PDFs and images. `--target full` adds
+  LibreOffice and Chromium, to read Office files, text, web pages and emails, and object detection, for a much bigger
+  package. `--extras "msg"` adds Outlook `.msg` emails (see docs/deployment.md).
 - Building for the other architecture than your machine's uses QEMU. Docker Desktop has it; on Linux, once:
   `docker run --privileged --rm tonistiigi/binfmt --install arm64` (or `amd64`). It's slow; building on a machine of
   the NAS's architecture is quicker.
 - The first run builds a small `lens-qdk` image with QDK in it, so QDK needn't be installed.
-- `--prebuilt` packages the `lens-backend:<version>` and `lens-frontend:<version>` images already in Docker instead
-  of building them (from CI, say).
+- The package's images are tagged `lens-backend:qnap-<version>` and `lens-frontend:qnap-<version>`, so they never
+  clash with Lens images built some other way. `--prebuilt` packages images with those tags already in Docker
+  instead of building them (from CI, say).
 
 Releases get the packages automatically: publishing a GitHub release runs `.github/workflows/qnap.yml`, which builds
 both and attaches `Lens_<tag>_x86_64.qpkg` and `Lens_<tag>_arm_64.qpkg` to it (run it by hand from the Actions tab,
@@ -66,8 +67,10 @@ Back up the whole folder (Hybrid Backup Sync works, as it's a shared folder) wit
 the data folder and drops the images; reinstalling picks up where it was. Delete the folder yourself to remove
 everything.
 
-Your **recordings and documents** on the NAS appear inside Lens as `/audio` (read-only), for watched folders. By
-default that's the `Multimedia` share; set `AUDIO_DIR` in `lens.env` to use another folder.
+Your **recordings and documents**: Lens sees one folder on the NAS, `Lens` in the `Multimedia` share
+(`/share/Multimedia/Lens`, created on the first start), as `/audio`, read-only. Files you put there are picked up into
+the `media` namespace, and its subfolders can be watched from the web app. Set `AUDIO_DIR` in `lens.env` to use another
+folder. The package's `archive.yaml` sets this up; settings changed in the web app are kept in the database.
 
 ## Settings
 
@@ -78,6 +81,8 @@ Edit `lens.env` in the data folder, then stop and start Lens in the App Center (
   HTTPS (QTS's own reverse proxy in Control Panel > Network Access, or myQNAPcloud), or if the NAS's address changes.
   For another port set `LENS_PORT` and the port in `FRONTEND_URL` alike. Sharing and IIIF need HTTPS.
 - **Mail** for password resets: the `MAIL_*` settings.
+- **Unattended setup.** The `LENS_ADMIN_*`, `LENS_NAMESPACE`, `LENS_LLM_*` and `LENS_SETUP_WIZARD` settings answer the
+  first-run setup instead of the web app (see docs/configuration.md); empty ones are left to the web app.
 - **Models.** Lens talks to OpenAI-compatible servers; set them up in the web app. A model server on the NAS itself
   (Ollama in Container Station, say) is reachable at the NAS's LAN address, not `localhost`.
 - To move the data folder: stop Lens, move the folder, then
@@ -107,6 +112,7 @@ next start and the old version's are removed; the data folder carries over.
 - `qpkg.cfg`: requires Container Station 3, opens the web app on port 3000, gives the first start 15 minutes.
 - `lens.sh`: the service script. On start it waits for Container Station's Docker, writes `lens.env` with fresh
   secrets on the first run, loads any image that isn't in Docker yet, and runs `docker compose up` on
-  `docker-compose.yml` as the project `lens`. On removal it stops the stack and removes the Lens images.
+  `docker-compose.yml` as the project `lens`. On removal it stops the stack and removes its own images (tagged `qnap-<version>`).
 - `docker-compose.yml`: the same stack as `docker-compose.prod.yml`, with the bundled images, the data folder as bind
   mounts and the web app on the NAS's port 3000.
+- `archive.yaml`: the processing configuration, with the `media` namespace on `/audio`.

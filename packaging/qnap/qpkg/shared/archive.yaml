@@ -1,0 +1,14 @@
+# Processing configuration for Lens on a QNAP NAS (lens.sh mounts it read-only; settings changed in the app are kept in
+# the database). The folder AUDIO_DIR in lens.env (/share/Multimedia/Lens by default) appears inside Lens as /audio.
+data_dir: /data
+namespaces:
+  media:
+    paths: [/audio]              # recordings and documents put in that folder are picked up here
+    graph: shared
+server:
+  # "backend" is the Host the web app uses to reach the API inside the compose network
+  allowed_hosts: [127.0.0.1, localhost, backend]
+workers:
+  inline: 0                      # the worker service does the work
+sources:
+  local_roots: [/audio]          # folders the web app may watch

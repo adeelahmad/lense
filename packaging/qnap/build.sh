@@ -2,9 +2,9 @@
 # Builds the Lens QPKG for QNAP NAS: one self-contained .qpkg per architecture, with the Lens images (API and worker,
 # web app) and SurrealDB inside, so the NAS needs nothing but Container Station.
 #
-#   packaging/qnap/build.sh                        # x86_64 (Intel and AMD NAS), the full image
+#   packaging/qnap/build.sh                        # x86_64 (Intel and AMD NAS), the lean image
 #   packaging/qnap/build.sh --arch arm_64          # ARM NAS (on an x86 machine this needs QEMU, see README.md)
-#   packaging/qnap/build.sh --arch x86_64 --arch arm_64 --target lean --extras "msg"
+#   packaging/qnap/build.sh --arch x86_64 --arch arm_64 --target full --extras "msg"
 #
 # Needs only Docker with buildx (Linux, macOS, or Windows with WSL); QDK runs in a container built the first time.
 # Output: packaging/qnap/build/Lens_<version>_<arch>.qpkg
@@ -18,9 +18,9 @@ OUT="$HERE/build"
 SURREAL_IMAGE=surrealdb/surrealdb:v3.2.4
 
 ARCHES=()
-TARGET=full     # full: LibreOffice and Chromium, to read Office files, text, web pages and emails (as `make run`)
+TARGET=lean     # full: adds LibreOffice and Chromium, to read Office files, text, web pages and emails
 EXTRAS=""
-PREBUILT=""    # --prebuilt: package the lens-backend:<version> and lens-frontend:<version> images already in Docker
+PREBUILT=""    # --prebuilt: package the lens-backend:qnap-<version> and lens-frontend:qnap-<version> images already in Docker
 VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' "$REPO/fastapi_backend/pyproject.toml" | head -n 1)
 
 while [ $# -gt 0 ]; do
@@ -78,9 +78,9 @@ for arch in "${ARCHES[@]}"; do
 
     if [ -z "$PREBUILT" ]; then
         docker buildx build --platform "$platform" --target "$TARGET" --build-arg EXTRAS="$EXTRAS" \
-            --load -t "lens-backend:$VERSION" "$REPO/fastapi_backend"
+            --load -t "lens-backend:qnap-$VERSION" "$REPO/fastapi_backend"
         docker buildx build --platform "$platform" -f "$REPO/nextjs-frontend/Dockerfile.prod" \
-            --load -t "lens-frontend:$VERSION" "$REPO/nextjs-frontend"
+            --load -t "lens-frontend:qnap-$VERSION" "$REPO/nextjs-frontend"
     fi
     [ "$(docker image inspect -f '{{.Os}}/{{.Architecture}}' "$SURREAL_IMAGE" 2>/dev/null)" = "$platform" ] ||
         docker pull -q --platform "$platform" "$SURREAL_IMAGE"
@@ -88,7 +88,7 @@ for arch in "${ARCHES[@]}"; do
     # With Docker's containerd image store, save only the platform being packaged
     docker save --help 2>/dev/null | grep -q -- '--platform' && save_args=(--platform "$platform")
     : > "$images/manifest"
-    for ref in "lens-backend:$VERSION" "lens-frontend:$VERSION" "$SURREAL_IMAGE"; do
+    for ref in "lens-backend:qnap-$VERSION" "lens-frontend:qnap-$VERSION" "$SURREAL_IMAGE"; do
         got=$(docker image inspect -f '{{.Os}}/{{.Architecture}}' "$ref")
         [ "$got" = "$platform" ] || { echo "$ref is $got, expected $platform" >&2; exit 1; }
         file=$(echo "$ref" | tr '/:' '__').tar  # left uncompressed: qbuild compresses the whole package

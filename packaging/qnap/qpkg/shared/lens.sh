@@ -72,7 +72,7 @@ write_env() {
     for h in localhost 127.0.0.1 "$host" "$(hostname)"; do
         case ",$hosts," in *",$h,"*) ;; *) hosts="$hosts,$h" ;; esac
     done
-    if [ -d /share/Multimedia ]; then audio=/share/Multimedia; else audio="$LENS_DATA/audio"; fi
+    if [ -d /share/Multimedia ]; then audio=/share/Multimedia/Lens; else audio="$LENS_DATA/media"; fi
     umask 077
     cat > "$LENS_DATA/lens.env" <<EOF
 # Lens settings, written on the first start. Edit, then restart Lens in the App Center (or: $QPKG_ROOT/lens.sh restart).
@@ -90,7 +90,8 @@ LENS_PORT=3000
 FRONTEND_URL=http://$host:3000
 ARCHIVE_ALLOWED_HOSTS=$hosts
 
-# Recordings and documents on the NAS: this folder appears in Lens as /audio (read-only), for watched folders.
+# Recordings and documents on the NAS: this folder appears in Lens as /audio (read-only). Files put in it are picked up
+# into the "media" namespace, and its subfolders can be watched from the web app. Only this folder is visible to Lens.
 AUDIO_DIR=$audio
 
 # Creates the first admin account in the web app; used only until that account exists.
@@ -102,6 +103,18 @@ MAIL_PORT=587
 MAIL_USERNAME=
 MAIL_PASSWORD=
 MAIL_FROM=
+
+# Optional: answer the first-run setup here instead of in the web app (see docs/configuration.md). The admin account
+# is created at start from LENS_ADMIN_EMAIL and LENS_ADMIN_PASSWORD; LENS_SETUP_WIZARD=off skips the setup steps.
+LENS_ADMIN_EMAIL=
+LENS_ADMIN_PASSWORD=
+LENS_ADMIN_NAME=
+LENS_NAMESPACE=
+LENS_LLM_BASE_URL=
+LENS_LLM_MODEL=
+LENS_LLM_API_KEY=
+LENS_LLM_VISION_MODEL=
+LENS_SETUP_WIZARD=
 EOF
     umask 022
 }
@@ -120,7 +133,8 @@ prepare_data() {
 
 # --- The bundled images -----------------------------------------------------------------------------------------
 # images/manifest lists "<image reference> <file>" per line. Each image is loaded once; its file is then deleted to give
-# the space back (an upgrade brings new ones). Images of earlier Lens versions are removed after an upgrade.
+# the space back (an upgrade brings new ones). This package's images are tagged qnap-<version>; earlier versions' are
+# removed after an upgrade, and other Lens images in Docker (built by hand, say) are left alone.
 load_images() {
     [ -f "$IMAGES_DIR/manifest" ] || return 0
     while read -r ref file; do
@@ -133,7 +147,7 @@ load_images() {
         rm -f "$IMAGES_DIR/$file"
     done < "$IMAGES_DIR/manifest"
     for repo in lens-backend lens-frontend; do
-        "$DOCKER" image ls --format '{{.Repository}}:{{.Tag}}' "$repo" 2>/dev/null | grep -v ":$LENS_VERSION\$" | while read -r old; do
+        "$DOCKER" image ls --format '{{.Repository}}:{{.Tag}}' "$repo" 2>/dev/null | grep ":qnap-" | grep -v ":qnap-$LENS_VERSION\$" | while read -r old; do
             "$DOCKER" image rm "$old" >/dev/null 2>&1 || true
         done
     done
@@ -190,7 +204,7 @@ case "$1" in
     if "$DOCKER" info >/dev/null 2>&1; then
         [ -f "$LENS_DATA/lens.env" ] && compose down --remove-orphans
         for repo in lens-backend lens-frontend; do
-            "$DOCKER" image ls --format '{{.Repository}}:{{.Tag}}' "$repo" 2>/dev/null | while read -r img; do
+            "$DOCKER" image ls --format '{{.Repository}}:{{.Tag}}' "$repo" 2>/dev/null | grep ":qnap-" | while read -r img; do
                 "$DOCKER" image rm "$img" >/dev/null 2>&1 || true
             done
         done
