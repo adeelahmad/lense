@@ -116,6 +116,33 @@ Changing the model drops the stored vectors (another model's can't be compared) 
 doesn't have the model), indexing jobs skip for ten minutes rather than each waiting on it, and the hourly routine
 waits too; **Test** in Settings → Search, **Index now**, or `lens embed` try again at once.
 
+## Decisions
+
+A decision model answers typed questions instead of writing text: a yes/no question comes back as a probability, a
+choice as one of the options with a probability for each, a score as a level on a scale, in one request and a few
+hundred milliseconds. Lens acts on an answer only when it's sure enough and leaves the rest for a person. Off until
+an admin switches it on (Settings → Decisions); without one, everything works as it always has.
+
+The server is TypeSafe's hosted **Jev** (`https://api.typesafe.ai`, the default) or any server that answers the same
+request, `POST /v1/systemone` (an open decision model run locally, or a gateway). Lens talks to it through TypeSafe's
+Python SDK. With the hosted model, the passages being judged leave your server; a server of your own keeps them.
+
+| Setting | Default | |
+|---|---|---|
+| `decisions.enabled` | false | whether decisions are asked for at all (`LENS_DECISIONS`) |
+| `decisions.base_url` | `https://api.typesafe.ai` | the server (`LENS_DECISIONS_BASE_URL`) |
+| `decisions.model` | `jev-latest` | the model (`LENS_DECISIONS_MODEL`) |
+| `decisions.api_key` / `api_key_env` | none | the key, stored encrypted (`LENS_DECISIONS_API_KEY`), or the name of an environment variable to read it from. Without either, `TYPESAFE_API_KEY` is read, as TypeSafe's own tools do; with none at all the request goes out with a placeholder, for a gateway that puts its own key in |
+| `decisions.timeout` | 10 | seconds before giving up on a request, 1–120; what was waiting on it carries on without |
+| `decisions.rerank` | true | searches are reranked ([API](api.md#search)) |
+| `decisions.rerank_top` | 24 | how many of the best hits are judged, 4–64: one yes/no question each, eight to a request, requests in parallel |
+| `decisions.classify`, `apply_above` | true, 0.85 | suggestions for new resources, and how sure one must be to be applied by itself |
+| `decisions.moderate`, `flag_above` | true, 0.7 | flags on comments, and how sure one must be to be raised |
+| `decisions.mcp` | true | the ask and check tools for assistants ([MCP](mcp.md)) |
+
+A server that refuses the key, is overloaded or can't be reached isn't asked again for 30 seconds; searches, imports
+and comments carry on meanwhile. Settings → Decisions has a Test that asks one yes/no question and one choice.
+
 ## Chat models
 
 People can choose the model a conversation uses, and ask a question again with another (Retry with another model).

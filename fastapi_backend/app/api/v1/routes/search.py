@@ -42,6 +42,11 @@ def search_transcripts(
         '"hybrid": both, fused by rank; "auto": hybrid when search by meaning is set up and the query has no "phrases" '
         "or OR, else keyword",
     ),
+    rerank: bool = Query(
+        True,
+        description="where a decision model is set up (Settings → Decisions), have it judge whether each of the best "
+        "hits answers the query and order them by that; hits then carry `relevance`. Only the first page is reranked",
+    ),
 ) -> SearchResults:
     """Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
     transcripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),
@@ -68,6 +73,7 @@ def search_transcripts(
         described=True,
         cfg=cfg,
         mode=mode,
+        rerank=rerank and offset == 0,
     )
     return sign_urls(res, full=True)
 

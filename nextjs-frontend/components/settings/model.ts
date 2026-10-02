@@ -58,6 +58,7 @@ export type SectionId =
   | "llm"
   | "ai"
   | "search"
+  | "decisions"
   | "reports"
   | "video"
   | "workers"
@@ -120,6 +121,13 @@ export const SECTIONS: SectionSpec[] = [
     label: "Search",
     backend: ["search", "embeddings"],
     description: "How transcripts are indexed for search, and search by meaning with an embedding model.",
+  },
+  {
+    id: "decisions",
+    label: "Decisions",
+    backend: ["decisions"],
+    description:
+      "A decision model (TypeSafe’s Jev, or a server that answers the same way) for typed judgments: reranking searches, suggesting tags and collections, flagging comments, and checks for assistants.",
   },
   {
     id: "reports",
@@ -601,6 +609,99 @@ export const FIELDS: FieldSpec[] = [
       { value: "none", label: "None" },
     ],
     hint: "Changing this needs a reindex before results change",
+  },
+  // Decisions
+  {
+    section: "decisions",
+    key: "enabled",
+    label: "Typed decisions",
+    kind: "switch",
+    hint: "Asks a decision model yes/no, choice and score questions about your content. Off: nothing is sent anywhere",
+  },
+  {
+    section: "decisions",
+    key: "base_url",
+    label: "Decision server",
+    kind: "text",
+    mono: true,
+    hint: "https://api.typesafe.ai is TypeSafe’s hosted Jev. A server of your own that answers POST /v1/systemone works too",
+  },
+  {
+    section: "decisions",
+    key: "model",
+    label: "Model",
+    kind: "text",
+    mono: true,
+    hint: "jev-latest, or a pinned version",
+  },
+  { section: "decisions", key: "api_key", label: "API key", kind: "secret" },
+  {
+    section: "decisions",
+    key: "api_key_env",
+    label: "Or read the key from this variable",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "TYPESAFE_API_KEY",
+  },
+  {
+    section: "decisions",
+    key: "timeout",
+    label: "Give up after (seconds)",
+    kind: "int",
+    min: 1,
+    max: 120,
+    hint: "A search or an import carries on without the model’s answer",
+  },
+  {
+    section: "decisions",
+    key: "rerank",
+    label: "Rerank searches",
+    kind: "switch",
+    hint: "The best hits are each judged for whether they answer the query, and ordered by that",
+  },
+  {
+    section: "decisions",
+    key: "rerank_top",
+    label: "Hits judged per search",
+    kind: "int",
+    min: 4,
+    max: 64,
+    hint: "One yes/no question each, eight to a request",
+  },
+  {
+    section: "decisions",
+    key: "classify",
+    label: "Suggest tags, content type and collection",
+    kind: "switch",
+    hint: "The classify step asks about each new resource",
+  },
+  {
+    section: "decisions",
+    key: "apply_above",
+    label: "Apply a suggestion when this sure",
+    ...pct(0.5, 1),
+    hint: "Less sure, it waits on the resource for a person to accept",
+  },
+  {
+    section: "decisions",
+    key: "moderate",
+    label: "Flag comments for review",
+    kind: "switch",
+    hint: "Spam, abuse and personal details are flagged for a namespace’s owners; nothing is hidden by itself",
+  },
+  {
+    section: "decisions",
+    key: "flag_above",
+    label: "Flag when this sure",
+    ...pct(0.5, 1),
+  },
+  {
+    section: "decisions",
+    key: "mcp",
+    label: "Ask and check tools for assistants",
+    kind: "switch",
+    hint: "Assistants connected through MCP can ask typed questions about what they read and check their own answers",
   },
   // Search by meaning
   {
@@ -1446,6 +1547,11 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   if (g) e["analysis.gazetteer"] = g;
   const llm = values["llm.base_url"] as string | null | undefined;
   if (llm && !URL_RX.test(llm)) e["llm.base_url"] = "Use an http(s) address, such as https://api.example.org/v1";
+  const decide = values["decisions.base_url"] as string | null | undefined;
+  if (decide && !/^https?:\/\/\S+$/.test(decide))
+    e["decisions.base_url"] = "Use an http(s) address, such as https://api.typesafe.ai";
+  if (values["decisions.model"] === "" || values["decisions.model"] === null)
+    e["decisions.model"] = "Name the decision model, such as jev-latest";
   const embed = values["embeddings.base_url"] as string | null | undefined;
   if (embed && !URL_RX.test(embed))
     e["embeddings.base_url"] = "Use an http(s) address, such as http://localhost:11434/v1";

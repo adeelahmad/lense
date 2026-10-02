@@ -187,6 +187,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <AiBody ctx={ctx} />;
     case "search":
       return <SearchBody ctx={ctx} />;
+    case "decisions":
+      return <DecisionsBody ctx={ctx} />;
     case "reports":
       return (
         <>
@@ -559,6 +561,88 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           <span className="text-fg-secondary">The same as an editor, in the namespaces they own.</span>
         </div>
       </div>
+    </>
+  );
+}
+
+/** Typed decisions (docs/configuration.md#decisions): the server, its key, a test, and what it's used for. */
+function DecisionsBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const d = ctx.view.decisions?.values ?? {};
+  const secret = (d.api_key ?? {}) as { set?: boolean };
+  const key = ctx.state("decisions.api_key");
+  const on = Boolean(ctx.form["decisions.enabled"]);
+  const hosted = String(ctx.form["decisions.base_url"] ?? "").includes("api.typesafe.ai");
+  const test = useMutation({ mutationFn: () => data(Admin.testDecisions({ client })) });
+  return (
+    <>
+      <p className="m-0 text-[13px] leading-normal text-fg-secondary">
+        A decision model doesn’t write: it answers typed questions (yes or no with a probability, one of a list, a level
+        on a scale) in a few hundred milliseconds. Lens acts on an answer only when it’s sure enough, and leaves the
+        rest for a person. Without one, search, imports and comments work as they always have.
+      </p>
+      <F ctx={ctx} id="decisions.enabled" />
+      {on && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="decisions.base_url" />
+            <F ctx={ctx} id="decisions.model" />
+          </div>
+          {hosted && (
+            <Banner tone="info" title="Hosted: content leaves this server.">
+              The passages being judged (search hits, the start of a new resource, comments) are sent to TypeSafe. Use a
+              server of your own to keep them here.
+            </Banner>
+          )}
+          <SecretSetting
+            key={ctx.view.decisions?.updated_at ?? "none"}
+            label="API key"
+            isSet={Boolean(secret.set)}
+            updatedBy={ctx.view.decisions?.updated_by}
+            updatedAt={ctx.view.decisions?.updated_at}
+            value={key.value as string | undefined}
+            onChange={(x) => key.onChange(x)}
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F
+              ctx={ctx}
+              id="decisions.api_key_env"
+              hint="Used only when no key is stored above; TYPESAFE_API_KEY is read anyway"
+            />
+            <F ctx={ctx} id="decisions.timeout" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+              {test.isPending ? "Testing…" : "Test"}
+            </Button>
+            <span className="text-[12px] text-fg-muted">
+              {ctx.dirty
+                ? "Tests the saved settings, not your unsaved changes"
+                : "Asks one yes/no question and one choice, and reports the answers and latency"}
+            </span>
+          </div>
+          {test.data &&
+            (test.data.ok ? (
+              <Banner tone="success" title="The model answered.">
+                {test.data.model ?? "Model"} · {test.data.ms} ms · “is it about a ship?” yes{" "}
+                {Math.round((test.data.yes ?? 0) * 100)}% · chose “{test.data.choice}”
+              </Banner>
+            ) : (
+              <Banner tone="error" title="The test failed.">
+                {test.data.error}
+              </Banner>
+            ))}
+          {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+          <h3 className="m-0 mt-3 text-[15px] font-bold text-fg">What it’s used for</h3>
+          <F ctx={ctx} id="decisions.rerank" />
+          <F ctx={ctx} id="decisions.rerank_top" />
+          <F ctx={ctx} id="decisions.classify" />
+          <F ctx={ctx} id="decisions.apply_above" />
+          <F ctx={ctx} id="decisions.moderate" />
+          <F ctx={ctx} id="decisions.flag_above" />
+          <F ctx={ctx} id="decisions.mcp" />
+        </>
+      )}
     </>
   );
 }

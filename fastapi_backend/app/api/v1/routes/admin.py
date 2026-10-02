@@ -12,9 +12,11 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
-from app.domain import auth, jobs, llm, semantic, settings, sources, store, telemetry
+from app.domain import auth, decide, jobs, llm, semantic, settings, sources, store, telemetry
 from app.schemas.admin import (
     AuditEntry,
+    DecisionStatus,
+    DecisionTestResult,
     EmbedTestResult,
     Health,
     IndexQueued,
@@ -76,6 +78,40 @@ def test_embeddings(user: AdminWriter, cfg: Cfg, db: Db) -> EmbedTestResult:
         return EmbedTestResult(ok=False, error=str(e))
     semantic.recovered(db)
     return EmbedTestResult(ok=True, dimension=len(vec), ms=int((time.time() - t0) * 1000), model=semantic.endpoint(cfg)[2])
+
+
+@router.post("/settings/decisions/test")
+def test_decisions(user: AdminWriter, cfg: Cfg) -> DecisionTestResult:
+    """Ask the decision model one yes/no question and one choice, to check the address, key and model name."""
+    if not decide.configured(cfg):
+        return DecisionTestResult(ok=False, error="switch decisions on, with a model, first")
+    decide.recovered()
+    t0 = time.time()
+    try:
+        out = decide.ask(
+            cfg,
+            "The ship left the harbour before the tide turned this morning.",
+            {
+                "sea": decide.noul("Is this sentence about a ship?"),
+                "topic": decide.choice("What is the sentence about?", {"sea": "ships and harbours", "money": "prices and budgets"}),
+            },
+            timeout=20,
+        )
+    except decide.DecideError as e:
+        return DecisionTestResult(ok=False, error=str(e))
+    return DecisionTestResult(
+        ok=True,
+        ms=int((time.time() - t0) * 1000),
+        model=decide.endpoint(cfg)[2],
+        yes=round(out["sea"]["p"], 3),
+        choice=out["topic"]["choice"],
+    )
+
+
+@router.get("/admin/decisions")
+def decisions_status(user: AdminReader, cfg: Cfg) -> DecisionStatus:
+    """Typed decisions: whether they're on, which server and model answer them, and whether a key is set."""
+    return DecisionStatus(**decide.status(cfg))
 
 
 @router.get("/admin/semantic")

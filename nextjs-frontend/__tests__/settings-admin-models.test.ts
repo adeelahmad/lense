@@ -18,6 +18,7 @@ import {
   buildPatches,
   crossErrors,
   FIELDS,
+  SECTIONS,
   fieldId,
   gazetteerErrors,
   parse,
@@ -429,5 +430,22 @@ describe("errors", () => {
     expect([0, 1, 2, 3].map(retryDelay)).toEqual([8, 16, 30, 30]);
     expect(unreachableCode(new ApiError(503, "x"))).toBe("503 Service Unavailable");
     expect(unreachableCode(new TypeError("Failed to fetch"))).toBe("network error");
+  });
+});
+
+describe("decision settings", () => {
+  it("has a section with the server, the key and what it's used for", () => {
+    const section = SECTIONS.find((x) => x.id === "decisions");
+    expect(section?.backend).toEqual(["decisions"]);
+    const keys = FIELDS.filter((f) => f.section === "decisions").map((f) => f.key);
+    expect(keys).toEqual(
+      expect.arrayContaining(["enabled", "base_url", "model", "api_key", "rerank", "classify", "moderate", "mcp"]),
+    );
+  });
+
+  it("checks the server's address and the model's name", () => {
+    expect(crossErrors({ "decisions.base_url": "api.typesafe.ai" })["decisions.base_url"]).toMatch(/http\(s\) address/);
+    expect(crossErrors({ "decisions.base_url": "https://api.typesafe.ai" })["decisions.base_url"]).toBeUndefined();
+    expect(crossErrors({ "decisions.model": "" })["decisions.model"]).toMatch(/jev-latest/);
   });
 });

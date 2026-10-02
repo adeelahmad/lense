@@ -389,6 +389,7 @@ export function SearchPage() {
                     · searched for <code className="font-mono text-[12.5px] text-fg-strong">{understood}</code>
                   </>
                 )}
+                {first.reranked ? <> · the best {count(first.reranked)} ordered by how well they answer it</> : null}
                 {nFilters > 0 && base.data && base.data.total !== total && (
                   <> · {plural(base.data.total, "moment")} without filters</>
                 )}

@@ -4,6 +4,20 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Typed decisions, and searches reranked by them.** Lens can ask a decision model typed questions about its own
+  content: yes or no with a probability, one of a list, a level on a scale, answered in a few hundred milliseconds, and
+  acts on an answer only when it's sure enough. Decided with the project owner: either provider by setting, TypeSafe's
+  hosted Jev or a server of your own that answers `POST /v1/systemone`, through TypeSafe's Python SDK; off until an
+  admin switches it on.
+    - Settings → Decisions: the server, the model, the key (stored encrypted; `TYPESAFE_API_KEY` is read too; none
+      for a gateway that adds its own), a Test, and what decisions are used for. `LENS_DECISIONS`,
+      `LENS_DECISIONS_BASE_URL`, `LENS_DECISIONS_MODEL` and `LENS_DECISIONS_API_KEY` set it from the environment
+      (docs/configuration.md#decisions). With the hosted model the page says that the passages judged leave the server.
+    - Search: the best hits of the first page (24 unless changed) are each judged for whether they answer the query,
+      eight to a request, and ordered by that; a judged hit says how relevant it was found. `GET /search` takes
+      `rerank` and answers `rerank`, `reranked` and each hit's `relevance` (docs/api.md#search).
+    - Nothing depends on it: without a decision model, or when it refuses, is overloaded or can't be reached, searches
+      answer in the order they matched, and the server isn't asked again for half a minute.
 - **Calendar feeds on your own network.** A calendar server at home or on an intranet (Nextcloud, Radicale) was
   refused with "only public web pages can be captured", and Docker and the packages had no way to allow it.
   `LENS_WEB_NETWORKS` in `.env` (e.g. `192.168.1.0/24`) now adds networks to `documents.web_networks`, and the error

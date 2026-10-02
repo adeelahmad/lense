@@ -1,6 +1,6 @@
 import type { SearchHit } from "@/app/openapi-client/types.gen";
 import { fromServer, groupByRecording } from "@/components/search/facets";
-import { foundAs, onPage, recordingHref } from "@/components/search/links";
+import { foundAs, onPage, recordingHref, relevanceLabel } from "@/components/search/links";
 import {
   activeFilterCount,
   filterToken,
@@ -263,5 +263,14 @@ describe("prefix words", () => {
     expect(replacePrefix('evals "red team" interp**', "interp", "interpreter")).toBe('evals "red team" interpreter');
     expect(replacePrefix("misinterp* interp*", "interp", "interpret")).toBe("misinterp* interpret");
     expect(replacePrefix("a.b* c", "a.b", "a.bc")).toBe("a.bc c");
+  });
+});
+
+describe("reranked hits", () => {
+  it("say how relevant they were judged", () => {
+    expect(relevanceLabel(0.972)).toBe("97% relevant");
+    expect(relevanceLabel(1)).toBe("99% relevant");
+    expect(relevanceLabel(0.4)).toBe("40% relevant");
+    expect(relevanceLabel(0.01)).toBe("under 5% relevant");
   });
 });

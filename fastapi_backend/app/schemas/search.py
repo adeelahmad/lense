@@ -39,6 +39,9 @@ class SearchHit(ResponseModel):
         'alike; shown at its line that fits best), or "both"',
     )
     similarity: float | None = Field(None, description="found by meaning: how alike the passage is to the query (cosine, up to 1)")
+    relevance: float | None = Field(
+        None, description="reranked: how likely the hit answers the query, as a decision model judged it (0 to 1)"
+    )
 
 
 class FacetCount(ResponseModel):
@@ -89,6 +92,8 @@ class SearchResults(ResponseModel):
     )
     meaning: str | None = Field(None, description="why the search wasn't by meaning when that was asked for")
     semantic: bool = Field(False, description="search by meaning is set up, so `mode` may be semantic or hybrid")
+    rerank: bool = Field(False, description="a decision model is set up to rerank searches (`rerank=false` leaves the order)")
+    reranked: int | None = Field(None, description="how many of the best hits were judged and reordered; null when none were")
 
 
 class TermSuggestion(ResponseModel):

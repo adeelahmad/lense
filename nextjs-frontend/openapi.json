@@ -1193,6 +1193,50 @@
         }
       }
     },
+    "/api/v1/settings/decisions/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Decisions",
+        "description": "Ask the decision model one yes/no question and one choice, to check the address, key and model name.",
+        "operationId": "test_decisions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/decisions": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Decisions Status",
+        "description": "Typed decisions: whether they're on, which server and model answer them, and whether a key is set.",
+        "operationId": "decisions_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/semantic": {
       "get": {
         "tags": [
@@ -7069,6 +7113,18 @@
               "title": "Mode"
             },
             "description": "\"keyword\": the words (BM25); \"semantic\": by meaning (needs an embedding model, Settings \u2192 Search); \"hybrid\": both, fused by rank; \"auto\": hybrid when search by meaning is set up and the query has no \"phrases\" or OR, else keyword"
+          },
+          {
+            "name": "rerank",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "where a decision model is set up (Settings \u2192 Decisions), have it judge whether each of the best hits answers the query and order them by that; hits then carry `relevance`. Only the first page is reranked",
+              "default": true,
+              "title": "Rerank"
+            },
+            "description": "where a decision model is set up (Settings \u2192 Decisions), have it judge whether each of the best hits answers the query and order them by that; hits then carry `relevance`. Only the first page is reranked"
           }
         ],
         "responses": {
@@ -18591,6 +18647,126 @@
         ],
         "title": "Created"
       },
+      "DecisionStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured",
+            "description": "on, with a model to ask"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "hosted": {
+            "type": "boolean",
+            "title": "Hosted",
+            "description": "the server is TypeSafe's own (api.typesafe.ai)"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "key": {
+            "type": "boolean",
+            "title": "Key",
+            "description": "an API key is set (saved in the app, or in the environment)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "configured",
+          "base_url",
+          "hosted",
+          "key"
+        ],
+        "title": "DecisionStatus",
+        "description": "Typed decisions (Settings \u2192 Decisions)."
+      },
+      "DecisionTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "yes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yes",
+            "description": "the probability it gave a question whose answer is yes"
+          },
+          "choice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choice",
+            "description": "what it chose where `sea` was right"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "DecisionTestResult"
+      },
       "Description": {
         "properties": {
           "idx": {
@@ -28843,6 +29019,18 @@
             ],
             "title": "Similarity",
             "description": "found by meaning: how alike the passage is to the query (cosine, up to 1)"
+          },
+          "relevance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relevance",
+            "description": "reranked: how likely the hit answers the query, as a decision model judged it (0 to 1)"
           }
         },
         "additionalProperties": true,
@@ -28922,6 +29110,24 @@
             "title": "Semantic",
             "description": "search by meaning is set up, so `mode` may be semantic or hybrid",
             "default": false
+          },
+          "rerank": {
+            "type": "boolean",
+            "title": "Rerank",
+            "description": "a decision model is set up to rerank searches (`rerank=false` leaves the order)",
+            "default": false
+          },
+          "reranked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reranked",
+            "description": "how many of the best hits were judged and reordered; null when none were"
           }
         },
         "additionalProperties": true,

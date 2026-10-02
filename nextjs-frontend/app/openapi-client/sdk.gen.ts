@@ -145,6 +145,8 @@ import type {
   DecideApprovalData,
   DecideApprovalErrors,
   DecideApprovalResponses,
+  DecisionsStatusData,
+  DecisionsStatusResponses,
   DeclineAccessRequestData,
   DeclineAccessRequestErrors,
   DeclineAccessRequestResponses,
@@ -752,6 +754,8 @@ import type {
   SuggestTermsResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
+  TestDecisionsData,
+  TestDecisionsResponses,
   TestEmbeddingsData,
   TestEmbeddingsResponses,
   TestLlmData,
@@ -1378,6 +1382,34 @@ export class Admin {
   ): RequestResult<TestEmbeddingsResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestEmbeddingsResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/embeddings/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Decisions
+   *
+   * Ask the decision model one yes/no question and one choice, to check the address, key and model name.
+   */
+  public static testDecisions<ThrowOnError extends boolean = false>(
+    options?: Options<TestDecisionsData, ThrowOnError>,
+  ): RequestResult<TestDecisionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestDecisionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/decisions/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Decisions Status
+   *
+   * Typed decisions: whether they're on, which server and model answer them, and whether a key is set.
+   */
+  public static decisionsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<DecisionsStatusData, ThrowOnError>,
+  ): RequestResult<DecisionsStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<DecisionsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/decisions",
       ...options,
     });
   }

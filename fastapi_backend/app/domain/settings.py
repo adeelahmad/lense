@@ -31,6 +31,7 @@ EDITABLE = {
     "graph": None,
     "search": None,
     "embeddings": None,
+    "decisions": None,
     "reports": None,
     "workers": None,
     "iiif": None,
@@ -60,7 +61,7 @@ EDITABLE = {
     # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
     "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
-SECRETS = {"llm": ("api_key",), "embeddings": ("api_key",), "telemetry": ("headers",)}
+SECRETS = {"llm": ("api_key",), "embeddings": ("api_key",), "decisions": ("api_key",), "telemetry": ("headers",)}
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"},
     ("transcribe", "device"): {"auto", "cpu", "cuda", "mps"},
@@ -86,6 +87,10 @@ ENV_OVERRIDES = {
     ("embeddings", "base_url"): "LENS_EMBED_BASE_URL",
     ("embeddings", "model"): "LENS_EMBED_MODEL",
     ("embeddings", "api_key"): "LENS_EMBED_API_KEY",
+    ("decisions", "enabled"): "LENS_DECISIONS",
+    ("decisions", "base_url"): "LENS_DECISIONS_BASE_URL",
+    ("decisions", "model"): "LENS_DECISIONS_MODEL",
+    ("decisions", "api_key"): "LENS_DECISIONS_API_KEY",
     ("telemetry", "enabled"): "LENS_TELEMETRY",
     ("telemetry", "endpoint"): "LENS_TELEMETRY_ENDPOINT",
     ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
@@ -272,6 +277,8 @@ def _check(section, key, value, default):
         return list(dict.fromkeys(names))
     if section == "embeddings":
         return _embed_setting(key, value)
+    if section == "decisions":
+        return _decision_setting(key, value)
     if section == "uploads":
         return _upload_setting(key, value)
     if section == "notifications":
@@ -320,6 +327,39 @@ def _check(section, key, value, default):
         ok = True
     if not ok:
         raise ValueError(f"{section}.{key} should be {type(default).__name__}")
+    return value
+
+
+DECISION_FLAGS = ("enabled", "rerank", "classify", "moderate", "mcp")
+DECISION_RANGES = {"timeout": (1, 120), "rerank_top": (4, 64)}
+
+
+def _decision_setting(key, value):
+    if key in DECISION_FLAGS:
+        if not isinstance(value, bool):
+            raise ValueError(f"decisions.{key} is true or false")
+        return value
+    if key == "base_url":
+        if value is None or value == "":
+            return store.DEFAULTS["decisions"]["base_url"]
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("decisions.base_url is the http(s) address of a System One server, such as https://api.typesafe.ai")
+        return value.strip().rstrip("/")
+    if key in ("model", "api_key_env"):
+        if value is None or value == "":
+            if key == "model":
+                raise ValueError("decisions.model names the decision model, such as jev-latest")
+            return None
+        if not (isinstance(value, str) and len(value.strip()) <= 200):
+            raise ValueError(f"decisions.{key} is a name")
+        return value.strip()
+    if key in ("apply_above", "flag_above"):
+        if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0.5 <= value <= 1):
+            raise ValueError(f"decisions.{key} is a number from 0.5 to 1")
+        return float(value)
+    lo, hi = DECISION_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"decisions.{key} is a whole number from {lo} to {hi}")
     return value
 
 

@@ -11,7 +11,7 @@ import logging
 import re
 from collections import Counter
 
-from . import semantic, store
+from . import decide, semantic, store
 
 log = logging.getLogger(__name__)
 
@@ -89,6 +89,7 @@ def search(
     described=False,
     cfg=None,
     mode="keyword",
+    rerank=False,
 ):
     """Transcript lines (and, unless screen is false, text on screen in videos; with files, the lines of supplementary
     transcripts, captions, translations and indexes; with objects, the kinds of object seen in videos, documents and
@@ -101,7 +102,11 @@ def search(
     `mode` is how the query is matched: "keyword" (its words, through the BM25 index), "semantic" (by meaning: the
     passages an embedding model finds most alike, semantic.py), "hybrid" (both, fused by reciprocal rank) or "auto"
     (hybrid when search by meaning is available and the query has no "phrases" or OR, else keyword). Search by
-    meaning needs `cfg`; when it can't be used the search is by keyword, and `meaning` says why."""
+    meaning needs `cfg`; when it can't be used the search is by keyword, and `meaning` says why.
+
+    With `rerank` (and a decision model, decide.py), the best hits are each asked "does this answer the query?" and
+    put in the order of the answers; each then says how relevant it was judged. Without a decision model, or when it
+    can't answer, the order stays as it was."""
     groups = parse_query(q)
     can = cfg is not None and semantic.available(db, cfg)
     used, note = _mode(cfg, mode, groups, can)
@@ -194,6 +199,7 @@ def search(
                 return search(db, q, **args, **more, described=described) | {"meaning": note}
             used = "keyword"
         hits, meant = _fuse(hits, meant, used)
+    judged = _rerank(cfg, q, hits) if rerank and cfg is not None and hits else None
     page = hits[offset : offset + limit]
     recs = (
         {
@@ -254,6 +260,7 @@ def search(
             **(_in_file(in_files.get(h["file"]) or {"id": h["file"]}, h.get("line")) if h["source"] == "file" else {}),
             "match": h.get("match") or "words",
             "similarity": round(h["similarity"], 3) if h.get("similarity") is not None else None,
+            "relevance": h.get("_relevance"),
         }
         for h in page
     ]
@@ -266,6 +273,8 @@ def search(
         "mode": used,
         "meaning": note,
         "semantic": can,
+        "reranked": judged,
+        "rerank": cfg is not None and decide.uses(cfg, "rerank"),
     }
     if facets:
         res["facets"] = _facets(
@@ -284,6 +293,40 @@ def search(
             words=used != "semantic",
         )
     return res
+
+
+RERANK_BATCH = 8  # hits asked about in one request
+RERANK_CHARS = 700  # of each hit's text
+
+
+def _rerank(cfg, q, hits):
+    """Put the best hits in the order a decision model judges them to answer the query (in place): how many were
+    judged, or None when there's no decision model or it couldn't answer for all of them (the order then stays)."""
+    if not decide.uses(cfg, "rerank"):
+        return None
+    top = hits[: int(decide._section(cfg)["rerank_top"])]
+    task = "Does this passage answer the search query, or say something directly about what it asks for?"
+    yes = "the passage is about what the query asks for, whatever words it uses"
+    no = "the passage only shares words or a broad topic with the query, or is about something else"
+    batches = [top[i : i + RERANK_BATCH] for i in range(0, len(top), RERANK_BATCH)]
+    requests = [
+        (
+            {"search_query": q},
+            {f"h{n}": decide.noul({"task": task, "passage": (h.get("text") or "")[:RERANK_CHARS]}, yes, no) for n, h in enumerate(b)},
+        )
+        for b in batches
+    ]
+    answers = decide.ask_many(cfg, requests)
+    failed = next((a for a in answers if isinstance(a, decide.DecideError)), None)
+    if failed:
+        log.warning("search wasn't reranked: %s", failed)
+        return None
+    for b, a in zip(batches, answers, strict=True):
+        for n, h in enumerate(b):
+            h["_relevance"] = round(a[f"h{n}"]["p"], 3)
+    order = {id(h): i for i, h in enumerate(top)}
+    hits[: len(top)] = sorted(top, key=lambda h: (-h["_relevance"], order[id(h)]))
+    return len(top)
 
 
 def _mode(cfg, mode, groups, can):

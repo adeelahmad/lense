@@ -31,6 +31,26 @@ class EmbedTestResult(ResponseModel):
     model: str | None = None
 
 
+class DecisionTestResult(ResponseModel):
+    ok: bool
+    error: str | None = None
+    ms: int | None = None
+    model: str | None = None
+    yes: float | None = Field(None, description="the probability it gave a question whose answer is yes")
+    choice: str | None = Field(None, description="what it chose where `sea` was right")
+
+
+class DecisionStatus(ResponseModel):
+    """Typed decisions (Settings → Decisions)."""
+
+    enabled: bool
+    configured: bool = Field(description="on, with a model to ask")
+    base_url: str
+    hosted: bool = Field(description="the server is TypeSafe's own (api.typesafe.ai)")
+    model: str | None = None
+    key: bool = Field(description="an API key is set (saved in the app, or in the environment)")
+
+
 class SemanticStatus(ResponseModel):
     """Search by meaning: whether it's on, which model it uses, and how much of the archive it covers."""
 

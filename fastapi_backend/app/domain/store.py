@@ -178,6 +178,22 @@ DEFAULTS = {
         "min_similarity": None,
         "timeout": 60,
     },
+    # typed decisions (app/domain/decide.py): a System One server (TypeSafe's Jev, or one that speaks the same
+    # request), off until switched on; what it's used for, and how sure an answer must be to be acted on
+    "decisions": {
+        "enabled": False,
+        "base_url": "https://api.typesafe.ai",
+        "model": "jev-latest",
+        "api_key_env": None,
+        "timeout": 10,
+        "rerank": True,  # reorder the top hits of a search by whether each answers the query
+        "rerank_top": 24,
+        "classify": True,  # the classify step suggests tags, a subtype and a collection
+        "apply_above": 0.85,  # a suggestion this sure is applied; less sure, it waits for a person
+        "moderate": True,  # comments get flags for owners to review
+        "flag_above": 0.7,
+        "mcp": True,  # agents get the ask and check tools
+    },
     "server": {
         "host": "127.0.0.1",
         "port": 8770,

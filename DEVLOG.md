@@ -2,6 +2,49 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-03 · Typed decisions (Jev)
+
+Goal: a decision layer next to the LLM and the embedding model. Lens asks a System One model typed questions (yes/no
+with a probability, a choice among options, a score) about its own content, and code acts on the answers with
+thresholds: what's sure is applied, what isn't is left for a person. Decided with the project owner: either provider
+by setting (TypeSafe's hosted Jev, or any server that speaks the same `POST /v1/systemone`), off until configured;
+first features are reranking search, tagging and routing imports, moderation flags, and MCP tools that answer and
+check natural-language questions.
+
+Model:
+
+- `decisions` settings: `enabled`, `base_url` (default `https://api.typesafe.ai/v1`), `model` (`jev-latest`),
+  `api_key` (secret; left out of the request when unset, for gateways that add it), timeouts and thresholds.
+  `LENS_DECISIONS_*` in the environment. A `decide.py` client: one request carries the state and named questions;
+  answers come back as probabilities with a confidence. Never raises into a request path: no answer means the
+  feature steps aside.
+- Rerank: the top hits of a search get one yes/no each ("does this passage answer the query?"), batched; the
+  probability reorders them and is shown. Hybrid ranking stays the fallback.
+- Tag and route: a `classify` pipeline step (and workflow node) asks for tags from the namespace's vocabulary, the
+  subtype and the collection; answers above the threshold are applied, the rest are suggestions on the resource.
+- Moderation: comments (and public-facing text) get typed flags (spam, abuse, personal data); owners see a review
+  queue; nothing is hidden automatically.
+- MCP: `ask` (a typed question about resources or passages, answered with probabilities and the passages it rests
+  on) and `check` (does this statement follow from these passages?), so an agent can validate its own answers.
+
+Todo:
+
+- [x] Read main: search/semantic, settings UI (workflows, comments and MCP tools: read with their slices)
+- [x] `decide.py` client on TypeSafe's Python SDK (`typesafe-sdk`), settings and validation, env overrides, fake System One server for tests
+- [x] Settings → Decisions in the web app: provider, key, model, test, thresholds
+- [x] Rerank search (API `rerank`, relevance on hits in the web app)
+- [ ] Chat and MCP retrieval use the reranked order
+- [ ] `classify` step and workflow node: tags, subtype, collection; suggestions on the resource
+- [ ] Moderation flags on comments with an owners' review queue
+- [ ] MCP `ask` and `check` tools
+- [ ] Docs (configuration, processing, api, mcp), tests on both engines, browser checks
+- [ ] Live check against hosted Jev once a key reaches this environment (2026-10-03: a request without a header is
+      refused with "Must supply an API key", and no key or gateway is visible from this shell)
+
+Left from the earlier branch `claude/oauth-search-mcp-telemetry` (not merged; main got its own OAuth, MCP and search
+by meaning meanwhile): analytics per namespace and collection, and the new logo with the name "Lens". To port onto
+main as their own PRs.
+
 ## 2026-10-02 · Routines
 
 Goal: run syncs, pipelines and workflows on a schedule, including a daily LLM pass that organises the entity graph per

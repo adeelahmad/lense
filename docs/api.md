@@ -631,6 +631,12 @@ when search by meaning is set up and the query has no "phrases" or OR, else keyw
 matched, `semantic` whether search by meaning is set up, and `meaning` why it wasn't used when asked for. Each hit's
 `match` is `words`, `meaning` (with its `similarity`, cosine, and shown at the passage's best line) or `both`.
 
+Where a decision model is set up ([Configuration](configuration.md#decisions); the answer's `rerank` says so), the
+first page is **reranked**: each of the best hits (`decisions.rerank_top`) is judged for whether it answers the query,
+and they're ordered by that. A judged hit carries `relevance` (0 to 1), and `reranked` says how many were judged.
+`rerank=false` leaves the order as matched; when the model can't answer, the order stays and `reranked` is null.
+`POST /settings/decisions/test` and `GET /admin/decisions` (admins) test the model and say how it's set up.
+
 Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
 words said in the namespaces you can read (`ns` for one) that start with it, the most said first, with how often and
 in how many recordings (`limit`, default 8, at most 20); the web app offers them as "Try …".

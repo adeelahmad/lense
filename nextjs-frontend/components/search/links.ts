@@ -25,3 +25,9 @@ export function foundAs(hit: Pick<SearchHit, "source" | "page">): string | null 
   if (hit.source === "page") return "On the page";
   return null;
 }
+
+/** A reranked hit's judged relevance, as people read it: "97% relevant", "under 5% relevant". */
+export function relevanceLabel(p: number): string {
+  const pct = Math.round(p * 100);
+  return pct < 5 ? "under 5% relevant" : `${Math.min(pct, 99)}% relevant`;
+}

@@ -13,15 +13,16 @@ import {
   FileType,
   Fingerprint,
   Globe,
+  KeyRound,
   ScanText,
   Search,
   Settings,
   ShieldCheck,
   Sparkles,
+  Split,
   Terminal,
-  Upload,
   type LucideIcon,
-  KeyRound,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -44,6 +45,7 @@ const ICON: Record<SectionId, LucideIcon> = {
   llm: Sparkles,
   ai: Bot,
   search: Search,
+  decisions: Split,
   reports: ChartNoAxesColumn,
   video: Clapperboard,
   workers: Cpu,

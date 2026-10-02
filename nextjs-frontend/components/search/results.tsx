@@ -8,7 +8,7 @@ import { forwardRef, type KeyboardEvent } from "react";
 import type { SearchHit } from "@/app/openapi-client/types.gen";
 import type { HitGroup } from "@/components/search/facets";
 import { ROLE_LABEL, hitHref, type FileRole } from "@/components/recording/files-model";
-import { foundAs, onPage, recordingHref } from "@/components/search/links";
+import { foundAs, onPage, recordingHref, relevanceLabel } from "@/components/search/links";
 import type { InlinePlayer } from "@/components/search/player";
 import { splitSnippet } from "@/components/search/snippet";
 import { speakerTone } from "@/components/speakers/format";
@@ -194,6 +194,13 @@ function HitRow({
           </Tooltip>
         )}
         <Snippet html={hit.snippet} />
+        {hit.relevance != null && (
+          <Tooltip content="How likely this answers what you searched for, as the decision model judged it. The best hits are in this order">
+            <span className="tabular ml-1.5 inline-flex translate-y-[-1px] items-center rounded-pill border border-border px-1.5 align-middle font-sans text-[10.5px] font-semibold text-fg-secondary">
+              {relevanceLabel(hit.relevance)}
+            </span>
+          </Tooltip>
+        )}
       </span>
     </div>
   );

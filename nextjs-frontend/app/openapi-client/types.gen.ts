@@ -2091,6 +2091,80 @@ export type Created = {
 };
 
 /**
+ * DecisionStatus
+ *
+ * Typed decisions (Settings → Decisions).
+ */
+export type DecisionStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Configured
+   *
+   * on, with a model to ask
+   */
+  configured: boolean;
+  /**
+   * Base Url
+   */
+  base_url: string;
+  /**
+   * Hosted
+   *
+   * the server is TypeSafe's own (api.typesafe.ai)
+   */
+  hosted: boolean;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Key
+   *
+   * an API key is set (saved in the app, or in the environment)
+   */
+  key: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * DecisionTestResult
+ */
+export type DecisionTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Yes
+   *
+   * the probability it gave a question whose answer is yes
+   */
+  yes?: number | null;
+  /**
+   * Choice
+   *
+   * what it chose where `sea` was right
+   */
+  choice?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Description
  *
  * What a model that can see images said a page or a shot shows.
@@ -8043,6 +8117,12 @@ export type SearchHit = {
    * found by meaning: how alike the passage is to the query (cosine, up to 1)
    */
   similarity?: number | null;
+  /**
+   * Relevance
+   *
+   * reranked: how likely the hit answers the query, as a decision model judged it (0 to 1)
+   */
+  relevance?: number | null;
   [key: string]: unknown;
 };
 
@@ -8094,6 +8174,18 @@ export type SearchResults = {
    * search by meaning is set up, so `mode` may be semantic or hybrid
    */
   semantic?: boolean;
+  /**
+   * Rerank
+   *
+   * a decision model is set up to rerank searches (`rerank=false` leaves the order)
+   */
+  rerank?: boolean;
+  /**
+   * Reranked
+   *
+   * how many of the best hits were judged and reordered; null when none were
+   */
+  reranked?: number | null;
   [key: string]: unknown;
 };
 
@@ -11672,6 +11764,38 @@ export type TestEmbeddingsResponses = {
 
 export type TestEmbeddingsResponse = TestEmbeddingsResponses[keyof TestEmbeddingsResponses];
 
+export type TestDecisionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/decisions/test";
+};
+
+export type TestDecisionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: DecisionTestResult;
+};
+
+export type TestDecisionsResponse = TestDecisionsResponses[keyof TestDecisionsResponses];
+
+export type DecisionsStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/decisions";
+};
+
+export type DecisionsStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: DecisionStatus;
+};
+
+export type DecisionsStatusResponse = DecisionsStatusResponses[keyof DecisionsStatusResponses];
+
 export type SemanticStatusData = {
   body?: never;
   path?: never;
@@ -15171,6 +15295,12 @@ export type SearchTranscriptsData = {
      * "keyword": the words (BM25); "semantic": by meaning (needs an embedding model, Settings → Search); "hybrid": both, fused by rank; "auto": hybrid when search by meaning is set up and the query has no "phrases" or OR, else keyword
      */
     mode?: "auto" | "keyword" | "semantic" | "hybrid";
+    /**
+     * Rerank
+     *
+     * where a decision model is set up (Settings → Decisions), have it judge whether each of the best hits answers the query and order them by that; hits then carry `relevance`. Only the first page is reranked
+     */
+    rerank?: boolean;
   };
   url: "/api/v1/search";
 };
