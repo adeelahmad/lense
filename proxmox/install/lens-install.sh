@@ -47,8 +47,12 @@ msg_info "Fetching Lens"
 # The latest published GitHub release; main until there is one
 LENS_REF="$(curl -fsSL https://api.github.com/repos/adeelahmad/lense/releases/latest 2>/dev/null | jq -r '.tag_name // empty' || true)"
 LENS_REF="${LENS_REF:-main}"
-$STD git clone --depth 1 --branch "${LENS_REF}" "${LENS_REPO}" /opt/lens
-git -C /opt/lens rev-parse HEAD >~/.lens
+# Each version lives in /opt/lens-<commit>; /opt/lens points at the running one, so `update` can build the next
+# version beside it and switch over only once the build succeeded.
+$STD git clone --depth 1 --branch "${LENS_REF}" "${LENS_REPO}" /opt/lens-new
+git -C /opt/lens-new rev-parse HEAD >~/.lens
+mv /opt/lens-new "/opt/lens-$(cut -c1-12 ~/.lens)"
+ln -sfn "/opt/lens-$(cut -c1-12 ~/.lens)" /opt/lens
 msg_ok "Fetched Lens ${LENS_REF} ($(cut -c1-7 ~/.lens))"
 
 msg_info "Configuring Lens"

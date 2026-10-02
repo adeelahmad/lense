@@ -20,7 +20,7 @@ the script's advanced settings, or with `var_cpu=… var_ram=… var_disk=…` b
 
 | | |
 |---|---|
-| Code | `/opt/lens` (a shallow clone of the latest GitHub release, or of `main` while there is none) |
+| Code | `/opt/lens`, a link to `/opt/lens-<commit>`: a shallow clone of the latest GitHub release, or of `main` while there is none |
 | Settings | `/etc/lens/lens.env` (API and worker), `/etc/lens/web.env` (web app), `/etc/lens/archive.yaml` |
 | Data | `/var/lib/lens` (archive data and uploads; `media/` is the folder of the starting `media` namespace), `/var/lib/surrealdb` |
 | Services | `surrealdb` (127.0.0.1:8001), `lens-api` (127.0.0.1:8000), `lens-worker`, `lens-web` (port 3000) |
@@ -36,10 +36,11 @@ see [Deployment](../docs/deployment.md) for HTTPS, allowed hosts and backups, wh
 ## Updating
 
 Run `update` in the container's console. It moves to the latest published GitHub release (the newest commit of `main`
-while the repository has no release), rebuilds the API and the web app, and restarts the services; it does nothing when
-the container is already there. Publishing a release is all it takes for containers to pick it up: there are no
-release assets to build for Proxmox. SurrealDB is upgraded when
-the pinned version in `ct/lens.sh` changes.
+while the repository has no release). It builds the new version beside the running one, so Lens stays up during the
+build and a failed build leaves it as it was; then it stops the services, switches `/opt/lens` over, starts them again
+and removes the old version. It does nothing when the container is already there. Publishing a release is all it takes
+for containers to pick it up: there are no release assets to build for Proxmox. SurrealDB is upgraded when the pinned
+version in `ct/lens.sh` changes.
 
 ## Testing a branch
 

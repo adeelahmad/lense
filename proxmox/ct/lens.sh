@@ -57,6 +57,28 @@ function update_script() {
   fi
   msg_ok "Update available: ${APP} ${CURRENT:0:7} → ${LENS_REF} (${LATEST:0:7})"
 
+  # Build the new version beside the running one; Lens keeps running until it has built
+  NEW_DIR="/opt/lens-${LATEST:0:12}"
+  OLD_DIR="$(readlink -f /opt/lens)"
+  msg_info "Fetching Lens ${LENS_REF}"
+  rm -rf "$NEW_DIR"
+  $STD git clone --depth 1 --branch "${LENS_REF}" "$(git -C /opt/lens remote get-url origin)" "$NEW_DIR"
+  msg_ok "Fetched Lens ${LENS_REF}"
+
+  msg_info "Building Lens API (patience)"
+  cd "$NEW_DIR/fastapi_backend"
+  export UV_PYTHON="3.12"
+  $STD uv sync --frozen --no-dev
+  msg_ok "Built Lens API"
+
+  msg_info "Building Lens web app (patience)"
+  cd "$NEW_DIR/nextjs-frontend"
+  export NEXT_TELEMETRY_DISABLED=1 CI=true AUTH_SECRET=build-only
+  $STD pnpm install --frozen-lockfile
+  $STD pnpm build
+  unset AUTH_SECRET
+  msg_ok "Built Lens web app"
+
   msg_info "Stopping Services"
   systemctl stop lens-web lens-worker lens-api
   msg_ok "Stopped Services"
@@ -71,25 +93,13 @@ function update_script() {
     msg_ok "Updated SurrealDB to ${SURREALDB_VERSION}"
   fi
 
-  msg_info "Fetching Lens"
-  $STD git -C /opt/lens fetch --depth 1 origin "${REFSPEC}"
-  $STD git -C /opt/lens reset --hard FETCH_HEAD
+  msg_info "Switching to the new version"
+  ln -sfn "$NEW_DIR" /opt/lens
   git -C /opt/lens rev-parse HEAD >~/.lens
-  msg_ok "Fetched Lens"
-
-  msg_info "Building Lens API (patience)"
-  cd /opt/lens/fastapi_backend
-  export UV_PYTHON="3.12"
-  $STD uv sync --frozen --no-dev
-  msg_ok "Built Lens API"
-
-  msg_info "Building Lens web app (patience)"
-  cd /opt/lens/nextjs-frontend
-  export NEXT_TELEMETRY_DISABLED=1 CI=true AUTH_SECRET=build-only
-  $STD pnpm install --frozen-lockfile
-  $STD pnpm build
-  unset AUTH_SECRET
-  msg_ok "Built Lens web app"
+  if [[ "$OLD_DIR" != "$NEW_DIR" ]]; then
+    rm -rf "$OLD_DIR"
+  fi
+  msg_ok "Switched to Lens ${LENS_REF} (${LATEST:0:7})"
 
   msg_info "Starting Services"
   systemctl start lens-api lens-worker lens-web
