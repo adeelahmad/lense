@@ -1,0 +1,11 @@
+#!/bin/sh
+# Container Manager starts and stops the "lens" project with the package (the docker-project resource);
+# this only tells Package Center which state it is in.
+FLAG=${SYNOPKG_PKGVAR:-/var/packages/lens/var}/running
+case "$1" in
+    start) touch "$FLAG" ;;
+    stop) rm -f "$FLAG" ;;
+    status) [ -f "$FLAG" ] || exit 3 ;;
+    *) exit 1 ;;
+esac
+exit 0

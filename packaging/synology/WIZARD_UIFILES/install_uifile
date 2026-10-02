@@ -1,0 +1,101 @@
+[
+  {
+    "step_title": "Lens",
+    "items": [
+      {
+        "type": "textfield",
+        "desc": "Lens keeps its database and archive in the shared folder \"lens\", which this package creates (or reuses). Lens can scan recordings you put in its audio/podcasts and audio/interviews folders.",
+        "subitems": [
+          {
+            "key": "wizard_port",
+            "desc": "Web port",
+            "defaultValue": "3000",
+            "validator": {
+              "allowBlank": false,
+              "regex": {
+                "expr": "/^[1-9][0-9]{2,4}$/",
+                "errorText": "A port number, such as 3000"
+              }
+            }
+          },
+          {
+            "key": "wizard_url",
+            "desc": "Address people will open Lens at (blank: http://this NAS's address:port)",
+            "emptyText": "https://lens.example.org",
+            "validator": {
+              "allowBlank": true,
+              "regex": {
+                "expr": "/^https?:\\/\\/[A-Za-z0-9.\\-]+(:[0-9]+)?\\/?$/",
+                "errorText": "Like http://192.168.1.10:3000 or https://lens.example.org"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "password",
+        "desc": "Choose a setup code. You enter it in the web app to create the first admin account.",
+        "subitems": [
+          {
+            "key": "wizard_setup_code",
+            "desc": "Setup code",
+            "validator": {
+              "allowBlank": false,
+              "minLength": 6,
+              "regex": {
+                "expr": "/^[A-Za-z0-9_\\-]+$/",
+                "errorText": "At least 6 letters, digits, - or _"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "step_title": "Email (optional)",
+    "items": [
+      {
+        "type": "textfield",
+        "desc": "Lens sends password resets and share notices by email. Leave these blank to skip; you can add them to lens.conf later.",
+        "subitems": [
+          {
+            "key": "wizard_mail_server",
+            "desc": "SMTP server",
+            "emptyText": "smtp.example.org"
+          },
+          {
+            "key": "wizard_mail_port",
+            "desc": "Port",
+            "defaultValue": "587",
+            "validator": {
+              "allowBlank": true,
+              "regex": {
+                "expr": "/^[0-9]{1,5}$/",
+                "errorText": "A port number, such as 587"
+              }
+            }
+          },
+          {
+            "key": "wizard_mail_username",
+            "desc": "User name"
+          },
+          {
+            "key": "wizard_mail_from",
+            "desc": "From address",
+            "emptyText": "lens@example.org"
+          }
+        ]
+      },
+      {
+        "type": "password",
+        "subitems": [
+          {
+            "key": "wizard_mail_password",
+            "desc": "Password"
+          }
+        ]
+      }
+    ]
+  }
+]

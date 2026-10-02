@@ -1,0 +1,14 @@
+{
+  ".url": {
+    "com.lens.app": {
+      "type": "url",
+      "title": "Lens",
+      "desc": "Recordings and documents you can search and ask about",
+      "icon": "images/lens_{0}.png",
+      "allUsers": true,
+      "protocol": "http",
+      "port": "@PORT@",
+      "url": "/"
+    }
+  }
+}
