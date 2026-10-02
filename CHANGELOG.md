@@ -16,6 +16,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   background work, which Docker, Synology, QNAP, Cloudron and Proxmox all turn off in favour of a `lens worker`
   process; so folders were never scanned and routines never ran. `lens worker` now does both (not a worker limited
   with `--steps`, nor one started with `--no-schedule`), and a folder scan is claimed first, as routine runs are.
+- **Security: backend dependencies patched.** FastAPI moves to 0.142 and Starlette to 1.7, which fixes the Host-header
+  URL, multipart, Range-header and form-limit advisories; cryptography moves to 50 (its bundled OpenSSL and the
+  PKCS#7 and certificate-chain advisories) and pytest to 9.0.3. Secrets sealed before the upgrade still open (AES-GCM
+  is unchanged). API validation errors now include the `input` and `ctx` fields, and responses carry
+  `Vary: Origin` alongside `Vary: Authorization`.
 - **MCP server: agents search, read and cite the archive.** Add `https://<your Lens>/mcp` to Claude, Cursor, VS Code
   or another MCP client, sign in on Lens's consent page (OAuth), and the agent sees what you see: your namespaces,
   the collections you were given a role on, and their graphs. Read-only tools: `search` (moments said, on screen or
