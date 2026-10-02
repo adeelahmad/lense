@@ -10,6 +10,7 @@ import hmac
 import http.server
 import json
 import threading
+import time
 
 import pytest
 
@@ -77,6 +78,14 @@ def verify(secret, headers, body):
     signed = f"{headers['webhook-id']}.{headers['webhook-timestamp']}.".encode() + body
     want = base64.b64encode(hmac.new(key, signed, hashlib.sha256).digest()).decode()
     return any(s.split(",", 1)[1] == want for s in headers["webhook-signature"].split())
+
+
+def begin(db, cfg):
+    """The notifier's first look, then the next second: what happens in the second it started in isn't sent."""
+    notify.scan(db, cfg)
+    start = store.now()
+    while store.now() == start:
+        time.sleep(0.05)
 
 
 def finish_job(db, rid, status="succeeded", batch=None, error=None):
@@ -172,7 +181,7 @@ def test_runs_that_end_are_sent_once_to_matterbridge(client, db, env, inbox):
     assert client.post(URL, json={**body, "gateway": ""}, headers=env["ho"]).status_code == 400
     client.post(URL, json=body, headers=env["ho"])
     cfg = env["cfg"]
-    notify.scan(db, cfg)  # the first look only marks where to start
+    begin(db, cfg)  # the first look only marks where to start
     a, b, call = env["ids"]
     finish_job(db, a, "failed", error="RuntimeError: no model")
     finish_job(db, b)
@@ -192,7 +201,7 @@ def test_runs_that_end_are_sent_once_to_matterbridge(client, db, env, inbox):
 def test_failures_are_retried_and_refusals_are_not(client, db, env, inbox):
     t = client.post(URL, json={"name": "Hook", "kind": "webhook", "url": inbox.url, "events": ["job.failed"]}, headers=env["ho"]).json()
     cfg = env["cfg"]
-    notify.scan(db, cfg)
+    begin(db, cfg)
     finish_job(db, env["ids"][0], "failed")
     notify.scan(db, cfg)
     inbox.status = 503
@@ -223,7 +232,7 @@ def test_batch_runs_and_additions_are_told_as_one(client, db, env, inbox, folder
 
     client.post(URL, json={"name": "All", "kind": "discord", "url": inbox.url, "events": list(notify.EVENTS)}, headers=env["ho"])
     c = env["cfg"]
-    notify.scan(db, c)
+    begin(db, c)
     a, b, _ = env["ids"]
     bid = db.next_id("batch")
     db.q("CREATE $r CONTENT $d", r=R("batch", bid), d={"label": "Summaries", "status": "running", "started": [a, b], "recordings": [a, b]})

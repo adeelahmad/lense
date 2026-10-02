@@ -522,11 +522,12 @@ def _q(title):
     return f"“{title}”" if title else "A recording"
 
 
-def _job_events(db, cfg, since, spaces, names):
+def _job_events(db, cfg, since, floor, spaces, names):
     rows = db.rows(
         "SELECT record::id(id) AS id, recording, space, batch, steps, step_index, status, error, finished_at FROM job "
-        f"WHERE finished_at >= $c AND status IN ['succeeded', 'failed', 'cancelled'] AND space IN $sp ORDER BY finished_at LIMIT {MAX_EVENTS}",
+        f"WHERE finished_at >= $c AND finished_at > $f AND status IN ['succeeded', 'failed', 'cancelled'] AND space IN $sp ORDER BY finished_at LIMIT {MAX_EVENTS}",
         c=since,
+        f=floor,
         sp=spaces,
     )
     titles = (
@@ -618,11 +619,12 @@ def _batch_events(db, cfg, bids, spaces, names):
 SOURCES = {"audio": "recording", "document": "document", "image": "image", "web": "web page"}
 
 
-def _added_events(db, cfg, since, spaces, names):
+def _added_events(db, cfg, since, floor, spaces, names):
     rows = db.rows(
         "SELECT record::id(id) AS id, space, title, source, created_at FROM recording "
-        f"WHERE created_at >= $c AND space IN $sp ORDER BY created_at LIMIT {MAX_EVENTS}",
+        f"WHERE created_at >= $c AND created_at > $f AND space IN $sp ORDER BY created_at LIMIT {MAX_EVENTS}",
         c=since,
+        f=floor,
         sp=spaces,
     )
     return [
@@ -707,18 +709,19 @@ def scan(db, cfg):
         r["id"]: r["name"]
         for r in db.rows("SELECT record::id(id) AS id, name FROM space WHERE id IN $ids", ids=[R("space", s) for s in spaces])
     }
-    since = max(_iso_ago(st["since"], LOOKBACK), st.get("floor") or "")
+    # the floor is where notifications started: what happened in that second may have come before, so it's left out
+    since, floor = _iso_ago(st["since"], LOOKBACK), st.get("floor") or ""
     wanted = {e for t in live for e in t.get("events") or []}
     events, seen = [], [t_now]
     if wanted & {"job.succeeded", "job.failed", "job.cancelled", "batch.finished"}:
-        evs, rows, bids = _job_events(db, cfg, since, spaces, names)
+        evs, rows, bids = _job_events(db, cfg, since, floor, spaces, names)
         events += evs
         if "batch.finished" in wanted:
             events += _batch_events(db, cfg, bids, spaces, names)
         if len(rows) >= MAX_EVENTS:
             seen.append(rows[-1]["finished_at"])
     if "recording.added" in wanted:
-        evs, rows = _added_events(db, cfg, since, spaces, names)
+        evs, rows = _added_events(db, cfg, since, floor, spaces, names)
         events += _grouped([e for e in evs if _claim(db, e["id"])], cfg)
         if len(rows) >= MAX_EVENTS:
             seen.append(rows[-1]["created_at"])
