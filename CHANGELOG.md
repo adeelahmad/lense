@@ -113,6 +113,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   "table 'seq' does not exist" (SurrealDB 3). The counters table is defined with the rest of the schema now, so
   nothing reads it before it exists.
 
+- **Lens for QNAP NAS.** `packaging/qnap/build.sh` builds a self-contained QPKG (with
+  [QDK](https://github.com/qnap-dev/QDK)) for Intel/AMD or ARM models that installs from the App Center's Install
+  Manually: it carries the Lens images and SurrealDB, loads them into Container Station on its first start, and runs
+  the stack there, so there are no containers to set up by hand. The first start writes the settings with fresh
+  secrets to a data folder (`/share/Container/lens`) that outlasts removing the app, and puts the first-admin setup
+  code in the QTS system log; Lens sees only `Multimedia/Lens` on the NAS, a folder the setup steps can watch.
+  Upgrades install over the old version and remove its images. Publishing a GitHub release builds both packages and
+  attaches them to it (`.github/workflows/qnap.yml`). Steps in packaging/qnap/README.md.
+
 - **Fix: Chat answers no longer break off with "The answer stopped before it finished".** With some model servers an
   answer ended mid-stream with nothing saved, so the question sat unanswered in the conversation. Now each one ends
   in an answer, or an error that's shown and saved with the conversation.
