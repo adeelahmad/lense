@@ -4,6 +4,21 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Install on Proxmox VE with one command.** A [community helper script](https://community-scripts.org/docs/ct/detailed_guide)
+  (`proxmox/ct/lens.sh`, run in the Proxmox host's shell) creates a Debian 13 LXC container running Lens without
+  Docker: SurrealDB 3.2.4, the API, a job worker and the web app as systemd services, with fresh secrets and the web
+  app on port 3000. `lens-setup-code` in the container prints the first-admin setup code; after the admin, the setup
+  wizard (`/welcome`) asks for the first namespace, the model provider and storage. `update` moves to the
+  latest published GitHub release (the newest `main` until there is one), building it beside the running version
+  so Lens stays up until the switch (proxmox/README.md).
+- **Synology package.** `packaging/synology/build.sh` builds a self-contained `.spk` for DSM 7.2.1+ (x86_64, or
+  64-bit ARM with `ARCH=armv8`): Manual Install it in Package Center, answer a short wizard (port, address, setup
+  code), and Lens runs. The package carries the API/worker, web app and SurrealDB images and hands them to Container
+  Manager as a project through DSM's `docker-project` resource, so nothing is pulled and no container is set up by
+  hand. Data, the database and the generated secrets live in a `lens` shared folder that upgrades and uninstalls
+  leave alone; an upgrade removes the previous version's images. Mail can be set in the wizard, and any `MAIL_*` or
+  `LENS_*` line in the folder's `lens.conf` reaches the API and the worker. Publishing a GitHub release builds the packages for both architectures and attaches them to it
+  (the **Synology package** workflow, which also runs by hand from the Actions tab; packaging/synology/README.md).
 - **Notifications to chat and webhooks.** A namespace's owners can have Lens tell a chat room or another app when a
   run finishes or fails, a batch run finishes, or something is added: on the namespace's page under Notifications,
   with a test button and a list of what each target was sent (docs/notifications.md).
@@ -108,6 +123,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       a consistent copy alongside the live files.
     - It can also be published as a community app (`cloudron versions add`), with the image built and pushed to
       GHCR by the new "Cloudron image" workflow on every published release.
+- **Lens for QNAP NAS.** `packaging/qnap/build.sh` builds a self-contained QPKG (with
+  [QDK](https://github.com/qnap-dev/QDK)) for Intel/AMD or ARM models that installs from the App Center's Install
+  Manually: it carries the Lens images and SurrealDB, loads them into Container Station on its first start, and runs
+  the stack there, so there are no containers to set up by hand. The first start writes the settings with fresh
+  secrets to a data folder (`/share/Container/lens`) that outlasts removing the app, and puts the first-admin setup
+  code in the QTS system log; Lens sees only `Multimedia/Lens` on the NAS, a folder the setup steps can watch.
+  Upgrades install over the old version and remove its images. Publishing a GitHub release builds both packages and
+  attaches them to it (`.github/workflows/qnap.yml`). Steps in packaging/qnap/README.md.
 
 - **Fix: Chat answers no longer break off with "The answer stopped before it finished".** With some model servers an
   answer ended mid-stream with nothing saved, so the question sat unanswered in the conversation. Now each one ends
