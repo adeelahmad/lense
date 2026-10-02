@@ -249,6 +249,10 @@ DEFAULTS = {
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
     "reports": {"audio": "link"},
+    # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
+    # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
+    # point (null: FRONTEND_URL)
+    "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
     # IIIF: identifiers are built from base_url (set it to the stable public HTTPS address; null: the request's address)
     "iiif": {
         "base_url": None,
@@ -589,6 +593,18 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS job_status ON job FIELDS status",
     "DEFINE INDEX IF NOT EXISTS job_rec ON job FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS job_updated ON job FIELDS updated_at",
+    "DEFINE INDEX IF NOT EXISTS job_finished ON job FIELDS finished_at",
+    "DEFINE INDEX IF NOT EXISTS recording_created ON recording FIELDS created_at",
+    # notifications (domain/notify.py): a namespace's targets (notify_target:<n>), what each was sent
+    # (notify_delivery:<random>), the events claimed for sending (notify_event:<hash of its key>) and where the
+    # notifier's next look starts (notify_state:scan)
+    "DEFINE TABLE IF NOT EXISTS notify_target SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS notify_target_space ON notify_target FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS notify_delivery SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS notify_delivery_target ON notify_delivery FIELDS target",
+    "DEFINE INDEX IF NOT EXISTS notify_delivery_status ON notify_delivery FIELDS status",
+    "DEFINE TABLE IF NOT EXISTS notify_event SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS notify_state SCHEMALESS",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",

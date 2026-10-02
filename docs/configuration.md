@@ -206,6 +206,18 @@ The limits apply to keys made after a change: keys made before keep their expiry
 everyone's keys (whose, what scope, when they expire and were last used), and an admin can revoke any of them; that's
 audited as `token.revoke`.
 
+## Notifications
+
+Where namespaces may send notifications ([Notifications](notifications.md)). Settings → Notifications:
+
+| Setting | Default | |
+|---|---|---|
+| `notifications.enabled` | true | off: nothing is sent, and what happens meanwhile isn't sent later |
+| `notifications.networks` | `[]` | private networks targets may be in (`192.168.1.0/24`, `172.16.0.0/12` for Docker); without one, public addresses only |
+| `notifications.app_url` | null | the web app's address, for links in messages; null uses `FRONTEND_URL` |
+| `notifications.poll_seconds` | 5 | how often the notifier looks for news, 1–3600 |
+| `notifications.max_attempts` | 6 | how many times a message is tried, 1–20 |
+
 ## Trusted proxies
 
 IP groups ([Access](access.md#ip-groups)) match the visitor's address. The server takes it from the connection or,

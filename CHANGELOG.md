@@ -4,6 +4,23 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Notifications to chat and webhooks.** A namespace's owners can have Lens tell a chat room or another app when a
+  run finishes or fails, a batch run finishes, or something is added: on the namespace's page under Notifications,
+  with a test button and a list of what each target was sent (docs/notifications.md).
+    - Targets: [Matterbridge](https://github.com/42wim/matterbridge)'s API (and through it Slack, Discord, Matrix,
+      Telegram, IRC and the rest), webhooks with Lens's own JSON signed the Standard Webhooks way, and Slack-style and
+      Discord incoming webhooks. Addresses, secrets and tokens are sealed in the database.
+    - A batch run is one message when it finishes, not one per run; more than five things added at once are one
+      message too.
+    - The notifier runs wherever background work does (inline workers, `lens worker`): it reads runs that ended and
+      recordings added, claims each event once across processes, and retries what doesn't get through (30 s, then
+      four times longer each time, up to 6 hours). Nothing from before notifications were set up is sent.
+    - Targets reach public addresses only unless an admin lists a private network under Settings → Notifications
+      (`notifications.networks`), which a Matterbridge on the LAN or the Docker network needs; the address that was
+      checked is the one connected to, and redirects aren't followed. `notifications.app_url` sets where links point.
+    - `GET/POST /api/v1/namespaces/{name}/notifications`, `PATCH/DELETE …/{tid}`, `POST …/{tid}/test`,
+      `POST …/{tid}/secret` and `GET …/{tid}/deliveries` (docs/api.md).
+
 - **Fix: Chat answers no longer break off with "The answer stopped before it finished".** With some model servers an
   answer ended mid-stream with nothing saved, so the question sat unanswered in the conversation. Now each one ends
   in an answer, or an error that's shown and saved with the conversation.

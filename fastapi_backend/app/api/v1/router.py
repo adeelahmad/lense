@@ -19,6 +19,7 @@ from app.api.v1.routes import (
     metadata,
     namespaces,
     notes,
+    notifications,
     pipelines,
     public,
     recordings,
@@ -66,5 +67,6 @@ for module in (
     public,
     requests,
     views,
+    notifications,
 ):
     api_router.include_router(module.router)

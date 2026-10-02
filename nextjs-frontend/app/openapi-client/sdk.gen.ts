@@ -714,6 +714,27 @@ import type {
   UpdateViewData,
   UpdateViewResponses,
   UpdateViewErrors,
+  ListNotifyTargetsData,
+  ListNotifyTargetsResponses,
+  ListNotifyTargetsErrors,
+  CreateNotifyTargetData,
+  CreateNotifyTargetResponses,
+  CreateNotifyTargetErrors,
+  DeleteNotifyTargetData,
+  DeleteNotifyTargetResponses,
+  DeleteNotifyTargetErrors,
+  UpdateNotifyTargetData,
+  UpdateNotifyTargetResponses,
+  UpdateNotifyTargetErrors,
+  TestNotifyTargetData,
+  TestNotifyTargetResponses,
+  TestNotifyTargetErrors,
+  RotateNotifySecretData,
+  RotateNotifySecretResponses,
+  RotateNotifySecretErrors,
+  ListNotifyDeliveriesData,
+  ListNotifyDeliveriesResponses,
+  ListNotifyDeliveriesErrors,
 } from "./types.gen";
 import { client } from "./client.gen";
 
@@ -4236,6 +4257,107 @@ export class Views {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class Notifications {
+  /**
+   * List Notify Targets
+   * The namespace's notification targets (owners), and the events they can get.
+   */
+  public static listNotifyTargets<ThrowOnError extends boolean = false>(
+    options: Options<ListNotifyTargetsData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<ListNotifyTargetsResponses, ListNotifyTargetsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/notifications",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Notify Target
+   * Add a target (owners). A webhook comes back with its signing secret, this once.
+   */
+  public static createNotifyTarget<ThrowOnError extends boolean = false>(
+    options: Options<CreateNotifyTargetData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<CreateNotifyTargetResponses, CreateNotifyTargetErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/notifications",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Notify Target
+   * Delete a target and what it was sent (owners).
+   */
+  public static deleteNotifyTarget<ThrowOnError extends boolean = false>(
+    options: Options<DeleteNotifyTargetData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).delete<DeleteNotifyTargetResponses, DeleteNotifyTargetErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/notifications/{tid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Notify Target
+   * Change a target (owners): its name, address, events, whether it's on, and Matterbridge's gateway, name and token.
+   */
+  public static updateNotifyTarget<ThrowOnError extends boolean = false>(
+    options: Options<UpdateNotifyTargetData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).patch<UpdateNotifyTargetResponses, UpdateNotifyTargetErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/notifications/{tid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Notify Target
+   * Send the target a test message now (owners) and say how it went; it shows in the target's deliveries too.
+   */
+  public static testNotifyTarget<ThrowOnError extends boolean = false>(
+    options: Options<TestNotifyTargetData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<TestNotifyTargetResponses, TestNotifyTargetErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/notifications/{tid}/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Rotate Notify Secret
+   * A webhook's new signing secret (owners), shown this once; the old one stops working at once.
+   */
+  public static rotateNotifySecret<ThrowOnError extends boolean = false>(
+    options: Options<RotateNotifySecretData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<RotateNotifySecretResponses, RotateNotifySecretErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/notifications/{tid}/secret",
+      ...options,
+    });
+  }
+
+  /**
+   * List Notify Deliveries
+   * What the target was sent lately, newest first (owners): up to 50, kept for 30 days.
+   */
+  public static listNotifyDeliveries<ThrowOnError extends boolean = false>(
+    options: Options<ListNotifyDeliveriesData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).get<ListNotifyDeliveriesResponses, ListNotifyDeliveriesErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/notifications/{tid}/deliveries",
+      ...options,
     });
   }
 }

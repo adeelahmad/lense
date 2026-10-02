@@ -9,7 +9,7 @@ import threading
 from typing import Any
 
 from app.config import settings as env
-from app.domain import auth, jobs, settings, sources, store, templates
+from app.domain import auth, jobs, notify, settings, sources, store, templates
 
 log = logging.getLogger("lens")
 
@@ -37,7 +37,7 @@ class Archive:
             log.warning("No accounts yet. Create the first admin in the web app with setup code: %s", self.setup_code)
 
     def start_background(self) -> None:
-        """Inline workers and the watched-folder poller. Production runs these as separate processes (`lens worker`)."""
+        """Inline workers, the watched-folder poller and the notifier. Production runs these as separate processes (`lens worker`)."""
         for i in range(max(0, int(self.current()["workers"]["inline"]))):
             w = jobs.Worker(self.db, self.current, name=f"api-{os.getpid()}-{i}", log=log.info)
             threading.Thread(target=w.loop, args=(self.stop,), daemon=True, name=f"worker-{i}").start()
@@ -50,6 +50,7 @@ class Archive:
                     log.exception("watcher failed")
 
         threading.Thread(target=watcher, daemon=True, name="watcher").start()
+        notify.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.warning)
 
     def close(self) -> None:
         self.stop.set()

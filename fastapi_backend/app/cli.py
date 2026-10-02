@@ -188,7 +188,7 @@ def platform_main(argv, config):
     import threading
     import time
 
-    from .domain import auth, jobs, settings, sources
+    from .domain import auth, jobs, notify, settings, sources
 
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -256,6 +256,7 @@ def platform_main(argv, config):
             else:
                 print(f"worker {wk.name} runs {', '.join(sorted(wk.can))}; Ctrl-C to stop")
                 stop = threading.Event()
+                notify.start(db, C, stop, name=wk.name, log=print)  # sends notifications too (docs/notifications.md)
                 try:
                     wk.loop(stop)
                 except KeyboardInterrupt:
