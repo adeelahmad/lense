@@ -343,9 +343,13 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None):
         msgs.append({"role": "assistant", "content": msg["content"], "tool_calls": msg["tool_calls"]})
         for c in msg["tool_calls"]:
             fn = c.get("function") or {}
-            try:
-                args = json.loads(fn.get("arguments") or "{}")
-            except ValueError:
+            args = fn.get("arguments") or {}
+            if isinstance(args, str):  # a JSON string, as OpenAI sends it; some servers send the object itself
+                try:
+                    args = json.loads(args)
+                except ValueError:
+                    args = {}
+            if not isinstance(args, dict):
                 args = {}
             result, summary = toolbox.call(fn.get("name", ""), args)
             yield "step", {"tool": fn.get("name"), "args": args, "summary": summary}
