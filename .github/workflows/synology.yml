@@ -1,7 +1,10 @@
 name: Synology package
 
-# Run from the Actions tab; the .spk files are attached to the run.
+# Publishing a release builds both packages and attaches them to it. It can also be run from the Actions tab, which
+# attaches the .spk files to the run instead.
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       target:
@@ -17,6 +20,8 @@ jobs:
   spk:
     name: SPK (${{ matrix.arch }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # to attach the packages to the release
     strategy:
       matrix:
         arch: [x86_64, armv8]
@@ -30,11 +35,18 @@ jobs:
       - name: Build
         env:
           ARCH: ${{ matrix.arch }}
-          LENS_TARGET: ${{ inputs.target }}
-          BUILD: ${{ inputs.build }}
-        run: packaging/synology/build.sh
+          LENS_TARGET: ${{ inputs.target || 'lean' }}
+          INPUT_BUILD: ${{ inputs.build }}
+          RUN_NUMBER: ${{ github.run_number }}
+        # a release numbers its packages by run, so each one installs as an upgrade over the last
+        run: BUILD=${INPUT_BUILD:-$(printf '%04d' "$RUN_NUMBER")} packaging/synology/build.sh
       - uses: actions/upload-artifact@v4
         with:
           name: lens-synology-${{ matrix.arch }}
           path: dist/synology/*.spk
           compression-level: 0
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/synology/*.spk --clobber --repo "${{ github.repository }}"

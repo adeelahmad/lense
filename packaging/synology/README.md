@@ -17,8 +17,11 @@ ARCH=armv8 packaging/synology/build.sh         # 64-bit ARM models (cross-builds
 LENS_TARGET=full packaging/synology/build.sh   # with LibreOffice and Chromium, to read Office files and web pages
 ```
 
-The package lands in `dist/synology/lens-<version>-<build>-<arch>.spk`. Or run the **Synology package** workflow from
-the repository's Actions tab and download the `.spk` from the run.
+The package lands in `dist/synology/lens-<version>-<build>-<arch>.spk`.
+
+Releases carry them already: publishing a GitHub release runs the **Synology package** workflow, which builds both
+architectures and attaches the `.spk` files to the release (numbered by run, so each installs as an upgrade over the
+last). The workflow can also be run by hand from the Actions tab, for the `full` image or a chosen build number.
 
 To find your NAS's architecture: Control Panel > Info Center shows the CPU; Intel and AMD are `x86_64`, Realtek
 RTD1296/RTD1619 and Marvell Armada 37xx are `armv8`.
