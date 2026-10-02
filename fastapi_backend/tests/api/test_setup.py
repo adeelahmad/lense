@@ -158,6 +158,17 @@ def test_environment_sets_and_locks(fresh, monkeypatch):
     assert (cfg["base_url"], cfg["model"], cfg["api_key"]) == ("http://vllm:8000/v1", "llama3", "sk-env")
 
 
+def test_env_namespace_only_while_there_is_none(fresh, monkeypatch):
+    from app.domain import setup
+
+    app, _ = fresh()
+    db = app.state.db
+    store.ns_id(db, "family")
+    monkeypatch.setenv("LENS_NAMESPACE", "media")
+    setup.apply_env(db)  # the next start: a namespace exists, so LENS_NAMESPACE adds nothing
+    assert sorted(store.space_names(db).values()) == ["family"]
+
+
 def test_wizard_off(fresh, monkeypatch):
     monkeypatch.setenv("LENS_SETUP_WIZARD", "off")
     _, client = fresh()

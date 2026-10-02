@@ -28,7 +28,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `RUN_BACKGROUND` | follows `workers.inline` | run job workers and folder watching inside the API process |
 | `LENS_SETUP_CODE` | random | fix the first-run setup code (automation) |
 | `LENS_ADMIN_EMAIL` / `LENS_ADMIN_PASSWORD` / `LENS_ADMIN_NAME` | | create the first admin at startup, with no setup code ([First-run setup](#first-run-setup)) |
-| `LENS_NAMESPACE` | | create the first namespace at startup |
+| `LENS_NAMESPACE` | | create the first namespace at startup, while there is none |
 | `LENS_LLM_BASE_URL` / `LENS_LLM_MODEL` / `LENS_LLM_API_KEY` / `LENS_LLM_VISION_MODEL` | | the model provider; wins over Settings, which show these locked |
 | `LENS_SETUP_WIZARD` | | `off`: never show the setup wizard |
 | `FRONTEND_URL` | `http://localhost:3000` | links in emails |

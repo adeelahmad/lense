@@ -6,7 +6,7 @@ already had accounts never see the wizard. Whatever the environment sets is appl
 shows those fields locked.
 
   LENS_ADMIN_EMAIL, LENS_ADMIN_PASSWORD, LENS_ADMIN_NAME   the first admin, created at startup (no setup code needed)
-  LENS_NAMESPACE                                           the first namespace, created at startup
+  LENS_NAMESPACE                                           the first namespace, created at startup while there is none
   LENS_LLM_BASE_URL, LENS_LLM_MODEL, LENS_LLM_API_KEY      the model provider (settings.ENV_OVERRIDES)
   LENS_SETUP_WIZARD=off                                    never show the wizard (everything comes from .env)
 
@@ -57,7 +57,8 @@ def env_namespace():
 
 
 def apply_env(db):
-    """Create what the environment names and doesn't exist yet: the first admin, the first namespace."""
+    """Create what the environment names while the archive has none: the first admin, the first namespace. Only then,
+    so one deleted later doesn't come back on the next start."""
     admin = env_admin()
     if admin and auth.account_count(db) == 0:
         try:
@@ -68,7 +69,7 @@ def apply_env(db):
             auth.audit(db, {"id": uid, "email": admin[0]}, "setup", detail=["environment"])
             log.info("Created the first admin %s from the environment", admin[0])
     name = env_namespace()
-    if name:
+    if name and not store.space_names(db):
         if not store.NS_RX.match(name):
             log.error("LENS_NAMESPACE %r: namespace names use lowercase letters, digits, - and _", name)
         else:
