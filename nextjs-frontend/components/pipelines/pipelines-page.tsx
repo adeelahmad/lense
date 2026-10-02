@@ -43,6 +43,26 @@ export function PipelinesPage() {
     return m;
   }, [list]);
   const onStandard = namespaces.filter((n) => !usedBy.has(n.name)).map((n) => n.name);
+  const byType = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of list) for (const u of p.content_types ?? []) m.set(`${u.namespace}:${u.content_type}`, p.id);
+    return m;
+  }, [list]);
+  const contentTypes = catalog.data?.content_types ?? [];
+
+  const setForType = useMutation({
+    mutationFn: ({ ns, kind, pipeline }: { ns: string; kind: string; pipeline: number | null }) =>
+      data(Namespaces.updateNamespace({ client, path: { name: ns }, body: { pipelines: { [kind]: pipeline } } })),
+    onSuccess: (_d, v) => {
+      void qc.invalidateQueries({ queryKey: ["pipelines"] });
+      toast({
+        tone: "green",
+        title: `${v.kind} in ${v.ns}: ${v.pipeline == null ? "the namespace default" : (list.find((p) => p.id === v.pipeline)?.name ?? "that pipeline")}`,
+        body: "New runs use it; runs in progress keep theirs.",
+      });
+    },
+    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t change it", body: e.message }),
+  });
 
   const setDefault = useMutation({
     mutationFn: ({ ns, pipeline }: { ns: string; pipeline: number | null }) =>
@@ -228,6 +248,68 @@ export function PipelinesPage() {
               </Table>
             </div>
           </section>
+
+          {contentTypes.length > 0 && (
+            <section aria-labelledby="ns-types" className="mt-2 flex flex-col gap-1">
+              <SectionTitle>
+                <span id="ns-types">By content type</span>
+              </SectionTitle>
+              <p className="-mt-2 mb-2 text-[13px] text-fg-secondary">
+                A pipeline for one kind of recording, e.g. video gets shots, text on screen and faces. Anything left on
+                Default runs the namespace default above.
+              </p>
+              <div className="overflow-x-auto rounded-md border border-border">
+                <Table aria-label="Pipelines by content type">
+                  <THead className="border-t-0">
+                    <tr>
+                      <Th>Namespace</Th>
+                      {contentTypes.map((k) => (
+                        <Th key={k} className="capitalize">
+                          {k}
+                        </Th>
+                      ))}
+                    </tr>
+                  </THead>
+                  <tbody>
+                    {namespaces.map((n) => {
+                      const allowed = can("owner", n.name);
+                      return (
+                        <Tr key={n.name} className="h-12">
+                          <Td className="font-medium text-fg">{n.name}</Td>
+                          {contentTypes.map((k) => {
+                            const cur = byType.get(`${n.name}:${k}`);
+                            return (
+                              <Td key={k}>
+                                <Select
+                                  aria-label={`Pipeline for ${k} in ${n.name}`}
+                                  size="sm"
+                                  className="w-[150px]"
+                                  value={cur == null ? "" : String(cur)}
+                                  disabled={!allowed || setForType.isPending}
+                                  title={allowed ? undefined : needRole("owner", n.name)}
+                                  onChange={(e) =>
+                                    setForType.mutate({
+                                      ns: n.name,
+                                      kind: k,
+                                      pipeline: e.target.value ? Number(e.target.value) : null,
+                                    })
+                                  }
+                                  options={[
+                                    { value: "", label: "Default" },
+                                    ...list.map((p) => ({ value: String(p.id), label: p.name })),
+                                  ]}
+                                />
+                              </Td>
+                            );
+                          })}
+                        </Tr>
+                      );
+                    })}
+                  </tbody>
+                </Table>
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>

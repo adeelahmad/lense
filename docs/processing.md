@@ -184,3 +184,26 @@ summary's `key_points` and `action_items` print as their text and have `text`, `
 strings. A fresh archive starts with three: Meeting notes (prompt), Markdown transcript (export) and One-page brief (report).
 `POST /api/v1/templates/preview` renders any template, saved or not, against a recording, and with `run: true` also asks
 the model.
+
+## Workflows and the canvas
+
+A pipeline's steps make assets (a transcript, shots, text on screen, faces); workflows turn them into metadata. A
+workflow is a versioned graph drawn on a canvas (Pipelines → Workflows): it starts from the Recording node, and each
+node passes what it makes along its connections.
+
+- **Entities:** Extract entities (rules) runs the built-in extractor analyze uses, plus your terms (`Name|TYPE`) and
+  regular expressions (`TYPE: pattern`); Extract entities (LLM) asks the model for structured entities and keeps,
+  corrects or adds to any passed in; Merge joins lists; Save entities makes them the recording's entities (people's
+  corrections kept) and redoes keywords and chapters.
+- **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Pick (a path like
+  `action_items.0.text`), Condition (yes and no branches) and Merge.
+- **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history) and
+  Save entities.
+
+A pipeline runs a workflow as a Workflow step, pinned to the workflow's published version when the run is queued
+(`POST /api/v1/workflows/{id}/run` runs one on a recording). Pipelines can be drawn on the canvas too: a connection
+means "runs after", and the graph is put in order (ties left to right) and kept as the version's steps, so runs and
+Activity work as before. A pipeline saved as a list is drawn as a chain.
+
+A namespace can choose a pipeline per content type (audio, video, transcript, document, image); a recording gets the
+one for its type, else the namespace default, else the standard pipeline. Nothing changes until one is chosen.

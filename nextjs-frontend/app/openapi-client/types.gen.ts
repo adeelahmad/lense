@@ -1786,6 +1786,21 @@ export type ContentState = {
 };
 
 /**
+ * ContentTypeUse
+ */
+export type ContentTypeUse = {
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Content Type
+   */
+  content_type: string;
+  [key: string]: unknown | string;
+};
+
+/**
  * Converters
  * What this server can make into PDFs to read as documents (docs/api.md#documents-and-images).
  */
@@ -4389,6 +4404,38 @@ export type NamespaceUpdate = {
    * Pipeline
    */
   pipeline?: number | null;
+  /**
+   * Pipelines
+   * a pipeline per content type (audio, video, transcript, document, image); null for the default
+   */
+  pipelines?: {
+    [key: string]: number | null;
+  } | null;
+};
+
+/**
+ * NodeType
+ */
+export type NodeType = {
+  /**
+   * Type
+   */
+  type: string;
+  /**
+   * Settings
+   */
+  settings: Array<string>;
+  /**
+   * Inputs
+   * how many edges may come in: 0, 1, or -1 for any number
+   */
+  inputs: number;
+  /**
+   * Outputs
+   * its outgoing ports: [] for none, ['out'], or a condition's ['yes', 'no']
+   */
+  outputs: Array<string>;
+  [key: string]: unknown | string | Array<string> | number | Array<string>;
 };
 
 /**
@@ -4936,6 +4983,7 @@ export type Pipeline = {
   steps: Array<{
     [key: string]: unknown;
   }>;
+  graph: PipelineGraph;
   /**
    * Notes
    */
@@ -4961,6 +5009,7 @@ export type Pipeline = {
     | Array<{
         [key: string]: unknown;
       }>
+    | PipelineGraph
     | string
     | null
     | string
@@ -4983,6 +5032,16 @@ export type PipelineCatalog = {
    */
   step_types: Array<string>;
   /**
+   * Asset Steps
+   * steps that make something of the media
+   */
+  asset_steps?: Array<string>;
+  /**
+   * Content Types
+   * what a namespace can choose a pipeline for
+   */
+  content_types?: Array<string>;
+  /**
    * Conditions
    * keys a step's `when` may use
    */
@@ -4991,7 +5050,15 @@ export type PipelineCatalog = {
    * Pipelines
    */
   pipelines: Array<PipelineSummary>;
-  [key: string]: unknown | Array<string> | Array<string> | Array<string> | Array<PipelineSummary>;
+  [key: string]:
+    | unknown
+    | Array<string>
+    | Array<string>
+    | Array<string>
+    | Array<string>
+    | Array<string>
+    | Array<PipelineSummary>
+    | undefined;
 };
 
 /**
@@ -5004,17 +5071,40 @@ export type PipelineCreate = {
   name: string;
   /**
    * Steps
+   * the steps in order; or send a graph instead
    */
-  steps: Array<
+  steps?: Array<
     | string
     | {
         [key: string]: unknown;
       }
   >;
+  graph?: PipelineGraph | null;
   /**
    * Description
    */
   description?: string | null;
+};
+
+/**
+ * PipelineGraph
+ * A pipeline as the canvas draws it: steps as nodes, an edge saying its target runs after its source.
+ */
+export type PipelineGraph = {
+  /**
+   * Nodes
+   * {id, step, x, y}
+   */
+  nodes: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Edges
+   * {source, target}
+   */
+  edges?: Array<{
+    [key: string]: unknown;
+  }>;
 };
 
 /**
@@ -5056,7 +5146,22 @@ export type PipelineSummary = {
    * namespaces that use it by default
    */
   namespaces?: Array<string>;
-  [key: string]: unknown | number | string | string | null | string | null | Array<string> | undefined;
+  /**
+   * Content Types
+   * namespaces that use it for one content type
+   */
+  content_types?: Array<ContentTypeUse>;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | string
+    | null
+    | Array<string>
+    | Array<ContentTypeUse>
+    | undefined;
 };
 
 /**
@@ -5065,13 +5170,15 @@ export type PipelineSummary = {
 export type PipelineVersionCreate = {
   /**
    * Steps
+   * the steps in order; or send a graph instead
    */
-  steps: Array<
+  steps?: Array<
     | string
     | {
         [key: string]: unknown;
       }
   >;
+  graph?: PipelineGraph | null;
   /**
    * Notes
    */
@@ -9758,6 +9865,227 @@ export type WorkerInfo = {
     | null
     | number
     | undefined;
+};
+
+/**
+ * Workflow
+ */
+export type Workflow = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Version
+   */
+  version: number;
+  graph: WorkflowGraph;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * History
+   */
+  history?: Array<WorkflowVersionInfo>;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | string
+    | null
+    | string
+    | null
+    | WorkflowGraph
+    | string
+    | null
+    | string
+    | null
+    | Array<WorkflowVersionInfo>
+    | undefined;
+};
+
+/**
+ * WorkflowCatalog
+ */
+export type WorkflowCatalog = {
+  /**
+   * Node Types
+   */
+  node_types: Array<NodeType>;
+  /**
+   * Operators
+   * what a condition node can test
+   */
+  operators: Array<string>;
+  /**
+   * Entity Types
+   */
+  entity_types: Array<string>;
+  /**
+   * Workflows
+   */
+  workflows: Array<WorkflowSummary>;
+  [key: string]: unknown | Array<NodeType> | Array<string> | Array<string> | Array<WorkflowSummary>;
+};
+
+/**
+ * WorkflowCreate
+ */
+export type WorkflowCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  graph: WorkflowGraph;
+  /**
+   * Description
+   */
+  description?: string | null;
+};
+
+/**
+ * WorkflowGraph
+ */
+export type WorkflowGraph = {
+  /**
+   * Nodes
+   * {id, type, config, label, x, y}
+   */
+  nodes: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Edges
+   * {source, target, branch (a condition's yes or no)}
+   */
+  edges?: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+/**
+ * WorkflowRunRequest
+ */
+export type WorkflowRunRequest = {
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Version
+   */
+  version?: number | null;
+};
+
+/**
+ * WorkflowSummary
+ */
+export type WorkflowSummary = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Pipelines
+   * pipelines whose current version runs it
+   */
+  pipelines?: Array<string>;
+  [key: string]: unknown | number | string | string | null | string | null | Array<string> | undefined;
+};
+
+/**
+ * WorkflowUpdate
+ */
+export type WorkflowUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+};
+
+/**
+ * WorkflowVersionCreate
+ */
+export type WorkflowVersionCreate = {
+  graph: WorkflowGraph;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Publish
+   */
+  publish?: boolean;
+};
+
+/**
+ * WorkflowVersionInfo
+ */
+export type WorkflowVersionInfo = {
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  [key: string]: unknown | number | string | null | string | null | string | null | undefined;
 };
 
 export type StatusData = {
@@ -16385,6 +16713,172 @@ export type RunPipelineResponses = {
 };
 
 export type RunPipelineResponse = RunPipelineResponses[keyof RunPipelineResponses];
+
+export type ListWorkflowsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/workflows";
+};
+
+export type ListWorkflowsResponses = {
+  /**
+   * Successful Response
+   */
+  200: WorkflowCatalog;
+};
+
+export type ListWorkflowsResponse = ListWorkflowsResponses[keyof ListWorkflowsResponses];
+
+export type CreateWorkflowData = {
+  body: WorkflowCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/workflows";
+};
+
+export type CreateWorkflowErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateWorkflowError = CreateWorkflowErrors[keyof CreateWorkflowErrors];
+
+export type CreateWorkflowResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type CreateWorkflowResponse = CreateWorkflowResponses[keyof CreateWorkflowResponses];
+
+export type GetWorkflowData = {
+  body?: never;
+  path: {
+    /**
+     * Wid
+     */
+    wid: number;
+  };
+  query?: {
+    /**
+     * Version
+     */
+    version?: number | null;
+  };
+  url: "/api/v1/workflows/{wid}";
+};
+
+export type GetWorkflowErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetWorkflowError = GetWorkflowErrors[keyof GetWorkflowErrors];
+
+export type GetWorkflowResponses = {
+  /**
+   * Successful Response
+   */
+  200: Workflow;
+};
+
+export type GetWorkflowResponse = GetWorkflowResponses[keyof GetWorkflowResponses];
+
+export type UpdateWorkflowData = {
+  body: WorkflowUpdate;
+  path: {
+    /**
+     * Wid
+     */
+    wid: number;
+  };
+  query?: never;
+  url: "/api/v1/workflows/{wid}";
+};
+
+export type UpdateWorkflowErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateWorkflowError = UpdateWorkflowErrors[keyof UpdateWorkflowErrors];
+
+export type UpdateWorkflowResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateWorkflowResponse = UpdateWorkflowResponses[keyof UpdateWorkflowResponses];
+
+export type CreateWorkflowVersionData = {
+  body: WorkflowVersionCreate;
+  path: {
+    /**
+     * Wid
+     */
+    wid: number;
+  };
+  query?: never;
+  url: "/api/v1/workflows/{wid}/versions";
+};
+
+export type CreateWorkflowVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateWorkflowVersionError = CreateWorkflowVersionErrors[keyof CreateWorkflowVersionErrors];
+
+export type CreateWorkflowVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: VersionSaved;
+};
+
+export type CreateWorkflowVersionResponse = CreateWorkflowVersionResponses[keyof CreateWorkflowVersionResponses];
+
+export type RunWorkflowData = {
+  body: WorkflowRunRequest;
+  path: {
+    /**
+     * Wid
+     */
+    wid: number;
+  };
+  query?: never;
+  url: "/api/v1/workflows/{wid}/run";
+};
+
+export type RunWorkflowErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunWorkflowError = RunWorkflowErrors[keyof RunWorkflowErrors];
+
+export type RunWorkflowResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobQueued;
+};
+
+export type RunWorkflowResponse = RunWorkflowResponses[keyof RunWorkflowResponses];
 
 export type ListChatsData = {
   body?: never;

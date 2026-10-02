@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
-import { Pipelines, Templates } from "@/app/openapi-client";
+import { Pipelines, Templates, Workflows } from "@/app/openapi-client";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -28,13 +28,28 @@ export function useTemplateList() {
   });
 }
 
-/** PL1 header: "Pipelines" with the Pipelines / Templates tabs and the one "New" action. */
-export function CatalogHeader({ tab }: { tab: "pipelines" | "templates" }) {
+export function useWorkflowCatalog() {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["workflows"],
+    queryFn: () => data(Workflows.listWorkflows({ client })),
+    staleTime: 30_000,
+  });
+}
+
+const NEW = {
+  pipelines: ["/pipelines/new", "New pipeline"],
+  workflows: ["/workflows/new", "New workflow"],
+  templates: ["/templates/new", "New template"],
+} as const;
+
+/** PL1 header: "Pipelines" with the Pipelines / Workflows / Templates tabs and the one "New" action. */
+export function CatalogHeader({ tab }: { tab: "pipelines" | "workflows" | "templates" }) {
   const { admin } = useArchive();
   const pipelines = usePipelineCatalog();
+  const workflows = useWorkflowCatalog();
   const templates = useTemplateList();
-  const newHref = tab === "pipelines" ? "/pipelines/new" : "/templates/new";
-  const newLabel = tab === "pipelines" ? "New pipeline" : "New template";
+  const [newHref, newLabel] = NEW[tab];
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -52,7 +67,7 @@ export function CatalogHeader({ tab }: { tab: "pipelines" | "templates" }) {
         )}
       </div>
       <Tabs
-        aria-label="Pipelines and templates"
+        aria-label="Pipelines, workflows and templates"
         value={tab}
         items={[
           {
@@ -60,6 +75,12 @@ export function CatalogHeader({ tab }: { tab: "pipelines" | "templates" }) {
             label: "Pipelines",
             count: pipelines.data ? pipelines.data.pipelines.length + 1 : undefined,
             href: "/pipelines",
+          },
+          {
+            value: "workflows",
+            label: "Workflows",
+            count: workflows.data?.workflows.length,
+            href: "/workflows",
           },
           {
             value: "templates",

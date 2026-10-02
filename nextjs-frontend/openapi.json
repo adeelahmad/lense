@@ -1060,7 +1060,7 @@
           "namespaces"
         ],
         "summary": "Update Namespace",
-        "description": "Owners: the graph mode (shared or isolated) and the default pipeline (null for the built-in one).",
+        "description": "Owners: the graph mode (shared or isolated), the default pipeline (null for the built-in one) and a pipeline per\ncontent type.",
         "operationId": "update_namespace",
         "parameters": [
           {
@@ -11072,6 +11072,282 @@
         }
       }
     },
+    "/api/v1/workflows": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "List Workflows",
+        "description": "Saved workflows, plus the nodes a workflow can be built from.",
+        "operationId": "list_workflows",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowCatalog"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Create Workflow",
+        "operationId": "create_workflow",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{wid}": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Get Workflow",
+        "description": "One version (default: the current one) and the list of versions.",
+        "operationId": "get_workflow",
+        "parameters": [
+          {
+            "name": "wid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Wid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Update Workflow",
+        "description": "Its name and description (the graph changes by saving a version).",
+        "operationId": "update_workflow",
+        "parameters": [
+          {
+            "name": "wid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Wid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{wid}/versions": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Create Workflow Version",
+        "operationId": "create_workflow_version",
+        "parameters": [
+          {
+            "name": "wid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Wid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowVersionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{wid}/run": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Run Workflow",
+        "description": "Run this workflow on one recording now, as a job (after anything its current job still has to do).",
+        "operationId": "run_workflow",
+        "parameters": [
+          {
+            "name": "wid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Wid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats": {
       "get": {
         "tags": [
@@ -15455,6 +15731,25 @@
         ],
         "title": "ContentState"
       },
+      "ContentTypeUse": {
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "namespace",
+          "content_type"
+        ],
+        "title": "ContentTypeUse"
+      },
       "Converters": {
         "properties": {
           "office": {
@@ -19488,12 +19783,71 @@
               }
             ],
             "title": "Pipeline"
+          },
+          "pipelines": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipelines",
+            "description": "a pipeline per content type (audio, video, transcript, document, image); null for the default"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "NamespaceUpdate",
         "description": "Only the fields you send change; send ``pipeline: null`` to go back to the default pipeline."
+      },
+      "NodeType": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "settings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Settings"
+          },
+          "inputs": {
+            "type": "integer",
+            "title": "Inputs",
+            "description": "how many edges may come in: 0, 1, or -1 for any number"
+          },
+          "outputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Outputs",
+            "description": "its outgoing ports: [] for none, ['out'], or a condition's ['yes', 'no']"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "type",
+          "settings",
+          "inputs",
+          "outputs"
+        ],
+        "title": "NodeType"
       },
       "Note": {
         "properties": {
@@ -20324,6 +20678,9 @@
             "type": "array",
             "title": "Steps"
           },
+          "graph": {
+            "$ref": "#/components/schemas/PipelineGraph"
+          },
           "notes": {
             "anyOf": [
               {
@@ -20362,7 +20719,8 @@
           "name",
           "current",
           "version",
-          "steps"
+          "steps",
+          "graph"
         ],
         "title": "Pipeline"
       },
@@ -20382,6 +20740,22 @@
             },
             "type": "array",
             "title": "Step Types"
+          },
+          "asset_steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Asset Steps",
+            "description": "steps that make something of the media"
+          },
+          "content_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Content Types",
+            "description": "what a namespace can choose a pipeline for"
           },
           "conditions": {
             "items": {
@@ -20428,7 +20802,18 @@
               ]
             },
             "type": "array",
-            "title": "Steps"
+            "title": "Steps",
+            "description": "the steps in order; or send a graph instead"
+          },
+          "graph": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PipelineGraph"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "description": {
             "anyOf": [
@@ -20445,10 +20830,37 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "name",
-          "steps"
+          "name"
         ],
         "title": "PipelineCreate"
+      },
+      "PipelineGraph": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Nodes",
+            "description": "{id, step, x, y}"
+          },
+          "edges": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Edges",
+            "description": "{source, target}"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodes"
+        ],
+        "title": "PipelineGraph",
+        "description": "A pipeline as the canvas draws it: steps as nodes, an edge saying its target runs after its source."
       },
       "PipelineRunRequest": {
         "properties": {
@@ -20507,6 +20919,14 @@
             "type": "array",
             "title": "Namespaces",
             "description": "namespaces that use it by default"
+          },
+          "content_types": {
+            "items": {
+              "$ref": "#/components/schemas/ContentTypeUse"
+            },
+            "type": "array",
+            "title": "Content Types",
+            "description": "namespaces that use it for one content type"
           }
         },
         "additionalProperties": true,
@@ -20533,7 +20953,18 @@
               ]
             },
             "type": "array",
-            "title": "Steps"
+            "title": "Steps",
+            "description": "the steps in order; or send a graph instead"
+          },
+          "graph": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PipelineGraph"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "notes": {
             "anyOf": [
@@ -20554,9 +20985,6 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "steps"
-        ],
         "title": "PipelineVersionCreate"
       },
       "PipelineVersionInfo": {
@@ -28036,6 +28464,384 @@
           "name"
         ],
         "title": "WorkerInfo"
+      },
+      "Workflow": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "current": {
+            "type": "integer",
+            "title": "Current"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/WorkflowGraph"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowVersionInfo"
+            },
+            "type": "array",
+            "title": "History",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "current",
+          "version",
+          "graph"
+        ],
+        "title": "Workflow"
+      },
+      "WorkflowCatalog": {
+        "properties": {
+          "node_types": {
+            "items": {
+              "$ref": "#/components/schemas/NodeType"
+            },
+            "type": "array",
+            "title": "Node Types"
+          },
+          "operators": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Operators",
+            "description": "what a condition node can test"
+          },
+          "entity_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Entity Types"
+          },
+          "workflows": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowSummary"
+            },
+            "type": "array",
+            "title": "Workflows"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "node_types",
+          "operators",
+          "entity_types",
+          "workflows"
+        ],
+        "title": "WorkflowCatalog"
+      },
+      "WorkflowCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/WorkflowGraph"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "graph"
+        ],
+        "title": "WorkflowCreate"
+      },
+      "WorkflowGraph": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Nodes",
+            "description": "{id, type, config, label, x, y}"
+          },
+          "edges": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Edges",
+            "description": "{source, target, branch (a condition's yes or no)}"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodes"
+        ],
+        "title": "WorkflowGraph"
+      },
+      "WorkflowRunRequest": {
+        "properties": {
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recording"
+        ],
+        "title": "WorkflowRunRequest"
+      },
+      "WorkflowSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "current": {
+            "type": "integer",
+            "title": "Current"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "pipelines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pipelines",
+            "description": "pipelines whose current version runs it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "current"
+        ],
+        "title": "WorkflowSummary"
+      },
+      "WorkflowUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "WorkflowUpdate"
+      },
+      "WorkflowVersionCreate": {
+        "properties": {
+          "graph": {
+            "$ref": "#/components/schemas/WorkflowGraph"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "publish": {
+            "type": "boolean",
+            "title": "Publish",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "graph"
+        ],
+        "title": "WorkflowVersionCreate"
+      },
+      "WorkflowVersionInfo": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "WorkflowVersionInfo"
       }
     }
   }

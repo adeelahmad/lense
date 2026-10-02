@@ -18,19 +18,19 @@ Model:
 Todo:
 
 - [x] Read how pipelines, steps, outputs and custom fields work today
-- [ ] Workflow domain: graph validation (node types, ports, no cycles), create, versions, get, list
-- [ ] Workflow runner: input, llm, condition, pick, merge, output and field nodes, run in graph order
-- [ ] Entity nodes: extract (rules: built-in extractor + terms + regex), extract (LLM, structured), save entities
-- [ ] Pipeline graphs: asset steps and workflows as nodes, edges = runs after; ordered into steps for the job runner
-- [ ] Default pipeline drawn as a chain of today's steps, so nothing changes until a graph is edited
-- [ ] `workflow` step type in jobs, so a run records each workflow like any other step
-- [ ] Pipelines attach workflows (`workflows: [{workflow, version?, when?}]`), appended as steps when resolved
-- [ ] Namespaces choose a pipeline per content type (`pipelines: {video: id, ...}`)
-- [ ] API: `/workflows` (catalog, create, get, versions, run on a recording)
-- [ ] Tests for the API, validation and a run end to end
-- [ ] Canvas editor in the web app (pipelines and workflows): drag nodes, connect ports, node settings, I/O, save versions
-- [ ] Attach workflows from the pipeline editor
-- [ ] Content-type mapping in the namespace settings UI
+- [x] Workflow domain: graph validation (node types, ports, no cycles), create, versions, get, list
+- [x] Workflow runner: input, llm, condition, pick, merge, output and field nodes, run in graph order
+- [x] Entity nodes: extract (rules: built-in extractor + terms + regex), extract (LLM, structured), save entities
+- [x] Pipeline graphs: asset steps and workflows as nodes, edges = runs after; ordered into steps for the job runner
+- [x] Default pipeline drawn as a chain of today's steps, so nothing changes until a graph is edited
+- [x] `workflow` step type in jobs, so a run records each workflow like any other step
+- [x] Pipelines attach workflows as `workflow` steps (`{type: workflow, workflow, version?, when?}`), pinned when queued
+- [x] Namespaces choose a pipeline per content type (`pipelines: {video: id, ...}`)
+- [x] API: `/workflows` (catalog, create, get, versions, run on a recording)
+- [x] Tests for the API, validation and a run end to end
+- [x] Canvas editor in the web app (pipelines and workflows): drag nodes, connect ports, node settings, I/O, save versions
+- [x] Attach workflows from the pipeline editor
+- [x] Content-type mapping on the Pipelines page (By content type)
 - [ ] Asset converter steps (video → audio, document → images) as pipeline steps
 - [ ] Workflow node types: HTTP call, template render, entity filter
-- [ ] Docs: processing.md section on workflows
+- [x] Docs: processing.md section on workflows

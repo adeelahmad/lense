@@ -619,6 +619,23 @@ import type {
   RunPipelineData,
   RunPipelineResponses,
   RunPipelineErrors,
+  ListWorkflowsData,
+  ListWorkflowsResponses,
+  CreateWorkflowData,
+  CreateWorkflowResponses,
+  CreateWorkflowErrors,
+  GetWorkflowData,
+  GetWorkflowResponses,
+  GetWorkflowErrors,
+  UpdateWorkflowData,
+  UpdateWorkflowResponses,
+  UpdateWorkflowErrors,
+  CreateWorkflowVersionData,
+  CreateWorkflowVersionResponses,
+  CreateWorkflowVersionErrors,
+  RunWorkflowData,
+  RunWorkflowResponses,
+  RunWorkflowErrors,
   ListChatsData,
   ListChatsResponses,
   CreateChatData,
@@ -1133,7 +1150,8 @@ export class Namespaces {
 
   /**
    * Update Namespace
-   * Owners: the graph mode (shared or isolated) and the default pipeline (null for the built-in one).
+   * Owners: the graph mode (shared or isolated), the default pipeline (null for the built-in one) and a pipeline per
+   * content type.
    */
   public static updateNamespace<ThrowOnError extends boolean = false>(
     options: Options<UpdateNamespaceData, ThrowOnError>,
@@ -3762,6 +3780,96 @@ export class Pipelines {
   public static runPipeline<ThrowOnError extends boolean = false>(options: Options<RunPipelineData, ThrowOnError>) {
     return (options.client ?? client).post<RunPipelineResponses, RunPipelineErrors, ThrowOnError>({
       url: "/api/v1/pipelines/{pid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Workflows {
+  /**
+   * List Workflows
+   * Saved workflows, plus the nodes a workflow can be built from.
+   */
+  public static listWorkflows<ThrowOnError extends boolean = false>(
+    options?: Options<ListWorkflowsData, ThrowOnError>,
+  ) {
+    return (options?.client ?? client).get<ListWorkflowsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/workflows",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Workflow
+   */
+  public static createWorkflow<ThrowOnError extends boolean = false>(
+    options: Options<CreateWorkflowData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<CreateWorkflowResponses, CreateWorkflowErrors, ThrowOnError>({
+      url: "/api/v1/workflows",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Workflow
+   * One version (default: the current one) and the list of versions.
+   */
+  public static getWorkflow<ThrowOnError extends boolean = false>(options: Options<GetWorkflowData, ThrowOnError>) {
+    return (options.client ?? client).get<GetWorkflowResponses, GetWorkflowErrors, ThrowOnError>({
+      url: "/api/v1/workflows/{wid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Workflow
+   * Its name and description (the graph changes by saving a version).
+   */
+  public static updateWorkflow<ThrowOnError extends boolean = false>(
+    options: Options<UpdateWorkflowData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).patch<UpdateWorkflowResponses, UpdateWorkflowErrors, ThrowOnError>({
+      url: "/api/v1/workflows/{wid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create Workflow Version
+   */
+  public static createWorkflowVersion<ThrowOnError extends boolean = false>(
+    options: Options<CreateWorkflowVersionData, ThrowOnError>,
+  ) {
+    return (options.client ?? client).post<CreateWorkflowVersionResponses, CreateWorkflowVersionErrors, ThrowOnError>({
+      url: "/api/v1/workflows/{wid}/versions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Run Workflow
+   * Run this workflow on one recording now, as a job (after anything its current job still has to do).
+   */
+  public static runWorkflow<ThrowOnError extends boolean = false>(options: Options<RunWorkflowData, ThrowOnError>) {
+    return (options.client ?? client).post<RunWorkflowResponses, RunWorkflowErrors, ThrowOnError>({
+      url: "/api/v1/workflows/{wid}/run",
       ...options,
       headers: {
         "Content-Type": "application/json",
