@@ -4,12 +4,25 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **First-run setup wizard.** A fresh install now walks its first admin through setup in the web app: after the
+  admin account (still with the one-time setup code, so a stranger can't claim a public server) come the first
+  namespace, the model provider (with a connection test) and storage (the upload limit, and a folder to watch).
+  Every step and the whole wizard can be skipped; installs that already had accounts never see it
+  (docs/configuration.md#first-run-setup).
+    - Or answer it in `.env`: `LENS_ADMIN_EMAIL` / `LENS_ADMIN_PASSWORD` create the first admin at startup,
+      `LENS_NAMESPACE` the first namespace, `LENS_LLM_BASE_URL` / `LENS_LLM_MODEL` / `LENS_LLM_API_KEY` set the
+      model provider, and `LENS_SETUP_WIZARD=off` turns the wizard off. Environment values win over the app, and
+      the wizard and Settings show them locked; a key from the environment is never shown.
+- **Fix: a fresh database with no namespaces in archive.yaml no longer stops the API from starting** with
+  "table 'seq' does not exist" (SurrealDB 3). The counters table is defined with the rest of the schema now, so
+  nothing reads it before it exists.
+
 - **Lens for QNAP NAS.** `packaging/qnap/build.sh` builds a self-contained QPKG (with
   [QDK](https://github.com/qnap-dev/QDK)) for Intel/AMD or ARM models that installs from the App Center's Install
   Manually: it carries the Lens images and SurrealDB, loads them into Container Station on its first start, and runs
   the stack there, so there are no containers to set up by hand. The first start writes the settings with fresh
   secrets to a data folder (`/share/Container/lens`) that outlasts removing the app, and puts the first-admin setup
-  code in the QTS system log; files put in `Multimedia/Lens` on the NAS are picked up into a `media` namespace.
+  code in the QTS system log; Lens sees only `Multimedia/Lens` on the NAS, a folder the setup steps can watch.
   Upgrades install over the old version and remove its images. Publishing a GitHub release builds both packages and
   attaches them to it (`.github/workflows/qnap.yml`). Steps in packaging/qnap/README.md.
 

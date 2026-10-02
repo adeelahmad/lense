@@ -11,6 +11,7 @@ from app.api.deps import Cfg, CurrentUser, Db, Writer, client_ip, domain_errors
 from app.config import settings
 from app.core.security import create_access_token
 from app.domain import auth, store
+from app.domain import setup as first_run
 from app.email import send_reset_password_email
 from app.schemas.auth import (
     ApiToken,
@@ -43,8 +44,12 @@ def _pair(db: Db, cfg: Cfg, request: Request, user: dict) -> TokenPair:
 
 @router.get("/status")
 def status(request: Request, db: Db) -> AuthStatus:
-    """Whether the archive still needs its first admin (the sign-in page shows the setup form instead)."""
-    return AuthStatus(setup_required=request.app.state.archive.setup_code is not None and auth.account_count(db) == 0)
+    """Whether the archive still needs its first admin (the sign-in page shows the setup form instead), and whether
+    the first-run wizard is still to be finished (the web app takes admins there)."""
+    return AuthStatus(
+        setup_required=request.app.state.archive.setup_code is not None and auth.account_count(db) == 0,
+        wizard_pending=first_run.pending(db),
+    )
 
 
 @router.post("/setup")

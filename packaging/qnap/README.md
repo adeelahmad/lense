@@ -48,6 +48,8 @@ with a tag, to rebuild them). The ARM package is built under QEMU, which is slow
    System Logs, an entry from Lens saying "create the first admin account with setup code …"), in `lens.env` in the
    data folder (`LENS_SETUP_CODE`), and over SSH: `/share/CACHEDEV1_DATA/.qpkg/Lens/lens.sh setup-code` (the
    path depends on the volume you installed to: `getcfg Lens Install_Path -f /etc/config/qpkg.conf`).
+5. Follow the setup steps: the first namespace, the model provider, and storage, where you can watch `/audio` (the
+   NAS's `Multimedia/Lens` folder). Each can be skipped, or answered ahead in `lens.env` (see Settings).
 
 The containers show up in Container Station as the application `lens` (surrealdb, backend, worker, frontend), where
 you can see their logs and resource use.
@@ -68,9 +70,9 @@ the data folder and drops the images; reinstalling picks up where it was. Delete
 everything.
 
 Your **recordings and documents**: Lens sees one folder on the NAS, `Lens` in the `Multimedia` share
-(`/share/Multimedia/Lens`, created on the first start), as `/audio`, read-only. Files you put there are picked up into
-the `media` namespace, and its subfolders can be watched from the web app. Set `AUDIO_DIR` in `lens.env` to use another
-folder. The package's `archive.yaml` sets this up; settings changed in the web app are kept in the database.
+(`/share/Multimedia/Lens`, created on the first start), as `/audio`, read-only. The setup steps after the first admin
+account (namespace, model provider, storage) can watch it, or a folder in it, so what you put there is picked up. Set
+`AUDIO_DIR` in `lens.env` to use another folder. Settings changed in the web app are kept in the database.
 
 ## Settings
 
@@ -115,4 +117,5 @@ next start and the old version's are removed; the data folder carries over.
   `docker-compose.yml` as the project `lens`. On removal it stops the stack and removes its own images (tagged `qnap-<version>`).
 - `docker-compose.yml`: the same stack as `docker-compose.prod.yml`, with the bundled images, the data folder as bind
   mounts and the web app on the NAS's port 3000.
-- `archive.yaml`: the processing configuration, with the `media` namespace on `/audio`.
+- `archive.yaml`: the processing configuration: `/audio` as the folder the web app may watch, and no namespaces, so
+  the first-run setup asks for one.

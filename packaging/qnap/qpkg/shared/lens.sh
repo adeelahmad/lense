@@ -90,8 +90,8 @@ LENS_PORT=3000
 FRONTEND_URL=http://$host:3000
 ARCHIVE_ALLOWED_HOSTS=$hosts
 
-# Recordings and documents on the NAS: this folder appears in Lens as /audio (read-only). Files put in it are picked up
-# into the "media" namespace, and its subfolders can be watched from the web app. Only this folder is visible to Lens.
+# Recordings and documents on the NAS: this folder appears in Lens as /audio (read-only), and the setup steps in the
+# web app (or Sources, later) can watch it or a folder in it. Only this folder is visible to Lens.
 AUDIO_DIR=$audio
 
 # Creates the first admin account in the web app; used only until that account exists.

@@ -492,6 +492,12 @@ class DB:
 
 
 SCHEMA = [
+    # counters (next_id), the migration marker and the settings version. Defined up front: SurrealDB 3 refuses to
+    # SELECT from a table nobody has written to yet ("table 'seq' does not exist"), which a fresh database with no
+    # namespaces in archive.yaml would otherwise hit in migrate() before anything had created it.
+    "DEFINE TABLE IF NOT EXISTS seq SCHEMALESS",
+    # first-run setup (domain/setup.py): setup:wizard while the web wizard is still to be finished
+    "DEFINE TABLE IF NOT EXISTS setup SCHEMALESS",
     # No composite indexes: on SurrealDB 2.x a (space, x) index makes "space = $s" lookups return nothing, so
     # uniqueness is enforced on single "<space>:<value>" key fields instead.
     "DEFINE TABLE IF NOT EXISTS space SCHEMALESS",
