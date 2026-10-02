@@ -32,10 +32,10 @@ export default auth((req) => {
 
 export const config = {
   // Skip Auth.js, the backend paths (proxied by route handlers, see lib/api/backend-proxy.ts; /.well-known is OAuth
-  // discovery), Next's files and assets.
+  // discovery, /mcp the endpoint for assistants), Next's files and assets.
   // Under /iiif only the backend's IIIF resources are skipped (collection, discovery, auth, /iiif/<id>/…); the app's own
   // IIIF pages (/iiif, /iiif/collections/…, /iiif/import, /iiif/metadata/…) need the session like any other page.
   matcher: [
-    "/((?!api/|\\.well-known/|_next/|embed/|s/|iiif/(?:collection(?!s)|discovery|auth|\\d)|reports/|static/|fonts/|favicon\\.ico|icon\\.svg|robots\\.txt).*)",
+    "/((?!api/|\\.well-known/|mcp$|_next/|embed/|s/|iiif/(?:collection(?!s)|discovery|auth|\\d)|reports/|static/|fonts/|favicon\\.ico|icon\\.svg|robots\\.txt).*)",
   ],
 };

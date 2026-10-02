@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AppWindow } from "lucide-react";
-import { useState } from "react";
+import { AppWindow, Check, Copy } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Oauth } from "@/app/openapi-client";
 import type { OAuthGrant } from "@/app/openapi-client/types.gen";
@@ -16,6 +16,45 @@ import { Table, Td, Th, THead, Tr } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { relative, shortDate } from "@/lib/format";
+
+/** Where assistants connect (docs/mcp.md): this site's /mcp, to copy into Claude, Cursor or another MCP client. */
+export function McpAddress() {
+  const [url, setUrl] = useState("");
+  const [copied, setCopied] = useState(false);
+  useEffect(() => setUrl(`${window.location.origin}/mcp`), []);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      /* clipboard blocked: the address stays selectable */
+    }
+  };
+  return (
+    <div className="flex flex-col gap-1.5 rounded-md border border-border bg-surface px-3.5 py-3">
+      <span className="text-[13px] font-bold leading-tight text-fg-strong">Connect an assistant</span>
+      <span className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        Claude, Cursor and other MCP clients search and read the archive as you. Add this address as a connector (a
+        remote MCP server); the assistant sends you here to sign in and allow it.
+      </span>
+      <span className="flex min-w-0 items-center gap-2">
+        <code className="min-w-0 flex-1 select-all break-all font-mono text-[12.5px] font-medium text-fg">
+          {url || "…/mcp"}
+        </code>
+        <Button
+          size="xs"
+          variant="ghost"
+          icon={copied ? <Check /> : <Copy />}
+          onClick={copy}
+          disabled={!url}
+          aria-label="Copy the MCP address"
+        >
+          {copied ? "Copied" : "Copy"}
+        </Button>
+      </span>
+    </div>
+  );
+}
 
 /** The apps this person gave access to through OAuth (docs/authentication.md#oauth), each with Revoke. */
 export function ConnectedApps() {
@@ -53,6 +92,7 @@ export function ConnectedApps() {
             until you revoke them.
           </p>
         </div>
+        <McpAddress />
         {grants.isPending ? (
           <SkeletonRows rows={2} />
         ) : grants.isError ? (

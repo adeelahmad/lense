@@ -24,11 +24,13 @@ backend tests (both engines) → `make openapi` → web app → frontend tests �
   - [x] Search blends similarity with BM25; `match`/`similarity` on hits; facets count hits by meaning; public search too
   - [x] Web app: Meaning switch (`meaning=1`), "By meaning" marks, embed in the step pickers, Settings → Search
   - [x] 6 backend tests (both engines), 7 frontend tests, docs, CHANGELOG, browser check with the real model
+  - [x] Pushed; CI green on both engines (run 37008606757)
+- [x] **3. MCP server for agents (#44)** (own commit)
+  - [x] `app/api/mcp.py`: `POST /mcp`, JSON-RPC by hand (no SDK dependency), stateless, 401 with resource metadata
+  - [x] 11 tools and `lens://resource/<id>` resources, each a request to the API's own routes with the caller's token
+  - [x] Web app proxies `/mcp`; the apps page shows the address; `docs/mcp.md` (Claude, Claude Code, Cursor)
+  - [x] 5 backend tests (both engines), frontend test, checked with the official MCP client end to end over OAuth
   - [ ] Push, CI green <-- CURRENT
-- [ ] **3. MCP server for agents (#44)**
-  - [ ] `/mcp` (streamable HTTP), OAuth and API tokens, `WWW-Authenticate` with resource metadata
-  - [ ] Tools: search, get resource/transcript/pages, list namespaces/collections, navigate, start import; resources for documents; roles honoured
-  - [ ] Tests, `docs/mcp.md` (Claude, Cursor), CHANGELOG, commit, push, CI
 - [ ] **4. Telemetry and analytics per collection (#48)**
   - [ ] `event` table (account, resource/collection, time; no IP/UA; "visitor"), 90-day retention setting, daily rollups, purge job
   - [ ] Analytics: owners per namespace, collection admins per collection, admins everywhere; own activity under the account
@@ -45,6 +47,9 @@ backend tests (both engines) → `make openapi` → web app → frontend tests �
 - Embedding rows are keyed by segment id (positional), so each carries a hash of its text: search drops a vector whose line changed, and the correction's job embeds it again.
 - Similarity is computed in SurrealDB (`vector::similarity::cosine`, brute force with the access filters in the WHERE). Fine for tens of thousands of passages; an HNSW index is the next step if it gets slow (Technical Debt).
 - The embed step is in the standard pipeline even while search by meaning is off (it skips, saying why), so switching it on needs no pipeline change.
+
+- MCP tools call the HTTP API in-process (httpx ASGITransport) rather than the domain layer: one place decides who may do what, and audit and (later) telemetry come for free.
+- `git push` alone tries to push `main` too here (it is behind origin and gets rejected, harmlessly): always `git push origin <branch>`.
 
 ### Blockers
 - None.

@@ -93,6 +93,26 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       in another namespace; "harbour" puts the line that says it first; a viewer of one namespace on a phone in dark
       mode finds nothing of the namespace they have no role in, by meaning either; a visitor's public search offers
       the switch and finds the public resource by meaning. No console errors.
+- **An MCP server for assistants.** Claude, Cursor and other MCP clients connect to `https://<your Lens>/mcp` and
+  search the archive, read transcripts and documents, find their way through namespaces and collections, and import
+  and process things, as the person who connected them (docs/mcp.md).
+    - Sign-in is OAuth (the entry above): without a token `/mcp` answers 401 with where to sign in, and the client
+      registers, sends the person to the consent page and gets tokens. API keys work too.
+    - Tools: `list_namespaces`, `list_collections`, `list_resources`, `search` (words, and meaning where that's on),
+      `get_resource`, `get_transcript`, `get_pages`, `get_job`, and for editors `import_text`, `import_web_page` and
+      `process`. Each resource's text is an MCP resource, `lens://resource/<id>`.
+    - Every tool is a request to the API's own routes with the caller's token, so it sees and does exactly what the
+      HTTP API allows them: namespaces and collections without a role aren't there, a read-only token is offered no
+      tools that change things, and imports are audited as the person's.
+    - Streamable HTTP without sessions or a server-sent stream (JSON in, JSON out), protocol versions 2025-06-18,
+      2025-03-26 and 2024-11-05. The web app serves `/mcp` on its own address.
+    - Web app: API tokens → Apps with access shows the address to give an assistant, to copy.
+    - Checked with the official MCP client (the TypeScript SDK's), through the web app's address: without a token it
+      is told where to sign in, registers itself and opens the consent page; a viewer on a phone in dark mode allows
+      it read only, and it is offered the 8 tools that change nothing, sees the one namespace, finds "sailors" by
+      meaning, reads the transcript and the resource as Markdown, and is refused an import; an admin's, with write,
+      is offered all 11, imports text, follows its job to the end, finds it and reaches it through its namespace's
+      collections. The apps page shows the address and both apps. No console errors.
 - **Fix (security): only the server's own media links are signed.** Text shaped like a media link
   (`/api/v1/recordings/12/audio`) came back signed: titles and transcript lines in API responses, and anything in the
   embed and report pages, including the transcript data inside them. Someone who could rename a recording or correct

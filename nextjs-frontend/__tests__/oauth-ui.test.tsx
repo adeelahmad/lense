@@ -166,6 +166,17 @@ describe("apps with access", () => {
     );
   });
 
+  it("says where assistants connect, to copy", async () => {
+    api.listGrants.mockReturnValue(ok([]));
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    show(<ConnectedApps />);
+    expect(await screen.findByText("http://localhost/mcp")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Copy the MCP address" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("http://localhost/mcp"));
+    expect(await screen.findByText("Copied")).toBeInTheDocument();
+  });
+
   it("says when there are none, and when they can't be loaded", async () => {
     api.listGrants.mockReturnValue(ok([]));
     const none = show(<ConnectedApps />);

@@ -4,7 +4,7 @@ The API lives under `/api/v1`. Interactive docs with every request and response 
 
 Authenticate with `Authorization: Bearer <token>`: an access token from `POST /api/v1/auth/login`, an API token (`la_…`), or the access token of an app someone gave access to through OAuth (`lo_…`). See [Authentication](authentication.md). Errors are JSON `{"detail": …}`; validation errors answer 422. Namespaces you can't read answer 404.
 
-Outside `/api/v1`: IIIF resources under `/iiif/…` ([IIIF](iiif.md)), the embeddable player at `/embed/<id>` (and at a share link's short address, `/s/<code>`) and stored reports at `/reports/<namespace>/…`.
+Outside `/api/v1`: the MCP endpoint for assistants at `/mcp` ([MCP](mcp.md)), IIIF resources under `/iiif/…` ([IIIF](iiif.md)), the embeddable player at `/embed/<id>` (and at a share link's short address, `/s/<code>`) and stored reports at `/reports/<namespace>/…`.
 
 ## auth
 
