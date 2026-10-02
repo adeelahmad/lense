@@ -175,8 +175,9 @@ DEFAULTS = {
         "trusted_proxies": ["127.0.0.0/8", "::1/128"],
     },
     # how long API keys last (docs/configuration.md): what a new key gets, the most it may get, and whether keys may
-    # never expire
-    "tokens": {"default_days": 90, "max_days": 365, "never_expire": False},
+    # never expire; and how long the tokens of apps given access through OAuth last (domain/oauth.py): the access token,
+    # and the grant after the app last renewed it
+    "tokens": {"default_days": 90, "max_days": 365, "never_expire": False, "oauth_access_minutes": 60, "oauth_refresh_days": 30},
     # audio, video, documents and images uploaded in the web app, in pieces (docs/configuration.md); transcript files use
     # server.max_upload_mb
     "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT + DOCUMENT_EXT + IMAGE_EXT), "chunk_mb": 8, "expire_hours": 24},
@@ -586,6 +587,14 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS api_token SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS api_token_hash ON api_token FIELDS hash UNIQUE",
     "DEFINE INDEX IF NOT EXISTS api_token_account ON api_token FIELDS account",
+    # OAuth (app/domain/oauth.py): apps that registered, one-time codes, the access people gave them, and its tokens
+    # (oauth_client:<client id>; oauth_code and oauth_token by the hash of the code or token)
+    "DEFINE TABLE IF NOT EXISTS oauth_client SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS oauth_code SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS oauth_grant SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS oauth_grant_account ON oauth_grant FIELDS account",
+    "DEFINE TABLE IF NOT EXISTS oauth_token SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS oauth_token_gid ON oauth_token FIELDS gid",
     "DEFINE TABLE IF NOT EXISTS share_link SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS share_link_rec ON share_link FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS share_link_short ON share_link FIELDS short",

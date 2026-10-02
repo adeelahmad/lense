@@ -4,6 +4,18 @@ const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   // The dev server would otherwise write an AGENTS.md and a CLAUDE.md into this folder (since Next 16.3).
   agentRules: false,
+  // The OAuth consent page may not be framed: a page that framed it could trick people into clicking Allow.
+  async headers() {
+    return [
+      {
+        source: "/oauth/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "X-Frame-Options", value: "DENY" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

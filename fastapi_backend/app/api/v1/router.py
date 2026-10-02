@@ -21,6 +21,7 @@ from app.api.v1.routes import (
     namespaces,
     notes,
     notifications,
+    oauth,
     pipelines,
     public,
     recordings,
@@ -42,6 +43,7 @@ from app.api.v1.routes import (
 api_router = APIRouter()
 api_router.include_router(auth.router)
 api_router.include_router(auth.tokens)
+api_router.include_router(oauth.router)
 for module in (
     users,
     admin,

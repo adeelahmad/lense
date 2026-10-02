@@ -817,6 +817,58 @@ export type BatchSummary = {
 };
 
 /**
+ * Body_oauth-revoke
+ */
+export type BodyOauthRevoke = {
+  /**
+   * Token
+   */
+  token: string;
+  /**
+   * Client Id
+   */
+  client_id?: string | null;
+  /**
+   * Client Secret
+   */
+  client_secret?: string | null;
+};
+
+/**
+ * Body_oauth-token
+ */
+export type BodyOauthToken = {
+  /**
+   * Grant Type
+   */
+  grant_type: string;
+  /**
+   * Code
+   */
+  code?: string | null;
+  /**
+   * Redirect Uri
+   */
+  redirect_uri?: string | null;
+  /**
+   * Code Verifier
+   */
+  code_verifier?: string | null;
+  /**
+   * Refresh Token
+   */
+  refresh_token?: string | null;
+  /**
+   * Client Id
+   */
+  client_id?: string | null;
+  /**
+   * Client Secret
+   */
+  client_secret?: string | null;
+};
+
+/**
  * BrowseEntry
  */
 export type BrowseEntry = {
@@ -1155,6 +1207,108 @@ export type ChatUpdate = {
    * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
    */
   model?: string | null;
+};
+
+/**
+ * ClientRegistered
+ */
+export type ClientRegistered = {
+  /**
+   * Client Id
+   */
+  client_id: string;
+  /**
+   * Client Secret
+   * only for apps that asked for one; shown once
+   */
+  client_secret?: string | null;
+  /**
+   * Client Id Issued At
+   */
+  client_id_issued_at: number;
+  /**
+   * Client Secret Expires At
+   * 0: it doesn't expire
+   */
+  client_secret_expires_at?: number;
+  /**
+   * Client Name
+   */
+  client_name: string;
+  /**
+   * Client Uri
+   */
+  client_uri?: string | null;
+  /**
+   * Redirect Uris
+   */
+  redirect_uris: Array<string>;
+  /**
+   * Token Endpoint Auth Method
+   */
+  token_endpoint_auth_method: string;
+  /**
+   * Grant Types
+   */
+  grant_types?: Array<string>;
+  /**
+   * Response Types
+   */
+  response_types?: Array<string>;
+  /**
+   * Scope
+   */
+  scope?: string;
+  [key: string]:
+    | unknown
+    | string
+    | string
+    | null
+    | number
+    | string
+    | null
+    | Array<string>
+    | Array<string>
+    | Array<string>
+    | undefined;
+};
+
+/**
+ * ClientRegistration
+ * Dynamic client registration (RFC 7591). Metadata Lens has no use for is ignored, as the RFC asks.
+ */
+export type ClientRegistration = {
+  /**
+   * Redirect Uris
+   * https, http://localhost (any port), or the app's own scheme; 1 to 10
+   */
+  redirect_uris: Array<string>;
+  /**
+   * Client Name
+   * shown on the consent page and in the list of apps with access
+   */
+  client_name?: string | null;
+  /**
+   * Client Uri
+   */
+  client_uri?: string | null;
+  /**
+   * Token Endpoint Auth Method
+   * none (public apps), client_secret_post or client_secret_basic
+   */
+  token_endpoint_auth_method?: string;
+  /**
+   * Grant Types
+   */
+  grant_types?: Array<string> | null;
+  /**
+   * Response Types
+   */
+  response_types?: Array<string> | null;
+  /**
+   * Scope
+   */
+  scope?: string | null;
 };
 
 /**
@@ -1779,6 +1933,107 @@ export type CommentUpdate = {
    * resolve or reopen the thread: its writer, or an editor of the resource
    */
   resolved?: boolean | null;
+};
+
+/**
+ * Consent
+ * What the consent page shows.
+ */
+export type Consent = {
+  client: ConsentClient;
+  /**
+   * Redirect Uri
+   */
+  redirect_uri: string;
+  /**
+   * Scope
+   * what the app asks for: read, or read and write
+   */
+  scope: "read" | "read write";
+  /**
+   * Granted
+   * what you gave this app before, if anything
+   */
+  granted?: "read" | "read write" | null;
+  [key: string]: unknown | ConsentClient | string | "read" | "read write" | "read" | "read write" | null | undefined;
+};
+
+/**
+ * ConsentAnswer
+ */
+export type ConsentAnswer = {
+  /**
+   * Client Id
+   */
+  client_id: string;
+  /**
+   * Redirect Uri
+   */
+  redirect_uri: string;
+  /**
+   * Response Type
+   */
+  response_type?: string;
+  /**
+   * Code Challenge
+   */
+  code_challenge: string;
+  /**
+   * Code Challenge Method
+   */
+  code_challenge_method?: string;
+  /**
+   * Scope
+   */
+  scope?: string | null;
+  /**
+   * State
+   */
+  state?: string | null;
+  /**
+   * Resource
+   */
+  resource?: string | null;
+  /**
+   * Approve
+   */
+  approve: boolean;
+  /**
+   * Grant
+   * give less than was asked for (read); default: what was asked for
+   */
+  grant?: "read" | "read write" | null;
+};
+
+/**
+ * ConsentClient
+ */
+export type ConsentClient = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Uri
+   */
+  uri?: string | null;
+  [key: string]: unknown | string | string | null | undefined;
+};
+
+/**
+ * ConsentResult
+ */
+export type ConsentResult = {
+  /**
+   * Redirect To
+   * send the browser here: the app's address with its code, or with error=access_denied
+   */
+  redirect_to: string;
+  [key: string]: unknown | string;
 };
 
 /**
@@ -4158,7 +4413,7 @@ export type Me = {
   /**
    * Via
    */
-  via: "access" | "token";
+  via: "access" | "token" | "oauth";
   /**
    * Scope
    */
@@ -4172,6 +4427,7 @@ export type Me = {
     | Array<string>
     | "access"
     | "token"
+    | "oauth"
     | "read"
     | "write"
     | undefined;
@@ -5239,6 +5495,87 @@ export type NotifyTestResult = {
    */
   error?: string | null;
   [key: string]: unknown | boolean | number | null | string | null | undefined;
+};
+
+/**
+ * OAuthGrant
+ * An app you gave access to.
+ */
+export type OAuthGrant = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Client
+   */
+  client: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Uri
+   */
+  uri?: string | null;
+  /**
+   * Scope
+   */
+  scope: "read" | "read write";
+  /**
+   * Created At
+   */
+  created_at: string;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  /**
+   * Expires At
+   * when its access ends unless the app renews it before
+   */
+  expires_at?: string | null;
+  [key: string]:
+    | unknown
+    | number
+    | string
+    | string
+    | null
+    | "read"
+    | "read write"
+    | string
+    | null
+    | string
+    | null
+    | undefined;
+};
+
+/**
+ * OAuthTokens
+ */
+export type OAuthTokens = {
+  /**
+   * Access Token
+   */
+  access_token: string;
+  /**
+   * Token Type
+   */
+  token_type?: "Bearer";
+  /**
+   * Expires In
+   * seconds until the access token expires
+   */
+  expires_in: number;
+  /**
+   * Refresh Token
+   */
+  refresh_token: string;
+  /**
+   * Scope
+   */
+  scope: "read" | "read write";
+  [key: string]: unknown | string | "Bearer" | number | "read" | "read write" | undefined;
 };
 
 /**
@@ -11628,6 +11965,219 @@ export type RevokeTokenResponses = {
 };
 
 export type RevokeTokenResponse = RevokeTokenResponses[keyof RevokeTokenResponses];
+
+export type RegisterData = {
+  body: ClientRegistration;
+  path?: never;
+  query?: never;
+  url: "/api/v1/oauth/register";
+};
+
+export type RegisterErrors = {
+  /**
+   * OAuth error
+   */
+  400: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RegisterError = RegisterErrors[keyof RegisterErrors];
+
+export type RegisterResponses = {
+  /**
+   * Successful Response
+   */
+  201: ClientRegistered;
+};
+
+export type RegisterResponse = RegisterResponses[keyof RegisterResponses];
+
+export type ConsentData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Client Id
+     */
+    client_id: string;
+    /**
+     * Redirect Uri
+     */
+    redirect_uri: string;
+    /**
+     * Code Challenge
+     */
+    code_challenge?: string;
+    /**
+     * Code Challenge Method
+     */
+    code_challenge_method?: string;
+    /**
+     * Response Type
+     */
+    response_type?: string;
+    /**
+     * Scope
+     */
+    scope?: string | null;
+  };
+  url: "/api/v1/oauth/authorize";
+};
+
+export type ConsentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ConsentError = ConsentErrors[keyof ConsentErrors];
+
+export type ConsentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Consent;
+};
+
+export type ConsentResponse = ConsentResponses[keyof ConsentResponses];
+
+export type AnswerData = {
+  body: ConsentAnswer;
+  path?: never;
+  query?: never;
+  url: "/api/v1/oauth/authorize";
+};
+
+export type AnswerErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AnswerError = AnswerErrors[keyof AnswerErrors];
+
+export type AnswerResponses = {
+  /**
+   * Successful Response
+   */
+  200: ConsentResult;
+};
+
+export type AnswerResponse = AnswerResponses[keyof AnswerResponses];
+
+export type TokenData = {
+  body: BodyOauthToken;
+  path?: never;
+  query?: never;
+  url: "/api/v1/oauth/token";
+};
+
+export type TokenErrors = {
+  /**
+   * OAuth error
+   */
+  400: unknown;
+  /**
+   * OAuth error
+   */
+  401: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TokenError = TokenErrors[keyof TokenErrors];
+
+export type TokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: OAuthTokens;
+};
+
+export type TokenResponse = TokenResponses[keyof TokenResponses];
+
+export type RevokeData = {
+  body: BodyOauthRevoke;
+  path?: never;
+  query?: never;
+  url: "/api/v1/oauth/revoke";
+};
+
+export type RevokeErrors = {
+  /**
+   * OAuth error
+   */
+  401: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RevokeError = RevokeErrors[keyof RevokeErrors];
+
+export type RevokeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RevokeResponse = RevokeResponses[keyof RevokeResponses];
+
+export type ListGrantsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/oauth/grants";
+};
+
+export type ListGrantsResponses = {
+  /**
+   * Response Oauth-List Grants
+   * Successful Response
+   */
+  200: Array<OAuthGrant>;
+};
+
+export type ListGrantsResponse = ListGrantsResponses[keyof ListGrantsResponses];
+
+export type RevokeGrantData = {
+  body?: never;
+  path: {
+    /**
+     * Grant Id
+     */
+    grant_id: number;
+  };
+  query?: never;
+  url: "/api/v1/oauth/grants/{grant_id}";
+};
+
+export type RevokeGrantErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RevokeGrantError = RevokeGrantErrors[keyof RevokeGrantErrors];
+
+export type RevokeGrantResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RevokeGrantResponse = RevokeGrantResponses[keyof RevokeGrantResponses];
 
 export type ListUsersData = {
   body?: never;

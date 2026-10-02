@@ -106,6 +106,12 @@ def throttled(key):
         return len(_FAILS[key]) >= 8
 
 
+def hit(key):
+    """Count one more towards `key`'s throttle (throttled() says when there were too many)."""
+    with _FL:
+        _FAILS.setdefault(key, []).append(time.time())
+
+
 def login(db, email, password, key=""):
     """Returns the account or None. Unknown emails cost the same time as wrong passwords."""
     u = find_account(db, email)

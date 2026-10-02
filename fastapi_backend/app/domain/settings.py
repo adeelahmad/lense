@@ -109,6 +109,7 @@ DOCUMENT_RANGES = {
     "convert_seconds": (10, 3600),
 }
 TOKEN_DAYS = (1, 3650)
+OAUTH_ACCESS_MINUTES = (5, 1440)
 VIEWER_URL = re.compile(r"^https?://[^\s]+$")
 _KEYS, _KL = {}, threading.Lock()
 
@@ -272,6 +273,11 @@ def _check(section, key, value, default):
         if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0.05 <= value <= 0.95):
             raise ValueError("video.object_min_score is a number from 0.05 to 0.95")
         return float(value)
+    if (section, key) == ("tokens", "oauth_access_minutes"):
+        lo, hi = OAUTH_ACCESS_MINUTES
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"tokens.oauth_access_minutes is a whole number of minutes from {lo} to {hi}")
+        return value
     if section == "tokens" and key != "never_expire":
         lo, hi = TOKEN_DAYS
         if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
@@ -371,6 +377,8 @@ def save(db, base, section, changes, user=None):
             raise ValueError("thresholds must satisfy 0 ≤ review ≤ match ≤ 1")
     if section == "tokens" and data.get("default_days", defaults["default_days"]) > data.get("max_days", defaults["max_days"]):
         raise ValueError("tokens.default_days can't be more than tokens.max_days")
+    if section == "tokens" and data.get("oauth_refresh_days", defaults["oauth_refresh_days"]) > data.get("max_days", defaults["max_days"]):
+        raise ValueError("tokens.oauth_refresh_days can't be more than tokens.max_days")
     if (
         section == "server"
         and "allowed_hosts" in data
