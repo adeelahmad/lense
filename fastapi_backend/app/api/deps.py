@@ -1,8 +1,9 @@
 """Request dependencies: the database, the effective configuration, who is calling and what they may touch.
 
 Who is calling comes from the ``Authorization: Bearer`` header, which carries either an access token issued at sign-in
-(the web app, through NextAuth) or an API token (``la_...``). Access tokens can write; API tokens are read-only unless
-created with the write scope. No cookies are involved, so there is nothing for CSRF to ride on.
+(the web app, through NextAuth), an API token (``la_...``) or the access token of an app the person gave access to
+through OAuth (``lo_...``, app/domain/oauth.py). Access tokens can write; API tokens and apps are read-only unless
+they have the write scope. No cookies are involved, so there is nothing for CSRF to ride on.
 
 Access is per namespace. A namespace you have no role in behaves as if it didn't exist (404); one you can read but not
 change says so (403). Admins own every namespace. A role on a collection adds to that for the recordings in it (and in
@@ -22,7 +23,7 @@ from fastapi import Depends, HTTPException, Request
 
 from app.core import security
 from app.domain import access as acc
-from app.domain import auth, hierarchy, ipgroups, store
+from app.domain import auth, hierarchy, ipgroups, oauth, store
 from app.domain.store import DB
 
 Config = dict[str, Any]
@@ -46,7 +47,7 @@ class Principal:
     email: str
     name: str | None
     admin: bool
-    via: Literal["access", "token"]  # a signed-in session, or an API token
+    via: Literal["access", "token", "oauth"]  # a signed-in session, an API token, or an app given access (OAuth)
     scope: Literal["read", "write"] = "write"
     sid: str | None = None
     roles: dict[int, str] = field(default_factory=dict)
@@ -72,6 +73,10 @@ def _principal(request: Request, db: DB) -> Principal | None:
             p = Principal(
                 u["id"], u["email"], u.get("name"), bool(u.get("admin")), "token", "write" if u.get("scope") == "write" else "read"
             )
+    elif raw.startswith("lo_"):
+        u = oauth.token_account(db, raw)
+        if u:
+            p = Principal(u["id"], u["email"], u.get("name"), bool(u.get("admin")), "oauth", u["scope"])
     elif raw:
         claims = security.decode_access_token(raw)
         u = auth.active_account(db, claims.account) if claims and auth.session_active(db, claims.sid) else None
@@ -101,16 +106,22 @@ def writer(user: Annotated[Principal, Depends(current_user)]) -> Principal:
     return user
 
 
-def admin_reader(user: Annotated[Principal, Depends(current_user)]) -> Principal:
+def _admin(user: Principal) -> Principal:
+    """Administration (people, settings, the audit log) is for admins themselves, signed in or with their API key. An
+    app an admin gave access to has the admin's roles in every namespace, not the administration."""
     if not user.admin:
         raise HTTPException(403, "admins only")
+    if user.via == "oauth":
+        raise HTTPException(403, "admins only: apps given access can't administer the archive")
     return user
+
+
+def admin_reader(user: Annotated[Principal, Depends(current_user)]) -> Principal:
+    return _admin(user)
 
 
 def admin_writer(user: Annotated[Principal, Depends(writer)]) -> Principal:
-    if not user.admin:
-        raise HTTPException(403, "admins only")
-    return user
+    return _admin(user)
 
 
 OptionalUser = Annotated[Principal | None, Depends(optional_user)]

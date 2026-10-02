@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueries } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import { PlugZap, RefreshCw, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
@@ -293,6 +293,10 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="tokens.max_days" />
           </div>
           <F ctx={ctx} id="tokens.never_expire" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="tokens.oauth_access_minutes" />
+            <F ctx={ctx} id="tokens.oauth_refresh_days" />
+          </div>
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             People make API keys on their API tokens page; a key acts as them, with their roles. These limits apply to
             new keys.
@@ -300,6 +304,24 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <AllTokens />
         </>
       );
+    case "notifications":
+      return (
+        <>
+          <F ctx={ctx} id="notifications.enabled" />
+          <F ctx={ctx} id="notifications.networks" />
+          <F ctx={ctx} id="notifications.app_url" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="notifications.poll_seconds" />
+            <F ctx={ctx} id="notifications.max_attempts" />
+          </div>
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            Each namespace’s owners choose its targets and events on the namespace’s page. Workers send them, so a
+            target must be reachable from where the workers run.
+          </p>
+        </>
+      );
+    case "telemetry":
+      return <TelemetryBody ctx={ctx} />;
     case "uploads":
       return (
         <>
@@ -383,6 +405,103 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
           <Banner tone="success" title="The model answered.">
             {test.data.model ?? "Model"} · {test.data.ms} ms
             {test.data.reply ? ` · replied “${test.data.reply}”` : ""}
+          </Banner>
+        ) : (
+          <Banner tone="error" title="The test failed.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function exportLine(e: { at: number; ok: boolean; error?: string | null } | null | undefined, what: string) {
+  if (!e) return null;
+  const when = new Date(e.at * 1000).toLocaleTimeString();
+  return e.ok ? `${what} last sent at ${when}` : `${what} failed at ${when}: ${e.error ?? "refused"}`;
+}
+
+function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const t = ctx.view.telemetry;
+  const saved = t?.values ?? {};
+  const secret = (saved.headers ?? {}) as { set?: boolean };
+  const headers = ctx.state("telemetry.headers");
+  const locked = t?.locked ?? [];
+  const status = useQuery({
+    queryKey: ["telemetry-status", t?.updated_at ?? null],
+    queryFn: () => data(Admin.telemetryStatus({ client })),
+    refetchInterval: 30_000,
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testTelemetry({ client })) });
+  const on = Boolean(saved.enabled);
+  const where = (saved.endpoint as string | null | undefined) ?? null;
+  const s = status.data;
+  const lines = [exportLine(s?.last_traces, "Traces"), exportLine(s?.last_metrics, "Metrics")].filter(Boolean);
+  const failed = Boolean((s?.last_traces && !s.last_traces.ok) || (s?.last_metrics && !s.last_metrics.ok));
+  return (
+    <>
+      {on && where ? (
+        <Banner tone={failed ? "error" : "success"} title={`On: sending to ${s?.endpoint ?? where}`}>
+          {lines.length
+            ? lines.join(" · ")
+            : "Nothing sent from the server yet; the first export follows its first traced work."}
+        </Banner>
+      ) : on ? (
+        <Banner tone="error" title="On, but there is nowhere to send to.">
+          Set the endpoint below; until then nothing is collected or sent.
+        </Banner>
+      ) : (
+        <Banner title="Off: nothing is collected or sent.">
+          Lens never sends telemetry anywhere unless you turn it on here, in the setup wizard or with{" "}
+          <code className="font-mono">LENS_TELEMETRY=on</code> in .env, and then only to the endpoint you set.
+        </Banner>
+      )}
+      <F ctx={ctx} id="telemetry.enabled" />
+      <F ctx={ctx} id="telemetry.endpoint" />
+      <SecretSetting
+        key={t?.updated_at ?? "none"}
+        label={locked.includes("headers") ? "Headers (set by LENS_TELEMETRY_HEADERS in .env)" : "Headers"}
+        placeholder="Authorization=Bearer%20token,X-Scope-OrgID=home"
+        isSet={Boolean(secret.set)}
+        updatedBy={t?.updated_by}
+        updatedAt={t?.updated_at}
+        value={headers.value as string | undefined}
+        onChange={(x) => headers.onChange(x)}
+      />
+      <p className="-mt-2 text-[12px] text-fg-muted">
+        Optional: key=value pairs, separated by commas and URL-encoded, for a collector that needs a token.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="telemetry.traces" />
+        <F ctx={ctx} id="telemetry.metrics" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <F ctx={ctx} id="telemetry.sample_ratio" />
+        <F ctx={ctx} id="telemetry.export_seconds" />
+        <F ctx={ctx} id="telemetry.service_name" />
+      </div>
+      <F ctx={ctx} id="telemetry.prices" />
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        What is sent: route templates (never paths or queries), job steps and how they ended, record ids, model names,
+        token counts, durations and estimated cost. Never transcript, prompt or answer text, file names, titles,
+        namespace names, people or addresses. Each worker follows these settings on its own.
+      </p>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending || !where}>
+          {test.isPending ? "Sending…" : "Send a test span"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty
+            ? "Uses the saved settings, not your unsaved changes"
+            : "Sends one span named lens.telemetry.test, even while telemetry is off"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="The endpoint took the test span.">
+            {test.data.ms} ms
           </Banner>
         ) : (
           <Banner tone="error" title="The test failed.">

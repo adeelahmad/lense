@@ -28,7 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           client: createApiClient(),
           body: parsed.data,
         });
-        if (response.status === 429) throw new ThrottledSignin();
+        if (response?.status === 429) throw new ThrottledSignin();
         if (!data) return null;
 
         return { ...sessionUser(data.user), tokens: tokensFromPair(data) };

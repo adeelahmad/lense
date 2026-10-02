@@ -46,6 +46,13 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
   (such as Chrome's).
 * **IIIF.** Set `iiif.base_url` to the stable public address before publishing anything; identifiers are built from it.
 
+## Cloudron
+
+The repository is also a Cloudron package: SurrealDB, the API, a worker and the web app in one app, installed from a
+checkout with `cloudron install --location lens -f Dockerfile.cloudron`. See
+[cloudron/README.md](https://github.com/adeelahmad/lense/blob/main/cloudron/README.md) for data locations, updates
+and publishing it as a community app.
+
 ## Frontend on Vercel
 
 The Next.js app can be deployed to Vercel (`prod-frontend-deploy.yml`) with `API_BASE_URL` pointing at the API's

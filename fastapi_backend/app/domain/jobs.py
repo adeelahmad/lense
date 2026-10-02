@@ -13,7 +13,7 @@ import socket
 import threading
 import time
 
-from . import analyze, ingest, pipelines, render, speakers as spk, store
+from . import analyze, ingest, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
 PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "summarize", "report"]
@@ -98,6 +98,14 @@ def _export(db, cfg, rid, say, spec=None):
     pipelines.run_export(db, cfg, rid, spec, say)
 
 
+def _workflow(db, cfg, rid, say, spec=None):
+    from . import workflows
+
+    done = workflows.run(db, cfg, rid, int(spec["workflow"]), spec.get("version"), say)
+    ran = sum(1 for v in done.values() if v == "done") - 1  # not counting the input
+    say(f"workflow ran {ran} of {len(done) - 1} nodes")
+
+
 def _shots(db, cfg, rid, say, spec=None):
     from . import video
 
@@ -141,6 +149,7 @@ STEPS = {
     "report": _report,
     "llm": _llm,
     "export": _export,
+    "workflow": _workflow,
 }
 
 
@@ -151,7 +160,9 @@ def enqueue(db, rid, steps=None, by=None, priority=0, pipeline=None, batch=None)
         raise KeyError(rid)
     ref = None
     if steps is None:
-        steps, ref = pipelines.resolve(db, rec["space"], pipeline)
+        from . import content_types
+
+        steps, ref = pipelines.resolve(db, rec["space"], pipeline, None if pipeline else content_types.of_recording(db, rid)[0])
     steps = [_spec(s) for s in steps]
     if not steps or any(s.get("type") not in STEPS for s in steps):
         raise ValueError(f"steps are {', '.join(STEPS)}")
@@ -213,8 +224,15 @@ def steps_for(rec):
 
 
 def enqueue_pending(db, space=None, by=None):
+    """Queue what scans and imports left waiting. A new file runs the pipeline its content type and namespace resolve
+    to, as an upload does; a transcript imported part-way runs what's left after import."""
     q = "SELECT record::id(id) AS id, status, source FROM recording WHERE status IN ['new', 'error', 'transcribed', 'diarized']"
-    return [enqueue(db, r["id"], steps_for(r), by) for r in db.rows(q + (" AND space = $s" if space else ""), s=space) if steps_for(r)]
+    out = []
+    for r in db.rows(q + (" AND space = $s" if space else ""), s=space):
+        steps = steps_for(r)
+        if steps:
+            out.append(enqueue(db, r["id"], None if steps is PIPELINE else steps, by))
+    return out
 
 
 def claim(db, worker, can):
@@ -417,6 +435,7 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
         return time.time()
 
     def finished(k, outcome, note, t0, outputs=None):
+        telemetry.record("lens.job.step.duration", time.time() - t0, {"lens.step": _spec(steps[k])["type"], "lens.step.outcome": outcome})
         runs[k] = store.clean(
             {
                 **runs[k],
@@ -494,15 +513,17 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
                 i, t0 = i + 1, None
                 continue
             before = _saved(db, rid)
-            try:
-                STEPS[step](db, cfg_fn(), rid, say, spec)
-            except Skip as e:
-                say(f"{step} skipped: {e}")
-                finished(i, "skipped", str(e), t0, _outputs(before, _saved(db, rid)))
-            else:
-                note = said[0]
-                say(f"{spec.get('name') or step} done in {time.time() - t0:.1f}s")
-                finished(i, "done", note, t0, _outputs(before, _saved(db, rid)))
+            with telemetry.span(f"step {step}", {"lens.step": step, "lens.step.index": i, "lens.job.id": str(jid)}) as sp:
+                try:
+                    STEPS[step](db, cfg_fn(), rid, say, spec)
+                except Skip as e:
+                    say(f"{step} skipped: {e}")
+                    finished(i, "skipped", str(e), t0, _outputs(before, _saved(db, rid)))
+                else:
+                    note = said[0]
+                    say(f"{spec.get('name') or step} done in {time.time() - t0:.1f}s")
+                    finished(i, "done", note, t0, _outputs(before, _saved(db, rid)))
+                sp.set_attribute("lens.step.outcome", runs[i]["outcome"])
             _timed(db, rid, spec, runs[i]["seconds"], runs[i]["outcome"] == "skipped")
             i, t0 = i + 1, None
     except (Exception, SystemExit) as e:  # noqa: BLE001 - recorded on the job; SystemExit too (a missing engine says so)
@@ -686,6 +707,8 @@ class Worker:
         self.db, self.cfg_fn, self.log = db, cfg_fn, log
         self.name = name or f"{socket.gethostname()}-{os.getpid()}"
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
+        if "llm" in self.can:  # a workflow needs what an llm step needs; lists written before workflows existed run them too
+            self.can.add("workflow")
         self.was_paused = False
 
     def register(self, current=None):
@@ -718,7 +741,17 @@ class Worker:
         if not job:
             return False
         self.register(job["id"])
-        run_job(self.db, self.cfg_fn, job, self.name, self.can, self.log)
+        pipe = job.get("pipeline") if isinstance(job.get("pipeline"), dict) else {}
+        attrs = {
+            "lens.job.id": str(job["id"]),
+            "lens.recording.id": str(job["recording"]),
+            "lens.pipeline.id": str(pipe["id"]) if pipe.get("id") is not None else ("standard" if pipe else None),
+            "lens.pipeline.version": pipe.get("version"),
+        }
+        with telemetry.span("job", attrs) as sp:
+            outcome = run_job(self.db, self.cfg_fn, job, self.name, self.can, self.log)
+            sp.set_attribute("lens.job.outcome", outcome)
+        telemetry.record("lens.jobs", 1, {"lens.job.outcome": outcome})
         self.register()
         return True
 

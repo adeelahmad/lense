@@ -31,7 +31,8 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `LENS_NAMESPACE` | | create the first namespace at startup, while there is none |
 | `LENS_LLM_BASE_URL` / `LENS_LLM_MODEL` / `LENS_LLM_API_KEY` / `LENS_LLM_VISION_MODEL` | | the model provider; wins over Settings, which show these locked |
 | `LENS_SETUP_WIZARD` | | `off`: never show the setup wizard |
-| `FRONTEND_URL` | `http://localhost:3000` | links in emails |
+| `LENS_TELEMETRY` / `LENS_TELEMETRY_ENDPOINT` / `LENS_TELEMETRY_HEADERS` | off | opt-in OpenTelemetry traces and metrics, sent only to this OTLP/HTTP endpoint ([Telemetry](telemetry.md)); `LENS_TELEMETRY=off` keeps it off whatever Settings say |
+| `FRONTEND_URL` | `http://localhost:3000` | the web app's address as people use it: links in emails, and where apps send people to sign in ([OAuth](authentication.md#oauth)) |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | origins allowed to call the API from a browser |
 | `OPENAPI_URL` | `/openapi.json` | `""` disables `/docs` and the schema |
 | `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, `MAIL_STARTTLS`, `MAIL_SSL_TLS`, `USE_CREDENTIALS`, `VALIDATE_CERTS` | | SMTP for password reset and for telling owners about requests for access; without `MAIL_SERVER` the links are logged |
@@ -63,6 +64,7 @@ show locked. Installs that already had accounts never see the wizard. The API si
 | `AUTH_SECRET` | encrypts the NextAuth session cookie (`npx auth secret`) |
 | `AUTH_URL` | the public URL of the web app, when it can't be inferred |
 | `AUTH_TRUST_HOST` | `true` behind a proxy or in Docker |
+| `TRUST_PROXY_HEADERS` | `true` when a reverse proxy in front of the web app sets `X-Forwarded-Host` and `-Proto`: they're passed on to the API, which names that address in OAuth discovery. Off, the web app reports the `Host` the browser sent |
 
 ## archive.yaml
 
@@ -224,10 +226,25 @@ Settings → API keys:
 | `tokens.default_days` | 90 | how long a new key lasts when its maker doesn't say, 1–3650 days (at most `tokens.max_days`) |
 | `tokens.max_days` | 365 | the longest a key may last, 1–3650 days |
 | `tokens.never_expire` | false | whether keys may be made that never expire |
+| `tokens.oauth_access_minutes` | 60 | how long the access token of an app someone signed in to lasts ([OAuth](authentication.md#oauth)), 5–1440 minutes; the app renews it by itself |
+| `tokens.oauth_refresh_days` | 30 | how long such an app stays signed in after it last renewed its access, 1–3650 days (at most `tokens.max_days`) |
 
-The limits apply to keys made after a change: keys made before keep their expiry. Settings → API keys also lists
+The limits apply to keys made after a change: keys made before keep their expiry; apps get the new lifetimes the
+next time they renew. Settings → API keys also lists
 everyone's keys (whose, what scope, when they expire and were last used), and an admin can revoke any of them; that's
 audited as `token.revoke`.
+
+## Notifications
+
+Where namespaces may send notifications ([Notifications](notifications.md)). Settings → Notifications:
+
+| Setting | Default | |
+|---|---|---|
+| `notifications.enabled` | true | off: nothing is sent, and what happens meanwhile isn't sent later |
+| `notifications.networks` | `[]` | private networks targets may be in (`192.168.1.0/24`, `172.16.0.0/12` for Docker); without one, public addresses only |
+| `notifications.app_url` | null | the web app's address, for links in messages; null uses `FRONTEND_URL` |
+| `notifications.poll_seconds` | 5 | how often the notifier looks for news, 1–3600 |
+| `notifications.max_attempts` | 6 | how many times a message is tried, 1–20 |
 
 ## Trusted proxies
 

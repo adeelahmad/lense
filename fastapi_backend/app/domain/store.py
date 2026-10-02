@@ -175,8 +175,9 @@ DEFAULTS = {
         "trusted_proxies": ["127.0.0.0/8", "::1/128"],
     },
     # how long API keys last (docs/configuration.md): what a new key gets, the most it may get, and whether keys may
-    # never expire
-    "tokens": {"default_days": 90, "max_days": 365, "never_expire": False},
+    # never expire; and how long the tokens of apps given access through OAuth last (domain/oauth.py): the access token,
+    # and the grant after the app last renewed it
+    "tokens": {"default_days": 90, "max_days": 365, "never_expire": False, "oauth_access_minutes": 60, "oauth_refresh_days": 30},
     # audio, video, documents and images uploaded in the web app, in pieces (docs/configuration.md); transcript files use
     # server.max_upload_mb
     "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT + DOCUMENT_EXT + IMAGE_EXT), "chunk_mb": 8, "expire_hours": 24},
@@ -211,6 +212,7 @@ DEFAULTS = {
             "llm",
             "report",
             "export",
+            "workflow",
         ],
     },
     # video: sampling, shot detection, OCR and faces. Model paths are bootstrap-only (the app can't point at arbitrary files).
@@ -249,6 +251,24 @@ DEFAULTS = {
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
     "reports": {"audio": "link"},
+    # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
+    # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
+    # point (null: FRONTEND_URL)
+    "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
+    # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
+    # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the
+    # endpoint's auth. prices: {model: {input, output}} in USD per million tokens, for cost estimates.
+    "telemetry": {
+        "enabled": False,
+        "endpoint": None,
+        "headers": None,
+        "traces": True,
+        "metrics": True,
+        "sample_ratio": 1.0,
+        "export_seconds": 60,
+        "service_name": "lens",
+        "prices": {},
+    },
     # IIIF: identifiers are built from base_url (set it to the stable public HTTPS address; null: the request's address)
     "iiif": {
         "base_url": None,
@@ -581,6 +601,14 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS api_token SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS api_token_hash ON api_token FIELDS hash UNIQUE",
     "DEFINE INDEX IF NOT EXISTS api_token_account ON api_token FIELDS account",
+    # OAuth (app/domain/oauth.py): apps that registered, one-time codes, the access people gave them, and its tokens
+    # (oauth_client:<client id>; oauth_code and oauth_token by the hash of the code or token)
+    "DEFINE TABLE IF NOT EXISTS oauth_client SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS oauth_code SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS oauth_grant SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS oauth_grant_account ON oauth_grant FIELDS account",
+    "DEFINE TABLE IF NOT EXISTS oauth_token SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS oauth_token_gid ON oauth_token FIELDS gid",
     "DEFINE TABLE IF NOT EXISTS share_link SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS share_link_rec ON share_link FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS share_link_short ON share_link FIELDS short",
@@ -595,6 +623,18 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS job_status ON job FIELDS status",
     "DEFINE INDEX IF NOT EXISTS job_rec ON job FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS job_updated ON job FIELDS updated_at",
+    "DEFINE INDEX IF NOT EXISTS job_finished ON job FIELDS finished_at",
+    "DEFINE INDEX IF NOT EXISTS recording_created ON recording FIELDS created_at",
+    # notifications (domain/notify.py): a namespace's targets (notify_target:<n>), what each was sent
+    # (notify_delivery:<random>), the events claimed for sending (notify_event:<hash of its key>) and where the
+    # notifier's next look starts (notify_state:scan)
+    "DEFINE TABLE IF NOT EXISTS notify_target SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS notify_target_space ON notify_target FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS notify_delivery SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS notify_delivery_target ON notify_delivery FIELDS target",
+    "DEFINE INDEX IF NOT EXISTS notify_delivery_status ON notify_delivery FIELDS status",
+    "DEFINE TABLE IF NOT EXISTS notify_event SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS notify_state SCHEMALESS",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",
@@ -614,6 +654,19 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS pipeline SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS pipeline_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS pipeline_version_p ON pipeline_version FIELDS pipeline",
+    "DEFINE TABLE IF NOT EXISTS workflow SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS content_type SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS workflow_version SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS workflow_version_w ON workflow_version FIELDS workflow",
+    # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
+    "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
+    "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS routine_run SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS routine_run_r ON routine_run FIELDS routine",
+    "DEFINE TABLE IF NOT EXISTS graph_change SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS graph_change_run ON graph_change FIELDS run",
+    "DEFINE INDEX IF NOT EXISTS graph_change_status ON graph_change FIELDS status",
+    "DEFINE INDEX IF NOT EXISTS graph_change_pair ON graph_change FIELDS pair",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",

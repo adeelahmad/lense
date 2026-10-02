@@ -193,6 +193,35 @@ describe("settings fields", () => {
       }),
     ).toBe("Adds https://docs.lens.local.");
   });
+
+  it("handles telemetry: off by default, prices as lines, an endpoint to turn it on", () => {
+    expect(spec("telemetry.enabled").kind).toBe("switch");
+    const prices = spec("telemetry.prices");
+    expect(toUi(prices, { "gpt-4o-mini": { input: 0.15, output: 0.6 }, local: { input: 0, output: 0 } })).toBe(
+      "gpt-4o-mini 0.15 0.6\nlocal 0 0",
+    );
+    expect(parse(prices, " gpt-4o-mini 0.15 0.60 \n\n my model 1 2")).toEqual({
+      value: { "gpt-4o-mini": { input: 0.15, output: 0.6 }, "my model": { input: 1, output: 2 } },
+    });
+    expect(parse(prices, "gpt-4o 2.5")).toEqual({
+      error: "Line 1: write the model, then its input and output price, like gpt-4o-mini 0.15 0.60",
+    });
+    expect(parse(prices, "a 1 2\nb -1 2")).toHaveProperty("error");
+    expect(parse(prices, "")).toEqual({ value: {} });
+    expect(show(prices, { a: { input: 1, output: 2 } })).toBe("1 model");
+    expect(show(prices, {})).toBe("none");
+    expect(crossErrors({ "telemetry.enabled": true, "telemetry.endpoint": null })["telemetry.endpoint"]).toMatch(
+      /address to send/,
+    );
+    expect(crossErrors({ "telemetry.enabled": false, "telemetry.endpoint": null })).toEqual({});
+    expect(crossErrors({ "telemetry.endpoint": "localhost:4318" })["telemetry.endpoint"]).toMatch(/http/);
+    expect(crossErrors({ "telemetry.endpoint": "http://c:4318/v1/traces" })["telemetry.endpoint"]).toMatch(
+      /without \/v1/,
+    );
+    const on = { id: "telemetry.enabled", field: spec("telemetry.enabled"), before: false, after: true };
+    expect(why(on)).toMatch(/start sending/);
+    expect(why({ ...on, before: true, after: false })).toMatch(/Nothing more is sent/);
+  });
 });
 
 describe("audit log", () => {

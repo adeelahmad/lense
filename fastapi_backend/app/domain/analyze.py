@@ -9,7 +9,7 @@ import re
 import urllib.request
 from collections import Counter, defaultdict
 
-from . import store
+from . import store, telemetry
 
 STOP = set(
     """a about above after again against all almost also am an and any are aren as at be because been before being
@@ -345,7 +345,9 @@ def talk_stats(segs):
     }
 
 
-def analyze_recording(db, cfg, rid):
+def analyze_recording(db, cfg, rid, seg_ents=None):
+    """Entities, keywords, sections and talk statistics. `seg_ents` (per line, [(name, type)]) replaces the extractor:
+    a workflow's save entities node passes what its nodes found."""
     nid = db.one("SELECT space FROM $r", r=R("recording", rid))["space"]
     segs = db.rows(
         "SELECT record::id(id) AS id, idx, t0, t1, speaker, text, emotion, event, lang FROM segment WHERE recording = $r ORDER BY idx",
@@ -353,9 +355,12 @@ def analyze_recording(db, cfg, rid):
     )
     gaz = parse_gazetteer(cfg["analysis"].get("gazetteer"))
     use_spacy = cfg["analysis"]["entities"] == "spacy"
-    seg_ents, toks, wc, tn, ts = [], [], [], Counter(), defaultdict(Counter)
-    for s in segs:
-        seg_ents.append(spacy_entities(s["text"], cfg["analysis"]["spacy_model"]) if use_spacy else extract_entities(s["text"], gaz))
+    given, seg_ents, toks, wc, tn, ts = seg_ents, [], [], [], Counter(), defaultdict(Counter)
+    for k, s in enumerate(segs):
+        if given is not None:
+            seg_ents.append(list(given[k]) if k < len(given) else [])
+        else:
+            seg_ents.append(spacy_entities(s["text"], cfg["analysis"]["spacy_model"]) if use_spacy else extract_entities(s["text"], gaz))
         ws = words(s["text"])
         toks.append([w for w, _ in ws])
         wc.append(len(s["text"].split()))
@@ -623,8 +628,8 @@ def _llm(cfg, user, system=SUMMARY_SYSTEM):
     req = urllib.request.Request(
         l["base_url"].rstrip("/") + "/chat/completions", data=json.dumps(body).encode(), headers=headers, method="POST"
     )
-    with urllib.request.urlopen(req, timeout=l.get("timeout", 300)) as r:
-        text = json.loads(r.read().decode())["choices"][0]["message"]["content"]
+    with telemetry.model_call(cfg, body) as call, urllib.request.urlopen(req, timeout=l.get("timeout", 300)) as r:
+        text = call.reply(json.loads(r.read().decode()))["choices"][0]["message"]["content"]
     text = re.sub(r"^```(?:json)?|```$", "", text.strip()).strip()
     obj = json.loads(text[text.find("{") : text.rfind("}") + 1])
     missing = [k for k in SUMMARY_NEEDS if k not in obj]

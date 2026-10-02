@@ -1,5 +1,6 @@
 import {
   AudioLines,
+  CalendarClock,
   ChartNoAxesColumn,
   HardDriveDownload,
   House,
@@ -50,6 +51,7 @@ export const NAV: NavItem[] = [
     divider: true,
   },
   { label: "Pipelines", href: "/pipelines", icon: Workflow },
+  { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true },
   { label: "Sources", href: "/sources", icon: HardDriveDownload },
   { label: "Settings", href: "/settings", icon: Settings, adminOnly: true },
   { label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
@@ -68,7 +70,11 @@ export function isActive(pathname: string, href: string): boolean {
       pathname.startsWith("/resources/") ||
       pathname.startsWith("/recordings/")
     );
-  // Templates are the second tab of Pipelines.
-  if (href === "/pipelines" && (pathname === "/templates" || pathname.startsWith("/templates/"))) return true;
+  // Workflows, content types and templates are tabs of Pipelines.
+  if (
+    href === "/pipelines" &&
+    ["/templates", "/workflows", "/content-types"].some((p) => pathname === p || pathname.startsWith(`${p}/`))
+  )
+    return true;
   return pathname === href || pathname.startsWith(`${href}/`);
 }

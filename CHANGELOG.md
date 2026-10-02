@@ -4,6 +4,115 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **MCP server: agents search, read and cite the archive.** Add `https://<your Lens>/mcp` to Claude, Cursor, VS Code
+  or another MCP client, sign in on Lens's consent page (OAuth), and the agent sees what you see: your namespaces,
+  the collections you were given a role on, and their graphs. Read-only tools: `search` (moments said, on screen or
+  written, with links to each), `list_namespaces`, `list_recordings`, `list_speakers`, `get_recording` (summary,
+  chapters, entities), `get_transcript` (paged), `fetch` (the whole text), `cite` (the words, who said them, the
+  time and a link, as Markdown), `list_entities`, `get_entity`, `explore_graph` and `find_path`. Links open the
+  recording at that moment in the web app. Streamable HTTP without sessions, in both protocol eras (the 2025
+  `initialize` handshake and 2026-07-28's per-request envelope); an API token works for clients that can't sign in
+  (docs/mcp.md).
+- **Opt-in telemetry.** Lens can send OpenTelemetry traces and metrics about its own work to a collector you choose:
+  API requests by route, jobs and each step, routines, workflow runs, and model calls with their tokens and an
+  estimated cost (from per-model prices you set). It is off by default and never on unless you turn it on, in
+  Settings → Telemetry, the setup wizard's new last step, or `LENS_TELEMETRY=on` with `LENS_TELEMETRY_ENDPOINT` in
+  .env (`LENS_TELEMETRY=off` keeps it off). It goes only to that endpoint, over OTLP/HTTP; there is no built-in
+  destination. Spans and metrics carry ids, step types, model names, counts and timings, never transcript, prompt or
+  answer text, file names, titles, people, paths or addresses. Settings shows whether it is on and how the last
+  exports went, and can send a test span; the API and each worker follow a change without a restart
+  (docs/telemetry.md).
+- **Security: the API client generator is upgraded.** `@hey-api/openapi-ts` moves from 0.83 to 0.99, which removes
+  the critical handlebars and tar alerts it brought in and fixes a prototype-chain issue in the generated client
+  itself. `make openapi` regenerates `app/openapi-client` as before. The client keeps its old behaviour of failing
+  loudly when the API can't be reached (`throwingNetworkErrors` in `lib/api/client.ts`), so an API outage still shows
+  as an error rather than as "Wrong email or password".
+- **Security: frontend dependencies patched.** The web app's lockfile now pulls fixed versions of form-data, ws,
+  brace-expansion, minimatch, picomatch, glob, js-yaml, flatted, browserslist, Babel and the other packages GitHub
+  flagged, each kept inside the major version its parent asks for (`overrides` in `nextjs-frontend/pnpm-workspace.yaml`).
+  The unused `@hookform/resolvers` dependency is gone.
+- **Install on Proxmox VE with one command.** A [community helper script](https://community-scripts.org/docs/ct/detailed_guide)
+  (`proxmox/ct/lens.sh`, run in the Proxmox host's shell) creates a Debian 13 LXC container running Lens without
+  Docker: SurrealDB 3.2.4, the API, a job worker and the web app as systemd services, with fresh secrets and the web
+  app on port 3000. `lens-setup-code` in the container prints the first-admin setup code; after the admin, the setup
+  wizard (`/welcome`) asks for the first namespace, the model provider and storage. `update` moves to the
+  latest published GitHub release (the newest `main` until there is one), building it beside the running version
+  so Lens stays up until the switch (proxmox/README.md).
+- **Synology package.** `packaging/synology/build.sh` builds a self-contained `.spk` for DSM 7.2.1+ (x86_64, or
+  64-bit ARM with `ARCH=armv8`): Manual Install it in Package Center, answer a short wizard (port, address, setup
+  code), and Lens runs. The package carries the API/worker, web app and SurrealDB images and hands them to Container
+  Manager as a project through DSM's `docker-project` resource, so nothing is pulled and no container is set up by
+  hand. Data, the database and the generated secrets live in a `lens` shared folder that upgrades and uninstalls
+  leave alone; an upgrade removes the previous version's images. Mail can be set in the wizard, and any `MAIL_*` or
+  `LENS_*` line in the folder's `lens.conf` reaches the API and the worker. Publishing a GitHub release builds the packages for both architectures and attaches them to it
+  (the **Synology package** workflow, which also runs by hand from the Actions tab; packaging/synology/README.md).
+- **Notifications to chat and webhooks.** A namespace's owners can have Lens tell a chat room or another app when a
+  run finishes or fails, a batch run finishes, or something is added: on the namespace's page under Notifications,
+  with a test button and a list of what each target was sent (docs/notifications.md).
+    - Targets: [Matterbridge](https://github.com/42wim/matterbridge)'s API (and through it Slack, Discord, Matrix,
+      Telegram, IRC and the rest), webhooks with Lens's own JSON signed the Standard Webhooks way, and Slack-style and
+      Discord incoming webhooks. Addresses, secrets and tokens are sealed in the database.
+    - A batch run is one message when it finishes, not one per run; more than five things added at once are one
+      message too.
+    - The notifier runs wherever background work does (inline workers, `lens worker`): it reads runs that ended and
+      recordings added, claims each event once across processes, and retries what doesn't get through (30 s, then
+      four times longer each time, up to 6 hours). Nothing from before notifications were set up is sent.
+    - Targets reach public addresses only unless an admin lists a private network under Settings → Notifications
+      (`notifications.networks`), which a Matterbridge on the LAN or the Docker network needs; the address that was
+      checked is the one connected to, and redirects aren't followed. `notifications.app_url` sets where links point.
+    - `GET/POST /api/v1/namespaces/{name}/notifications`, `PATCH/DELETE …/{tid}`, `POST …/{tid}/test`,
+      `POST …/{tid}/secret` and `GET …/{tid}/deliveries` (docs/api.md).
+- **Email and calendars as sources.** Sources can now be an email account (IMAP) or a calendar feed (iCal), next to
+  S3, Drive, SFTP and the rest. Browse them, import chosen messages or events, or watch them like a folder
+  (docs/processing.md#email-imap-and-calendar-feeds-ical).
+    - IMAP: mailboxes are folders and messages are `.eml` files named by their subjects. Each message becomes an
+      email document, titled by its subject and dated when it was sent, and its attachments are kept and become
+      resources of their own. Watching the whole account skips the bin, junk, drafts and Gmail's All Mail, Starred
+      and Important, and a message in several mailboxes comes in once. A watch asks only for messages newer than the
+      last it saw. Lens only reads: messages stay unread and nothing is moved or deleted.
+    - iCal: an `https://` or `webcal://` address, with a password if it needs one. The address is kept encrypted
+      like a password, fetched only from public addresses (and networks allowed in `documents.web_networks`), and
+      the password isn't sent on to another server the calendar redirects to. Each event becomes text (title, when
+      and where, organizer and attendees, how it repeats, description), dated when it starts; Outlook's Windows time
+      zone names and calendars' own time zones are understood. An event that changes is read again into the same
+      resource instead of making a second one.
+    - `.eml` and `.ics` files can be read as text everywhere else too: in a storage source or uploaded through
+      Import. Where the server can't make PDFs, an email from a source is read as text instead of being skipped.
+- **Routines: things the archive does on a schedule.** A routine runs its actions over chosen namespaces (or all) on
+  a cron schedule in a time zone, or when someone presses Run now: sync watched folders, queue a pipeline for new,
+  unprocessed or all recordings, or run a workflow. Runs keep per-action results and a log (docs/processing.md,
+  Routines). `GET/POST/PATCH/DELETE /api/v1/routines`, `POST /api/v1/routines/{id}/run`,
+  `GET /api/v1/routines/{id}/runs`, `GET /api/v1/routines/schedule` to preview a schedule.
+    - The API process checks for due routines every 30 seconds in its own thread, and `lens watch` runs them too. A
+      run is claimed before it starts, so two processes never run the same routine twice; a run that stops reporting
+      for three hours is taken as dead.
+    - "New recordings" means recordings made since the routine last looked, by recording id, so nothing made during a
+      run is missed or taken twice.
+- **Organising the graph with a workflow.** Workflows have a scope: recordings (as before) or the graph. Graph
+  workflows find look-alike entities in each namespace and across shared ones, ask the model whether each pair is one
+  thing, and merge or link the pairs it is sure of while proposing the rest. Every change is recorded and can be
+  accepted, dismissed or undone (`/api/v1/graph-changes`), and a whole run can be undone at once. A fresh archive gets
+  the workflow *Organise the entity graph* and a nightly routine that runs it, switched off.
+    - Graph workflows can't be attached to pipelines or run on one recording; recording workflows can't use graph
+      nodes.
+    - Web app: Routines (admins) lists routines with their schedule, next run and last result, and turns them on
+      and off; the editor has schedule presets with a live preview of the next runs, namespaces, and an ordered list
+      of actions. Each routine's page shows its runs with results and logs, and undoes a run's changes. Proposed
+      changes (`/routines/changes`, also linked from the Graph page) shows both entities side by side with the
+      model's verdict, to merge, link, dismiss or undo. On the canvas a new workflow can organise the graph, with its
+      own nodes.
+- **Workflows on a canvas, and content types.** Pipelines make assets (transcripts, shots, OCR text, faces); workflows
+  are shared, versioned node graphs that make metadata (outputs, custom field values, entities). Both are drawn on a
+  canvas (Pipelines → Workflows, and Canvas on a pipeline): drag nodes, connect them, set each node's options, save a
+  version. A pipeline runs a workflow as a `workflow` step, pinned to its version when the run is queued.
+    - Workflow nodes: input, LLM template, pick, condition (yes/no), merge, output, custom field, and entity
+      extraction as nodes (by rules: the built-in extractor, terms and patterns; by the model, as structured output;
+      save entities). `/api/v1/workflows` lists, creates, versions and runs them.
+    - Every resource is video, audio, image or text, and under each is an editable vocabulary of content types
+      (podcast, interview, screen-share tutorial, email, ...) that recognise files by extension, name and length.
+      A content type can have a pipeline, and a namespace can override it. `/api/v1/content-types`.
+    - Nothing changes until someone sets something: the standard pipeline is drawn as a chain of today's steps, and
+      content types start without a pipeline.
 - **Releases are automatic, from Conventional Commits.** PR titles are Conventional Commits (`feat(chat): …`,
   `fix!: …`), checked on each PR and, with `make hooks`, on each commit message. Running Release from the Actions
   tab picks the semantic version from the titles merged since the last release (or takes `patch`, `minor`, `major`
@@ -30,6 +139,25 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Fix: a fresh database with no namespaces in archive.yaml no longer stops the API from starting** with
   "table 'seq' does not exist" (SurrealDB 3). The counters table is defined with the rest of the schema now, so
   nothing reads it before it exists.
+
+- **Runs on Cloudron.** The repository is now a Cloudron package (`CloudronManifest.json`, `Dockerfile.cloudron`,
+  `cloudron/`): `cloudron install --location lens -f Dockerfile.cloudron` from a checkout installs Lens on your own
+  Cloudron, which builds the image itself (cloudron/README.md).
+    - One app runs SurrealDB, the API, a job worker and the web app; secrets are made on first start and kept in
+      `/app/data`, password-reset mail goes through Cloudron's mail server, and the first-admin setup code is in
+      the app's logs.
+    - The database is exported to `/app/data/backup/lens.surql` every six hours, so Cloudron's backups always hold
+      a consistent copy alongside the live files.
+    - It can also be published as a community app (`cloudron versions add`), with the image built and pushed to
+      GHCR by the new "Cloudron image" workflow on every published release.
+- **Lens for QNAP NAS.** `packaging/qnap/build.sh` builds a self-contained QPKG (with
+  [QDK](https://github.com/qnap-dev/QDK)) for Intel/AMD or ARM models that installs from the App Center's Install
+  Manually: it carries the Lens images and SurrealDB, loads them into Container Station on its first start, and runs
+  the stack there, so there are no containers to set up by hand. The first start writes the settings with fresh
+  secrets to a data folder (`/share/Container/lens`) that outlasts removing the app, and puts the first-admin setup
+  code in the QTS system log; Lens sees only `Multimedia/Lens` on the NAS, a folder the setup steps can watch.
+  Upgrades install over the old version and remove its images. Publishing a GitHub release builds both packages and
+  attaches them to it (`.github/workflows/qnap.yml`). Steps in packaging/qnap/README.md.
 
 - **Fix: Chat answers no longer break off with "The answer stopped before it finished".** With some model servers an
   answer ended mid-stream with nothing saved, so the question sat unanswered in the conversation. Now each one ends
@@ -60,6 +188,42 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
     - The backend's OpenAPI watcher no longer runs mypy on every save (it took longer than the reload) and leaves
       `openapi.json` alone when the schema hasn't changed, so the frontend doesn't regenerate its client for nothing.
 
+- **OAuth sign-in for API and MCP clients.** Apps can sign people in with their Lens account instead of asking them
+  for a key: Lens is an OAuth 2.1 authorization server with PKCE (S256, required), dynamic client registration
+  (RFC 7591) and discovery (`/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`), as MCP
+  clients expect. Decided with the project owner: Lens issues the tokens itself; they carry the person's roles and
+  last as long as the token-lifetime settings say; no account is created through OAuth.
+    - API: `POST /api/v1/oauth/register`, `GET`/`POST …/authorize` (the consent page's question and answer),
+      `POST …/token` (authorization code and refresh token; refresh tokens rotate, and one that comes back after it
+      was swapped ends the access), `POST …/revoke`, `GET …/grants` and `DELETE …/grants/{id}`; new `oauth_client`,
+      `oauth_code`, `oauth_grant` and `oauth_token` tables, holding only hashes of codes, tokens and app secrets
+      (docs/authentication.md#oauth, docs/api.md#oauth). The bearer path takes an app's access token (`lo_…`) next to
+      sessions and API keys; `GET /auth/me` says `via: "oauth"`. Audited as `oauth.client.register`, `oauth.grant`
+      and `oauth.revoke`.
+    - An app asks for `read` or `read write`, and the person may give read only. An admin's app has the admin's roles
+      in every namespace but can't administer the archive (people, settings, the audit log, everyone's keys).
+    - New settings (Settings → API keys, docs/configuration.md#api-keys): `tokens.oauth_access_minutes` (60) and
+      `tokens.oauth_refresh_days` (30, at most `tokens.max_days`).
+    - Redirect addresses are https, this machine's (any port) or the app's own scheme; ones with a user name or a
+      backslash in them, and the browser's and the system's own schemes, are refused. Discovery names the web app's
+      address only as a trusted proxy reports it, else `FRONTEND_URL`.
+    - Web app: the consent page at `/oauth/authorize` (signing in first when needed) names the app, where it returns
+      you to and what it asks for, with Allow and Deny; API tokens → Apps with access lists the apps you allowed,
+      with Revoke; `/.well-known/…` is served on the web app's address too. The web app now passes the address the
+      browser used (its `Host`, or what a reverse proxy in front reports) on to the API.
+    - A code that comes back after it was swapped ends the access it gave; a rotated refresh token that comes back
+      within a minute is refused without ending anything. Expired codes are swept. A 401 asking for a token names the
+      protected resource metadata (`WWW-Authenticate: Bearer resource_metadata="…"`). The consent page can't be framed.
+    - The web app passes a browser's own `X-Forwarded-Host` and `-Proto` on to the API only with
+      `TRUST_PROXY_HEADERS=true` (a reverse proxy in front sets them); otherwise it reports the `Host` it was sent.
+    - Checked in the browser, playing the app: it finds the endpoints on the web app's address and registers; a
+      signed-out viewer is sent to sign in and comes back to the consent page, switches "Make changes" off and
+      allows; the app gets its code with its state, swaps it for tokens that have the viewer's one role, and renews
+      them; on a phone in dark mode the viewer sees the app under Apps with access and revokes it, and its token
+      stops working; a request with an address the app didn't register says so and sends nobody anywhere; an admin
+      in dark mode denies (the app hears `access_denied`), then allows: the app reads resources and can't read the
+      audit log; Settings → API keys shows the two lifetimes. No console errors besides the 400 of the refused
+      request.
 - **Fixes for the Docker stacks.** From running `make dev` on an Apple Silicon Mac with Colima and reading its logs.
     - `make` finds Compose by itself: `docker compose`, or the standalone `docker-compose` where there's no `docker`
       plugin (Colima, Podman); `DOCKER_COMPOSE=…` still chooses.

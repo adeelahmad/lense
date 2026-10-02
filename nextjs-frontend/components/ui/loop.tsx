@@ -21,6 +21,7 @@ export const STEP_TONE: Record<string, Tone> = {
   llm: "gate",
   report: "gate",
   export: "gate",
+  workflow: "green",
 };
 
 export const STEP_LABEL: Record<string, string> = {
@@ -36,6 +37,7 @@ export const STEP_LABEL: Record<string, string> = {
   llm: "LLM",
   report: "Report",
   export: "Export",
+  workflow: "Workflow",
 };
 
 const FILL: Record<Tone, [string, string]> = {

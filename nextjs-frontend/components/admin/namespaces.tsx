@@ -10,6 +10,7 @@ import { IpGroupsSection } from "@/components/access/ip-groups";
 import { AdminFrame, usePeople } from "@/components/admin/admin-frame";
 import { roleLabel, type Role } from "@/components/admin/people-model";
 import { isUnreachable } from "@/components/errors/error-states";
+import { NotificationsSection } from "@/components/notifications/notifications-section";
 import { runtime } from "@/components/iiif/iiif-model";
 import { ChoiceCards } from "@/components/settings/controls";
 import { RoleChip } from "@/components/ui/badge";
@@ -448,6 +449,7 @@ export function NamespaceDetail({ ns }: { ns: string }) {
             )}
           </section>
           <IpGroupsSection ns={ns} isOwner={isOwner} admin={admin} />
+          <NotificationsSection ns={ns} isOwner={isOwner} admin={admin} />
         </div>
 
         <section className="flex flex-col gap-3.5 rounded-md border border-border bg-background px-4 py-5 sm:px-6">

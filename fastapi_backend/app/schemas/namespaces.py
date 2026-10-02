@@ -63,6 +63,9 @@ class NamespaceUpdate(RequestModel):
 
     graph: GraphMode | None = None
     pipeline: int | None = None
+    pipelines: dict[str, int | None] | None = Field(
+        default=None, description="the namespace's own pipeline per content subtype (by key); null drops the override"
+    )
 
 
 class IpGroup(ResponseModel):
