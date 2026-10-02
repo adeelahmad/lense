@@ -82,7 +82,7 @@ jobs:
           uv run pytest -n auto -p no:cacheprovider --cov=app --cov-report=xml:coverage.xml --cov-report=term | tee pytest.txt
           { echo "### Backend coverage"; echo '```'; grep -E '^(Name|TOTAL)' pytest.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
           path: fastapi_backend/coverage.xml
@@ -169,7 +169,7 @@ jobs:
           set -o pipefail
           pnpm coverage --coverageReporters=text-summary --coverageReporters=lcov | tee coverage.txt
           { echo "### Frontend coverage"; echo '```'; sed -n '/Coverage summary/,/^=*$/p' coverage.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage
           path: nextjs-frontend/coverage/lcov.info
