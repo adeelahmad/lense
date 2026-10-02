@@ -212,6 +212,11 @@ def platform_main(argv, config):
     w.add_argument("--name")
     w.add_argument("--steps", help="comma-separated steps this worker runs (default: all)")
     w.add_argument("--once", action="store_true", help="run what is queued, then exit")
+    w.add_argument(
+        "--no-schedule",
+        action="store_true",
+        help="don't scan watched folders or run routines (a worker limited with --steps never does)",
+    )
     x = sub.add_parser("watch", help="scan watched folders on storage sources and run the routines that are due")
     x.add_argument("--once", action="store_true")
     a = ap.parse_args(argv)
@@ -258,6 +263,8 @@ def platform_main(argv, config):
                 print(f"worker {wk.name} runs {', '.join(sorted(wk.can))}; Ctrl-C to stop")
                 stop = threading.Event()
                 notify.start(db, C, stop, name=wk.name, log=print)  # sends notifications too (docs/notifications.md)
+                if not (a.steps or a.no_schedule):  # and scans watched folders and runs routines, as `lens watch` does
+                    routines.start(db, C, stop, log=print)
                 _stop_on_term()
                 try:
                     wk.loop(stop)

@@ -9,7 +9,7 @@ import threading
 from typing import Any
 
 from app.config import settings as env
-from app.domain import auth, content_types, jobs, notify, routines, settings, setup, sources, store, templates
+from app.domain import auth, content_types, jobs, notify, routines, settings, setup, store, templates
 
 log = logging.getLogger("lens")
 
@@ -47,24 +47,8 @@ class Archive:
             w = jobs.Worker(self.db, self.current, name=f"api-{os.getpid()}-{i}", log=log.info)
             threading.Thread(target=w.loop, args=(self.stop,), daemon=True, name=f"worker-{i}").start()
 
-        def watcher() -> None:
-            while not self.stop.wait(max(5, self.current()["sources"]["check_seconds"])):
-                try:
-                    sources.poll_due(self.db, self.current(), log=log.info)
-                except Exception:  # noqa: BLE001 - keep polling
-                    log.exception("watcher failed")
-
-        threading.Thread(target=watcher, daemon=True, name="watcher").start()
         notify.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.warning)
-
-        def scheduler() -> None:
-            while not self.stop.wait(routines.CHECK_SECONDS):
-                try:
-                    routines.run_due(self.db, self.current(), log=log.info)
-                except Exception:  # noqa: BLE001 - keep scheduling
-                    log.exception("routines failed")
-
-        threading.Thread(target=scheduler, daemon=True, name="routines").start()
+        routines.start(self.db, self.current, self.stop, log=log.info)
 
     def close(self) -> None:
         self.stop.set()

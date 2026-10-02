@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Watched folders and routines work in Docker and the packages.** They were checked only by the API's own
+  background work, which Docker, Synology, QNAP, Cloudron and Proxmox all turn off in favour of a `lens worker`
+  process; so folders were never scanned and routines never ran. `lens worker` now does both (not a worker limited
+  with `--steps`, nor one started with `--no-schedule`), and a folder scan is claimed first, as routine runs are.
 - **MCP server: agents search, read and cite the archive.** Add `https://<your Lens>/mcp` to Claude, Cursor, VS Code
   or another MCP client, sign in on Lens's consent page (OAuth), and the agent sees what you see: your namespaces,
   the collections you were given a role on, and their graphs. Read-only tools: `search` (moments said, on screen or

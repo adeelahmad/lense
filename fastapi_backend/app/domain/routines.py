@@ -16,6 +16,7 @@ A routine whose run is still going isn't started again; a run that stops reporti
 from __future__ import annotations
 
 import datetime as dt
+import threading
 
 from . import jobs, organize, schedule, sources, store, telemetry, workflows
 
@@ -31,6 +32,7 @@ UNPROCESSED = ["new", "error", "transcribed", "diarized"]
 MAX_ACTIONS, DEFAULT_LIMIT, MAX_LIMIT = 20, 500, 5000
 STALE_MINUTES = 180
 CHECK_SECONDS = 30  # how often the scheduler looks for routines that are due
+MIN_WAIT_SECONDS = 5  # the shortest wait between rounds, whatever sources.check_seconds says
 LOG_MAX = 500
 FIELDS = (
     "record::id(id) AS id, name, description, enabled, schedule, timezone, namespaces, actions, next_run_at, last_run_at, "
@@ -456,6 +458,30 @@ def run_due(db, cfg, log=print, now=None):
             if log:
                 log(f"routine {r['id']}: {type(e).__name__}: {e}")
     return done
+
+
+def start(db, cfg_fn, stop, log=None):
+    """The scheduling threads, until `stop` is set: watched folders scanned when due (every sources.check_seconds) and
+    routines run when due (every CHECK_SECONDS). The API runs them with its background work; `lens worker` runs them too,
+    since Docker and the packages run the API without it."""
+
+    def every(seconds, fn, what):
+        def loop():
+            while not stop.wait(max(MIN_WAIT_SECONDS, seconds())):
+                try:
+                    fn(db, cfg_fn(), log=log)
+                except Exception as e:  # noqa: BLE001 - keep going
+                    if log:
+                        log(f"{what}: {type(e).__name__}: {e}")
+
+        th = threading.Thread(target=loop, daemon=True, name=what)
+        th.start()
+        return th
+
+    return [
+        every(lambda: cfg_fn()["sources"]["check_seconds"], sources.poll_due, "watched folders"),
+        every(lambda: CHECK_SECONDS, run_due, "routines"),
+    ]
 
 
 # ---------- what a fresh archive starts with ----------
