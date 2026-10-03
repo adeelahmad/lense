@@ -10805,6 +10805,187 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/sparql": {
+      "get": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Query Namespace Sparql",
+        "description": "A read-only SPARQL query over the namespace's graph (what GET /namespaces/{name}/rdf returns). dcterms, dcmitype,\nfoaf, skos, owl, rdf, rdfs, xsd and lens are known prefixes. SERVICE and FROM aren't allowed.",
+        "operationId": "query_namespace_sparql",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query",
+              "title": "Query"
+            },
+            "description": "a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)",
+              "title": "Format"
+            },
+            "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)",
+            "content": {
+              "application/sparql-results+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "text/turtle": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/ld+json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/n-triples": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/rdf+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Post Namespace Sparql",
+        "description": "The same, with the query in the body (for long ones).",
+        "operationId": "post_namespace_sparql",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)",
+              "title": "Format"
+            },
+            "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SparqlQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)",
+            "content": {
+              "application/sparql-results+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "text/turtle": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/ld+json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/n-triples": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/rdf+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/media": {
       "get": {
         "tags": [
@@ -14439,7 +14620,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -18471,6 +18652,17 @@
           "content": {
             "type": "string",
             "title": "Content"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SharedContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a question asked from a page: the page, and any highlighted text"
           },
           "attachments": {
             "items": {
@@ -25470,6 +25662,17 @@
             "description": "the question (up to 4000 characters); may be empty when files are attached",
             "default": ""
           },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "asked from a page: the page, its text and any highlighted part"
+          },
           "attachments": {
             "items": {
               "type": "string"
@@ -27536,6 +27739,62 @@
         ],
         "title": "Page",
         "description": "A page of a document, or an image (a TIFF has one per frame)."
+      },
+      "PageContext": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2000,
+            "pattern": "^/([^/]|$)",
+            "title": "Url",
+            "description": "the page's path in Lens, e.g. /resources/12?t=30"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the page's visible text, when the person shares the page (only the first 12,000 characters are used)"
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection",
+            "description": "text the person highlighted on it (only the first 4,000 characters are used)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "PageContext",
+        "description": "The page a question was asked from (chat on any page): where it is, and what of it the person shared."
       },
       "Passage": {
         "properties": {
@@ -33414,6 +33673,49 @@
         ],
         "title": "ShareSite"
       },
+      "SharedContext": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection"
+          },
+          "page": {
+            "type": "boolean",
+            "title": "Page",
+            "description": "the page's text was shared",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "SharedContext",
+        "description": "What a question shared from the page it was asked on. The page's text itself isn't kept."
+      },
       "SigninLink": {
         "properties": {
           "url": {
@@ -33942,6 +34244,21 @@
           "health"
         ],
         "title": "SourceUpdated"
+      },
+      "SparqlQuery": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query",
+            "description": "a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "SparqlQuery"
       },
       "Speaker": {
         "properties": {

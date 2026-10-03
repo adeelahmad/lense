@@ -174,7 +174,8 @@ def _ev(name: str, data: Any) -> str:
     responses={200: {"content": {"text/event-stream": {}}, "description": "server-sent events"}},
 )
 async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request) -> StreamingResponse:
-    """Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
+    """Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
+    reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
     /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id)."""
     c = await run_in_threadpool(_own_chat, db, cid, user)
     q = body.content.strip()[:4000]
@@ -183,7 +184,9 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         q = "I attached " + ("this file." if len(files) == 1 else "these files.")
     if not q:
         raise HTTPException(400, "ask something")
-    asked = q + chat.attached_note(files)  # what the model reads: the question, and the files it can import
+    page = body.context.model_dump() if body.context else None
+    # what the model reads: the question with the page it was asked from, and the files it can import
+    asked = chat.with_context(q, page) + chat.attached_note(files)
     # this answer's model: the one asked for (400 if it isn't offered), else the conversation's while it's still offered
     model = await run_in_threadpool(_model, cfg, body.model) if body.model else c.get("model")
     if model and not body.model and model not in await run_in_threadpool(chat.model_choices, cfg):
@@ -192,7 +195,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
 
     def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         past = chat.history(db, cid)
-        chat.add(db, cid, "user", q, attachments=files)
+        chat.add(db, cid, "user", q, attachments=files, context=chat.shared_context(page))
         if not past and c["title"] == "New conversation":
             db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
         return past, chat.retrieve(db, q, readable, c.get("scope"), cfg=cfg)
@@ -239,7 +242,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                                 yield _ev("approval", appr)
                             yield from stopped("", [])
                             return
-                    elif kind == "direct" and passages and not setup:  # a model that skips the tools hasn't seen the archive
+                    # a model that skips the tools hasn't seen the archive (but may answer from the page it was asked on)
+                    elif kind == "direct" and passages and not setup and not (page and page.get("text")):
                         break
                     else:
                         answer = data

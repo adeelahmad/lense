@@ -670,6 +670,9 @@ import type {
   PlaceRecordingsData,
   PlaceRecordingsErrors,
   PlaceRecordingsResponses,
+  PostNamespaceSparqlData,
+  PostNamespaceSparqlErrors,
+  PostNamespaceSparqlResponses,
   PreviewIiifImportData,
   PreviewIiifImportErrors,
   PreviewIiifImportResponses,
@@ -685,6 +688,9 @@ import type {
   PreviewWatchData,
   PreviewWatchErrors,
   PreviewWatchResponses,
+  QueryNamespaceSparqlData,
+  QueryNamespaceSparqlErrors,
+  QueryNamespaceSparqlResponses,
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
@@ -4500,6 +4506,39 @@ export class Rdf {
       },
     });
   }
+
+  /**
+   * Query Namespace Sparql
+   *
+   * A read-only SPARQL query over the namespace's graph (what GET /namespaces/{name}/rdf returns). dcterms, dcmitype,
+   * foaf, skos, owl, rdf, rdfs, xsd and lens are known prefixes. SERVICE and FROM aren't allowed.
+   */
+  public static queryNamespaceSparql<ThrowOnError extends boolean = false>(
+    options: Options<QueryNamespaceSparqlData, ThrowOnError>,
+  ): RequestResult<QueryNamespaceSparqlResponses, QueryNamespaceSparqlErrors, ThrowOnError> {
+    return (options.client ?? client).get<QueryNamespaceSparqlResponses, QueryNamespaceSparqlErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/sparql",
+      ...options,
+    });
+  }
+
+  /**
+   * Post Namespace Sparql
+   *
+   * The same, with the query in the body (for long ones).
+   */
+  public static postNamespaceSparql<ThrowOnError extends boolean = false>(
+    options: Options<PostNamespaceSparqlData, ThrowOnError>,
+  ): RequestResult<PostNamespaceSparqlResponses, PostNamespaceSparqlErrors, ThrowOnError> {
+    return (options.client ?? client).post<PostNamespaceSparqlResponses, PostNamespaceSparqlErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/sparql",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Video {
@@ -5722,7 +5761,8 @@ export class Chats {
   /**
    * Send Message
    *
-   * Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
+   * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
+   * reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
    * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
    */
   public static sendMessage<ThrowOnError extends boolean = false>(

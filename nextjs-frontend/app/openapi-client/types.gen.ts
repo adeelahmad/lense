@@ -1001,6 +1001,10 @@ export type ChatMessage = {
    */
   content: string;
   /**
+   * a question asked from a page: the page, and any highlighted text
+   */
+  context?: SharedContext | null;
+  /**
    * Attachments
    *
    * files sent with it (POST /uploads with hold)
@@ -5022,6 +5026,10 @@ export type MessageCreate = {
    */
   content?: string;
   /**
+   * asked from a page: the page, its text and any highlighted part
+   */
+  context?: PageContext | null;
+  /**
    * Attachments
    *
    * your uploads started with `hold` and finished: the assistant can import them into a namespace
@@ -6245,6 +6253,36 @@ export type Page = {
    */
   label?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * PageContext
+ *
+ * The page a question was asked from (chat on any page): where it is, and what of it the person shared.
+ */
+export type PageContext = {
+  /**
+   * Url
+   *
+   * the page's path in Lens, e.g. /resources/12?t=30
+   */
+  url: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Text
+   *
+   * the page's visible text, when the person shares the page (only the first 12,000 characters are used)
+   */
+  text?: string | null;
+  /**
+   * Selection
+   *
+   * text the person highlighted on it (only the first 4,000 characters are used)
+   */
+  selection?: string | null;
 };
 
 /**
@@ -9671,6 +9709,33 @@ export type ShareSite = {
 };
 
 /**
+ * SharedContext
+ *
+ * What a question shared from the page it was asked on. The page's text itself isn't kept.
+ */
+export type SharedContext = {
+  /**
+   * Url
+   */
+  url: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Selection
+   */
+  selection?: string | null;
+  /**
+   * Page
+   *
+   * the page's text was shared
+   */
+  page?: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * SigninLink
  */
 export type SigninLink = {
@@ -9961,6 +10026,18 @@ export type SourceUpdated = {
   ok?: boolean;
   health: SourceHealth;
   [key: string]: unknown;
+};
+
+/**
+ * SparqlQuery
+ */
+export type SparqlQuery = {
+  /**
+   * Query
+   *
+   * a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query
+   */
+  query: string;
 };
 
 /**
@@ -18675,6 +18752,90 @@ export type ImportNamespaceRdfResponses = {
 };
 
 export type ImportNamespaceRdfResponse = ImportNamespaceRdfResponses[keyof ImportNamespaceRdfResponses];
+
+export type QueryNamespaceSparqlData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query: {
+    /**
+     * Query
+     *
+     * a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query
+     */
+    query: string;
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/namespaces/{name}/sparql";
+};
+
+export type QueryNamespaceSparqlErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type QueryNamespaceSparqlError = QueryNamespaceSparqlErrors[keyof QueryNamespaceSparqlErrors];
+
+export type QueryNamespaceSparqlResponses = {
+  /**
+   * SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type QueryNamespaceSparqlResponse = QueryNamespaceSparqlResponses[keyof QueryNamespaceSparqlResponses];
+
+export type PostNamespaceSparqlData = {
+  body: SparqlQuery;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/namespaces/{name}/sparql";
+};
+
+export type PostNamespaceSparqlErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PostNamespaceSparqlError = PostNamespaceSparqlErrors[keyof PostNamespaceSparqlErrors];
+
+export type PostNamespaceSparqlResponses = {
+  /**
+   * SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type PostNamespaceSparqlResponse = PostNamespaceSparqlResponses[keyof PostNamespaceSparqlResponses];
 
 export type GetMediaData = {
   body?: never;
