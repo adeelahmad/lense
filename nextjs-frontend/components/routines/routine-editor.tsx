@@ -211,8 +211,8 @@ function ActionSettings({
   if (a.type === "sensors")
     return (
       <p className="text-[12.5px] text-fg-muted">
-        Removes sensor readings and hourly summaries older than each sensor keeps them, whatever the routine’s
-        namespaces.
+        Removes sensor readings and hourly summaries older than each sensor keeps them, labels new log patterns where
+        triage is on, and writes the daily digests of sensors that keep them, whatever the routine’s namespaces.
       </p>
     );
 

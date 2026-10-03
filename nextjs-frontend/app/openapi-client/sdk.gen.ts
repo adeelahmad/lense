@@ -347,6 +347,8 @@ import type {
   GetExtensionData,
   GetExtensionErrors,
   GetExtensionResponses,
+  GetFedoraStatusData,
+  GetFedoraStatusResponses,
   GetFieldData,
   GetFieldErrors,
   GetFieldResponses,
@@ -590,6 +592,9 @@ import type {
   ListOutputsData,
   ListOutputsErrors,
   ListOutputsResponses,
+  ListPatternsData,
+  ListPatternsErrors,
+  ListPatternsResponses,
   ListPendingAccessRequestsData,
   ListPendingAccessRequestsResponses,
   ListPipelinesData,
@@ -873,6 +878,8 @@ import type {
   SuggestTermsData,
   SuggestTermsErrors,
   SuggestTermsResponses,
+  SyncFedoraData,
+  SyncFedoraResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
   TestEmbeddingsData,
@@ -977,6 +984,9 @@ import type {
   UpdateNotifyTargetData,
   UpdateNotifyTargetErrors,
   UpdateNotifyTargetResponses,
+  UpdatePatternData,
+  UpdatePatternErrors,
+  UpdatePatternResponses,
   UpdateRecordingAccessData,
   UpdateRecordingAccessErrors,
   UpdateRecordingAccessResponses,
@@ -1698,6 +1708,34 @@ export class Admin {
   ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
       url: "/api/v1/components/check",
+      ...options,
+    });
+  }
+}
+
+export class Fedora {
+  /**
+   * Get Fedora Status
+   */
+  public static getFedoraStatus<ThrowOnError extends boolean = false>(
+    options?: Options<GetFedoraStatusData, ThrowOnError>,
+  ): RequestResult<GetFedoraStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetFedoraStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/fedora",
+      ...options,
+    });
+  }
+
+  /**
+   * Sync Fedora
+   *
+   * Compare everything with Fedora now and send what differs (the background sync does this every fedora.full_hours).
+   */
+  public static syncFedora<ThrowOnError extends boolean = false>(
+    options?: Options<SyncFedoraData, ThrowOnError>,
+  ): RequestResult<SyncFedoraResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<SyncFedoraResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/fedora/sync",
       ...options,
     });
   }
@@ -6528,6 +6566,39 @@ export class Sensors {
     return (options.client ?? client).get<GetSeriesResponses, GetSeriesErrors, ThrowOnError>({
       url: "/api/v1/sensors/{sid}/series",
       ...options,
+    });
+  }
+
+  /**
+   * List Patterns
+   *
+   * A log sensor's kinds of line, busiest first.
+   */
+  public static listPatterns<ThrowOnError extends boolean = false>(
+    options: Options<ListPatternsData, ThrowOnError>,
+  ): RequestResult<ListPatternsResponses, ListPatternsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListPatternsResponses, ListPatternsErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}/patterns",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Pattern
+   *
+   * Label a kind of line yourself (`label: null` clears it), or stop keeping its lines (`action: drop`; they're
+   * still counted).
+   */
+  public static updatePattern<ThrowOnError extends boolean = false>(
+    options: Options<UpdatePatternData, ThrowOnError>,
+  ): RequestResult<UpdatePatternResponses, UpdatePatternErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdatePatternResponses, UpdatePatternErrors, ThrowOnError>({
+      url: "/api/v1/sensor-patterns/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

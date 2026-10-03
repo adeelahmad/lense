@@ -3586,6 +3586,86 @@ export type FacetCount = {
 };
 
 /**
+ * FedoraStatus
+ */
+export type FedoraStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Url
+   */
+  url?: string | null;
+  /**
+   * Root
+   */
+  root: string;
+  /**
+   * Pending
+   */
+  pending: number;
+  /**
+   * Resources
+   */
+  resources: number;
+  /**
+   * Last Sync
+   */
+  last_sync?: string | null;
+  /**
+   * Last Full
+   */
+  last_full?: string | null;
+  /**
+   * Last Counts
+   */
+  last_counts?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  /**
+   * Full Requested
+   */
+  full_requested: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * FedoraSyncResult
+ */
+export type FedoraSyncResult = {
+  /**
+   * Sent
+   */
+  sent: number;
+  /**
+   * Files
+   */
+  files: number;
+  /**
+   * Unchanged
+   */
+  unchanged: number;
+  /**
+   * Deleted
+   */
+  deleted: number;
+  /**
+   * Failed
+   */
+  failed: number;
+  /**
+   * Errors
+   */
+  errors: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
  * FieldCreate
  */
 export type FieldCreate = {
@@ -4050,6 +4130,18 @@ export type Handling = {
    * readings a stream may send a minute; more are dropped
    */
   max_per_minute?: number | null;
+  /**
+   * Triage
+   *
+   * the decision model labels new log patterns routine, notable or alert
+   */
+  triage?: boolean;
+  /**
+   * Digest
+   *
+   * a daily digest becomes a document in the sensor's namespace
+   */
+  digest?: boolean;
   [key: string]: unknown;
 };
 
@@ -4079,6 +4171,14 @@ export type HandlingChange = {
    * Max Per Minute
    */
   max_per_minute?: number | null;
+  /**
+   * Triage
+   */
+  triage?: boolean | null;
+  /**
+   * Digest
+   */
+  digest?: boolean | null;
 };
 
 /**
@@ -6885,6 +6985,87 @@ export type PasswordChange = {
    * at least 10 characters
    */
   new_password: string;
+};
+
+/**
+ * Pattern
+ */
+export type Pattern = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Stream
+   */
+  stream: string;
+  /**
+   * Stream Name
+   */
+  stream_name?: string | null;
+  /**
+   * Template
+   *
+   * the line with what changes taken out: <ip>, <name>, <n>...
+   */
+  template: string;
+  /**
+   * Example
+   */
+  example?: string | null;
+  /**
+   * Count
+   */
+  count?: number;
+  /**
+   * First At
+   */
+  first_at?: string | null;
+  /**
+   * Last At
+   */
+  last_at?: string | null;
+  /**
+   * Label
+   */
+  label?: "routine" | "notable" | "alert" | null;
+  /**
+   * Label By
+   *
+   * jev, llm, or who set it
+   */
+  label_by?: string | null;
+  /**
+   * Confidence
+   */
+  confidence?: number | null;
+  /**
+   * Sure
+   *
+   * false: the model wasn't sure; a person should look
+   */
+  sure?: boolean | null;
+  /**
+   * Action
+   */
+  action?: "keep" | "drop";
+  [key: string]: unknown;
+};
+
+/**
+ * PatternUpdate
+ */
+export type PatternUpdate = {
+  /**
+   * Label
+   *
+   * null clears it
+   */
+  label?: "routine" | "notable" | "alert" | null;
+  /**
+   * Action
+   */
+  action?: "keep" | "drop" | null;
 };
 
 /**
@@ -9919,6 +10100,16 @@ export type Sensor = {
    */
   has_token?: boolean;
   /**
+   * Secrets
+   *
+   * which secrets are set (a bridge's password)
+   */
+  secrets?: {
+    [key: string]: {
+      [key: string]: boolean;
+    };
+  } | null;
+  /**
    * Health
    */
   health?: {
@@ -9964,7 +10155,7 @@ export type SensorCreate = {
   /**
    * Type
    */
-  type: "mqtt" | "syslog" | "webhook";
+  type: "mqtt" | "syslog" | "webhook" | "bridge";
   /**
    * Name
    */
@@ -9972,11 +10163,19 @@ export type SensorCreate = {
   /**
    * Params
    *
-   * mqtt: {prefix}; syslog: {address}; webhook: none
+   * mqtt: {prefix}; syslog: {address}; webhook: none; bridge: {host, port, tls, topics, user}
    */
   params?: {
     [key: string]: unknown;
   };
+  /**
+   * Secrets
+   *
+   * bridge: {pass}
+   */
+  secrets?: {
+    [key: string]: string;
+  } | null;
   /**
    * Space
    */
@@ -10077,6 +10276,16 @@ export type SensorDetail = {
    */
   has_token?: boolean;
   /**
+   * Secrets
+   *
+   * which secrets are set (a bridge's password)
+   */
+  secrets?: {
+    [key: string]: {
+      [key: string]: boolean;
+    };
+  } | null;
+  /**
    * Health
    */
   health?: {
@@ -10168,6 +10377,22 @@ export type SensorUpdate = {
    */
   space?: number | null;
   handling?: HandlingChange | null;
+  /**
+   * Params
+   *
+   * a bridge's connection
+   */
+  params?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Secrets
+   *
+   * a bridge's password; empty or null removes it
+   */
+  secrets?: {
+    [key: string]: string | null;
+  } | null;
 };
 
 /**
@@ -14050,6 +14275,38 @@ export type ReindexSearchResponses = {
 };
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
+
+export type GetFedoraStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/fedora";
+};
+
+export type GetFedoraStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: FedoraStatus;
+};
+
+export type GetFedoraStatusResponse = GetFedoraStatusResponses[keyof GetFedoraStatusResponses];
+
+export type SyncFedoraData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/fedora/sync";
+};
+
+export type SyncFedoraResponses = {
+  /**
+   * Successful Response
+   */
+  200: FedoraSyncResult;
+};
+
+export type SyncFedoraResponse = SyncFedoraResponses[keyof SyncFedoraResponses];
 
 export type GetSetupData = {
   body?: never;
@@ -23543,6 +23800,85 @@ export type GetSeriesResponses = {
 };
 
 export type GetSeriesResponse = GetSeriesResponses[keyof GetSeriesResponses];
+
+export type ListPatternsData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: {
+    /**
+     * Stream
+     *
+     * a stream's id
+     */
+    stream?: string | null;
+    /**
+     * Label
+     *
+     * routine, notable, alert, or none for those without one
+     */
+    label?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/sensors/{sid}/patterns";
+};
+
+export type ListPatternsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListPatternsError = ListPatternsErrors[keyof ListPatternsErrors];
+
+export type ListPatternsResponses = {
+  /**
+   * Response Sensors-List Patterns
+   *
+   * Successful Response
+   */
+  200: Array<Pattern>;
+};
+
+export type ListPatternsResponse = ListPatternsResponses[keyof ListPatternsResponses];
+
+export type UpdatePatternData = {
+  body: PatternUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: string;
+  };
+  query?: never;
+  url: "/api/v1/sensor-patterns/{pid}";
+};
+
+export type UpdatePatternErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdatePatternError = UpdatePatternErrors[keyof UpdatePatternErrors];
+
+export type UpdatePatternResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdatePatternResponse = UpdatePatternResponses[keyof UpdatePatternResponses];
 
 export type ListLoginsData = {
   body?: never;

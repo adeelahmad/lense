@@ -8,6 +8,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   pages and IIIF imports are stored encrypted with it. Audio and video still stream with seeking. New archives encrypt
   from the start. For an archive that already has files, `lens encrypt` turns it on and converts them. See
   docs/encryption.md.
+- **Sensors understand their logs.** Log lines are grouped into patterns (`query[A] <name> from <ip>`), each with a
+  count, an example, a label (routine, notable, alert) and an action (drop: counted, not kept). With `triage` on, the
+  decision model labels new patterns, one question per pattern, not per line. Brokers you already run (Mosquitto, Home
+  Assistant) can be bridged in: Lens subscribes to the topics you name. With `digest` on, each day of a sensor becomes
+  a document in its namespace. All three run in the **Tidy sensor data** routine.
 - **Email is set up in the app.** Settings → Email holds the SMTP server, its password (kept secret) and the From
   address, with **Send a test email**; `MAIL_*` in `.env` still work and show locked. Links in emails use
   `notifications.app_url` when it's set.

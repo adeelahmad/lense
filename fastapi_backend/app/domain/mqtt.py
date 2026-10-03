@@ -369,7 +369,7 @@ class Client:
         self.client_id = client_id or "lens-" + secrets.token_hex(6)
         self.keepalive, self.max_bytes = keepalive, max_bytes
 
-    def run(self, filters, on_message, stop):
+    def run(self, filters, on_message, stop, on_connect=None):
         sock = socket.create_connection((self.host, self.port), timeout=15)
         if self.tls:
             sock = ssl.create_default_context().wrap_socket(sock, server_hostname=self.host)
@@ -405,6 +405,8 @@ class Client:
                 raise ProtocolError(why.get(ack[1], f"refused ({ack[1]})"))
             sub = struct.pack("!H", 1) + b"".join(string(t) + b"\x00" for t in filters)
             sock.sendall(packet(SUBSCRIBE, 2, sub))
+            if on_connect:
+                on_connect()
             sock.settimeout(None)
             threading.Thread(target=pinger, daemon=True, name="mqtt-bridge-ping").start()
             while not stop.is_set():
