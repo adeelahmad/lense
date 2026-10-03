@@ -4,6 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Sensors.** Everything that feeds Lens is a sensor, in one list (`GET /sensors`): the storage, email and
+  calendar sources as they are, and new stream sensors. Lens runs an MQTT hub (an ordinary local broker on 1883, with
+  hub logins), listens for syslog from local networks (UDP and TCP 5514) and takes webhooks. Devices and hosts become
+  sensors the first time they report, marked new, with their streams and kinds worked out from what they send.
+  Readings are stored as they come (numbers also as hourly summaries), with per-sensor handling (all, changes,
+  summaries only, none), retention (raw, important log lines, summaries) and a rate cap; a suggested handling is
+  applied only when chosen. Retention runs as a routine action (**Tidy sensor data**, hourly). Off until turned on in
+  Settings → Sensors; no model is called. See docs/sensors.md.
 - **Assistant mode.** Home opens on a page with one field and a big mic once the archive has something in it (an
   empty archive still opens on the overview; the **Assistant / Overview** switch at the top right remembers your
   pick). Touching or typing in the field turns it into a chat over all your namespaces; the mic starts a voice

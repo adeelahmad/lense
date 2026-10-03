@@ -71,6 +71,7 @@ nav:
   - Video: video.md
   - Chat and batch runs: assistant.md
   - Notifications: notifications.md
+  - Sensors: sensors.md
   - Telemetry: telemetry.md
   - IIIF: iiif.md
   - API: api.md
