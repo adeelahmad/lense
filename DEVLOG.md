@@ -19,7 +19,7 @@ Todo:
 
 - [x] Registry, versions, sharing, manifests in and out, check without saving, try a tool
 - [x] Prompt and web tools, skills, hooks in the chat tool loop; approvals for change tools
-- [ ] Code tools: Python in a sandboxed subprocess (admins create; time limit, no secrets, no network unless allowed)
+- [x] Code tools: Python in a process of its own (admins write them; time, CPU, memory limits, no secrets, own folder, no network unless allowed; stops when its owner is no longer an admin). Refine later: a container or gVisor sandbox for non-admins, pip packages per tool
 - [x] Canvas: a `tool` workflow scope whose arg nodes are the tool's parameters (ask_model, call_tool nodes)
 - [x] Canvas editor for tool graphs in the web app (Extensions → Draw a tool)
 - [x] Authoring from chat and voice: the assistant drafts and saves extensions behind an approval card

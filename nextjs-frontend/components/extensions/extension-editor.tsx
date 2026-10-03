@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { Extensions } from "@/app/openapi-client";
-import { bodyLabel, KIND_LABEL, ORIGIN_LABEL } from "@/components/extensions/extensions-page";
+import { bodyLabel, KIND_LABEL, ORIGIN_LABEL, STARTER_LABEL } from "@/components/extensions/extensions-page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select, Switch, Textarea } from "@/components/ui/field";
@@ -63,6 +63,20 @@ items:
     name: short_answers
     event: message
     action: {type: context, text: Keep answers under five sentences.}
+`,
+  python: `name: word_count
+kind: tool
+description: Count the words and lines in a piece of text.
+effect: read
+params:
+  - {name: text, kind: text, required: true}
+run:
+  type: python
+  seconds: 10
+  network: false
+  code: |
+    def run(text):
+        return {"words": len(text.split()), "lines": len(text.splitlines())}
 `,
 };
 
@@ -179,7 +193,7 @@ export function ExtensionEditor({ id }: { id?: number }) {
                   setText(STARTERS[k]);
                   setChecked(null);
                 }}
-                items={Object.keys(STARTERS).map((k) => ({ value: k, label: KIND_LABEL[k] }))}
+                items={Object.keys(STARTERS).map((k) => ({ value: k, label: STARTER_LABEL[k] }))}
               />
             ) : undefined
           }

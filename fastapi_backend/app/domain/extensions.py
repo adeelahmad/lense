@@ -10,7 +10,9 @@ takes it out of the assistant at once.
 - A tool has parameters, an effect and a body. A `read` tool answers at once; a `change` tool waits for the person's
   approval, like the built-in tools that change data (a setup conversation, which acts, runs it at once). Bodies:
   `prompt` (the model, with the parameters written into a template) and `http` (a web request, to public addresses
-  only, unless an admin allowed a private network for web pages) and `graph` (drawn on the canvas: tool_nodes.py).
+  only, unless an admin allowed a private network for web pages), `graph` (drawn on the canvas: tool_nodes.py) and
+  `python` (code with a `run(**args)` function, in a process of its own: code_tools.py). Only admins write Python
+  tools, and one runs only while an admin owns its extension.
 - A skill is instructions with a line saying when to use them. The assistant sees each skill's name and that line, and
   reads the instructions (`use_skill`) only when the skill applies.
 - A hook runs on an event: `message` (a question arrives), `before_tool`, `after_tool`, `answer` (an answer was
@@ -28,6 +30,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import yaml
+
 from . import auth, store
 
 R = store.R
@@ -37,7 +41,7 @@ NAME_RX = re.compile(r"^[a-z][a-z0-9_]{1,40}$")
 PARAM_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
 PARAM_KINDS = {"text": "string", "number": "number", "integer": "integer", "bool": "boolean", "json": "object", "list": "array"}
 EFFECTS = ("read", "change")
-RUNS = ("prompt", "http", "graph")
+RUNS = ("prompt", "http", "graph", "python")
 METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE")
 EVENTS = ("message", "before_tool", "after_tool", "answer")
 ACTIONS = {
@@ -117,6 +121,24 @@ def _check_run(run, params, me, db=None):
         if db is None:
             raise ValueError("a canvas tool is checked when it's saved")
         return {"type": t, "graph": tool_nodes.check(db, run.get("graph") or {}, params)}
+    if t == "python":  # code, run apart from the server (code_tools.py)
+        from . import code_tools
+
+        if set(run) - {"type", "code", "seconds", "network"}:
+            raise ValueError("a Python tool is {type, code, seconds, network}")
+        if not me["admin"]:
+            raise ValueError("only admins write Python tools; draw it on the canvas or use a prompt or web tool instead")
+        code = _text(run.get("code"), "the tool's code", MAX_TEXT * 5, required=True)
+        try:
+            code_tools.check(code)
+        except code_tools.CodeError as e:
+            raise ValueError(str(e)) from None
+        seconds = run.get("seconds", 20)
+        if isinstance(seconds, bool) or not isinstance(seconds, int) or not 1 <= seconds <= code_tools.MAX_SECONDS:
+            raise ValueError(f"seconds is a whole number from 1 to {code_tools.MAX_SECONDS}")
+        if not isinstance(run.get("network", False), bool):
+            raise ValueError("network is true or false")
+        return {"type": t, "code": code, "seconds": seconds, "network": bool(run.get("network"))}
     if t == "prompt":
         if set(run) - {"type", "system", "prompt"}:
             raise ValueError("a prompt tool is {type, system, prompt}")
@@ -284,8 +306,6 @@ BODY_KEY = {"skill": ("instructions",), "tool": ("run", "prompt")}
 def parse_manifest(text):
     """A manifest written as code: YAML or JSON, or Markdown with YAML frontmatter, whose body is a skill's
     instructions or a prompt tool's prompt. ValueError when it can't be read."""
-    import yaml
-
     text = (text or "").lstrip("﻿")
     body = None
     fm = re.match(r"^---\s*\n(.*?)\n---\s*(?:\n(.*))?$", text, re.S)
@@ -312,11 +332,19 @@ def parse_manifest(text):
     return head
 
 
+class _Dumper(yaml.SafeDumper):
+    """YAML with text over several lines (a Python tool's code) written as a block, as people write it."""
+
+
+_Dumper.add_representer(
+    str,
+    lambda d, s: d.represent_scalar("tag:yaml.org,2002:str", s, style="|" if "\n" in s else None),
+)
+
+
 def to_manifest(ext):
     """An extension as a manifest people can read, change and import again: Markdown with frontmatter for skills and
     prompt tools, YAML for the rest."""
-    import yaml
-
     spec = json.loads(json.dumps(ext["spec"]))
     head = store.clean({"name": ext["name"], "kind": ext["kind"], "title": ext.get("title"), "description": ext.get("description")})
     body = None
@@ -324,7 +352,7 @@ def to_manifest(ext):
         body = spec.pop("instructions")
     elif ext["kind"] == "tool" and spec["run"]["type"] == "prompt":
         body = spec["run"].pop("prompt")
-    text = yaml.safe_dump({**head, **spec}, sort_keys=False, allow_unicode=True, width=120)
+    text = yaml.dump({**head, **spec}, Dumper=_Dumper, sort_keys=False, allow_unicode=True, width=120)
     return f"---\n{text}---\n\n{body}\n" if body is not None else text
 
 
@@ -569,6 +597,8 @@ class Active:
             for it in items:
                 if it["kind"] == "hook" and not trusted:
                     continue
+                if it["kind"] == "tool" and it["spec"]["run"]["type"] == "python" and not _owner_admin(db, g):
+                    continue  # code runs only while an admin owns it
                 item = {
                     "ext": g["id"],
                     "version": g["version"],
@@ -689,6 +719,13 @@ def run_tool(db, cfg, spec, args, model=None, toolbox=None):
         from . import tool_nodes
 
         return {"result": tool_nodes.run(db, cfg, run["graph"], args, toolbox)}
+    if run["type"] == "python":
+        from . import code_tools
+
+        try:
+            return code_tools.run(run["code"], args, seconds=run.get("seconds"), network=run.get("network"))
+        except code_tools.CodeError as e:
+            raise ValueError(str(e)) from None
     return http_call(cfg, run, args)
 
 
