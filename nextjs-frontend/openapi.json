@@ -14351,7 +14351,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -16656,6 +16656,813 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors": {
+      "get": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "List Sensors",
+        "description": "Every sensor: storage, email and calendar sources (files), and MQTT devices, syslog senders and webhooks\n(streams); the kinds there are; and whether the hub is running.",
+        "operationId": "list_sensors",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SensorCatalog"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Create Sensor",
+        "description": "Add a stream sensor before it reports (to give it a namespace and handling up front), or a webhook. A webhook's\ntoken is in the answer and never shown again. Storage, email and calendar sensors are added as sources.",
+        "operationId": "create_sensor",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SensorCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SensorCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/review": {
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Review New",
+        "description": "Give every new sensor its suggested handling, and mark them looked at.",
+        "operationId": "review_new",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reviewed"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/{sid}": {
+      "get": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Get Sensor",
+        "operationId": "get_sensor",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SensorDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Update Sensor",
+        "description": "Rename a stream sensor, change its status (new, active, paused: nothing kept, ignored: nothing kept and out of\nsight), its namespace (`space: null` for none) or its handling (a handling setting of null goes back to the\nsettings' default).",
+        "operationId": "update_sensor",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SensorUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Delete Sensor",
+        "description": "Remove a sensor and everything it kept (a file sensor's resources stay).",
+        "operationId": "delete_sensor",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/{sid}/suggestion": {
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Apply Suggestion",
+        "description": "Give a stream sensor the handling suggested for it, and mark it looked at.",
+        "operationId": "apply_suggestion",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Suggestion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/{sid}/token": {
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "New Token",
+        "description": "A new token for a webhook; the old one stops working.",
+        "operationId": "new_token",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SensorToken"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/{sid}/readings": {
+      "get": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "List Readings",
+        "description": "A stream sensor's readings, newest first.",
+        "operationId": "list_readings",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          },
+          {
+            "name": "stream",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a stream's id",
+              "title": "Stream"
+            },
+            "description": "a stream's id"
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "readings before this time, to page back",
+              "title": "Before"
+            },
+            "description": "readings before this time, to page back"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Reading"
+                  },
+                  "title": "Response Sensors-List Readings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/{sid}/series": {
+      "get": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Get Series",
+        "description": "Hourly summaries of a stream (count, min, max, average, last), oldest first.",
+        "operationId": "get_series",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          },
+          {
+            "name": "stream",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "a stream's id",
+              "title": "Stream"
+            },
+            "description": "a stream's id"
+          },
+          {
+            "name": "field",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one of a JSON stream's numbers",
+              "title": "Field"
+            },
+            "description": "one of a JSON stream's numbers"
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 87840,
+              "minimum": 1,
+              "default": 168,
+              "title": "Hours"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SeriesPoint"
+                  },
+                  "title": "Response Sensors-Get Series"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensor-logins": {
+      "get": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "List Logins",
+        "description": "The usernames devices sign in to the MQTT hub with.",
+        "operationId": "list_logins",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HubLogin"
+                  },
+                  "type": "array",
+                  "title": "Response Sensors-List Logins"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Create Login",
+        "operationId": "create_login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HubLoginCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensor-logins/{lid}": {
+      "delete": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Delete Login",
+        "operationId": "delete_login",
+        "parameters": [
+          {
+            "name": "lid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Lid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/push": {
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Push",
+        "description": "Send readings to a webhook sensor, with its token as a bearer token. Plain text is a reading per line; JSON is\none reading, or several as {readings: [{stream, value}]}. `?stream=` names the stream (default: default).",
+        "operationId": "push",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pushed"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/push/{token}": {
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Push Token",
+        "description": "The same, with the token in the address, for devices that can only be given a URL.",
+        "operationId": "push_token",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pushed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/push/{token}/{stream}": {
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Push Stream",
+        "description": "The same, to a named stream.",
+        "operationId": "push_stream",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          },
+          {
+            "name": "stream",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pushed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Voice Info",
+        "description": "Whether the server hears and speaks itself; the web app uses the browser's speech for what it doesn't. Starts\nloading the speech-to-text engine, so the first thing said isn't kept waiting.",
+        "operationId": "voice_info",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice/transcribe": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Transcribe Clip",
+        "description": "What was said in a short clip, sent as the raw request body (webm, ogg, mp4 or wav, up to 25 MB), by the\nserver's speech-to-text engine. Nothing is kept. 409 when the server has no engine (use the browser's).",
+        "operationId": "transcribe_clip",
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Heard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice/speak": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Speak Text",
+        "description": "The text read aloud by the text-to-speech model (Settings \u2192 AI assistant \u2192 Voice). 204 when there's none, or it\nfailed: the browser reads it instead.",
+        "operationId": "speak_text",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "the text read aloud",
+            "content": {
+              "audio/mpeg": {}
+            }
+          },
+          "204": {
+            "description": "the browser reads it"
           },
           "422": {
             "description": "Validation Error",
@@ -23805,6 +24612,142 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "Handling": {
+        "properties": {
+          "store": {
+            "type": "string",
+            "enum": [
+              "all",
+              "changes",
+              "summary",
+              "none"
+            ],
+            "title": "Store",
+            "description": "all readings, only changes, hourly summaries only, or none (counted and dropped)",
+            "default": "all"
+          },
+          "raw_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Days",
+            "description": "days readings are kept; none: for good"
+          },
+          "rollup_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rollup Days",
+            "description": "days hourly summaries are kept; none: for good"
+          },
+          "important_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Important Days",
+            "description": "days log lines of warning or worse are kept, when longer than raw_days"
+          },
+          "max_per_minute": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Per Minute",
+            "description": "readings a stream may send a minute; more are dropped"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Handling"
+      },
+      "HandlingChange": {
+        "properties": {
+          "store": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "all",
+                  "changes",
+                  "summary",
+                  "none"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "raw_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Days"
+          },
+          "rollup_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rollup Days"
+          },
+          "important_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Important Days"
+          },
+          "max_per_minute": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Per Minute"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "HandlingChange",
+        "description": "A setting left out stays as it is; null goes back to the settings' default; 0 days keeps them for good."
+      },
       "Health": {
         "properties": {
           "database": {
@@ -23971,6 +24914,48 @@
           "type"
         ],
         "title": "HealthSource"
+      },
+      "Heard": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine"
+          },
+          "seconds": {
+            "type": "number",
+            "title": "Seconds",
+            "description": "how long the clip was",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "Heard"
       },
       "Highlight": {
         "properties": {
@@ -24197,6 +25182,167 @@
         "additionalProperties": false,
         "type": "object",
         "title": "HighlightUpdate"
+      },
+      "HubLogin": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "username"
+        ],
+        "title": "HubLogin"
+      },
+      "HubLoginCreate": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space",
+            "description": "the namespace new devices that sign in with it go to"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "HubLoginCreate"
+      },
+      "HubStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "mqtt": {
+            "type": "boolean",
+            "title": "Mqtt"
+          },
+          "mqtt_port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mqtt Port"
+          },
+          "syslog": {
+            "type": "boolean",
+            "title": "Syslog"
+          },
+          "syslog_port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Syslog Port"
+          },
+          "processes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Processes",
+            "description": "the processes running the hub now, and what they listen on"
+          },
+          "new": {
+            "type": "integer",
+            "title": "New",
+            "description": "sensors found that nobody has looked at yet"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "mqtt",
+          "syslog",
+          "processes",
+          "new"
+        ],
+        "title": "HubStatus"
       },
       "IiifImport": {
         "properties": {
@@ -26113,6 +27259,18 @@
             ],
             "title": "Model",
             "description": "answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry"
+          },
+          "edit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edit",
+            "description": "edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer"
           }
         },
         "additionalProperties": false,
@@ -30380,6 +31538,20 @@
         ],
         "title": "PublicTranscript"
       },
+      "Pushed": {
+        "properties": {
+          "kept": {
+            "type": "integer",
+            "title": "Kept"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kept"
+        ],
+        "title": "Pushed"
+      },
       "RdfImport": {
         "properties": {
           "data": {
@@ -30524,6 +31696,89 @@
           "subject"
         ],
         "title": "RdfUnmatched"
+      },
+      "Reading": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stream": {
+            "type": "string",
+            "title": "Stream"
+          },
+          "stream_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stream Name"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level",
+            "description": "syslog severity: 0 emergency to 7 debug"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "stream",
+          "at"
+        ],
+        "title": "Reading"
       },
       "Recording": {
         "properties": {
@@ -31832,6 +33087,20 @@
         ],
         "title": "ResourceFiles"
       },
+      "Reviewed": {
+        "properties": {
+          "applied": {
+            "type": "integer",
+            "title": "Applied"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "applied"
+        ],
+        "title": "Reviewed"
+      },
       "Routine": {
         "properties": {
           "id": {
@@ -32020,7 +33289,7 @@
             },
             "type": "array",
             "title": "Actions",
-            "description": "what a routine can do: sync, pipeline, workflow"
+            "description": "what a routine can do: sync, pipeline, workflow, sensors (tidy sensor data)"
           },
           "recordings": {
             "items": {
@@ -32053,7 +33322,7 @@
             },
             "type": "array",
             "title": "Actions",
-            "description": "in order: {type: sync, watches?}, {type: pipeline, pipeline?, steps?, recordings?, limit?}, {type: workflow, workflow, version?, recordings?, limit?, propose_only?}"
+            "description": "in order: {type: sync, watches?}, {type: pipeline, pipeline?, steps?, recordings?, limit?}, {type: workflow, workflow, version?, recordings?, limit?, propose_only?}, {type: sensors, sensors?}"
           },
           "schedule": {
             "anyOf": [
@@ -33369,6 +34638,688 @@
         "title": "SemanticStatus",
         "description": "Search by meaning: whether it's on, which model it uses, and how much of the archive it covers."
       },
+      "Sensor": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "files",
+              "stream"
+            ],
+            "title": "Family"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params",
+            "default": {}
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "active",
+              "paused",
+              "ignored"
+            ],
+            "title": "Status",
+            "default": "active"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space",
+            "description": "the namespace a stream sensor's data belongs to"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "handling": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Handling"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "own_handling": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Own Handling",
+            "description": "what this sensor sets itself; the rest comes from the settings"
+          },
+          "suggested": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Suggestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "for a new stream sensor: how it might be handled"
+          },
+          "channels": {
+            "type": "integer",
+            "title": "Channels",
+            "description": "watched folders of a file sensor, streams of a stream sensor",
+            "default": 0
+          },
+          "readings": {
+            "type": "integer",
+            "title": "Readings",
+            "default": 0
+          },
+          "has_token": {
+            "type": "boolean",
+            "title": "Has Token",
+            "default": false
+          },
+          "health": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Health"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "label",
+          "family"
+        ],
+        "title": "Sensor"
+      },
+      "SensorCatalog": {
+        "properties": {
+          "sensors": {
+            "items": {
+              "$ref": "#/components/schemas/Sensor"
+            },
+            "type": "array",
+            "title": "Sensors"
+          },
+          "types": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SensorType"
+            },
+            "type": "object",
+            "title": "Types"
+          },
+          "hub": {
+            "$ref": "#/components/schemas/HubStatus"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "sensors",
+          "types",
+          "hub"
+        ],
+        "title": "SensorCatalog"
+      },
+      "SensorCreate": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mqtt",
+              "syslog",
+              "webhook"
+            ],
+            "title": "Type"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params",
+            "description": "mqtt: {prefix}; syslog: {address}; webhook: none"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space"
+          },
+          "handling": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandlingChange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "SensorCreate"
+      },
+      "SensorCreated": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token",
+            "description": "a webhook's token, shown this once"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "SensorCreated"
+      },
+      "SensorDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "files",
+              "stream"
+            ],
+            "title": "Family"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params",
+            "default": {}
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "active",
+              "paused",
+              "ignored"
+            ],
+            "title": "Status",
+            "default": "active"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space",
+            "description": "the namespace a stream sensor's data belongs to"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "handling": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Handling"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "own_handling": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Own Handling",
+            "description": "what this sensor sets itself; the rest comes from the settings"
+          },
+          "suggested": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Suggestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "for a new stream sensor: how it might be handled"
+          },
+          "channels": {
+            "type": "integer",
+            "title": "Channels",
+            "description": "watched folders of a file sensor, streams of a stream sensor",
+            "default": 0
+          },
+          "readings": {
+            "type": "integer",
+            "title": "Readings",
+            "default": 0
+          },
+          "has_token": {
+            "type": "boolean",
+            "title": "Has Token",
+            "default": false
+          },
+          "health": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Health"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "streams": {
+            "items": {
+              "$ref": "#/components/schemas/Stream"
+            },
+            "type": "array",
+            "title": "Streams",
+            "default": []
+          },
+          "watches": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Watches",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "label",
+          "family"
+        ],
+        "title": "SensorDetail"
+      },
+      "SensorToken": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "SensorToken"
+      },
+      "SensorType": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "files",
+              "stream"
+            ],
+            "title": "Family"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Fields",
+            "description": "parameters and their defaults"
+          },
+          "secrets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Secrets"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "label",
+          "family",
+          "fields",
+          "secrets"
+        ],
+        "title": "SensorType"
+      },
+      "SensorUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "new",
+                  "active",
+                  "paused",
+                  "ignored"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space",
+            "description": "the namespace; null takes it out of any"
+          },
+          "handling": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandlingChange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SensorUpdate"
+      },
+      "SeriesPoint": {
+        "properties": {
+          "hour": {
+            "type": "string",
+            "title": "Hour"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "hour",
+          "n"
+        ],
+        "title": "SeriesPoint"
+      },
       "SetupAdmin": {
         "properties": {
           "from_env": {
@@ -34434,6 +36385,21 @@
         ],
         "title": "SparqlQuery"
       },
+      "SpeakRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 8000,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "SpeakRequest"
+      },
       "Speaker": {
         "properties": {
           "id": {
@@ -35248,6 +37214,131 @@
           "stopping"
         ],
         "title": "StopResult"
+      },
+      "Stream": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "number, boolean, json, text or log"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields",
+            "description": "the numbers a JSON stream carries"
+          },
+          "last_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Value"
+          },
+          "last_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Text"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 0
+          },
+          "stored": {
+            "type": "integer",
+            "title": "Stored",
+            "default": 0
+          },
+          "dropped": {
+            "type": "integer",
+            "title": "Dropped",
+            "default": 0
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Stream"
+      },
+      "Suggestion": {
+        "properties": {
+          "handling": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Handling"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "handling",
+          "reason"
+        ],
+        "title": "Suggestion"
       },
       "TagCount": {
         "properties": {
@@ -36903,6 +38994,39 @@
           "url"
         ],
         "title": "ViewerLink"
+      },
+      "VoiceInfo": {
+        "properties": {
+          "transcribe": {
+            "type": "boolean",
+            "title": "Transcribe",
+            "description": "the server turns speech into text itself (POST /voice/transcribe)"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine",
+            "description": "the speech-to-text engine it uses"
+          },
+          "speak": {
+            "type": "boolean",
+            "title": "Speak",
+            "description": "the server reads answers aloud (POST /voice/speak); else the browser does"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "transcribe",
+          "speak"
+        ],
+        "title": "VoiceInfo"
       },
       "Watch": {
         "properties": {

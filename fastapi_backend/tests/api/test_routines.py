@@ -175,7 +175,7 @@ def test_graph_workflows_organise_entities(client, new_client, db, cfg, env, fol
     routines.seed(db)
     routines.seed(db)  # once only
     cat = client.get("/api/v1/routines", headers=h).json()
-    assert [r["name"] for r in cat["routines"]] == ["Organise the graph every night", routines.INDEX_NAME]
+    assert [r["name"] for r in cat["routines"]] == ["Organise the graph every night", routines.INDEX_NAME, routines.SENSORS_NAME]
     assert not cat["routines"][0]["enabled"] and cat["routines"][1]["enabled"]
     wf = client.get("/api/v1/workflows", headers=h).json()
     graph_wf = [w for w in wf["workflows"] if w["scope"] == "graph"][0]

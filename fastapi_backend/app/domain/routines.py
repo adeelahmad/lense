@@ -9,6 +9,8 @@ namespaces (or all of them), at the times its schedule says, or when someone ask
 - `workflow`: run a workflow. One that runs on recordings is queued on them as a workflow step (as above); one that
   organises the graph (scope graph, see organize.py) runs over the routine's namespaces there and then, proposing or
   making changes to their entities.
+- `sensors`: tidy stream sensors' data (sensors.py): drop readings and hourly summaries past each sensor's retention
+  (every stream sensor, whatever the routine's namespaces, or the ones it names).
 
 Each run is a `routine_run` row with what every action did and a log. A run's graph changes can be undone together.
 A routine whose run is still going isn't started again; a run that stops reporting for STALE_MINUTES is taken as dead.
@@ -19,12 +21,13 @@ from __future__ import annotations
 import datetime as dt
 import threading
 
-from . import fedora, jobs, organize, schedule, semantic, sources, store, telemetry, workflows
+from . import fedora, jobs, organize, schedule, semantic, sensors, sources, store, telemetry, workflows
 
 R = store.R
-ACTIONS = ("sync", "pipeline", "workflow")
+ACTIONS = ("sync", "pipeline", "workflow", "sensors")
 ACTION_KEYS = {
     "sync": {"type", "watches"},
+    "sensors": {"type", "sensors"},
     "pipeline": {"type", "pipeline", "steps", "recordings", "limit"},
     "workflow": {"type", "workflow", "version", "recordings", "limit", "propose_only"},
 }
@@ -77,7 +80,7 @@ def _check(db, d):
     if "actions" in d:
         acts = d["actions"] or []
         if not isinstance(acts, list) or not acts:
-            raise ValueError("a routine does at least one thing: sync, pipeline or workflow")
+            raise ValueError("a routine does at least one thing: sync, pipeline, workflow or sensors")
         if len(acts) > MAX_ACTIONS:
             raise ValueError(f"a routine has at most {MAX_ACTIONS} actions")
         out["actions"] = [_check_action(db, k, a) for k, a in enumerate(acts, 1)]
@@ -105,6 +108,17 @@ def _check_action(db, k, a):
             for x in w:
                 if not db.one("SELECT id FROM $r", r=R("watch_path", x)):
                     raise ValueError(f"action {k}: no watched folder {x}")
+    elif t == "sensors":
+        ids = a.get("sensors")
+        if ids is not None:
+            if not isinstance(ids, list) or not all(isinstance(x, int) for x in ids):
+                raise ValueError(f"action {k}: sensors is a list of stream sensor ids, or none for all of them")
+            for x in ids:
+                try:
+                    if sensors.family(sensors.get(db, x)["type"]) != "stream":
+                        raise KeyError(x)
+                except KeyError:
+                    raise ValueError(f"action {k}: no stream sensor {x}") from None
     elif t == "pipeline":
         if a.get("pipeline") is not None:
             if not isinstance(a["pipeline"], int) or not db.one("SELECT id FROM $r", r=R("pipeline", a["pipeline"])):
@@ -306,6 +320,8 @@ def _action(db, cfg, routine, run_id, a, seen, propose_only, say):
     limit = a.get("limit") or DEFAULT_LIMIT
     if a["type"] == "sync":
         return _sync(db, cfg, a, spaces, say)
+    if a["type"] == "sensors":
+        return sensors.tidy(db, cfg, a.get("sensors"), say=say)
     if a.get("recordings") == "unindexed" and not semantic.configured(cfg):
         say("search by meaning is off, or has no embeddings server: nothing to index")
         return {"recordings": 0, "queued": 0, "errors": 0}
@@ -324,7 +340,7 @@ def _action(db, cfg, routine, run_id, a, seen, propose_only, say):
 
 def _takes_new(db, a):
     """Whether an action works on new recordings (a graph workflow doesn't look at recordings)."""
-    if a["type"] == "sync" or a.get("recordings", "new") != "new":
+    if a["type"] in ("sync", "sensors") or a.get("recordings", "new") != "new":
         return False
     if a["type"] == "workflow":
         try:
@@ -442,6 +458,8 @@ def _idle(db, cfg, r):
     """Whether a routine's every action indexes for search by meaning, and there's nothing to index: it's off, its
     server failed a moment ago, or every recording in its namespaces is indexed."""
     acts = r.get("actions") or []
+    if acts and all(a.get("type") == "sensors" for a in acts):
+        return not sensors.any_streams(db)
     if not acts or any(a.get("type") != "pipeline" or a.get("recordings") != "unindexed" for a in acts):
         return False
     return not semantic.configured(cfg) or bool(semantic.failing(db, cfg)) or not semantic.unindexed(db, cfg, _spaces(db, r), 1)
@@ -507,6 +525,7 @@ def start(db, cfg_fn, stop, log=None):
 
 # ---------- what a fresh archive starts with ----------
 INDEX_NAME = "Index for search by meaning"
+SENSORS_NAME = "Tidy sensor data"
 
 
 def seed(db):
@@ -526,6 +545,17 @@ def seed(db):
             user="lens-archive",
         )
         db.q("UPSERT $r CONTENT $d", r=R("seed", "semantic"), d={"at": store.now()})
+    if not db.one("SELECT id FROM $r", r=R("seed", "sensors")):
+        create(
+            db,
+            SENSORS_NAME,
+            [{"type": "sensors"}],
+            "40 * * * *",
+            description="Drops sensor readings and hourly summaries past each sensor's retention, every hour (it does nothing "
+            "while there are no stream sensors).",
+            user="lens-archive",
+        )
+        db.q("UPSERT $r CONTENT $d", r=R("seed", "sensors"), d={"at": store.now()})
 
 
 def _seed_graph(db):

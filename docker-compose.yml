@@ -72,6 +72,12 @@ services:
   worker:
     <<: *backend
     command: lens worker
+    # the sensor hub (docs/sensors.md): MQTT and syslog, listened on only once sensors are turned on in the app.
+    # Something else on this machine using 1883 or 5514? Set LENS_MQTT_PORT / LENS_SYSLOG_PORT to other ports.
+    ports:
+      - "${LENS_MQTT_PORT:-1883}:1883"
+      - "${LENS_SYSLOG_PORT:-5514}:5514/udp"
+      - "${LENS_SYSLOG_PORT:-5514}:5514/tcp"
     healthcheck:
       disable: true
 

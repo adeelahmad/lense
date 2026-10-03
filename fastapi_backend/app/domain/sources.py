@@ -93,7 +93,7 @@ def obscure(cfg, value):
 
 def get(db, sid):
     row = db.one("SELECT record::id(id) AS id, name, type, params, sealed, health, created_at FROM $r", r=R("storage_source", sid))
-    if not row:
+    if not row or row["type"] not in BACKENDS:  # a stream sensor (sensors.py) shares the table, but isn't a source
         raise KeyError(sid)
     return row
 
@@ -361,6 +361,7 @@ def list_sources(db):
     return [
         {**view(s), "watches": counts.get(s["id"], 0)}
         for s in db.rows("SELECT record::id(id) AS id, name, type, params, sealed, health, created_at FROM storage_source ORDER BY id")
+        if s["type"] in BACKENDS
     ]
 
 
