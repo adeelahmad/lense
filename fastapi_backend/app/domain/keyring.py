@@ -30,6 +30,7 @@ import secrets
 import struct
 import tempfile
 import threading
+import time
 
 from . import settings, store
 
@@ -111,10 +112,11 @@ def _save(db, sid, row, keys, current=None):
     """Write the keys back only if nobody changed them since row was read (another process rotating, say)."""
     cur = row["current"] if current is None else current
     done = db.values(
-        "UPDATE $r SET keys = $k, current = $n, rev = $rev + 1 WHERE (rev ?? 0) = $rev RETURN VALUE rev",
+        "UPDATE $r SET keys = $k, current = $n, vault = $v, rev = $rev + 1 WHERE (rev ?? 0) = $rev RETURN VALUE rev",
         r=R("data_key", int(sid)),
         k=keys,
         n=cur,
+        v=SERVER not in keys[str(cur)]["wrapped"],
         rev=int(row.get("rev") or 0),
     )
     if not done:
@@ -141,6 +143,7 @@ def status(db, sid):
 def data_key(db, cfg, sid, version=None, create=True):
     """The namespace's data key (the current version unless one is named), as (version, key)."""
     sid = int(sid)
+    _expire(db, sid)
     cache = _cache(db)
     if version is not None and (sid, int(version)) in cache:
         return int(version), cache[(sid, int(version))]
@@ -193,8 +196,39 @@ def remove_wrapper(db, sid, name):
         _save(db, sid, row, keys)
 
 
-def unlock(db, sid, name, kek):
-    """Open a namespace with one of its wrappers for this process; raises if that key doesn't open it."""
+def _until(db):
+    u = getattr(db, "_vault_until", None)
+    if u is None:
+        u = db._vault_until = {}
+    return u
+
+
+def _expire(db, sid):
+    """A vault opened for a while closes again once that time is up."""
+    t = _until(db).get(sid)
+    if t is not None and t < time.time():
+        lock(db, sid)
+
+
+def unlocked_until(db, sid):
+    """When a vault opened in this process closes again (a Unix time), or None."""
+    _expire(db, int(sid))
+    return _until(db).get(int(sid))
+
+
+def locked_vaults(db):
+    """The vault namespaces nobody has unlocked in this process: their work waits."""
+    out = set()
+    for sid in db.values("SELECT VALUE space FROM data_key WHERE vault = true"):
+        _expire(db, int(sid))
+        if not any(k[0] == int(sid) for k in _cache(db)):
+            out.add(int(sid))
+    return out
+
+
+def unlock(db, sid, name, kek, minutes=None):
+    """Open a namespace with one of its wrappers for this process (for `minutes`, else until locked); raises Locked if
+    that key doesn't open it."""
     sid = int(sid)
     row = _row(db, sid)
     if not row:
@@ -208,12 +242,22 @@ def unlock(db, sid, name, kek):
         except Exception:  # noqa: BLE001 - wrong key
             raise Locked(sid) from None
     _cache(db).update(opened)
+    keep_open(db, sid, minutes)
+
+
+def keep_open(db, sid, minutes):
+    """An open vault stays open for `minutes` more (None: until locked)."""
+    if minutes:
+        _until(db)[int(sid)] = time.time() + 60 * minutes
+    else:
+        _until(db).pop(int(sid), None)
 
 
 def lock(db, sid):
     """Forget a namespace's keys in this process (a vault then needs unlocking again)."""
     for k in [k for k in _cache(db) if k[0] == int(sid)]:
         del _cache(db)[k]
+    _until(db).pop(int(sid), None)
 
 
 def rotate(db, cfg, sid, keks=None):

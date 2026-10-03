@@ -43,6 +43,7 @@ from app.api.v1.routes import (
     templates,
     uploads,
     users,
+    vaults,
     video,
     views,
     voice,
@@ -97,5 +98,6 @@ for module in (
     routines,
     sensors,
     voice,
+    vaults,
 ):
     api_router.include_router(module.router)

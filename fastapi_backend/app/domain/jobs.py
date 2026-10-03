@@ -253,10 +253,12 @@ def enqueue_pending(db, space=None, by=None):
 
 
 def claim(db, worker, can):
+    locked = keyring.locked_vaults(db)  # a vault's work waits until someone unlocks it here
     for r in db.rows(
-        "SELECT record::id(id) AS id, priority, created_at, started_at FROM job WHERE status = 'queued' AND next_step IN $can "
-        "ORDER BY priority DESC, created_at ASC LIMIT 10",
+        "SELECT record::id(id) AS id, space, priority, created_at, started_at FROM job WHERE status = 'queued' AND next_step IN $can "
+        "AND space NOTINSIDE $locked ORDER BY priority DESC, created_at ASC LIMIT 10",
         can=sorted(can),
+        locked=sorted(locked),
     ):
         t = store.now()
         try:

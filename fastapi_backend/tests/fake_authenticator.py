@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import struct
@@ -17,9 +18,9 @@ UP, UV, AT = 0x01, 0x04, 0x40
 class Authenticator:
     """Keeps its passkeys: {credential id: (key, rp id, user handle, counter)}."""
 
-    def __init__(self, counter: bool = True):
+    def __init__(self, counter: bool = True, prf: bool = True):
         self.keys: dict[str, dict] = {}
-        self.counter = counter
+        self.counter, self.prf = counter, prf
 
     def _client_data(self, kind, challenge, origin):
         return json.dumps({"type": kind, "challenge": challenge, "origin": origin, "crossOrigin": False}).encode()
@@ -34,7 +35,7 @@ class Authenticator:
         flags = UP | AT | (UV if uv else 0)
         auth_data = hashlib.sha256(rp_id.encode()).digest() + bytes([flags]) + struct.pack(">I", 0) + attested
         cid = bytes_to_base64url(cred_id)
-        self.keys[cid] = {"key": key, "rp_id": rp_id, "user": options["user"]["id"], "count": 0}
+        self.keys[cid] = {"key": key, "rp_id": rp_id, "user": options["user"]["id"], "count": 0, "secret": os.urandom(32)}
         return {
             "id": cid,
             "rawId": cid,
@@ -65,8 +66,17 @@ class Authenticator:
                 "signature": bytes_to_base64url(sig),
                 "userHandle": k["user"],
             },
-            "clientExtensionResults": {},
+            "clientExtensionResults": self._prf(k, options),
         }
+
+    def _prf(self, k, options):
+        """The PRF extension's result for the salt asked for, as a browser's toJSON() gives it: secret to the passkey,
+        the same every time for the same salt."""
+        first = ((options.get("extensions") or {}).get("prf") or {}).get("eval", {}).get("first")
+        if not (self.prf and first):
+            return {}
+        out = hmac.new(k["secret"], base64url_to_bytes(first), "sha256").digest()
+        return {"prf": {"results": {"first": bytes_to_base64url(out)}}}
 
 
 def user_handle(credential: dict) -> bytes:
