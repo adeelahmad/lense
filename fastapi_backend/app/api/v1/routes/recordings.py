@@ -513,7 +513,7 @@ def serve_audio(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, requ
         raise HTTPException(404, "no audio for this recording")
     path = render.has_audio(db, cfg, rid)
     if path:
-        return file_response(path, request, _media_type(rec, path))
+        return file_response(path, request, _media_type(rec, path), db, cfg)
     rm = rec.get("remote")
     if not rm:
         raise HTTPException(404, "no audio for this recording")

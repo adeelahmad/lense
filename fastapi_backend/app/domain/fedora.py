@@ -36,7 +36,7 @@ import urllib.request
 from rdflib import BNode, Graph, URIRef
 from rdflib.namespace import OWL
 
-from . import rdf, render, store
+from . import keyring, rdf, render, store
 
 R = store.R
 LENIENT = 'handling=lenient; received="minimal"'
@@ -96,8 +96,8 @@ class Client:
         if status not in (200, 201, 204):
             raise FedoraError(f"Fedora refused {url}: {status} {body[:300].decode(errors='replace')}")
 
-    def put_file(self, url, path: pathlib.Path, mime: str | None):
-        name = urllib.parse.quote(path.name)
+    def put_file(self, url, path: pathlib.Path, mime: str | None, name: str | None = None):
+        name = urllib.parse.quote(name or path.name)
         headers = {"Content-Type": mime or "application/octet-stream", "Content-Disposition": f"attachment; filename*=UTF-8''{name}"}
         with path.open("rb") as fh:
             status, body = self.call("PUT", url, fh, headers, length=path.stat().st_size)
@@ -229,7 +229,9 @@ def sync(db, cfg, only=None, log=None):
                 st = fp.stat()
                 stamp = f"{st.st_size}:{int(st.st_mtime)}"
                 if state.get("file") != stamp:
-                    c.put_file(f"{target}/file", fp, render.AUDIO_TYPES.get(fp.suffix.lower()) or mimetypes.guess_type(fp.name)[0])
+                    mime = render.AUDIO_TYPES.get(fp.suffix.lower()) or mimetypes.guess_type(fp.name)[0]
+                    with keyring.plain_path(db, cfg, fp) as plain:  # Fedora keeps the file itself, not Lens's encrypted form
+                        c.put_file(f"{target}/file", pathlib.Path(plain), mime, name=fp.name)
                     counts["files"] += 1
             db.q(
                 "UPSERT $r CONTENT $d",
@@ -241,6 +243,9 @@ def sync(db, cfg, only=None, log=None):
             errors.append(str(e))
             if "can't reach" in str(e):
                 break
+        except (keyring.Locked, keyring.Damaged) as e:  # a locked vault, or a damaged file: the rest still go
+            counts["failed"] += 1
+            errors.append(f"{path}: {e.__class__.__name__.lower()}")
     if only is None and not errors:  # what Lens no longer has goes from Fedora too
         for row in db.rows("SELECT record::id(id) AS id, path FROM fedora_state"):
             if row["path"] not in seen:

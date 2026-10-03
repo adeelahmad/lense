@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Files are encrypted at rest.** Each namespace has its own AES-256-GCM key, and uploads, attachments, captured web
+  pages and IIIF imports are stored encrypted with it. Audio and video still stream with seeking. New archives encrypt
+  from the start. For an archive that already has files, `lens encrypt` turns it on and converts them. See
+  docs/encryption.md.
 - **Sensors understand their logs.** Log lines are grouped into patterns (`query[A] <name> from <ip>`), each with a
   count, an example, a label (routine, notable, alert) and an action (drop: counted, not kept). With `triage` on, the
   decision model labels new patterns, one question per pattern, not per line. Brokers you already run (Mosquitto, Home
