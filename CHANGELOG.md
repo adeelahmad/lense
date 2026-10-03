@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Sensors in the web app.** Admins get **Sensors** in place of Sources: the hub's state, new devices with a
+  suggested handling to apply or ignore, each sensor's streams with charts of hourly averages and its latest
+  readings, its kinds of log line to label or drop, and what it keeps and for how long. Webhooks (token shown once),
+  bridges, hub logins and Settings → Sensors are all there; storage, email and calendars stay a tab away.
 - **An email connection fills in its server.** Type the address first and the IMAP server follows from it (Gmail,
   Outlook, iCloud, Yahoo and other big providers by name, otherwise imap.<domain>) until you change it by hand.
 - **Fewer confirms, fewer dead ends.** Import sends the files that are ready and keeps the ones that still need a

@@ -28,6 +28,7 @@ import {
   Mail,
   MessagesSquare,
   PackageCheck,
+  RadioTower,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -71,6 +72,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   bridge: MessagesSquare,
   telemetry: Activity,
   fedora: Archive,
+  sensors: RadioTower,
   uploads: Upload,
   documents: FileType,
   tokens: KeyRound,

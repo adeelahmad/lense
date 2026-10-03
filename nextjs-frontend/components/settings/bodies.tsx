@@ -5,11 +5,12 @@ import { PlugZap, RefreshCw, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 
-import { Admin, Fedora, Metadata } from "@/app/openapi-client";
+import { Admin, Fedora, Metadata, Sensors } from "@/app/openapi-client";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
+import { hubText } from "@/components/sensors/sensor-model";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
 import { AI_TOOLS, type FieldSpec, type SectionId, type SettingsView } from "@/components/settings/model";
 import { Banner } from "@/components/ui/banner";
@@ -341,6 +342,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <TelemetryBody ctx={ctx} />;
     case "fedora":
       return <FedoraBody ctx={ctx} />;
+    case "sensors":
+      return <SensorsBody ctx={ctx} />;
     case "uploads":
       return (
         <>
@@ -625,6 +628,69 @@ function FedoraBody({ ctx }: { ctx: BodyCtx }) {
         </Banner>
       )}
       {sync.isError && <Banner tone="error">{sync.error.message}</Banner>}
+    </>
+  );
+}
+
+function SensorsBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const status = useQuery({
+    queryKey: ["sensors", ctx.view.sensors?.updated_at ?? null],
+    queryFn: () => data(Sensors.listSensors({ client })),
+    refetchInterval: 15_000,
+  });
+  const hub = status.data?.hub;
+  const h = hub ? hubText(hub) : null;
+  const on = ctx.values["sensors.enabled"] === true;
+  return (
+    <>
+      {h && (
+        <Banner
+          tone={h.tone}
+          title={h.title}
+          action={
+            <Button asChild size="xs" variant="secondary">
+              <Link href="/sensors">See sensors</Link>
+            </Button>
+          }
+        >
+          {hub?.enabled ? h.body : "Turn it on below; the workers start listening within seconds."}
+        </Banner>
+      )}
+      <F ctx={ctx} id="sensors.enabled" />
+      <Sub>MQTT</Sub>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="sensors.mqtt" />
+        <F ctx={ctx} id="sensors.mqtt_anonymous" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="sensors.mqtt_port" />
+        <F ctx={ctx} id="sensors.max_payload_kb" />
+      </div>
+      <Sub>Syslog</Sub>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="sensors.syslog" />
+        <F ctx={ctx} id="sensors.syslog_port" />
+      </div>
+      <F ctx={ctx} id="sensors.syslog_networks" />
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        With Docker, the worker container publishes 1883 and 5514; set <code className="font-mono">LENS_MQTT_PORT</code>{" "}
+        or <code className="font-mono">LENS_SYSLOG_PORT</code> in .env to publish them on other ports of the host.
+        {on ? "" : " Nothing listens until the hub is on."}
+      </p>
+      <Sub>What’s kept</Sub>
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        Defaults for every sensor; each one can choose its own on its page. The hourly Tidy sensor data routine removes
+        what’s past its time.
+      </p>
+      <F ctx={ctx} id="sensors.store" />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <F ctx={ctx} id="sensors.raw_days" />
+        <F ctx={ctx} id="sensors.important_days" />
+        <F ctx={ctx} id="sensors.rollup_days" />
+      </div>
+      <F ctx={ctx} id="sensors.max_per_minute" />
+      <F ctx={ctx} id="sensors.triage" />
     </>
   );
 }
