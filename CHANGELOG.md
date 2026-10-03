@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Fewer confirms, fewer dead ends.** Import sends the files that are ready and keeps the ones that still need a
+  field mapped in the list, instead of blocking everything. Disabling an account and deleting your own saved view
+  happen at once with Undo instead of a confirm. Adding a member to a namespace suggests the people who aren't in it
+  yet. Add file on a recording opens the file picker first (or take a file dropped on the tab) and guesses its role
+  and language from the name (talk.en.vtt is English).
 - **Sign in with a passkey, no passwords.** People sign in with their fingerprint, face or device PIN (or a phone
   nearby). The first admin makes a passkey on the setup page; everyone else gets a one-time sign-in link from People
   (or `lens users link`), and "Lost your passkey?" emails one. Profile and sign-in lists your passkeys, adds more and

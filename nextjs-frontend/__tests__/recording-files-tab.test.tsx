@@ -161,20 +161,21 @@ describe("the Files tab", () => {
   it("adds a file, guessing what it is", async () => {
     show();
     await screen.findByRole("region", { name: "Supplementary files" });
+    // Add file opens the file picker at once; the dialog opens with the chosen file
+    picked.push(new File(["x"], "cover.png", { type: "image/png" }));
     fireEvent.click(screen.getByRole("button", { name: "Add file" }));
     const dialog = await screen.findByRole("dialog", { name: "Add a file" });
     // a picture can't be captions
-    picked.push(new File(["x"], "cover.png", { type: "image/png" }));
-    fireEvent.click(within(dialog).getByRole("button", { name: "Choose a file…" }));
     expect(await within(dialog).findByText("cover.png")).toBeInTheDocument();
     fireEvent.change(within(dialog).getByLabelText("What it is"), { target: { value: "captions" } });
     expect(within(dialog).getByRole("alert")).toHaveTextContent("Captions files are .srt .vtt; this is .png.");
 
-    const vtt = new File(["WEBVTT\n\n00:01.000 --> 00:02.000\nHi\n"], "harbour.vtt", { type: "text/vtt" });
+    const vtt = new File(["WEBVTT\n\n00:01.000 --> 00:02.000\nHi\n"], "harbour.en.vtt", { type: "text/vtt" });
     picked.push(vtt);
     fireEvent.click(within(dialog).getByRole("button", { name: "Another file…" }));
-    await within(dialog).findByText("harbour.vtt");
+    await within(dialog).findByText("harbour.en.vtt");
     expect(within(dialog).getByLabelText("What it is")).toHaveValue("captions");
+    expect(within(dialog).getByLabelText(/Language/)).toHaveValue("en"); // read from the name
     fireEvent.change(within(dialog).getByLabelText(/Language/), { target: { value: "English" } });
     expect(within(dialog).getByText("Use a language code such as en or pt-BR.")).toBeInTheDocument();
     fireEvent.change(within(dialog).getByLabelText(/Language/), { target: { value: "en" } });
@@ -184,7 +185,7 @@ describe("the Files tab", () => {
     await waitFor(() => expect(m(Files.addFile)).toHaveBeenCalledTimes(1));
     const sent = m(Files.addFile).mock.calls[0][0];
     expect(sent.path).toEqual({ rid: 7 });
-    expect(sent.query).toEqual({ role: "captions", name: "harbour.vtt", language: "en", label: "English captions" });
+    expect(sent.query).toEqual({ role: "captions", name: "harbour.en.vtt", language: "en", label: "English captions" });
     expect(sent.body).toBe(vtt); // the file itself, as the request's body
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Added English captions" })),

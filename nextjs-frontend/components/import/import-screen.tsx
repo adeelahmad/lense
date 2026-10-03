@@ -194,23 +194,24 @@ export function ImportScreen() {
       : admin
         ? nsProblem
         : needRole("editor", ns);
-  const ready = items.filter((i) => i.status === "ready");
   const reading = items.filter((i) => i.status === "reading").length;
-  const mappingProblem = ready.find(
-    (i) => !isUpload(i.kind) && parseMapping(i.mapping, i.preview?.speakers ?? []).errors.length,
-  );
+  // a file whose speaker mapping needs fixing waits in the list; the others go ahead without it
+  const badMapping = (i: (typeof items)[number]) =>
+    !isUpload(i.kind) && parseMapping(i.mapping, i.preview?.speakers ?? []).errors.length > 0;
+  const waiting = items.filter((i) => i.status === "ready" && badMapping(i));
+  const ready = items.filter((i) => i.status === "ready" && !badMapping(i));
   const importReason =
     nsReason ??
     (!ready.length
       ? reading
         ? "Still reading the files…"
-        : "No file is ready to import"
-      : mappingProblem
-        ? `Fix the speaker mapping of ${mappingProblem.file.name}`
-        : null);
+        : waiting.length
+          ? `Fix the speaker mapping of ${waiting[0].file.name}`
+          : "No file is ready to import"
+      : null);
   const current = items.find((i) => i.id === selected) ?? null;
   // a transcript dropped with its audio: the audio becomes its media, not a recording of its own
-  const pairs = pairTwins(ready.map((i) => ({ id: i.id, name: i.file.name, media: isMedia(i.kind) })));
+  const pairs = pairTwins([...ready, ...waiting].map((i) => ({ id: i.id, name: i.file.name, media: isMedia(i.kind) })));
   const byId = new Map(items.map((i) => [i.id, i]));
   const twinOf = new Map([...pairs].map(([t, m]) => [m, byId.get(t)]));
 
@@ -252,7 +253,12 @@ export function ImportScreen() {
               };
         }),
     );
-    files.clear();
+    // what was sent leaves the list (a transcript with its audio); files that still need something stay for later
+    for (const it of ready.filter((x) => !twinOf.has(x.id))) {
+      files.remove(it.id);
+      const twin = pairs.get(it.id);
+      if (twin) files.remove(twin);
+    }
   };
 
   if (me && !can("editor")) {
@@ -267,7 +273,7 @@ export function ImportScreen() {
     );
   }
 
-  const attention = items.length - ready.length - reading;
+  const attention = items.length - ready.length - reading - waiting.length;
   return (
     <div className="flex min-h-[calc(100vh-64px)] flex-col">
       <div className="flex items-center gap-2.5 px-4 pt-4 md:px-6 md:pt-[18px]">
@@ -464,8 +470,10 @@ export function ImportScreen() {
                       {ready.length} of {plural(items.length, "file")} ready.
                     </b>{" "}
                     {reading ? `Reading ${reading}… ` : ""}
-                    {attention > 0
-                      ? `${attention} ${attention === 1 ? "needs" : "need"} attention — ${attention === 1 ? "it’ll" : "they’ll"} be skipped unless fixed.`
+                    {attention + waiting.length > 0
+                      ? `${attention + waiting.length} ${attention + waiting.length === 1 ? "needs" : "need"} attention (${
+                          waiting.length ? "a speaker mapping to fix" : "see the list"
+                        }): ${attention + waiting.length === 1 ? "it stays" : "they stay"} here to fix and import after.`
                       : ""}
                   </span>
                   <Button variant="ghost" onClick={files.clear}>

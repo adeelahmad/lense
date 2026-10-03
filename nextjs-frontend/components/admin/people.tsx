@@ -35,7 +35,6 @@ const ROLES: (Role | "")[] = ["", "viewer", "editor", "owner"];
 type Dialogs =
   | { kind: "create" }
   | { kind: "reset"; person: Person }
-  | { kind: "disable"; person: Person }
   | { kind: "rename"; person: Person }
   | { kind: "link"; person: Person }
   | { kind: "passkeys"; person: Person };
@@ -108,6 +107,20 @@ export function PeoplePage() {
       });
     },
   });
+  // Disabling keeps roles, notes and edits, so it's done at once with an Undo rather than asked first.
+  const disable = useMutation({
+    mutationFn: (p: Person) => data(Users.updateUser({ client, path: { uid: p.id }, body: { disabled: true } })),
+    onSuccess: (_r, p) => {
+      void qc.invalidateQueries({ queryKey: ["users"] });
+      toast({
+        title: `Disabled ${p.name || p.email}`,
+        body: "Signed out, and their API tokens stop working. Roles, notes and edits are kept.",
+        tone: "green",
+        action: { label: "Undo", onClick: () => enable.mutate(p) },
+      });
+    },
+    onError: (e: Error, p) => toast({ tone: "red", title: `Couldn’t disable ${p.name || p.email}`, body: e.message }),
+  });
 
   const changes = [...pending.values()];
   return (
@@ -146,7 +159,13 @@ export function PeoplePage() {
           myId={me?.user.id}
           passwords={passwords}
           onEdit={(p) => setPending((m) => withPending(m, list, p))}
-          onAction={(kind, person) => (kind === "enable" ? enable.mutate(person) : setDialog({ kind, person }))}
+          onAction={(kind, person) =>
+            kind === "enable"
+              ? enable.mutate(person)
+              : kind === "disable"
+                ? disable.mutate(person)
+                : setDialog({ kind, person })
+          }
         />
       )}
       {(changes.length > 0 || save.isError) && (
@@ -185,7 +204,6 @@ export function PeoplePage() {
       {dialog?.kind === "link" && <LinkDialog person={dialog.person} onClose={() => setDialog(null)} />}
       {dialog?.kind === "passkeys" && <PasskeysDialog person={dialog.person} onClose={() => setDialog(null)} />}
       {dialog?.kind === "reset" && <ResetDialog person={dialog.person} onClose={() => setDialog(null)} />}
-      {dialog?.kind === "disable" && <DisableDialog person={dialog.person} onClose={() => setDialog(null)} />}
       {dialog?.kind === "rename" && <RenameDialog person={dialog.person} onClose={() => setDialog(null)} />}
     </AdminFrame>
   );
@@ -437,7 +455,7 @@ function RoleGrid({
                       <MenuItem onSelect={() => onAction("enable", p)}>Enable account</MenuItem>
                     ) : (
                       <MenuItem danger disabled={me} onSelect={() => onAction("disable", p)}>
-                        {me ? "You can’t disable yourself" : "Disable account…"}
+                        {me ? "You can’t disable yourself" : "Disable account"}
                       </MenuItem>
                     )}
                   </MenuContent>
@@ -740,53 +758,6 @@ function ResetDialog({ person, onClose }: { person: Person; onClose: () => void 
         <PasswordField value={password} onChange={setPassword} />
       )}
       {reset.isError && <Banner tone="error">{reset.error.message}</Banner>}
-    </Dialog>
-  );
-}
-
-function DisableDialog({ person, onClose }: { person: Person; onClose: () => void }) {
-  const client = useApiClient();
-  const qc = useQueryClient();
-  const toast = useToast();
-  const who = person.name || person.email;
-  const first = (person.name || person.email).split(/[\s@]/)[0];
-  const disable = useMutation({
-    mutationFn: () =>
-      data(
-        Users.updateUser({
-          client,
-          path: { uid: person.id },
-          body: { disabled: true },
-        }),
-      ),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["users"] });
-      toast({
-        title: `Disabled ${who}`,
-        body: "Re-enable from the same menu to restore everything.",
-        tone: "green",
-      });
-      onClose();
-    },
-  });
-  return (
-    <Dialog
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title={`Disable ${who}?`}
-      description={`${first} is signed out now and can’t sign in. Their API tokens stop working. Their roles, notes and edits are kept, so re-enabling restores everything.`}
-      actions={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="danger" disabled={disable.isPending} onClick={() => disable.mutate()}>
-            {disable.isPending ? "Disabling…" : "Disable account"}
-          </Button>
-        </>
-      }
-    >
-      {disable.isError && <Banner tone="error">{disable.error.message}</Banner>}
     </Dialog>
   );
 }

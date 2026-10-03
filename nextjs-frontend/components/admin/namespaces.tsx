@@ -286,6 +286,9 @@ export function NamespaceDetail({ ns }: { ns: string }) {
     .sort((a, b) => (a.name || a.email || "").localeCompare(b.name || b.email || ""));
   const currentPipeline = (pipelines.data?.pipelines ?? []).find((p) => p.namespaces?.includes(ns));
   const validEmail = /^\S+@\S+\.\S+$/.test(email.trim());
+  // admins see every account: the people not here yet are offered as you type
+  const here = new Set(rows.map((m) => m.email));
+  const addable = (people.data ?? []).filter((p) => !p.disabled && !p.admin && p.email && !here.has(p.email));
 
   return (
     <AdminFrame
@@ -320,16 +323,28 @@ export function NamespaceDetail({ ns }: { ns: string }) {
               >
                 <Field label="Add by email" error={addError}>
                   {(f) => (
-                    <Input
-                      id={f.id}
-                      aria-describedby={f.describedBy}
-                      invalid={f.invalid}
-                      type="email"
-                      value={email}
-                      onChange={(e) => (setEmail(e.target.value), setAddError(null))}
-                    />
+                    <>
+                      <Input
+                        id={f.id}
+                        aria-describedby={f.describedBy}
+                        invalid={f.invalid}
+                        type="email"
+                        list={addable.length ? `${f.id}-people` : undefined}
+                        autoComplete="off"
+                        value={email}
+                        onChange={(e) => (setEmail(e.target.value), setAddError(null))}
+                      />
+                      {addable.length > 0 && (
+                        <datalist id={`${f.id}-people`}>
+                          {addable.map((p) => (
+                            <option key={p.id} value={p.email} label={p.name || undefined} />
+                          ))}
+                        </datalist>
+                      )}
+                    </>
                   )}
                 </Field>
+
                 <Field label="Role">
                   {(f) => (
                     <Select
