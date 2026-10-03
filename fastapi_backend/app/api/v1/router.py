@@ -34,6 +34,7 @@ from app.api.v1.routes import (
     routines,
     search,
     searches,
+    sensors,
     setup,
     sources,
     speakers,
@@ -89,6 +90,7 @@ for module in (
     views,
     notifications,
     routines,
+    sensors,
     voice,
 ):
     api_router.include_router(module.router)

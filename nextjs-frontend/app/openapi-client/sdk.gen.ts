@@ -26,6 +26,9 @@ import type {
   ApplyEntitySetupData,
   ApplyEntitySetupErrors,
   ApplyEntitySetupResponses,
+  ApplySuggestionData,
+  ApplySuggestionErrors,
+  ApplySuggestionResponses,
   ApproveAccessRequestData,
   ApproveAccessRequestErrors,
   ApproveAccessRequestResponses,
@@ -114,6 +117,9 @@ import type {
   CreateJobsData,
   CreateJobsErrors,
   CreateJobsResponses,
+  CreateLoginData,
+  CreateLoginErrors,
+  CreateLoginResponses,
   CreateNamespaceCollectionData,
   CreateNamespaceCollectionErrors,
   CreateNamespaceCollectionResponses,
@@ -138,6 +144,9 @@ import type {
   CreateSearchData,
   CreateSearchErrors,
   CreateSearchResponses,
+  CreateSensorData,
+  CreateSensorErrors,
+  CreateSensorResponses,
   CreateShareData,
   CreateShareErrors,
   CreateShareResponses,
@@ -219,6 +228,9 @@ import type {
   DeleteIpGroupData,
   DeleteIpGroupErrors,
   DeleteIpGroupResponses,
+  DeleteLoginData,
+  DeleteLoginErrors,
+  DeleteLoginResponses,
   DeleteNamespaceCollectionData,
   DeleteNamespaceCollectionErrors,
   DeleteNamespaceCollectionResponses,
@@ -240,6 +252,9 @@ import type {
   DeleteSearchData,
   DeleteSearchErrors,
   DeleteSearchResponses,
+  DeleteSensorData,
+  DeleteSensorErrors,
+  DeleteSensorResponses,
   DeleteSourceData,
   DeleteSourceErrors,
   DeleteSourceResponses,
@@ -420,6 +435,12 @@ import type {
   GetRunData,
   GetRunErrors,
   GetRunResponses,
+  GetSensorData,
+  GetSensorErrors,
+  GetSensorResponses,
+  GetSeriesData,
+  GetSeriesErrors,
+  GetSeriesResponses,
   GetSettingsData,
   GetSettingsResponses,
   GetSetupData,
@@ -538,6 +559,8 @@ import type {
   ListLanguagesData,
   ListLanguagesErrors,
   ListLanguagesResponses,
+  ListLoginsData,
+  ListLoginsResponses,
   ListMembersData,
   ListMembersErrors,
   ListMembersResponses,
@@ -571,6 +594,9 @@ import type {
   ListPendingAccessRequestsResponses,
   ListPipelinesData,
   ListPipelinesResponses,
+  ListReadingsData,
+  ListReadingsErrors,
+  ListReadingsResponses,
   ListRecordingIpGroupsData,
   ListRecordingIpGroupsErrors,
   ListRecordingIpGroupsResponses,
@@ -593,6 +619,8 @@ import type {
   ListSegmentEditsData,
   ListSegmentEditsErrors,
   ListSegmentEditsResponses,
+  ListSensorsData,
+  ListSensorsResponses,
   ListSharesData,
   ListSharesErrors,
   ListSharesResponses,
@@ -652,6 +680,9 @@ import type {
   MoveRecordingData,
   MoveRecordingErrors,
   MoveRecordingResponses,
+  NewTokenData,
+  NewTokenErrors,
+  NewTokenResponses,
   NotSameSpeakerData,
   NotSameSpeakerErrors,
   NotSameSpeakerResponses,
@@ -679,6 +710,14 @@ import type {
   PreviewWatchData,
   PreviewWatchErrors,
   PreviewWatchResponses,
+  PushData,
+  PushResponses,
+  PushStreamData,
+  PushStreamErrors,
+  PushStreamResponses,
+  PushTokenData,
+  PushTokenErrors,
+  PushTokenResponses,
   QueryNamespaceSparqlData,
   QueryNamespaceSparqlErrors,
   QueryNamespaceSparqlResponses,
@@ -726,6 +765,8 @@ import type {
   RevertMetadataEditData,
   RevertMetadataEditErrors,
   RevertMetadataEditResponses,
+  ReviewNewData,
+  ReviewNewResponses,
   RevokeAnyTokenData,
   RevokeAnyTokenErrors,
   RevokeAnyTokenResponses,
@@ -951,6 +992,9 @@ import type {
   UpdateSearchData,
   UpdateSearchErrors,
   UpdateSearchResponses,
+  UpdateSensorData,
+  UpdateSensorErrors,
+  UpdateSensorResponses,
   UpdateSettingsData,
   UpdateSettingsErrors,
   UpdateSettingsResponses,
@@ -5586,6 +5630,10 @@ export class Chats {
    * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
    * reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
    * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
+   *
+   * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
+   * its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
+   * from (where, and the highlighted text; not the page's text, which isn't kept).
    */
   public static sendMessage<ThrowOnError extends boolean = false>(
     options: Options<SendMessageData, ThrowOnError, unknown>,
@@ -6327,6 +6375,243 @@ export class Routines {
   ): RequestResult<UndoGraphChangeResponses, UndoGraphChangeErrors, ThrowOnError> {
     return (options.client ?? client).post<UndoGraphChangeResponses, UndoGraphChangeErrors, ThrowOnError>({
       url: "/api/v1/graph-changes/{cid}/undo",
+      ...options,
+    });
+  }
+}
+
+export class Sensors {
+  /**
+   * List Sensors
+   *
+   * Every sensor: storage, email and calendar sources (files), and MQTT devices, syslog senders and webhooks
+   * (streams); the kinds there are; and whether the hub is running.
+   */
+  public static listSensors<ThrowOnError extends boolean = false>(
+    options?: Options<ListSensorsData, ThrowOnError>,
+  ): RequestResult<ListSensorsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListSensorsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/sensors",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Sensor
+   *
+   * Add a stream sensor before it reports (to give it a namespace and handling up front), or a webhook. A webhook's
+   * token is in the answer and never shown again. Storage, email and calendar sensors are added as sources.
+   */
+  public static createSensor<ThrowOnError extends boolean = false>(
+    options: Options<CreateSensorData, ThrowOnError>,
+  ): RequestResult<CreateSensorResponses, CreateSensorErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateSensorResponses, CreateSensorErrors, ThrowOnError>({
+      url: "/api/v1/sensors",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Review New
+   *
+   * Give every new sensor its suggested handling, and mark them looked at.
+   */
+  public static reviewNew<ThrowOnError extends boolean = false>(
+    options?: Options<ReviewNewData, ThrowOnError>,
+  ): RequestResult<ReviewNewResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<ReviewNewResponses, unknown, ThrowOnError>({
+      url: "/api/v1/sensors/review",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Sensor
+   *
+   * Remove a sensor and everything it kept (a file sensor's resources stay).
+   */
+  public static deleteSensor<ThrowOnError extends boolean = false>(
+    options: Options<DeleteSensorData, ThrowOnError>,
+  ): RequestResult<DeleteSensorResponses, DeleteSensorErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteSensorResponses, DeleteSensorErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Sensor
+   */
+  public static getSensor<ThrowOnError extends boolean = false>(
+    options: Options<GetSensorData, ThrowOnError>,
+  ): RequestResult<GetSensorResponses, GetSensorErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetSensorResponses, GetSensorErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Sensor
+   *
+   * Rename a stream sensor, change its status (new, active, paused: nothing kept, ignored: nothing kept and out of
+   * sight), its namespace (`space: null` for none) or its handling (a handling setting of null goes back to the
+   * settings' default).
+   */
+  public static updateSensor<ThrowOnError extends boolean = false>(
+    options: Options<UpdateSensorData, ThrowOnError>,
+  ): RequestResult<UpdateSensorResponses, UpdateSensorErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateSensorResponses, UpdateSensorErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Apply Suggestion
+   *
+   * Give a stream sensor the handling suggested for it, and mark it looked at.
+   */
+  public static applySuggestion<ThrowOnError extends boolean = false>(
+    options: Options<ApplySuggestionData, ThrowOnError>,
+  ): RequestResult<ApplySuggestionResponses, ApplySuggestionErrors, ThrowOnError> {
+    return (options.client ?? client).post<ApplySuggestionResponses, ApplySuggestionErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}/suggestion",
+      ...options,
+    });
+  }
+
+  /**
+   * New Token
+   *
+   * A new token for a webhook; the old one stops working.
+   */
+  public static newToken<ThrowOnError extends boolean = false>(
+    options: Options<NewTokenData, ThrowOnError>,
+  ): RequestResult<NewTokenResponses, NewTokenErrors, ThrowOnError> {
+    return (options.client ?? client).post<NewTokenResponses, NewTokenErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}/token",
+      ...options,
+    });
+  }
+
+  /**
+   * List Readings
+   *
+   * A stream sensor's readings, newest first.
+   */
+  public static listReadings<ThrowOnError extends boolean = false>(
+    options: Options<ListReadingsData, ThrowOnError>,
+  ): RequestResult<ListReadingsResponses, ListReadingsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListReadingsResponses, ListReadingsErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}/readings",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Series
+   *
+   * Hourly summaries of a stream (count, min, max, average, last), oldest first.
+   */
+  public static getSeries<ThrowOnError extends boolean = false>(
+    options: Options<GetSeriesData, ThrowOnError>,
+  ): RequestResult<GetSeriesResponses, GetSeriesErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetSeriesResponses, GetSeriesErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}/series",
+      ...options,
+    });
+  }
+
+  /**
+   * List Logins
+   *
+   * The usernames devices sign in to the MQTT hub with.
+   */
+  public static listLogins<ThrowOnError extends boolean = false>(
+    options?: Options<ListLoginsData, ThrowOnError>,
+  ): RequestResult<ListLoginsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListLoginsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/sensor-logins",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Login
+   */
+  public static createLogin<ThrowOnError extends boolean = false>(
+    options: Options<CreateLoginData, ThrowOnError>,
+  ): RequestResult<CreateLoginResponses, CreateLoginErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateLoginResponses, CreateLoginErrors, ThrowOnError>({
+      url: "/api/v1/sensor-logins",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Login
+   */
+  public static deleteLogin<ThrowOnError extends boolean = false>(
+    options: Options<DeleteLoginData, ThrowOnError>,
+  ): RequestResult<DeleteLoginResponses, DeleteLoginErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteLoginResponses, DeleteLoginErrors, ThrowOnError>({
+      url: "/api/v1/sensor-logins/{lid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Push
+   *
+   * Send readings to a webhook sensor, with its token as a bearer token. Plain text is a reading per line; JSON is
+   * one reading, or several as {readings: [{stream, value}]}. `?stream=` names the stream (default: default).
+   */
+  public static push<ThrowOnError extends boolean = false>(
+    options?: Options<PushData, ThrowOnError>,
+  ): RequestResult<PushResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<PushResponses, unknown, ThrowOnError>({
+      url: "/api/v1/sensors/push",
+      ...options,
+    });
+  }
+
+  /**
+   * Push Token
+   *
+   * The same, with the token in the address, for devices that can only be given a URL.
+   */
+  public static pushToken<ThrowOnError extends boolean = false>(
+    options: Options<PushTokenData, ThrowOnError>,
+  ): RequestResult<PushTokenResponses, PushTokenErrors, ThrowOnError> {
+    return (options.client ?? client).post<PushTokenResponses, PushTokenErrors, ThrowOnError>({
+      url: "/api/v1/sensors/push/{token}",
+      ...options,
+    });
+  }
+
+  /**
+   * Push Stream
+   *
+   * The same, to a named stream.
+   */
+  public static pushStream<ThrowOnError extends boolean = false>(
+    options: Options<PushStreamData, ThrowOnError>,
+  ): RequestResult<PushStreamResponses, PushStreamErrors, ThrowOnError> {
+    return (options.client ?? client).post<PushStreamResponses, PushStreamErrors, ThrowOnError>({
+      url: "/api/v1/sensors/push/{token}/{stream}",
       ...options,
     });
   }

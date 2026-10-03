@@ -41,6 +41,22 @@ EDITABLE = {
     "mail": None,
     "notifications": None,
     "telemetry": None,
+    # bind is a startup setting only
+    "sensors": (
+        "enabled",
+        "mqtt",
+        "mqtt_port",
+        "mqtt_anonymous",
+        "syslog",
+        "syslog_port",
+        "syslog_networks",
+        "max_payload_kb",
+        "store",
+        "raw_days",
+        "rollup_days",
+        "important_days",
+        "max_per_minute",
+    ),
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -304,6 +320,8 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "sensors":
+        return _sensor_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
     if section == "mail" and key != "security":
@@ -495,6 +513,44 @@ def _notify_setting(key, value):
     lo, hi = NOTIFY_RANGES[key]
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"notifications.{key} is a whole number from {lo} to {hi}")
+    return value
+
+
+SENSOR_RANGES = {
+    "mqtt_port": (1, 65535),
+    "syslog_port": (1, 65535),
+    "max_payload_kb": (1, 16384),
+    "raw_days": (1, 36500),
+    "rollup_days": (1, 36500),
+    "important_days": (1, 36500),
+    "max_per_minute": (1, 100_000),
+}
+
+
+def _sensor_setting(key, value):
+    if key in ("enabled", "mqtt", "mqtt_anonymous", "syslog"):
+        if not isinstance(value, bool):
+            raise ValueError(f"sensors.{key} is true or false")
+        return value
+    if key == "store":
+        if value not in ("all", "changes", "summary", "none"):
+            raise ValueError("sensors.store is one of: all, changes, summary, none")
+        return value
+    if key == "syslog_networks":
+        if not isinstance(value, list):
+            raise ValueError("sensors.syslog_networks is a list of networks like 192.168.1.0/24")
+        out = []
+        for v in value:
+            try:
+                out.append(str(ipaddress.ip_network(str(v).strip(), strict=False)))
+            except ValueError:
+                raise ValueError(f"sensors.syslog_networks: {v} isn't a network like 192.168.1.0/24") from None
+        return list(dict.fromkeys(out))
+    lo, hi = SENSOR_RANGES[key]
+    if key in ("raw_days", "rollup_days", "important_days") and value is None:
+        return None  # kept for good
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"sensors.{key} is a whole number from {lo} to {hi}")
     return value
 
 
