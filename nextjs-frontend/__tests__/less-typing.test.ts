@@ -21,3 +21,15 @@ describe("less typing", () => {
     expect(suggestedName("manual", [])).toBe("On demand routine");
   });
 });
+
+describe("a file's language", () => {
+  it("is read from its name", () => {
+    const { guessLanguage } = jest.requireActual("@/components/recording/files-model");
+    expect(guessLanguage("talk.pt-BR.vtt")).toBe("pt-BR");
+    expect(guessLanguage("talk.pt_br.vtt")).toBe("pt-BR");
+    expect(guessLanguage("notes.en.srt")).toBe("en");
+    expect(guessLanguage("es-419.x.es-419.vtt")).toBe("es-419");
+    expect(guessLanguage("report.v2.pdf")).toBe("");
+    expect(guessLanguage("harbour.vtt")).toBe("");
+  });
+});
