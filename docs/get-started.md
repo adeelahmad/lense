@@ -47,13 +47,13 @@ first time they are visited, so the first visit to each takes a few seconds; bot
 is much faster run natively than through Docker's file sharing: keep the rest in Docker and run `cd nextjs-frontend &&
 pnpm install && pnpm dev` with `API_BASE_URL=http://localhost:8000` in `.env.local`.
 
-On first start the API log prints a setup code:
+On first start the API log prints a setup code, and a link that fills it in (`make setup-code` shows the line):
 
 ```
-No accounts yet. Create the first admin in the web app with setup code: …
+No accounts yet. Create the first admin in the web app with setup code: … (or open http://localhost:3000/setup?code=…, which fills it in)
 ```
 
-Open the web app, choose **Set up**, and create the admin account with it. A short wizard then asks for the first
+Open the link (or the web app, and enter the code) and create the admin account. A short wizard then asks for the first
 namespace, the model provider and storage; skip any of it and change it later in Settings
 ([Configuration](configuration.md#first-run-setup) lists the `.env` values that answer it instead).
 

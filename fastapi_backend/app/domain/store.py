@@ -973,7 +973,13 @@ def ns_id(db, name, create=True):
     if not NS_RX.match(name or ""):
         raise SystemExit(f"namespace names use lowercase letters, digits, - and _: {name!r}")
     sid = db.next_id("space")
-    db.q("CREATE $r CONTENT $d", r=R("space", sid), d={"name": name, "graph": "shared"})
+    try:
+        db.q("CREATE $r CONTENT $d", r=R("space", sid), d={"name": name, "graph": "shared"})
+    except Exception:  # noqa: BLE001 - another process made it first (the API and a worker starting on a fresh database)
+        row = db.one("SELECT record::id(id) AS id FROM space WHERE name = $n LIMIT 1", n=name)
+        if not row:
+            raise
+        return row["id"]
     default_collection(db, sid)
     return sid
 
