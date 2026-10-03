@@ -997,6 +997,10 @@ export type ChatMessage = {
    */
   content: string;
   /**
+   * a question asked from a page: the page, and any highlighted text
+   */
+  context?: SharedContext | null;
+  /**
    * Attachments
    *
    * files sent with it (POST /uploads with hold)
@@ -3153,6 +3157,314 @@ export type EventInfo = {
 };
 
 /**
+ * Extension
+ */
+export type Extension = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   *
+   * what the assistant calls it: its tool or skill name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: "tool" | "skill" | "hook" | "plugin";
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   *
+   * who sees it, when shared with namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Enabled
+   *
+   * whether it's switched on in conversations
+   */
+  enabled: boolean;
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null;
+  /**
+   * Editable
+   */
+  editable?: boolean;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Spec
+   *
+   * the tool, skill, hook or plugin itself, as its manifest has it
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Origin
+   *
+   * how this version was made: code, canvas or chat
+   */
+  origin?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionCreate
+ */
+export type ExtensionCreate = {
+  /**
+   * Manifest
+   *
+   * {name, kind, description, ...settings}
+   */
+  manifest?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Text
+   *
+   * the manifest as code: YAML, JSON, or Markdown with frontmatter
+   */
+  text?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+  /**
+   * Origin
+   */
+  origin?: "code" | "canvas" | "chat";
+};
+
+/**
+ * ExtensionDetail
+ */
+export type ExtensionDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   *
+   * what the assistant calls it: its tool or skill name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: "tool" | "skill" | "hook" | "plugin";
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   *
+   * who sees it, when shared with namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Enabled
+   *
+   * whether it's switched on in conversations
+   */
+  enabled: boolean;
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null;
+  /**
+   * Editable
+   */
+  editable?: boolean;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Spec
+   *
+   * the tool, skill, hook or plugin itself, as its manifest has it
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Origin
+   *
+   * how this version was made: code, canvas or chat
+   */
+  origin?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Manifest
+   *
+   * the extension as a manifest to read, change and import again
+   */
+  manifest: string;
+  /**
+   * History
+   */
+  history?: Array<ExtensionVersionInfo>;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionTest
+ */
+export type ExtensionTest = {
+  /**
+   * Tool
+   *
+   * which of a plugin's tools (a tool extension: itself)
+   */
+  tool?: string | null;
+  /**
+   * Args
+   */
+  args?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Confirm
+   *
+   * needed to try a tool that changes something: it really runs
+   */
+  confirm?: boolean;
+};
+
+/**
+ * ExtensionTestResult
+ */
+export type ExtensionTestResult = {
+  /**
+   * Output
+   */
+  output?: unknown;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionUpdate
+ */
+export type ExtensionUpdate = {
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone" | null;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<string> | null;
+};
+
+/**
+ * ExtensionVersionCreate
+ */
+export type ExtensionVersionCreate = {
+  /**
+   * Manifest
+   */
+  manifest?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Text
+   */
+  text?: string | null;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Origin
+   */
+  origin?: "code" | "canvas" | "chat";
+};
+
+/**
+ * ExtensionVersionInfo
+ */
+export type ExtensionVersionInfo = {
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Origin
+   */
+  origin?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * FaceDismiss
  */
 export type FaceDismiss = {
@@ -4840,6 +5152,31 @@ export type Machine = {
 };
 
 /**
+ * ManifestCheck
+ */
+export type ManifestCheck = {
+  /**
+   * Text
+   */
+  text: string;
+};
+
+/**
+ * ManifestChecked
+ */
+export type ManifestChecked = {
+  /**
+   * Manifest
+   *
+   * the manifest, read and checked
+   */
+  manifest: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * Me
  */
 export type Me = {
@@ -5029,6 +5366,10 @@ export type MessageCreate = {
    * the question (up to 4000 characters); may be empty when files are attached
    */
   content?: string;
+  /**
+   * asked from a page: the page, its text and any highlighted part
+   */
+  context?: PageContext | null;
   /**
    * Attachments
    *
@@ -6253,6 +6594,36 @@ export type Page = {
    */
   label?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * PageContext
+ *
+ * The page a question was asked from (chat on any page): where it is, and what of it the person shared.
+ */
+export type PageContext = {
+  /**
+   * Url
+   *
+   * the page's path in Lens, e.g. /resources/12?t=30
+   */
+  url: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Text
+   *
+   * the page's visible text, when the person shares the page (only the first 12,000 characters are used)
+   */
+  text?: string | null;
+  /**
+   * Selection
+   *
+   * text the person highlighted on it (only the first 4,000 characters are used)
+   */
+  selection?: string | null;
 };
 
 /**
@@ -7493,6 +7864,107 @@ export type PublicTranscript = {
    * transcript files; offered when the transcript is open to everyone
    */
   downloads: Array<PublicDownload>;
+  [key: string]: unknown;
+};
+
+/**
+ * RdfImport
+ */
+export type RdfImport = {
+  /**
+   * Data
+   *
+   * the RDF: Turtle, N-Triples or JSON-LD (with its @context inline)
+   */
+  data: string;
+  /**
+   * Format
+   *
+   * turtle, nt or json-ld; guessed from the data when left out
+   */
+  format?: string | null;
+  /**
+   * Dry Run
+   *
+   * report what would change without changing it
+   */
+  dry_run?: boolean;
+};
+
+/**
+ * RdfImportItem
+ */
+export type RdfImportItem = {
+  /**
+   * Subject
+   */
+  subject: string;
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Fields
+   *
+   * the metadata fields it changes (or would)
+   */
+  fields: Array<string>;
+  /**
+   * Notes
+   */
+  notes: Array<string>;
+  /**
+   * Statements
+   *
+   * other statements kept with the recording
+   */
+  statements: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RdfImportResult
+ */
+export type RdfImportResult = {
+  /**
+   * Dry Run
+   */
+  dry_run: boolean;
+  /**
+   * Triples
+   */
+  triples: number;
+  /**
+   * Matched
+   */
+  matched: number;
+  /**
+   * Changed
+   */
+  changed: number;
+  /**
+   * Items
+   */
+  items: Array<RdfImportItem>;
+  /**
+   * Unmatched
+   */
+  unmatched: Array<RdfUnmatched>;
+  [key: string]: unknown;
+};
+
+/**
+ * RdfUnmatched
+ */
+export type RdfUnmatched = {
+  /**
+   * Subject
+   */
+  subject: string;
+  /**
+   * Title
+   */
+  title?: string | null;
   [key: string]: unknown;
 };
 
@@ -9472,6 +9944,33 @@ export type ShareSite = {
 };
 
 /**
+ * SharedContext
+ *
+ * What a question shared from the page it was asked on. The page's text itself isn't kept.
+ */
+export type SharedContext = {
+  /**
+   * Url
+   */
+  url: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Selection
+   */
+  selection?: string | null;
+  /**
+   * Page
+   *
+   * the page's text was shared
+   */
+  page?: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * Source
  */
 export type Source = {
@@ -9692,6 +10191,18 @@ export type SourceUpdated = {
   ok?: boolean;
   health: SourceHealth;
   [key: string]: unknown;
+};
+
+/**
+ * SparqlQuery
+ */
+export type SparqlQuery = {
+  /**
+   * Query
+   *
+   * a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query
+   */
+  query: string;
 };
 
 /**
@@ -17943,6 +18454,120 @@ export type GetNamespaceRdfResponses = {
 
 export type GetNamespaceRdfResponse = GetNamespaceRdfResponses[keyof GetNamespaceRdfResponses];
 
+export type ImportNamespaceRdfData = {
+  body: RdfImport;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/rdf/import";
+};
+
+export type ImportNamespaceRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportNamespaceRdfError = ImportNamespaceRdfErrors[keyof ImportNamespaceRdfErrors];
+
+export type ImportNamespaceRdfResponses = {
+  /**
+   * Successful Response
+   */
+  200: RdfImportResult;
+};
+
+export type ImportNamespaceRdfResponse = ImportNamespaceRdfResponses[keyof ImportNamespaceRdfResponses];
+
+export type QueryNamespaceSparqlData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query: {
+    /**
+     * Query
+     *
+     * a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query
+     */
+    query: string;
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/namespaces/{name}/sparql";
+};
+
+export type QueryNamespaceSparqlErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type QueryNamespaceSparqlError = QueryNamespaceSparqlErrors[keyof QueryNamespaceSparqlErrors];
+
+export type QueryNamespaceSparqlResponses = {
+  /**
+   * SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type QueryNamespaceSparqlResponse = QueryNamespaceSparqlResponses[keyof QueryNamespaceSparqlResponses];
+
+export type PostNamespaceSparqlData = {
+  body: SparqlQuery;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/namespaces/{name}/sparql";
+};
+
+export type PostNamespaceSparqlErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PostNamespaceSparqlError = PostNamespaceSparqlErrors[keyof PostNamespaceSparqlErrors];
+
+export type PostNamespaceSparqlResponses = {
+  /**
+   * SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type PostNamespaceSparqlResponse = PostNamespaceSparqlResponses[keyof PostNamespaceSparqlResponses];
+
 export type GetMediaData = {
   body?: never;
   path: {
@@ -20066,6 +20691,243 @@ export type CreateCustomNodeVersionResponses = {
 };
 
 export type CreateCustomNodeVersionResponse = CreateCustomNodeVersionResponses[keyof CreateCustomNodeVersionResponses];
+
+export type ListExtensionsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Kind
+     */
+    kind?: "tool" | "skill" | "hook" | "plugin" | null;
+  };
+  url: "/api/v1/extensions";
+};
+
+export type ListExtensionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListExtensionsError = ListExtensionsErrors[keyof ListExtensionsErrors];
+
+export type ListExtensionsResponses = {
+  /**
+   * Response Extensions-List Extensions
+   *
+   * Successful Response
+   */
+  200: Array<Extension>;
+};
+
+export type ListExtensionsResponse = ListExtensionsResponses[keyof ListExtensionsResponses];
+
+export type CreateExtensionData = {
+  body: ExtensionCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions";
+};
+
+export type CreateExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateExtensionError = CreateExtensionErrors[keyof CreateExtensionErrors];
+
+export type CreateExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type CreateExtensionResponse = CreateExtensionResponses[keyof CreateExtensionResponses];
+
+export type CheckManifestData = {
+  body: ManifestCheck;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/check";
+};
+
+export type CheckManifestErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CheckManifestError = CheckManifestErrors[keyof CheckManifestErrors];
+
+export type CheckManifestResponses = {
+  /**
+   * Successful Response
+   */
+  200: ManifestChecked;
+};
+
+export type CheckManifestResponse = CheckManifestResponses[keyof CheckManifestResponses];
+
+export type DeleteExtensionData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}";
+};
+
+export type DeleteExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteExtensionError = DeleteExtensionErrors[keyof DeleteExtensionErrors];
+
+export type DeleteExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteExtensionResponse = DeleteExtensionResponses[keyof DeleteExtensionResponses];
+
+export type GetExtensionData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: {
+    /**
+     * Version
+     */
+    version?: number | null;
+  };
+  url: "/api/v1/extensions/{eid}";
+};
+
+export type GetExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetExtensionError = GetExtensionErrors[keyof GetExtensionErrors];
+
+export type GetExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionDetail;
+};
+
+export type GetExtensionResponse = GetExtensionResponses[keyof GetExtensionResponses];
+
+export type UpdateExtensionData = {
+  body: ExtensionUpdate;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}";
+};
+
+export type UpdateExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateExtensionError = UpdateExtensionErrors[keyof UpdateExtensionErrors];
+
+export type UpdateExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateExtensionResponse = UpdateExtensionResponses[keyof UpdateExtensionResponses];
+
+export type CreateExtensionVersionData = {
+  body: ExtensionVersionCreate;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}/versions";
+};
+
+export type CreateExtensionVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateExtensionVersionError = CreateExtensionVersionErrors[keyof CreateExtensionVersionErrors];
+
+export type CreateExtensionVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: VersionSaved;
+};
+
+export type CreateExtensionVersionResponse = CreateExtensionVersionResponses[keyof CreateExtensionVersionResponses];
+
+export type TestExtensionData = {
+  body: ExtensionTest;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}/test";
+};
+
+export type TestExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestExtensionError = TestExtensionErrors[keyof TestExtensionErrors];
+
+export type TestExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionTestResult;
+};
+
+export type TestExtensionResponse = TestExtensionResponses[keyof TestExtensionResponses];
 
 export type ListChatsData = {
   body?: never;

@@ -138,3 +138,94 @@ def test_terms_field(env):
     assert m["meta"]["terms"] == {"alternative": ["Episode one"], "temporal": ["2026"]}
     dc = c.get(f"/iiif/{env.pub}/dc.xml").text
     assert "<dc:title>Episode one</dc:title>" in dc and "<dc:coverage>2026</dc:coverage>" in dc
+
+
+def test_import_round_trip_and_dublin_core(env):
+    c, h = env.admin()
+    rid = env.pub
+    metadata.save(env.db, env.cfg, rid, {"identifiers": [{"type": "DOI", "value": "10.1234/ep1"}], "terms": {"spatial": ["Berlin"]}})
+    exported = c.get(f"/api/v1/recordings/{rid}/rdf", headers=h).text
+    url = "/api/v1/namespaces/pods/rdf/import"
+    same = c.post(url, headers=h, json={"data": exported}).json()
+    assert same["matched"] == 1 and same["changed"] == 0, same  # what Lens says of itself changes nothing
+
+    ttl = f"""
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix ex: <https://example.org/vocab#> .
+<{BASE}/id/recording/{rid}> dcterms:title "Capsid episode"@en ;
+    dcterms:temporal "2026" ;
+    dcterms:license <https://creativecommons.org/licenses/by/4.0/> ;
+    ex:rating "5" .
+<https://elsewhere.example/item/9> dc:identifier "10.1234/ep1" ; dc:title "Episode one, catalogued" ; dc:coverage "Europe" .
+<https://elsewhere.example/item/10> dcterms:title "Nothing here" .
+"""
+    dry = c.post(url, headers=h, json={"data": ttl}).json()
+    assert dry["dry_run"] and dry["matched"] == 2 and [u["title"] for u in dry["unmatched"]] == ["Nothing here"]
+    first = next(i for i in dry["items"] if i["subject"].endswith(f"/id/recording/{rid}"))
+    assert first["fields"] == ["label", "rights", "statements", "terms"] and first["statements"] == 1
+    assert c.get(f"/api/v1/recordings/{rid}/metadata", headers=h).json()["meta"]["label"] != {"en": ["Capsid episode"]}
+
+    done = c.post(url, headers=h, json={"data": ttl, "dry_run": False}).json()
+    assert done["changed"] == 2
+    meta = c.get(f"/api/v1/recordings/{rid}/metadata", headers=h).json()["meta"]
+    assert meta["label"] == {"none": ["Episode one, catalogued"]}  # described twice: terms add up, the one read last wins
+    assert "more than once" in done["items"][1]["notes"][0]
+    assert meta["terms"] == {"spatial": ["Berlin"], "temporal": ["2026"], "coverage": ["Europe"]}  # the ones it didn't mention stay
+    assert meta["statements"] == [{"p": "https://example.org/vocab#rating", "o": "5"}]
+    g = parse(c.get(f"/api/v1/recordings/{rid}/rdf", headers=h))
+    assert (URIRef(f"{BASE}/id/recording/{rid}"), URIRef("https://example.org/vocab#rating"), Literal("5")) in g  # said again
+    assert "metadata.rdf_import" in [a["action"] for a in c.get("/api/v1/audit", headers=h).json()]
+    hist = c.get(f"/api/v1/recordings/{rid}/metadata/history", headers=h).json()
+    assert c.post(f"/api/v1/metadata/edits/{hist[0]['id']}/revert", headers=h).status_code == 200  # an import is revertable
+
+    jsonld = {
+        "@context": {"dcterms": "http://purl.org/dc/terms/"},
+        "@id": f"{BASE}/id/recording/{rid}",
+        "dcterms:audience": "Researchers",
+    }
+    r = c.post(url, headers=h, json={"data": json.dumps(jsonld), "dry_run": False}).json()
+    assert r["items"][0]["fields"] == ["terms"]
+    remote = {**jsonld, "@context": "https://schema.org/"}
+    bad = c.post(url, headers=h, json={"data": json.dumps(remote)})
+    assert bad.status_code == 400 and "@context" in bad.text
+    assert c.post(url, headers=h, json={"data": "<rdf:RDF/>", "format": "xml"}).status_code == 400
+    assert c.post(url, headers=h, json={"data": "this is not turtle ."}).status_code == 400
+
+    # a recording of another namespace isn't touched from here; viewers can't import
+    other = f'<{BASE}/id/recording/{env.call}> <http://purl.org/dc/terms/title> "x" .'
+    assert c.post(url, headers=h, json={"data": other}).json()["matched"] == 0
+    vh = login(c, "vi@x.io", "viewer password 1")
+    assert c.post(url, headers=vh, json={"data": ttl}).status_code == 403
+
+
+def test_sparql(env):
+    c, h = env.admin()
+    url = "/api/v1/namespaces/pods/sparql"
+    q = "SELECT ?name WHERE { ?e a skos:Concept ; skos:prefLabel ?name } ORDER BY ?name"
+    r = c.get(url, headers=h, params={"query": q})
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/sparql-results+json")
+    names = [b["name"]["value"] for b in r.json()["results"]["bindings"]]
+    assert "Dyno Therapeutics" in names and r.json()["head"]["vars"] == ["name"]
+
+    ask = c.post(url, headers=h, json={"query": 'ASK { ?r dcterms:title "ep1" }'}).json()
+    assert ask["boolean"] is True
+    built = c.post(url, headers=h, json={"query": "CONSTRUCT { ?r dcterms:title ?t } WHERE { ?r a lens:Item ; dcterms:title ?t }"})
+    assert built.headers["content-type"].startswith("text/turtle")
+    assert len(list(parse(built).triples((None, DCTERMS.title, None)))) == 3
+
+    for bad, why in (
+        ("SELECT * WHERE { SERVICE <https://dbpedia.org/sparql> { ?s ?p ?o } }", "SERVICE"),
+        ("SELECT * FROM <https://example.org/data.ttl> WHERE { ?s ?p ?o }", "FROM"),
+        ("SELECT * FROM NAMED <https://example.org/data.ttl> WHERE { GRAPH ?g { ?s ?p ?o } }", "FROM"),
+        ("INSERT DATA { <a:b> <a:c> <a:d> }", "SELECT"),
+        ("LOAD <https://example.org/data.ttl>", "SELECT"),
+        ("SELECT nonsense", "SELECT"),
+    ):
+        r = c.post(url, headers=h, json={"query": bad})
+        assert r.status_code == 400 and why in r.text, (bad, r.text)
+
+    vh = login(c, "vi@x.io", "viewer password 1")
+    assert c.get(url, headers=vh, params={"query": q}).status_code == 200
+    assert c.get("/api/v1/namespaces/calls/sparql", headers=vh, params={"query": q}).status_code == 404
+    assert c.get(url, params={"query": q}).status_code == 401

@@ -189,6 +189,13 @@ def add_recording(g, db, cfg, u: Uris, rid, member=False, entities=None):
     for term, vals in (meta.get("terms") or {}).items():
         for v in vals:
             g.add((s, DCTERMS[term], _value(v)))
+    for st in meta.get("statements") or []:
+        o = (
+            URIRef(st["o"])
+            if st.get("uri")
+            else Literal(st["o"], lang=st.get("lang"), datatype=URIRef(st["datatype"]) if st.get("datatype") else None)
+        )
+        g.add((s, URIRef(st["p"]), o))
     if row.get("duration_ms") and kind in ("audio", "video"):
         g.add((s, DCTERMS.extent, Literal(md._iso_duration(row["duration_ms"]), datatype=XSD.duration)))
     path = str(row.get("path") or "")
@@ -444,3 +451,83 @@ def negotiate(accept: str | None, fmt: str | None = None) -> str | None:
         if name and q > best_q:
             best, best_q = name, q
     return None if best in (None, "html") else best
+
+
+# ---------- SPARQL: read-only queries over a namespace's graph ----------
+SPARQL_ROWS = 10000
+SPARQL_PREFIXES = {"dcterms": DCTERMS, "dcmitype": DCMITYPE, "foaf": FOAF, "skos": SKOS, "owl": OWL, "rdf": RDF, "rdfs": RDFS, "xsd": XSD}
+
+
+class QueryProblem(ValueError):
+    pass
+
+
+def _walk(node):
+    """Every part of a parsed query's algebra."""
+    yield node
+    if isinstance(node, dict):
+        for v in node.values():
+            yield from _walk(v)
+    elif isinstance(node, list | tuple):
+        for v in node:
+            yield from _walk(v)
+
+
+def check_query(text: str, u: Uris):
+    """A read-only query that reaches nothing outside the graph: SELECT, ASK, CONSTRUCT or DESCRIBE, without SERVICE
+    (another endpoint) or FROM (a graph to load). Returns the prepared query; QueryProblem otherwise."""
+    from rdflib.plugins.sparql import prepareQuery
+
+    try:
+        q = prepareQuery(text, initNs={**SPARQL_PREFIXES, "lens": u.vocab})
+    except Exception as e:  # rdflib/pyparsing raise many kinds; an update isn't a query either
+        raise QueryProblem(f"that isn't a SPARQL query Lens runs (SELECT, ASK, CONSTRUCT or DESCRIBE): {str(e)[:300]}") from None
+    for part in _walk(q.algebra):
+        if getattr(part, "name", None) == "ServiceGraphPattern":
+            raise QueryProblem("SERVICE isn't allowed: queries run on this archive only")
+        if isinstance(part, dict) and dict.get(part, "datasetClause"):  # CompValue.get answers a missing key's name
+            raise QueryProblem("FROM isn't allowed: queries run on the namespace's graph")
+    return q
+
+
+def _term_json(t):
+    if isinstance(t, URIRef):
+        return {"type": "uri", "value": str(t)}
+    if isinstance(t, BNode):
+        return {"type": "bnode", "value": str(t)}
+    out = {"type": "literal", "value": str(t)}
+    if t.language:
+        out["xml:lang"] = t.language
+    elif t.datatype:
+        out["datatype"] = str(t.datatype)
+    return out
+
+
+def sparql(g: Graph, text: str, base: str):
+    """Run a read-only query: ("results", SPARQL 1.1 JSON results) for SELECT and ASK, ("graph", Graph) for CONSTRUCT
+    and DESCRIBE."""
+    import rdflib.plugins.sparql as rsparql
+
+    rsparql.SPARQL_LOAD_GRAPHS = False  # never fetch a graph a query names
+    q = check_query(text, Uris(base))
+    try:
+        res = g.query(q)
+    except Exception as e:
+        raise QueryProblem(f"the query failed: {str(e)[:300]}") from None
+    if res.type == "ASK":
+        return "results", {"head": {}, "boolean": bool(res.askAnswer)}
+    if res.type == "SELECT":
+        names = [str(v) for v in res.vars or []]
+        rows = []
+        for i, row in enumerate(res):
+            if i >= SPARQL_ROWS:
+                break
+            rows.append({n: _term_json(row[n]) for n in names if row[n] is not None})
+        out = {"head": {"vars": names}, "results": {"bindings": rows}}
+        if len(rows) == SPARQL_ROWS:
+            out["head"]["link"] = [f"truncated at {SPARQL_ROWS} rows: add LIMIT and OFFSET"]
+        return "results", out
+    out_g = new_graph(Uris(base))
+    for t in res:
+        out_g.add(t)
+    return "graph", out_g

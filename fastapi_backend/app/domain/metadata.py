@@ -44,6 +44,7 @@ FIELDS = (
     "homepage",
     "related",
     "terms",
+    "statements",
     "access",
     "open",
     "featured",
@@ -153,6 +154,40 @@ def _terms(v):
     return out
 
 
+STATEMENTS_MAX = 500
+
+
+def _statements(v):
+    """Other RDF statements about the recording, kept as they came (an RDF import: rdf.py says them again):
+    [{p: property URI, o: value, uri: whether the value is a resource, lang, datatype}]."""
+    if not isinstance(v, list):
+        raise MetaProblem("statements is a list of {p, o} pairs")
+    out = []
+    for x in v[:STATEMENTS_MAX]:
+        if not isinstance(x, dict) or not isinstance(x.get("o"), str):
+            raise MetaProblem("every statement has a property (p) and a value (o)")
+        p = _uri(x.get("p"), "a statement's property")
+        if not p:
+            raise MetaProblem("every statement has a property (p) and a value (o)")
+        uri = bool(x.get("uri"))
+        if uri:
+            _uri(x["o"], "a statement's value")
+        if x.get("lang") and not LANG_RX.match(str(x["lang"])):
+            raise MetaProblem(f"'{x['lang']}' isn't a language code")
+        st = store.clean(
+            {
+                "p": p,
+                "o": x["o"][:TERM_MAX],
+                "uri": uri or None,
+                "lang": None if uri else x.get("lang") or None,
+                "datatype": None if uri else _uri(x.get("datatype"), "a statement's datatype"),
+            }
+        )
+        if st not in out:
+            out.append(st)
+    return out
+
+
 def clean(patch):
     """Validate and normalise fields someone is saving. None clears a field (it won't fall back to a default)."""
     out = {}
@@ -251,6 +286,8 @@ def clean(patch):
             ]
         elif k == "terms":
             out[k] = _terms(v) or None
+        elif k == "statements":
+            out[k] = _statements(v) or None
         elif k == "open":
             try:
                 out[k] = acc.parts(v)
