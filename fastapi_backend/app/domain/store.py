@@ -865,7 +865,10 @@ def ns_id(db, name, create=True):
     try:
         db.q("CREATE $r CONTENT $d", r=R("space", sid), d={"name": name, "graph": "shared"})
     except Exception:  # noqa: BLE001 - another process made it first (the API and a worker starting on a fresh database)
-        return db.one("SELECT record::id(id) AS id FROM space WHERE name = $n LIMIT 1", n=name)["id"]
+        row = db.one("SELECT record::id(id) AS id FROM space WHERE name = $n LIMIT 1", n=name)
+        if not row:
+            raise
+        return row["id"]
     default_collection(db, sid)
     return sid
 
