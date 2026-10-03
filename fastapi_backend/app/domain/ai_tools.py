@@ -253,7 +253,7 @@ class Toolbox(ops_tools.OpsTools):
                 return self._approval(
                     "extension", {"tool": t["name"], "extension": t["ext"], "version": t["version"], "args": args}, f"Run {what}"
                 )
-            out = extensions.run_tool(self.db, self.cfg, t["spec"], args)
+            out = extensions.run_tool(self.db, self.cfg, t["spec"], args, toolbox=self)
             return out, f"Ran {what}"
 
         return run
@@ -563,7 +563,8 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
         return {"status": "declined"}
     args = a["args"]
     if a["tool"] == "extension":
-        result = run_extension(db, cfg, args, user, admin, readable if readable is not None else editable)
+        box = Toolbox(db, cfg, user, readable if readable is not None else editable, editable, None, a["chat"], base, admin)
+        result = run_extension(db, cfg, args, user, admin, box.readable, box)
     elif a["tool"] in ("change_settings", "create_namespace", "import_files"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
     elif a["tool"] == "run_template":
@@ -619,7 +620,7 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
     return {"status": "done", **result}
 
 
-def run_extension(db, cfg, args, user, admin, readable):
+def run_extension(db, cfg, args, user, admin, readable, toolbox=None):
     """An approved extension tool: the version that was proposed, if it's still on and still the person's to use."""
     g = extensions.get(db, int(args["extension"]), args.get("version"))
     me = extensions.who(user["id"], user.get("email"), admin, {s: "viewer" for s in readable})
@@ -629,5 +630,5 @@ def run_extension(db, cfg, args, user, admin, readable):
     t = next((it for it in items if it.get("kind") == "tool" and it["name"] == args["tool"]), None)
     if not t:
         raise ValueError(f"the extension has no tool {args['tool']} any more")
-    out = extensions.run_tool(db, cfg, t["spec"], extensions.tool_args(t["spec"], args.get("args") or {}))
+    out = extensions.run_tool(db, cfg, t["spec"], extensions.tool_args(t["spec"], args.get("args") or {}), toolbox=toolbox)
     return {"output": out}

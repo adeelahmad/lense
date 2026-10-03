@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import re
 
-from . import analyze, fields as fieldmod, flow, llm, metadata, organize, pipelines, store, telemetry, templates
+from . import analyze, fields as fieldmod, flow, llm, metadata, organize, pipelines, store, telemetry, templates, tool_nodes
 
 R = store.R
 OWN_NODES = ("llm", "extract_rules", "extract_llm", "output", "field", "save_entities")
@@ -406,8 +406,13 @@ KITS = {
         "graph", organize.OWN_NODES, organize.CONFIG, _check_config, organize.run_node, {"apply_changes"},
         "a graph workflow needs an apply changes node, or it changes nothing",
     ),
+    # an assistant tool drawn on the canvas (tool_nodes.py): only ever a body, from its parameters to what it gives back
+    "tool": flow.Kit(
+        "tool", tool_nodes.OWN_NODES, tool_nodes.CONFIG, lambda db, nid, t, cfg: tool_nodes.check_config(db, nid, t, cfg),
+        tool_nodes.run_node, set(), "a tool's graph is the body of a tool",
+    ),
 }  # fmt: skip
 SCOPES = {s: k.all_types for s, k in KITS.items()}
 RECORDING_NODES = SCOPES["recording"]
-NODE_TYPES = RECORDING_NODES + tuple(t for t in SCOPES["graph"] if t not in RECORDING_NODES)
-CONFIG = {**flow.CONFIG, **OWN_CONFIG, **organize.CONFIG}
+NODE_TYPES = RECORDING_NODES + tuple(t for s in ("graph", "tool") for t in SCOPES[s] if t not in RECORDING_NODES)
+CONFIG = {**flow.CONFIG, **OWN_CONFIG, **organize.CONFIG, **tool_nodes.CONFIG}

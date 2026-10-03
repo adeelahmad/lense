@@ -278,3 +278,51 @@ def test_bad_manifests_are_told_not_crashed(app, db, cfg, folder, new_client):
     assert c.post("/api/v1/extensions", headers=h, json={"text": hosty}).status_code == 400
     with pytest.raises(ValueError, match="can't change where"):
         extensions.http_call(cfg, {"type": "http", "url": "https://{{x}}.example.com/"}, {"x": "evil.com/"})
+
+
+def test_tools_drawn_on_the_canvas(app, db, cfg, folder, new_client, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    graph = {
+        "nodes": [
+            {"id": "q", "type": "arg", "config": {"name": "topic"}},
+            {"id": "find", "type": "call_tool", "config": {"tool": "search_transcripts", "args": {"limit": 3}}},
+            {"id": "wrap", "type": "set", "config": {"fields": [{"key": "query", "path": ""}]}},
+            {"id": "count", "type": "pick", "config": {"path": "total"}},
+            {"id": "say", "type": "ask_model", "config": {"prompt": "There are {{ input }} matches."}},
+            {"id": "out", "type": "return", "config": {"name": "out"}},
+        ],
+        "edges": [
+            {"source": "q", "target": "wrap"},
+            {"source": "wrap", "target": "find"},
+            {"source": "find", "target": "count"},
+            {"source": "count", "target": "say"},
+            {"source": "say", "target": "out"},
+        ],
+    }
+    tool = {
+        "name": "count_mentions",
+        "kind": "tool",
+        "description": "Count how often a topic comes up and say it in a sentence.",
+        "params": [{"name": "topic", "kind": "text", "required": True}],
+        "run": {"type": "graph", "graph": graph},
+    }
+    # its arg nodes are its parameters
+    bad = {**tool, "params": [{"name": "subject", "kind": "text"}]}
+    r = c.post("/api/v1/extensions", headers=h, json={"manifest": bad, "origin": "canvas"})
+    assert r.status_code == 400 and "isn't one of the tool's parameters" in r.json()["detail"]
+    r = c.post("/api/v1/extensions", headers=h, json={"manifest": tool, "origin": "canvas"})
+    assert r.status_code == 200, r.text
+    tid = r.json()["id"]
+    assert c.get(f"/api/v1/extensions/{tid}", headers=h).json()["origin"] == "canvas"
+    llm.seen.clear()
+    out = c.post(f"/api/v1/extensions/{tid}/test", headers=h, json={"args": {"topic": "capsid"}}).json()
+    assert out["output"] == {"result": "OK"}
+    asked = [b for b in llm.seen if not b.get("tools")][-1]["messages"][-1]["content"]
+    assert asked.startswith("There are ") and asked.endswith(" matches.") and asked != "There are  matches."
+
+    # in a conversation it runs like any other tool
+    llm.tool_script = [{"content": "", "tool_calls": [call(1, "count_mentions", {"topic": "capsid"})]}, {"content": "Done."}]
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "how often is capsid mentioned"}).text)
+    assert ev["step"][0]["summary"] == 'Ran count_mentions(topic="capsid")'
