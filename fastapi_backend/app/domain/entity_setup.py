@@ -164,10 +164,13 @@ def effective(db, sid, cid=None, saved=None):
     """The setup that holds for collection `cid` of namespace `sid` (None: the namespace itself), and where it comes
     from: {"collection": id} for a collection's own, {"namespace": true}, or {"default": true}."""
     saved = scopes(db, sid) if saved is None else saved
-    if cid is not None:
-        for c in reversed(hierarchy.path(db, cid)):
-            if c["id"] in saved:
-                return {**saved[c["id"]], "from": {"collection": c["id"]}}
+    try:
+        chain = hierarchy.path(db, cid) if cid is not None else []
+    except KeyError:  # a collection deleted since
+        chain = []
+    for c in reversed(chain):
+        if c["id"] in saved:
+            return {**saved[c["id"]], "from": {"collection": c["id"]}}
     if None in saved:
         return {**saved[None], "from": {"namespace": True}}
     return {**DEFAULT, "from": {"default": True}}

@@ -60,7 +60,7 @@ def get_entity_setup(name: str, user: CurrentUser, acl: Acl, db: Db) -> EntitySe
     saved = setup.scopes(db, sid)
     paths = {n["id"]: n["path"] for n in hierarchy.tree(db, sid, counts={})}
     ns = saved.get(None) or setup.DEFAULT
-    cols = [_view(db, acl, sid, s, cid, paths) for cid, s in saved.items() if cid is not None and (only is None or cid in only)]
+    cols = [_view(db, acl, sid, s, cid, paths) for cid, s in saved.items() if cid in paths and (only is None or cid in only)]
     cols.sort(key=lambda c: [p.casefold() for p in c.collection_path])
     return EntitySetupView(
         namespace=_view(db, acl, sid, ns, None, paths),
