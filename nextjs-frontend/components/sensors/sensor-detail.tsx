@@ -115,7 +115,7 @@ function StreamCard({ sid, st, hours }: { sid: number; st: Stream; hours: number
         st.last_text && <p className="line-clamp-2 font-mono text-[12px] text-fg-secondary">{st.last_text}</p>
       )}
       <div className="text-[11.5px] text-fg-muted">
-        Last <DateTime iso={st.last_at} />
+        Last reading <DateTime iso={st.last_at} />
       </div>
     </li>
   );
@@ -268,18 +268,19 @@ function PatternsTab({ sid }: { sid: number }) {
                   </Td>
                   <Td className="whitespace-nowrap">
                     <div className="flex flex-col gap-1">
-                      <Select
-                        size="sm"
-                        className="w-[140px]"
-                        aria-label="Label"
-                        value={p.label ?? ""}
-                        disabled={update.isPending && update.variables?.p.id === p.id}
-                        onChange={(e) => update.mutate({ p, label: e.target.value || null })}
-                        options={[
-                          { value: "", label: "No label" },
-                          ...Object.entries(LABELS).map(([value, l]) => ({ value, label: l.label })),
-                        ]}
-                      />
+                      <div className="w-[150px]">
+                        <Select
+                          size="sm"
+                          aria-label="Label"
+                          value={p.label ?? ""}
+                          disabled={update.isPending && update.variables?.p.id === p.id}
+                          onChange={(e) => update.mutate({ p, label: e.target.value || null })}
+                          options={[
+                            { value: "", label: "No label" },
+                            ...Object.entries(LABELS).map(([value, l]) => ({ value, label: l.label })),
+                          ]}
+                        />
+                      </div>
                       {p.label && p.label_by && (
                         <span className="text-[11px] text-fg-muted">
                           by {p.label_by}

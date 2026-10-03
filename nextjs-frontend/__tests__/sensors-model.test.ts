@@ -77,8 +77,9 @@ describe("sensor model", () => {
 
   it("draws a sparkline with gaps where nothing arrived", () => {
     expect(sparkPath([], 100, 10)).toBe("");
-    expect(sparkPath([1, 2, null, 3], 30, 10)).toBe("M0 10L10 5M30 0");
+    expect(sparkPath([1, 2, null, 3], 30, 10)).toBe("M0 10L10 5M30 0h0.01");
     expect(sparkPath([5, 5], 10, 10)).toBe("M0 5L10 5");
+    expect(sparkPath([null, 3, null], 20, 10)).toBe("M10 5h0.01"); // one hour so far: a dot
     const now = new Date("2026-10-03T05:30:00Z");
     const filled = fillHours([{ hour: "2026-10-03T04", n: 1 }], 3, now);
     expect(filled).toEqual([null, { hour: "2026-10-03T04", n: 1 }, null]);

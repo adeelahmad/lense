@@ -184,7 +184,9 @@ export function sparkPath(points: (number | null | undefined)[], w: number, h: n
     }
     const x = +(i * step).toFixed(1);
     const y = +(hi === lo ? h / 2 : h - ((v - lo) / span) * h).toFixed(1);
-    d += `${pen ? "L" : "M"}${x} ${y}`;
+    // A point with no neighbour is drawn as a dot (a tiny stroke with round caps).
+    const alone = !pen && typeof points[i + 1] !== "number";
+    d += `${pen ? "L" : "M"}${x} ${y}${alone ? "h0.01" : ""}`;
     pen = true;
   });
   return d;
