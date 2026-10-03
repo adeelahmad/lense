@@ -5364,7 +5364,8 @@ export class Chats {
   /**
    * Send Message
    *
-   * Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
+   * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
+   * reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
    * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
    */
   public static sendMessage<ThrowOnError extends boolean = false>(

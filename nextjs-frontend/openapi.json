@@ -13730,7 +13730,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -17757,6 +17757,17 @@
           "content": {
             "type": "string",
             "title": "Content"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SharedContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a question asked from a page: the page, and any highlighted text"
           },
           "attachments": {
             "items": {
@@ -24741,6 +24752,17 @@
             "description": "the question (up to 4000 characters); may be empty when files are attached",
             "default": ""
           },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "asked from a page: the page, its text and any highlighted part"
+          },
           "attachments": {
             "items": {
               "type": "string"
@@ -26807,6 +26829,62 @@
         ],
         "title": "Page",
         "description": "A page of a document, or an image (a TIFF has one per frame)."
+      },
+      "PageContext": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2000,
+            "pattern": "^/([^/]|$)",
+            "title": "Url",
+            "description": "the page's path in Lens, e.g. /resources/12?t=30"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the page's visible text, when the person shares the page (only the first 12,000 characters are used)"
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection",
+            "description": "text the person highlighted on it (only the first 4,000 characters are used)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "PageContext",
+        "description": "The page a question was asked from (chat on any page): where it is, and what of it the person shared."
       },
       "Passage": {
         "properties": {
@@ -32536,6 +32614,49 @@
           "origin"
         ],
         "title": "ShareSite"
+      },
+      "SharedContext": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection"
+          },
+          "page": {
+            "type": "boolean",
+            "title": "Page",
+            "description": "the page's text was shared",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "SharedContext",
+        "description": "What a question shared from the page it was asked on. The page's text itself isn't kept."
       },
       "Source": {
         "properties": {
