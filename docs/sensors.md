@@ -101,6 +101,22 @@ count and range, its JSON fields' ranges, the busiest log patterns with their la
 a recording like any other, queued for the namespace's pipeline, so it can be searched, linked and asked about. Days
 are written once, oldest first, up to a week a run; a day with nothing in it is skipped.
 
+## In the web app
+
+Admins find everything under **Sensors** in the navigation (people who aren't admins keep **Sources**, the watched
+folders feeding their namespaces):
+
+- **Sensors**: whether the hub listens and on which ports, new sensors with the handling suggested for each (Apply,
+  Ignore, or Apply all suggestions), the stream sensors being kept, and the file sensors. **Add sensor** makes a
+  webhook (its address and token shown once, with a curl line to try it), a bridge, or an MQTT device or syslog sender
+  ahead of time.
+- A sensor's page: each stream with its last value and a chart of hourly averages (a day, a week or a month), the
+  latest readings, its kinds of log line to label or drop, and its settings: name, namespace, what it keeps and for how
+  long (empty boxes follow the settings, 0 days keeps them for good), a webhook's new token, a bridge's connection.
+- **Files, email and calendars**: the Sources page, as before.
+- **Hub logins**: the usernames devices sign in to the MQTT hub with, with a password made for you.
+- **Settings → Sensors**: the hub, its ports and networks, and the defaults for what's kept.
+
 ## Reading it back
 
 - `GET /api/v1/sensors/{id}`: the sensor with its streams (kind, last value, counts).
@@ -110,4 +126,5 @@ are written once, oldest first, up to a week a run; a day with nothing in it is 
 ## Refine later
 
 Notifications for alert patterns, sensors for namespace members (admins only for now), MQTT 5, the port mappings of
-the Synology, QNAP, Proxmox and Cloudron packages, and the web pages.
+the Synology, QNAP, Proxmox and Cloudron packages; in the web app, a chart with axes and zoom, paging back through
+readings, and labelling many log patterns at once.

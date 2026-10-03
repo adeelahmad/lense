@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 
 import { Pipelines, Sources } from "@/app/openapi-client";
 import type { Source, Watch } from "@/app/openapi-client/types.gen";
+import { SensorsTabs } from "@/components/sensors/parts";
 import { ConnectionDialog } from "@/components/sources/connection-dialog";
 import { DeleteConnectionDialog } from "@/components/sources/delete-connection";
 import { FolderBrowser } from "@/components/sources/folder-browser";
@@ -211,7 +212,7 @@ export function SourcesPage() {
   return (
     <div className="flex min-h-[calc(100vh-64px)] flex-col">
       <div className="flex flex-wrap items-center gap-3.5 px-4 pb-3.5 pt-[18px] md:px-6">
-        <h1 className="text-[24px] font-bold leading-tight tracking-[-.015em] text-fg">Sources</h1>
+        <h1 className="text-[24px] font-bold leading-tight tracking-[-.015em] text-fg">Sensors</h1>
         {sources.isSuccess && (
           <span className="text-[13px] text-fg-muted">
             {plural(all.length, "connection")} · {plural(ws.length, "watched folder")}
@@ -228,6 +229,9 @@ export function SourcesPage() {
         >
           Add connection
         </Button>
+      </div>
+      <div className="px-4 pb-3.5 md:px-6">
+        <SensorsTabs tab="sources" />
       </div>
 
       {loading ? (

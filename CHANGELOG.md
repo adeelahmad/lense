@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Sensors in the web app.** Admins get **Sensors** in place of Sources: the hub's state, new devices with a
+  suggested handling to apply or ignore, each sensor's streams with charts of hourly averages and its latest
+  readings, its kinds of log line to label or drop, and what it keeps and for how long. Webhooks (token shown once),
+  bridges, hub logins and Settings → Sensors are all there; storage, email and calendars stay a tab away.
 - **Global chats pick their namespace.** The first question in a conversation over everything (the assistant home)
   is matched to the namespace it's about by the decision model (or the language model without one), using what each
   namespace holds and where the question's excerpts are. A sure match narrows the conversation (a `scoped` event and a

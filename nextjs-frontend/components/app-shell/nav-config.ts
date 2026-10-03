@@ -6,6 +6,7 @@ import {
   LibraryBig,
   type LucideIcon,
   MessagesSquare,
+  RadioTower,
   Search,
   Settings,
   Shapes,
@@ -20,6 +21,8 @@ export type NavItem = {
   icon: LucideIcon;
   /** Only shown to archive administrators. */
   adminOnly?: boolean;
+  /** Only shown to people who aren't administrators (admins have it under another item). */
+  membersOnly?: boolean;
   /** A count shown next to the label (library size, speakers to review in Settings). */
   countKey?: "recordings" | "reviews";
   /** Draw a divider after this item. */
@@ -47,14 +50,16 @@ export const NAV: NavItem[] = [
   },
   { label: "Pipelines", href: "/pipelines", icon: Workflow },
   { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true },
-  { label: "Sources", href: "/sources", icon: HardDriveDownload },
+  // Admins see every source as a sensor; members see the watched folders feeding their namespaces.
+  { label: "Sensors", href: "/sensors", icon: RadioTower, adminOnly: true },
+  { label: "Sources", href: "/sources", icon: HardDriveDownload, membersOnly: true },
   // Everyone has Settings: members find Speakers there, admins the archive's settings too.
   { label: "Settings", href: "/settings", icon: Settings, countKey: "reviews" },
   { label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
 ];
 
 export function navFor(admin: boolean): NavItem[] {
-  return NAV.filter((item) => admin || !item.adminOnly);
+  return NAV.filter((item) => (admin ? !item.membersOnly : !item.adminOnly));
 }
 
 export function isActive(pathname: string, href: string): boolean {
@@ -72,6 +77,8 @@ export function isActive(pathname: string, href: string): boolean {
     ["/templates", "/workflows", "/content-types"].some((p) => pathname === p || pathname.startsWith(`${p}/`))
   )
     return true;
+  // Sources (files, email, calendars) are a tab of Sensors.
+  if (href === "/sensors" && (pathname === "/sources" || pathname.startsWith("/sources/"))) return true;
   // Speakers live in Settings; a speaker's profile keeps its own address.
   if (href === "/settings" && (pathname === "/speakers" || pathname.startsWith("/speakers/"))) return true;
   return pathname === href || pathname.startsWith(`${href}/`);
