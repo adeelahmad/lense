@@ -122,7 +122,7 @@ def test_unsure_it_asks_with_the_options_ranked(app, db, cfg, folder, new_client
     ]
     cid = c.post("/api/v1/chats", headers=h, json={"kind": "setup"}).json()["id"]
     ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "", "attachments": [up["id"]]}).text)
-    assert ev["step"][0]["summary"] == "Not sure where memo.wav go"
+    assert ev["step"][0]["summary"] == "Not sure where to put memo.wav"
     told = json.loads(llm.seen[-1]["messages"][-1]["content"])
     assert told["status"] == "ask" and [x["option"] for x in told["namespaces"]] == ["calls", "pods"]
     assert c.get(f"/api/v1/uploads/{up['id']}", headers=h).json()["state"] == "held"

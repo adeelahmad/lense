@@ -246,7 +246,7 @@ class OpsTools:
                 ranked = chosen.get("ranked") or [{"option": o} for o in chosen["options"]]
                 return (
                     {"status": "ask", "note": "It isn't clear where these go: ask the person, suggesting the first.", "namespaces": ranked},
-                    f"Not sure where {', '.join(names)} go",
+                    f"Not sure where to put {', '.join(names)}",
                 )
         namespace = namespace.strip().lower()
         args = {"upload_ids": [str(u) for u in upload_ids], "namespace": namespace, "collection_id": collection_id}
