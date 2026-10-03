@@ -76,7 +76,7 @@ TOOLS = [
     ),
     (
         "entity_setup",
-        "How a namespace organises its entities: its mode (self-organising or a fixed list), the types it keeps, what it's "
+        "How a namespace organises its entities: its mode (self-organising, a fixed list, or hybrid: the list first, then new entities), the types it keeps, what it's "
         "about, its own entity types, and its defined entities.",
         {"namespace": _S},
         ["namespace"],
@@ -361,7 +361,9 @@ class Toolbox:
         types = entity_setup.types_of(self.db, sid)
         label = {t["type"]: t["label"] for t in types}
         out = {
-            "mode": {"self": "self-organising", "fixed": "fixed list"}.get(setup["mode"], setup["mode"]),
+            "mode": {"self": "self-organising", "fixed": "fixed list", "hybrid": "fixed list, then self-organising"}.get(
+                setup["mode"], setup["mode"]
+            ),
             "types_kept": [label.get(t, t) for t in setup["types"]] or "all",
             "about": setup.get("description"),
             "matching": setup["matching"],

@@ -1,4 +1,4 @@
-"""Mapping what the extractors find onto a fixed list of entities (entity_setup.py, mode `fixed`).
+"""Mapping what the extractors find onto a fixed list of entities (entity_setup.py, modes `fixed` and `hybrid`).
 
 People with editor access define a namespace's entities (each with a name, a type, other ways it's said and a
 description), for the whole namespace or for one collection and the collections inside it. When a recording is
@@ -8,13 +8,16 @@ analysed, each name found goes to:
 - else "Unlabeled", when it belongs here but no defined entity fits: a type the setup keeps (with every type kept,
   any type but dates and numbers);
 - else "Unknown".
-Unknown and Unlabeled are always there in a namespace that uses the fixed mode. People's corrections (a mention moved to
-another entity) still win. Nothing is created from what's found.
+Unknown and Unlabeled are always there in a namespace that uses the fixed or hybrid mode. People's corrections (a mention
+moved to another entity) still win. In the fixed mode nothing is created from what's found. The hybrid mode is the fixed
+list first, then self-organising: a name of a type that belongs here and fits no defined entity becomes an entity of its
+own (or goes to the one it already is), and names of other types go to Unknown.
 
 With `matching: model`, the names the rules can't place are given to the LLM with the entities' descriptions, their
 other names and what the place is about (`judge`): in the self-organising mode it says which known entity a new name
-is, if any; the name then becomes one of that entity's other names, so the rules place it from then on. When the model
-can't be reached, the rules decide.
+is, if any; in the fixed mode which defined entity it is, or that it doesn't belong here; in the hybrid mode either. A
+name it places on an entity becomes one of that entity's other names, so the rules place it from then on. When the
+model can't be reached, the rules decide.
 """
 
 from __future__ import annotations
@@ -67,8 +70,10 @@ def builtins(db, sid):
 
 def defined(db, sid, chain=None):
     """The namespace's defined entities that hold in a collection whose path is `chain` (ids, top down; None: every
-    one of them): [{id, key, name, type, collection}]."""
-    rows = db.rows("SELECT record::id(id) AS id, key, name, type, collection FROM entity WHERE space = $s AND defined = true", s=int(sid))
+    one of them): [{id, key, name, type, description, collection}]."""
+    rows = db.rows(
+        "SELECT record::id(id) AS id, key, name, type, description, collection FROM entity WHERE space = $s AND defined = true", s=int(sid)
+    )
     if chain is None:
         return rows
     ok = set(chain)
@@ -109,11 +114,58 @@ def belongs(setup, typ):
     return typ in setup["types"] if setup["types"] else typ not in QUIET
 
 
-def resolve(db, sid, cid, setup, found):
-    """{key: entity id} for the names found ({key: (name, type)}) in a recording of collection `cid`."""
-    idx = _index(db, defined(db, sid, chain_of(db, cid)))
+def _existing(db, sid, keys):
+    """{key: entity id} for names that already are an entity of the namespace, or one's other name (hybrid mode)."""
+    if not keys:
+        return {}
+    out = {
+        r["key"]: r["id"]
+        for r in db.rows("SELECT record::id(id) AS id, key FROM entity WHERE space = $s AND key IN $k", s=int(sid), k=sorted(keys))
+    }
+    for r in db.rows("SELECT key, entity FROM entity_alias WHERE space = $s AND key IN $k", s=int(sid), k=sorted(keys)):
+        out.setdefault(r["key"], r["entity"])
+    return out
+
+
+def place(db, cfg, sid, cid, setup, found, seg_texts=()):
+    """{key: entity id} for the names found ({key: (name, type)}) in a recording of collection `cid`, in the fixed or
+    hybrid mode. A defined entity's name or other name goes to it. In the hybrid mode, a name that already is an entity
+    goes to it too. With `matching: model` the model may place the rest on a listed (or, hybrid, described) entity, or
+    say a name doesn't belong here. What's left goes by type: a type that doesn't belong here goes to Unknown; one that
+    does goes to Unlabeled (fixed) or becomes a new entity (hybrid)."""
+    hybrid = setup["mode"] == "hybrid"
+    listed = defined(db, sid, chain_of(db, cid))
+    idx = _index(db, listed)
     special = builtins(db, sid)
-    return {key: idx.get(key) or special[UNLABELED if belongs(setup, typ) else UNKNOWN] for key, (_, typ) in found.items()}
+    out = {k: idx[k] for k in found if k in idx}
+    if hybrid:
+        out.update(_existing(db, sid, [k for k in found if k and k not in out]))
+    rest = {k: v for k, v in found.items() if k and k not in out}
+    if rest and setup["matching"] == "model":
+        ents = list(listed)
+        if hybrid:
+            seen = {e["id"] for e in ents}
+            ents += [e for e in described(db, sid) if e["id"] not in seen]
+        picked = judge(db, cfg, sid, setup, rest, ents, ("new", UNKNOWN) if hybrid else (UNLABELED, UNKNOWN), seg_texts)
+        placed = {k: v for k, v in picked.items() if isinstance(v, int)}
+        learn(db, sid, placed)
+        out.update(placed)
+        out.update({k: special[UNKNOWN] for k, v in picked.items() if v == UNKNOWN})
+    for key, (name, typ) in rest.items():
+        if key in out:
+            continue
+        if not belongs(setup, typ):
+            out[key] = special[UNKNOWN]
+        elif not hybrid:
+            out[key] = special[UNLABELED]
+        else:
+            out[key] = db.next_id("entity")
+            db.q(
+                "CREATE $r CONTENT $d",
+                r=R("entity", out[key]),
+                d={"space": int(sid), "key": key, "ekey": f"{sid}:{key}", "name": name, "type": typ},
+            )
+    return out
 
 
 def define(db, sid, name, typ, description=None, aliases=(), collection=None, user=None):

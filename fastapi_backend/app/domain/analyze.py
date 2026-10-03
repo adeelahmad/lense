@@ -351,12 +351,12 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
     rec = db.one("SELECT space, collection FROM $r", r=R("recording", rid))
     nid = rec["space"]
     setup = entity_setup.effective(db, nid, rec.get("collection"))
-    fixed = setup["mode"] == "fixed"
+    listed = setup["mode"] != "self"  # fixed or hybrid: a list of defined entities comes first
     segs = db.rows(
         "SELECT record::id(id) AS id, idx, t0, t1, speaker, text, emotion, event, lang FROM segment WHERE recording = $r ORDER BY idx",
         r=rid,
     )
-    extra = entity_map.terms(db, nid, entity_map.chain_of(db, rec.get("collection"))) if fixed else []
+    extra = entity_map.terms(db, nid, entity_map.chain_of(db, rec.get("collection"))) if listed else []
     gaz = parse_gazetteer(list(cfg["analysis"].get("gazetteer") or []) + extra)  # the defined entities, however written
     use_spacy = cfg["analysis"]["entities"] == "spacy"
     given, seg_ents, toks, wc, tn, ts = seg_ents, [], [], [], Counter(), defaultdict(Counter)
@@ -374,7 +374,7 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
         for (a, sa), (b, sb) in zip(ws, ws[1:]):
             tn[a + " " + b] += 1
             ts[a + " " + b][sa + " " + sb] += 1
-    if setup["types"] and not fixed:  # the namespace (or collection) keeps only some types
+    if setup["types"] and not listed:  # the namespace (or collection) keeps only some types
         seg_ents = [[(n, t) for n, t in es if entity_setup.keeps(setup, t)] for es in seg_ents]
     surface = {t: c.most_common(1)[0][0] for t, c in ts.items()}
     starts = [0] + tiling(toks, wc) if segs else []
@@ -385,8 +385,8 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
     for es in seg_ents:
         for name, typ in es:
             first.setdefault(alias.get(ent_key(name), ent_key(name)), (name, typ))
-    if fixed:  # mapped onto the defined entities, Unlabeled or Unknown (entity_map.py)
-        known = entity_map.resolve(db, nid, rec.get("collection"), setup, first)
+    if listed:  # mapped onto the defined entities, Unlabeled, Unknown or (hybrid) new entities (entity_map.py)
+        known = entity_map.place(db, cfg, nid, rec.get("collection"), setup, first, [s["text"] for s in segs])
     else:
         known = (
             {
