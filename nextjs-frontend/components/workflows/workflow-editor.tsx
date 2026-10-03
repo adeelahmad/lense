@@ -1,32 +1,27 @@
 "use client";
 
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, FlaskConical, Workflow as WorkflowIcon } from "lucide-react";
+import { ChevronDown, FlaskConical, Play, Workflow as WorkflowIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Fields, Workflows } from "@/app/openapi-client";
-import type { TemplateSummary, Workflow } from "@/app/openapi-client/types.gen";
-import { FlowCanvas, PaletteItem, freshId, type CanvasEdge, type CanvasNode } from "@/components/canvas/flow-canvas";
+import type { TemplateSummary, Workflow, WorkflowTry } from "@/app/openapi-client/types.gen";
 import { useTemplateList, useWorkflowCatalog } from "@/components/pipelines/catalog-header";
 import { RunDialog } from "@/components/pipelines/pipeline-editor";
-import { NodeSettings, type NsField } from "@/components/workflows/node-settings";
+import { GraphEditor, type Folded } from "@/components/workflows/graph-editor";
+import type { NsField } from "@/components/workflows/node-settings";
+import { SaveCustomDialog } from "@/components/workflows/save-custom-dialog";
 import {
-  GROUPS,
-  NODES,
   cleanGraph,
-  defaultConfig,
-  inScope,
-  infoFor,
-  nodeSummary,
+  normalize,
   problems as findProblems,
   sameGraph,
   starter,
+  type CustomDef,
   type Scope,
-  type WfEdge,
   type WfGraph,
-  type WfNode,
 } from "@/components/workflows/workflow-model";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
@@ -70,25 +65,26 @@ export function WorkflowEditor({ id }: { id?: number }) {
   const fields: NsField[] = namespaces.flatMap((n, i) =>
     (fieldLists[i]?.data ?? []).map((f) => ({ ...f, namespace: n.name })),
   );
-  const fieldName = (fid: number) => {
-    const f = fields.find((x) => x.id === fid);
-    return f ? `${f.namespace} · ${f.label}` : undefined;
-  };
+  const customDefs = (catalog.data?.custom_nodes ?? []) as unknown as CustomDef[];
+  const customOf = (cid: number) => customDefs.find((d) => d.id === cid);
 
   const base: Workflow | undefined = q.data;
   const [newScope, setNewScope] = useState<Scope>("recording");
   const scope: Scope = creating ? newScope : base?.scope === "graph" ? "graph" : "recording";
   const [graph, setGraph] = useState<WfGraph>(() => (creating ? starter() : { nodes: [], edges: [] }));
-  const [sel, setSel] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
   const [runOpen, setRunOpen] = useState(false);
   const [lastJob, setLastJob] = useState<{ job: number; title: string } | null>(null);
+  const [tryOpen, setTryOpen] = useState(false);
+  const [tried, setTried] = useState<(WorkflowTry & { title: string }) | null>(null);
+  const [folding, setFolding] = useState<Folded | null>(null);
+  const resolveFold = useRef<((d: CustomDef | null) => void) | null>(null);
 
   useEffect(() => {
     if (base) {
-      setGraph(base.graph as WfGraph);
-      setSel(null);
+      setGraph(normalize(base.graph as WfGraph));
+      setTried(null);
     }
   }, [base]);
 
@@ -96,7 +92,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
   const why = readOnly ? "Only admins can change workflows" : undefined;
   const latest = base ? Math.max(base.current, ...(base.history ?? []).map((h) => h.version)) : 0;
   const dirty = creating ? true : base ? !sameGraph(base.graph as WfGraph, graph) : false;
-  const problems = findProblems(graph, (tid) => tpl.get(tid)?.kind, scope);
+  const problems = findProblems(graph, (tid) => tpl.get(tid)?.kind, scope, "workflow", customOf);
   const firstProblem = Object.entries(problems)[0];
   const nextV = latest + 1;
   const publishReason =
@@ -155,79 +151,25 @@ export function WorkflowEditor({ id }: { id?: number }) {
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t start the run", body: e.message }),
   });
 
-  // Editing the graph
-  const add = (type: string, x?: number, y?: number) => {
-    const at = graph.nodes.find((n) => n.id === sel);
-    const nid = freshId(
-      graph.nodes.map((n) => n.id),
-      type.split("_")[0],
-    );
-    const node: WfNode = {
-      id: nid,
-      type,
-      config: defaultConfig(type),
-      x: x ?? (at?.x ?? 0) + 280,
-      y: y ?? (at?.y ?? 120) + (at ? 40 : 0),
-    };
-    const edges = [...graph.edges];
-    // Clicking a palette item with a node selected connects it after that node, like n8n's "+".
-    if (x == null && at && NODES[at.type]?.outputs.length)
-      edges.push({ source: at.id, target: nid, ...(at.type === "condition" ? { branch: "yes" as const } : {}) });
-    setGraph({ nodes: [...graph.nodes, node], edges });
-    setSel(nid);
-  };
-  const connect = (e: CanvasEdge) => {
-    const target = graph.nodes.find((n) => n.id === e.target);
-    if (!target || target.type === "input") return;
-    const branch = e.port === "yes" || e.port === "no" ? e.port : undefined;
-    const keep = target.type === "merge" ? graph.edges : graph.edges.filter((x) => x.target !== e.target); // one input: replace it
-    if (keep.some((x) => x.source === e.source && x.target === e.target && x.branch === branch)) return;
-    setGraph({ ...graph, edges: [...keep, { source: e.source, target: e.target, ...(branch ? { branch } : {}) }] });
-  };
-  const removeNodes = (ids: string[]) => {
-    const gone = new Set(ids.filter((i) => graph.nodes.find((n) => n.id === i)?.type !== "input"));
-    setGraph({
-      nodes: graph.nodes.filter((n) => !gone.has(n.id)),
-      edges: graph.edges.filter((e) => !gone.has(e.source) && !gone.has(e.target)),
-    });
-    if (sel && gone.has(sel)) setSel(null);
-  };
-  const removeEdges = (es: CanvasEdge[]) =>
-    setGraph({
-      ...graph,
-      edges: graph.edges.filter(
-        (e) =>
-          !es.some((x) => x.source === e.source && x.target === e.target && (x.port ?? "out") === (e.branch ?? "out")),
+  const tryIt = useMutation({
+    mutationFn: ({ rid }: { rid?: number; title: string }) =>
+      data(
+        Workflows.tryWorkflow({
+          client,
+          body: { graph: cleanGraph(graph), scope, ...(rid != null ? { recording: rid } : {}) },
+        }),
       ),
-    });
-  const move = (nid: string, x: number, y: number) =>
-    setGraph((g) => ({ ...g, nodes: g.nodes.map((n) => (n.id === nid ? { ...n, x, y } : n)) }));
-  const update = (n: WfNode) => setGraph((g) => ({ ...g, nodes: g.nodes.map((x) => (x.id === n.id ? n : x)) }));
-
-  const canvasNodes: CanvasNode[] = graph.nodes.map((n) => {
-    const info = infoFor(n.type, scope);
-    return {
-      id: n.id,
-      x: n.x ?? 0,
-      y: n.y ?? 0,
-      title: n.label || info?.label || n.type,
-      subtitle: nodeSummary(n, { template: (t) => tpl.get(t)?.name, field: fieldName }),
-      icon: info?.icon,
-      inputs: info?.inputs ?? 1,
-      outputs: info?.outputs ?? ["out"],
-      tone: info?.tone,
-      io: info
-        ? `${info.takes} → ${n.type === "output" && n.config.key ? `outputs.${String(n.config.key)}` : info.gives}`
-        : undefined,
-      problem: problems[n.id],
-    };
+    onSuccess: (r, v) => {
+      setTryOpen(false);
+      setTried({ ...r, title: v.title });
+    },
+    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t try it", body: e.message }),
   });
-  const canvasEdges: CanvasEdge[] = graph.edges.map((e: WfEdge) => ({
-    source: e.source,
-    target: e.target,
-    port: e.branch ?? "out",
-  }));
-  const cur = graph.nodes.find((n) => n.id === sel);
+  const saveAsCustom = (f: Folded) =>
+    new Promise<CustomDef | null>((resolve) => {
+      resolveFold.current = resolve;
+      setFolding(f);
+    });
 
   if (!creating && q.isLoading)
     return (
@@ -282,7 +224,6 @@ export function WorkflowEditor({ id }: { id?: number }) {
             onChange={(v) => {
               setNewScope(v as Scope);
               setGraph(starter(v as Scope));
-              setSel(null);
             }}
             items={[
               { value: "recording", label: "On recordings" },
@@ -330,6 +271,16 @@ export function WorkflowEditor({ id }: { id?: number }) {
             </MenuContent>
           </Menu>
         )}
+        <Button
+          size="sm"
+          variant="secondary"
+          icon={<Play />}
+          disabled={readOnly || Boolean(firstProblem) || tryIt.isPending}
+          disabledReason={why ?? (firstProblem ? `Fix this first: ${firstProblem[1]}` : "Trying…")}
+          onClick={() => (scope === "graph" ? tryIt.mutate({ title: "every namespace" }) : setTryOpen(true))}
+        >
+          {tryIt.isPending ? "Trying…" : scope === "graph" ? "Try it" : "Try on a recording"}
+        </Button>
         {!creating && scope === "recording" && (
           <Button
             size="sm"
@@ -384,67 +335,51 @@ export function WorkflowEditor({ id }: { id?: number }) {
           </Link>
         </p>
       )}
-      {problems[""] && (
-        <p role="alert" className="border-b border-red-border bg-red-surface px-5 py-2 text-[13px] text-red-dark">
-          {problems[""]}
-        </p>
+      {tried && (
+        <details
+          className="border-b border-border bg-surface px-5 py-2 text-[13px] text-fg"
+          open={Boolean(tried.error)}
+        >
+          <summary className="cursor-pointer">
+            {tried.error ? (
+              <span className="font-semibold text-red-dark">
+                The try on {tried.title} failed: {tried.error}
+              </span>
+            ) : (
+              <span>
+                Tried on {tried.title}: {Object.values(tried.trace).filter((t) => t.status === "done").length} nodes
+                ran, nothing was kept. Each node shows what it passed on; select one to see all of it.
+              </span>
+            )}{" "}
+            <button
+              type="button"
+              className="ml-2 font-semibold text-fg-accent hover:underline"
+              onClick={() => setTried(null)}
+            >
+              Clear
+            </button>
+          </summary>
+          <pre className="mt-2 max-h-[160px] overflow-auto whitespace-pre-wrap font-mono text-[11.5px] text-fg-secondary">
+            {tried.log.join("\n") || "Nothing logged."}
+          </pre>
+        </details>
       )}
 
-      <div className="grid flex-1 lg:h-[calc(100vh-150px)] lg:flex-none lg:min-h-[560px] lg:grid-rows-[minmax(0,1fr)] lg:grid-cols-[230px_minmax(0,1fr)_360px]">
-        <aside
-          aria-label="Nodes"
-          className="flex flex-col gap-1.5 overflow-y-auto border-b border-border bg-surface p-3.5 lg:border-b-0 lg:border-r"
-        >
-          <p className="pb-1 text-[11.5px] text-fg-muted">
-            Drag onto the canvas, or click to add after the selected node.
-          </p>
-          {GROUPS.map((g) => (
-            <div key={g} className="flex flex-col gap-1.5 pb-2">
-              <span className="label-caps pt-1">{g}</span>
-              {Object.entries(NODES)
-                .filter(([type, info]) => info.group === g && inScope(type, scope, catalog.data?.node_types))
-                .map(([type, info]) => (
-                  <PaletteItem
-                    key={type}
-                    payload={type}
-                    icon={info.icon}
-                    title={info.label}
-                    hint={info.describe}
-                    disabled={readOnly}
-                    onAdd={() => add(type)}
-                  />
-                ))}
-            </div>
-          ))}
-        </aside>
-        <section aria-label="Canvas" className="relative min-h-[520px] border-b border-border lg:border-b-0">
-          <FlowCanvas
-            nodes={canvasNodes}
-            edges={canvasEdges}
-            selected={sel}
-            readOnly={readOnly}
-            onSelect={setSel}
-            onMove={move}
-            onConnect={connect}
-            onDeleteNodes={removeNodes}
-            onDeleteEdges={removeEdges}
-            onDrop={(type, x, y) =>
-              NODES[type] && type !== "input" && inScope(type, scope, catalog.data?.node_types) && add(type, x, y)
-            }
-          />
-        </section>
-        <aside aria-label="Node settings" className="overflow-y-auto border-border p-4 lg:border-l">
-          {cur ? (
-            <NodeSettings
-              node={cur}
-              onChange={update}
-              templates={(templates.data ?? []) as TemplateSummary[]}
-              fields={fields}
-              readOnly={readOnly}
-              problem={problems[cur.id]}
-              scope={scope}
-            />
-          ) : scope === "graph" ? (
+      <GraphEditor
+        key={`${scope}-${base?.version ?? "new"}`}
+        graph={graph}
+        setGraph={setGraph}
+        scope={scope}
+        root="workflow"
+        readOnly={readOnly}
+        catalog={catalog.data?.node_types}
+        customDefs={customDefs}
+        templates={(templates.data ?? []) as TemplateSummary[]}
+        fields={fields}
+        trace={tried?.trace}
+        onSaveAsCustom={saveAsCustom}
+        emptyPanel={
+          scope === "graph" ? (
             <div className="flex flex-col gap-2 text-[13px] text-fg-secondary">
               <h2 className="text-[15px] font-bold text-fg">How graph workflows run</h2>
               <p>
@@ -454,7 +389,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
               </p>
               <p>
                 Run it from a routine. Proposed changes wait in Routines → Proposed changes, and every change can be
-                undone.
+                undone. Try it runs it now and keeps nothing.
               </p>
             </div>
           ) : (
@@ -462,17 +397,44 @@ export function WorkflowEditor({ id }: { id?: number }) {
               <h2 className="text-[15px] font-bold text-fg">How workflows run</h2>
               <p>
                 A workflow starts from the Recording node with what the pipeline made of it: transcript, summary,
-                entities and earlier outputs. Each node passes what it makes along its connections.
+                entities and earlier outputs. Each node passes what it makes along its connections, port to port.
+                Condition and Switch send it down one branch; the nodes on the others are skipped.
               </p>
               <p>
-                Attach it to a pipeline as a Workflow step; it runs after the steps before it. Select a node to set it
-                up; Delete removes the node or connection you selected.
+                For each and Repeat go over things again: double-click one to build its body. Select several nodes
+                (Shift-drag) to fold them into a Group or save them as a custom node, to use again and share.
+              </p>
+              <p>
+                Try on a recording runs the graph as it is now, keeps nothing, and shows what each node passed on.
+                Attach the workflow to a pipeline as a Workflow step; it runs after the steps before it.
               </p>
             </div>
-          )}
-        </aside>
-      </div>
-
+          )
+        }
+      />
+      <SaveCustomDialog
+        folded={folding}
+        onDone={(d) => {
+          setFolding(null);
+          resolveFold.current?.(d);
+          resolveFold.current = null;
+          if (d)
+            toast({
+              tone: "green",
+              title: "Custom node saved",
+              body: `${d.name} is in the palette under Custom nodes.`,
+            });
+        }}
+      />
+      <RunDialog
+        open={tryOpen}
+        onOpenChange={setTryOpen}
+        onRun={(rid, title) => tryIt.mutate({ rid, title })}
+        pending={tryIt.isPending}
+        title="Try on a recording"
+        description="Runs the graph as it is on the canvas, saved or not, and keeps nothing: nodes that would save something say what they’d save. Model nodes still ask the model."
+        action="Try it"
+      />
       <RunDialog
         open={runOpen}
         onOpenChange={setRunOpen}

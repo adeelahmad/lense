@@ -681,6 +681,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS content_type SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS workflow_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS workflow_version_w ON workflow_version FIELDS workflow",
+    # custom nodes: bodies of nodes saved under a name, used in workflows (custom_nodes.py)
+    "DEFINE TABLE IF NOT EXISTS custom_node SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS custom_node_version SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS custom_node_version_n ON custom_node_version FIELDS node",
     # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
     "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
     "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",

@@ -82,6 +82,12 @@ import type {
   CreateContentTypeData,
   CreateContentTypeErrors,
   CreateContentTypeResponses,
+  CreateCustomNodeData,
+  CreateCustomNodeErrors,
+  CreateCustomNodeResponses,
+  CreateCustomNodeVersionData,
+  CreateCustomNodeVersionErrors,
+  CreateCustomNodeVersionResponses,
   CreateEntityTypeData,
   CreateEntityTypeErrors,
   CreateEntityTypeResponses,
@@ -172,6 +178,9 @@ import type {
   DeleteContentTypeData,
   DeleteContentTypeErrors,
   DeleteContentTypeResponses,
+  DeleteCustomNodeData,
+  DeleteCustomNodeErrors,
+  DeleteCustomNodeResponses,
   DeleteEntityData,
   DeleteEntityErrors,
   DeleteEntityResponses,
@@ -286,6 +295,9 @@ import type {
   GetContentStateData,
   GetContentStateErrors,
   GetContentStateResponses,
+  GetCustomNodeData,
+  GetCustomNodeErrors,
+  GetCustomNodeResponses,
   GetEmbedLinkData,
   GetEmbedLinkErrors,
   GetEmbedLinkResponses,
@@ -450,6 +462,9 @@ import type {
   ListCommentsResponses,
   ListContentTypesData,
   ListContentTypesResponses,
+  ListCustomNodesData,
+  ListCustomNodesErrors,
+  ListCustomNodesResponses,
   ListEntitiesData,
   ListEntitiesErrors,
   ListEntitiesResponses,
@@ -794,6 +809,9 @@ import type {
   TokenLimitsData,
   TokenLimitsResponses,
   TokenResponses,
+  TryWorkflowData,
+  TryWorkflowErrors,
+  TryWorkflowResponses,
   UndoEntityMergeData,
   UndoEntityMergeErrors,
   UndoEntityMergeResponses,
@@ -827,6 +845,9 @@ import type {
   UpdateContentTypeData,
   UpdateContentTypeErrors,
   UpdateContentTypeResponses,
+  UpdateCustomNodeData,
+  UpdateCustomNodeErrors,
+  UpdateCustomNodeResponses,
   UpdateEntityData,
   UpdateEntityErrors,
   UpdateEntityResponses,
@@ -4931,7 +4952,8 @@ export class Workflows {
   /**
    * List Workflows
    *
-   * Saved workflows, plus the nodes a workflow can be built from.
+   * Saved workflows, plus the nodes a workflow can be built from: the primitives, each scope's own nodes, and the
+   * custom nodes you can use.
    */
   public static listWorkflows<ThrowOnError extends boolean = false>(
     options?: Options<ListWorkflowsData, ThrowOnError>,
@@ -4950,6 +4972,25 @@ export class Workflows {
   ): RequestResult<CreateWorkflowResponses, CreateWorkflowErrors, ThrowOnError> {
     return (options.client ?? client).post<CreateWorkflowResponses, CreateWorkflowErrors, ThrowOnError>({
       url: "/api/v1/workflows",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Try Workflow
+   *
+   * Run a graph (saved or not) once without keeping anything: what each node passed on, for the canvas. Nodes
+   * that would save something say what they would save; models are still asked.
+   */
+  public static tryWorkflow<ThrowOnError extends boolean = false>(
+    options: Options<TryWorkflowData, ThrowOnError>,
+  ): RequestResult<TryWorkflowResponses, TryWorkflowErrors, ThrowOnError> {
+    return (options.client ?? client).post<TryWorkflowResponses, TryWorkflowErrors, ThrowOnError>({
+      url: "/api/v1/workflows/test",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -5016,6 +5057,102 @@ export class Workflows {
   ): RequestResult<RunWorkflowResponses, RunWorkflowErrors, ThrowOnError> {
     return (options.client ?? client).post<RunWorkflowResponses, RunWorkflowErrors, ThrowOnError>({
       url: "/api/v1/workflows/{wid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Custom Nodes
+   *
+   * The custom nodes you can use: yours, the ones shared with your namespaces or with everyone (admins: all).
+   */
+  public static listCustomNodes<ThrowOnError extends boolean = false>(
+    options?: Options<ListCustomNodesData, ThrowOnError>,
+  ): RequestResult<ListCustomNodesResponses, ListCustomNodesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListCustomNodesResponses, ListCustomNodesErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Custom Node
+   */
+  public static createCustomNode<ThrowOnError extends boolean = false>(
+    options: Options<CreateCustomNodeData, ThrowOnError>,
+  ): RequestResult<CreateCustomNodeResponses, CreateCustomNodeErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateCustomNodeResponses, CreateCustomNodeErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Custom Node
+   *
+   * Takes it off the palette; workflows that use it keep running the version they pinned.
+   */
+  public static deleteCustomNode<ThrowOnError extends boolean = false>(
+    options: Options<DeleteCustomNodeData, ThrowOnError>,
+  ): RequestResult<DeleteCustomNodeResponses, DeleteCustomNodeErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteCustomNodeResponses, DeleteCustomNodeErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes/{nid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Custom Node
+   *
+   * One version (default: the current one) and the list of versions.
+   */
+  public static getCustomNode<ThrowOnError extends boolean = false>(
+    options: Options<GetCustomNodeData, ThrowOnError>,
+  ): RequestResult<GetCustomNodeResponses, GetCustomNodeErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetCustomNodeResponses, GetCustomNodeErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes/{nid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Custom Node
+   *
+   * Its name, look, and who sees it.
+   */
+  public static updateCustomNode<ThrowOnError extends boolean = false>(
+    options: Options<UpdateCustomNodeData, ThrowOnError>,
+  ): RequestResult<UpdateCustomNodeResponses, UpdateCustomNodeErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateCustomNodeResponses, UpdateCustomNodeErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes/{nid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create Custom Node Version
+   */
+  public static createCustomNodeVersion<ThrowOnError extends boolean = false>(
+    options: Options<CreateCustomNodeVersionData, ThrowOnError>,
+  ): RequestResult<CreateCustomNodeVersionResponses, CreateCustomNodeVersionErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreateCustomNodeVersionResponses,
+      CreateCustomNodeVersionErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/custom-nodes/{nid}/versions",
       ...options,
       headers: {
         "Content-Type": "application/json",

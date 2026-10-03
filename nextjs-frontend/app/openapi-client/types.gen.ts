@@ -2091,6 +2091,188 @@ export type Created = {
 };
 
 /**
+ * CustomNode
+ */
+export type CustomNode = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Icon
+   *
+   * a lucide icon name, e.g. sparkles
+   */
+  icon?: string | null;
+  /**
+   * Color
+   *
+   * blue, green, gold, red, purple or neutral
+   */
+  color?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   *
+   * who sees it, when shared with namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null;
+  /**
+   * Editable
+   */
+  editable?: boolean;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Version
+   */
+  version: number;
+  graph: WorkflowGraph;
+  /**
+   * Params
+   */
+  params?: Array<NodeParam>;
+  /**
+   * Inputs
+   *
+   * its input ports: the names of the arg nodes in its body
+   */
+  inputs: Array<string>;
+  /**
+   * Outputs
+   *
+   * its output ports: the names of the return nodes in its body
+   */
+  outputs: Array<string>;
+  /**
+   * Scopes
+   *
+   * the workflows it can be used in: recording, graph or both
+   */
+  scopes: Array<string>;
+  /**
+   * Keeps
+   *
+   * whether it saves something itself
+   */
+  keeps?: boolean;
+  /**
+   * Deleted At
+   */
+  deleted_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * History
+   */
+  history?: Array<WorkflowVersionInfo>;
+  [key: string]: unknown;
+};
+
+/**
+ * CustomNodeCreate
+ */
+export type CustomNodeCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  graph: WorkflowGraph;
+  /**
+   * Params
+   */
+  params?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Icon
+   */
+  icon?: string | null;
+  /**
+   * Color
+   */
+  color?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<string>;
+};
+
+/**
+ * CustomNodeUpdate
+ */
+export type CustomNodeUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Icon
+   */
+  icon?: string | null;
+  /**
+   * Color
+   */
+  color?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone" | null;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<string> | null;
+};
+
+/**
+ * CustomNodeVersionCreate
+ */
+export type CustomNodeVersionCreate = {
+  graph: WorkflowGraph;
+  /**
+   * Params
+   */
+  params?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+};
+
+/**
  * Description
  *
  * What a model that can see images said a page or a shot shows.
@@ -4954,6 +5136,68 @@ export type NamespaceUpdate = {
 };
 
 /**
+ * NodeParam
+ */
+export type NodeParam = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Kind
+   */
+  kind?: "text" | "number" | "bool" | "json" | "choice";
+  /**
+   * Default
+   */
+  default?: unknown;
+  /**
+   * Options
+   */
+  options?: Array<unknown> | null;
+  /**
+   * Help
+   */
+  help?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NodeTrace
+ */
+export type NodeTrace = {
+  /**
+   * Status
+   */
+  status: "done" | "skipped" | "failed";
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  /**
+   * Ports
+   *
+   * the output ports it passed something on along
+   */
+  ports?: Array<string>;
+  /**
+   * Value
+   *
+   * what it passed on (or took in, if it passes nothing on), as JSON, cut short
+   */
+  value?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * NodeType
  */
 export type NodeType = {
@@ -4983,6 +5227,30 @@ export type NodeType = {
    * its outgoing ports: [] for none, ['out'], or a condition's ['yes', 'no']
    */
   outputs: Array<string>;
+  /**
+   * Input Ports
+   *
+   * its input ports, by name
+   */
+  input_ports?: Array<string>;
+  /**
+   * Dynamic
+   *
+   * which ports its settings make: inputs, outputs or both
+   */
+  dynamic?: string | null;
+  /**
+   * Primitive
+   *
+   * a building block every workflow has
+   */
+  primitive?: boolean;
+  /**
+   * Keeps
+   *
+   * it saves something
+   */
+  keeps?: boolean;
   [key: string]: unknown;
 };
 
@@ -11052,6 +11320,14 @@ export type WorkflowCatalog = {
    * Workflows
    */
   workflows: Array<WorkflowSummary>;
+  /**
+   * Custom Nodes
+   *
+   * the custom nodes you can use
+   */
+  custom_nodes?: Array<{
+    [key: string]: unknown;
+  }>;
   [key: string]: unknown;
 };
 
@@ -11089,7 +11365,7 @@ export type WorkflowGraph = {
   /**
    * Edges
    *
-   * {source, target, branch (a condition's yes or no)}
+   * {source, target, port (the source's output, default out), input (the target's input, default in)}
    */
   edges?: Array<{
     [key: string]: unknown;
@@ -11147,6 +11423,56 @@ export type WorkflowSummary = {
    */
   pipelines?: Array<string>;
   [key: string]: unknown;
+};
+
+/**
+ * WorkflowTry
+ */
+export type WorkflowTry = {
+  /**
+   * Trace
+   *
+   * by node id; nodes in a body as body node id/node id (first item)
+   */
+  trace: {
+    [key: string]: NodeTrace;
+  };
+  /**
+   * Log
+   */
+  log: Array<string>;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Steps
+   */
+  steps: number;
+  [key: string]: unknown;
+};
+
+/**
+ * WorkflowTryRequest
+ */
+export type WorkflowTryRequest = {
+  graph: WorkflowGraph;
+  /**
+   * Scope
+   */
+  scope?: "recording" | "graph";
+  /**
+   * Recording
+   *
+   * the recording to try a recording workflow on
+   */
+  recording?: number | null;
+  /**
+   * Namespaces
+   *
+   * the namespaces to try a graph workflow over (default: all)
+   */
+  namespaces?: Array<string>;
 };
 
 /**
@@ -18912,6 +19238,31 @@ export type CreateWorkflowResponses = {
 
 export type CreateWorkflowResponse = CreateWorkflowResponses[keyof CreateWorkflowResponses];
 
+export type TryWorkflowData = {
+  body: WorkflowTryRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/workflows/test";
+};
+
+export type TryWorkflowErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TryWorkflowError = TryWorkflowErrors[keyof TryWorkflowErrors];
+
+export type TryWorkflowResponses = {
+  /**
+   * Successful Response
+   */
+  200: WorkflowTry;
+};
+
+export type TryWorkflowResponse = TryWorkflowResponses[keyof TryWorkflowResponses];
+
 export type GetWorkflowData = {
   body?: never;
   path: {
@@ -19036,6 +19387,188 @@ export type RunWorkflowResponses = {
 };
 
 export type RunWorkflowResponse = RunWorkflowResponses[keyof RunWorkflowResponses];
+
+export type ListCustomNodesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Scope
+     */
+    scope?: string | null;
+  };
+  url: "/api/v1/custom-nodes";
+};
+
+export type ListCustomNodesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListCustomNodesError = ListCustomNodesErrors[keyof ListCustomNodesErrors];
+
+export type ListCustomNodesResponses = {
+  /**
+   * Response Workflows-List Custom Nodes
+   *
+   * Successful Response
+   */
+  200: Array<CustomNode>;
+};
+
+export type ListCustomNodesResponse = ListCustomNodesResponses[keyof ListCustomNodesResponses];
+
+export type CreateCustomNodeData = {
+  body: CustomNodeCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/custom-nodes";
+};
+
+export type CreateCustomNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateCustomNodeError = CreateCustomNodeErrors[keyof CreateCustomNodeErrors];
+
+export type CreateCustomNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type CreateCustomNodeResponse = CreateCustomNodeResponses[keyof CreateCustomNodeResponses];
+
+export type DeleteCustomNodeData = {
+  body?: never;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/custom-nodes/{nid}";
+};
+
+export type DeleteCustomNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteCustomNodeError = DeleteCustomNodeErrors[keyof DeleteCustomNodeErrors];
+
+export type DeleteCustomNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteCustomNodeResponse = DeleteCustomNodeResponses[keyof DeleteCustomNodeResponses];
+
+export type GetCustomNodeData = {
+  body?: never;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: {
+    /**
+     * Version
+     */
+    version?: number | null;
+  };
+  url: "/api/v1/custom-nodes/{nid}";
+};
+
+export type GetCustomNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetCustomNodeError = GetCustomNodeErrors[keyof GetCustomNodeErrors];
+
+export type GetCustomNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: CustomNode;
+};
+
+export type GetCustomNodeResponse = GetCustomNodeResponses[keyof GetCustomNodeResponses];
+
+export type UpdateCustomNodeData = {
+  body: CustomNodeUpdate;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/custom-nodes/{nid}";
+};
+
+export type UpdateCustomNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateCustomNodeError = UpdateCustomNodeErrors[keyof UpdateCustomNodeErrors];
+
+export type UpdateCustomNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateCustomNodeResponse = UpdateCustomNodeResponses[keyof UpdateCustomNodeResponses];
+
+export type CreateCustomNodeVersionData = {
+  body: CustomNodeVersionCreate;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/custom-nodes/{nid}/versions";
+};
+
+export type CreateCustomNodeVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateCustomNodeVersionError = CreateCustomNodeVersionErrors[keyof CreateCustomNodeVersionErrors];
+
+export type CreateCustomNodeVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: VersionSaved;
+};
+
+export type CreateCustomNodeVersionResponse = CreateCustomNodeVersionResponses[keyof CreateCustomNodeVersionResponses];
 
 export type ListChatsData = {
   body?: never;
