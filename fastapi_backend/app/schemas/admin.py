@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -18,6 +18,22 @@ class Started(Ok):
 class MailTestResult(ResponseModel):
     ok: bool
     to: str | None = Field(None, description="where the test message went: your own address")
+    error: str | None = None
+
+
+class BridgeStatus(ResponseModel):
+    state: Literal["off", "incomplete", "starting", "running", "error"] = Field(
+        description="off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); "
+        "running; error (the last look at Matterbridge failed, `error` says why)"
+    )
+    error: str | None = None
+    holder: str | None = Field(None, description="the server process reading Matterbridge")
+    at: str | None = Field(None, description="when it last looked")
+    answered: int | None = Field(None, description="messages it answered since it started")
+
+
+class BridgeTestResult(ResponseModel):
+    ok: bool
     error: str | None = None
 
 

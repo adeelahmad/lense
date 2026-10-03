@@ -34,6 +34,7 @@ SECTIONS = (
     "voice",
     "components",
     "mail",
+    "bridge",
     "telemetry",
     "sensors",
 )
