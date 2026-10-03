@@ -202,7 +202,7 @@ def platform_main(argv, config):
     import threading
     import time
 
-    from .domain import auth, jobs, notify, routines, sensors, settings, sources, telemetry
+    from .domain import auth, bridge, jobs, notify, routines, sensors, settings, sources, telemetry
 
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -281,6 +281,7 @@ def platform_main(argv, config):
                 if not (a.steps or a.no_schedule):  # and scans watched folders and runs routines, as `lens watch` does
                     routines.start(db, C, stop, log=print)
                     sensors.start(db, C, stop, log=print, name=wk.name)  # and the sensor hub, while sensors are on
+                    bridge.start(db, C, stop, lambda: cfg, name=wk.name, log_fn=print)  # and the chat-room bridge, while it's on
                 _stop_on_term()
                 try:
                     wk.loop(stop)

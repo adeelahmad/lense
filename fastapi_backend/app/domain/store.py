@@ -247,6 +247,20 @@ DEFAULTS = {
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     "voice": {"input": "auto", "tts_base_url": None, "tts_model": None, "tts_voice": None, "tts_api_key": None},
+    # the assistant in chat rooms through Matterbridge (bridge.py): url is its API (http://matterbridge:4242), token its
+    # API token; it answers as `account` (an email), when a message names it (answer "mention") or to every message
+    # ("all"), from anyone or only the chat usernames in `users`, in every gateway or only `gateway`
+    "bridge": {
+        "enabled": False,
+        "url": None,
+        "token": None,
+        "gateway": None,
+        "account": None,
+        "name": "Lens",
+        "answer": "mention",
+        "users": [],
+        "poll_seconds": 2,
+    },
     # what Lens fetches for itself (components.py): auto fetches what the settings need; also names optional ones
     "components": {"auto": True, "also": []},
     # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
@@ -756,6 +770,9 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS sensor_login SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS sensor_login_name ON sensor_login FIELDS username UNIQUE",
     "DEFINE TABLE IF NOT EXISTS sensor_service SCHEMALESS",
+    # the chat-room bridge (bridge.py): which process reads Matterbridge (bridge_state:lease); its conversations are
+    # chats with a `bridge` key (the room and person)
+    "DEFINE TABLE IF NOT EXISTS bridge_state SCHEMALESS",
     # templates, pipelines, outputs, chat, edits
     "DEFINE TABLE IF NOT EXISTS template SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS template_version SCHEMALESS",

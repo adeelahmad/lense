@@ -819,6 +819,56 @@ export type BodyOauthToken = {
 };
 
 /**
+ * BridgeStatus
+ */
+export type BridgeStatus = {
+  /**
+   * State
+   *
+   * off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at Matterbridge failed, `error` says why)
+   */
+  state: "off" | "incomplete" | "starting" | "running" | "error";
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Holder
+   *
+   * the server process reading Matterbridge
+   */
+  holder?: string | null;
+  /**
+   * At
+   *
+   * when it last looked
+   */
+  at?: string | null;
+  /**
+   * Answered
+   *
+   * messages it answered since it started
+   */
+  answered?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * BridgeTestResult
+ */
+export type BridgeTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * BrowseEntry
  */
 export type BrowseEntry = {
@@ -881,8 +931,10 @@ export type Chat = {
   title: string;
   /**
    * Kind
+   *
+   * bridge: a conversation in a chat room, through Matterbridge
    */
-  kind?: "chat" | "setup";
+  kind?: "chat" | "setup" | "bridge";
   /**
    * Scope
    */
@@ -1103,8 +1155,10 @@ export type ChatSummary = {
   title: string;
   /**
    * Kind
+   *
+   * bridge: a conversation in a chat room, through Matterbridge
    */
-  kind?: "chat" | "setup";
+  kind?: "chat" | "setup" | "bridge";
   /**
    * Scope
    */
@@ -14069,6 +14123,38 @@ export type TestMailResponses = {
 };
 
 export type TestMailResponse = TestMailResponses[keyof TestMailResponses];
+
+export type BridgeStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/bridge";
+};
+
+export type BridgeStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeStatus;
+};
+
+export type BridgeStatusResponse = BridgeStatusResponses[keyof BridgeStatusResponses];
+
+export type TestBridgeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/bridge/test";
+};
+
+export type TestBridgeResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeTestResult;
+};
+
+export type TestBridgeResponse = TestBridgeResponses[keyof TestBridgeResponses];
 
 export type TestEmbeddingsData = {
   body?: never;

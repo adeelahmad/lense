@@ -268,6 +268,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       );
     case "mail":
       return <MailBody ctx={ctx} />;
+    case "bridge":
+      return <BridgeBody ctx={ctx} />;
     case "components":
       return (
         <>
@@ -668,6 +670,81 @@ function MailBody({ ctx }: { ctx: BodyCtx }) {
           </Banner>
         ) : (
           <Banner tone="error" title="It couldn’t be sent.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function BridgeBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const b = ctx.view.bridge;
+  const token = ctx.state("bridge.token");
+  const status = useQuery({
+    queryKey: ["bridge-status", b?.updated_at ?? null],
+    queryFn: () => data(Admin.bridgeStatus({ client })),
+    refetchInterval: 10_000,
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testBridge({ client })) });
+  const s = status.data;
+  return (
+    <>
+      {s?.state === "running" ? (
+        <Banner tone="success" title="Listening in the bridged rooms.">
+          {s.answered ? `Answered ${s.answered} message${s.answered === 1 ? "" : "s"} so far. ` : ""}
+          Each person’s conversation is in Chat for the account it answers as.
+        </Banner>
+      ) : s?.state === "error" ? (
+        <Banner tone="error" title="The last look at the rooms failed.">
+          {s.error}
+        </Banner>
+      ) : s?.state === "incomplete" ? (
+        <Banner tone="error" title="On, but not ready.">
+          It needs {s.error}.
+        </Banner>
+      ) : s?.state === "starting" ? (
+        <Banner title="Starting.">A server process picks it up within a few seconds.</Banner>
+      ) : (
+        <Banner title="Off.">
+          Run Matterbridge with an API account in the same gateway as your rooms, then turn this on.
+        </Banner>
+      )}
+      <F ctx={ctx} id="bridge.enabled" />
+      <F ctx={ctx} id="bridge.url" />
+      <SecretSetting
+        key={b?.updated_at ?? "none"}
+        label="API token"
+        isSet={Boolean(((b?.values?.token ?? {}) as { set?: boolean }).set)}
+        updatedBy={b?.updated_by}
+        updatedAt={b?.updated_at}
+        value={token.value as string | undefined}
+        onChange={(x) => token.onChange(x)}
+      />
+      <F ctx={ctx} id="bridge.account" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="bridge.name" />
+        <F ctx={ctx} id="bridge.answer" />
+      </div>
+      <F ctx={ctx} id="bridge.gateway" />
+      <F ctx={ctx} id="bridge.users" />
+      <F ctx={ctx} id="bridge.poll_seconds" />
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Checking…" : "Check the connection"}
+        </Button>
+        {ctx.dirty && (
+          <span className="text-[12px] text-fg-muted">Uses the saved settings, not your unsaved changes</span>
+        )}
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="Matterbridge answers.">
+            The address, token and account check out.
+          </Banner>
+        ) : (
+          <Banner tone="error" title="Not yet.">
             {test.data.error}
           </Banner>
         ))}

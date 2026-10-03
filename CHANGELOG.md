@@ -9,6 +9,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   decision model labels new patterns, one question per pattern, not per line. Brokers you already run (Mosquitto, Home
   Assistant) can be bridged in: Lens subscribes to the topics you name. With `digest` on, each day of a sensor becomes
   a document in its namespace. All three run in the **Tidy sensor data** routine.
+- **The assistant answers in chat rooms.** Through Matterbridge, Lens answers what's said to it in Slack, Discord,
+  Telegram, Matrix and other rooms ("Lens, …" or @Lens), as one Lens account, reading only what that account can and
+  asking for approval in the web app before changing anything. Each person in each room is a conversation listed in
+  Chat. Set up in Settings → Chat rooms with **Check the connection**; one server process reads the rooms at a time.
+  See docs/chat-rooms.md.
 - **Email is set up in the app.** Settings → Email holds the SMTP server, its password (kept secret) and the From
   address, with **Send a test email**; `MAIL_*` in `.env` still work and show locked. Links in emails use
   `notifications.app_url` when it's set.
