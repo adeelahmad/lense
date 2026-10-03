@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Install in one line.** `curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh`
+  installs Docker if it's missing, gets Lens, writes the secrets once, builds and starts the stack and opens the setup
+  page with the setup code filled in. On a server without a desktop, Lens is reachable from the network
+  (`LENS_BIND`/`LENS_PORT` in `docker-compose.prod.yml`, `127.0.0.1:3000` by default as before). Running it again
+  updates Lens and keeps the data.
 - **The whole graph fits on the canvas.** Workflow and pipeline canvases showed wide graphs cut off at both edges, or
   an empty canvas, because the view couldn't zoom out past half size and was fitted only once, before the nodes were
   measured. The canvas now zooms out as far as it needs to, fits again when the nodes are measured, when nodes are
