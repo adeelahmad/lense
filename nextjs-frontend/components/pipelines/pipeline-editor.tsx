@@ -104,11 +104,17 @@ export function RunDialog({
   onOpenChange,
   onRun,
   pending,
+  title = "Run on a recording",
+  description = "This runs the published version for real: each step’s output is saved on the recording, as a Reprocess would.",
+  action = "Run",
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onRun: (rid: number, title: string) => void;
   pending: boolean;
+  title?: string;
+  description?: string;
+  action?: string;
 }) {
   const client = useApiClient();
   const { can } = useArchive();
@@ -127,8 +133,8 @@ export function RunDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Run on a recording"
-      description="This runs the published version for real: each step’s output is saved on the recording, as a Reprocess would. The backend has no dry run yet."
+      title={title}
+      description={description}
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -142,7 +148,7 @@ export function RunDialog({
               if (r) onRun(r.id, r.title ?? `Recording ${r.id}`);
             }}
           >
-            {pending ? "Starting…" : "Run"}
+            {pending ? "Starting…" : action}
           </Button>
         </>
       }
