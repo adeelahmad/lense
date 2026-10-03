@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 
-from . import batches, entities, recsets, render, search as searchmod, speakers as spk, store, templates
+from . import batches, entities, entity_map, entity_setup, recsets, render, search as searchmod, speakers as spk, store, templates
 
 R = store.R
 log = logging.getLogger("lens")
@@ -75,16 +75,29 @@ TOOLS = [
         True,
     ),
     (
+        "entity_setup",
+        "How a namespace organises its entities: its mode (self-organising or a fixed list), the types it keeps, what it's "
+        "about, its own entity types, and its defined entities.",
+        {"namespace": _S},
+        ["namespace"],
+        False,
+    ),
+    (
         "propose_entity_change",
-        "Propose merging, renaming or retyping an entity. Needs the person's approval.",
+        "Propose a change to the entities, which needs the person's approval: merge others into an entity, rename or "
+        "retype it, describe it (a description and the other ways it's said), hide it, or define a new entity on a "
+        "namespace's list (define: namespace, new_name, new_type; no entity_id).",
         {
-            "action": {"type": "string", "enum": ["merge", "rename", "retype"]},
+            "action": {"type": "string", "enum": ["merge", "rename", "retype", "describe", "hide", "define"]},
             "entity_id": _I,
             "merge_ids": {"type": "array", "items": _I},
             "new_name": _S,
             "new_type": _S,
+            "description": _S,
+            "also_said_as": {"type": "array", "items": _S},
+            "namespace": _S,
         },
-        ["action", "entity_id"],
+        ["action"],
         True,
     ),
 ]
@@ -256,6 +269,10 @@ class Toolbox:
                 "namespace": e["namespace"],
                 "mentions": e["mentions"],
                 "recordings": e["recordings"],
+                **({"description": e["description"]} if e.get("description") else {}),
+                **({"also_said_as": e["aliases"]} if e.get("aliases") else {}),
+                **({"defined": True} if e.get("defined") else {}),
+                **({"always_there": e["builtin"]} if e.get("builtin") else {}),
             }
             for e in res["items"]
         ]
@@ -335,23 +352,81 @@ class Toolbox:
         est = batches.estimate(self.db, self.cfg, ids, steps)
         return self._approval("run_template", {"template_id": t["id"], "recordings": ids}, f"Run {label} on {len(ids)} recording(s)", est)
 
-    def t_propose_entity_change(self, action, entity_id, merge_ids=None, new_name=None, new_type=None):
-        needs = {"merge": ("merge_ids", merge_ids), "rename": ("new_name", new_name), "retype": ("new_type", new_type)}
+    def t_entity_setup(self, namespace):
+        names = {v: k for k, v in store.space_names(self.db).items()}
+        sid = names.get(namespace)
+        if sid not in self.readable:
+            raise ValueError(f"no namespace called {namespace} in scope")
+        setup = entity_setup.effective(self.db, sid)
+        types = entity_setup.types_of(self.db, sid)
+        label = {t["type"]: t["label"] for t in types}
+        out = {
+            "mode": {"self": "self-organising", "fixed": "fixed list"}.get(setup["mode"], setup["mode"]),
+            "types_kept": [label.get(t, t) for t in setup["types"]] or "all",
+            "about": setup.get("description"),
+            "matching": setup["matching"],
+            "own_types": [{"type": t["type"], "label": t["label"], "description": t.get("description")} for t in types if not t["builtin"]],
+            "defined_entities": [
+                {"id": e["id"], "name": e["name"], "type": label.get(e["type"], e["type"])} for e in entity_map.defined(self.db, sid)
+            ][:100],
+            "collections_with_their_own_setup": len([c for c in entity_setup.scopes(self.db, sid) if c is not None]),
+        }
+        return out, f"Read how {namespace} organises its entities"
+
+    def t_propose_entity_change(
+        self,
+        action,
+        entity_id=None,
+        merge_ids=None,
+        new_name=None,
+        new_type=None,
+        description=None,
+        also_said_as=None,
+        namespace=None,
+    ):
+        needs = {
+            "merge": ("merge_ids", merge_ids),
+            "rename": ("new_name", new_name),
+            "retype": ("new_type", new_type),
+            "describe": ("description or also_said_as", description is not None or also_said_as is not None),
+            "hide": ("entity_id", entity_id),
+            "define": ("namespace and new_name", namespace and new_name),
+        }
         if action not in needs:
-            raise ValueError("action is one of merge, rename, retype")
+            raise ValueError("action is one of " + ", ".join(needs))
         if not needs[action][1]:
             raise ValueError(f"{action} needs {needs[action][0]}")
+        args = {
+            "action": action,
+            "merge_ids": merge_ids,
+            "new_name": new_name,
+            "new_type": new_type,
+            "description": description,
+            "also_said_as": also_said_as,
+        }
+        if action == "define":
+            sid = {v: k for k, v in store.space_names(self.db).items()}.get(namespace)
+            if sid not in self.readable:
+                raise ValueError(f"no namespace called {namespace} in scope")
+            typ = new_type or "TERM"
+            if typ not in entity_setup.type_codes(self.db, sid):
+                raise ValueError(f"unknown type {typ}")
+            return self._approval(
+                "propose_entity_change", {**args, "namespace": namespace, "new_type": typ}, f"Add {new_name} to the entities of {namespace}"
+            )
+        if not entity_id:
+            raise ValueError(f"{action} needs entity_id")
         e = entities.detail(self.db, int(entity_id), self.readable)
         what = {
             "merge": f"Merge {len(merge_ids or [])} entit{'y' if len(merge_ids or []) == 1 else 'ies'} into {e['name']}",
             "rename": f"Rename {e['name']} to {new_name}",
             "retype": f"Change {e['name']} to {new_type}",
+            "describe": f"Describe {e['name']}"
+            + (f" as “{description}”" if description else "")
+            + (f" (also said as {', '.join(also_said_as)})" if also_said_as else ""),
+            "hide": f"Hide {e['name']}",
         }[action]
-        return self._approval(
-            "propose_entity_change",
-            {"action": action, "entity_id": e["id"], "merge_ids": merge_ids, "new_name": new_name, "new_type": new_type},
-            what,
-        )
+        return self._approval("propose_entity_change", {**args, "entity_id": e["id"]}, what)
 
     def cited(self, text):
         import re
@@ -386,11 +461,28 @@ def approve(db, cfg, aid, user, editable, decision="approve"):
             confirm=f"RUN {len(ids)}",
         )
         result = {"batch": bid}
+    elif args["action"] == "define":
+        sid = {v: k for k, v in store.space_names(db).items()}.get(args["namespace"])
+        if sid not in editable:
+            raise PermissionError("you can't change entities in that namespace")
+        eid = entity_map.define(
+            db, sid, args["new_name"], args["new_type"], args.get("description"), args.get("also_said_as") or [], user=user["email"]
+        )
+        result = {"entity": eid}
     else:
         eid = int(args["entity_id"])
         if (db.one("SELECT space FROM $r", r=R("entity", eid)) or {}).get("space") not in editable:
             raise PermissionError("you can't change entities in that namespace")
-        if args["action"] == "merge":
+        if args["action"] == "describe":
+            if args.get("also_said_as") is not None:
+                entity_map.set_aliases(db, eid, args["also_said_as"], user=user["email"])
+            if args.get("description") is not None:
+                entities.describe(db, eid, args["description"])
+            result = {"entity": eid}
+        elif args["action"] == "hide":
+            entities.hide(db, eid, True, "the assistant, approved")
+            result = {"entity": eid}
+        elif args["action"] == "merge":
             result = {"merge": entities.merge(db, eid, args.get("merge_ids") or [], user["email"])}
         elif args["action"] == "rename":
             result = entities.rename(db, eid, args.get("new_name"))

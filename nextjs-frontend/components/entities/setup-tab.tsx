@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { Entities } from "@/app/openapi-client";
 import type { EntitySetup, EntityTypeInfo } from "@/app/openapi-client/types.gen";
-import { keptTypes, type Mode, MODES, typesWording } from "@/components/entities/model";
+import { keptTypes, MATCHING, type Mode, MODES, typesWording } from "@/components/entities/model";
 import { useCollectionTree } from "@/components/library/use-collections";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -46,10 +46,12 @@ function SetupForm({
   const qc = useQueryClient();
   const toast = useToast();
   const [mode, setMode] = useState<Mode>((setup.mode as Mode) ?? "self");
+  const [matching, setMatching] = useState<"rules" | "model">(setup.matching === "model" ? "model" : "rules");
   const [kept, setKept] = useState<string[]>(setup.types ?? []);
   const [description, setDescription] = useState(setup.description ?? "");
   useEffect(() => {
     setMode((setup.mode as Mode) ?? "self");
+    setMatching(setup.matching === "model" ? "model" : "rules");
     setKept(setup.types ?? []);
     setDescription(setup.description ?? "");
   }, [setup]);
@@ -73,7 +75,7 @@ function SetupForm({
         Entities.saveEntitySetup({
           client,
           path: { name: ns },
-          body: { collection, mode, types: kept, description, matching: "rules" },
+          body: { collection, mode, types: kept, description, matching },
         }),
       ),
     onSuccess: () => {
@@ -164,6 +166,18 @@ function SetupForm({
             disabled={!can}
             placeholder={can ? "e.g. Weekly calls with our biotech clients" : "No description"}
             onChange={(e) => setDescription(e.target.value)}
+          />
+        )}
+      </Field>
+      <Field label="Matching names" hint={MATCHING.find((m) => m.value === matching)?.hint}>
+        {(ids) => (
+          <Select
+            id={ids.id}
+            aria-describedby={ids.describedBy}
+            value={matching}
+            disabled={!can}
+            onChange={(e) => setMatching(e.target.value as "rules" | "model")}
+            options={MATCHING.map((m) => ({ value: m.value, label: m.label }))}
           />
         )}
       </Field>

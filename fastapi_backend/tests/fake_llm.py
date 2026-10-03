@@ -99,6 +99,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     ]
                 }
             )
+        elif "mappings" in schema.get("properties", {}):
+            # entity matching: a name goes to the entity whose description says it, else the first other answer offered
+            text = body["messages"][-1]["content"]
+            ents = re.findall(r"^e(\d+): .*? - (.*)$", text, re.M)
+            names = re.findall(r'^(\d+)\. "(.*?)"', text, re.M)
+            other = re.findall(r'"(new|unlabeled|unknown)"', text.split("Answers:", 1)[1].split("\n", 1)[0])
+            out = []
+            for i, name in names:
+                hit = next((e for e, d in ents if name.lower() in d.lower()), None)
+                out.append({"name": int(i), "to": f"e{hit}" if hit else other[0], "confidence": 0.9})
+            content = json.dumps({"mappings": out})
         elif "entities" in schema.get("properties", {}):
             content = json.dumps(
                 {

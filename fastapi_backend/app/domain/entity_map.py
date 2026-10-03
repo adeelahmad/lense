@@ -10,13 +10,21 @@ analysed, each name found goes to:
 - else "Unknown".
 Unknown and Unlabeled are always there in a namespace that uses the fixed mode. People's corrections (a mention moved to
 another entity) still win. Nothing is created from what's found.
+
+With `matching: model`, the names the rules can't place are given to the LLM with the entities' descriptions, their
+other names and what the place is about (`judge`): in the self-organising mode it says which known entity a new name
+is, if any; the name then becomes one of that entity's other names, so the rules place it from then on. When the model
+can't be reached, the rules decide.
 """
 
 from __future__ import annotations
 
-from . import analyze, entity_setup, store
+import logging
+
+from . import analyze, entity_setup, llm, store
 
 R = store.R
+log = logging.getLogger("lens")
 UNKNOWN, UNLABELED = "unknown", "unlabeled"
 BUILTIN_NAMES = {UNKNOWN: "Unknown", UNLABELED: "Unlabeled"}
 BUILTIN_HELP = {
@@ -190,3 +198,111 @@ def set_aliases(db, eid, aliases, user=None, plan=None):
     db.q("DELETE entity_alias WHERE entity = $e", e=int(eid))
     for k in keys:
         db.q("UPSERT $r CONTENT $d", r=R("entity_alias", f"{e['space']}:{k}"), d={"space": e["space"], "key": k, "entity": int(eid)})
+
+
+# ---------- matching by description (the model) ----------
+JUDGE_SYSTEM = (
+    "You sort the names found in a transcript into a knowledge base's entities. Use each entity's description, its other "
+    "names and what the place is about. Say an entity's id only when the name means that entity (a nickname, a "
+    "misspelling, a description of it); never because it is merely related. Answer for every name."
+)
+JUDGE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "mappings": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"name": {"type": "integer"}, "to": {"type": "string"}, "confidence": {"type": "number"}},
+                "required": ["name", "to"],
+            },
+        }
+    },
+    "required": ["mappings"],
+}
+MAX_NAMES, MAX_ENTITIES, MIN_CONFIDENCE = 60, 300, 0.6
+ANSWERS = {"new": "a new entity", "unlabeled": "belongs here but is none of the entities", "unknown": "doesn't belong here"}
+
+
+def _context(seg_texts, names):
+    """A line each name was said on, cut to a sentence's length."""
+    out = {}
+    for key, (name, _) in names.items():
+        low = name.lower()
+        line = next((t for t in seg_texts if low in (t or "").lower()), "")
+        out[key] = line[:200]
+    return out
+
+
+def judge(db, cfg, sid, setup, names, entities, answers, seg_texts=()):
+    """Ask the model where each name ({key: (name, type)}) goes: {key: entity id | one of `answers`}. Names it isn't sure
+    of (or all of them, when the model can't be reached) are left out."""
+    if not names or not llm.configured(cfg):
+        return {}
+    keys = list(names)[:MAX_NAMES]
+    ents = entities[:MAX_ENTITIES]
+    al = {}
+    ids = [e["id"] for e in ents]
+    for a in db.rows("SELECT key, entity FROM entity_alias WHERE entity IN $e", e=ids) if ids else []:
+        al.setdefault(a["entity"], []).append(a["key"])
+    types = {t["type"]: t for t in entity_setup.types_of(db, sid)}
+    said = _context(seg_texts, {k: names[k] for k in keys})
+    parts = []
+    if setup.get("description"):
+        parts.append(f"About this place: {setup['description']}")
+    parts.append(
+        "Entities:\n"
+        + "\n".join(
+            f"e{e['id']}: {e['name']} ({types.get(e['type'], {}).get('label', e['type'])})"
+            + (f" - {e['description']}" if e.get("description") else "")
+            + (f"; also said as: {', '.join(al[e['id']])}" if al.get(e["id"]) else "")
+            for e in ents
+        )
+        if ents
+        else "Entities: none yet."
+    )
+    shown = {names[k][1] for k in keys}
+    parts.append(
+        "Types:\n"
+        + "\n".join(
+            f"{t}: {types[t]['label']}" + (f" - {types[t]['description']}" if types[t].get("description") else "")
+            for t in sorted(shown)
+            if t in types
+        )
+    )
+    parts.append("Answers: an entity's id (e12), or " + "; ".join(f'"{a}" ({ANSWERS[a]})' for a in answers) + ".")
+    parts.append(
+        "Names found:\n"
+        + "\n".join(f'{i}. "{names[k][0]}" ({names[k][1]})' + (f' in: "{said[k]}"' if said.get(k) else "") for i, k in enumerate(keys))
+    )
+    try:
+        reply = llm.json_out(cfg, JUDGE_SYSTEM, "\n\n".join(parts), JUDGE_SCHEMA)
+    except Exception as e:  # noqa: BLE001 - the rules decide when the model can't
+        log.warning("entity matching: the model couldn't be asked (%s); using the rules", e)
+        return {}
+    known = {e["id"] for e in ents}
+    out = {}
+    for m in (reply or {}).get("mappings") or []:
+        i, to = m.get("name"), str(m.get("to") or "").strip().lower()
+        if not isinstance(i, int) or not 0 <= i < len(keys) or float(m.get("confidence", 1)) < MIN_CONFIDENCE:
+            continue
+        if to.startswith("e") and to[1:].isdigit() and int(to[1:]) in known:
+            out[keys[i]] = int(to[1:])
+        elif to in answers:
+            out[keys[i]] = to
+    return out
+
+
+def described(db, sid):
+    """The entities a model can map names onto in the self-organising mode: those people described or gave other names,
+    most mentioned first."""
+    rows = db.rows("SELECT record::id(id) AS id, key, name, type, description, builtin, hidden FROM entity WHERE space = $s", s=int(sid))
+    aliased = set(db.values("SELECT VALUE entity FROM entity_alias WHERE space = $s", s=int(sid)))
+    keep = [e for e in rows if not e.get("builtin") and not e.get("hidden") and (e.get("description") or e["id"] in aliased)]
+    return keep
+
+
+def learn(db, sid, mapped):
+    """Names the model placed become those entities' other names ({key: entity id})."""
+    for key, eid in mapped.items():
+        db.q("UPSERT $r CONTENT $d", r=R("entity_alias", f"{int(sid)}:{key}"), d={"space": int(sid), "key": key, "entity": int(eid)})

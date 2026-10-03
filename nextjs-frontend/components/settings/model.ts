@@ -278,6 +278,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "find_entities", label: "Find entities", acts: false },
   { name: "entity_mentions", label: "Entity mentions", acts: false },
   { name: "entity_timeline", label: "Entities over time", acts: false },
+  { name: "entity_setup", label: "How a namespace organises its entities", acts: false },
   {
     name: "graph_neighbours",
     label: "Explore the graph (neighbours)",
@@ -287,7 +288,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "run_template", label: "Run a template on recordings", acts: true },
   {
     name: "propose_entity_change",
-    label: "Propose entity merges, renames, type changes",
+    label: "Propose entity merges, renames, type changes, descriptions and new entities",
     acts: true,
   },
 ];

@@ -403,6 +403,12 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
                     for r in db.rows("SELECT key, entity FROM entity_alias WHERE space = $s AND key IN $k", s=nid, k=sorted(first))
                 }
             )
+        new = {k: v for k, v in first.items() if k and k not in known}
+        if new and setup["matching"] == "model":  # the model may know a new name as a described entity
+            picked = entity_map.judge(db, cfg, nid, setup, new, entity_map.described(db, nid), ("new",), [s["text"] for s in segs])
+            placed = {k: v for k, v in picked.items() if isinstance(v, int)}
+            entity_map.learn(db, nid, placed)
+            known.update(placed)
         for key, (name, typ) in first.items():
             if key and key not in known:
                 known[key] = db.next_id("entity")
