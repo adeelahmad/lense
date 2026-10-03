@@ -101,7 +101,8 @@ shared with namespaces (admins can share with everyone), and switched on or off 
 
 - **Tool**: something the assistant can call, with typed parameters. Its body is a prompt (`{{param}}` in the text), a
   web request (public addresses only), or a graph drawn on the canvas (`ask_model`, `call_tool` and the primitives,
-  from `arg` nodes to `return` nodes). A tool with `effect: change` asks for approval before it runs.
+  from `arg` nodes to `return` nodes), or Python code (admins only, below). A tool with `effect: change` asks for
+  approval before it runs.
 - **Skill**: instructions and a line saying when to use them. The assistant sees the line, and reads the instructions
   only when the skill applies.
 - **Hook**: runs when a question arrives, before or after a tool, or after an answer, to add context, block a tool or
@@ -113,6 +114,13 @@ Make one however suits you:
 - **Code**: a manifest, Markdown with YAML frontmatter (the body is a skill's instructions or a prompt tool's prompt),
   or YAML. `POST /api/v1/extensions/check` checks it without saving, `GET /api/v1/extensions/{id}` gives it back.
 - **Canvas**: a tool whose `run` is `{type: graph, graph}`.
+- **Python** (admins only): a tool whose `run` is `{type: python, code, seconds, network}`, where `code` defines
+  `run(**args)` and returns something JSON can hold. It runs in a Python process of its own, from an empty folder it
+  alone reads and writes, with none of the server's environment (no keys or database address), the standard library
+  only, limits on CPU time (`seconds`, up to 60), memory and files, and no web unless `network: true` (a network
+  namespace of its own where the machine allows one, and a guard on sockets either way). What it prints comes back
+  next to its result. It stops running if its owner stops being an admin. The guard raises the bar, it isn't a wall,
+  which is why only admins write these.
 - **Chat or voice**: ask the assistant ("make me a tool that translates text into French"). It drafts the manifest,
   fixes what the check says, and asks for your approval before saving, changing or switching anything.
 
