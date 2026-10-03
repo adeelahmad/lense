@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Email is set up in the app.** Settings → Email holds the SMTP server, its password (kept secret) and the From
+  address, with **Send a test email**; `MAIL_*` in `.env` still work and show locked. Links in emails use
+  `notifications.app_url` when it's set.
+
 - **Voice stays on the server.** The mic records in the browser and this server turns it into text with its own
   transcription engine (`POST /voice/transcribe`), showing what's been heard while you talk and ending at a pause;
   it works in any browser that can record. Spoken answers can come from a speech model (`voice.tts_model`, any

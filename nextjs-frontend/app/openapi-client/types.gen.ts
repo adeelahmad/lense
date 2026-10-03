@@ -5152,6 +5152,27 @@ export type Machine = {
 };
 
 /**
+ * MailTestResult
+ */
+export type MailTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * To
+   *
+   * where the test message went: your own address
+   */
+  to?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * ManifestCheck
  */
 export type ManifestCheck = {
@@ -13145,6 +13166,22 @@ export type TestLlmResponses = {
 };
 
 export type TestLlmResponse = TestLlmResponses[keyof TestLlmResponses];
+
+export type TestMailData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/mail/test";
+};
+
+export type TestMailResponses = {
+  /**
+   * Successful Response
+   */
+  200: MailTestResult;
+};
+
+export type TestMailResponse = TestMailResponses[keyof TestMailResponses];
 
 export type TestEmbeddingsData = {
   body?: never;

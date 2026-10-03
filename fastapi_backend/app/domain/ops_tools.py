@@ -31,6 +31,9 @@ SECTIONS = (
     "notifications",
     "workers",
     "decisions",
+    "voice",
+    "components",
+    "mail",
     "telemetry",
 )
 ALWAYS_ASK = {"telemetry"}
