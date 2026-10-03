@@ -354,13 +354,15 @@ TOOL_SYSTEM = (
 
 
 def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None):
-    """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text). Raises llm.ToolsUnsupported."""
+    """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text), or ("direct", text) when the model
+    answered without looking anything up (it never saw the archive, so the caller can answer from a search instead).
+    Raises llm.ToolsUnsupported."""
     msgs = [{"role": "system", "content": TOOL_SYSTEM}] + [{"role": m["role"], "content": m["content"]} for m in list(history)[-6:]]
     msgs.append({"role": "user", "content": question})
-    for _ in range(max_steps):
+    for step in range(max_steps):
         msg = llm.chat_message(cfg, msgs, tools=toolbox.specs(), model=model)
         if not msg["tool_calls"]:
-            yield "answer", msg["content"]
+            yield ("direct" if step == 0 else "answer"), msg["content"]
             return
         msgs.append({"role": "assistant", "content": msg["content"], "tool_calls": msg["tool_calls"]})
         for c in msg["tool_calls"]:

@@ -203,15 +203,18 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                                 yield _ev("approval", appr)
                             yield from stopped("", [])
                             return
+                    elif kind == "direct" and passages:  # a model that skips the tools hasn't seen the archive
+                        break
                     else:
                         answer = data
-                for appr in box.approvals:
-                    yield _ev("approval", appr)
-                cited = box.cited(answer)
-                yield _ev("passages", cited)
-                yield _ev("token", {"text": answer})
-                yield _ev("done", {"message": save(answer or "(no answer)", cited)})
-                return
+                else:
+                    for appr in box.approvals:
+                        yield _ev("approval", appr)
+                    cited = box.cited(answer)
+                    yield _ev("passages", cited)
+                    yield _ev("token", {"text": answer})
+                    yield _ev("done", {"message": save(answer or "(no answer)", cited)})
+                    return
             except llm.ToolsUnsupported:
                 notice = "This model can't use tools, so the answer comes from a search instead."
                 yield _ev("notice", {"message": notice})
