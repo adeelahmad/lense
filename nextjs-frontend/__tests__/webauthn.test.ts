@@ -1,4 +1,11 @@
-import { creationOptions, deviceName, fromB64url, passkeyErrorMessage, requestOptions, toB64url } from "@/lib/auth/webauthn";
+import {
+  creationOptions,
+  deviceName,
+  fromB64url,
+  passkeyErrorMessage,
+  requestOptions,
+  toB64url,
+} from "@/lib/auth/webauthn";
 
 describe("passkey helpers", () => {
   it("round-trips base64url without padding", () => {

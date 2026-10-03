@@ -114,6 +114,13 @@ describe("sensor retention actions", () => {
     expect(resultText({ type: "sensors", status: "done", result: { sensors: 3, readings: 120, rollups: 4 } })).toBe(
       "3 sensors · 120 readings and 4 summaries removed",
     );
+    expect(
+      resultText({
+        type: "sensors",
+        status: "done",
+        result: { sensors: 1, readings: 0, rollups: 0, triaged: 2, digests: 1 },
+      }),
+    ).toBe("1 sensor · 0 readings and 0 summaries removed · 2 log patterns labelled · 1 daily digest");
   });
 });
 

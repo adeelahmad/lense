@@ -602,6 +602,9 @@ import type {
   ListOutputsResponses,
   ListPasskeysData,
   ListPasskeysResponses,
+  ListPatternsData,
+  ListPatternsErrors,
+  ListPatternsResponses,
   ListPendingAccessRequestsData,
   ListPendingAccessRequestsResponses,
   ListPipelinesData,
@@ -1032,6 +1035,9 @@ import type {
   UpdateNotifyTargetData,
   UpdateNotifyTargetErrors,
   UpdateNotifyTargetResponses,
+  UpdatePatternData,
+  UpdatePatternErrors,
+  UpdatePatternResponses,
   UpdateRecordingAccessData,
   UpdateRecordingAccessErrors,
   UpdateRecordingAccessResponses,
@@ -6918,6 +6924,39 @@ export class Sensors {
     return (options.client ?? client).get<GetSeriesResponses, GetSeriesErrors, ThrowOnError>({
       url: "/api/v1/sensors/{sid}/series",
       ...options,
+    });
+  }
+
+  /**
+   * List Patterns
+   *
+   * A log sensor's kinds of line, busiest first.
+   */
+  public static listPatterns<ThrowOnError extends boolean = false>(
+    options: Options<ListPatternsData, ThrowOnError>,
+  ): RequestResult<ListPatternsResponses, ListPatternsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListPatternsResponses, ListPatternsErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}/patterns",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Pattern
+   *
+   * Label a kind of line yourself (`label: null` clears it), or stop keeping its lines (`action: drop`; they're
+   * still counted).
+   */
+  public static updatePattern<ThrowOnError extends boolean = false>(
+    options: Options<UpdatePatternData, ThrowOnError>,
+  ): RequestResult<UpdatePatternResponses, UpdatePatternErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdatePatternResponses, UpdatePatternErrors, ThrowOnError>({
+      url: "/api/v1/sensor-patterns/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

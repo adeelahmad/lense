@@ -49,6 +49,23 @@ afterEach(() => {
 });
 
 describe("SetupForm", () => {
+  it("fills in the code from the setup link and starts at the name", () => {
+    renderForm("fr0m-link");
+
+    expect(screen.getByLabelText("Setup code")).toHaveValue("fr0m-link");
+    expect(screen.getByLabelText("Name")).toHaveFocus();
+    expect(screen.getByText("The setup code from your link is filled in.")).toBeInTheDocument();
+    expect(screen.queryByText("make setup-code")).not.toBeInTheDocument();
+  });
+
+  it("without a link, offers the command to copy and starts at the code", () => {
+    renderForm();
+
+    expect(screen.getByText("make setup-code")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy the command" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Setup code")).toHaveFocus();
+  });
+
   it("never asks for a password", () => {
     secure(true);
     renderForm();

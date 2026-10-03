@@ -456,7 +456,7 @@ def test_retention_runs_as_a_routine(db, cfg):
     run_id = routines.run(db, cfg, tidy["id"])
     run = routines.get_run(db, run_id)
     assert run["status"] == "done"
-    assert run["results"][0]["result"] == {"sensors": 1, "readings": 2, "rollups": 1}
+    assert run["results"][0]["result"] == {"sensors": 1, "readings": 2, "rollups": 1, "triaged": 0, "digests": 0}
     assert sorted(r["text"] for r in sensors.readings(db, sid)) == ["fresh", "old error"]
 
     # a routine can name its sensors; only stream sensors
@@ -475,3 +475,192 @@ def test_sensor_settings(client, admin):
     assert put({"store": "maybe"}).status_code == 400
     assert put({"syslog_networks": ["not a network"]}).status_code == 400
     assert put({"bind": "0.0.0.0"}).status_code == 400
+
+
+# ---------- log patterns and triage ----------
+def test_log_lines_are_grouped_into_patterns():
+    assert sensors.pattern("query[A] example.com from 192.168.1.5") == "query[A] <name> from <ip>"
+    assert sensors.pattern("DHCPACK(br-lan) 192.168.1.20 aa:bb:cc:dd:ee:ff phone") == "DHCPACK(br-lan) <ip> <mac> phone"
+    assert sensors.pattern("query[AAAA] api.github.com from fe80::1c2b:3cff:fe4d:5e6f") == "query[AAAA] <name> from <ip>"
+    assert sensors.pattern("session 4f9a2c1e8b7d6a5f started after 12.5ms") == "session <hex> started after <n>ms"
+    assert sensors.pattern("  ") == "(empty)"
+
+
+def _syslog_sensor(db, cfg, it, lines):
+    sid, _ = sensors.create(db, cfg, "syslog", "Pi-hole", {"address": "192.168.1.2"})
+    s = sensors.get(db, sid)
+    for prog, line, level in lines:
+        it.put(s, prog, line, level=level, log=True)
+    it.flush()
+    return sid
+
+
+def test_patterns_count_drop_and_label(client, admin, db, cfg):
+    it = sensors.intake(db, _cfg_fn(cfg))
+    lines = [("dnsmasq", f"query[A] site{i}.example.com from 192.168.1.{i}", 6) for i in range(5)]
+    lines += [("dnsmasq", "reply site1.example.com is 1.2.3.4", 6), ("kernel", "disk error on sda", 3)]
+    sid = _syslog_sensor(db, cfg, it, lines)
+    pats = client.get(f"/api/v1/sensors/{sid}/patterns", headers=admin).json()
+    assert [(p["template"], p["count"]) for p in pats][:1] == [("query[A] <name> from <ip>", 5)]
+    assert len(pats) == 3 and all(p["action"] == "keep" and p["label"] is None for p in pats)
+    query = pats[0]
+    assert query["example"].startswith("query[A] site0") and query["stream_name"] == "dnsmasq"
+
+    # drop: counted, not kept
+    assert client.patch(f"/api/v1/sensor-patterns/{query['id']}", headers=admin, json={"action": "drop"}).status_code == 200
+    it._fresh()
+    it.checked = 0
+    it.put(sensors.get(db, sid), "dnsmasq", "query[A] other.example.com from 192.168.1.9", level=6, log=True)
+    it.flush()
+    got = client.get(f"/api/v1/sensors/{sid}/patterns", headers=admin).json()
+    assert next(p for p in got if p["id"] == query["id"])["count"] == 6
+    assert len(sensors.readings(db, sid)) == 7
+
+    # a person's label; cleared again
+    assert client.patch(f"/api/v1/sensor-patterns/{query['id']}", headers=admin, json={"label": "routine"}).status_code == 200
+    p = client.get(f"/api/v1/sensors/{sid}/patterns", headers=admin, params={"label": "routine"}).json()
+    assert [(x["id"], x["label_by"], x["sure"]) for x in p] == [(query["id"], "admin@example.com", True)]
+    client.patch(f"/api/v1/sensor-patterns/{query['id']}", headers=admin, json={"label": None})
+    assert len(client.get(f"/api/v1/sensors/{sid}/patterns", headers=admin, params={"label": "none"}).json()) == 3
+    assert client.patch(f"/api/v1/sensor-patterns/{query['id']}", headers=admin, json={"label": "panic"}).status_code == 422
+    assert client.patch("/api/v1/sensor-patterns/nope", headers=admin, json={"label": "alert"}).status_code == 404
+
+
+def test_patterns_have_a_ceiling_and_drops_reach_every_way_in(db, cfg, monkeypatch):
+    from app.domain import sensor_patterns
+
+    monkeypatch.setattr(sensors, "MAX_PATTERNS", 3)
+    it = sensors.Intake(db, _cfg_fn(cfg))
+    sid = _syslog_sensor(db, cfg, it, [("app", f"user{chr(97 + i)} did thing{chr(97 + i)}", 6) for i in range(6)])
+    got = {p["template"]: p["count"] for p in sensor_patterns.list_patterns(db, sid)}
+    assert len(got) == 4 and got[sensors.OTHER_PATTERN] == 3
+
+    # a webhook's intake never looks a sensor up, and still drops what's dropped
+    wid, token = sensors.create(db, cfg, "webhook", "Hook")
+    sensors.push(db, _cfg_fn(cfg), token, "log", b"backup took 12s", "text/plain")
+    pid = sensor_patterns.list_patterns(db, wid)[0]["id"]
+    sensor_patterns.update(db, pid, action="drop")
+    fresh = sensors.Intake(db, _cfg_fn(cfg))
+    sensors._INTAKES[id(db)] = fresh
+    assert sensors.push(db, _cfg_fn(cfg), token, "log", b"backup took 15s", "text/plain") == 0
+    assert len(sensors.readings(db, wid)) == 1
+
+    # patterns nobody chose anything for go when they haven't been seen for as long as anything is kept
+    old = sensors._ts(dt.datetime.now(dt.UTC) - dt.timedelta(days=400))
+    db.q("UPDATE sensor_pattern SET last_at = $t WHERE sensor = $s", t=old, s=sid)
+    keep = sensor_patterns.list_patterns(db, sid)[0]["id"]
+    sensor_patterns.update(db, keep, label="notable")
+    sensors.tidy(db, cfg, [sid])
+    assert [p["id"] for p in sensor_patterns.list_patterns(db, sid)] == [keep]
+
+
+def test_triage_asks_the_decision_model_once_per_pattern(db, cfg):
+    from app.domain import sensor_patterns
+    from tests import fake_jev
+
+    srv = fake_jev.start(cfg)
+    try:
+        it = sensors.Intake(db, _cfg_fn(cfg))
+        lines = [("dnsmasq", f"query[A] s{i}.example.com from 10.0.0.{i}", 6) for i in range(30)]
+        lines += [("kernel", "disk error on sda", 3)]
+        sid = _syslog_sensor(db, cfg, it, lines)
+        assert sensor_patterns.triage(db, cfg) == 0  # triage is off
+        assert not fake_jev.Handler.seen
+        sensors.update(db, sid, handling={"triage": True})
+        fake_jev.Handler.answer = {"type": "choice", "choice": "alert", "confidence": 0.6, "probabilities": {"alert": 0.6, "notable": 0.4}}
+        assert sensor_patterns.triage(db, cfg) == 2
+        assert len(fake_jev.Handler.seen) == 2  # one question per pattern, not per line
+        state = fake_jev.Handler.seen[0][1]["state"]
+        assert "query[A] <name> from <ip>" in state and "Pi-hole" in state
+        labelled = sensor_patterns.list_patterns(db, sid)
+        assert {(p["label"], p["label_by"], p["sure"]) for p in labelled} == {("alert", "jev", False)}
+        assert sensor_patterns.triage(db, cfg) == 0  # labelled once
+    finally:
+        srv.shutdown()
+
+
+# ---------- digests ----------
+def test_daily_digests_become_documents(db, cfg):
+    from app.domain import sensor_digests
+
+    ns = store.ns_id(db, "pods")
+    sid, _ = sensors.create(db, cfg, "mqtt", "Kitchen", {"prefix": "zigbee2mqtt/kitchen"}, space=ns, handling_={"digest": True})
+    it = sensors.Intake(db, _cfg_fn(cfg))
+    s = sensors.get(db, sid)
+    day = dt.date(2026, 10, 1)
+    for h, t in ((8, 20.0), (9, 22.0), (10, 24.0)):
+        at = sensors._ts(dt.datetime(2026, 10, 1, h, tzinfo=dt.UTC))
+        it.put(s, "zigbee2mqtt/kitchen", f'{{"temperature": {t}, "battery": 90}}', at=at)
+        it.put(s, "zigbee2mqtt/kitchen/power", "1", at=at)
+    it.put(s, "zigbee2mqtt/kitchen/log", "link lost to 192.168.1.4", at=sensors._ts(dt.datetime(2026, 10, 1, 11, tzinfo=dt.UTC)))
+    it.flush()
+    body = sensor_digests.text(db, s, day)
+    assert body.startswith("# Kitchen: 2026-10-01")
+    assert "- zigbee2mqtt/kitchen/power: 3 readings, from 1 to 1, averaging 1" in body
+    assert "  - temperature: from 20 to 24, averaging 22" in body
+    assert "link lost to <ip>" in body
+    assert sensor_digests.text(db, s, dt.date(2026, 9, 30)) is None
+
+    db.q("UPDATE $r SET created_at = '2026-09-30T10:00:00+00:00'", r=R("storage_source", sid))
+    assert sensor_digests.write(db, cfg, today=dt.date(2026, 10, 3)) == 1  # the 30th and 2nd had nothing
+    rec = db.one("SELECT record::id(id) AS id, title, space, sensor, recorded_at FROM recording WHERE sensor = $s", s=sid)
+    assert rec["title"] == "Kitchen: 2026-10-01" and rec["space"] == ns and rec["recorded_at"].startswith("2026-10-01")
+    assert db.one("SELECT id FROM job WHERE recording = $r", r=rec["id"])
+    assert sensor_digests.write(db, cfg, today=dt.date(2026, 10, 3)) == 0  # days are written once
+
+    # no namespace, no digest
+    sensors.update(db, sid, space=None)
+    db.q("UPDATE $r SET digest_until = NONE", r=R("storage_source", sid))
+    lines = []
+    assert sensor_digests.write(db, cfg, today=dt.date(2026, 10, 3), say=lines.append) == 0
+    assert "needs a namespace" in lines[0]
+
+
+# ---------- bridges ----------
+def test_bridges_bring_another_brokers_devices_in(client, admin, db, cfg, hub):
+    other = mqtt.Broker(
+        "127.0.0.1", 0, lambda u, p, cid, a: {"u": u} if (u, p) == ("lens", "bridge-pass") else None, lambda *a: None
+    ).start()
+    try:
+        r = client.post(
+            "/api/v1/sensors",
+            headers=admin,
+            json={
+                "type": "bridge",
+                "name": "Home Assistant",
+                "params": {"host": "127.0.0.1", "port": str(other.port), "topics": "zigbee2mqtt/#, tele/#", "user": "lens"},
+                "secrets": {"pass": "wrong-pass"},
+            },
+        )
+        assert r.status_code == 200, r.text
+        bid = r.json()["id"]
+        hub.apply()
+        assert _wait(lambda: (sensors.get(db, bid).get("health") or {}).get("ok") is False)
+        assert "bad username or password" in sensors.get(db, bid)["health"]["error"]
+
+        before = sensors.get(db, bid)["sealed"]
+        bad = client.patch(f"/api/v1/sensors/{bid}", headers=admin, json={"secrets": {"pass": "x"}, "name": " "})
+        assert bad.status_code == 400 and sensors.get(db, bid)["sealed"] == before  # nothing saved
+        assert client.patch(f"/api/v1/sensors/{bid}", headers=admin, json={"secrets": {"pass": "bridge-pass"}}).status_code == 200
+        hub.apply()  # the connection changed: it starts again
+        assert _wait(lambda: (sensors.get(db, bid).get("health") or {}).get("ok") is True, 10)
+        assert _wait(lambda: other.clients() == 1)
+        time.sleep(0.2)
+        Device(other.port, "z", "lens", "bridge-pass").publish("zigbee2mqtt/porch", '{"temperature": 11}', qos=1)
+        Device(other.port, "y", "lens", "bridge-pass").publish("ignored/topic", "1", qos=1)
+        _wait(lambda: hub.intake.rows)
+        hub.intake.flush()
+        porch = sensors._by_key(db, "mqtt:zigbee2mqtt/porch")
+        assert porch and porch["status"] == "new"
+        assert not sensors._by_key(db, "mqtt:ignored")
+        det = client.get(f"/api/v1/sensors/{bid}", headers=admin).json()
+        assert det["secrets"] == {"pass": {"secret": True, "set": True}} and det["health"]["ok"]
+
+        assert client.patch(f"/api/v1/sensors/{bid}", headers=admin, json={"params": {"topics": "a/#/b"}}).status_code == 400
+        assert client.patch(f"/api/v1/sensors/{porch['id']}", headers=admin, json={"params": {"prefix": "x"}}).status_code == 400
+        assert client.patch(f"/api/v1/sensors/{bid}", headers=admin, json={"status": "paused"}).status_code == 200
+        hub.apply()
+        assert _wait(lambda: other.clients() == 0)
+        assert not hub.bridges
+    finally:
+        other.stop()

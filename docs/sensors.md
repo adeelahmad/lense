@@ -32,6 +32,13 @@ readings to `POST /api/v1/sensors/push` with `Authorization: Bearer <token>`, or
 `/api/v1/sensors/push/<token>/<stream>` for devices that can only be given a URL. Plain text is a reading per line;
 JSON is one reading, or several as `{"readings": [{"stream": "down", "value": 412.5}]}`.
 
+**Other brokers.** A broker you already run (Mosquitto, Home Assistant's) is a sensor of type `bridge`:
+`POST /api/v1/sensors {"type": "bridge", "params": {"host", "port", "tls", "topics": "zigbee2mqtt/#, tele/#", "user"},
+"secrets": {"pass"}}`. Lens subscribes to those topics, and the devices publishing there become sensors as they would
+on the hub (in the bridge's namespace, if it has one). The bridge's health says whether it's connected; it reconnects
+on its own, waiting longer each time up to five minutes. Change its connection with `PATCH` (`params`, `secrets`);
+pause it to disconnect. One process runs each bridge.
+
 In Docker, the hub runs in the `worker` container, which publishes 1883 and 5514; set `LENS_MQTT_PORT` or
 `LENS_SYSLOG_PORT` when something else on the machine has those ports. Run natively, it runs in `lens worker` (and in
 the API when it runs background work). Several processes can run it: the first to get the port serves it, and the
@@ -64,11 +71,35 @@ setting; 0 days keeps them for good):
 | `important_days` | days log lines of warning or worse are kept, when longer than `raw_days` | 180 |
 | `rollup_days` | days hourly summaries (count, min, max, average, last) are kept | 365 |
 | `max_per_minute` | readings a stream may send a minute; more are counted and dropped | 600 |
+| `triage` | the decision model labels new log patterns (below) | off |
+| `digest` | a daily digest becomes a document in the sensor's namespace (below) | off |
 
 A sensor can also be **paused** (nothing kept) or **ignored** (nothing kept, out of sight).
 
-Retention runs as a routine action, `{"type": "sensors"}` (optionally `"sensors": [ids]`): the **Tidy sensor data**
-routine runs it every hour, and does nothing while there are no stream sensors.
+Retention, triage and digests run as a routine action, `{"type": "sensors"}` (optionally `"sensors": [ids]`): the
+**Tidy sensor data** routine runs it every hour, and does nothing while there are no stream sensors.
+
+## Log patterns and triage
+
+Log and text lines are grouped into **patterns**: the line with what changes from one to the next taken out
+(`query[A] example.com from 192.168.1.5` is `query[A] <name> from <ip>`), so a chatty DNS server is a few dozen
+patterns, each with its count, an example and when it was first and last seen
+(`GET /api/v1/sensors/{id}/patterns?stream=&label=`). Per pattern you choose:
+
+- a **label**: routine, notable or alert (`PATCH /api/v1/sensor-patterns/{id} {"label": "alert"}`, null to clear);
+- an **action**: `drop` stops keeping its lines (they are still counted); `keep` is the default.
+
+With `triage` on (per sensor, or for every sensor in the settings), each routine run asks the decision model (Jev, or
+the language model when there's no Jev key) to label the busiest unlabelled patterns, up to 50 a run: one question per
+pattern, never per line. A label it wasn't sure of (below `decisions.act_above`) is kept with `sure: false`, for you to
+settle.
+
+## Daily digests
+
+With `digest` on (and a namespace), each full day (UTC) of a sensor becomes a document in its namespace: each stream's
+count and range, its JSON fields' ranges, the busiest log patterns with their labels, and the warnings and errors. It's
+a recording like any other, queued for the namespace's pipeline, so it can be searched, linked and asked about. Days
+are written once, oldest first, up to a week a run; a day with nothing in it is skipped.
 
 ## Reading it back
 
@@ -78,6 +109,5 @@ routine runs it every hour, and does nothing while there are no stream sensors.
 
 ## Refine later
 
-Log patterns (the same line with different numbers grouped), triage of patterns by the decision model (opt-in), bridges
-to another broker, daily digests as documents in a namespace, sensors for namespace members (admins only for now), and
-the web pages.
+Notifications for alert patterns, sensors for namespace members (admins only for now), MQTT 5, the port mappings of
+the Synology, QNAP, Proxmox and Cloudron packages, and the web pages.

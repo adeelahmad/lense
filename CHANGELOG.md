@@ -11,6 +11,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   admin turns them off in Settings › Sign-in (which needs an admin with a passkey). Passkeys need an `https://`
   address or `localhost`; on a plain `http://` address setup takes the code alone and a sign-in link signs in by
   itself, so there is still no password.
+- **Sensors understand their logs.** Log lines are grouped into patterns (`query[A] <name> from <ip>`), each with a
+  count, an example, a label (routine, notable, alert) and an action (drop: counted, not kept). With `triage` on, the
+  decision model labels new patterns, one question per pattern, not per line. Brokers you already run (Mosquitto, Home
+  Assistant) can be bridged in: Lens subscribes to the topics you name. With `digest` on, each day of a sensor becomes
+  a document in its namespace. All three run in the **Tidy sensor data** routine.
 - **Email is set up in the app.** Settings → Email holds the SMTP server, its password (kept secret) and the From
   address, with **Send a test email**; `MAIL_*` in `.env` still work and show locked. Links in emails use
   `notifications.app_url` when it's set.
@@ -72,6 +77,21 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   searching, so chat said the archive didn't cover things it did. When the model answers without looking anything up
   and the archive has matching passages, the answer now comes from those passages, with citations, as it does for a
   model that can't use tools.
+- **Docker Compose builds the full image by default.** `docker compose up` and `make dev` built the lean image, so
+  capturing web pages and converting Office files, text and emails failed with "needs Chromium or LibreOffice on the
+  server" until you rebuilt with `LENS_TARGET=full` (`make run` already used it). `LENS_TARGET=lean` still builds the
+  smaller one.
+- **Set up the first admin without copying the code.** The API log now prints a link next to the setup code
+  (`…/setup?code=…`, from `FRONTEND_URL`) that opens the setup page with the code filled in and the cursor in Name.
+  Without the link, the page offers `make setup-code` with a copy button; it named a `lens` container that no
+  install uses.
+- **First start on a fresh database.** `docker compose up` on an empty database could stop the API with "Database
+  index `space_name` already contains 'podcasts'": the API and the worker both created the configured namespaces at
+  once. The one that loses now uses the other's.
+- **The dev web app no longer breaks when the API schema is rewritten twice at once.** The Docker dev stack's watcher
+  regenerated the API client on every change to `openapi.json`, and two generations at once deleted each other's
+  files ("Module not found: Can't resolve '../core/auth'"). It now runs one at a time and runs once more for changes
+  made during a run.
 - **Calendar feeds on your own network.** A calendar server at home or on an intranet (Nextcloud, Radicale) was
   refused with "only public web pages can be captured", and Docker and the packages had no way to allow it.
   `LENS_WEB_NETWORKS` in `.env` (e.g. `192.168.1.0/24`) now adds networks to `documents.web_networks`, and the error

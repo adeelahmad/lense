@@ -41,7 +41,7 @@ import socket
 import threading
 import time
 
-from . import auth, mqtt, sources, store, syslog
+from . import auth, mqtt, settings, sources, store, syslog
 
 R = store.R
 STREAM_TYPES = {
@@ -53,10 +53,16 @@ STREAM_TYPES = {
     },
     "syslog": {"label": "Syslog sender", "fields": {"address": ""}, "secrets": [], "help": "a host sending syslog from this address"},
     "webhook": {"label": "Webhook", "fields": {}, "secrets": [], "help": "anything that can send HTTP: push to its address with its token"},
+    "bridge": {
+        "label": "Another MQTT broker",
+        "fields": {"host": "", "port": "1883", "tls": "false", "topics": "#", "user": ""},
+        "secrets": ["pass"],
+        "help": "a broker you already run (Mosquitto, Home Assistant): Lens subscribes to its topics, comma-separated",
+    },
 }
 STATUSES = ("new", "active", "paused", "ignored")
 STORE_MODES = ("all", "changes", "summary", "none")
-HANDLING = ("store", "raw_days", "rollup_days", "important_days", "max_per_minute")
+HANDLING = ("store", "raw_days", "rollup_days", "important_days", "max_per_minute", "triage", "digest")
 KINDS = ("number", "boolean", "json", "text", "log")
 IMPORTANT_LEVEL = 4  # syslog warning: this and worse (lower) are kept for important_days
 BOOLEAN = {
@@ -77,6 +83,23 @@ CACHE_SECONDS = 15
 CHANGES_EVERY = 3600  # store=changes still keeps one reading an hour, so a value that never changes shows it's alive
 SERVICE_SECONDS = 10
 RETRY_SECONDS = 60
+BRIDGE_WAIT = (5, 300)  # a bridge that lost its broker tries again after 5 seconds, doubling up to 5 minutes
+# a log line's pattern: what's left when the parts that change from one line to the next are taken out
+PATTERN_RX = [
+    (re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I), "<id>"),
+    (re.compile(r"\b(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b", re.I), "<mac>"),
+    (re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\b"), "<ip>"),
+    (
+        re.compile(r"(?<![\w:])(?:[0-9a-f]{1,4}:){5,7}[0-9a-f]{1,4}\b|(?<![\w:])[0-9a-f]{0,4}(?::[0-9a-f]{0,4})*::[0-9a-f:]*\b", re.I),
+        "<ip>",
+    ),
+    (re.compile(r"\b(?=[a-z0-9_-]*[a-z])(?:[a-z0-9_-]+\.)+[a-z]{2,}\b\.?", re.I), "<name>"),
+    (re.compile(r"\b0x[0-9a-f]+\b|\b[0-9a-f]*\d[0-9a-f]*[a-f][0-9a-f]*\b(?<=\w{12})|\b[0-9a-f]{16,}\b", re.I), "<hex>"),
+    (re.compile(r"[-+]?\d+(?:[.,:]\d+)*"), "<n>"),
+]
+MAX_PATTERN = 300
+MAX_PATTERNS = 2000  # per stream; lines past it that don't fit one are counted under OTHER_PATTERN
+OTHER_PATTERN = "(other lines)"
 GATEWAYS = {
     "zigbee2mqtt",
     "zwave",
@@ -118,6 +141,7 @@ def handling(cfg, sensor):
     s = cfg.get("sensors") or {}
     base = {k: s.get(k) for k in HANDLING}
     base["store"] = base["store"] or "all"
+    base["triage"], base["digest"] = bool(s.get("triage")), False  # a digest needs a namespace: per sensor only
     own = {k: v for k, v in (sensor.get("handling") or {}).items() if k in HANDLING and v is not None}
     return {**base, **{k: (None if v == 0 and k.endswith("_days") else v) for k, v in own.items()}}  # 0 days: for good
 
@@ -130,6 +154,9 @@ def check_handling(h):
         if k == "store":
             if v is not None and v not in STORE_MODES:
                 raise ValueError(f"store is one of: {', '.join(STORE_MODES)}")
+        elif k in ("triage", "digest"):
+            if v is not None and not isinstance(v, bool):
+                raise ValueError(f"{k} is true or false")
         elif v is not None:
             days = k.endswith("_days")
             if not isinstance(v, int) or isinstance(v, bool) or v < (0 if days else 1) or v > (36_500 if days else 100_000):
@@ -194,6 +221,19 @@ def stream_key(sid, name):
     return f"{sid}-{hashlib.sha1(name.encode()).hexdigest()[:16]}"
 
 
+def pattern(text):
+    """A log line with what changes from one line to the next (addresses, names, ids, numbers) taken out:
+    "query[A] example.com from 192.168.1.5" is "query[A] <name> from <ip>"."""
+    t = " ".join((text or "").split())[:2000]
+    for rx, sub in PATTERN_RX:
+        t = rx.sub(sub, t)
+    return t[:MAX_PATTERN] or "(empty)"
+
+
+def pattern_id(stream, template):
+    return f"{stream}-{hashlib.sha1(template.encode()).hexdigest()[:12]}"
+
+
 def _field_id(field):
     return hashlib.sha1((field or "").encode()).hexdigest()[:8]
 
@@ -229,10 +269,33 @@ def _key(typ, params, sid=None):
         except ValueError:
             raise ValueError("a syslog sender needs the IP address it sends from") from None
         return f"syslog:{ip}", {"address": ip}
+    if typ == "bridge":
+        host = str(p.get("host") or "").strip()
+        if not host or "/" in host or " " in host:
+            raise ValueError("a broker needs its host name or address")
+        try:
+            port = int(str(p.get("port") or "1883"))
+            if not 0 < port < 65536:
+                raise ValueError
+        except ValueError:
+            raise ValueError("the port is a number, such as 1883") from None
+        tls = str(p.get("tls") or "false").lower()
+        if tls not in ("true", "false"):
+            raise ValueError("tls is true or false")
+        topics = [t.strip() for t in str(p.get("topics") or "#").split(",") if t.strip()]
+        if not topics or not all(mqtt.valid_filter(t) for t in topics):
+            raise ValueError("topics are MQTT topic filters, comma-separated, such as zigbee2mqtt/#, tele/#")
+        return f"bridge:{sid}", {
+            "host": host,
+            "port": str(port),
+            "tls": tls,
+            "topics": ", ".join(topics),
+            "user": str(p.get("user") or "").strip(),
+        }
     return f"webhook:{sid}", {}
 
 
-def create(db, cfg, typ, name=None, params=None, space=None, handling_=None, user=None):
+def create(db, cfg, typ, name=None, params=None, space=None, handling_=None, user=None, secret_values=None):
     """Add a stream sensor by hand (a file sensor is added through sources.create). Returns (id, token): a webhook's
     token is shown this once."""
     if typ not in STREAM_TYPES:
@@ -240,20 +303,24 @@ def create(db, cfg, typ, name=None, params=None, space=None, handling_=None, use
     extra = sorted(set(params or {}) - set(STREAM_TYPES[typ]["fields"]))
     if extra:
         raise ValueError(f"{typ} has no option {extra[0]}")
+    bad = sorted(set(secret_values or {}) - set(STREAM_TYPES[typ]["secrets"]))
+    if bad:
+        raise ValueError(f"{typ} has no secret {bad[0]}")
     sid = db.next_id("storage_source")
     key, params = _key(typ, params, sid)
     if _by_key(db, key):
         raise ValueError("there's a sensor for that already")
     token = secrets.token_urlsafe(24) if typ == "webhook" else None
+    sealed = {k: settings.seal(cfg, v, f"source:{sid}:{k}") for k, v in (secret_values or {}).items() if isinstance(v, str) and v}
     db.q(
         "CREATE $r CONTENT $d",
         r=R("storage_source", sid),
         d=store.clean(
             {
-                "name": (name or params.get("prefix") or params.get("address") or STREAM_TYPES[typ]["label"])[:80],
+                "name": (name or params.get("prefix") or params.get("address") or params.get("host") or STREAM_TYPES[typ]["label"])[:80],
                 "type": typ,
                 "params": params,
-                "sealed": {},
+                "sealed": sealed,
                 "key": key,
                 "status": "active",
                 "space": _check_space(db, space),
@@ -309,11 +376,28 @@ def discover(db, typ, key, name, device, params, space=None):
     return get(db, sid)
 
 
-def update(db, sid, **changes):
+def update(db, sid, cfg=None, **changes):
     s = get(db, sid)
     if family(s["type"]) != "stream":
         raise ValueError("change a file sensor through its source")
-    sets, nones = {}, []
+    sets, nones, sealed = {}, [], None
+    if changes.get("params") is not None or changes.get("secrets") is not None:
+        if s["type"] != "bridge":
+            raise ValueError("only a broker's connection can be changed; add another sensor instead")
+        if changes.get("params") is not None:
+            extra = sorted(set(changes["params"]) - set(STREAM_TYPES["bridge"]["fields"]))
+            if extra:
+                raise ValueError(f"bridge has no option {extra[0]}")
+            _k, sets["params"] = _key_(s, changes["params"])
+        if changes.get("secrets") is not None:
+            sealed = dict(s.get("sealed") or {})
+            for k, v in changes["secrets"].items():
+                if k not in STREAM_TYPES["bridge"]["secrets"]:
+                    raise ValueError(f"bridge has no secret {k}")
+                if v in (None, ""):
+                    sealed.pop(k, None)
+                elif isinstance(v, str):
+                    sealed[k] = settings.seal(cfg, v, f"source:{sid}:{k}")
     if "name" in changes and changes["name"] is not None:
         if not changes["name"].strip():
             raise ValueError("give the sensor a name")
@@ -330,13 +414,21 @@ def update(db, sid, **changes):
     if "handling" in changes and changes["handling"] is not None:
         h = {**(s.get("handling") or {}), **check_handling(changes["handling"])}
         sets["handling"] = {k: v for k, v in h.items() if v is not None}  # none: back to the settings' default
+    if sealed is not None:  # only once everything else checked out
+        db.q("UPDATE $r SET sealed = $s", r=R("storage_source", int(sid)), s=sealed)
     if sets:
-        db.q("UPDATE $r MERGE $d", r=R("storage_source", int(sid)), d=sets)
+        db.q("UPDATE $r MERGE $d", r=R("storage_source", int(sid)), d={k: v for k, v in sets.items() if k != "params"})
+    if "params" in sets:
+        db.q("UPDATE $r SET params = $p", r=R("storage_source", int(sid)), p=sets["params"])
     if "handling" in sets:  # MERGE keeps keys it isn't given: set the whole of it
         db.q("UPDATE $r SET handling = $h", r=R("storage_source", int(sid)), h=sets["handling"])
     for k in nones:
         db.q(f"UPDATE $r SET {k} = NONE", r=R("storage_source", int(sid)))
     _bump(db)
+
+
+def _key_(s, params):
+    return _key("bridge", {**(s.get("params") or {}), **params}, s["id"])
 
 
 def _bump(db):
@@ -353,6 +445,7 @@ def remove(db, sid):
             "DELETE sensor_reading WHERE sensor = $s",
             "DELETE sensor_rollup WHERE sensor = $s",
             "DELETE sensor_stream WHERE sensor = $s",
+            "DELETE sensor_pattern WHERE sensor = $s",
             "DELETE $r",
         ],
         s=int(sid),
@@ -400,6 +493,8 @@ def view(db, cfg, s, names=None, extra=None):
         "channels": (extra or {}).get("streams", 0),
         "readings": (extra or {}).get("count", 0),
         "has_token": bool(s.get("push_hash")),
+        "secrets": {k: {"secret": True, "set": k in (s.get("sealed") or {})} for k in STREAM_TYPES[s["type"]]["secrets"]},
+        "health": s.get("health"),
         "last_seen_at": s.get("last_seen_at"),
         "created_at": s.get("created_at"),
         "created_by": s.get("created_by"),
@@ -448,6 +543,8 @@ def suggest(db, cfg, s, st=None):
         except (TypeError, ValueError):
             pass
     rate = count / minutes
+    if s["type"] == "bridge":
+        return {"handling": {}, "reason": "A broker brings its devices in as sensors of their own: handle those."}
     if not st:
         return {"handling": {"store": "all"}, "reason": "Nothing has arrived yet: keep everything for now."}
     if kinds & {"log", "text"}:
@@ -537,6 +634,13 @@ def tidy(db, cfg, ids=None, now=None, say=None):
                 important = "sensor_reading WHERE sensor = $s AND at < $c"
                 gone += _count(db, important, s=s["id"], c=kcut)
                 db.q(f"DELETE {important}", s=s["id"], c=kcut)
+        keep = max(x for x in (raw, imp, roll) if x) if any((raw, imp, roll)) else None
+        if keep:  # patterns not seen since, unless someone labelled them or chose their action
+            db.q(
+                "DELETE sensor_pattern WHERE sensor = $s AND last_at < $c AND action = NONE AND (label = NONE OR label_by IN ['jev', 'llm'])",
+                s=s["id"],
+                c=_ts(now - dt.timedelta(days=keep)),
+            )
         rgone = 0
         if roll:
             hcut = (now - dt.timedelta(days=roll)).isoformat(timespec="hours")[:13]
@@ -566,6 +670,9 @@ class Intake:
         self.finding = threading.Lock()
         self.rows: list = []
         self.rollups: dict = {}
+        self.patterns: dict = {}
+        self.dropping: set = set()  # patterns whose lines are counted but not kept
+        self.known: dict = {}  # stream -> the patterns it has
         self.stats: dict = {}
         self.seen: dict = {}
         self.kept: dict = {}  # stream -> (what was last stored, when): for store=changes
@@ -595,6 +702,8 @@ class Intake:
             self.cache.clear()
             rows = self.db.rows("SELECT key, params FROM storage_source WHERE type = 'mqtt'")
             self.prefixes = sorted(((r["params"] or {}).get("prefix") or "" for r in rows), key=len, reverse=True)
+            self.dropping = set(self.db.values("SELECT VALUE record::id(id) FROM sensor_pattern WHERE action = 'drop'"))
+            self.known.clear()  # retention may have removed some
 
     def sensor(self, typ, key, name, device, params, space=None):
         with self.lock:
@@ -619,6 +728,15 @@ class Intake:
             prefix = next((p for p in self.prefixes if p and (topic == p or topic.startswith(p + "/"))), None)
         device = prefix or mqtt_device(topic)
         return self.sensor("mqtt", f"mqtt:{device}", device, device, {"prefix": device}, space)
+
+    def _known(self, k):
+        """The patterns a stream has (read once per process)."""
+        got = self.known.get(k)
+        if got is None:
+            got = self.known[k] = set(
+                self.db.values("SELECT VALUE record::id(id) FROM sensor_pattern WHERE stream = $k LIMIT $n", k=k, n=MAX_PATTERNS + 1)
+            )
+        return got
 
     def _allow(self, k, per_minute):
         if not per_minute:
@@ -646,7 +764,21 @@ class Intake:
             if log
             else read(payload)
         )
+        tmpl = pattern(got["text"]) if got["kind"] in ("log", "text") else None
         with self.lock:
+            self._fresh()  # which patterns are dropped, whichever way the reading came in
+            known = self._known(k) if tmpl else set()
+            pid = pattern_id(k, tmpl) if tmpl else None
+            if pid and pid not in known:
+                if len(known) >= MAX_PATTERNS:  # lines too varied to group: one catch-all pattern, not a row each
+                    tmpl, pid = OTHER_PATTERN, pattern_id(k, OTHER_PATTERN)
+                known.add(pid)
+            if pid:
+                pt = self.patterns.setdefault(
+                    pid, {"sensor": sid, "stream": k, "template": tmpl, "example": got["text"][:500], "n": 0, "first": when}
+                )
+                pt["n"] += 1
+                pt["last"] = when
             st = self.stats.setdefault(
                 k, {"sensor": sid, "name": stream, "count": 0, "stored": 0, "dropped": 0, "fields": set(), "first": when}
             )
@@ -661,6 +793,7 @@ class Intake:
             if (
                 (sensor.get("status") or "active") in ("paused", "ignored")
                 or h["store"] == "none"
+                or (pid and pid in self.dropping)
                 or not self._allow(k, h.get("max_per_minute"))
             ):
                 st["dropped"] += 1
@@ -697,6 +830,8 @@ class Intake:
                     row[f] = got[f]
             if level is not None:
                 row["level"] = int(level)
+            if pid:
+                row["pattern"] = pid
             self.rows.append(row)
             st["stored"] += 1
             full = len(self.rows) >= FLUSH_ROWS
@@ -708,6 +843,7 @@ class Intake:
         with self.lock:
             rows, self.rows = self.rows, []
             rollups, self.rollups = self.rollups, {}
+            patterns, self.patterns = self.patterns, {}
             stats, self.stats = self.stats, {}
             seen, self.seen = self.seen, {}
         db = self.db
@@ -723,6 +859,14 @@ class Intake:
                     "last = IF $last = NONE THEN last ELSE $last END",
                     r=R("sensor_rollup", rid),
                     **r,
+                )
+            for pid, pt in patterns.items():
+                db.q(
+                    "UPSERT $r SET sensor = $sensor, stream = $stream, template = $template, count += $n, last_at = $last, "
+                    "example = IF example = NONE THEN $example ELSE example END, "
+                    "first_at = IF first_at = NONE THEN $first ELSE first_at END",
+                    r=R("sensor_pattern", pid),
+                    **pt,
                 )
             for k, st in stats.items():
                 db.q(
@@ -862,6 +1006,7 @@ class Hub:
         self.broker = self.listener = None
         self.state = {"mqtt": {}, "syslog": {}}
         self.retry = {"mqtt": 0.0, "syslog": 0.0}
+        self.bridges: dict = {}  # sensor id -> {sig, stop, thread}
 
     def _on_mqtt(self, topic, payload, login, address):
         s = self.intake.mqtt_sensor(topic, (login or {}).get("space"))
@@ -915,6 +1060,90 @@ class Hub:
                 self.retry[what] = time.monotonic() + RETRY_SECONDS
         if self.listener is not None and want["syslog"]:
             self.listener.networks = list(want["syslog"][2])
+        self._bridges(on)
+
+    # ---------- bridges to other brokers ----------
+    def _bridges(self, on):
+        """Run a connection for every bridge sensor that isn't paused, one process each (the first to claim it)."""
+        rows = self.db.rows(f"SELECT {FIELDS} FROM storage_source WHERE type = 'bridge'") if on else []
+        wanted = {}
+        for r in rows:
+            if (r.get("status") or "active") in ("paused", "ignored"):
+                continue
+            sig = json.dumps([r.get("params"), r.get("sealed"), r.get("space")], sort_keys=True, default=str)
+            if self._claim(r["id"]):
+                wanted[r["id"]] = (r, sig)
+        for bid in list(self.bridges):
+            if bid not in wanted or self.bridges[bid]["sig"] != wanted[bid][1]:
+                self.bridges.pop(bid)["stop"].set()
+        for bid, (r, sig) in wanted.items():
+            if bid not in self.bridges:
+                stop = threading.Event()
+                th = threading.Thread(target=self._bridge, args=(r, stop), daemon=True, name=f"mqtt-bridge-{bid}")
+                self.bridges[bid] = {"sig": sig, "stop": stop, "thread": th}
+                th.start()
+
+    def _claim(self, bid):
+        now = dt.datetime.now(dt.timezone.utc)
+        return bool(
+            self.db.rows(
+                "UPDATE $r SET bridge_owner = $me, bridge_at = $t WHERE bridge_owner = NONE OR bridge_owner = $me OR bridge_at < $stale "
+                "RETURN AFTER",
+                r=R("storage_source", bid),
+                me=self.name,
+                t=_ts(now),
+                stale=_ts(now - dt.timedelta(seconds=SERVICE_SECONDS * 6)),
+            )
+        )
+
+    def _health(self, bid, ok, error=None):
+        h = store.clean({"ok": ok, "checked_at": store.now(), "error": (error or "")[:300] or None})
+        self.db.q("UPDATE $r SET health = $h", r=R("storage_source", bid), h=h)
+
+    def _bridge(self, row, stop):
+        bid, p = row["id"], row.get("params") or {}
+        sealed = (row.get("sealed") or {}).get("pass")
+        try:
+            pw = settings.unseal(self.cfg_fn(), sealed, f"source:{bid}:pass") if sealed else None
+        except Exception:  # noqa: BLE001 - the key changed since it was saved
+            self._health(bid, False, "the saved password can't be read: give it again")
+            return
+        filters = [t.strip() for t in str(p.get("topics") or "#").split(",") if t.strip()]
+        wait = BRIDGE_WAIT[0]
+
+        def on_message(topic, payload):
+            with self.intake.lock:
+                self.intake.seen[bid] = _ts()
+            self.intake.put(self.intake.mqtt_sensor(topic, row.get("space")), topic, payload)
+
+        def on_connect():
+            nonlocal wait
+            wait = BRIDGE_WAIT[0]
+            self._health(bid, True)
+            self.log(f"sensors: bridge {row['name']} connected to {p.get('host')}")
+
+        while not stop.is_set():
+            client = mqtt.Client(
+                p.get("host"),
+                int(p.get("port") or 1883),
+                p.get("user") or None,
+                pw,
+                tls=str(p.get("tls")).lower() == "true",
+                client_id=f"lens-bridge-{bid}-{secrets.token_hex(3)}",
+            )
+            try:
+                client.run(filters, on_message, stop, on_connect)
+            except (OSError, mqtt.ProtocolError) as e:
+                self._health(bid, False, f"{p.get('host')}: {e}")
+            except Exception as e:  # noqa: BLE001 - anything else: say so, and try again
+                self.log(f"sensors: bridge {row['name']}: {type(e).__name__}: {e}")
+                try:
+                    self._health(bid, False, f"{type(e).__name__}: {e}")
+                except Exception:  # noqa: BLE001
+                    pass
+            if stop.wait(wait):
+                break
+            wait = min(wait * 2, BRIDGE_WAIT[1])
 
     def _stop(self, what):
         thing = self.broker if what == "mqtt" else self.listener
@@ -930,7 +1159,7 @@ class Hub:
         self.state[what] = {}
 
     def heartbeat(self):
-        if not self.state["mqtt"] and not self.state["syslog"]:  # sensors are off: say nothing, once
+        if not self.state["mqtt"] and not self.state["syslog"] and not self.bridges:  # sensors are off: say nothing, once
             if getattr(self, "said", True):
                 self.db.q("DELETE $r", r=R("sensor_service", self.name))
                 self.said = False
@@ -941,6 +1170,7 @@ class Hub:
             "at": store.now(),
             "mqtt": {k: v for k, v in self.state["mqtt"].items() if k != "want"},
             "syslog": {k: v for k, v in self.state["syslog"].items() if k != "want"},
+            "bridges": sorted(self.bridges),
         }
         if self.broker is not None:
             st["mqtt"]["clients"] = self.broker.clients()
@@ -949,6 +1179,9 @@ class Hub:
     def close(self):
         self._stop("mqtt")
         self._stop("syslog")
+        for b in self.bridges.values():
+            b["stop"].set()
+        self.bridges.clear()
         self.intake.flush()
 
     def loop(self, stop):

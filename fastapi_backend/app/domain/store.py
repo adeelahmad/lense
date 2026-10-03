@@ -305,6 +305,7 @@ DEFAULTS = {
         "rollup_days": 365,
         "important_days": 180,
         "max_per_minute": 600,
+        "triage": False,
     },
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
@@ -757,6 +758,13 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS sensor_rollup SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS sensor_rollup_stream ON sensor_rollup FIELDS stream, field, hour",
     "DEFINE INDEX IF NOT EXISTS sensor_rollup_sensor ON sensor_rollup FIELDS sensor, hour",
+    # a log stream's patterns (sensor_pattern:<stream>-<hash of the template>): counts, a label (routine, notable,
+    # alert: by the decision model or a person) and an action (drop: counted, not kept)
+    "DEFINE TABLE IF NOT EXISTS sensor_pattern SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_pattern_sensor ON sensor_pattern FIELDS sensor, stream",
+    "DEFINE INDEX IF NOT EXISTS sensor_pattern_stream ON sensor_pattern FIELDS stream",
+    "DEFINE INDEX IF NOT EXISTS sensor_pattern_action ON sensor_pattern FIELDS action",
+    "DEFINE INDEX IF NOT EXISTS sensor_reading_pattern ON sensor_reading FIELDS pattern",
     "DEFINE TABLE IF NOT EXISTS sensor_login SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS sensor_login_name ON sensor_login FIELDS username UNIQUE",
     "DEFINE TABLE IF NOT EXISTS sensor_service SCHEMALESS",
@@ -960,7 +968,13 @@ def ns_id(db, name, create=True):
     if not NS_RX.match(name or ""):
         raise SystemExit(f"namespace names use lowercase letters, digits, - and _: {name!r}")
     sid = db.next_id("space")
-    db.q("CREATE $r CONTENT $d", r=R("space", sid), d={"name": name, "graph": "shared"})
+    try:
+        db.q("CREATE $r CONTENT $d", r=R("space", sid), d={"name": name, "graph": "shared"})
+    except Exception:  # noqa: BLE001 - another process made it first (the API and a worker starting on a fresh database)
+        row = db.one("SELECT record::id(id) AS id FROM space WHERE name = $n LIMIT 1", n=name)
+        if not row:
+            raise
+        return row["id"]
     default_collection(db, sid)
     return sid
 
