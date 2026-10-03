@@ -49,7 +49,7 @@ def test_browse_and_explore(env):
     names = {x["name"] for x in c.get("/api/v1/entities", params={"q": "northwnd"}, headers=h).json()["items"]}
     assert names == {"Northwind Labs", "North Wind Labs"}
     types = c.get("/api/v1/entities/types", headers=h).json()
-    assert {"type": "ORG", "label": "Organisation", "quiet": False} in types
+    assert {"type": "ORG", "label": "Organisation", "quiet": False, "builtin": True}.items() <= types[1].items()
     dyno = env.eid("Dyno Therapeutics")
     d = c.get(f"/api/v1/entities/{dyno}", headers=h).json()
     assert (d["type"], d["mentions"], d["namespace"]) == ("ORG", 5, "pods")

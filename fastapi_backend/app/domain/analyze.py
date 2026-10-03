@@ -9,7 +9,7 @@ import re
 import urllib.request
 from collections import Counter, defaultdict
 
-from . import store, telemetry
+from . import entity_setup, store, telemetry
 
 STOP = set(
     """a about above after again against all almost also am an and any are aren as at be because been before being
@@ -370,6 +370,9 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
         for (a, sa), (b, sb) in zip(ws, ws[1:]):
             tn[a + " " + b] += 1
             ts[a + " " + b][sa + " " + sb] += 1
+    setup = entity_setup.for_recording(db, rid)
+    if setup["types"]:  # the namespace (or collection) keeps only some types
+        seg_ents = [[(n, t) for n, t in es if entity_setup.keeps(setup, t)] for es in seg_ents]
     surface = {t: c.most_common(1)[0][0] for t, c in ts.items()}
     starts = [0] + tiling(toks, wc) if segs else []
     titles = section_titles(starts, toks, surface, seg_ents, len(segs)) if segs else []

@@ -2445,6 +2445,118 @@ export type EntityRetype = {
 };
 
 /**
+ * EntitySetup
+ */
+export type EntitySetup = {
+  /**
+   * Mode
+   *
+   * self: every name found becomes an entity, and people curate them
+   */
+  mode: string;
+  /**
+   * Types
+   *
+   * the types kept; empty: all of them
+   */
+  types?: Array<string>;
+  /**
+   * Description
+   *
+   * what this place is about
+   */
+  description?: string | null;
+  /**
+   * Matching
+   */
+  matching?: string;
+  /**
+   * Collection
+   *
+   * the collection this setup is saved on; null: the namespace
+   */
+  collection?: number | null;
+  /**
+   * Collection Path
+   */
+  collection_path?: Array<string>;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  /**
+   * Can Change
+   */
+  can_change?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * EntitySetupSave
+ */
+export type EntitySetupSave = {
+  /**
+   * Collection
+   *
+   * save it on this collection (default: the namespace)
+   */
+  collection?: number | null;
+  /**
+   * Mode
+   */
+  mode?: "self";
+  /**
+   * Types
+   */
+  types?: Array<string>;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Matching
+   */
+  matching?: "rules" | "model";
+};
+
+/**
+ * EntitySetupView
+ */
+export type EntitySetupView = {
+  /**
+   * the namespace's setup (the default when none is saved)
+   */
+  namespace: EntitySetup;
+  /**
+   * Saved
+   *
+   * whether the namespace has a setup of its own
+   */
+  saved: boolean;
+  /**
+   * Collections
+   *
+   * collections with a setup of their own
+   */
+  collections?: Array<EntitySetup>;
+  /**
+   * Types
+   */
+  types?: Array<EntityTypeInfo>;
+  /**
+   * Can Change
+   *
+   * you may change the namespace's setup and types: its editors
+   */
+  can_change: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * EntityType
  */
 export type EntityType = {
@@ -2462,7 +2574,80 @@ export type EntityType = {
    * extracted but hidden unless a filter asks for it (dates, numbers)
    */
   quiet: boolean;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Builtin
+   *
+   * one of Lens's types; false: the namespace's own
+   */
+  builtin?: boolean;
   [key: string]: unknown;
+};
+
+/**
+ * EntityTypeCreate
+ */
+export type EntityTypeCreate = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+};
+
+/**
+ * EntityTypeInfo
+ */
+export type EntityTypeInfo = {
+  /**
+   * Type
+   *
+   * the code extractors and models use, e.g. ORG or CLIENT_TEAM
+   */
+  type: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Quiet
+   *
+   * extracted but hidden unless a filter asks for it (dates, numbers)
+   */
+  quiet?: boolean;
+  /**
+   * Builtin
+   *
+   * one of Lens's types; false: the namespace's own
+   */
+  builtin?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * EntityTypeUpdate
+ */
+export type EntityTypeUpdate = {
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Description
+   *
+   * empty clears it
+   */
+  description?: string | null;
 };
 
 /**
@@ -15747,9 +15932,23 @@ export type ListEntitiesResponse = ListEntitiesResponses[keyof ListEntitiesRespo
 export type ListEntityTypesData = {
   body?: never;
   path?: never;
-  query?: never;
+  query?: {
+    /**
+     * Ns
+     */
+    ns?: string;
+  };
   url: "/api/v1/entities/types";
 };
+
+export type ListEntityTypesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListEntityTypesError = ListEntityTypesErrors[keyof ListEntityTypesErrors];
 
 export type ListEntityTypesResponses = {
   /**
@@ -16376,6 +16575,198 @@ export type FindGraphPathResponses = {
 };
 
 export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
+
+export type GetEntitySetupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-setup";
+};
+
+export type GetEntitySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetEntitySetupError = GetEntitySetupErrors[keyof GetEntitySetupErrors];
+
+export type GetEntitySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntitySetupView;
+};
+
+export type GetEntitySetupResponse = GetEntitySetupResponses[keyof GetEntitySetupResponses];
+
+export type SaveEntitySetupData = {
+  body: EntitySetupSave;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-setup";
+};
+
+export type SaveEntitySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveEntitySetupError = SaveEntitySetupErrors[keyof SaveEntitySetupErrors];
+
+export type SaveEntitySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntitySetup;
+};
+
+export type SaveEntitySetupResponse = SaveEntitySetupResponses[keyof SaveEntitySetupResponses];
+
+export type ClearEntitySetupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-setup/collections/{cid}";
+};
+
+export type ClearEntitySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ClearEntitySetupError = ClearEntitySetupErrors[keyof ClearEntitySetupErrors];
+
+export type ClearEntitySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type ClearEntitySetupResponse = ClearEntitySetupResponses[keyof ClearEntitySetupResponses];
+
+export type CreateEntityTypeData = {
+  body: EntityTypeCreate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-types";
+};
+
+export type CreateEntityTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateEntityTypeError = CreateEntityTypeErrors[keyof CreateEntityTypeErrors];
+
+export type CreateEntityTypeResponses = {
+  /**
+   * Successful Response
+   */
+  201: EntityTypeInfo;
+};
+
+export type CreateEntityTypeResponse = CreateEntityTypeResponses[keyof CreateEntityTypeResponses];
+
+export type DeleteEntityTypeData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Code
+     */
+    code: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-types/{code}";
+};
+
+export type DeleteEntityTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteEntityTypeError = DeleteEntityTypeErrors[keyof DeleteEntityTypeErrors];
+
+export type DeleteEntityTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteEntityTypeResponse = DeleteEntityTypeResponses[keyof DeleteEntityTypeResponses];
+
+export type UpdateEntityTypeData = {
+  body: EntityTypeUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Code
+     */
+    code: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-types/{code}";
+};
+
+export type UpdateEntityTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateEntityTypeError = UpdateEntityTypeErrors[keyof UpdateEntityTypeErrors];
+
+export type UpdateEntityTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntityTypeInfo;
+};
+
+export type UpdateEntityTypeResponse = UpdateEntityTypeResponses[keyof UpdateEntityTypeResponses];
 
 export type GetRecordingMetadataData = {
   body?: never;

@@ -64,3 +64,11 @@ export function alsoKnownAs(e: Pick<EntityRow, "aliases" | "key" | "name">): str
   const own = e.name.toLowerCase();
   return [...new Set(e.aliases.filter((a) => a && a !== own && a !== e.key))];
 }
+
+/** "Organisations and places" / "Every type": what a setup keeps, in words. */
+export function keptTypes(types: string[], all: { type: string; label: string }[]): string {
+  if (!types.length) return "Every type";
+  const label = (t: string) => all.find((x) => x.type === t)?.label ?? t;
+  const names = types.map(label);
+  return names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}

@@ -86,9 +86,13 @@ Nodes are speakers and named things. Edges are:
 People, organisations, products, places, events, works and topics are extracted from every transcript. Dates and
 numbers are extracted too, but hidden unless asked for.
 
+The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab)
+and opens each in a side panel where editors rename, retype, describe and hide it.
+
 - **Index** (`GET /api/v1/entities`):
   - Search forgives misspellings and covers aliases.
-  - Filters: type, namespace, speaker, recording, date range, minimum mentions, and hidden entities.
+  - Filters: type, namespace, collection (and the collections inside it), speaker, recording, date range, minimum
+    mentions, and hidden entities.
   - Sorts: most mentioned, most recordings, most recent, rising, and name.
   - Options: grouping by name across namespaces, a twelve-month sparkline, and facets.
 - **Entity page:** its details and aliases, paged mentions (each line with the words highlighted, linking to its moment),
@@ -100,13 +104,23 @@ numbers are extracted too, but hidden unless asked for.
 - **Curation** (editors of the entity's namespace):
   - **Rename:** the old name stays as an alias. It can optionally correct the words in every transcript line, with a
     dry-run preview first, then re-analysis.
-  - **Change type, and hide or restore.**
+  - **Change type, describe (`PATCH /api/v1/entities/{id}`), and hide or restore.**
   - **Merge:** with undo.
   - **Mark two entities as not the same.**
   - **Move or remove a single mention.**
   - **Link the same thing across namespaces.**
 - **Merge suggestions:** same letters (ignoring case, spaces and punctuation), acronyms, one name containing the other,
   close spellings, and names that sound alike (likely transcription errors).
+
+### Entity setup
+
+Each namespace has an entity setup (Entities → Setup, `GET`/`PUT /api/v1/namespaces/{name}/entity-setup`): the types
+it keeps (names of other types are left out when a recording is analysed) and a description of what it's about. Any
+collection can have its own setup, which also holds for the collections inside it; a recording follows the setup of the
+nearest collection that has one, else its namespace's. Editors of the namespace change its setup and any collection's;
+editors of a collection change that collection's. A namespace can add entity types of its own (Entities → Types,
+`/api/v1/namespaces/{name}/entity-types`), each with a description of what counts as one; a type can be deleted once no
+entity has it. Changes apply to recordings analysed from then on.
 
 Curation survives re-analysis: merged names become aliases, and moved or removed mentions become per-line overrides.
 Everything is audited. People who can't read a namespace never see its entities, mentions or graph nodes, and requests

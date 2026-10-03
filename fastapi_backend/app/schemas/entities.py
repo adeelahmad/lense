@@ -13,6 +13,8 @@ class EntityType(ResponseModel):
     type: str
     label: str
     quiet: bool = Field(description="extracted but hidden unless a filter asks for it (dates, numbers)")
+    description: str | None = None
+    builtin: bool = Field(True, description="one of Lens's types; false: the namespace's own")
 
 
 class EntityList(ResponseModel):

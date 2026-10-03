@@ -15,6 +15,8 @@ import {
   filtersFrom,
   PAGE,
 } from "@/components/entities/model";
+import { SetupTab } from "@/components/entities/setup-tab";
+import { TypesTab } from "@/components/entities/types-tab";
 import { useCollectionTree } from "@/components/library/use-collections";
 import { Badge } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
@@ -40,6 +42,8 @@ export function EntitiesPage() {
       : (topNs ?? namespaces[0]?.name ?? null);
   const f = filtersFrom(params, ns ?? "");
   const open = Number(params.get("entity")) || null;
+  const view = (["hidden", "types", "setup"] as const).find((v) => v === params.get("view")) ?? "all";
+  const listing = view === "all" || view === "hidden";
 
   const set = (changes: Record<string, string | null>, keepPage = false) => {
     const p = new URLSearchParams(params.toString());
@@ -61,15 +65,15 @@ export function EntitiesPage() {
   }, [q]);
 
   const types = useQuery({
-    queryKey: ["entity-types"],
-    queryFn: () => data(Entities.listEntityTypes({ client })),
-    staleTime: Infinity,
+    queryKey: ["entity-types", ns],
+    queryFn: () => data(Entities.listEntityTypes({ client, query: { ns: ns ?? undefined } })),
+    staleTime: 60_000,
   });
   const tree = useCollectionTree(ns);
   const list = useQuery({
     queryKey: ["entities", "page", f],
     queryFn: () => data(Entities.listEntities({ client, query: entityQuery(f) })),
-    enabled: Boolean(ns),
+    enabled: Boolean(ns) && listing,
     placeholderData: keepPreviousData,
   });
   const rows = (list.data?.items ?? []) as unknown as EntityRow[];
@@ -96,7 +100,7 @@ export function EntitiesPage() {
       <PageHeader
         className="mb-0"
         title="Entities"
-        meta={ns && list.data ? `${ns} · ${plural(list.data.total, "entity", "entities")}` : undefined}
+        meta={ns && list.data && listing ? `${ns} · ${plural(list.data.total, "entity", "entities")}` : undefined}
         actions={
           namespaces.length > 1 && (
             <label className="flex items-center gap-2 text-[13px] font-semibold text-fg-secondary">
@@ -115,146 +119,154 @@ export function EntitiesPage() {
       />
       <Tabs
         aria-label="Entity views"
-        value={f.hidden ? "hidden" : "all"}
-        onChange={(v) => set({ view: v === "hidden" ? "hidden" : null })}
+        value={view}
+        onChange={(v) => set({ view: v === "all" ? null : v, entity: null })}
         items={[
           { value: "all", label: "Entities" },
           { value: "hidden", label: "Hidden" },
+          { value: "types", label: "Types" },
+          { value: "setup", label: "Setup" },
         ]}
       />
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchInput
-          className="w-full sm:w-[280px]"
-          placeholder="Find by name or alias"
-          aria-label="Find entities"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <Select
-          size="sm"
-          className="w-[170px]"
-          aria-label="Type"
-          value={f.type}
-          onChange={(e) => set({ type: e.target.value || null })}
-          options={[
-            { value: "", label: "All types" },
-            ...(types.data ?? []).map((t) => ({ value: t.type, label: t.label })),
-          ]}
-        />
-        <Select
-          size="sm"
-          className="w-[220px]"
-          aria-label="Collection"
-          value={f.collection ? String(f.collection) : ""}
-          onChange={(e) => set({ collection: e.target.value || null })}
-          options={[
-            { value: "", label: "Every collection" },
-            ...(tree.data ?? []).map((c) => ({
-              value: String(c.id),
-              label: `${"  ".repeat(c.depth ?? 0)}${(c.path ?? [c.name]).at(-1)}`,
-            })),
-          ]}
-        />
-      </div>
-      {list.isLoading && <SkeletonRows rows={6} />}
-      {list.isError && (
-        <Banner
-          tone="error"
-          title="Couldn’t load the entities."
-          action={
-            <Button size="sm" variant="secondary" onClick={() => list.refetch()}>
-              Try again
-            </Button>
-          }
-        >
-          {list.error.message}
-        </Banner>
-      )}
-      {list.data && !rows.length && (
-        <EmptyState icon={<Shapes />} title="No entities here" className="rounded-lg border border-border">
-          {f.q || f.type || f.collection
-            ? "Nothing matches these filters."
-            : f.hidden
-              ? "Nobody has hidden an entity in this namespace."
-              : "Entities appear once recordings are analysed."}
-        </EmptyState>
-      )}
-      {list.data && rows.length > 0 && (
-        <div className="overflow-hidden rounded-md border border-border">
-          <Table aria-label="Entities">
-            <THead className="border-t-0">
-              <tr>
-                <SortTh {...sortBy("name")}>Name</SortTh>
-                <Th className="w-[140px]">Type</Th>
-                <Th className="hidden lg:table-cell">Description</Th>
-                <SortTh {...sortBy("mentions")} className="w-[110px]">
-                  Mentions
-                </SortTh>
-                <SortTh {...sortBy("recordings")} className="hidden w-[120px] md:table-cell">
-                  Recordings
-                </SortTh>
-                <SortTh {...sortBy("recent")} className="hidden w-[130px] md:table-cell">
-                  Last said
-                </SortTh>
-                <Th className="w-8">
-                  <span className="sr-only">Open</span>
-                </Th>
-              </tr>
-            </THead>
-            <tbody>
-              {rows.map((e) => {
-                const aka = alsoKnownAs(e);
-                return (
-                  <Tr
-                    key={e.id}
-                    selected={open === e.id}
-                    className="h-[50px] cursor-pointer"
-                    onClick={() => set({ entity: String(e.id) }, true)}
-                  >
-                    <Td>
-                      <button
-                        type="button"
-                        className="text-left font-semibold text-fg hover:text-fg-accent hover:underline"
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          set({ entity: String(e.id) }, true);
-                        }}
+      {view === "types" && ns && <TypesTab ns={ns} />}
+      {view === "setup" && ns && <SetupTab ns={ns} />}
+      {listing && (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <SearchInput
+              className="w-full sm:w-[280px]"
+              placeholder="Find by name or alias"
+              aria-label="Find entities"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <Select
+              size="sm"
+              className="w-[170px]"
+              aria-label="Type"
+              value={f.type}
+              onChange={(e) => set({ type: e.target.value || null })}
+              options={[
+                { value: "", label: "All types" },
+                ...(types.data ?? []).map((t) => ({ value: t.type, label: t.label })),
+              ]}
+            />
+            <Select
+              size="sm"
+              className="w-[220px]"
+              aria-label="Collection"
+              value={f.collection ? String(f.collection) : ""}
+              onChange={(e) => set({ collection: e.target.value || null })}
+              options={[
+                { value: "", label: "Every collection" },
+                ...(tree.data ?? []).map((c) => ({
+                  value: String(c.id),
+                  label: `${"  ".repeat(c.depth ?? 0)}${(c.path ?? [c.name]).at(-1)}`,
+                })),
+              ]}
+            />
+          </div>
+          {list.isLoading && <SkeletonRows rows={6} />}
+          {list.isError && (
+            <Banner
+              tone="error"
+              title="Couldn’t load the entities."
+              action={
+                <Button size="sm" variant="secondary" onClick={() => list.refetch()}>
+                  Try again
+                </Button>
+              }
+            >
+              {list.error.message}
+            </Banner>
+          )}
+          {list.data && !rows.length && (
+            <EmptyState icon={<Shapes />} title="No entities here" className="rounded-lg border border-border">
+              {f.q || f.type || f.collection
+                ? "Nothing matches these filters."
+                : f.hidden
+                  ? "Nobody has hidden an entity in this namespace."
+                  : "Entities appear once recordings are analysed."}
+            </EmptyState>
+          )}
+          {list.data && rows.length > 0 && (
+            <div className="overflow-hidden rounded-md border border-border">
+              <Table aria-label="Entities">
+                <THead className="border-t-0">
+                  <tr>
+                    <SortTh {...sortBy("name")}>Name</SortTh>
+                    <Th className="w-[140px]">Type</Th>
+                    <Th className="hidden lg:table-cell">Description</Th>
+                    <SortTh {...sortBy("mentions")} className="w-[110px]">
+                      Mentions
+                    </SortTh>
+                    <SortTh {...sortBy("recordings")} className="hidden w-[120px] md:table-cell">
+                      Recordings
+                    </SortTh>
+                    <SortTh {...sortBy("recent")} className="hidden w-[130px] md:table-cell">
+                      Last said
+                    </SortTh>
+                    <Th className="w-8">
+                      <span className="sr-only">Open</span>
+                    </Th>
+                  </tr>
+                </THead>
+                <tbody>
+                  {rows.map((e) => {
+                    const aka = alsoKnownAs(e);
+                    return (
+                      <Tr
+                        key={e.id}
+                        selected={open === e.id}
+                        className="h-[50px] cursor-pointer"
+                        onClick={() => set({ entity: String(e.id) }, true)}
                       >
-                        {e.name}
-                      </button>
-                      {aka.length > 0 && (
-                        <span className="block truncate text-[12px] text-fg-muted">also {aka.join(", ")}</span>
-                      )}
-                    </Td>
-                    <Td>
-                      <Badge>{e.type_label}</Badge>
-                    </Td>
-                    <Td className="hidden max-w-[360px] lg:table-cell">
-                      <span className="line-clamp-2 text-[13px] text-fg-secondary">{e.description || "—"}</span>
-                    </Td>
-                    <Td className="tabular">{count(e.mentions)}</Td>
-                    <Td className="tabular hidden md:table-cell">{count(e.recordings)}</Td>
-                    <Td className="tabular hidden text-fg-secondary md:table-cell">
-                      {e.last ? shortDate(e.last) : "—"}
-                    </Td>
-                    <Td>
-                      <ChevronRight aria-hidden className="size-4 text-fg-muted" />
-                    </Td>
-                  </Tr>
-                );
-              })}
-            </tbody>
-          </Table>
-          <Pagination
-            offset={f.offset}
-            limit={PAGE}
-            total={list.data.total}
-            loading={list.isFetching}
-            onChange={(o) => set({ page: o ? String(o / PAGE + 1) : null })}
-          />
-        </div>
+                        <Td>
+                          <button
+                            type="button"
+                            className="text-left font-semibold text-fg hover:text-fg-accent hover:underline"
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              set({ entity: String(e.id) }, true);
+                            }}
+                          >
+                            {e.name}
+                          </button>
+                          {aka.length > 0 && (
+                            <span className="block truncate text-[12px] text-fg-muted">also {aka.join(", ")}</span>
+                          )}
+                        </Td>
+                        <Td>
+                          <Badge>{e.type_label}</Badge>
+                        </Td>
+                        <Td className="hidden max-w-[360px] lg:table-cell">
+                          <span className="line-clamp-2 text-[13px] text-fg-secondary">{e.description || "—"}</span>
+                        </Td>
+                        <Td className="tabular">{count(e.mentions)}</Td>
+                        <Td className="tabular hidden md:table-cell">{count(e.recordings)}</Td>
+                        <Td className="tabular hidden text-fg-secondary md:table-cell">
+                          {e.last ? shortDate(e.last) : "—"}
+                        </Td>
+                        <Td>
+                          <ChevronRight aria-hidden className="size-4 text-fg-muted" />
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                </tbody>
+              </Table>
+              <Pagination
+                offset={f.offset}
+                limit={PAGE}
+                total={list.data.total}
+                loading={list.isFetching}
+                onChange={(o) => set({ page: o ? String(o / PAGE + 1) : null })}
+              />
+            </div>
+          )}
+        </>
       )}
-      {open && ns && (
+      {open && ns && listing && (
         <EntityDrawer id={open} ns={ns} types={types.data ?? []} onClose={() => set({ entity: null }, true)} />
       )}
     </div>

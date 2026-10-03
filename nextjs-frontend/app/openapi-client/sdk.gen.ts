@@ -46,6 +46,9 @@ import type {
   CheckMessageData,
   CheckMessageErrors,
   CheckMessageResponses,
+  ClearEntitySetupData,
+  ClearEntitySetupErrors,
+  ClearEntitySetupResponses,
   CloseRecordingToIpGroupData,
   CloseRecordingToIpGroupErrors,
   CloseRecordingToIpGroupResponses,
@@ -76,6 +79,9 @@ import type {
   CreateContentTypeData,
   CreateContentTypeErrors,
   CreateContentTypeResponses,
+  CreateEntityTypeData,
+  CreateEntityTypeErrors,
+  CreateEntityTypeResponses,
   CreateFieldData,
   CreateFieldErrors,
   CreateFieldResponses,
@@ -160,6 +166,9 @@ import type {
   DeleteContentTypeData,
   DeleteContentTypeErrors,
   DeleteContentTypeResponses,
+  DeleteEntityTypeData,
+  DeleteEntityTypeErrors,
+  DeleteEntityTypeResponses,
   DeleteFaceData,
   DeleteFaceErrors,
   DeleteFaceResponses,
@@ -277,6 +286,9 @@ import type {
   GetEntityData,
   GetEntityErrors,
   GetEntityResponses,
+  GetEntitySetupData,
+  GetEntitySetupErrors,
+  GetEntitySetupResponses,
   GetEntityTimelineData,
   GetEntityTimelineErrors,
   GetEntityTimelineResponses,
@@ -441,6 +453,7 @@ import type {
   ListEntitySuggestionsErrors,
   ListEntitySuggestionsResponses,
   ListEntityTypesData,
+  ListEntityTypesErrors,
   ListEntityTypesResponses,
   ListFieldsData,
   ListFieldsErrors,
@@ -683,6 +696,9 @@ import type {
   SaveCollectionFieldsData,
   SaveCollectionFieldsErrors,
   SaveCollectionFieldsResponses,
+  SaveEntitySetupData,
+  SaveEntitySetupErrors,
+  SaveEntitySetupResponses,
   SaveFileFieldsData,
   SaveFileFieldsErrors,
   SaveFileFieldsResponses,
@@ -805,6 +821,9 @@ import type {
   UpdateEntityData,
   UpdateEntityErrors,
   UpdateEntityResponses,
+  UpdateEntityTypeData,
+  UpdateEntityTypeErrors,
+  UpdateEntityTypeResponses,
   UpdateFieldData,
   UpdateFieldErrors,
   UpdateFieldResponses,
@@ -3441,11 +3460,13 @@ export class Entities {
 
   /**
    * List Entity Types
+   *
+   * The types an entity may have: the built-in ones, and with `ns` that namespace's own too.
    */
   public static listEntityTypes<ThrowOnError extends boolean = false>(
     options?: Options<ListEntityTypesData, ThrowOnError>,
-  ): RequestResult<ListEntityTypesResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListEntityTypesResponses, unknown, ThrowOnError>({
+  ): RequestResult<ListEntityTypesResponses, ListEntityTypesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListEntityTypesResponses, ListEntityTypesErrors, ThrowOnError>({
       url: "/api/v1/entities/types",
       ...options,
     });
@@ -3718,6 +3739,100 @@ export class Entities {
     return (options.client ?? client).get<FindGraphPathResponses, FindGraphPathErrors, ThrowOnError>({
       url: "/api/v1/graph/path",
       ...options,
+    });
+  }
+
+  /**
+   * Get Entity Setup
+   *
+   * The namespace's entity setup, the collections (you see) with their own, and the types entities may have.
+   */
+  public static getEntitySetup<ThrowOnError extends boolean = false>(
+    options: Options<GetEntitySetupData, ThrowOnError>,
+  ): RequestResult<GetEntitySetupResponses, GetEntitySetupErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetEntitySetupResponses, GetEntitySetupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-setup",
+      ...options,
+    });
+  }
+
+  /**
+   * Save Entity Setup
+   *
+   * Save the namespace's setup, or (with `collection`) one collection's own.
+   */
+  public static saveEntitySetup<ThrowOnError extends boolean = false>(
+    options: Options<SaveEntitySetupData, ThrowOnError>,
+  ): RequestResult<SaveEntitySetupResponses, SaveEntitySetupErrors, ThrowOnError> {
+    return (options.client ?? client).put<SaveEntitySetupResponses, SaveEntitySetupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-setup",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Clear Entity Setup
+   *
+   * The collection follows its parents' setup again.
+   */
+  public static clearEntitySetup<ThrowOnError extends boolean = false>(
+    options: Options<ClearEntitySetupData, ThrowOnError>,
+  ): RequestResult<ClearEntitySetupResponses, ClearEntitySetupErrors, ThrowOnError> {
+    return (options.client ?? client).delete<ClearEntitySetupResponses, ClearEntitySetupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-setup/collections/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Entity Type
+   *
+   * A type of the namespace's own, e.g. "Client" or "Project"; its code is the name in capitals.
+   */
+  public static createEntityType<ThrowOnError extends boolean = false>(
+    options: Options<CreateEntityTypeData, ThrowOnError>,
+  ): RequestResult<CreateEntityTypeResponses, CreateEntityTypeErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateEntityTypeResponses, CreateEntityTypeErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-types",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Entity Type
+   *
+   * Only a type no entity has.
+   */
+  public static deleteEntityType<ThrowOnError extends boolean = false>(
+    options: Options<DeleteEntityTypeData, ThrowOnError>,
+  ): RequestResult<DeleteEntityTypeResponses, DeleteEntityTypeErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteEntityTypeResponses, DeleteEntityTypeErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-types/{code}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Entity Type
+   */
+  public static updateEntityType<ThrowOnError extends boolean = false>(
+    options: Options<UpdateEntityTypeData, ThrowOnError>,
+  ): RequestResult<UpdateEntityTypeResponses, UpdateEntityTypeErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateEntityTypeResponses, UpdateEntityTypeErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-types/{code}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
