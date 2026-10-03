@@ -248,6 +248,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                     else:
                         answer = data
                 else:
+                    box.after_answer(answer)
                     for appr in box.approvals:
                         yield _ev("approval", appr)
                     cited = box.cited(answer)
@@ -343,7 +344,7 @@ def decide_approval(aid: int, body: ApprovalDecision, user: Writer, acl: Acl, db
         raise HTTPException(404, "not found")
     try:
         out = ai_tools.approve(
-            db, cfg, aid, user.as_audit(), set(acl.editable()), body.decision, request.app.state.archive.base, user.admin
+            db, cfg, aid, user.as_audit(), set(acl.editable()), body.decision, request.app.state.archive.base, user.admin, set(acl.roles)
         )
     except (ValueError, PermissionError, KeyError) as e:
         raise HTTPException(400, str(e)) from None

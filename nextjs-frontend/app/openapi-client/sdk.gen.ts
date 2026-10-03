@@ -48,6 +48,9 @@ import type {
   ChatCapabilitiesResponses,
   CheckComponentsData,
   CheckComponentsResponses,
+  CheckManifestData,
+  CheckManifestErrors,
+  CheckManifestResponses,
   CheckMessageData,
   CheckMessageErrors,
   CheckMessageResponses,
@@ -93,6 +96,12 @@ import type {
   CreateEntityTypeData,
   CreateEntityTypeErrors,
   CreateEntityTypeResponses,
+  CreateExtensionData,
+  CreateExtensionErrors,
+  CreateExtensionResponses,
+  CreateExtensionVersionData,
+  CreateExtensionVersionErrors,
+  CreateExtensionVersionResponses,
   CreateFieldData,
   CreateFieldErrors,
   CreateFieldResponses,
@@ -189,6 +198,9 @@ import type {
   DeleteEntityTypeData,
   DeleteEntityTypeErrors,
   DeleteEntityTypeResponses,
+  DeleteExtensionData,
+  DeleteExtensionErrors,
+  DeleteExtensionResponses,
   DeleteFaceData,
   DeleteFaceErrors,
   DeleteFaceResponses,
@@ -317,6 +329,9 @@ import type {
   GetEntityTimelineData,
   GetEntityTimelineErrors,
   GetEntityTimelineResponses,
+  GetExtensionData,
+  GetExtensionErrors,
+  GetExtensionResponses,
   GetFieldData,
   GetFieldErrors,
   GetFieldResponses,
@@ -494,6 +509,9 @@ import type {
   ListEntityTypesData,
   ListEntityTypesErrors,
   ListEntityTypesResponses,
+  ListExtensionsData,
+  ListExtensionsErrors,
+  ListExtensionsResponses,
   ListFieldsData,
   ListFieldsErrors,
   ListFieldsResponses,
@@ -815,6 +833,9 @@ import type {
   TelemetryStatusResponses,
   TestEmbeddingsData,
   TestEmbeddingsResponses,
+  TestExtensionData,
+  TestExtensionErrors,
+  TestExtensionResponses,
   TestLlmData,
   TestLlmResponses,
   TestNotifyTargetData,
@@ -875,6 +896,9 @@ import type {
   UpdateEntityTypeData,
   UpdateEntityTypeErrors,
   UpdateEntityTypeResponses,
+  UpdateExtensionData,
+  UpdateExtensionErrors,
+  UpdateExtensionResponses,
   UpdateFieldData,
   UpdateFieldErrors,
   UpdateFieldResponses,
@@ -5300,6 +5324,139 @@ export class Workflows {
       ThrowOnError
     >({
       url: "/api/v1/custom-nodes/{nid}/versions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Extensions {
+  /**
+   * List Extensions
+   *
+   * The extensions you can see: yours, the ones shared with your namespaces or with everyone (admins: all).
+   */
+  public static listExtensions<ThrowOnError extends boolean = false>(
+    options?: Options<ListExtensionsData, ThrowOnError>,
+  ): RequestResult<ListExtensionsResponses, ListExtensionsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListExtensionsResponses, ListExtensionsErrors, ThrowOnError>({
+      url: "/api/v1/extensions",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Extension
+   */
+  public static createExtension<ThrowOnError extends boolean = false>(
+    options: Options<CreateExtensionData, ThrowOnError>,
+  ): RequestResult<CreateExtensionResponses, CreateExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateExtensionResponses, CreateExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Check Manifest
+   *
+   * Read and check a manifest written as code, without saving it: 400 says what's wrong.
+   */
+  public static checkManifest<ThrowOnError extends boolean = false>(
+    options: Options<CheckManifestData, ThrowOnError>,
+  ): RequestResult<CheckManifestResponses, CheckManifestErrors, ThrowOnError> {
+    return (options.client ?? client).post<CheckManifestResponses, CheckManifestErrors, ThrowOnError>({
+      url: "/api/v1/extensions/check",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Extension
+   *
+   * Takes it out of the assistant at once.
+   */
+  public static deleteExtension<ThrowOnError extends boolean = false>(
+    options: Options<DeleteExtensionData, ThrowOnError>,
+  ): RequestResult<DeleteExtensionResponses, DeleteExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteExtensionResponses, DeleteExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Extension
+   *
+   * One version (default: the current one), as a manifest too, and the list of versions.
+   */
+  public static getExtension<ThrowOnError extends boolean = false>(
+    options: Options<GetExtensionData, ThrowOnError>,
+  ): RequestResult<GetExtensionResponses, GetExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetExtensionResponses, GetExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Extension
+   *
+   * Its title, description, who sees it, and whether it's switched on.
+   */
+  public static updateExtension<ThrowOnError extends boolean = false>(
+    options: Options<UpdateExtensionData, ThrowOnError>,
+  ): RequestResult<UpdateExtensionResponses, UpdateExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateExtensionResponses, UpdateExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create Extension Version
+   */
+  public static createExtensionVersion<ThrowOnError extends boolean = false>(
+    options: Options<CreateExtensionVersionData, ThrowOnError>,
+  ): RequestResult<CreateExtensionVersionResponses, CreateExtensionVersionErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateExtensionVersionResponses, CreateExtensionVersionErrors, ThrowOnError>(
+      {
+        url: "/api/v1/extensions/{eid}/versions",
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      },
+    );
+  }
+
+  /**
+   * Test Extension
+   *
+   * Try one of its tools with these arguments, switched on or not. A tool that changes something really runs, so it
+   * needs `confirm`.
+   */
+  public static testExtension<ThrowOnError extends boolean = false>(
+    options: Options<TestExtensionData, ThrowOnError>,
+  ): RequestResult<TestExtensionResponses, TestExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestExtensionResponses, TestExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}/test",
       ...options,
       headers: {
         "Content-Type": "application/json",
