@@ -72,5 +72,6 @@ describe("fixed lists", () => {
   it("explains the types by mode", () => {
     expect(typesWording("fixed").legend).toBe("Types that belong here");
     expect(typesWording("self").legend).toBe("Types to keep");
+    expect(typesWording("hybrid").hint).toMatch(/becomes an entity of its own/);
   });
 });

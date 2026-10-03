@@ -135,12 +135,16 @@ A setup has a mode:
   there and can't be renamed, retyped, merged, hidden or deleted. Moving a mention to a new name in a fixed-list place
   adds that name to the list. `PATCH /api/v1/entities/{id}` sets an entity's other names and whether it is on the list;
   a defined entity nothing mentions can be deleted.
+- **Hybrid:** a few defined entities, then self-organizing. Names go to a defined entity as in the fixed list, or to
+  an entity they already are; any other name of a type that belongs here becomes an entity of its own, and names of
+  other types go to **Unknown**.
 
 **Matching names** is by name (in any case, or one of an entity's other names) unless the setup says "by name, then by
 description": then the names the rules can't place go to the LLM with the entities' descriptions, their other names and
 what the namespace is about. In the self-organizing mode it says which described entity a new name is, if any; the name
-then becomes one of that entity's other names, so the rules place it from then on. Without a reachable LLM the rules
-decide. The assistant reads a namespace's setup (`entity_setup`) and proposes entity changes for approval, including
+then becomes one of that entity's other names, so the rules place it from then on. In the fixed mode it says which
+defined entity a name is, or that it doesn't belong here (Unknown); in the hybrid mode it may place a name on a defined
+or described entity, or say it doesn't belong here. Without a reachable LLM the rules decide. The assistant reads a namespace's setup (`entity_setup`) and proposes entity changes for approval, including
 descriptions, other names and new entities on a fixed list.
 
 Curation survives re-analysis: merged names become aliases, and moved or removed mentions become per-line overrides.

@@ -8,7 +8,7 @@ from pydantic import Field
 
 from app.schemas.common import RequestModel, ResponseModel
 
-Mode = Literal["self", "fixed"]
+Mode = Literal["self", "fixed", "hybrid"]
 Matching = Literal["rules", "model"]
 
 
@@ -33,7 +33,8 @@ class EntityTypeUpdate(RequestModel):
 class EntitySetup(ResponseModel):
     mode: str = Field(
         description="self: every name found becomes an entity, and people curate them; fixed: names found are mapped onto "
-        "the entities people defined, or onto Unlabeled (it belongs here) or Unknown"
+        "the entities people defined, or onto Unlabeled (it belongs here) or Unknown; hybrid: the defined entities first, then "
+        "names of the types kept become entities of their own and others go to Unknown"
     )
     types: list[str] = Field(default_factory=list, description="the types kept; empty: all of them")
     description: str | None = Field(None, description="what this place is about")

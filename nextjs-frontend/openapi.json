@@ -20486,7 +20486,7 @@
           "mode": {
             "type": "string",
             "title": "Mode",
-            "description": "self: every name found becomes an entity, and people curate them; fixed: names found are mapped onto the entities people defined, or onto Unlabeled (it belongs here) or Unknown"
+            "description": "self: every name found becomes an entity, and people curate them; fixed: names found are mapped onto the entities people defined, or onto Unlabeled (it belongs here) or Unknown; hybrid: the defined entities first, then names of the types kept become entities of their own and others go to Unknown"
           },
           "types": {
             "items": {
@@ -20619,7 +20619,8 @@
             "type": "string",
             "enum": [
               "self",
-              "fixed"
+              "fixed",
+              "hybrid"
             ],
             "title": "Mode",
             "default": "self"

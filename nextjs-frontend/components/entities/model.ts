@@ -91,7 +91,7 @@ export function keptTypes(types: string[], all: { type: string; label: string }[
   return names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 
-export type Mode = "self" | "fixed";
+export type Mode = "self" | "fixed" | "hybrid";
 
 /** The ways a namespace or collection can organise its entities (entity_setup.py). */
 export const MODES: { value: Mode; label: string; hint: string }[] = [
@@ -105,10 +105,21 @@ export const MODES: { value: Mode; label: string; hint: string }[] = [
     label: "Fixed list",
     hint: "Editors define the entities. Names found go to one of them, to Unlabeled when they belong here but fit none, or to Unknown.",
   },
+  {
+    value: "hybrid",
+    label: "A few fixed, then self-organizing",
+    hint: "Names go to a defined entity first. Other names of the types that belong here become entities of their own; the rest go to Unknown.",
+  },
 ];
 
 /** What the types checkboxes mean in a mode. */
 export function typesWording(mode: string): { legend: string; hint: string; all: string } {
+  if (mode === "hybrid")
+    return {
+      legend: "Types that belong here",
+      all: "Every type but dates and numbers",
+      hint: "A name of one of these types that matches no defined entity becomes an entity of its own; any other name goes to Unknown.",
+    };
   return mode === "fixed"
     ? {
         legend: "Types that belong here",
