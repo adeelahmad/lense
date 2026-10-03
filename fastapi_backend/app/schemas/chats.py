@@ -82,6 +82,30 @@ class ToolStep(ResponseModel):
     summary: str = ""
 
 
+class PageContext(RequestModel):
+    """The page a question was asked from (chat on any page): where it is, and what of it the person shared."""
+
+    url: str = Field(max_length=2000, pattern=r"^/([^/]|$)", description="the page's path in Lens, e.g. /resources/12?t=30")
+    title: str | None = Field(None, max_length=300)
+    text: str | None = Field(
+        None,
+        max_length=200_000,
+        description="the page's visible text, when the person shares the page (only the first 12,000 characters are used)",
+    )
+    selection: str | None = Field(
+        None, max_length=50_000, description="text the person highlighted on it (only the first 4,000 characters are used)"
+    )
+
+
+class SharedContext(ResponseModel):
+    """What a question shared from the page it was asked on. The page's text itself isn't kept."""
+
+    url: str
+    title: str | None = None
+    selection: str | None = None
+    page: bool = Field(False, description="the page's text was shared")
+
+
 class Attachment(ResponseModel):
     id: str = Field(description="the upload")
     filename: str
@@ -93,6 +117,7 @@ class ChatMessage(ResponseModel):
     id: int
     role: Literal["user", "assistant"]
     content: str
+    context: SharedContext | None = Field(None, description="a question asked from a page: the page, and any highlighted text")
     attachments: list[Attachment] = Field(default_factory=list, description="files sent with it (POST /uploads with hold)")
     passages: list[Passage] | None = None
     created_at: str | None = None
@@ -127,6 +152,7 @@ class Chat(ChatSummary):
 
 class MessageCreate(RequestModel):
     content: str = Field("", description="the question (up to 4000 characters); may be empty when files are attached")
+    context: PageContext | None = Field(None, description="asked from a page: the page, its text and any highlighted part")
     attachments: list[str] = Field(
         default_factory=list,
         max_length=20,

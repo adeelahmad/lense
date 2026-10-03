@@ -36,6 +36,7 @@ EDITABLE = {
     "iiif": None,
     "ai": None,
     "decisions": None,
+    "components": None,
     "notifications": None,
     "telemetry": None,
     "video": (
@@ -281,6 +282,8 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "components":
+        return _component_setting(key, value)
     if section == "decisions" and key != "engine":
         return _decision_setting(key, value)
     if (section, key) == ("documents", "attachment_resources"):
@@ -326,6 +329,21 @@ def _check(section, key, value, default):
     if not ok:
         raise ValueError(f"{section}.{key} should be {type(default).__name__}")
     return value
+
+
+def _component_setting(key, value):
+    from . import components
+
+    if key == "auto":
+        if not isinstance(value, bool):
+            raise ValueError("components.auto is true or false")
+        return value
+    if key == "also":
+        known = {c.id for c in components.COMPONENTS if c.kind != "program"}
+        if not (isinstance(value, list) and all(isinstance(v, str) and v in known for v in value)):
+            raise ValueError("components.also lists components to fetch: " + ", ".join(sorted(known)))
+        return list(dict.fromkeys(value))
+    raise ValueError(f"unknown setting components.{key}")
 
 
 def _decision_setting(key, value):

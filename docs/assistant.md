@@ -21,6 +21,14 @@ then.
 - **Choosing the model:** a conversation can use any model an admin offers (`llm.chat_models`, else whatever the model
   server lists); Try another model asks a question again with a different one. Each answer records the model that
   wrote it.
+- **Chat on any page:** every page except Chat itself has an Ask button that opens a chat panel beside the page (full
+  screen on phones). Its conversation follows you between pages, and across visits in the same browser, until New
+  chat; it is an ordinary conversation, also listed in Chat. Each question can share the page's text (the page chip,
+  on by default) and text highlighted on the page (Ask about this, above any selection). The model reads them with the
+  question (up to 12,000 characters of page text and 4,000 of the highlight) as what the person is looking at, not as
+  citable excerpts. The question keeps the page's address, title and highlight, shown above it; the page's text isn't
+  stored. A recording's transcript and document keep their own selection toolbar, whose Ask in chat goes to the
+  recording's chat.
 - **No model configured:** chat returns the best-matching passages instead. Anyone signed in can see whether a model
   is set up, and which (`GET /chats/capabilities`), so the app says so before the first question.
 

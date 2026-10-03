@@ -46,6 +46,8 @@ import type {
   ChangePasswordResponses,
   ChatCapabilitiesData,
   ChatCapabilitiesResponses,
+  CheckComponentsData,
+  CheckComponentsResponses,
   CheckMessageData,
   CheckMessageErrors,
   CheckMessageResponses,
@@ -425,6 +427,9 @@ import type {
   ImportIiifData,
   ImportIiifErrors,
   ImportIiifResponses,
+  ImportNamespaceRdfData,
+  ImportNamespaceRdfErrors,
+  ImportNamespaceRdfResponses,
   ImportTranscriptData,
   ImportTranscriptErrors,
   ImportTranscriptResponses,
@@ -468,6 +473,8 @@ import type {
   ListCommentsData,
   ListCommentsErrors,
   ListCommentsResponses,
+  ListComponentsData,
+  ListComponentsResponses,
   ListContentTypesData,
   ListContentTypesResponses,
   ListCustomNodesData,
@@ -1565,6 +1572,35 @@ export class Admin {
   ): RequestResult<ReindexSearchResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<ReindexSearchResponses, unknown, ThrowOnError>({
       url: "/api/v1/admin/reindex",
+      ...options,
+    });
+  }
+
+  /**
+   * List Components
+   *
+   * Every component (programs, packages, models), whether the settings need it, and each worker's machine and where
+   * it is with each: ready, being fetched, failed or missing. Steps that need one being fetched wait for it.
+   */
+  public static listComponents<ThrowOnError extends boolean = false>(
+    options?: Options<ListComponentsData, ThrowOnError>,
+  ): RequestResult<ListComponentsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListComponentsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/components",
+      ...options,
+    });
+  }
+
+  /**
+   * Check Components
+   *
+   * Ask every worker to check what it needs now, and to try again what failed. Audited as ``components.check``.
+   */
+  public static checkComponents<ThrowOnError extends boolean = false>(
+    options?: Options<CheckComponentsData, ThrowOnError>,
+  ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/components/check",
       ...options,
     });
   }
@@ -4087,6 +4123,25 @@ export class Rdf {
       ...options,
     });
   }
+
+  /**
+   * Import Namespace Rdf
+   *
+   * Read Dublin Core descriptions into the namespace's recordings (matched by their URI or an identifier). Each change
+   * is a metadata edit, kept in the recording's history. With dry_run (the default) nothing changes.
+   */
+  public static importNamespaceRdf<ThrowOnError extends boolean = false>(
+    options: Options<ImportNamespaceRdfData, ThrowOnError>,
+  ): RequestResult<ImportNamespaceRdfResponses, ImportNamespaceRdfErrors, ThrowOnError> {
+    return (options.client ?? client).post<ImportNamespaceRdfResponses, ImportNamespaceRdfErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/rdf/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Video {
@@ -5309,11 +5364,13 @@ export class Chats {
   /**
    * Send Message
    *
-   * Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
+   * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
+   * reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
    * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
    *
    * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
-   * its new answer (404 if it isn't a question in this conversation).
+   * its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
+   * from (where, and the highlighted text; not the page's text, which isn't kept).
    */
   public static sendMessage<ThrowOnError extends boolean = false>(
     options: Options<SendMessageData, ThrowOnError, unknown>,

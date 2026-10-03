@@ -68,6 +68,7 @@ nav:
   - Database: database.md
   - Configuration: configuration.md
   - Processing: processing.md
+  - Components: components.md
   - Video: video.md
   - Chat and batch runs: assistant.md
   - Notifications: notifications.md

@@ -174,11 +174,13 @@ def _ev(name: str, data: Any) -> str:
     responses={200: {"content": {"text/event-stream": {}}, "description": "server-sent events"}},
 )
 async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request) -> StreamingResponse:
-    """Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
+    """Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
+    reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
     /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
 
     With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
-    its new answer (404 if it isn't a question in this conversation)."""
+    its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
+    from (where, and the highlighted text; not the page's text, which isn't kept)."""
     c = await run_in_threadpool(_own_chat, db, cid, user)
     q = body.content.strip()[:4000]
     files = await run_in_threadpool(_attachments, db, body.attachments, user)
@@ -186,24 +188,29 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         q = "I attached " + ("this file." if len(files) == 1 else "these files.")
     if not q:
         raise HTTPException(400, "ask something")
-    asked = q + chat.attached_note(files)  # what the model reads: the question, and the files it can import
     # this answer's model: the one asked for (400 if it isn't offered), else the conversation's while it's still offered
     model = await run_in_threadpool(_model, cfg, body.model) if body.model else c.get("model")
     if model and not body.model and model not in await run_in_threadpool(chat.model_choices, cfg):
         model = None
+    title = c["title"]
+    page = body.context.model_dump() if body.context else None
+    kept = chat.shared_context(page)  # what the question keeps of the page
+    if body.edit is not None:  # only after the question checks out, so a refused edit removes nothing
+        try:
+            old = await run_in_threadpool(chat.rewind, db, cid, body.edit)
+        except KeyError:
+            raise HTTPException(404, "no such question in this conversation") from None
+        if title == old["content"][:80]:  # titled after the question being edited: retitle it after the edit
+            title = "New conversation"
+        if page is None and old.get("context"):
+            page = kept = old["context"]
+    # what the model reads: the question with the page it was asked from, and the files it can import
+    asked = chat.with_context(q, page) + chat.attached_note(files)
     readable = set(acl.roles)
 
     def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        title = c["title"]
-        if body.edit is not None:
-            try:
-                old = chat.rewind(db, cid, body.edit)
-            except KeyError:
-                raise HTTPException(404, "no such question in this conversation") from None
-            if title == old[:80]:  # titled after the question being edited: retitle it after the edit
-                title = "New conversation"
         past = chat.history(db, cid)
-        chat.add(db, cid, "user", q, attachments=files)
+        chat.add(db, cid, "user", q, attachments=files, context=kept)
         if not past and title == "New conversation":
             db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
         return past, chat.retrieve(db, q, readable, c.get("scope"), cfg=cfg)
@@ -250,7 +257,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                                 yield _ev("approval", appr)
                             yield from stopped("", [])
                             return
-                    elif kind == "direct" and passages and not setup:  # a model that skips the tools hasn't seen the archive
+                    # a model that skips the tools hasn't seen the archive (but may answer from the page it was asked on)
+                    elif kind == "direct" and passages and not setup and not (page and page.get("text")):
                         break
                     else:
                         answer = data
