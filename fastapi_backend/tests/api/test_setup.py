@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.domain import auth, store
+from app.domain import settings as app_settings
 from tests.conftest import TEST_URL
 from tests.helpers import login, make_user
 
@@ -68,14 +69,14 @@ def test_fresh_database_without_namespaces_starts(folder):
 
 def test_wizard_after_first_admin(fresh, folder):
     app, client = fresh()
-    assert client.get("/api/v1/auth/status").json() == {"setup_required": True, "wizard_pending": True}
+    assert client.get("/api/v1/auth/status").json() == {"setup_required": True, "wizard_pending": True, "passwords": False}
     assert client.get("/api/v1/setup").status_code == 401
 
     code = app.state.archive.setup_code
     r = client.post("/api/v1/auth/setup", json={"code": code, "email": "ada@x.io", "password": "admin password 1"})
     assert r.status_code == 200, r.text
     h = {"Authorization": f"Bearer {r.json()['access_token']}"}
-    assert client.get("/api/v1/auth/status").json() == {"setup_required": False, "wizard_pending": True}
+    assert client.get("/api/v1/auth/status").json() == {"setup_required": False, "wizard_pending": True, "passwords": True}
 
     view = client.get("/api/v1/setup", headers=h).json()
     assert view["pending"] and not view["admin"]["from_env"]
@@ -118,6 +119,7 @@ def test_only_admins_use_the_wizard(fresh):
     app, client = fresh()
     make_user(app.state.db, "ada@x.io", "admin password 1", admin=True)
     make_user(app.state.db, "ed@x.io", "editor password 1")
+    app_settings.save(app.state.db, app.state.archive.base, "auth", {"passwords": True})  # made after startup
     h = login(client, "ed@x.io", "editor password 1")
     assert client.get("/api/v1/setup", headers=h).status_code == 403
     assert client.post("/api/v1/setup/finish", json={}, headers=h).status_code == 403
@@ -130,7 +132,7 @@ def test_existing_installs_never_see_the_wizard(app, client):
     db.q("DELETE $r", r=store.R("setup", "wizard"))
     make_user(db, "ada@x.io", "admin password 1", admin=True)
     app.state.archive.prepare()
-    assert client.get("/api/v1/auth/status").json() == {"setup_required": False, "wizard_pending": False}
+    assert client.get("/api/v1/auth/status").json() == {"setup_required": False, "wizard_pending": False, "passwords": True}
 
 
 def test_environment_sets_and_locks(fresh, monkeypatch):
@@ -142,7 +144,7 @@ def test_environment_sets_and_locks(fresh, monkeypatch):
     app, client = fresh()
     # the admin exists, so there is no setup code to find in the log; the wizard still runs for what's left
     assert app.state.archive.setup_code is None
-    assert client.get("/api/v1/auth/status").json() == {"setup_required": False, "wizard_pending": True}
+    assert client.get("/api/v1/auth/status").json() == {"setup_required": False, "wizard_pending": True, "passwords": True}
     h = login(client, "ops@x.io", "ops password 123")
     view = client.get("/api/v1/setup", headers=h).json()
     assert view["admin"]["from_env"] and view["namespace"] == {"existing": ["media"], "locked": True}
@@ -172,7 +174,18 @@ def test_env_namespace_only_while_there_is_none(fresh, monkeypatch):
 def test_wizard_off(fresh, monkeypatch):
     monkeypatch.setenv("LENS_SETUP_WIZARD", "off")
     _, client = fresh()
-    assert client.get("/api/v1/auth/status").json() == {"setup_required": True, "wizard_pending": False}
+    assert client.get("/api/v1/auth/status").json() == {"setup_required": True, "wizard_pending": False, "passwords": False}
+
+
+def test_environment_admin_without_a_password_gets_a_passkey_link(fresh, monkeypatch, caplog):
+    """LENS_ADMIN_EMAIL alone: the first admin has no password, and the log prints a link for adding their passkey."""
+    monkeypatch.setenv("LENS_ADMIN_EMAIL", "ada@x.io")
+    with caplog.at_level("WARNING", logger="lens"):
+        app, client = fresh()
+    u = auth.find_account(app.state.db, "ada@x.io")
+    assert u["admin"] and not u.get("pw")
+    assert "Add the first admin's passkey at http://localhost:3000/signin-link#" in caplog.text
+    assert client.get("/api/v1/auth/status").json()["passwords"] is False
 
 
 def test_finds_model_servers_running_nearby(fresh, monkeypatch):
@@ -191,6 +204,7 @@ def test_finds_model_servers_running_nearby(fresh, monkeypatch):
         app, client = fresh()
         make_user(app.state.db, "ada@x.io", "admin password 1", admin=True)
         make_user(app.state.db, "ed@x.io", "editor password 1")
+        app_settings.save(app.state.db, app.state.archive.base, "auth", {"passwords": True})  # made after startup
         monkeypatch.setattr(setup, "LOCAL_HOSTS", ("127.0.0.1",))
         monkeypatch.setattr(setup, "LOCAL_SERVERS", (("Ollama", port),))
         h = login(client, "ada@x.io", "admin password 1")

@@ -5,6 +5,7 @@ import { login } from "@/components/actions/login-action";
 import { LoginForm } from "@/components/auth/login-form";
 
 jest.mock("@/components/actions/login-action", () => ({ login: jest.fn() }));
+jest.mock("@/components/auth/passkey-flows", () => ({ passkeyTicket: jest.fn(), finishSignIn: jest.fn() }));
 
 function fillAndSubmit() {
   fireEvent.change(screen.getByLabelText("Email"), {
@@ -13,12 +14,29 @@ function fillAndSubmit() {
   fireEvent.change(screen.getByLabelText("Password"), {
     target: { value: "secret" },
   });
-  fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+  fireEvent.click(screen.getByRole("button", { name: /sign in with password/i }));
 }
 
 describe("LoginForm", () => {
-  it("renders the fields and no setup link by default", () => {
+  it("signs in with a passkey only, where passwords are off", () => {
     render(<LoginForm />);
+
+    expect(screen.getByRole("button", { name: /sign in with a passkey/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+    expect(screen.getByText(/lost it\? ask an admin for a sign-in link/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /get one by email/i })).toHaveAttribute("href", "/password-recovery");
+  });
+
+  it("says why passkeys can't be used on a plain http:// address", () => {
+    render(<LoginForm />);
+
+    // jsdom is not a secure context
+    expect(screen.getByText(/passkeys only work on https:\/\/ addresses and on localhost/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sign in with a passkey/i })).toBeDisabled();
+  });
+
+  it("renders the fields and no setup link by default", () => {
+    render(<LoginForm passwords />);
 
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
@@ -35,7 +53,7 @@ describe("LoginForm", () => {
 
   it("submits the credentials with the callback URL", async () => {
     (login as jest.Mock).mockResolvedValue(undefined);
-    render(<LoginForm callbackUrl="/speakers" />);
+    render(<LoginForm passwords callbackUrl="/speakers" />);
 
     fillAndSubmit();
 
@@ -52,7 +70,7 @@ describe("LoginForm", () => {
     (login as jest.Mock).mockResolvedValue({
       server_validation_error: "Wrong email or password.",
     });
-    render(<LoginForm />);
+    render(<LoginForm passwords />);
 
     fillAndSubmit();
 
@@ -63,7 +81,7 @@ describe("LoginForm", () => {
     (login as jest.Mock).mockResolvedValue({
       errors: { email: ["Enter a valid email address."] },
     });
-    render(<LoginForm />);
+    render(<LoginForm passwords />);
 
     fillAndSubmit();
 
@@ -72,7 +90,7 @@ describe("LoginForm", () => {
   });
 
   it("shows a notice", () => {
-    render(<LoginForm notice="Your password was changed." />);
+    render(<LoginForm passwords notice="Your password was changed." />);
 
     expect(screen.getByRole("status")).toHaveTextContent("Your password was changed.");
   });
@@ -81,7 +99,7 @@ describe("LoginForm", () => {
     (login as jest.Mock).mockResolvedValue({
       server_validation_error: "Wrong email or password.",
     });
-    render(<LoginForm />);
+    render(<LoginForm passwords />);
 
     fillAndSubmit();
 
@@ -94,7 +112,7 @@ describe("LoginForm", () => {
       server_validation_error: "Too many attempts; try again in a few minutes.",
       throttled: true,
     });
-    render(<LoginForm />);
+    render(<LoginForm passwords />);
 
     fillAndSubmit();
 

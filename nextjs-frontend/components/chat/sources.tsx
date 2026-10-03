@@ -94,9 +94,7 @@ export function SourcesPanel({
       </div>
       {passages && passages.length > 0 && <SourcesList passages={passages} hover={hover} onHover={onHover} />}
       {passages && passages.length === 0 && (
-        <p className="m-0 text-[13px] leading-snug text-fg-secondary">
-          Nothing in scope matched this question, so no passages were sent.
-        </p>
+        <p className="m-0 text-[13px] leading-snug text-fg-secondary">This answer didn’t draw on the archive.</p>
       )}
       {!passages && !loading && (
         <p className="m-0 text-[13px] leading-snug text-fg-secondary">

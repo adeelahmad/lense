@@ -20,3 +20,8 @@ export async function isSetupRequired(): Promise<boolean> {
 export async function isWizardPending(): Promise<boolean> {
   return (await status())?.wizard_pending ?? false;
 }
+
+/** Whether passwords sign in here (auth.passwords); passkeys always do. False when the API can't be reached. */
+export async function passwordsOn(): Promise<boolean> {
+  return (await status())?.passwords ?? false;
+}

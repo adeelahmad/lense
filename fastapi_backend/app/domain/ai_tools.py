@@ -116,9 +116,51 @@ TOOLS = [
 ]
 
 
+# making the assistant's extensions from chat (or voice, which is chat): read what there is, then save a manifest or
+# switch one on or off, which always waits for the person's yes (it changes what the assistant does)
+AUTHOR_TOOLS = [
+    (
+        "list_extensions",
+        "The tools, skills, hooks and plugins added to this assistant that the person can see: name, kind, whether "
+        "it's on, and whether they can change it.",
+        {"kind": {"type": "string", "enum": list(extensions.KINDS)}},
+        [],
+        False,
+    ),
+    (
+        "read_extension",
+        "One extension as its manifest (Markdown with YAML frontmatter, or YAML), to show or change it.",
+        {"name": _S},
+        ["name"],
+        False,
+    ),
+    (
+        "save_extension",
+        "Add an extension to the assistant, or a new version of one the person can change, from a manifest. Needs the "
+        "person's approval. Manifest: YAML frontmatter between --- lines with name (lowercase_with_underscores), kind "
+        "(tool, skill, hook or plugin) and description, then for a skill `when` (when to use it) with its instructions "
+        "after the frontmatter; for a prompt tool `params` ([{name, kind: text|number|integer|bool|json|list, "
+        "required, options, description}]) and `effect` (read, or change: asks first) with the prompt after the "
+        "frontmatter, using {{param}}; a web tool sets run: {type: http, method, url, headers, body} instead; a hook sets "
+        "event (message, before_tool, after_tool, answer), match {tool, contains} and action {type: context|block|tool, "
+        "text|reason|tool, args}. Errors say what to fix.",
+        {"manifest": _S, "notes": _S},
+        ["manifest"],
+        True,
+    ),
+    (
+        "switch_extension",
+        "Switch an extension the person can change on or off. Needs the person's approval.",
+        {"name": _S, "enabled": {"type": "boolean"}},
+        ["name", "enabled"],
+        True,
+    ),
+]
+
+
 def builtin_names():
     """The assistant's own tool names, which extensions can't take."""
-    return {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS} | {"use_skill"}
+    return {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS} | {"use_skill"}
 
 
 class Toolbox(ops_tools.OpsTools):
@@ -136,8 +178,9 @@ class Toolbox(ops_tools.OpsTools):
         self.allowed = recsets.within(db, self.readable, self.scope.get("recordings"), self.scope.get("collections"))
         self.refs, self.reads, self.approvals = [], 0, []
         # the extensions this person switched on or was given (extensions.py); hooks don't run inside hooks
-        me = extensions.who(user["id"], user.get("email"), admin, {s: "viewer" for s in self.readable})
-        self.ext = extensions.Active(db, me) if cfg["ai"].get("extensions", True) else None
+        roles = {s: "editor" if s in self.editable else "viewer" for s in self.readable}
+        self.me = extensions.who(user["id"], user.get("email"), admin, roles)
+        self.ext = extensions.Active(db, self.me) if cfg["ai"].get("extensions", True) else None
         self.hooking = False
 
     def system_note(self):
@@ -176,6 +219,8 @@ class Toolbox(ops_tools.OpsTools):
             tools += ops_tools.ADMIN_TOOLS
         if can_act or self.admin:
             tools += ops_tools.FILE_TOOLS
+        if self.cfg["ai"].get("extensions", True):
+            tools += [t for t in AUTHOR_TOOLS if can_act or self.admin or not t[4]]
         if self.ext:
             tools += self.ext.tool_specs(can_act or self.admin)
         return [
@@ -266,6 +311,46 @@ class Toolbox(ops_tools.OpsTools):
         if s["spec"].get("tools"):
             out["tools"] = s["spec"]["tools"]
         return out, f"Read the skill {name}"
+
+    # ---- extensions, from chat ----
+    def _ext_named(self, name):
+        for g in extensions.visible(self.db, self.me):
+            if g["name"] == name:
+                return g
+        raise ValueError(f"no extension called {name} that you can see")
+
+    def t_list_extensions(self, kind=None):
+        out = [
+            {"name": g["name"], "kind": g["kind"], "description": g.get("description"), "on": g["enabled"], "version": g["version"],
+             "yours_to_change": g["editable"], "shared": g["visibility"]}
+            for g in extensions.visible(self.db, self.me, kind)
+        ]  # fmt: skip
+        return {"extensions": out}, f"Listed {len(out)} extension(s)"
+
+    def t_read_extension(self, name):
+        g = self._ext_named(name)
+        return {"name": name, "manifest": extensions.to_manifest(g)}, f"Read the extension {name}"
+
+    def t_save_extension(self, manifest, notes=None):
+        m = extensions.check_manifest(extensions.parse_manifest(manifest), self.me, self.db)
+        same = next((g for g in extensions.visible(self.db, self.me) if g["name"] == m["name"]), None)
+        if same:
+            if not same["editable"]:
+                raise ValueError(f"{m['name']} is someone else's: choose another name")
+            if same["kind"] != m["kind"]:
+                raise ValueError(f"{m['name']} is a {same['kind']}: choose another name for a {m['kind']}")
+            what = f"Save version {same['version'] + 1} of the {m['kind']} {m['name']}"
+        else:
+            extensions._check_names(self.db, m["kind"], m["name"], m["spec"])
+            what = f"Add the {m['kind']} {m['name']} to the assistant"
+        return self._approval("save_extension", {"manifest": manifest, "notes": notes, "name": m["name"]}, what)
+
+    def t_switch_extension(self, name, enabled):
+        g = self._ext_named(name)
+        if not g["editable"]:
+            raise ValueError(f"{name} is someone else's; only its owner or an admin switches it")
+        what = f"Switch {g['kind']} {name} {'on' if enabled else 'off'}"
+        return self._approval("switch_extension", {"extension": g["id"], "name": name, "enabled": bool(enabled)}, what)
 
     def _run(self, name, fn, args):
         try:
@@ -565,6 +650,8 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
     if a["tool"] == "extension":
         box = Toolbox(db, cfg, user, readable if readable is not None else editable, editable, None, a["chat"], base, admin)
         result = run_extension(db, cfg, args, user, admin, box.readable, box)
+    elif a["tool"] in ("save_extension", "switch_extension"):
+        result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
     elif a["tool"] in ("change_settings", "create_namespace", "import_files"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
     elif a["tool"] == "run_template":
@@ -632,3 +719,17 @@ def run_extension(db, cfg, args, user, admin, readable, toolbox=None):
         raise ValueError(f"the extension has no tool {args['tool']} any more")
     out = extensions.run_tool(db, cfg, t["spec"], extensions.tool_args(t["spec"], args.get("args") or {}), toolbox=toolbox)
     return {"output": out}
+
+
+def author_extension(db, tool, args, user, admin, readable, editable):
+    """An approved change to the extensions, made in chat: a manifest saved (new, or a new version), or one switched."""
+    me = extensions.who(user["id"], user.get("email"), admin, {s: "editor" if s in editable else "viewer" for s in readable})
+    if tool == "switch_extension":
+        extensions.update(db, me, int(args["extension"]), enabled=bool(args["enabled"]))
+        return {"extension": int(args["extension"]), "enabled": bool(args["enabled"])}
+    manifest = extensions.parse_manifest(args["manifest"])
+    same = next((g for g in extensions.visible(db, me) if g["name"] == manifest.get("name")), None)
+    if same:
+        n = extensions.save_version(db, me, same["id"], manifest, args.get("notes"), origin="chat")
+        return {"extension": same["id"], "version": n}
+    return {"extension": extensions.create(db, me, manifest, origin="chat"), "version": 1}

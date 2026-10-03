@@ -210,7 +210,7 @@ def platform_main(argv, config):
     import threading
     import time
 
-    from .domain import auth, bridge, jobs, notify, routines, sensors, settings, sources, telemetry
+    from .domain import auth, bridge, jobs, notify, passkeys, routines, sensors, settings, sources, telemetry
 
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -220,7 +220,11 @@ def platform_main(argv, config):
     x.add_argument("--name")
     x.add_argument("--admin", action="store_true")
     x.add_argument("--password-stdin", action="store_true", help="read the password from stdin instead of prompting")
+    x.add_argument("--password", action="store_true", help="give them a password (where passwords are on) instead of a sign-in link")
     us.add_parser("list")
+    x = us.add_parser("link", help="print a one-time link for adding a passkey and signing in (a new person, or a lost passkey)")
+    x.add_argument("email")
+    x.add_argument("--hours", type=float, default=72)
     x = us.add_parser("role", help="give someone a role in a namespace (none removes it)")
     x.add_argument("email")
     x.add_argument("ns")
@@ -258,8 +262,11 @@ def platform_main(argv, config):
     try:
         if a.cmd == "users":
             if a.action == "add":
-                uid = auth.create_account(db, a.email, password(), a.name, a.admin)
+                with_password = a.password or a.password_stdin
+                uid = auth.create_account(db, a.email, password() if with_password else None, a.name, a.admin)
                 print(f"created account {uid} for {a.email}" + (" (admin)" if a.admin else ""))
+                if not with_password:
+                    print(f"sign-in link (works once, for 3 days): {passkeys.link_url(passkeys.create_link(db, uid))}")
             elif a.action == "list":
                 for r in db.rows("SELECT record::id(id) AS id, email, name, admin, disabled FROM account ORDER BY id"):
                     flags = ("admin " if r.get("admin") else "") + ("disabled" if r.get("disabled") else "")
@@ -268,7 +275,11 @@ def platform_main(argv, config):
                 acct = auth.find_account(db, a.email)
                 if not acct:
                     raise SystemExit(f"no account for {a.email}")
-                if a.action == "role":
+                if a.action == "link":
+                    raw = passkeys.create_link(db, acct["id"], hours=a.hours, by="lens users link")
+                    auth.audit(db, None, "user.signin_link", f"account:{acct['id']}", ["cli"])
+                    print(f"sign-in link for {a.email} (works once): {passkeys.link_url(raw)}")
+                elif a.action == "role":
                     auth.set_role(db, acct["id"], store.ns_id(db, a.ns, create=False), None if a.role == "none" else a.role)
                     print(f"{a.email}: {a.role} in {a.ns}")
                 elif a.action == "disable":

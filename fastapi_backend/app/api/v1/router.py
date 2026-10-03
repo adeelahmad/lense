@@ -27,6 +27,7 @@ from app.api.v1.routes import (
     notes,
     notifications,
     oauth,
+    passkeys,
     pipelines,
     public,
     rdf,
@@ -51,6 +52,8 @@ from app.api.v1.routes import (
 api_router = APIRouter()
 api_router.include_router(auth.router)
 api_router.include_router(auth.tokens)
+api_router.include_router(passkeys.router)
+api_router.include_router(passkeys.people)
 api_router.include_router(oauth.router)
 for module in (
     users,

@@ -1,4 +1,5 @@
 import {
+  Blocks,
   CalendarClock,
   ChartNoAxesColumn,
   HardDriveDownload,
@@ -50,6 +51,7 @@ export const NAV: NavItem[] = [
   },
   { label: "Pipelines", href: "/pipelines", icon: Workflow },
   { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true },
+  { label: "Extensions", href: "/extensions", icon: Blocks },
   // Admins see every source as a sensor; members see the watched folders feeding their namespaces.
   { label: "Sensors", href: "/sensors", icon: RadioTower, adminOnly: true },
   { label: "Sources", href: "/sources", icon: HardDriveDownload, membersOnly: true },

@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import { Imports } from "@/app/openapi-client";
-import { webAddressProblem } from "@/components/import/files";
+import { webAddress, webAddressProblem } from "@/components/import/files";
 import { WebTab } from "@/components/import/web-tab";
 import { webRows } from "@/components/recording/document/model";
 import { sourceLabel, webHost } from "@/components/recording/labels";
@@ -38,7 +38,10 @@ beforeEach(() => jest.clearAllMocks());
 describe("capturing a web page", () => {
   it("checks an address as it's typed; the server checks the rest", () => {
     expect(webAddressProblem("")).toBe("Give the page’s address.");
-    expect(webAddressProblem("example.org")).toBe("That isn’t a web address: it starts with https:// or http://.");
+    expect(webAddressProblem("example.org/news")).toBeNull(); // https:// is added
+    expect(webAddress(" localhost:8080/a ")).toBe("https://localhost:8080/a");
+    expect(webAddress("http://example.org")).toBe("http://example.org");
+    expect(webAddressProblem("mailto:me@example.org")).toBe("Only web pages can be captured: https:// or http://.");
     expect(webAddressProblem("ftp://example.org/a")).toBe("Only web pages can be captured: https:// or http://.");
     expect(webAddressProblem("https://me:pw@example.org/")).toBe(
       "Leave the user name and password out of the address.",

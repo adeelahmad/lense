@@ -21,9 +21,9 @@ Todo:
 - [x] Prompt and web tools, skills, hooks in the chat tool loop; approvals for change tools
 - [ ] Code tools: Python in a sandboxed subprocess (admins create; time limit, no secrets, no network unless allowed)
 - [x] Canvas: a `tool` workflow scope whose arg nodes are the tool's parameters (ask_model, call_tool nodes)
-- [ ] Canvas editor for tool graphs in the web app (save a graph as a tool)
-- [ ] Authoring from chat and voice: the assistant drafts, tries and saves extensions behind an approval card
-- [ ] Extensions page in the web app: list, manifest editor, switch on/off, share, try
+- [x] Canvas editor for tool graphs in the web app (Extensions → Draw a tool)
+- [x] Authoring from chat and voice: the assistant drafts and saves extensions behind an approval card
+- [x] Extensions page in the web app: list, manifest editor, switch on/off, share, try, versions
 - [ ] `lens ext` CLI (push/pull manifests)
 
 Refine later: hook-called tools don't show as steps; web tools reach ports 80/443 only and have no secret

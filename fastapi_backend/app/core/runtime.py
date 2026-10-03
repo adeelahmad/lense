@@ -39,6 +39,8 @@ class Archive:
         if auth.account_count(self.db) == 0:
             setup.mark_fresh(self.db, self.base)  # a fresh install: the web app walks the first admin through setup
         setup.apply_env(self.db)
+        if settings.keep_passwords(self.db, self.base):
+            log.info("People here sign in with passwords, so passwords stay on; an admin can turn them off in Settings > Sign-in")
         if auth.account_count(self.db) == 0:
             self.setup_code = os.environ.get("LENS_SETUP_CODE") or secrets.token_urlsafe(9)
             link = f"{env.FRONTEND_URL.rstrip('/')}/setup?{urllib.parse.urlencode({'code': self.setup_code})}"

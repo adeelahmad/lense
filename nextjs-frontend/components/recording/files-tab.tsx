@@ -38,6 +38,7 @@ import {
   detailChanges,
   fileMeta,
   fileTitle,
+  guessLanguage,
   guessRole,
   languageProblem,
   lineTime,
@@ -77,9 +78,32 @@ export function FilesTab() {
   const { id, ns, canEdit, fileFocus } = useRec();
   const files = useFiles(id);
   const [adding, setAdding] = useState(false);
+  const [picked, setPicked] = useState<File | null>(null);
+  const [over, setOver] = useState(false);
   const list = files.data?.files ?? [];
+  const canAdd = canEdit && Boolean(files.data);
+  // the file picker opens straight from Add file, and a file dropped on the tab is added the same way
+  const start = (f: File | undefined) => {
+    if (!f) return;
+    setPicked(f);
+    setAdding(true);
+  };
   return (
-    <>
+    <div
+      className={cn("contents", over && "[&>*]:opacity-60")}
+      onDragOver={(e) => {
+        if (!canAdd || !e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        setOver(false);
+        if (!canAdd || !e.dataTransfer.files.length) return;
+        e.preventDefault();
+        start(e.dataTransfer.files[0]);
+      }}
+    >
       <div className="flex items-start gap-3">
         <p className="flex-1 text-[13px] leading-snug text-fg-secondary">
           Transcripts, captions, translations and indexes added here are searchable.
@@ -90,7 +114,7 @@ export function FilesTab() {
           icon={<Upload />}
           disabled={!canEdit || !files.data}
           disabledReason={canEdit ? undefined : needRole("editor", ns)}
-          onClick={() => setAdding(true)}
+          onClick={() => void chooseFiles().then(([f]) => start(f))}
         >
           Add file
         </Button>
@@ -110,7 +134,7 @@ export function FilesTab() {
           {list.length === 0 ? (
             <EmptyState icon={<Paperclip />} title="No other files yet" className="py-6">
               {canEdit
-                ? "Add a transcript, captions, a translation, an index, a thumbnail or an attachment."
+                ? "Add (or drop here) a transcript, captions, a translation, an index, a thumbnail or an attachment."
                 : "Editors can add transcripts, captions, translations, indexes and attachments here."}
             </EmptyState>
           ) : (
@@ -125,8 +149,15 @@ export function FilesTab() {
           )}
         </>
       )}
-      {files.data && <AddFileDialog open={adding} onOpenChange={setAdding} maxMb={files.data.max_mb} />}
-    </>
+      {files.data && (
+        <AddFileDialog
+          open={adding}
+          onOpenChange={(o) => (setAdding(o), o || setPicked(null))}
+          maxMb={files.data.max_mb}
+          initial={picked}
+        />
+      )}
+    </div>
   );
 }
 
@@ -384,10 +415,13 @@ function AddFileDialog({
   open,
   onOpenChange,
   maxMb,
+  initial,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   maxMb: number;
+  /** The file already chosen (Add file, or dropped on the tab). */
+  initial?: File | null;
 }) {
   const { id } = useRec();
   const { add } = useFileActions(id);
@@ -404,12 +438,18 @@ function AddFileDialog({
     setLanguage("");
     setLabel("");
   };
-  const pick = async () => {
-    const [f] = await chooseFiles();
-    if (!f) return;
+  const take = (f: File) => {
     setFile(f);
     setRole(guessRole(f.name));
+    setLanguage(guessLanguage(f.name));
   };
+  const pick = async () => {
+    const [f] = await chooseFiles();
+    if (f) take(f);
+  };
+  useEffect(() => {
+    if (open && initial) take(initial);
+  }, [open, initial]);
   const send = () => {
     if (!file || problem || langProblem) return;
     add.mutate(

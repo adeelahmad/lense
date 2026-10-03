@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.deps import Acl, AdminReader, AdminWriter, CurrentUser, Db, Writer, domain_errors
+from app.api.deps import Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.domain import auth, store
 from app.schemas.common import Created, Ok
 from app.schemas.users import Member, MemberSet, UserCreate, UserUpdate, UserWithRoles
@@ -17,16 +17,25 @@ router = APIRouter(tags=["users"])
 @router.get("/users")
 def list_users(user: AdminReader, db: Db) -> list[UserWithRoles]:
     """Every account, with its role in each namespace."""
-    people = db.rows("SELECT record::id(id) AS id, email, name, admin, disabled, created_at, last_login_at FROM account ORDER BY id")
+    people = db.rows(
+        "SELECT record::id(id) AS id, email, name, admin, disabled, created_at, last_login_at, pw != NONE AS password FROM account ORDER BY id"
+    )
+    keys: dict[int, int] = defaultdict(int)
+    for a in db.values("SELECT VALUE account FROM passkey"):
+        keys[a] += 1
     roles: dict[int, dict[str, str]] = defaultdict(dict)
     names = store.space_names(db)
     for m in db.rows("SELECT account, space, role FROM membership"):
         roles[m["account"]][names.get(m["space"], str(m["space"]))] = m["role"]
-    return [UserWithRoles.model_validate({**p, "roles": roles.get(p["id"], {})}) for p in people]
+    return [UserWithRoles.model_validate({**p, "roles": roles.get(p["id"], {}), "passkeys": keys[p["id"]]}) for p in people]
 
 
 @router.post("/users")
-def create_user(body: UserCreate, user: AdminWriter, db: Db) -> Created:
+def create_user(body: UserCreate, user: AdminWriter, db: Db, cfg: Cfg) -> Created:
+    """A new account. Without a password (the only way where passwords are off), send them a sign-in link
+    (POST /users/{uid}/signin-link) to add a passkey."""
+    if body.password is not None and not auth.passwords_on(cfg):
+        raise HTTPException(400, "passwords are turned off here; create the account and send a sign-in link")
     with domain_errors():
         uid = auth.create_account(db, body.email, body.password, body.name, body.admin)
     auth.audit(db, user.as_audit(), "user.create", f"account:{uid}")
@@ -34,8 +43,11 @@ def create_user(body: UserCreate, user: AdminWriter, db: Db) -> Created:
 
 
 @router.patch("/users/{uid}")
-def update_user(uid: int, body: UserUpdate, user: AdminWriter, db: Db) -> Ok:
-    """Rename, promote or demote, disable, or set a new password (which signs the person out everywhere)."""
+def update_user(uid: int, body: UserUpdate, user: AdminWriter, db: Db, cfg: Cfg) -> Ok:
+    """Rename, promote or demote, disable, or set a new password (which signs the person out everywhere; only where
+    passwords are on)."""
+    if body.password and not auth.passwords_on(cfg):
+        raise HTTPException(400, "passwords are turned off here; send a sign-in link instead")
     if uid == user.id and (body.admin is False or body.disabled):
         raise HTTPException(400, "you can't remove your own admin rights or disable yourself")
     if not auth.get_account(db, uid):

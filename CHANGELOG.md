@@ -8,6 +8,31 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   suggested handling to apply or ignore, each sensor's streams with charts of hourly averages and its latest
   readings, its kinds of log line to label or drop, and what it keeps and for how long. Webhooks (token shown once),
   bridges, hub logins and Settings → Sensors are all there; storage, email and calendars stay a tab away.
+- **An email connection fills in its server.** Type the address first and the IMAP server follows from it (Gmail,
+  Outlook, iCloud, Yahoo and other big providers by name, otherwise imap.<domain>) until you change it by hand.
+- **Fewer confirms, fewer dead ends.** Import sends the files that are ready and keeps the ones that still need a
+  field mapped in the list, instead of blocking everything. Disabling an account and deleting your own saved view
+  happen at once with Undo instead of a confirm. Adding a member to a namespace suggests the people who aren't in it
+  yet. Add file on a recording opens the file picker first (or take a file dropped on the tab) and guesses its role
+  and language from the name (talk.en.vtt is English).
+- **Sign in with a passkey, no passwords.** People sign in with their fingerprint, face or device PIN (or a phone
+  nearby). The first admin makes a passkey on the setup page; everyone else gets a one-time sign-in link from People
+  (or `lens users link`), and "Lost your passkey?" emails one. Profile and sign-in lists your passkeys, adds more and
+  removes old ones. Fresh installs have no passwords at all; installs that already use passwords keep them until an
+  admin turns them off in Settings › Sign-in (which needs an admin with a passkey). Passkeys need an `https://`
+  address or `localhost`; on a plain `http://` address setup takes the code alone and a sign-in link signs in by
+  itself, so there is still no password.
+- **Adding a source takes fewer steps.** Picking a type moves straight to its details, the tested connection is
+  named on the same screen (its suggested name kept with **Done**), and the folder browser opens next so you can pick
+  what to watch. "Connect a source" links elsewhere in the app open Add connection directly.
+- **Settings save in one click.** Save (or Ctrl/Cmd+S) applies a section's changes at once; only a new public base
+  URL, which changes every IIIF identifier, is still reviewed and typed out first.
+- **Less typing and clicking.** Every dialog opens on its first field, and Enter there runs its main action. A web
+  page's address needs no https://, namespace names are cleaned up as you type ("Customer Calls" becomes
+  customer-calls), a routine left unnamed is named from its schedule and actions, and a new account gets its name from
+  its email and a role in a namespace in the same step. Deleting a connection with no watched folders no longer asks
+  you to type its name. The entities page offers Clear filters and Add an entity when it's empty, and a setup chat
+  has no empty sources column.
 - **Global chats pick their namespace.** The first question in a conversation over everything (the assistant home)
   is matched to the namespace it's about by the decision model (or the language model without one), using what each
   namespace holds and where the question's excerpts are. A sure match narrows the conversation (a `scoped` event and a

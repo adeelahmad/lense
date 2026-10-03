@@ -212,6 +212,70 @@ export function NodeSettings({
           </>
         )}
 
+        {node.type === "ask_model" && (
+          <>
+            <Field label="Prompt" hint="What came in is {{ input }}, e.g. Summarise {{ input.text }} in one line">
+              {({ id, describedBy }) => (
+                <Textarea
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  rows={5}
+                  value={String(c.prompt ?? "")}
+                  onChange={(e) => set({ prompt: e.target.value })}
+                />
+              )}
+            </Field>
+            <Field label="System prompt" optional>
+              {({ id }) => (
+                <Textarea
+                  id={id}
+                  rows={2}
+                  value={String(c.system ?? "")}
+                  onChange={(e) => set({ system: e.target.value })}
+                />
+              )}
+            </Field>
+            <Checkbox
+              checked={Boolean(c.json)}
+              onCheckedChange={(v) => set({ json: v || undefined })}
+              label="The reply is JSON: pass it on as data"
+            />
+            <Field label="Model" optional hint="Leave empty for the model in Settings → LLM">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  value={String(c.model ?? "")}
+                  onChange={(e) => set({ model: e.target.value })}
+                />
+              )}
+            </Field>
+          </>
+        )}
+
+        {node.type === "call_tool" && (
+          <>
+            <Field
+              label="Tool"
+              hint="Its name: one of the assistant’s own (search_transcripts, find_entities…) or an extension’s"
+            >
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  value={String(c.tool ?? "")}
+                  placeholder="search_transcripts"
+                  onChange={(e) => set({ tool: e.target.value })}
+                />
+              )}
+            </Field>
+            <ArgsField value={c.args} onChange={(args) => set({ args })} />
+          </>
+        )}
+
         {node.type === "pick" && (
           <Field label="Path" hint="Dots between keys, numbers for list items: action_items.0.text">
             {({ id, describedBy }) => (
@@ -578,4 +642,50 @@ function pretty(v: string): string {
   } catch {
     return v;
   }
+}
+
+/** A call tool node's fixed arguments, as JSON; what comes in is laid over them. */
+function ArgsField({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (v: Record<string, unknown> | undefined) => void;
+}) {
+  const [text, setText] = useState(() => (value ? JSON.stringify(value, null, 2) : ""));
+  const [bad, setBad] = useState(false);
+  return (
+    <Field
+      label="Arguments"
+      optional
+      hint={'JSON, e.g. {"limit": 5}; what comes in (an object) is laid over them'}
+      error={bad ? "That isn’t a JSON object" : undefined}
+    >
+      {({ id, describedBy }) => (
+        <Textarea
+          id={id}
+          aria-describedby={describedBy}
+          mono
+          rows={3}
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (!e.target.value.trim()) {
+              setBad(false);
+              onChange(undefined);
+              return;
+            }
+            try {
+              const v = JSON.parse(e.target.value);
+              const ok = v != null && typeof v === "object" && !Array.isArray(v);
+              setBad(!ok);
+              if (ok) onChange(v as Record<string, unknown>);
+            } catch {
+              setBad(true);
+            }
+          }}
+        />
+      )}
+    </Field>
+  );
 }
