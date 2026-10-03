@@ -17179,6 +17179,154 @@
         }
       }
     },
+    "/api/v1/sensors/{sid}/patterns": {
+      "get": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "List Patterns",
+        "description": "A log sensor's kinds of line, busiest first.",
+        "operationId": "list_patterns",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          },
+          {
+            "name": "stream",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a stream's id",
+              "title": "Stream"
+            },
+            "description": "a stream's id"
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "routine, notable, alert, or none for those without one",
+              "title": "Label"
+            },
+            "description": "routine, notable, alert, or none for those without one"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Pattern"
+                  },
+                  "title": "Response Sensors-List Patterns"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensor-patterns/{pid}": {
+      "patch": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Update Pattern",
+        "description": "Label a kind of line yourself (`label: null` clears it), or stop keeping its lines (`action: drop`; they're\nstill counted).",
+        "operationId": "update_pattern",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatternUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sensor-logins": {
       "get": {
         "tags": [
@@ -24695,6 +24843,18 @@
             ],
             "title": "Max Per Minute",
             "description": "readings a stream may send a minute; more are dropped"
+          },
+          "triage": {
+            "type": "boolean",
+            "title": "Triage",
+            "description": "the decision model labels new log patterns routine, notable or alert",
+            "default": false
+          },
+          "digest": {
+            "type": "boolean",
+            "title": "Digest",
+            "description": "a daily digest becomes a document in the sensor's namespace",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -24763,6 +24923,28 @@
               }
             ],
             "title": "Max Per Minute"
+          },
+          "triage": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Triage"
+          },
+          "digest": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest"
           }
         },
         "additionalProperties": false,
@@ -29570,6 +29752,179 @@
           "new_password"
         ],
         "title": "PasswordChange"
+      },
+      "Pattern": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stream": {
+            "type": "string",
+            "title": "Stream"
+          },
+          "stream_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stream Name"
+          },
+          "template": {
+            "type": "string",
+            "title": "Template",
+            "description": "the line with what changes taken out: <ip>, <name>, <n>..."
+          },
+          "example": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 0
+          },
+          "first_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First At"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "routine",
+                  "notable",
+                  "alert"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "label_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label By",
+            "description": "jev, llm, or who set it"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "sure": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sure",
+            "description": "false: the model wasn't sure; a person should look"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "keep",
+              "drop"
+            ],
+            "title": "Action",
+            "default": "keep"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "stream",
+          "template"
+        ],
+        "title": "Pattern"
+      },
+      "PatternUpdate": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "routine",
+                  "notable",
+                  "alert"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "null clears it"
+          },
+          "action": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "keep",
+                  "drop"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PatternUpdate"
       },
       "Permission": {
         "properties": {
@@ -34824,6 +35179,24 @@
             "title": "Has Token",
             "default": false
           },
+          "secrets": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secrets",
+            "description": "which secrets are set (a bridge's password)"
+          },
           "health": {
             "anyOf": [
               {
@@ -34917,7 +35290,8 @@
             "enum": [
               "mqtt",
               "syslog",
-              "webhook"
+              "webhook",
+              "bridge"
             ],
             "title": "Type"
           },
@@ -34936,7 +35310,22 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Params",
-            "description": "mqtt: {prefix}; syslog: {address}; webhook: none"
+            "description": "mqtt: {prefix}; syslog: {address}; webhook: none; bridge: {host, port, tls, topics, user}"
+          },
+          "secrets": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secrets",
+            "description": "bridge: {pass}"
           },
           "space": {
             "anyOf": [
@@ -35119,6 +35508,24 @@
             "type": "boolean",
             "title": "Has Token",
             "default": false
+          },
+          "secrets": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secrets",
+            "description": "which secrets are set (a bridge's password)"
           },
           "health": {
             "anyOf": [
@@ -35310,6 +35717,41 @@
                 "type": "null"
               }
             ]
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params",
+            "description": "a bridge's connection"
+          },
+          "secrets": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secrets",
+            "description": "a bridge's password; empty or null removes it"
           }
         },
         "additionalProperties": false,

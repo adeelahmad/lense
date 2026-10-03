@@ -9,8 +9,9 @@ namespaces (or all of them), at the times its schedule says, or when someone ask
 - `workflow`: run a workflow. One that runs on recordings is queued on them as a workflow step (as above); one that
   organises the graph (scope graph, see organize.py) runs over the routine's namespaces there and then, proposing or
   making changes to their entities.
-- `sensors`: tidy stream sensors' data (sensors.py): drop readings and hourly summaries past each sensor's retention
-  (every stream sensor, whatever the routine's namespaces, or the ones it names).
+- `sensors`: look after stream sensors' data (sensors.py), every stream sensor whatever the routine's namespaces, or
+  the ones it names: drop readings and hourly summaries past each sensor's retention, label new log patterns where
+  triage is on (sensor_patterns.py), and write the daily digests of sensors that keep them (sensor_digests.py).
 
 Each run is a `routine_run` row with what every action did and a log. A run's graph changes can be undone together.
 A routine whose run is still going isn't started again; a run that stops reporting for STALE_MINUTES is taken as dead.
@@ -21,7 +22,7 @@ from __future__ import annotations
 import datetime as dt
 import threading
 
-from . import fedora, jobs, organize, schedule, semantic, sensors, sources, store, telemetry, workflows
+from . import fedora, jobs, organize, schedule, semantic, sensor_digests, sensor_patterns, sensors, sources, store, telemetry, workflows
 
 R = store.R
 ACTIONS = ("sync", "pipeline", "workflow", "sensors")
@@ -321,7 +322,10 @@ def _action(db, cfg, routine, run_id, a, seen, propose_only, say):
     if a["type"] == "sync":
         return _sync(db, cfg, a, spaces, say)
     if a["type"] == "sensors":
-        return sensors.tidy(db, cfg, a.get("sensors"), say=say)
+        got = sensors.tidy(db, cfg, a.get("sensors"), say=say)
+        got["triaged"] = sensor_patterns.triage(db, cfg, a.get("sensors"), say=say)
+        got["digests"] = sensor_digests.write(db, cfg, a.get("sensors"), say=say)
+        return got
     if a.get("recordings") == "unindexed" and not semantic.configured(cfg):
         say("search by meaning is off, or has no embeddings server: nothing to index")
         return {"recordings": 0, "queued": 0, "errors": 0}

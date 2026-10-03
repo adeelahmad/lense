@@ -57,6 +57,7 @@ EDITABLE = {
         "rollup_days",
         "important_days",
         "max_per_minute",
+        "triage",
     ),
     "video": (
         "sample_seconds",
@@ -536,7 +537,7 @@ SENSOR_RANGES = {
 
 
 def _sensor_setting(key, value):
-    if key in ("enabled", "mqtt", "mqtt_anonymous", "syslog"):
+    if key in ("enabled", "mqtt", "mqtt_anonymous", "syslog", "triage"):
         if not isinstance(value, bool):
             raise ValueError(f"sensors.{key} is true or false")
         return value
