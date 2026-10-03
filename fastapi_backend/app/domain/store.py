@@ -283,9 +283,40 @@ DEFAULTS = {
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
     "reports": {"audio": "link"},
+    # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
+    # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
+    # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
+    # bind is a startup setting only.
+    "sensors": {
+        "enabled": False,
+        "bind": "0.0.0.0",
+        "mqtt": True,
+        "mqtt_port": 1883,
+        "mqtt_anonymous": False,
+        "syslog": True,
+        "syslog_port": 5514,
+        "syslog_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
+        "max_payload_kb": 256,
+        "store": "all",
+        "raw_days": 30,
+        "rollup_days": 365,
+        "important_days": 180,
+        "max_per_minute": 600,
+        "triage": False,
+    },
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)
+    # outgoing email (app/email.py): access requests and password resets. MAIL_* in .env set them instead, locked.
+    "mail": {
+        "server": None,
+        "port": 587,
+        "username": None,
+        "password": None,
+        "from_address": None,
+        "from_name": "Lens",
+        "security": "starttls",
+    },
     "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
     # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
     # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the
@@ -300,6 +331,20 @@ DEFAULTS = {
         "export_seconds": 60,
         "service_name": "lens",
         "prices": {},
+    },
+    # Fedora (docs/fedora.md): a copy of the archive in a Fedora 6 repository, off until url is set (enabled: false pauses
+    # it). password is a
+    # secret; files: send recordings' files too (up to max_file_mb each, 0: any size).
+    "fedora": {
+        "enabled": True,
+        "url": None,
+        "user": None,
+        "password": None,
+        "root": "lens",
+        "files": True,
+        "max_file_mb": 0,
+        "sync_seconds": 60,
+        "full_hours": 24,
     },
     # IIIF: identifiers are built from base_url (set it to the stable public HTTPS address; null: the request's address)
     "iiif": {
@@ -688,6 +733,29 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS watch_path_source ON watch_path FIELDS source",
     "DEFINE TABLE IF NOT EXISTS remote_file SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS remote_file_watch ON remote_file FIELDS watch",
+    # sensors (sensors.py): stream sensors are storage_source rows too, found by their key (mqtt:<prefix>,
+    # syslog:<address>, webhook:<id>) or a webhook's token hash; their streams (sensor_stream:<sensor>-<hash>), readings,
+    # hourly rollups (sensor_rollup:<stream>-<field>-<hour>), hub logins and the processes running the hub
+    "DEFINE INDEX IF NOT EXISTS storage_source_key ON storage_source FIELDS key",
+    "DEFINE INDEX IF NOT EXISTS storage_source_push ON storage_source FIELDS push_hash",
+    "DEFINE TABLE IF NOT EXISTS sensor_stream SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_stream_sensor ON sensor_stream FIELDS sensor",
+    "DEFINE TABLE IF NOT EXISTS sensor_reading SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_reading_sensor ON sensor_reading FIELDS sensor, at",
+    "DEFINE INDEX IF NOT EXISTS sensor_reading_stream ON sensor_reading FIELDS stream, at",
+    "DEFINE TABLE IF NOT EXISTS sensor_rollup SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_rollup_stream ON sensor_rollup FIELDS stream, field, hour",
+    "DEFINE INDEX IF NOT EXISTS sensor_rollup_sensor ON sensor_rollup FIELDS sensor, hour",
+    # a log stream's patterns (sensor_pattern:<stream>-<hash of the template>): counts, a label (routine, notable,
+    # alert: by the decision model or a person) and an action (drop: counted, not kept)
+    "DEFINE TABLE IF NOT EXISTS sensor_pattern SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_pattern_sensor ON sensor_pattern FIELDS sensor, stream",
+    "DEFINE INDEX IF NOT EXISTS sensor_pattern_stream ON sensor_pattern FIELDS stream",
+    "DEFINE INDEX IF NOT EXISTS sensor_pattern_action ON sensor_pattern FIELDS action",
+    "DEFINE INDEX IF NOT EXISTS sensor_reading_pattern ON sensor_reading FIELDS pattern",
+    "DEFINE TABLE IF NOT EXISTS sensor_login SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_login_name ON sensor_login FIELDS username UNIQUE",
+    "DEFINE TABLE IF NOT EXISTS sensor_service SCHEMALESS",
     # templates, pipelines, outputs, chat, edits
     "DEFINE TABLE IF NOT EXISTS template SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS template_version SCHEMALESS",
@@ -710,6 +778,10 @@ SCHEMA = [
     # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
     "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
     "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",
+    # Fedora (fedora.py): what to send, what was sent (a hash per resource path) and how the last sync went
+    "DEFINE TABLE IF NOT EXISTS fedora_outbox SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS fedora_state SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS fedora_status SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS routine_run SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS routine_run_r ON routine_run FIELDS routine",
     "DEFINE TABLE IF NOT EXISTS graph_change SCHEMALESS",

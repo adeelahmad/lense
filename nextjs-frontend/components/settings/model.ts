@@ -64,7 +64,9 @@ export type SectionId =
   | "components"
   | "access"
   | "notifications"
+  | "mail"
   | "telemetry"
+  | "fedora"
   | "uploads"
   | "documents"
   | "tokens"
@@ -166,6 +168,12 @@ export const SECTIONS: SectionSpec[] = [
       "Who can reach the server, how it tells visitors’ addresses, which sites may embed the player, and how long sessions last.",
   },
   {
+    id: "mail",
+    label: "Email",
+    backend: ["mail"],
+    description: "The SMTP server Lens sends email through: access requests and password resets.",
+  },
+  {
     id: "notifications",
     label: "Notifications",
     backend: ["notifications"],
@@ -178,6 +186,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["telemetry"],
     description:
       "Off unless you turn it on. Traces and metrics from the server and its workers, sent only to an OpenTelemetry collector you run or choose; nothing goes anywhere else.",
+  },
+  {
+    id: "fedora",
+    label: "Fedora repository",
+    backend: ["fedora"],
+    description:
+      "Off unless you set an address. Keeps a copy of the archive in a Fedora 6 repository: every namespace, collection, recording (with its file), entity and speaker, described in RDF with Dublin Core.",
   },
   {
     id: "uploads",
@@ -616,6 +631,39 @@ export const FIELDS: FieldSpec[] = [
     min: 0,
     nullable: true,
   },
+  // Email
+  {
+    section: "mail",
+    key: "server",
+    label: "SMTP server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "smtp.gmail.com",
+  },
+  { section: "mail", key: "port", label: "Port", kind: "int", min: 1, max: 65535 },
+  {
+    section: "mail",
+    key: "security",
+    label: "Connection",
+    kind: "select",
+    options: [
+      { value: "starttls", label: "STARTTLS (usually port 587)" },
+      { value: "ssl", label: "SSL/TLS (usually port 465)" },
+      { value: "none", label: "Unencrypted (usually port 25)" },
+    ],
+  },
+  { section: "mail", key: "username", label: "Username", kind: "text", nullable: true },
+  { section: "mail", key: "password", label: "Password", kind: "secret" },
+  {
+    section: "mail",
+    key: "from_address",
+    label: "From address",
+    kind: "text",
+    nullable: true,
+    placeholder: "lens@example.org",
+  },
+  { section: "mail", key: "from_name", label: "From name", kind: "text" },
   // Components
   {
     section: "components",
@@ -1069,6 +1117,60 @@ export const FIELDS: FieldSpec[] = [
   },
   // Uploads
   // API keys
+  // Fedora (opt-in)
+  {
+    section: "fedora",
+    key: "url",
+    label: "Fedora REST API",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "http://fedora:8080/fcrepo/rest",
+    hint: "Empty keeps Fedora off. With the compose profile `fedora`, it is http://fedora:8080/fcrepo/rest",
+  },
+  {
+    section: "fedora",
+    key: "enabled",
+    label: "Keep the copy in step",
+    kind: "switch",
+    hint: "Off pauses sending; nothing is deleted",
+  },
+  { section: "fedora", key: "user", label: "User", kind: "text", nullable: true, mono: true },
+  { section: "fedora", key: "password", label: "Password", kind: "secret" },
+  {
+    section: "fedora",
+    key: "root",
+    label: "Folder in Fedora",
+    kind: "text",
+    mono: true,
+    hint: "The container everything goes under, so Fedora can hold other things too",
+  },
+  {
+    section: "fedora",
+    key: "files",
+    label: "Send recordings’ files",
+    kind: "switch",
+    hint: "Off sends descriptions only",
+  },
+  {
+    section: "fedora",
+    key: "max_file_mb",
+    label: "Largest file to send (MB)",
+    kind: "int",
+    min: 0,
+    max: 1000000,
+    hint: "0 sends files of any size",
+  },
+  { section: "fedora", key: "sync_seconds", label: "Send changes every (seconds)", kind: "int", min: 10, max: 86400 },
+  {
+    section: "fedora",
+    key: "full_hours",
+    label: "Compare everything every (hours)",
+    kind: "int",
+    min: 1,
+    max: 720,
+    hint: "Catches what analysis changed, new recordings and deletions",
+  },
   {
     section: "tokens",
     key: "default_days",

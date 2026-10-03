@@ -23,6 +23,10 @@ x-backend: &backend
     SURREAL_PASS: ${SURREAL_PASS:?set SURREAL_PASS}
     RUN_BACKGROUND: "false"
     FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    # Fedora (docs/fedora.md): empty keeps it off; with the fedora profile, http://fedora:8080/fcrepo/rest
+    LENS_FEDORA_URL: ${LENS_FEDORA_URL:-}
+    LENS_FEDORA_USER: ${LENS_FEDORA_USER:-}
+    LENS_FEDORA_PASSWORD: ${LENS_FEDORA_PASSWORD:-}
     CORS_ORIGINS: '["${FRONTEND_URL:-http://localhost:3000}"]'
     ARCHIVE_ALLOWED_HOSTS: ${ARCHIVE_ALLOWED_HOSTS:-backend,localhost,127.0.0.1}
     MAIL_SERVER: ${MAIL_SERVER:-}
@@ -77,6 +81,12 @@ services:
   worker:
     <<: *backend
     command: lens worker
+    # the sensor hub (docs/sensors.md): MQTT and syslog, listened on only once sensors are turned on in the app.
+    # Something else on this machine using 1883 or 5514? Set LENS_MQTT_PORT / LENS_SYSLOG_PORT to other ports.
+    ports:
+      - "${LENS_MQTT_PORT:-1883}:1883"
+      - "${LENS_SYSLOG_PORT:-5514}:5514/udp"
+      - "${LENS_SYSLOG_PORT:-5514}:5514/tcp"
     healthcheck:
       disable: true
 
@@ -97,9 +107,25 @@ services:
     restart: unless-stopped
     networks: [lens]
 
+  # Fedora 6 (docs/fedora.md), the repository Lens can keep a copy of the archive in. Opt-in, and not needed on small
+  # machines: `docker compose --profile fedora up`, with LENS_FEDORA_URL=http://fedora:8080/fcrepo/rest (and
+  # LENS_FEDORA_USER / LENS_FEDORA_PASSWORD) in .env, or set it in Settings → Fedora.
+  fedora:
+    image: fcrepo/fcrepo:${FEDORA_VERSION:-6.5.1-tomcat9}
+    profiles: [fedora]
+    environment:
+      CATALINA_OPTS: >-
+        -Dfcrepo.home=/fcrepo-home -Djava.awt.headless=true -Dfcrepo.autoversioning.enabled=true
+    ports:
+      - "127.0.0.1:8081:8080"       # its web UI and REST API, for this machine only
+    volumes:
+      - fedora-data:/fcrepo-home
+    networks: [lens]
+
 volumes:
   surreal-data:
   archive-data:
+  fedora-data:
 
 networks:
   lens:

@@ -122,7 +122,7 @@ def test_asking_for_access(client, new_client, env, db, cfg, monkeypatch):
     from app.domain import metadata
 
     sent = []
-    monkeypatch.setattr(public_routes, "send_access_request_email", lambda *args: sent.append(args))
+    monkeypatch.setattr(public_routes, "send_access_request_email", lambda cfg, *args: sent.append(args))
     clip, call, ho, he, hg = env["clip"], env["call"], env["ho"], env["he"], env["hg"]
     hr = login(client, "root@x.io", "root password 1")
     metadata.save(db, cfg, clip, {"access": "public", "open": ["transcript"]})  # the audio and chapters are closed

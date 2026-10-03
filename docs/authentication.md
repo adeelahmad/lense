@@ -40,7 +40,7 @@ Sign out ──► POST /api/v1/auth/logout (ends the session on the API too)
 | `POST /api/v1/auth/password` | change your own password with your current one (signed in, not with an API token); wrong guesses are throttled like sign-ins; audited as `password.change` |
 | `POST /api/v1/auth/password/forgot` · `/reset` | email a one-time reset link (60 minutes); answers the same for unknown emails |
 
-Reset emails go through the SMTP server in `MAIL_*`; without one, the link is written to the API log.
+Reset emails go through the SMTP server in **Settings → Email** (or `MAIL_*` in `.env`); without one, the link is written to the API log.
 
 ## API tokens
 

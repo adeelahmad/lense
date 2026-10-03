@@ -22,7 +22,9 @@ export type WorkflowAction = {
   limit?: number | null;
   propose_only?: boolean;
 };
-export type RoutineAction = SyncAction | PipelineAction | WorkflowAction;
+/** Retention for stream sensors (MQTT, syslog, webhooks): every one of them, or those named. */
+export type SensorsAction = { type: "sensors"; sensors?: number[] | null };
+export type RoutineAction = SyncAction | PipelineAction | WorkflowAction | SensorsAction;
 
 // ---------- schedules ----------
 export type Preset = "hourly" | "daily" | "weekdays" | "custom" | "manual";
@@ -57,6 +59,7 @@ export const ACTION_LABEL: Record<RoutineAction["type"], string> = {
   sync: "Sync sources",
   pipeline: "Run a pipeline",
   workflow: "Run a workflow",
+  sensors: "Tidy sensor data",
 };
 
 export const PICK_LABEL: Record<Pick, string> = {
@@ -68,6 +71,7 @@ export const PICK_LABEL: Record<Pick, string> = {
 export function newAction(type: RoutineAction["type"]): RoutineAction {
   if (type === "sync") return { type };
   if (type === "pipeline") return { type, recordings: "new" };
+  if (type === "sensors") return { type };
   return { type, workflow: null, recordings: "new" };
 }
 
@@ -87,6 +91,10 @@ export function actionText(a: RoutineAction, names: Names): string {
     if (w == null) return "Sync every watched folder";
     if (w.length === 1) return `Sync ${names.watch(w[0]) ?? `folder #${w[0]}`}`;
     return `Sync ${plural(w.length, "watched folder")}`;
+  }
+  if (a.type === "sensors") {
+    const n = a.sensors?.length;
+    return n == null ? "Tidy every sensor’s data" : `Tidy the data of ${plural(n, "sensor")}`;
   }
   const on = PICK_LABEL[a.recordings ?? "new"];
   if (a.type === "pipeline") {
@@ -136,6 +144,7 @@ export function cleanActions(
 ): Record<string, unknown>[] {
   return actions.map((a) => {
     if (a.type === "sync") return a.watches == null ? { type: "sync" } : { type: "sync", watches: a.watches };
+    if (a.type === "sensors") return a.sensors == null ? { type: "sensors" } : { type: "sensors", sensors: a.sensors };
     const out: Record<string, unknown> = { type: a.type };
     if (a.type === "pipeline") {
       if (a.pipeline != null) out.pipeline = a.pipeline;
@@ -176,6 +185,15 @@ export function resultText(r: Record<string, unknown>): string {
   if (r.type === "sync") {
     parts.push(plural(n("folders") ?? 0, "folder"), `${n("new") ?? 0} new`);
     if (n("errors")) parts.push(plural(n("errors")!, "error"));
+    return parts.join(" · ");
+  }
+  if (r.type === "sensors") {
+    parts.push(
+      plural(n("sensors") ?? 0, "sensor"),
+      `${n("readings") ?? 0} readings and ${n("rollups") ?? 0} summaries removed`,
+    );
+    if (n("triaged")) parts.push(`${plural(n("triaged")!, "log pattern")} labelled`);
+    if (n("digests")) parts.push(plural(n("digests")!, "daily digest"));
     return parts.join(" · ");
   }
   if (n("applied") != null || n("proposed") != null) {

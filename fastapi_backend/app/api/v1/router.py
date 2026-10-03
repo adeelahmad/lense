@@ -15,6 +15,7 @@ from app.api.v1.routes import (
     entities,
     entity_setup,
     extensions,
+    fedora,
     fields,
     files,
     hierarchy,
@@ -34,6 +35,7 @@ from app.api.v1.routes import (
     routines,
     search,
     searches,
+    sensors,
     setup,
     sources,
     speakers,
@@ -53,6 +55,7 @@ api_router.include_router(oauth.router)
 for module in (
     users,
     admin,
+    fedora,
     setup,
     namespaces,
     hierarchy,
@@ -89,6 +92,7 @@ for module in (
     views,
     notifications,
     routines,
+    sensors,
     voice,
 ):
     api_router.include_router(module.router)

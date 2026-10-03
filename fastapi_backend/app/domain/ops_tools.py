@@ -31,9 +31,13 @@ SECTIONS = (
     "notifications",
     "workers",
     "decisions",
+    "voice",
+    "components",
+    "mail",
     "telemetry",
+    "sensors",
 )
-ALWAYS_ASK = {"telemetry"}
+ALWAYS_ASK = {"telemetry", "sensors"}  # sensors open ports on the network
 
 ADMIN_TOOLS = [
     (
