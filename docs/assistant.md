@@ -82,6 +82,41 @@ When the configured model supports function calling, chat becomes an agent.
   with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`).
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
 
+## Extending the assistant: tools, skills, hooks and plugins
+
+Anyone who can edit can add to what the assistant does. Each addition is an *extension*: versioned, kept private or
+shared with namespaces (admins can share with everyone), and switched on or off in one place (`/api/v1/extensions`).
+
+- **Tool**: something the assistant can call, with typed parameters. Its body is a prompt (`{{param}}` in the text), a
+  web request (public addresses only), or a graph drawn on the canvas (`ask_model`, `call_tool` and the primitives,
+  from `arg` nodes to `return` nodes). A tool with `effect: change` asks for approval before it runs.
+- **Skill**: instructions and a line saying when to use them. The assistant sees the line, and reads the instructions
+  only when the skill applies.
+- **Hook**: runs when a question arrives, before or after a tool, or after an answer, to add context, block a tool or
+  call one. Your own hooks run in your conversations; other people's run only when an admin shared them.
+- **Plugin**: a bundle of tools, skills and hooks, shared and switched off as one.
+
+Make one however suits you:
+
+- **Code**: a manifest, Markdown with YAML frontmatter (the body is a skill's instructions or a prompt tool's prompt),
+  or YAML. `POST /api/v1/extensions/check` checks it without saving, `GET /api/v1/extensions/{id}` gives it back.
+- **Canvas**: a tool whose `run` is `{type: graph, graph}`.
+- **Chat or voice**: ask the assistant ("make me a tool that translates text into French"). It drafts the manifest,
+  fixes what the check says, and asks for your approval before saving, changing or switching anything.
+
+```markdown
+---
+name: meeting_recap
+kind: skill
+description: Recaps a meeting
+when: someone asks for a recap of a meeting
+---
+
+Find the meeting, read it, and answer with three bullets: decisions, owners, dates.
+```
+
+`ai.extensions: false` turns every extension off.
+
 ## Setting up and running the server by chat
 
 Admins also get the server tools: `server_status` (what's set up and what's missing), `find_model_servers`,
