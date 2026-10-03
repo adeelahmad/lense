@@ -70,6 +70,16 @@ export type SectionId =
   | "iiif"
   | "startup";
 
+/** Sections every member of a namespace has, kept apart from the archive's settings (which are for admins). */
+export type WorkspaceSectionId = "speakers";
+export type AnySectionId = SectionId | WorkspaceSectionId;
+
+export const WORKSPACE_SECTIONS: { id: WorkspaceSectionId; label: string }[] = [{ id: "speakers", label: "Speakers" }];
+
+export function isWorkspaceSection(id: string): id is WorkspaceSectionId {
+  return WORKSPACE_SECTIONS.some((s) => s.id === id);
+}
+
 export type SectionSpec = {
   id: SectionId;
   label: string;
@@ -268,6 +278,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "find_entities", label: "Find entities", acts: false },
   { name: "entity_mentions", label: "Entity mentions", acts: false },
   { name: "entity_timeline", label: "Entities over time", acts: false },
+  { name: "entity_setup", label: "How a namespace organises its entities", acts: false },
   {
     name: "graph_neighbours",
     label: "Explore the graph (neighbours)",
@@ -277,7 +288,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "run_template", label: "Run a template on recordings", acts: true },
   {
     name: "propose_entity_change",
-    label: "Propose entity merges, renames, type changes",
+    label: "Propose entity merges, renames, type changes, descriptions and new entities",
     acts: true,
   },
 ];

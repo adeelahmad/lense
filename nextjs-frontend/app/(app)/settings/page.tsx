@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Settings open on their first section. */
+/** Settings open on Speakers, the one section every member has. */
 export default function SettingsIndex() {
-  redirect("/settings/transcription");
+  redirect("/settings/speakers");
 }

@@ -34,7 +34,8 @@ When the configured model supports function calling, chat becomes an agent.
   `ai.max_steps` and `ai.max_transcript_reads`.
 - **Citations:** every moment a tool returns is numbered, so answers cite [n] across everything the assistant read.
 - **Visible steps:** each tool call streams as a step, for example 'Searched for "refund": 42 matches'.
-- **Approvals:** running a template on recordings and merging, renaming or retyping entities don't happen directly.
+- **Approvals:** running a template on recordings and changing entities (merging, renaming, retyping, describing one
+  and the other ways it's said, hiding one, or adding one to a namespace's fixed list) don't happen directly.
   They become approval cards (with the batch estimate) that the person approves, approves on a sample, or declines
   (`POST /api/v1/approvals/<id>`). Viewers only get the read tools.
 - **Check sources** (`POST /api/v1/chats/<id>/messages/<id>/check`) re-checks every cited claim against the lines it

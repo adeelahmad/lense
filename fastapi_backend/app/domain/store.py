@@ -577,6 +577,11 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS entity SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS entity_space ON entity FIELDS space",
     "DEFINE INDEX IF NOT EXISTS entity_key ON entity FIELDS ekey UNIQUE",
+    # how a namespace (or one of its collections) organises its entities, and its own entity types (entity_setup.py)
+    "DEFINE TABLE IF NOT EXISTS entity_scope SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS entity_scope_space ON entity_scope FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS entity_kind SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS entity_kind_space ON entity_kind FIELDS space",
     "DEFINE TABLE IF NOT EXISTS mentions TYPE RELATION IN segment OUT entity",
     "DEFINE INDEX IF NOT EXISTS mentions_rec ON mentions FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS mentions_space ON mentions FIELDS space",

@@ -7829,7 +7829,7 @@
           "entities"
         ],
         "summary": "List Entities",
-        "description": "Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.\nWith `recording`, those said in it, also for someone who sees it through a role on its collection (then counted\nover the recordings they see).",
+        "description": "Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.\nWith `recording`, those said in it, also for someone who sees it through a role on its collection (then counted\nover the recordings they see). With `collection`, those said in its recordings and those of the collections inside\nit (counted over them).",
         "operationId": "list_entities",
         "parameters": [
           {
@@ -7973,6 +7973,22 @@
               "default": false,
               "title": "Group"
             }
+          },
+          {
+            "name": "collection",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Collection"
+            }
           }
         ],
         "responses": {
@@ -8005,18 +8021,41 @@
           "entities"
         ],
         "summary": "List Entity Types",
+        "description": "The types an entity may have: the built-in ones, and with `ns` that namespace's own too.",
         "operationId": "list_entity_types",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Ns"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/EntityType"
                   },
-                  "type": "array",
                   "title": "Response Entities-List Entity Types"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -8376,6 +8415,98 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Update Entity",
+        "description": "Describe the entity (what it is, in your words), say how else it's said, or put it on (or off) the fixed list.",
+        "operationId": "update_entity",
+        "parameters": [
+          {
+            "name": "eid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Eid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntityUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Delete Entity",
+        "description": "Take a defined entity that nothing mentions off the fixed list.",
+        "operationId": "delete_entity",
+        "parameters": [
+          {
+            "name": "eid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Eid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/entities/{eid}/mentions": {
@@ -8586,6 +8717,59 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Entities-Rename Entity"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entities": {
+      "post": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Define Entity",
+        "description": "Add an entity to the namespace's fixed list (or one collection's), or put the one of that name on it.",
+        "operationId": "define_entity",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntityDefine"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityDetail"
                 }
               }
             }
@@ -8971,6 +9155,369 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Entities-Find Graph Path"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entity-setup": {
+      "get": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Get Entity Setup",
+        "description": "The namespace's entity setup, the collections (you see) with their own, and the types entities may have.",
+        "operationId": "get_entity_setup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitySetupView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Save Entity Setup",
+        "description": "Save the namespace's setup, or (with `collection`) one collection's own.",
+        "operationId": "save_entity_setup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntitySetupSave"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitySetup"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entity-setup/collections/{cid}": {
+      "delete": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Clear Entity Setup",
+        "description": "The collection follows its parents' setup again.",
+        "operationId": "clear_entity_setup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entity-setup/apply": {
+      "post": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Apply Entity Setup",
+        "description": "Analyse the recordings of the namespace (or of a collection and those inside it) again, so their entities follow\nthe setup as it is now.",
+        "operationId": "apply_entity_setup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntitySetupApply"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitySetupApplied"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entity-types": {
+      "post": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Create Entity Type",
+        "description": "A type of the namespace's own, e.g. \"Client\" or \"Project\"; its code is the name in capitals.",
+        "operationId": "create_entity_type",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntityTypeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityTypeInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entity-types/{code}": {
+      "patch": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Update Entity Type",
+        "operationId": "update_entity_type",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntityTypeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityTypeInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Delete Entity Type",
+        "description": "Only a type no entity has.",
+        "operationId": "delete_entity_type",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -19497,6 +20044,60 @@
         ],
         "title": "EmbedTestResult"
       },
+      "EntityDefine": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "TERM"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Aliases",
+            "description": "other ways it's said"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "for this collection (and those inside it) only; default: the namespace"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "EntityDefine"
+      },
       "EntityDetail": {
         "properties": {
           "id": {
@@ -19518,6 +20119,17 @@
           "type_label": {
             "type": "string",
             "title": "Type Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           },
           "namespace": {
             "anyOf": [
@@ -19596,6 +20208,36 @@
             "type": "boolean",
             "title": "Hidden",
             "default": false
+          },
+          "defined": {
+            "type": "boolean",
+            "title": "Defined",
+            "description": "on the fixed list people defined",
+            "default": false
+          },
+          "builtin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Builtin",
+            "description": "unknown or unlabeled: one of the two entities that are always there"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a defined entity of one collection (and those inside it)"
           }
         },
         "additionalProperties": true,
@@ -19839,6 +20481,225 @@
         "type": "object",
         "title": "EntityRetype"
       },
+      "EntitySetup": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "description": "self: every name found becomes an entity, and people curate them; fixed: names found are mapped onto the entities people defined, or onto Unlabeled (it belongs here) or Unknown"
+          },
+          "types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Types",
+            "description": "the types kept; empty: all of them"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "what this place is about"
+          },
+          "matching": {
+            "type": "string",
+            "title": "Matching",
+            "default": "rules"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "the collection this setup is saved on; null: the namespace"
+          },
+          "collection_path": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Collection Path"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "can_change": {
+            "type": "boolean",
+            "title": "Can Change",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "EntitySetup"
+      },
+      "EntitySetupApplied": {
+        "properties": {
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "description": "how many recordings are analysed again"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recordings"
+        ],
+        "title": "EntitySetupApplied"
+      },
+      "EntitySetupApply": {
+        "properties": {
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "only this collection's recordings (and those inside it)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EntitySetupApply"
+      },
+      "EntitySetupSave": {
+        "properties": {
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "save it on this collection (default: the namespace)"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "self",
+              "fixed"
+            ],
+            "title": "Mode",
+            "default": "self"
+          },
+          "types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Types"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "matching": {
+            "type": "string",
+            "enum": [
+              "rules",
+              "model"
+            ],
+            "title": "Matching",
+            "default": "rules"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EntitySetupSave"
+      },
+      "EntitySetupView": {
+        "properties": {
+          "namespace": {
+            "$ref": "#/components/schemas/EntitySetup",
+            "description": "the namespace's setup (the default when none is saved)"
+          },
+          "saved": {
+            "type": "boolean",
+            "title": "Saved",
+            "description": "whether the namespace has a setup of its own"
+          },
+          "collections": {
+            "items": {
+              "$ref": "#/components/schemas/EntitySetup"
+            },
+            "type": "array",
+            "title": "Collections",
+            "description": "collections with a setup of their own"
+          },
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/EntityTypeInfo"
+            },
+            "type": "array",
+            "title": "Types",
+            "default": []
+          },
+          "can_change": {
+            "type": "boolean",
+            "title": "Can Change",
+            "description": "you may change the namespace's setup and types: its editors"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "namespace",
+          "saved",
+          "can_change"
+        ],
+        "title": "EntitySetupView"
+      },
       "EntityType": {
         "properties": {
           "type": {
@@ -19853,6 +20714,23 @@
             "type": "boolean",
             "title": "Quiet",
             "description": "extracted but hidden unless a filter asks for it (dates, numbers)"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "one of Lens's types; false: the namespace's own",
+            "default": true
           }
         },
         "additionalProperties": true,
@@ -19863,6 +20741,157 @@
           "quiet"
         ],
         "title": "EntityType"
+      },
+      "EntityTypeCreate": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "EntityTypeCreate"
+      },
+      "EntityTypeInfo": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "the code extractors and models use, e.g. ORG or CLIENT_TEAM"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "quiet": {
+            "type": "boolean",
+            "title": "Quiet",
+            "description": "extracted but hidden unless a filter asks for it (dates, numbers)",
+            "default": false
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "one of Lens's types; false: the namespace's own",
+            "default": true
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "type",
+          "label"
+        ],
+        "title": "EntityTypeInfo"
+      },
+      "EntityTypeUpdate": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "empty clears it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EntityTypeUpdate"
+      },
+      "EntityUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "what the entity is; empty clears it"
+          },
+          "aliases": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aliases",
+            "description": "the other ways it's said (these replace the ones it has)"
+          },
+          "defined": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defined",
+            "description": "on the fixed list of entities (namespaces in the fixed mode map names onto it)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EntityUpdate"
       },
       "Estimate": {
         "properties": {
