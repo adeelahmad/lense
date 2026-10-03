@@ -15,6 +15,7 @@ from app.api.v1.routes import (
     entities,
     entity_setup,
     extensions,
+    external,
     fedora,
     fields,
     files,
@@ -53,6 +54,7 @@ api_router = APIRouter()
 api_router.include_router(auth.router)
 api_router.include_router(auth.tokens)
 api_router.include_router(passkeys.router)
+api_router.include_router(external.router)
 api_router.include_router(passkeys.people)
 api_router.include_router(oauth.router)
 for module in (

@@ -14,7 +14,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from app.api.deps import AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors, visitor_address, web_origin
 from app.config import settings
 from app.core.security import create_access_token
-from app.domain import auth, passkeys
+from app.domain import auth, external_login, passkeys
 from app.email import app_url, send_signin_link_email
 from app.schemas.auth import (
     ForgotPasswordRequest,
@@ -269,7 +269,7 @@ def remove_passkey(pid: str, user: Writer, request: Request, db: Db, cfg: Cfg) -
             here = passkeys.site(web_origin(request))[1]
         except ValueError:
             here = None
-        if not passkeys.remove(db, user.id, pid, auth.passwords_on(cfg), here):
+        if not passkeys.remove(db, user.id, pid, auth.passwords_on(cfg), here, external_login.count(db, user.id)):
             raise HTTPException(404, "not found")
     auth.audit(db, user.as_audit(), "passkey.remove", f"account:{user.id}")
     return Ok()
