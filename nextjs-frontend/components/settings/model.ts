@@ -65,6 +65,7 @@ export type SectionId =
   | "access"
   | "notifications"
   | "telemetry"
+  | "fedora"
   | "uploads"
   | "documents"
   | "tokens"
@@ -178,6 +179,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["telemetry"],
     description:
       "Off unless you turn it on. Traces and metrics from the server and its workers, sent only to an OpenTelemetry collector you run or choose; nothing goes anywhere else.",
+  },
+  {
+    id: "fedora",
+    label: "Fedora repository",
+    backend: ["fedora"],
+    description:
+      "Off unless you set an address. Keeps a copy of the archive in a Fedora 6 repository: every namespace, collection, recording (with its file), entity and speaker, described in RDF with Dublin Core.",
   },
   {
     id: "uploads",
@@ -1028,6 +1036,60 @@ export const FIELDS: FieldSpec[] = [
   },
   // Uploads
   // API keys
+  // Fedora (opt-in)
+  {
+    section: "fedora",
+    key: "url",
+    label: "Fedora REST API",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "http://fedora:8080/fcrepo/rest",
+    hint: "Empty keeps Fedora off. With the compose profile `fedora`, it is http://fedora:8080/fcrepo/rest",
+  },
+  {
+    section: "fedora",
+    key: "enabled",
+    label: "Keep the copy in step",
+    kind: "switch",
+    hint: "Off pauses sending; nothing is deleted",
+  },
+  { section: "fedora", key: "user", label: "User", kind: "text", nullable: true, mono: true },
+  { section: "fedora", key: "password", label: "Password", kind: "secret" },
+  {
+    section: "fedora",
+    key: "root",
+    label: "Folder in Fedora",
+    kind: "text",
+    mono: true,
+    hint: "The container everything goes under, so Fedora can hold other things too",
+  },
+  {
+    section: "fedora",
+    key: "files",
+    label: "Send recordings’ files",
+    kind: "switch",
+    hint: "Off sends descriptions only",
+  },
+  {
+    section: "fedora",
+    key: "max_file_mb",
+    label: "Largest file to send (MB)",
+    kind: "int",
+    min: 0,
+    max: 1000000,
+    hint: "0 sends files of any size",
+  },
+  { section: "fedora", key: "sync_seconds", label: "Send changes every (seconds)", kind: "int", min: 10, max: 86400 },
+  {
+    section: "fedora",
+    key: "full_hours",
+    label: "Compare everything every (hours)",
+    kind: "int",
+    min: 1,
+    max: 720,
+    hint: "Catches what analysis changed, new recordings and deletions",
+  },
   {
     section: "tokens",
     key: "default_days",

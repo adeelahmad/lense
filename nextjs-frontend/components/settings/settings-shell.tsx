@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
+  Archive,
   AudioLines,
   Bell,
   Bot,
@@ -63,6 +64,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   access: ShieldCheck,
   notifications: Bell,
   telemetry: Activity,
+  fedora: Archive,
   uploads: Upload,
   documents: FileType,
   tokens: KeyRound,

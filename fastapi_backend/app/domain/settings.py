@@ -39,6 +39,7 @@ EDITABLE = {
     "components": None,
     "notifications": None,
     "telemetry": None,
+    "fedora": None,
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -62,7 +63,7 @@ EDITABLE = {
     # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
     "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
-SECRETS = {"llm": ("api_key",), "embeddings": ("api_key",), "decisions": ("api_key",), "telemetry": ("headers",)}
+SECRETS = {"llm": ("api_key",), "embeddings": ("api_key",), "decisions": ("api_key",), "telemetry": ("headers",), "fedora": ("password",)}
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"},
     ("transcribe", "device"): {"auto", "cpu", "cuda", "mps"},
@@ -93,6 +94,10 @@ ENV_OVERRIDES = {
     ("telemetry", "enabled"): "LENS_TELEMETRY",
     ("telemetry", "endpoint"): "LENS_TELEMETRY_ENDPOINT",
     ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
+    ("fedora", "enabled"): "LENS_FEDORA",
+    ("fedora", "url"): "LENS_FEDORA_URL",
+    ("fedora", "user"): "LENS_FEDORA_USER",
+    ("fedora", "password"): "LENS_FEDORA_PASSWORD",
 }
 
 
@@ -282,6 +287,8 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "fedora":
+        return _fedora_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
     if section == "decisions" and key != "engine":
@@ -577,3 +584,34 @@ def save(db, base, section, changes, user=None):
         d={"data": json.dumps(data), "sealed": sealed, "updated_at": store.now(), "updated_by": user},
     )
     db.next_id("settings")
+
+
+FEDORA_RANGES = {"max_file_mb": (0, 1_000_000), "sync_seconds": (10, 86400), "full_hours": (1, 720)}
+
+
+def _fedora_setting(key, value):
+    if key in ("enabled", "files"):
+        if not isinstance(value, bool):
+            raise ValueError(f"fedora.{key} is true or false")
+        return value
+    if key in FEDORA_RANGES:
+        lo, hi = FEDORA_RANGES[key]
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"fedora.{key} is a whole number from {lo} to {hi}")
+        return value
+    if key == "url":
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(str(value))
+        if u.scheme not in ("http", "https") or not u.hostname or u.username or u.query or u.fragment:
+            raise ValueError("fedora.url is the address of Fedora's REST API, like http://fedora:8080/fcrepo/rest")
+        return str(value).rstrip("/")
+    if key == "root":
+        if not (isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", value)):
+            raise ValueError("fedora.root is a folder name: letters, digits, ., _ and -")
+        return value
+    if key in ("user", "password"):
+        if value is not None and not (isinstance(value, str) and len(value) <= 500):
+            raise ValueError(f"fedora.{key} is text")
+        return value or None
+    raise ValueError(f"unknown setting fedora.{key}")

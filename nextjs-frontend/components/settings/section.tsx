@@ -45,6 +45,10 @@ const ENV: Record<string, string> = {
   "telemetry.enabled": "LENS_TELEMETRY",
   "telemetry.endpoint": "LENS_TELEMETRY_ENDPOINT",
   "telemetry.headers": "LENS_TELEMETRY_HEADERS",
+  "fedora.enabled": "LENS_FEDORA",
+  "fedora.url": "LENS_FEDORA_URL",
+  "fedora.user": "LENS_FEDORA_USER",
+  "fedora.password": "LENS_FEDORA_PASSWORD",
 };
 const CONFIRM_BASE = "CHANGE ALL IDENTIFIERS";
 

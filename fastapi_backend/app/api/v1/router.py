@@ -15,6 +15,7 @@ from app.api.v1.routes import (
     entities,
     entity_setup,
     extensions,
+    fedora,
     fields,
     files,
     hierarchy,
@@ -52,6 +53,7 @@ api_router.include_router(oauth.router)
 for module in (
     users,
     admin,
+    fedora,
     setup,
     namespaces,
     hierarchy,
