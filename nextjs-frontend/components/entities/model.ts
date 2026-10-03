@@ -14,7 +14,25 @@ export type EntityRow = {
   first?: string | null;
   last?: string | null;
   hidden: boolean;
+  /** On the fixed list people defined. */
+  defined?: boolean;
+  /** "unknown" or "unlabeled": one of the two entities that are always there. */
+  builtin?: string | null;
+  /** A defined entity of one collection (and those inside it). */
+  collection?: number | null;
 };
+
+/** "a, b , ,c" → ["a", "b", "c"]: the other ways an entity is said, typed as a list. */
+export function splitAliases(text: string): string[] {
+  return [
+    ...new Set(
+      text
+        .split(/[,\n]/)
+        .map((x) => x.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
 
 export type EntityFilters = {
   ns: string;
@@ -71,4 +89,35 @@ export function keptTypes(types: string[], all: { type: string; label: string }[
   const label = (t: string) => all.find((x) => x.type === t)?.label ?? t;
   const names = types.map(label);
   return names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
+export type Mode = "self" | "fixed";
+
+/** The ways a namespace or collection can organise its entities (entity_setup.py). */
+export const MODES: { value: Mode; label: string; hint: string }[] = [
+  {
+    value: "self",
+    label: "Self-organizing",
+    hint: "Every name found becomes an entity; people merge, rename and describe them.",
+  },
+  {
+    value: "fixed",
+    label: "Fixed list",
+    hint: "Editors define the entities. Names found go to one of them, to Unlabeled when they belong here but fit none, or to Unknown.",
+  },
+];
+
+/** What the types checkboxes mean in a mode. */
+export function typesWording(mode: string): { legend: string; hint: string; all: string } {
+  return mode === "fixed"
+    ? {
+        legend: "Types that belong here",
+        all: "Every type but dates and numbers",
+        hint: "A name of one of these types that matches no defined entity goes to Unlabeled; any other name goes to Unknown.",
+      }
+    : {
+        legend: "Types to keep",
+        all: "Every type",
+        hint: "Names of other types are left out when a recording is analysed.",
+      };
 }

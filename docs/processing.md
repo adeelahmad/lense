@@ -120,7 +120,21 @@ collection can have its own setup, which also holds for the collections inside i
 nearest collection that has one, else its namespace's. Editors of the namespace change its setup and any collection's;
 editors of a collection change that collection's. A namespace can add entity types of its own (Entities → Types,
 `/api/v1/namespaces/{name}/entity-types`), each with a description of what counts as one; a type can be deleted once no
-entity has it. Changes apply to recordings analysed from then on.
+entity has it. Changes apply to recordings analysed from then on; "Apply to analysed recordings"
+(`POST /api/v1/namespaces/{name}/entity-setup/apply`) analyses the namespace's or a collection's recordings again.
+
+A setup has a mode:
+
+- **Self-organizing** (the default): every name the extractors find becomes an entity, and people merge, rename and
+  describe them. Names of types the setup doesn't keep are left out.
+- **Fixed list:** editors define the entities (Entities → Add entity, `POST /api/v1/namespaces/{name}/entities`), each
+  with a type, the other ways it's said and a description, for the whole namespace or for one collection and those
+  inside it. Each name found goes to the defined entity it names (by name or another way it's said, in any case; the
+  defined names are looked for in the transcript too), else to **Unlabeled** when it belongs here (a type the setup
+  keeps; with every type kept, anything but dates and numbers), else to **Unknown**. Unknown and Unlabeled are always
+  there and can't be renamed, retyped, merged, hidden or deleted. Moving a mention to a new name in a fixed-list place
+  adds that name to the list. `PATCH /api/v1/entities/{id}` sets an entity's other names and whether it is on the list;
+  a defined entity nothing mentions can be deleted.
 
 Curation survives re-analysis: merged names become aliases, and moved or removed mentions become per-line overrides.
 Everything is audited. People who can't read a namespace never see its entities, mentions or graph nodes, and requests

@@ -2217,6 +2217,36 @@ export type EmbedTestResult = {
 };
 
 /**
+ * EntityDefine
+ */
+export type EntityDefine = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Type
+   */
+  type?: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Aliases
+   *
+   * other ways it's said
+   */
+  aliases?: Array<string>;
+  /**
+   * Collection
+   *
+   * for this collection (and those inside it) only; default: the namespace
+   */
+  collection?: number | null;
+};
+
+/**
  * EntityDetail
  */
 export type EntityDetail = {
@@ -2286,6 +2316,24 @@ export type EntityDetail = {
    * Hidden
    */
   hidden?: boolean;
+  /**
+   * Defined
+   *
+   * on the fixed list people defined
+   */
+  defined?: boolean;
+  /**
+   * Builtin
+   *
+   * unknown or unlabeled: one of the two entities that are always there
+   */
+  builtin?: string | null;
+  /**
+   * Collection
+   *
+   * a defined entity of one collection (and those inside it)
+   */
+  collection?: number | null;
   [key: string]: unknown;
 };
 
@@ -2451,7 +2499,7 @@ export type EntitySetup = {
   /**
    * Mode
    *
-   * self: every name found becomes an entity, and people curate them
+   * self: every name found becomes an entity, and people curate them; fixed: names found are mapped onto the entities people defined, or onto Unlabeled (it belongs here) or Unknown
    */
   mode: string;
   /**
@@ -2496,6 +2544,31 @@ export type EntitySetup = {
 };
 
 /**
+ * EntitySetupApplied
+ */
+export type EntitySetupApplied = {
+  /**
+   * Recordings
+   *
+   * how many recordings are analysed again
+   */
+  recordings: number;
+  [key: string]: unknown;
+};
+
+/**
+ * EntitySetupApply
+ */
+export type EntitySetupApply = {
+  /**
+   * Collection
+   *
+   * only this collection's recordings (and those inside it)
+   */
+  collection?: number | null;
+};
+
+/**
  * EntitySetupSave
  */
 export type EntitySetupSave = {
@@ -2508,7 +2581,7 @@ export type EntitySetupSave = {
   /**
    * Mode
    */
-  mode?: "self";
+  mode?: "self" | "fixed";
   /**
    * Types
    */
@@ -2660,6 +2733,18 @@ export type EntityUpdate = {
    * what the entity is; empty clears it
    */
   description?: string | null;
+  /**
+   * Aliases
+   *
+   * the other ways it's said (these replace the ones it has)
+   */
+  aliases?: Array<string> | null;
+  /**
+   * Defined
+   *
+   * on the fixed list of entities (namespaces in the fixed mode map names onto it)
+   */
+  defined?: boolean | null;
 };
 
 /**
@@ -16162,6 +16247,36 @@ export type MarkEntitiesNotSameResponses = {
 
 export type MarkEntitiesNotSameResponse = MarkEntitiesNotSameResponses[keyof MarkEntitiesNotSameResponses];
 
+export type DeleteEntityData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/entities/{eid}";
+};
+
+export type DeleteEntityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteEntityError = DeleteEntityErrors[keyof DeleteEntityErrors];
+
+export type DeleteEntityResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteEntityResponse = DeleteEntityResponses[keyof DeleteEntityResponses];
+
 export type GetEntityData = {
   body?: never;
   path: {
@@ -16348,6 +16463,36 @@ export type RenameEntityResponses = {
 };
 
 export type RenameEntityResponse = RenameEntityResponses[keyof RenameEntityResponses];
+
+export type DefineEntityData = {
+  body: EntityDefine;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entities";
+};
+
+export type DefineEntityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DefineEntityError = DefineEntityErrors[keyof DefineEntityErrors];
+
+export type DefineEntityResponses = {
+  /**
+   * Successful Response
+   */
+  201: EntityDetail;
+};
+
+export type DefineEntityResponse = DefineEntityResponses[keyof DefineEntityResponses];
 
 export type HideEntityData = {
   /**
@@ -16669,6 +16814,36 @@ export type ClearEntitySetupResponses = {
 };
 
 export type ClearEntitySetupResponse = ClearEntitySetupResponses[keyof ClearEntitySetupResponses];
+
+export type ApplyEntitySetupData = {
+  body: EntitySetupApply;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-setup/apply";
+};
+
+export type ApplyEntitySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ApplyEntitySetupError = ApplyEntitySetupErrors[keyof ApplyEntitySetupErrors];
+
+export type ApplyEntitySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntitySetupApplied;
+};
+
+export type ApplyEntitySetupResponse = ApplyEntitySetupResponses[keyof ApplyEntitySetupResponses];
 
 export type CreateEntityTypeData = {
   body: EntityTypeCreate;

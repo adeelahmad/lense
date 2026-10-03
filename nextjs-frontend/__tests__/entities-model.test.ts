@@ -1,4 +1,12 @@
-import { alsoKnownAs, entityQuery, filtersFrom, keptTypes, PAGE } from "@/components/entities/model";
+import {
+  alsoKnownAs,
+  entityQuery,
+  filtersFrom,
+  keptTypes,
+  PAGE,
+  splitAliases,
+  typesWording,
+} from "@/components/entities/model";
 
 describe("entities page model", () => {
   it("reads filters from the address, with defaults for anything odd", () => {
@@ -52,5 +60,17 @@ describe("entity setup", () => {
     expect(keptTypes(["ORG"], all)).toBe("Organisation");
     expect(keptTypes(["ORG", "PLACE", "CLIENT"], all)).toBe("Organisation, Place and Client");
     expect(keptTypes(["GONE"], all)).toBe("GONE");
+  });
+});
+
+describe("fixed lists", () => {
+  it("reads other names typed as a list", () => {
+    expect(splitAliases(" Acme, ACME Inc ,,\nAcme")).toEqual(["Acme", "ACME Inc"]);
+    expect(splitAliases("")).toEqual([]);
+  });
+
+  it("explains the types by mode", () => {
+    expect(typesWording("fixed").legend).toBe("Types that belong here");
+    expect(typesWording("self").legend).toBe("Types to keep");
   });
 });

@@ -1,9 +1,12 @@
 """How a namespace organises its entities, with an override for any collection of it, and the entity types it adds to
 the built-in ones (docs/processing.md#entity-setup).
 
-A setup has a mode, the types it keeps and a description of what the place is about. The mode is `self` (the default,
-and how Lens always worked): every name the extractors find becomes an entity, and people merge, rename and describe
-them. `types` lists the types kept (empty: all of them); names of any other type are left out. A collection's setup holds for the collections inside it, unless one of them has its own; a
+A setup has a mode, the types it keeps and a description of what the place is about. The mode is
+- `self` (the default, and how Lens always worked): every name the extractors find becomes an entity, and people
+  merge, rename and describe them. `types` lists the types kept (empty: all of them); names of any other type are left
+  out.
+- `fixed`: people with editor access define the entities, and what's found is mapped onto them, or onto "Unlabeled"
+  (it belongs here: a type kept) or "Unknown" (it doesn't): see entity_map.py. A collection's setup holds for the collections inside it, unless one of them has its own; a
 recording follows the setup of its collection, else its namespace's. Callers check roles and write the audit log.
 """
 
@@ -14,7 +17,7 @@ import re
 from . import hierarchy, store
 
 R = store.R
-MODES = ("self",)  # fixed and hybrid come with their mapping
+MODES = ("self", "fixed")
 MATCHING = ("rules", "model")
 DESCRIPTION_MAX = 2000
 LABEL_MAX = 40
@@ -206,6 +209,10 @@ def save(db, sid, cid=None, mode="self", types=None, description=None, matching=
         "updated_by": by,
     }
     db.q("UPSERT $r CONTENT $d", r=R("entity_scope", _sid_key(sid, cid)), d=row)
+    if mode != "self":  # Unknown and Unlabeled are always there
+        from . import entity_map
+
+        entity_map.builtins(db, sid)
     return effective(db, sid, cid)
 
 

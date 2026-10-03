@@ -1,11 +1,12 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ChevronRight, Shapes } from "lucide-react";
+import { ChevronRight, Plus, Shapes } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Entities } from "@/app/openapi-client";
+import { DefineDialog } from "@/components/entities/define-dialog";
 import { EntityDrawer } from "@/components/entities/entity-drawer";
 import {
   alsoKnownAs,
@@ -27,7 +28,7 @@ import { Pagination, SortTh, Table, Td, Th, THead, Tr } from "@/components/ui/ta
 import { Tabs } from "@/components/ui/tabs";
 import { data, useApiClient } from "@/lib/api/browser";
 import { count, plural, shortDate } from "@/lib/format";
-import { useArchive } from "@/lib/hooks/session";
+import { needRole, useArchive } from "@/lib/hooks/session";
 
 /** The entities of one namespace: who and what its recordings mention, with what people wrote about each. */
 export function EntitiesPage() {
@@ -35,7 +36,8 @@ export function EntitiesPage() {
   const router = useRouter();
   const pathname = usePathname();
   const client = useApiClient();
-  const { namespaces, namespace: topNs } = useArchive();
+  const { namespaces, namespace: topNs, can } = useArchive();
+  const [defining, setDefining] = useState(false);
   const ns =
     params.get("ns") && namespaces.some((n) => n.name === params.get("ns"))
       ? params.get("ns")!
@@ -102,19 +104,33 @@ export function EntitiesPage() {
         title="Entities"
         meta={ns && list.data && listing ? `${ns} · ${plural(list.data.total, "entity", "entities")}` : undefined}
         actions={
-          namespaces.length > 1 && (
-            <label className="flex items-center gap-2 text-[13px] font-semibold text-fg-secondary">
-              Namespace
-              <Select
+          <span className="flex flex-wrap items-center gap-3">
+            {ns && (
+              <Button
                 size="sm"
-                className="w-[200px]"
-                value={ns ?? ""}
-                onChange={(e) => set({ ns: e.target.value, collection: null, entity: null })}
-                options={namespaces.map((n) => n.name)}
-                aria-label="Namespace"
-              />
-            </label>
-          )
+                variant="primary"
+                icon={<Plus />}
+                disabled={!can("editor", ns)}
+                disabledReason={!can("editor", ns) ? needRole("editor", ns) : undefined}
+                onClick={() => setDefining(true)}
+              >
+                Add entity
+              </Button>
+            )}
+            {namespaces.length > 1 && (
+              <label className="flex items-center gap-2 text-[13px] font-semibold text-fg-secondary">
+                Namespace
+                <Select
+                  size="sm"
+                  className="w-[200px]"
+                  value={ns ?? ""}
+                  onChange={(e) => set({ ns: e.target.value, collection: null, entity: null })}
+                  options={namespaces.map((n) => n.name)}
+                  aria-label="Namespace"
+                />
+              </label>
+            )}
+          </span>
         }
       />
       <Tabs
@@ -232,13 +248,22 @@ export function EntitiesPage() {
                           >
                             {e.name}
                           </button>
+                          {e.builtin ? (
+                            <Badge tone="gate" className="ml-2">
+                              always there
+                            </Badge>
+                          ) : (
+                            e.defined && (
+                              <Badge tone="intent" className="ml-2">
+                                defined
+                              </Badge>
+                            )
+                          )}
                           {aka.length > 0 && (
                             <span className="block truncate text-[12px] text-fg-muted">also {aka.join(", ")}</span>
                           )}
                         </Td>
-                        <Td>
-                          <Badge>{e.type_label}</Badge>
-                        </Td>
+                        <Td>{e.builtin ? <span className="text-fg-muted">—</span> : <Badge>{e.type_label}</Badge>}</Td>
                         <Td className="hidden max-w-[360px] lg:table-cell">
                           <span className="line-clamp-2 text-[13px] text-fg-secondary">{e.description || "—"}</span>
                         </Td>
@@ -265,6 +290,18 @@ export function EntitiesPage() {
             </div>
           )}
         </>
+      )}
+      {ns && (
+        <DefineDialog
+          ns={ns}
+          types={types.data ?? []}
+          open={defining}
+          onOpenChange={setDefining}
+          onDefined={(id) => {
+            setDefining(false);
+            set({ entity: String(id), view: null });
+          }}
+        />
       )}
       {open && ns && listing && (
         <EntityDrawer id={open} ns={ns} types={types.data ?? []} onClose={() => set({ entity: null }, true)} />

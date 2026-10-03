@@ -48,7 +48,7 @@ def test_setups_and_what_analysis_keeps(db, cfg, folder, client):
     assert (v["namespace"]["mode"], v["saved"], v["collections"], v["can_change"]) == ("self", False, [], False)
     url = "/api/v1/namespaces/pods/entity-setup"
     assert client.put(url, headers=vi, json={"mode": "self"}).status_code == 403
-    assert client.put(url, headers=ed, json={"mode": "fixed"}).status_code == 422  # not yet
+    assert client.put(url, headers=ed, json={"mode": "hybrid"}).status_code == 422  # not yet
     assert client.put(url, headers=ed, json={"types": ["NOPE"]}).status_code == 400
     ns = client.put(url, headers=ed, json={"types": ["ORG"], "description": "Biotech podcasts"}).json()
     assert (ns["types"], ns["description"], ns["updated_by"]) == (["ORG"], "Biotech podcasts", "ed@x.io")
