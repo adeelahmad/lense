@@ -38,8 +38,10 @@ EDITABLE = {
     "decisions": None,
     "components": None,
     "voice": None,
+    "mail": None,
     "notifications": None,
     "telemetry": None,
+    "fedora": None,
     # bind is a startup setting only
     "sensors": (
         "enabled",
@@ -80,7 +82,15 @@ EDITABLE = {
     # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
     "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
-SECRETS = {"llm": ("api_key",), "embeddings": ("api_key",), "decisions": ("api_key",), "voice": ("tts_api_key",), "telemetry": ("headers",)}
+SECRETS = {
+    "llm": ("api_key",),
+    "embeddings": ("api_key",),
+    "decisions": ("api_key",),
+    "voice": ("tts_api_key",),
+    "mail": ("password",),
+    "telemetry": ("headers",),
+    "fedora": ("password",),
+}
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"},
     ("transcribe", "device"): {"auto", "cpu", "cuda", "mps"},
@@ -95,6 +105,7 @@ ENUMS = {
     ("video", "object_engine"): {"yolox", "ultralytics", "off"},
     ("decisions", "engine"): {"auto", "jev", "llm", "off"},
     ("voice", "input"): {"auto", "server", "browser"},
+    ("mail", "security"): {"starttls", "ssl", "none"},
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
 # break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
@@ -109,9 +120,19 @@ ENV_OVERRIDES = {
     ("embeddings", "model"): "LENS_EMBED_MODEL",
     ("embeddings", "api_key"): "LENS_EMBED_API_KEY",
     ("decisions", "api_key"): "TYPESAFE_API_KEY",
+    ("mail", "server"): "MAIL_SERVER",
+    ("mail", "port"): "MAIL_PORT",
+    ("mail", "username"): "MAIL_USERNAME",
+    ("mail", "password"): "MAIL_PASSWORD",
+    ("mail", "from_address"): "MAIL_FROM",
+    ("mail", "from_name"): "MAIL_FROM_NAME",
     ("telemetry", "enabled"): "LENS_TELEMETRY",
     ("telemetry", "endpoint"): "LENS_TELEMETRY_ENDPOINT",
     ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
+    ("fedora", "enabled"): "LENS_FEDORA",
+    ("fedora", "url"): "LENS_FEDORA_URL",
+    ("fedora", "user"): "LENS_FEDORA_USER",
+    ("fedora", "password"): "LENS_FEDORA_PASSWORD",
 }
 
 
@@ -125,6 +146,11 @@ def env_value(section, key):
         return [x.strip() for x in raw.split(",") if x.strip()]
     if isinstance(default, bool):
         return raw.lower() in ("1", "true", "on", "yes")
+    if isinstance(default, int):
+        try:
+            return int(raw)
+        except ValueError:
+            return None
     return raw
 
 
@@ -301,10 +327,14 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "fedora":
+        return _fedora_setting(key, value)
     if section == "sensors":
         return _sensor_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
+    if section == "mail" and key != "security":
+        return _mail_setting(key, value)
     if (section, key) == ("voice", "tts_base_url"):
         if value in (None, ""):
             return None
@@ -361,6 +391,30 @@ def _check(section, key, value, default):
         ok = True
     if not ok:
         raise ValueError(f"{section}.{key} should be {type(default).__name__}")
+    return value
+
+
+EMAIL_RX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _mail_setting(key, value):
+    if key == "port":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
+            raise ValueError("mail.port is a port number, usually 587 (STARTTLS), 465 (SSL) or 25")
+        return value
+    if value in (None, "") and key != "from_name":
+        return None
+    if not (isinstance(value, str) and len(value.strip()) <= 300):
+        raise ValueError(f"mail.{key} is text")
+    value = value.strip() if key != "password" else value
+    if key == "server" and not re.match(r"^[A-Za-z0-9.\-\[\]:]+$", value):
+        raise ValueError("mail.server is the SMTP server's host name, such as smtp.gmail.com")
+    if key == "from_address" and not EMAIL_RX.match(value):
+        raise ValueError("mail.from_address is an email address")
+    if key == "from_name" and not value:
+        return "Lens"
+    if key not in ("server", "port", "username", "password", "from_address", "from_name"):
+        raise ValueError(f"unknown setting mail.{key}")
     return value
 
 
@@ -648,3 +702,34 @@ def save(db, base, section, changes, user=None):
         d={"data": json.dumps(data), "sealed": sealed, "updated_at": store.now(), "updated_by": user},
     )
     db.next_id("settings")
+
+
+FEDORA_RANGES = {"max_file_mb": (0, 1_000_000), "sync_seconds": (10, 86400), "full_hours": (1, 720)}
+
+
+def _fedora_setting(key, value):
+    if key in ("enabled", "files"):
+        if not isinstance(value, bool):
+            raise ValueError(f"fedora.{key} is true or false")
+        return value
+    if key in FEDORA_RANGES:
+        lo, hi = FEDORA_RANGES[key]
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"fedora.{key} is a whole number from {lo} to {hi}")
+        return value
+    if key == "url":
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(str(value))
+        if u.scheme not in ("http", "https") or not u.hostname or u.username or u.query or u.fragment:
+            raise ValueError("fedora.url is the address of Fedora's REST API, like http://fedora:8080/fcrepo/rest")
+        return str(value).rstrip("/")
+    if key == "root":
+        if not (isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", value)):
+            raise ValueError("fedora.root is a folder name: letters, digits, ., _ and -")
+        return value
+    if key in ("user", "password"):
+        if value is not None and not (isinstance(value, str) and len(value) <= 500):
+            raise ValueError(f"fedora.{key} is text")
+        return value or None
+    raise ValueError(f"unknown setting fedora.{key}")

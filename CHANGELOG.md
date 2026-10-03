@@ -9,6 +9,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   decision model labels new patterns, one question per pattern, not per line. Brokers you already run (Mosquitto, Home
   Assistant) can be bridged in: Lens subscribes to the topics you name. With `digest` on, each day of a sensor becomes
   a document in its namespace. All three run in the **Tidy sensor data** routine.
+- **Email is set up in the app.** Settings → Email holds the SMTP server, its password (kept secret) and the From
+  address, with **Send a test email**; `MAIL_*` in `.env` still work and show locked. Links in emails use
+  `notifications.app_url` when it's set.
 - **Sensors.** Everything that feeds Lens is a sensor, in one list (`GET /sensors`): the storage, email and
   calendar sources as they are, and new stream sensors. Lens runs an MQTT hub (an ordinary local broker on 1883, with
   hub logins), listens for syslog from local networks (UDP and TCP 5514) and takes webhooks. Devices and hosts become

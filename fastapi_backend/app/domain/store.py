@@ -307,6 +307,16 @@ DEFAULTS = {
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)
+    # outgoing email (app/email.py): access requests and password resets. MAIL_* in .env set them instead, locked.
+    "mail": {
+        "server": None,
+        "port": 587,
+        "username": None,
+        "password": None,
+        "from_address": None,
+        "from_name": "Lens",
+        "security": "starttls",
+    },
     "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
     # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
     # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the
@@ -321,6 +331,20 @@ DEFAULTS = {
         "export_seconds": 60,
         "service_name": "lens",
         "prices": {},
+    },
+    # Fedora (docs/fedora.md): a copy of the archive in a Fedora 6 repository, off until url is set (enabled: false pauses
+    # it). password is a
+    # secret; files: send recordings' files too (up to max_file_mb each, 0: any size).
+    "fedora": {
+        "enabled": True,
+        "url": None,
+        "user": None,
+        "password": None,
+        "root": "lens",
+        "files": True,
+        "max_file_mb": 0,
+        "sync_seconds": 60,
+        "full_hours": 24,
     },
     # IIIF: identifiers are built from base_url (set it to the stable public HTTPS address; null: the request's address)
     "iiif": {
@@ -754,6 +778,10 @@ SCHEMA = [
     # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
     "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
     "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",
+    # Fedora (fedora.py): what to send, what was sent (a hash per resource path) and how the last sync went
+    "DEFINE TABLE IF NOT EXISTS fedora_outbox SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS fedora_state SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS fedora_status SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS routine_run SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS routine_run_r ON routine_run FIELDS routine",
     "DEFINE TABLE IF NOT EXISTS graph_change SCHEMALESS",

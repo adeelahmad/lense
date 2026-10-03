@@ -347,6 +347,8 @@ import type {
   GetExtensionData,
   GetExtensionErrors,
   GetExtensionResponses,
+  GetFedoraStatusData,
+  GetFedoraStatusResponses,
   GetFieldData,
   GetFieldErrors,
   GetFieldResponses,
@@ -876,6 +878,8 @@ import type {
   SuggestTermsData,
   SuggestTermsErrors,
   SuggestTermsResponses,
+  SyncFedoraData,
+  SyncFedoraResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
   TestEmbeddingsData,
@@ -885,6 +889,8 @@ import type {
   TestExtensionResponses,
   TestLlmData,
   TestLlmResponses,
+  TestMailData,
+  TestMailResponses,
   TestNotifyTargetData,
   TestNotifyTargetErrors,
   TestNotifyTargetResponses,
@@ -1523,6 +1529,20 @@ export class Admin {
   }
 
   /**
+   * Test Mail
+   *
+   * Send a short message to your own address through the email settings, to check them.
+   */
+  public static testMail<ThrowOnError extends boolean = false>(
+    options?: Options<TestMailData, ThrowOnError>,
+  ): RequestResult<TestMailResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestMailResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/mail/test",
+      ...options,
+    });
+  }
+
+  /**
    * Test Embeddings
    *
    * Embed one sentence with the configured model, to check the address, key and model name.
@@ -1688,6 +1708,34 @@ export class Admin {
   ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
       url: "/api/v1/components/check",
+      ...options,
+    });
+  }
+}
+
+export class Fedora {
+  /**
+   * Get Fedora Status
+   */
+  public static getFedoraStatus<ThrowOnError extends boolean = false>(
+    options?: Options<GetFedoraStatusData, ThrowOnError>,
+  ): RequestResult<GetFedoraStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetFedoraStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/fedora",
+      ...options,
+    });
+  }
+
+  /**
+   * Sync Fedora
+   *
+   * Compare everything with Fedora now and send what differs (the background sync does this every fedora.full_hours).
+   */
+  public static syncFedora<ThrowOnError extends boolean = false>(
+    options?: Options<SyncFedoraData, ThrowOnError>,
+  ): RequestResult<SyncFedoraResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<SyncFedoraResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/fedora/sync",
       ...options,
     });
   }

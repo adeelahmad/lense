@@ -1171,6 +1171,28 @@
         }
       }
     },
+    "/api/v1/settings/mail/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Mail",
+        "description": "Send a short message to your own address through the email settings, to check them.",
+        "operationId": "test_mail",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/embeddings/test": {
       "post": {
         "tags": [
@@ -1461,6 +1483,49 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Started"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/fedora": {
+      "get": {
+        "tags": [
+          "fedora"
+        ],
+        "summary": "Get Fedora Status",
+        "operationId": "get_fedora_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FedoraStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/fedora/sync": {
+      "post": {
+        "tags": [
+          "fedora"
+        ],
+        "summary": "Sync Fedora",
+        "description": "Compare everything with Fedora now and send what differs (the background sync does this every fedora.full_hours).",
+        "operationId": "sync_fedora",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FedoraSyncResult"
                 }
               }
             }
@@ -23787,6 +23852,138 @@
         ],
         "title": "FacetCount"
       },
+      "FedoraStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "root": {
+            "type": "string",
+            "title": "Root"
+          },
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "resources": {
+            "type": "integer",
+            "title": "Resources"
+          },
+          "last_sync": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync"
+          },
+          "last_full": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Full"
+          },
+          "last_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Counts"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "full_requested": {
+            "type": "boolean",
+            "title": "Full Requested"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "root",
+          "pending",
+          "resources",
+          "full_requested"
+        ],
+        "title": "FedoraStatus"
+      },
+      "FedoraSyncResult": {
+        "properties": {
+          "sent": {
+            "type": "integer",
+            "title": "Sent"
+          },
+          "files": {
+            "type": "integer",
+            "title": "Files"
+          },
+          "unchanged": {
+            "type": "integer",
+            "title": "Unchanged"
+          },
+          "deleted": {
+            "type": "integer",
+            "title": "Deleted"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "sent",
+          "files",
+          "unchanged",
+          "deleted",
+          "failed",
+          "errors"
+        ],
+        "title": "FedoraSyncResult"
+      },
       "FieldCreate": {
         "properties": {
           "label": {
@@ -26870,6 +27067,43 @@
           "cpus"
         ],
         "title": "Machine"
+      },
+      "MailTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "where the test message went: your own address"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "MailTestResult"
       },
       "ManifestCheck": {
         "properties": {

@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
+  Archive,
   AudioLines,
   Bell,
   Bot,
@@ -23,6 +24,7 @@ import {
   type LucideIcon,
   KeyRound,
   Users,
+  Mail,
   PackageCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -62,7 +64,9 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   components: PackageCheck,
   access: ShieldCheck,
   notifications: Bell,
+  mail: Mail,
   telemetry: Activity,
+  fedora: Archive,
   uploads: Upload,
   documents: FileType,
   tokens: KeyRound,

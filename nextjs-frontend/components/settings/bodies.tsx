@@ -5,7 +5,7 @@ import { PlugZap, RefreshCw, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 
-import { Admin, Metadata } from "@/app/openapi-client";
+import { Admin, Fedora, Metadata } from "@/app/openapi-client";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
@@ -266,6 +266,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "mail":
+      return <MailBody ctx={ctx} />;
     case "components":
       return (
         <>
@@ -325,6 +327,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       );
     case "telemetry":
       return <TelemetryBody ctx={ctx} />;
+    case "fedora":
+      return <FedoraBody ctx={ctx} />;
     case "uploads":
       return (
         <>
@@ -508,6 +512,162 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
           </Banner>
         ) : (
           <Banner tone="error" title="The test failed.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+/** "Sent 12, 3 files, 140 unchanged" from the last sync's counts. */
+export function fedoraCounts(c: Record<string, unknown> | null | undefined): string {
+  if (!c) return "";
+  const n = (k: string) => Number(c[k] ?? 0);
+  return [
+    `${n("sent")} sent`,
+    n("files") ? `${n("files")} file${n("files") === 1 ? "" : "s"}` : "",
+    `${n("unchanged")} unchanged`,
+    n("deleted") ? `${n("deleted")} deleted` : "",
+    n("failed") ? `${n("failed")} failed` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function FedoraBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const f = ctx.view.fedora;
+  const saved = f?.values ?? {};
+  const secret = (saved.password ?? {}) as { set?: boolean };
+  const password = ctx.state("fedora.password");
+  const locked = f?.locked ?? [];
+  const status = useQuery({
+    queryKey: ["fedora-status", f?.updated_at ?? null],
+    queryFn: () => data(Fedora.getFedoraStatus({ client })),
+    refetchInterval: 30_000,
+  });
+  const sync = useMutation({
+    mutationFn: () => data(Fedora.syncFedora({ client })),
+    onSuccess: () => void status.refetch(),
+  });
+  const s = status.data;
+  const url = (saved.url as string | null | undefined) ?? null;
+  return (
+    <>
+      {s?.enabled ? (
+        <Banner tone={s.last_error ? "error" : "success"} title={`On: ${s.resources} resources kept in ${s.url}`}>
+          {s.last_error
+            ? `Last problem: ${s.last_error}`
+            : s.last_sync
+              ? `Last sent ${new Date(s.last_sync).toLocaleString()}: ${fedoraCounts(s.last_counts)}${s.pending ? ` · ${s.pending} waiting` : ""}`
+              : "Nothing sent yet: the first sync sends everything."}
+        </Banner>
+      ) : (
+        <Banner title="Off: the archive lives in SurrealDB only.">
+          Run Fedora with <code className="font-mono">docker compose --profile fedora up</code>, then set its address
+          here or with <code className="font-mono">LENS_FEDORA_URL</code> in .env. Lens keeps working the same without
+          it.
+        </Banner>
+      )}
+      <F ctx={ctx} id="fedora.url" />
+      <F ctx={ctx} id="fedora.enabled" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="fedora.user" />
+        <SecretSetting
+          key={f?.updated_at ?? "none"}
+          label={locked.includes("password") ? "Password (set by LENS_FEDORA_PASSWORD in .env)" : "Password"}
+          placeholder="fedoraAdmin"
+          isSet={Boolean(secret.set)}
+          updatedBy={f?.updated_by}
+          updatedAt={f?.updated_at}
+          value={password.value as string | undefined}
+          onChange={(x) => password.onChange(x)}
+        />
+      </div>
+      <F ctx={ctx} id="fedora.root" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="fedora.files" />
+        <F ctx={ctx} id="fedora.max_file_mb" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="fedora.sync_seconds" />
+        <F ctx={ctx} id="fedora.full_hours" />
+      </div>
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        Each resource is described with Dublin Core and links back to its Lens address (owl:sameAs). Changes to a
+        recording’s metadata go within a minute; everything is compared on the schedule above, so what analysis changed,
+        new recordings and deletions follow. The workers send it.
+      </p>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<RefreshCw />} onClick={() => sync.mutate()} disabled={sync.isPending || !url}>
+          {sync.isPending ? "Sending…" : "Compare and send now"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty ? "Uses the saved settings, not your unsaved changes" : "Sends only what differs from Fedora"}
+        </span>
+      </div>
+      {sync.data && (
+        <Banner tone={sync.data.failed ? "error" : "success"} title={fedoraCounts(sync.data)}>
+          {sync.data.errors[0] ?? "Fedora has everything."}
+        </Banner>
+      )}
+      {sync.isError && <Banner tone="error">{sync.error.message}</Banner>}
+    </>
+  );
+}
+
+function MailBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const m = ctx.view.mail;
+  const locked = m?.locked ?? [];
+  const pw = ctx.state("mail.password");
+  const test = useMutation({ mutationFn: () => data(Admin.testMail({ client })) });
+  return (
+    <>
+      {locked.length > 0 && (
+        <p className="text-[13px] text-fg-secondary">
+          Some of these are set in the server’s .env (MAIL_*), which wins: {locked.join(", ")}.
+        </p>
+      )}
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
+        <F ctx={ctx} id="mail.server" />
+        <F ctx={ctx} id="mail.port" />
+      </div>
+      <F ctx={ctx} id="mail.security" />
+      <F ctx={ctx} id="mail.username" />
+      {locked.includes("password") ? (
+        <p className="text-[13px] text-fg-secondary">The password is set by MAIL_PASSWORD in .env.</p>
+      ) : (
+        <SecretSetting
+          key={m?.updated_at ?? "none"}
+          label="Password"
+          isSet={Boolean(((m?.values?.password ?? {}) as { set?: boolean }).set)}
+          updatedBy={m?.updated_by}
+          updatedAt={m?.updated_at}
+          value={pw.value as string | undefined}
+          onChange={(x) => pw.onChange(x)}
+        />
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="mail.from_address" />
+        <F ctx={ctx} id="mail.from_name" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Sending…" : "Send a test email"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty ? "Uses the saved settings, not your unsaved changes" : "To your own address"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="Sent.">
+            Check {test.data.to} for “Lens can send email”.
+          </Banner>
+        ) : (
+          <Banner tone="error" title="It couldn’t be sent.">
             {test.data.error}
           </Banner>
         ))}

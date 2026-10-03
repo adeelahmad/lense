@@ -396,6 +396,9 @@ def _write(db, rid, meta):
             sets.append(f"{col} = $v_{col}")  # $access itself is a protected parameter name
             params[f"v_{col}"] = meta[field]
     db.q(f"UPDATE $r SET {', '.join(sets)}", r=R("recording", rid), **params)
+    from . import fedora  # here: fedora.py reads metadata (through rdf.py)
+
+    fedora.touch(db, "recording", rid)  # a copy in Fedora follows (fedora.py), when there is one
 
 
 def defaults(db, cfg, rid):
