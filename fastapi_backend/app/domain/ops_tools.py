@@ -9,7 +9,7 @@ elsewhere, always waits for approval.
 
 from __future__ import annotations
 
-from . import auth, jobs, llm, settings, setup, store, uploads
+from . import auth, decide, jobs, llm, metadata, settings, setup, store, uploads
 
 R = store.R
 _S = {"type": "string"}
@@ -30,6 +30,7 @@ SECTIONS = (
     "reports",
     "notifications",
     "workers",
+    "decisions",
     "telemetry",
 )
 ALWAYS_ASK = {"telemetry"}
@@ -78,9 +79,10 @@ FILE_TOOLS = [
     (
         "import_files",
         "Put files the person attached to the conversation into a namespace, where they're transcribed or read like any "
-        "upload. Use the attachment ids from their message.",
+        "upload. Use the attachment ids from their message. Leave namespace out unless the person named one: it's "
+        "chosen for them, and you're told when it's unclear and to ask.",
         {"upload_ids": {"type": "array", "items": _S}, "namespace": _S, "collection_id": {"type": "integer"}},
-        ["upload_ids", "namespace"],
+        ["upload_ids"],
         True,
     ),
 ]
@@ -153,6 +155,18 @@ def apply(db, cfg, base, tool, args, user, editable, admin):
     raise ValueError(f"no tool {tool}")
 
 
+def describe_namespace(db, sid, name):
+    """A line about a namespace for choosing between them: its description, and what's in it lately."""
+    meta = metadata.namespace(db, sid)["meta"]
+    about = str(meta.get("description") or meta.get("title") or "").strip()
+    rows = db.rows("SELECT id, title FROM recording WHERE space = $s ORDER BY id DESC LIMIT 8", s=sid)
+    titles = [r["title"] for r in rows if r.get("title")]
+    parts = [about] if about else []
+    if titles:
+        parts.append("Holds recordings such as: " + "; ".join(str(t)[:80] for t in titles))
+    return " ".join(parts) or f"The namespace called {name}; nothing in it yet."
+
+
 class OpsTools:
     """Mixed into the chat Toolbox: needs db, cfg, base, user, editable, admin, act and _approval."""
 
@@ -192,7 +206,27 @@ class OpsTools:
             raise ValueError(f"there's already a namespace called {name}")
         return self._change("create_namespace", {"name": name, "graph": graph}, f"Create the namespace {name} ({graph} graph)")
 
-    def t_import_files(self, upload_ids, namespace, collection_id=None):
+    def _where_to(self, files):
+        """The namespace these files go in, chosen for the person, or (None, why) when it's for them to say."""
+        names = store.space_names(self.db)
+        mine = {n: s for s, n in names.items() if self.admin or s in self.editable}
+        if not mine:
+            raise ValueError("there's no namespace to put these in yet" + (": create_namespace first" if self.admin else ""))
+        options = {n: describe_namespace(self.db, s, n) for n, s in sorted(mine.items())}
+        try:
+            d = decide.choose(
+                self.cfg,
+                "Which namespace should these files go in? Namespaces keep separate parts of someone's life or work apart.",
+                options,
+                {"files": files, "their_message": (getattr(self, "said", "") or "")[:4000]},
+            )
+        except decide.Undecided:
+            return None, {"options": list(options)}
+        if decide.sure(self.cfg, d):
+            return d["choice"], d
+        return None, d
+
+    def t_import_files(self, upload_ids, namespace=None, collection_id=None):
         if isinstance(upload_ids, str):
             upload_ids = [upload_ids]
         names = []
@@ -204,5 +238,22 @@ class OpsTools:
             if up.get("account") != self.user["id"] or up.get("state") != "held":
                 raise ValueError(f"{uid} isn't a file attached here that's waiting to be imported")
             names.append(up["filename"])
-        args = {"upload_ids": [str(u) for u in upload_ids], "namespace": namespace.strip().lower(), "collection_id": collection_id}
-        return self._change("import_files", store.clean(args), f"Import {', '.join(names)} into {namespace}")
+        chosen = None
+        if not (namespace or "").strip():
+            files = [{"file": n, "title": (uploads.get(self.db, str(u)).get("title") or "")} for n, u in zip(names, upload_ids)]
+            namespace, chosen = self._where_to(files)
+            if namespace is None:
+                ranked = chosen.get("ranked") or [{"option": o} for o in chosen["options"]]
+                return (
+                    {"status": "ask", "note": "It isn't clear where these go: ask the person, suggesting the first.", "namespaces": ranked},
+                    f"Not sure where {', '.join(names)} go",
+                )
+        namespace = namespace.strip().lower()
+        args = {"upload_ids": [str(u) for u in upload_ids], "namespace": namespace, "collection_id": collection_id}
+        summary = f"Import {', '.join(names)} into {namespace}"
+        if chosen and chosen.get("by") != "only option":
+            summary += f" (chosen, {round(100 * chosen['confidence'])}% sure)"
+        out, said = self._change("import_files", store.clean(args), summary)
+        if chosen:
+            out = {**out, "namespace_chosen": {"by": chosen["by"], "confidence": chosen["confidence"]}}
+        return out, said

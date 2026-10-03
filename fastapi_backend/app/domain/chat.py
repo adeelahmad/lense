@@ -364,7 +364,7 @@ def attached_note(files):
     if not files:
         return ""
     lines = [f"- {f['filename']} ({round(f['size'] / 1e6, 1)} MB, attachment id {f['id']})" for f in files]
-    return "\n\nAttached files, not in the archive yet (import_files puts them in a namespace):\n" + "\n".join(lines)
+    return "\n\nAttached files, not in the archive yet (import_files puts them in a namespace, choosing one when not named):\n" + "\n".join(lines)
 
 
 SETUP_SYSTEM = (
@@ -374,8 +374,8 @@ SETUP_SYSTEM = (
     "with the server's address and a chat model), a namespace, then search by meaning (an embedding model). Prefer "
     "sensible defaults and make the changes yourself; they're made as soon as you call the tool, and the admin can change "
     "them in Settings. Ask only what you can't decide (one short question at a time), and never for something a tool can "
-    "find out. When files are attached, import them into the namespace that fits (ask if there are several and it isn't "
-    "clear). Say in a sentence what you changed. Be brief."
+    "find out. When files are attached, import them (leave the namespace out unless the admin named one: it's chosen "
+    "for them, and you're told when to ask). Say in a sentence what you changed. Be brief."
 )
 
 

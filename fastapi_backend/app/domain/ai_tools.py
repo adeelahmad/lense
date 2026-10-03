@@ -119,8 +119,8 @@ class Toolbox(ops_tools.OpsTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
     makes their changes at once instead of asking for approval."""
 
-    def __init__(self, db, cfg, user, readable, editable, scope, chat_id, base=None, admin=False, act=False):
-        self.db, self.cfg, self.user, self.chat = db, cfg, user, chat_id
+    def __init__(self, db, cfg, user, readable, editable, scope, chat_id, base=None, admin=False, act=False, said=""):
+        self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
         self.base, self.admin, self.act = base or cfg, admin, act
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
