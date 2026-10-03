@@ -25,6 +25,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **First start on a fresh database.** `docker compose up` on an empty database could stop the API with "Database
   index `space_name` already contains 'podcasts'": the API and the worker both created the configured namespaces at
   once. The one that loses now uses the other's.
+- **The dev web app no longer breaks when the API schema is rewritten twice at once.** The Docker dev stack's watcher
+  regenerated the API client on every change to `openapi.json`, and two generations at once deleted each other's
+  files ("Module not found: Can't resolve '../core/auth'"). It now runs one at a time and runs once more for changes
+  made during a run.
 - **Calendar feeds on your own network.** A calendar server at home or on an intranet (Nextcloud, Radicale) was
   refused with "only public web pages can be captured", and Docker and the packages had no way to allow it.
   `LENS_WEB_NETWORKS` in `.env` (e.g. `192.168.1.0/24`) now adds networks to `documents.web_networks`, and the error
