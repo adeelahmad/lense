@@ -4,6 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Sensors.** Everything that feeds Lens is a sensor, in one list (`GET /sensors`): the storage, email and
+  calendar sources as they are, and new stream sensors. Lens runs an MQTT hub (an ordinary local broker on 1883, with
+  hub logins), listens for syslog from local networks (UDP and TCP 5514) and takes webhooks. Devices and hosts become
+  sensors the first time they report, marked new, with their streams and kinds worked out from what they send.
+  Readings are stored as they come (numbers also as hourly summaries), with per-sensor handling (all, changes,
+  summaries only, none), retention (raw, important log lines, summaries) and a rate cap; a suggested handling is
+  applied only when chosen. Retention runs as a routine action (**Tidy sensor data**, hourly). Off until turned on in
+  Settings → Sensors; no model is called. See docs/sensors.md.
 - **Voice stays on the server.** The mic records in the browser and this server turns it into text with its own
   transcription engine (`POST /voice/transcribe`), showing what's been heard while you talk and ending at a pause;
   it works in any browser that can record. Spoken answers can come from a speech model (`voice.tts_model`, any

@@ -31,7 +31,7 @@ class Routine(ResponseModel):
 
 class RoutineCatalog(ResponseModel):
     routines: list[Routine]
-    actions: list[str] = Field(description="what a routine can do: sync, pipeline, workflow")
+    actions: list[str] = Field(description="what a routine can do: sync, pipeline, workflow, sensors (tidy sensor data)")
     recordings: list[str] = Field(
         description="which recordings a pipeline or workflow action takes: new, unprocessed, all, unindexed (not yet searchable by meaning)"
     )
@@ -41,7 +41,7 @@ class RoutineCreate(RequestModel):
     name: str
     actions: list[dict[str, Any]] = Field(
         description="in order: {type: sync, watches?}, {type: pipeline, pipeline?, steps?, recordings?, limit?}, "
-        "{type: workflow, workflow, version?, recordings?, limit?, propose_only?}"
+        "{type: workflow, workflow, version?, recordings?, limit?, propose_only?}, {type: sensors, sensors?}"
     )
     schedule: str | None = None
     timezone: str = "UTC"
