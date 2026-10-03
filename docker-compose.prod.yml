@@ -9,7 +9,7 @@ x-backend: &backend
   image: lens-backend:${LENS_VERSION:-prod}
   build:
     context: fastapi_backend
-    target: ${LENS_TARGET:-lean}  # full: LibreOffice and Chromium, to read Office files, text, web pages and emails
+    target: ${LENS_TARGET:-full}  # LibreOffice and Chromium, to read Office files, text, web pages and emails; lean: without
     args:
       EXTRAS: ${EXTRAS:-}
   # model servers on this machine (Ollama, LM Studio) as host.docker.internal, on Linux as on a Mac

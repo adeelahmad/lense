@@ -198,3 +198,11 @@ def test_finds_model_servers_running_nearby(fresh, monkeypatch):
         assert client.get("/api/v1/setup/llm/detect", headers=login(client, "ed@x.io", "editor password 1")).status_code == 403
     finally:
         srv.shutdown()
+
+
+def test_log_prints_a_setup_link(fresh, caplog, monkeypatch):
+    """The setup code comes with a link that fills it in, so nobody has to copy the code across."""
+    monkeypatch.setenv("LENS_SETUP_CODE", "a b&c")
+    with caplog.at_level("WARNING", logger="lens"):
+        fresh()
+    assert "with setup code: a b&c (or open http://localhost:3000/setup?code=a+b%26c, which fills it in)" in caplog.text
