@@ -2499,7 +2499,7 @@ export type EntitySetup = {
   /**
    * Mode
    *
-   * self: every name found becomes an entity, and people curate them; fixed: names found are mapped onto the entities people defined, or onto Unlabeled (it belongs here) or Unknown
+   * self: every name found becomes an entity, and people curate them; fixed: names found are mapped onto the entities people defined, or onto Unlabeled (it belongs here) or Unknown; hybrid: the defined entities first, then names of the types kept become entities of their own and others go to Unknown
    */
   mode: string;
   /**
@@ -2581,7 +2581,7 @@ export type EntitySetupSave = {
   /**
    * Mode
    */
-  mode?: "self" | "fixed";
+  mode?: "self" | "fixed" | "hybrid";
   /**
    * Types
    */

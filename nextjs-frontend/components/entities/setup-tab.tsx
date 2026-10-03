@@ -124,7 +124,7 @@ function SetupForm({
             </label>
           ))}
         </div>
-        {mode === "fixed" && (
+        {mode !== "self" && (
           <p className="m-0 text-[12.5px] text-fg-secondary">
             Define the entities on the Entities tab with “Add entity”. Unknown and Unlabeled are always there.
           </p>
@@ -142,7 +142,7 @@ function SetupForm({
           {types.map((t) => (
             <Checkbox
               key={t.type}
-              checked={all ? !(mode === "fixed" && t.quiet) : kept.includes(t.type)}
+              checked={all ? !(mode !== "self" && t.quiet) : kept.includes(t.type)}
               disabled={!can || all}
               label={t.label}
               onCheckedChange={(v) => setKept((k) => (v ? [...k, t.type] : k.filter((x) => x !== t.type)))}

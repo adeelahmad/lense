@@ -6,7 +6,9 @@ A setup has a mode, the types it keeps and a description of what the place is ab
   merge, rename and describe them. `types` lists the types kept (empty: all of them); names of any other type are left
   out.
 - `fixed`: people with editor access define the entities, and what's found is mapped onto them, or onto "Unlabeled"
-  (it belongs here: a type kept) or "Unknown" (it doesn't): see entity_map.py. A collection's setup holds for the collections inside it, unless one of them has its own; a
+  (it belongs here: a type kept) or "Unknown" (it doesn't): see entity_map.py.
+- `hybrid`: the defined entities first, then self-organising: a name of a type kept that fits none of them becomes an
+  entity of its own; names of other types go to "Unknown". A collection's setup holds for the collections inside it, unless one of them has its own; a
 recording follows the setup of its collection, else its namespace's. Callers check roles and write the audit log.
 """
 
@@ -17,7 +19,7 @@ import re
 from . import hierarchy, store
 
 R = store.R
-MODES = ("self", "fixed")
+MODES = ("self", "fixed", "hybrid")
 MATCHING = ("rules", "model")
 DESCRIPTION_MAX = 2000
 LABEL_MAX = 40
