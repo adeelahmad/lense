@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **An email connection fills in its server.** Type the address first and the IMAP server follows from it (Gmail,
+  Outlook, iCloud, Yahoo and other big providers by name, otherwise imap.<domain>) until you change it by hand.
 - **Fewer confirms, fewer dead ends.** Import sends the files that are ready and keeps the ones that still need a
   field mapped in the list, instead of blocking everything. Disabling an account and deleting your own saved view
   happen at once with Undo instead of a confirm. Adding a member to a namespace suggests the people who aren't in it
