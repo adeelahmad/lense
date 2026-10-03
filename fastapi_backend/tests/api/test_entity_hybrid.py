@@ -42,6 +42,8 @@ def _names(db):
 def test_hybrid(db, cfg, folder):
     rid = _rec(db, cfg, folder)
     sid = store.ns_id(db, "pods")
+    analyze.analyze_recording(db, cfg, rid)  # self-organising first: Paris is an entity
+    db.q("DELETE entity WHERE name IN ['Northwind Labs', 'Dyno Therapeutics']")
     entity_map.define(db, sid, "Acme Corp", "ORG", aliases=["Acme"])
     setup = entity_setup.save(db, sid, mode="hybrid", types=["ORG"])
     assert setup["mode"] == "hybrid"
@@ -49,8 +51,8 @@ def test_hybrid(db, cfg, folder):
     said = _said(db, rid)
     assert said["acme"] == "Acme Corp" and said["Acme Corp"] == "Acme Corp"  # the defined entity first
     assert said["Northwind Labs"] == "Northwind Labs" and said["Dyno Therapeutics"] == "Dyno Therapeutics"  # new: a type kept
-    assert said["Globex"] == "Unknown" and said["Paris"] == "Unknown"  # not a type kept
-    assert {"Unknown", "Unlabeled", "Northwind Labs"} <= _names(db) and "Paris" not in _names(db)
+    assert said["Globex"] == "Unknown" and said["Paris"] == "Unknown"  # not a type kept, though Paris is an entity
+    assert {"Unknown", "Unlabeled", "Northwind Labs"} <= _names(db)
     ids = {e["name"]: e["id"] for e in db.rows("SELECT record::id(id) AS id, name FROM entity")}
     analyze.analyze_recording(db, cfg, rid)  # again: the same entities, nothing made twice
     assert {e["name"]: e["id"] for e in db.rows("SELECT record::id(id) AS id, name FROM entity")} == ids

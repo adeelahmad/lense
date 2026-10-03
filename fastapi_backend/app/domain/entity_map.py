@@ -129,8 +129,8 @@ def _existing(db, sid, keys):
 
 def place(db, cfg, sid, cid, setup, found, seg_texts=()):
     """{key: entity id} for the names found ({key: (name, type)}) in a recording of collection `cid`, in the fixed or
-    hybrid mode. A defined entity's name or other name goes to it. In the hybrid mode, a name that already is an entity
-    goes to it too. With `matching: model` the model may place the rest on a listed (or, hybrid, described) entity, or
+    hybrid mode. A defined entity's name or other name goes to it. In the hybrid mode, a name of a type that belongs here and
+    already is an entity goes to it too. With `matching: model` the model may place the rest on a listed (or, hybrid, described) entity, or
     say a name doesn't belong here. What's left goes by type: a type that doesn't belong here goes to Unknown; one that
     does goes to Unlabeled (fixed) or becomes a new entity (hybrid)."""
     hybrid = setup["mode"] == "hybrid"
@@ -139,7 +139,7 @@ def place(db, cfg, sid, cid, setup, found, seg_texts=()):
     special = builtins(db, sid)
     out = {k: idx[k] for k in found if k in idx}
     if hybrid:
-        out.update(_existing(db, sid, [k for k in found if k and k not in out]))
+        out.update(_existing(db, sid, [k for k, (_, typ) in found.items() if k and k not in out and belongs(setup, typ)]))
     rest = {k: v for k, v in found.items() if k and k not in out}
     if rest and setup["matching"] == "model":
         ents = list(listed)
