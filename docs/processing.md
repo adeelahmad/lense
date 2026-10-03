@@ -7,7 +7,9 @@ How recordings move through Lens: where they come from, what each step does, and
 - `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped,
   and so are files whose recording someone deleted or moved to another namespace (at the same path, or a copy of the same
   file).
-- `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. A file that fails is marked and the batch carries on. For a
+- `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. When the configured engine isn't installed on a worker (or
+  doesn't import there), it uses the next one that is and says so in the job log; with none at all the step fails,
+  saying how to add one. A file that fails is marked and the batch carries on. For a
   document or an image it draws the pages and reads their text instead: a PDF's own text, and OCR for scans and images
   ([Documents and images](configuration.md#documents-and-images)).
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then

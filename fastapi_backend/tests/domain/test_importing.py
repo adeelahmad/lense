@@ -130,12 +130,52 @@ def test_paste_and_chunk_stitching(db, cfg):
 def test_an_engine_that_isnt_installed_falls_back_to_one_that_is(monkeypatch):
     """The Docker images carry faster-whisper, not SenseVoice (the default engine): imports are transcribed anyway."""
     made = []
+
+    def sensevoice(cfg):
+        raise ingest.EngineMissing("SenseVoice needs FunASR")
+
     monkeypatch.setattr(ingest, "installed", lambda e: e == "whisper")
+    monkeypatch.setattr(ingest, "SenseVoice", sensevoice)
     monkeypatch.setattr(ingest, "Whisper", lambda cfg, mlx=False: made.append(mlx) or "whisper engine")
     said = []
     cfg = {"transcribe": {"engine": "sensevoice", "sensevoice": {}}}
     assert ingest.get_engine(cfg, said.append) == "whisper engine" and made == [False]
-    assert said == ["  sensevoice isn't installed on this worker; transcribing with whisper"]
-    monkeypatch.setattr(ingest, "installed", lambda e: False)  # nothing installed: the configured engine says what it needs
-    with pytest.raises(SystemExit, match="FunASR"):
+    assert said == ["  sensevoice isn't installed on this worker (SenseVoice needs FunASR); transcribing with whisper"]
+
+
+def test_an_engine_that_is_there_but_wont_import_falls_back_too(monkeypatch):
+    """FunASR without PyTorch is found but doesn't import: the job goes on with whisper rather than failing."""
+    monkeypatch.setattr(ingest, "installed", lambda e: True)
+
+    def sensevoice(cfg):
+        raise ingest.EngineMissing("SenseVoice needs FunASR")
+
+    def whisper(cfg, mlx=False):
+        if mlx:
+            raise ingest.EngineMissing("mlx-whisper isn't installed")
+        return "whisper engine"
+
+    monkeypatch.setattr(ingest, "SenseVoice", sensevoice)
+    monkeypatch.setattr(ingest, "Whisper", whisper)
+    said = []
+    assert ingest.get_engine({"transcribe": {"engine": "sensevoice"}}, said.append) == "whisper engine"
+    assert said == ["  sensevoice isn't installed on this worker (SenseVoice needs FunASR); transcribing with whisper"]
+
+
+def test_with_no_engine_at_all_the_error_says_how_to_add_one(monkeypatch):
+    monkeypatch.setattr(ingest, "installed", lambda e: False)
+    monkeypatch.setattr(ingest.importlib.util, "find_spec", lambda name: None)
+    import builtins
+
+    real = builtins.__import__
+
+    def no_engines(name, *a, **k):
+        if name.split(".")[0] in ("funasr", "faster_whisper", "mlx_whisper"):
+            raise ImportError(name)
+        return real(name, *a, **k)
+
+    monkeypatch.setattr(builtins, "__import__", no_engines)
+    cfg = {"transcribe": {"engine": "sensevoice", "device": "cpu", "sensevoice": {}}}
+    with pytest.raises(ingest.EngineMissing, match=r"no speech-to-text engine.*FunASR.*make dev") as e:
         ingest.get_engine(cfg)
+    assert not isinstance(e.value, SystemExit)  # a job records it as a plain error, not "SystemExit: ..."
