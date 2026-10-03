@@ -1171,6 +1171,28 @@
         }
       }
     },
+    "/api/v1/settings/mail/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Mail",
+        "description": "Send a short message to your own address through the email settings, to check them.",
+        "operationId": "test_mail",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/embeddings/test": {
       "post": {
         "tags": [
@@ -10043,6 +10065,240 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/rdf/import": {
+      "post": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Import Namespace Rdf",
+        "description": "Read Dublin Core descriptions into the namespace's recordings (matched by their URI or an identifier). Each change\nis a metadata edit, kept in the recording's history. With dry_run (the default) nothing changes.",
+        "operationId": "import_namespace_rdf",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RdfImport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RdfImportResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/sparql": {
+      "get": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Query Namespace Sparql",
+        "description": "A read-only SPARQL query over the namespace's graph (what GET /namespaces/{name}/rdf returns). dcterms, dcmitype,\nfoaf, skos, owl, rdf, rdfs, xsd and lens are known prefixes. SERVICE and FROM aren't allowed.",
+        "operationId": "query_namespace_sparql",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query",
+              "title": "Query"
+            },
+            "description": "a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)",
+              "title": "Format"
+            },
+            "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)",
+            "content": {
+              "application/sparql-results+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "text/turtle": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/ld+json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/n-triples": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/rdf+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Post Namespace Sparql",
+        "description": "The same, with the query in the body (for long ones).",
+        "operationId": "post_namespace_sparql",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)",
+              "title": "Format"
+            },
+            "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SparqlQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)",
+            "content": {
+              "application/sparql-results+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "text/turtle": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/ld+json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/n-triples": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/rdf+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/media": {
       "get": {
         "tags": [
@@ -13443,6 +13699,403 @@
         }
       }
     },
+    "/api/v1/extensions": {
+      "get": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "List Extensions",
+        "description": "The extensions you can see: yours, the ones shared with your namespaces or with everyone (admins: all).",
+        "operationId": "list_extensions",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "tool",
+                    "skill",
+                    "hook",
+                    "plugin"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Extension"
+                  },
+                  "title": "Response Extensions-List Extensions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Create Extension",
+        "operationId": "create_extension",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extensions/check": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Check Manifest",
+        "description": "Read and check a manifest written as code, without saving it: 400 says what's wrong.",
+        "operationId": "check_manifest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManifestCheck"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManifestChecked"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extensions/{eid}": {
+      "get": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Get Extension",
+        "description": "One version (default: the current one), as a manifest too, and the list of versions.",
+        "operationId": "get_extension",
+        "parameters": [
+          {
+            "name": "eid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Eid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Update Extension",
+        "description": "Its title, description, who sees it, and whether it's switched on.",
+        "operationId": "update_extension",
+        "parameters": [
+          {
+            "name": "eid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Eid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Delete Extension",
+        "description": "Takes it out of the assistant at once.",
+        "operationId": "delete_extension",
+        "parameters": [
+          {
+            "name": "eid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Eid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extensions/{eid}/versions": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Create Extension Version",
+        "operationId": "create_extension_version",
+        "parameters": [
+          {
+            "name": "eid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Eid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionVersionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extensions/{eid}/test": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Test Extension",
+        "description": "Try one of its tools with these arguments, switched on or not. A tool that changes something really runs, so it\nneeds `confirm`.",
+        "operationId": "test_extension",
+        "parameters": [
+          {
+            "name": "eid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Eid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionTest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats": {
       "get": {
         "tags": [
@@ -13677,7 +14330,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -15995,6 +16648,813 @@
           }
         }
       }
+    },
+    "/api/v1/sensors": {
+      "get": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "List Sensors",
+        "description": "Every sensor: storage, email and calendar sources (files), and MQTT devices, syslog senders and webhooks\n(streams); the kinds there are; and whether the hub is running.",
+        "operationId": "list_sensors",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SensorCatalog"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Create Sensor",
+        "description": "Add a stream sensor before it reports (to give it a namespace and handling up front), or a webhook. A webhook's\ntoken is in the answer and never shown again. Storage, email and calendar sensors are added as sources.",
+        "operationId": "create_sensor",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SensorCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SensorCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/review": {
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Review New",
+        "description": "Give every new sensor its suggested handling, and mark them looked at.",
+        "operationId": "review_new",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reviewed"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/{sid}": {
+      "get": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Get Sensor",
+        "operationId": "get_sensor",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SensorDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Update Sensor",
+        "description": "Rename a stream sensor, change its status (new, active, paused: nothing kept, ignored: nothing kept and out of\nsight), its namespace (`space: null` for none) or its handling (a handling setting of null goes back to the\nsettings' default).",
+        "operationId": "update_sensor",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SensorUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Delete Sensor",
+        "description": "Remove a sensor and everything it kept (a file sensor's resources stay).",
+        "operationId": "delete_sensor",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/{sid}/suggestion": {
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Apply Suggestion",
+        "description": "Give a stream sensor the handling suggested for it, and mark it looked at.",
+        "operationId": "apply_suggestion",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Suggestion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/{sid}/token": {
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "New Token",
+        "description": "A new token for a webhook; the old one stops working.",
+        "operationId": "new_token",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SensorToken"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/{sid}/readings": {
+      "get": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "List Readings",
+        "description": "A stream sensor's readings, newest first.",
+        "operationId": "list_readings",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          },
+          {
+            "name": "stream",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a stream's id",
+              "title": "Stream"
+            },
+            "description": "a stream's id"
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "readings before this time, to page back",
+              "title": "Before"
+            },
+            "description": "readings before this time, to page back"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Reading"
+                  },
+                  "title": "Response Sensors-List Readings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/{sid}/series": {
+      "get": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Get Series",
+        "description": "Hourly summaries of a stream (count, min, max, average, last), oldest first.",
+        "operationId": "get_series",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          },
+          {
+            "name": "stream",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "a stream's id",
+              "title": "Stream"
+            },
+            "description": "a stream's id"
+          },
+          {
+            "name": "field",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one of a JSON stream's numbers",
+              "title": "Field"
+            },
+            "description": "one of a JSON stream's numbers"
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 87840,
+              "minimum": 1,
+              "default": 168,
+              "title": "Hours"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SeriesPoint"
+                  },
+                  "title": "Response Sensors-Get Series"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensor-logins": {
+      "get": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "List Logins",
+        "description": "The usernames devices sign in to the MQTT hub with.",
+        "operationId": "list_logins",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HubLogin"
+                  },
+                  "type": "array",
+                  "title": "Response Sensors-List Logins"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Create Login",
+        "operationId": "create_login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HubLoginCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensor-logins/{lid}": {
+      "delete": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Delete Login",
+        "operationId": "delete_login",
+        "parameters": [
+          {
+            "name": "lid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Lid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/push": {
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Push",
+        "description": "Send readings to a webhook sensor, with its token as a bearer token. Plain text is a reading per line; JSON is\none reading, or several as {readings: [{stream, value}]}. `?stream=` names the stream (default: default).",
+        "operationId": "push",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pushed"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/push/{token}": {
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Push Token",
+        "description": "The same, with the token in the address, for devices that can only be given a URL.",
+        "operationId": "push_token",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pushed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sensors/push/{token}/{stream}": {
+      "post": {
+        "tags": [
+          "sensors"
+        ],
+        "summary": "Push Stream",
+        "description": "The same, to a named stream.",
+        "operationId": "push_stream",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          },
+          {
+            "name": "stream",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pushed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Voice Info",
+        "description": "Whether the server hears and speaks itself; the web app uses the browser's speech for what it doesn't. Starts\nloading the speech-to-text engine, so the first thing said isn't kept waiting.",
+        "operationId": "voice_info",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice/transcribe": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Transcribe Clip",
+        "description": "What was said in a short clip, sent as the raw request body (webm, ogg, mp4 or wav, up to 25 MB), by the\nserver's speech-to-text engine. Nothing is kept. 409 when the server has no engine (use the browser's).",
+        "operationId": "transcribe_clip",
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Heard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice/speak": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Speak Text",
+        "description": "The text read aloud by the text-to-speech model (Settings \u2192 AI assistant \u2192 Voice). 204 when there's none, or it\nfailed: the browser reads it instead.",
+        "operationId": "speak_text",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "the text read aloud",
+            "content": {
+              "audio/mpeg": {}
+            }
+          },
+          "204": {
+            "description": "the browser reads it"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -17704,6 +19164,17 @@
           "content": {
             "type": "string",
             "title": "Content"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SharedContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a question asked from a page: the page, and any highlighted text"
           },
           "attachments": {
             "items": {
@@ -21476,6 +22947,553 @@
         ],
         "title": "EventInfo"
       },
+      "Extension": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "what the assistant calls it: its tool or skill name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "tool",
+              "skill",
+              "hook",
+              "plugin"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "namespace",
+              "everyone"
+            ],
+            "title": "Visibility",
+            "default": "private"
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "who sees it, when shared with namespaces"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "whether it's switched on in conversations"
+          },
+          "owner_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Email"
+          },
+          "editable": {
+            "type": "boolean",
+            "title": "Editable",
+            "default": false
+          },
+          "current": {
+            "type": "integer",
+            "title": "Current"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "spec": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Spec",
+            "description": "the tool, skill, hook or plugin itself, as its manifest has it"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin",
+            "description": "how this version was made: code, canvas or chat"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "enabled",
+          "current",
+          "version",
+          "spec"
+        ],
+        "title": "Extension"
+      },
+      "ExtensionCreate": {
+        "properties": {
+          "manifest": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manifest",
+            "description": "{name, kind, description, ...settings}"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the manifest as code: YAML, JSON, or Markdown with frontmatter"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "code",
+              "canvas",
+              "chat"
+            ],
+            "title": "Origin",
+            "default": "code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ExtensionCreate"
+      },
+      "ExtensionDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "what the assistant calls it: its tool or skill name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "tool",
+              "skill",
+              "hook",
+              "plugin"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "namespace",
+              "everyone"
+            ],
+            "title": "Visibility",
+            "default": "private"
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "who sees it, when shared with namespaces"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "whether it's switched on in conversations"
+          },
+          "owner_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Email"
+          },
+          "editable": {
+            "type": "boolean",
+            "title": "Editable",
+            "default": false
+          },
+          "current": {
+            "type": "integer",
+            "title": "Current"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "spec": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Spec",
+            "description": "the tool, skill, hook or plugin itself, as its manifest has it"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin",
+            "description": "how this version was made: code, canvas or chat"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "manifest": {
+            "type": "string",
+            "title": "Manifest",
+            "description": "the extension as a manifest to read, change and import again"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ExtensionVersionInfo"
+            },
+            "type": "array",
+            "title": "History",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "enabled",
+          "current",
+          "version",
+          "spec",
+          "manifest"
+        ],
+        "title": "ExtensionDetail"
+      },
+      "ExtensionTest": {
+        "properties": {
+          "tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool",
+            "description": "which of a plugin's tools (a tool extension: itself)"
+          },
+          "args": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Args",
+            "default": {}
+          },
+          "confirm": {
+            "type": "boolean",
+            "title": "Confirm",
+            "description": "needed to try a tool that changes something: it really runs",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ExtensionTest"
+      },
+      "ExtensionTestResult": {
+        "properties": {
+          "output": {
+            "title": "Output"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ExtensionTestResult"
+      },
+      "ExtensionUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "private",
+                  "namespace",
+                  "everyone"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visibility"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespaces"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ExtensionUpdate"
+      },
+      "ExtensionVersionCreate": {
+        "properties": {
+          "manifest": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manifest"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "code",
+              "canvas",
+              "chat"
+            ],
+            "title": "Origin",
+            "default": "code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ExtensionVersionCreate"
+      },
+      "ExtensionVersionInfo": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "ExtensionVersionInfo"
+      },
       "FaceDismiss": {
         "properties": {
           "kind": {
@@ -22441,6 +24459,142 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "Handling": {
+        "properties": {
+          "store": {
+            "type": "string",
+            "enum": [
+              "all",
+              "changes",
+              "summary",
+              "none"
+            ],
+            "title": "Store",
+            "description": "all readings, only changes, hourly summaries only, or none (counted and dropped)",
+            "default": "all"
+          },
+          "raw_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Days",
+            "description": "days readings are kept; none: for good"
+          },
+          "rollup_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rollup Days",
+            "description": "days hourly summaries are kept; none: for good"
+          },
+          "important_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Important Days",
+            "description": "days log lines of warning or worse are kept, when longer than raw_days"
+          },
+          "max_per_minute": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Per Minute",
+            "description": "readings a stream may send a minute; more are dropped"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Handling"
+      },
+      "HandlingChange": {
+        "properties": {
+          "store": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "all",
+                  "changes",
+                  "summary",
+                  "none"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "raw_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Days"
+          },
+          "rollup_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rollup Days"
+          },
+          "important_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Important Days"
+          },
+          "max_per_minute": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Per Minute"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "HandlingChange",
+        "description": "A setting left out stays as it is; null goes back to the settings' default; 0 days keeps them for good."
+      },
       "Health": {
         "properties": {
           "database": {
@@ -22607,6 +24761,48 @@
           "type"
         ],
         "title": "HealthSource"
+      },
+      "Heard": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine"
+          },
+          "seconds": {
+            "type": "number",
+            "title": "Seconds",
+            "description": "how long the clip was",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "Heard"
       },
       "Highlight": {
         "properties": {
@@ -22833,6 +25029,167 @@
         "additionalProperties": false,
         "type": "object",
         "title": "HighlightUpdate"
+      },
+      "HubLogin": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "username"
+        ],
+        "title": "HubLogin"
+      },
+      "HubLoginCreate": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space",
+            "description": "the namespace new devices that sign in with it go to"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "HubLoginCreate"
+      },
+      "HubStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "mqtt": {
+            "type": "boolean",
+            "title": "Mqtt"
+          },
+          "mqtt_port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mqtt Port"
+          },
+          "syslog": {
+            "type": "boolean",
+            "title": "Syslog"
+          },
+          "syslog_port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Syslog Port"
+          },
+          "processes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Processes",
+            "description": "the processes running the hub now, and what they listen on"
+          },
+          "new": {
+            "type": "integer",
+            "title": "New",
+            "description": "sensors found that nobody has looked at yet"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "mqtt",
+          "syslog",
+          "processes",
+          "new"
+        ],
+        "title": "HubStatus"
       },
       "IiifImport": {
         "properties": {
@@ -24354,6 +26711,73 @@
         ],
         "title": "Machine"
       },
+      "MailTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "where the test message went: your own address"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "MailTestResult"
+      },
+      "ManifestCheck": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ManifestCheck"
+      },
+      "ManifestChecked": {
+        "properties": {
+          "manifest": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Manifest",
+            "description": "the manifest, read and checked"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "manifest"
+        ],
+        "title": "ManifestChecked"
+      },
       "Me": {
         "properties": {
           "user": {
@@ -24688,6 +27112,17 @@
             "description": "the question (up to 4000 characters); may be empty when files are attached",
             "default": ""
           },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "asked from a page: the page, its text and any highlighted part"
+          },
           "attachments": {
             "items": {
               "type": "string"
@@ -24708,6 +27143,18 @@
             ],
             "title": "Model",
             "description": "answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry"
+          },
+          "edit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edit",
+            "description": "edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer"
           }
         },
         "additionalProperties": false,
@@ -26754,6 +29201,62 @@
         ],
         "title": "Page",
         "description": "A page of a document, or an image (a TIFF has one per frame)."
+      },
+      "PageContext": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2000,
+            "pattern": "^/([^/]|$)",
+            "title": "Url",
+            "description": "the page's path in Lens, e.g. /resources/12?t=30"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the page's visible text, when the person shares the page (only the first 12,000 characters are used)"
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection",
+            "description": "text the person highlighted on it (only the first 4,000 characters are used)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "PageContext",
+        "description": "The page a question was asked from (chat on any page): where it is, and what of it the person shared."
       },
       "Passage": {
         "properties": {
@@ -28919,6 +31422,248 @@
         ],
         "title": "PublicTranscript"
       },
+      "Pushed": {
+        "properties": {
+          "kept": {
+            "type": "integer",
+            "title": "Kept"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kept"
+        ],
+        "title": "Pushed"
+      },
+      "RdfImport": {
+        "properties": {
+          "data": {
+            "type": "string",
+            "title": "Data",
+            "description": "the RDF: Turtle, N-Triples or JSON-LD (with its @context inline)"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format",
+            "description": "turtle, nt or json-ld; guessed from the data when left out"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "description": "report what would change without changing it",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "RdfImport"
+      },
+      "RdfImportItem": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "the metadata fields it changes (or would)"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "statements": {
+            "type": "integer",
+            "title": "Statements",
+            "description": "other statements kept with the recording"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "subject",
+          "recording",
+          "fields",
+          "notes",
+          "statements"
+        ],
+        "title": "RdfImportItem"
+      },
+      "RdfImportResult": {
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run"
+          },
+          "triples": {
+            "type": "integer",
+            "title": "Triples"
+          },
+          "matched": {
+            "type": "integer",
+            "title": "Matched"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RdfImportItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "unmatched": {
+            "items": {
+              "$ref": "#/components/schemas/RdfUnmatched"
+            },
+            "type": "array",
+            "title": "Unmatched"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "dry_run",
+          "triples",
+          "matched",
+          "changed",
+          "items",
+          "unmatched"
+        ],
+        "title": "RdfImportResult"
+      },
+      "RdfUnmatched": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "subject"
+        ],
+        "title": "RdfUnmatched"
+      },
+      "Reading": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stream": {
+            "type": "string",
+            "title": "Stream"
+          },
+          "stream_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stream Name"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level",
+            "description": "syslog severity: 0 emergency to 7 debug"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "stream",
+          "at"
+        ],
+        "title": "Reading"
+      },
       "Recording": {
         "properties": {
           "id": {
@@ -30226,6 +32971,20 @@
         ],
         "title": "ResourceFiles"
       },
+      "Reviewed": {
+        "properties": {
+          "applied": {
+            "type": "integer",
+            "title": "Applied"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "applied"
+        ],
+        "title": "Reviewed"
+      },
       "Routine": {
         "properties": {
           "id": {
@@ -30414,7 +33173,7 @@
             },
             "type": "array",
             "title": "Actions",
-            "description": "what a routine can do: sync, pipeline, workflow"
+            "description": "what a routine can do: sync, pipeline, workflow, sensors (tidy sensor data)"
           },
           "recordings": {
             "items": {
@@ -30447,7 +33206,7 @@
             },
             "type": "array",
             "title": "Actions",
-            "description": "in order: {type: sync, watches?}, {type: pipeline, pipeline?, steps?, recordings?, limit?}, {type: workflow, workflow, version?, recordings?, limit?, propose_only?}"
+            "description": "in order: {type: sync, watches?}, {type: pipeline, pipeline?, steps?, recordings?, limit?}, {type: workflow, workflow, version?, recordings?, limit?, propose_only?}, {type: sensors, sensors?}"
           },
           "schedule": {
             "anyOf": [
@@ -31763,6 +34522,688 @@
         "title": "SemanticStatus",
         "description": "Search by meaning: whether it's on, which model it uses, and how much of the archive it covers."
       },
+      "Sensor": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "files",
+              "stream"
+            ],
+            "title": "Family"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params",
+            "default": {}
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "active",
+              "paused",
+              "ignored"
+            ],
+            "title": "Status",
+            "default": "active"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space",
+            "description": "the namespace a stream sensor's data belongs to"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "handling": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Handling"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "own_handling": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Own Handling",
+            "description": "what this sensor sets itself; the rest comes from the settings"
+          },
+          "suggested": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Suggestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "for a new stream sensor: how it might be handled"
+          },
+          "channels": {
+            "type": "integer",
+            "title": "Channels",
+            "description": "watched folders of a file sensor, streams of a stream sensor",
+            "default": 0
+          },
+          "readings": {
+            "type": "integer",
+            "title": "Readings",
+            "default": 0
+          },
+          "has_token": {
+            "type": "boolean",
+            "title": "Has Token",
+            "default": false
+          },
+          "health": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Health"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "label",
+          "family"
+        ],
+        "title": "Sensor"
+      },
+      "SensorCatalog": {
+        "properties": {
+          "sensors": {
+            "items": {
+              "$ref": "#/components/schemas/Sensor"
+            },
+            "type": "array",
+            "title": "Sensors"
+          },
+          "types": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SensorType"
+            },
+            "type": "object",
+            "title": "Types"
+          },
+          "hub": {
+            "$ref": "#/components/schemas/HubStatus"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "sensors",
+          "types",
+          "hub"
+        ],
+        "title": "SensorCatalog"
+      },
+      "SensorCreate": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mqtt",
+              "syslog",
+              "webhook"
+            ],
+            "title": "Type"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params",
+            "description": "mqtt: {prefix}; syslog: {address}; webhook: none"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space"
+          },
+          "handling": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandlingChange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "SensorCreate"
+      },
+      "SensorCreated": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token",
+            "description": "a webhook's token, shown this once"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "SensorCreated"
+      },
+      "SensorDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "files",
+              "stream"
+            ],
+            "title": "Family"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params",
+            "default": {}
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "active",
+              "paused",
+              "ignored"
+            ],
+            "title": "Status",
+            "default": "active"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space",
+            "description": "the namespace a stream sensor's data belongs to"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "handling": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Handling"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "own_handling": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Own Handling",
+            "description": "what this sensor sets itself; the rest comes from the settings"
+          },
+          "suggested": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Suggestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "for a new stream sensor: how it might be handled"
+          },
+          "channels": {
+            "type": "integer",
+            "title": "Channels",
+            "description": "watched folders of a file sensor, streams of a stream sensor",
+            "default": 0
+          },
+          "readings": {
+            "type": "integer",
+            "title": "Readings",
+            "default": 0
+          },
+          "has_token": {
+            "type": "boolean",
+            "title": "Has Token",
+            "default": false
+          },
+          "health": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Health"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "streams": {
+            "items": {
+              "$ref": "#/components/schemas/Stream"
+            },
+            "type": "array",
+            "title": "Streams",
+            "default": []
+          },
+          "watches": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Watches",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "label",
+          "family"
+        ],
+        "title": "SensorDetail"
+      },
+      "SensorToken": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "SensorToken"
+      },
+      "SensorType": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "files",
+              "stream"
+            ],
+            "title": "Family"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Fields",
+            "description": "parameters and their defaults"
+          },
+          "secrets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Secrets"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "label",
+          "family",
+          "fields",
+          "secrets"
+        ],
+        "title": "SensorType"
+      },
+      "SensorUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "new",
+                  "active",
+                  "paused",
+                  "ignored"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space",
+            "description": "the namespace; null takes it out of any"
+          },
+          "handling": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandlingChange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SensorUpdate"
+      },
+      "SeriesPoint": {
+        "properties": {
+          "hour": {
+            "type": "string",
+            "title": "Hour"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "hour",
+          "n"
+        ],
+        "title": "SeriesPoint"
+      },
       "SetupAdmin": {
         "properties": {
           "from_env": {
@@ -32339,6 +35780,49 @@
         ],
         "title": "ShareSite"
       },
+      "SharedContext": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection"
+          },
+          "page": {
+            "type": "boolean",
+            "title": "Page",
+            "description": "the page's text was shared",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "SharedContext",
+        "description": "What a question shared from the page it was asked on. The page's text itself isn't kept."
+      },
       "Source": {
         "properties": {
           "id": {
@@ -32769,6 +36253,36 @@
           "health"
         ],
         "title": "SourceUpdated"
+      },
+      "SparqlQuery": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query",
+            "description": "a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "SparqlQuery"
+      },
+      "SpeakRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 8000,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "SpeakRequest"
       },
       "Speaker": {
         "properties": {
@@ -33584,6 +37098,131 @@
           "stopping"
         ],
         "title": "StopResult"
+      },
+      "Stream": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "number, boolean, json, text or log"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields",
+            "description": "the numbers a JSON stream carries"
+          },
+          "last_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Value"
+          },
+          "last_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Text"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 0
+          },
+          "stored": {
+            "type": "integer",
+            "title": "Stored",
+            "default": 0
+          },
+          "dropped": {
+            "type": "integer",
+            "title": "Dropped",
+            "default": 0
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Stream"
+      },
+      "Suggestion": {
+        "properties": {
+          "handling": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Handling"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "handling",
+          "reason"
+        ],
+        "title": "Suggestion"
       },
       "TagCount": {
         "properties": {
@@ -35239,6 +38878,39 @@
           "url"
         ],
         "title": "ViewerLink"
+      },
+      "VoiceInfo": {
+        "properties": {
+          "transcribe": {
+            "type": "boolean",
+            "title": "Transcribe",
+            "description": "the server turns speech into text itself (POST /voice/transcribe)"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine",
+            "description": "the speech-to-text engine it uses"
+          },
+          "speak": {
+            "type": "boolean",
+            "title": "Speak",
+            "description": "the server reads answers aloud (POST /voice/speak); else the browser does"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "transcribe",
+          "speak"
+        ],
+        "title": "VoiceInfo"
       },
       "Watch": {
         "properties": {

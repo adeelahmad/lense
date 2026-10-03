@@ -235,6 +235,7 @@ DEFAULTS = {
     # the chat assistant's tools, and the double check before batch runs
     "ai": {
         "tools": True,
+        "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
@@ -243,6 +244,9 @@ DEFAULTS = {
         "price_in": None,
         "price_out": None,
     },
+    # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
+    # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
+    "voice": {"input": "auto", "tts_base_url": None, "tts_model": None, "tts_voice": None, "tts_api_key": None},
     # what Lens fetches for itself (components.py): auto fetches what the settings need; also names optional ones
     "components": {"auto": True, "also": []},
     # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
@@ -279,9 +283,39 @@ DEFAULTS = {
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
     "reports": {"audio": "link"},
+    # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
+    # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
+    # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
+    # bind is a startup setting only.
+    "sensors": {
+        "enabled": False,
+        "bind": "0.0.0.0",
+        "mqtt": True,
+        "mqtt_port": 1883,
+        "mqtt_anonymous": False,
+        "syslog": True,
+        "syslog_port": 5514,
+        "syslog_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
+        "max_payload_kb": 256,
+        "store": "all",
+        "raw_days": 30,
+        "rollup_days": 365,
+        "important_days": 180,
+        "max_per_minute": 600,
+    },
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)
+    # outgoing email (app/email.py): access requests and password resets. MAIL_* in .env set them instead, locked.
+    "mail": {
+        "server": None,
+        "port": 587,
+        "username": None,
+        "password": None,
+        "from_address": None,
+        "from_name": "Lens",
+        "security": "starttls",
+    },
     "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
     # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
     # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the
@@ -687,6 +721,22 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS watch_path_source ON watch_path FIELDS source",
     "DEFINE TABLE IF NOT EXISTS remote_file SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS remote_file_watch ON remote_file FIELDS watch",
+    # sensors (sensors.py): stream sensors are storage_source rows too, found by their key (mqtt:<prefix>,
+    # syslog:<address>, webhook:<id>) or a webhook's token hash; their streams (sensor_stream:<sensor>-<hash>), readings,
+    # hourly rollups (sensor_rollup:<stream>-<field>-<hour>), hub logins and the processes running the hub
+    "DEFINE INDEX IF NOT EXISTS storage_source_key ON storage_source FIELDS key",
+    "DEFINE INDEX IF NOT EXISTS storage_source_push ON storage_source FIELDS push_hash",
+    "DEFINE TABLE IF NOT EXISTS sensor_stream SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_stream_sensor ON sensor_stream FIELDS sensor",
+    "DEFINE TABLE IF NOT EXISTS sensor_reading SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_reading_sensor ON sensor_reading FIELDS sensor, at",
+    "DEFINE INDEX IF NOT EXISTS sensor_reading_stream ON sensor_reading FIELDS stream, at",
+    "DEFINE TABLE IF NOT EXISTS sensor_rollup SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_rollup_stream ON sensor_rollup FIELDS stream, field, hour",
+    "DEFINE INDEX IF NOT EXISTS sensor_rollup_sensor ON sensor_rollup FIELDS sensor, hour",
+    "DEFINE TABLE IF NOT EXISTS sensor_login SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_login_name ON sensor_login FIELDS username UNIQUE",
+    "DEFINE TABLE IF NOT EXISTS sensor_service SCHEMALESS",
     # templates, pipelines, outputs, chat, edits
     "DEFINE TABLE IF NOT EXISTS template SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS template_version SCHEMALESS",
@@ -702,6 +752,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS custom_node SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS custom_node_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS custom_node_version_n ON custom_node_version FIELDS node",
+    # extensions: tools, skills, hooks and plugins added to the assistant (extensions.py)
+    "DEFINE TABLE IF NOT EXISTS extension SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS extension_version SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS extension_version_e ON extension_version FIELDS extension",
     # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
     "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
     "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",

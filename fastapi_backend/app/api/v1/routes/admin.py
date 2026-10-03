@@ -10,6 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 
+from app import email
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
 from app.domain import auth, jobs, llm, semantic, settings, sources, store, telemetry
@@ -19,6 +20,7 @@ from app.schemas.admin import (
     Health,
     IndexQueued,
     LlmTestResult,
+    MailTestResult,
     SemanticStatus,
     Started,
     TelemetryStatus,
@@ -62,6 +64,18 @@ def test_llm(user: AdminWriter, cfg: Cfg) -> LlmTestResult:
     except llm.LLMError as e:
         return LlmTestResult(ok=False, error=str(e))
     return LlmTestResult(ok=True, reply=reply.strip()[:40], ms=int((time.time() - t0) * 1000), model=cfg["llm"]["model"])
+
+
+@router.post("/settings/mail/test")
+async def test_mail(user: AdminWriter, cfg: Cfg) -> MailTestResult:
+    """Send a short message to your own address through the email settings, to check them."""
+    if not email.mail_enabled(cfg):
+        return MailTestResult(ok=False, error="set the SMTP server and the From address first")
+    try:
+        await email.send_test_email(cfg, user.email)
+    except Exception as e:  # noqa: BLE001 - the server's answer is what's useful here
+        return MailTestResult(ok=False, to=user.email, error=f"{type(e).__name__}: {e}"[:400])
+    return MailTestResult(ok=True, to=user.email)
 
 
 @router.post("/settings/embeddings/test")

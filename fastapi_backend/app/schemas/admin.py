@@ -15,6 +15,12 @@ class Started(Ok):
     status: str
 
 
+class MailTestResult(ResponseModel):
+    ok: bool
+    to: str | None = Field(None, description="where the test message went: your own address")
+    error: str | None = None
+
+
 class LlmTestResult(ResponseModel):
     ok: bool
     error: str | None = None

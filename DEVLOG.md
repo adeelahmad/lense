@@ -2,6 +2,32 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-03 · Assistant extensions: tools, skills, hooks, plugins
+
+Goal: the assistant can be extended to the same level by code, the canvas, voice or plain chat.
+
+Model (fastapi_backend/app/domain/extensions.py, /api/v1/extensions):
+
+- One registry, four kinds: tool (params, effect read/change, body prompt/http, later code and canvas graph), skill
+  (when + instructions, read with `use_skill`), hook (message, before_tool, after_tool, answer: add context, block a
+  tool, call a tool), plugin (a bundle of the three, shared and switched off as one).
+- Versioned and shared like custom nodes (private / namespace / everyone); a version records how it was made (code,
+  canvas, chat). Change tools wait for approval like the built-in ones; `ai.extensions` turns them all off.
+- Manifests as code: Markdown with frontmatter (body = skill instructions or a prompt tool's prompt) or YAML/JSON.
+
+Todo:
+
+- [x] Registry, versions, sharing, manifests in and out, check without saving, try a tool
+- [x] Prompt and web tools, skills, hooks in the chat tool loop; approvals for change tools
+- [ ] Code tools: Python in a sandboxed subprocess (admins create; time limit, no secrets, no network unless allowed)
+- [ ] Canvas: a `tool` workflow scope whose arg nodes are the tool's parameters; save a graph as a tool
+- [ ] Authoring from chat and voice: the assistant drafts, tries and saves extensions behind an approval card
+- [ ] Extensions page in the web app: list, manifest editor, switch on/off, share, try
+- [ ] `lens ext` CLI (push/pull manifests)
+
+Refine later: hook-called tools don't show as steps; web tools reach ports 80/443 only and have no secret
+references yet; extensions aren't offered over MCP yet; marketplace on top of plugins.
+
 ## 2026-10-02 · Routines
 
 Goal: run syncs, pipelines and workflows on a schedule, including a daily LLM pass that organises the entity graph per

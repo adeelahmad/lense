@@ -208,6 +208,14 @@ function ActionSettings({
     );
   }
 
+  if (a.type === "sensors")
+    return (
+      <p className="text-[12.5px] text-fg-muted">
+        Removes sensor readings and hourly summaries older than each sensor keeps them, whatever the routine’s
+        namespaces.
+      </p>
+    );
+
   if (a.type === "pipeline")
     return (
       <div className="flex flex-col gap-3">
@@ -502,8 +510,8 @@ export function RoutineEditor({ routine, onSaved }: { routine?: Routine; onSaved
         ))}
         {!actions.length && (
           <p className="rounded-md border border-dashed border-border px-4 py-5 text-[13.5px] text-fg-secondary">
-            Add an action: sync sources, run a pipeline, or run a workflow. Each runs even when the one before it
-            failed.
+            Add an action: sync sources, run a pipeline, run a workflow, or tidy sensor data. Each runs even when the
+            one before it failed.
           </p>
         )}
       </section>

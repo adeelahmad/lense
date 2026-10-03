@@ -328,3 +328,15 @@ def test_a_real_mcp_client(app, env):
         assert got == version
         assert names == list(mcp_tools.TOOLS)
         assert found["results"][0]["recording_id"] == env["ids"][0] and json.loads(text) == found
+
+
+def test_sparql(client, env):
+    q = "SELECT ?name WHERE { ?e a skos:Concept ; skos:prefLabel ?name }"
+    out = tool(client, env["h"], "sparql", namespace="pods", query=q)
+    assert "Dyno Therapeutics" in [b["name"]["value"] for b in out["results"]["bindings"]]
+    built = tool(client, env["h"], "sparql", namespace="pods", query="DESCRIBE ?r WHERE { ?r a lens:Item } LIMIT 1")
+    assert "dcterms:" in built["turtle"]
+    assert "SERVICE" in tool_error(
+        client, env["h"], "sparql", namespace="pods", query="SELECT * WHERE { SERVICE <https://x.example/q> { ?s ?p ?o } }"
+    )
+    assert "not found" in tool_error(client, env["h"], "sparql", namespace="calls", query=q)  # not theirs

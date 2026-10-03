@@ -8,6 +8,22 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   pages and IIIF imports are stored encrypted with it. Audio and video still stream with seeking. New archives encrypt
   from the start. For an archive that already has files, `lens encrypt` turns it on and converts them. See
   docs/encryption.md.
+- **Email is set up in the app.** Settings → Email holds the SMTP server, its password (kept secret) and the From
+  address, with **Send a test email**; `MAIL_*` in `.env` still work and show locked. Links in emails use
+  `notifications.app_url` when it's set.
+- **Sensors.** Everything that feeds Lens is a sensor, in one list (`GET /sensors`): the storage, email and
+  calendar sources as they are, and new stream sensors. Lens runs an MQTT hub (an ordinary local broker on 1883, with
+  hub logins), listens for syslog from local networks (UDP and TCP 5514) and takes webhooks. Devices and hosts become
+  sensors the first time they report, marked new, with their streams and kinds worked out from what they send.
+  Readings are stored as they come (numbers also as hourly summaries), with per-sensor handling (all, changes,
+  summaries only, none), retention (raw, important log lines, summaries) and a rate cap; a suggested handling is
+  applied only when chosen. Retention runs as a routine action (**Tidy sensor data**, hourly). Off until turned on in
+  Settings → Sensors; no model is called. See docs/sensors.md.
+- **Voice stays on the server.** The mic records in the browser and this server turns it into text with its own
+  transcription engine (`POST /voice/transcribe`), showing what's been heard while you talk and ending at a pause;
+  it works in any browser that can record. Spoken answers can come from a speech model (`voice.tts_model`, any
+  OpenAI-compatible `/audio/speech`), else the browser reads them. Settings → AI assistant → Voice.
+
 - **Lens fetches what it needs.** Each worker checks what the settings ask for (SenseVoice or a Whisper model, voice
   IDs, face and object models, the chat and embedding models on Ollama) and fetches what's missing into the data folder,
   sized to its machine (PyTorch's CPU build without a GPU). Steps wait for their engine instead of falling back. Models
