@@ -603,6 +603,8 @@ SCHEMA = [
     # Note: on 2.x, CONTAINS against an indexed field also returns nothing; use string::contains() there.
     # settings, people and access
     "DEFINE TABLE IF NOT EXISTS app_setting SCHEMALESS",
+    # each namespace's data key, wrapped by the keys that can open it (app/domain/keyring.py)
+    "DEFINE TABLE IF NOT EXISTS data_key SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS account SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS account_email ON account FIELDS email UNIQUE",
     "DEFINE TABLE IF NOT EXISTS membership SCHEMALESS",
