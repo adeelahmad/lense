@@ -121,3 +121,17 @@ export function typesWording(mode: string): { legend: string; hint: string; all:
         hint: "Names of other types are left out when a recording is analysed.",
       };
 }
+
+/** How names that aren't an entity's name or other name are placed. */
+export const MATCHING: { value: "rules" | "model"; label: string; hint: string }[] = [
+  {
+    value: "rules",
+    label: "By name only",
+    hint: "A name goes to the entity it spells, in any case, or one of its other names.",
+  },
+  {
+    value: "model",
+    label: "By name, then by description (uses the LLM)",
+    hint: "Names the rules can't place go to the LLM with the entities’ descriptions and other names. A name it places becomes one of that entity’s other names. Uses the LLM provider in Settings; without one, names are placed by name only.",
+  },
+];

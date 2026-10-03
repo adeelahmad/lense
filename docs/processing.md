@@ -136,6 +136,13 @@ A setup has a mode:
   adds that name to the list. `PATCH /api/v1/entities/{id}` sets an entity's other names and whether it is on the list;
   a defined entity nothing mentions can be deleted.
 
+**Matching names** is by name (in any case, or one of an entity's other names) unless the setup says "by name, then by
+description": then the names the rules can't place go to the LLM with the entities' descriptions, their other names and
+what the namespace is about. In the self-organizing mode it says which described entity a new name is, if any; the name
+then becomes one of that entity's other names, so the rules place it from then on. Without a reachable LLM the rules
+decide. The assistant reads a namespace's setup (`entity_setup`) and proposes entity changes for approval, including
+descriptions, other names and new entities on a fixed list.
+
 Curation survives re-analysis: merged names become aliases, and moved or removed mentions become per-line overrides.
 Everything is audited. People who can't read a namespace never see its entities, mentions or graph nodes, and requests
 about them come back as not found.
