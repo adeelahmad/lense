@@ -5570,6 +5570,10 @@ export class Chats {
    * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
    * reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
    * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
+   *
+   * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
+   * its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
+   * from (where, and the highlighted text; not the page's text, which isn't kept).
    */
   public static sendMessage<ThrowOnError extends boolean = false>(
     options: Options<SendMessageData, ThrowOnError, unknown>,
