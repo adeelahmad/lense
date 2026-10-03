@@ -24,6 +24,19 @@ then.
 
 Retrieval is keyword-based for now; vector search is not built yet.
 
+### Assistant mode and voice
+
+Home opens in **assistant mode** (one field and a big mic, like a search page) when the archive has any content, and
+on the overview when it's empty; the switch at the top right remembers the person's pick in the browser. The field
+opens a new conversation over everything the person can read (`/chat?global=1`, plus `q=` with what was typed); the
+mic opens one in voice mode (`/chat?global=1&voice=1`). Voice mode listens, sends what was heard, reads the answer
+aloud (without citation marks) and listens again, until the mic is tapped off or nothing is said twice in a row. The
+chat composer's mic turns it on in any conversation.
+
+Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`listen`, `speak`, `stop`). It uses the
+browser's speech recognition and synthesis today (Chrome, Edge and Safari; Chrome sends the audio to its own speech
+service); a server engine replaces its internals without changing the callers.
+
 ## The assistant's tools
 
 When the configured model supports function calling, chat becomes an agent.

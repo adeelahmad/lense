@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Assistant mode.** Home opens on a page with one field and a big mic once the archive has something in it (an
+  empty archive still opens on the overview; the **Assistant / Overview** switch at the top right remembers your
+  pick). Touching or typing in the field turns it into a chat over all your namespaces; the mic starts a voice
+  conversation straight away: it listens, sends what you said, reads the answer aloud and listens again, until you tap
+  the mic or say nothing twice. Recent conversations are a tap below the field. Chat's composer has the same mic.
+  Voice uses the browser's speech recognition and synthesis for now, behind one hook (`lib/voice.ts`).
 - **Set up Lens by talking to it.** Once a model is connected, **Finish with the assistant** in the setup wizard
   opens a setup conversation: the assistant checks what's missing and sets it up (the model provider, namespaces,
   search by meaning) through new admin tools (`server_status`, `find_model_servers`, `read_settings`,
