@@ -242,7 +242,7 @@ class SenseVoice:
         try:
             from funasr import AutoModel
         except ImportError as e:
-            raise SystemExit("SenseVoice needs FunASR: uv sync --extra sensevoice") from e
+            raise EngineMissing("SenseVoice needs FunASR: uv sync --extra sensevoice, or EXTRAS=sensevoice for the Docker images") from e
         dev = pick_device(t["device"])
         kw = {"disable_update": True, "device": "cpu" if dev == "mps" else dev}
         if c.get("hub") == "hf":
@@ -306,7 +306,8 @@ class Whisper:
                     t["whisper"]["model"], device="cpu" if dev == "mps" else dev, compute_type=t["whisper"]["compute_type"]
                 )
         except ImportError as e:
-            raise SystemExit(f"uv sync --extra {'mlx' if mlx else 'whisper'}") from e
+            name = "mlx-whisper" if mlx else "faster-whisper"
+            raise EngineMissing(f"{name} isn't installed: uv sync --extra {'mlx' if mlx else 'whisper'}") from e
 
     def transcribe(self, audio):
         if self.mlx:
@@ -334,25 +335,46 @@ class Whisper:
 ENGINE_MODULES = {"sensevoice": "funasr", "mlx-whisper": "mlx_whisper", "whisper": "faster_whisper"}  # the order to fall back in
 
 
+class EngineMissing(ValueError):
+    """A speech-to-text engine's packages aren't installed (or don't import) on this worker."""
+
+
 def installed(engine):
     return importlib.util.find_spec(ENGINE_MODULES[engine]) is not None
 
 
-def get_engine(cfg, log=None):
-    """The configured engine; when it isn't installed here, the first one that is (the Docker images and packages
-    carry faster-whisper, not SenseVoice, the default), so an import is transcribed rather than failing."""
-    e = cfg["transcribe"]["engine"]
-    if e in ENGINE_MODULES and not installed(e):
-        other = next((x for x in ENGINE_MODULES if installed(x)), None)
-        if other:
-            if log:
-                log(f"  {e} isn't installed on this worker; transcribing with {other}")
-            e = other
+def _make_engine(cfg, e):
     if e == "sensevoice":
         return SenseVoice(cfg)
     if e in ("whisper", "mlx-whisper"):
         return Whisper(cfg, mlx=e == "mlx-whisper")
     raise SystemExit(f"unknown transcribe.engine {e!r}")
+
+
+def get_engine(cfg, log=None):
+    """The configured engine; when it isn't installed here (or its packages are there but don't import, e.g. FunASR
+    without PyTorch), the first one that is (the Docker images and packages carry faster-whisper, not SenseVoice, the
+    default), so an import is transcribed rather than failing. With none at all, says how to add one."""
+    e = cfg["transcribe"]["engine"]
+    if e not in ENGINE_MODULES:
+        return _make_engine(cfg, e)
+    why = {}
+    for x in [e] + [x for x in ENGINE_MODULES if x != e]:
+        if x != e and not installed(x):
+            continue
+        try:
+            engine = _make_engine(cfg, x)
+        except EngineMissing as err:
+            why[x] = str(err)
+            continue
+        if x != e and log:
+            log(f"  {e} isn't installed on this worker ({why[e]}); transcribing with {x}")
+        return engine
+    raise EngineMissing(
+        f"no speech-to-text engine is installed on this worker ({why[e]}). In Docker, rebuild the images "
+        "(make dev, or docker compose up --build --renew-anon-volumes): they carry faster-whisper, and "
+        "EXTRAS=sensevoice adds SenseVoice. Elsewhere: uv sync --extra whisper (or --extra sensevoice)"
+    )
 
 
 def segment_rows(rid, nid, segs):
