@@ -20,7 +20,8 @@ Todo:
 - [x] Registry, versions, sharing, manifests in and out, check without saving, try a tool
 - [x] Prompt and web tools, skills, hooks in the chat tool loop; approvals for change tools
 - [ ] Code tools: Python in a sandboxed subprocess (admins create; time limit, no secrets, no network unless allowed)
-- [ ] Canvas: a `tool` workflow scope whose arg nodes are the tool's parameters; save a graph as a tool
+- [x] Canvas: a `tool` workflow scope whose arg nodes are the tool's parameters (ask_model, call_tool nodes)
+- [ ] Canvas editor for tool graphs in the web app (save a graph as a tool)
 - [ ] Authoring from chat and voice: the assistant drafts, tries and saves extensions behind an approval card
 - [ ] Extensions page in the web app: list, manifest editor, switch on/off, share, try
 - [ ] `lens ext` CLI (push/pull manifests)

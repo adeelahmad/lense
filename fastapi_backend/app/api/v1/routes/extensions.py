@@ -6,10 +6,10 @@ import contextlib
 from collections.abc import Iterator
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
-from app.api.deps import Cfg, CurrentUser, Db, Principal, Writer, domain_errors
-from app.domain import auth, extensions
+from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
+from app.domain import ai_tools, auth, extensions
 from app.schemas.common import Created, Ok
 from app.schemas.extensions import (
     Extension,
@@ -54,10 +54,10 @@ def list_extensions(user: CurrentUser, db: Db, kind: Kind | None = None) -> list
 
 
 @router.post("/check")
-def check_manifest(body: ManifestCheck, user: CurrentUser) -> ManifestChecked:
+def check_manifest(body: ManifestCheck, user: CurrentUser, db: Db) -> ManifestChecked:
     """Read and check a manifest written as code, without saving it: 400 says what's wrong."""
     with _errors():
-        return ManifestChecked(manifest=extensions.check_manifest(extensions.parse_manifest(body.text), me(user)))
+        return ManifestChecked(manifest=extensions.check_manifest(extensions.parse_manifest(body.text), me(user), db))
 
 
 @router.post("")
@@ -102,7 +102,7 @@ def delete_extension(eid: int, user: Writer, db: Db) -> Ok:
 
 
 @router.post("/{eid}/test")
-def test_extension(eid: int, body: ExtensionTest, user: Writer, db: Db, cfg: Cfg) -> ExtensionTestResult:
+def test_extension(eid: int, body: ExtensionTest, user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request) -> ExtensionTestResult:
     """Try one of its tools with these arguments, switched on or not. A tool that changes something really runs, so it
     needs `confirm`."""
     with _errors():
@@ -114,6 +114,12 @@ def test_extension(eid: int, body: ExtensionTest, user: Writer, db: Db, cfg: Cfg
             raise ValueError("name one of its tools to try")
         if t["spec"]["effect"] == "change" and not body.confirm:
             raise ValueError("this tool changes something: confirm to really run it")
-        out = extensions.run_tool(db, cfg, t["spec"], extensions.tool_args(t["spec"], body.args))
+        # the tools a canvas tool calls are the ones this person has in a conversation
+        box = ai_tools.Toolbox(
+            db, cfg, user.as_audit(), set(acl.roles), set(acl.editable()), None, None, request.app.state.archive.base, user.admin
+        )
+        out = extensions.run_tool(db, cfg, t["spec"], extensions.tool_args(t["spec"], body.args), toolbox=box)
+        if box.approvals and isinstance(out, dict):  # tools it called that wait for a yes, in Approvals
+            out["approvals"] = box.approvals
     auth.audit(db, user.as_audit(), "extension.test", f"extension:{eid}", {"tool": name})
     return ExtensionTestResult(output=out)
