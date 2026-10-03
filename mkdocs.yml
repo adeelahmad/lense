@@ -73,6 +73,7 @@ nav:
   - Notifications: notifications.md
   - Telemetry: telemetry.md
   - IIIF: iiif.md
+  - Linked data (RDF): rdf.md
   - API: api.md
   - MCP server: mcp.md
   - API work the design needs: backend-gaps.md
