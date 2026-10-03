@@ -7,13 +7,14 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
-from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer
+from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer
 from app.api.iiif import base_url
 from app.api.linked_data import rdf_response, wanted
 from app.domain import auth, rdf, rdf_import
-from app.schemas.rdf import RdfImport, RdfImportResult
+from app.domain.store import DB
+from app.schemas.rdf import RdfImport, RdfImportResult, SparqlQuery
 
 router = APIRouter(tags=["rdf"])
 RDF_CONTENT: dict[int | str, dict[str, Any]] = {
@@ -59,3 +60,49 @@ def import_namespace_rdf(name: str, body: RdfImport, request: Request, user: Wri
     if not body.dry_run:
         auth.audit(db, user.as_audit(), "metadata.rdf_import", f"space:{sid}", [i["recording"] for i in out["items"] if i["fields"]])
     return RdfImportResult.model_validate(out)
+
+
+SPARQL_RESULTS = "application/sparql-results+json"
+SPARQL_CONTENT: dict[int | str, dict[str, Any]] = {
+    200: {
+        "content": {SPARQL_RESULTS: {"schema": {"type": "object"}}, **{m: {"schema": {"type": "string"}} for m in rdf.FORMATS.values()}},
+        "description": "SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)",
+    }
+}
+
+
+def _sparql(name: str, query: str, request: Request, acl: Access, db: DB, cfg: dict[str, Any], format: str | None) -> Response:
+    sid = acl.namespace(name)
+    base = base_url(request, cfg)
+    g = rdf.namespace_graph(db, cfg, base, sid)
+    try:
+        kind, out = rdf.sparql(g, query, base)
+    except rdf.QueryProblem as e:
+        raise HTTPException(400, str(e)) from None
+    if kind == "results":
+        return JSONResponse(out, media_type=SPARQL_RESULTS)
+    return rdf_response(out, wanted(request, format) or "turtle")
+
+
+@router.get("/namespaces/{name}/sparql", response_class=Response, responses=SPARQL_CONTENT)
+def query_namespace_sparql(
+    name: str,
+    request: Request,
+    user: CurrentUser,
+    acl: Acl,
+    db: Db,
+    cfg: Cfg,
+    query: str = Query(description="a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query"),
+    format: str | None = FORMAT,
+) -> Response:
+    """A read-only SPARQL query over the namespace's graph (what GET /namespaces/{name}/rdf returns). dcterms, dcmitype,
+    foaf, skos, owl, rdf, rdfs, xsd and lens are known prefixes. SERVICE and FROM aren't allowed."""
+    return _sparql(name, query, request, acl, db, cfg, format)
+
+
+@router.post("/namespaces/{name}/sparql", response_class=Response, responses=SPARQL_CONTENT)
+def post_namespace_sparql(
+    name: str, body: SparqlQuery, request: Request, user: CurrentUser, acl: Acl, db: Db, cfg: Cfg, format: str | None = FORMAT
+) -> Response:
+    """The same, with the query in the body (for long ones)."""
+    return _sparql(name, body.query, request, acl, db, cfg, format)
