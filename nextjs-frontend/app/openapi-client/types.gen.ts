@@ -4546,6 +4546,29 @@ export type LlmTestResult = {
 };
 
 /**
+ * LocalModelServer
+ */
+export type LocalModelServer = {
+  /**
+   * Kind
+   */
+  kind: string;
+  /**
+   * Base Url
+   */
+  base_url: string;
+  /**
+   * Models
+   */
+  models: Array<string>;
+  /**
+   * Suggested
+   */
+  suggested: string;
+  [key: string]: unknown;
+};
+
+/**
  * LoginRequest
  */
 export type LoginRequest = {
@@ -12539,6 +12562,24 @@ export type SaveLlmResponses = {
 };
 
 export type SaveLlmResponse = SaveLlmResponses[keyof SaveLlmResponses];
+
+export type DetectLlmData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/llm/detect";
+};
+
+export type DetectLlmResponses = {
+  /**
+   * Response Setup-Detect Llm
+   *
+   * Successful Response
+   */
+  200: Array<LocalModelServer>;
+};
+
+export type DetectLlmResponse = DetectLlmResponses[keyof DetectLlmResponses];
 
 export type SaveStorageData = {
   body: SetupStorage;

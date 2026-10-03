@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Admin, Setup, type LlmTestResult, type SetupView, type TelemetryTestResult } from "@/app/openapi-client";
 import { AuthAlert, AuthBrand } from "@/components/auth/auth-card";
@@ -59,6 +59,13 @@ export function SetupWizard() {
   useEffect(() => {
     if (seeded) setDone((d) => (d.has("namespace") ? d : new Set(d).add("namespace")));
   }, [seeded]);
+  // With nothing to choose for the namespace (seeded, or set in archive.yaml), start at the model provider.
+  const started = useRef(false);
+  useEffect(() => {
+    if (!view.data || started.current) return;
+    started.current = true;
+    if (seeded || view.data.namespace.locked) setStep((s) => (s === "namespace" ? "llm" : s));
+  }, [view.data, seeded]);
 
   const finish = useMutation({
     mutationFn: (skipped: boolean) => data(Setup.finish({ client, body: { skipped } })),
@@ -314,6 +321,23 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) =
     onSuccess: setTested,
   });
   const allLocked = ["base_url", "model", "api_key"].every((k) => locked.has(k));
+  // Model servers already running nearby (Ollama, LM Studio, ...): the first fills the form in, the rest are a click.
+  const canPick = !locked.has("base_url") && !locked.has("model");
+  const nearby = useQuery({
+    queryKey: ["setup", "llm", "detect"],
+    queryFn: () => data(Setup.detectLlm({ client })),
+    enabled: canPick,
+    staleTime: Infinity,
+  });
+  const servers = nearby.data ?? [];
+  const filled = useRef(false);
+  useEffect(() => {
+    if (filled.current || !servers.length || v.base_url) return;
+    filled.current = true;
+    setBaseUrl(servers[0].base_url);
+    setModel(servers[0].suggested);
+  }, [servers, v.base_url]);
+  const here = servers.find((s) => s.base_url === baseUrl);
 
   const field = (
     key: "base_url" | "model",
@@ -321,19 +345,30 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) =
     value: string,
     set: (s: string) => void,
     hint: ReactNode,
+    options?: string[],
   ) => (
     <Field label={label} hint={locked.has(key) ? <LockedHint env={LLM_ENV[key]} /> : hint}>
       {({ id, describedBy }) => (
-        <Input
-          id={id}
-          aria-describedby={describedBy}
-          mono
-          value={value}
-          onChange={(e) => set(e.target.value)}
-          disabled={locked.has(key)}
-          autoComplete="off"
-          spellCheck={false}
-        />
+        <>
+          <Input
+            id={id}
+            aria-describedby={describedBy}
+            mono
+            value={value}
+            onChange={(e) => set(e.target.value)}
+            disabled={locked.has(key)}
+            autoComplete="off"
+            spellCheck={false}
+            list={options?.length ? `${id}-options` : undefined}
+          />
+          {options?.length ? (
+            <datalist id={`${id}-options`}>
+              {options.map((o) => (
+                <option key={o} value={o} />
+              ))}
+            </datalist>
+          ) : null}
+        </>
       )}
     </Field>
   );
@@ -344,8 +379,45 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) =
         Summaries, chat and descriptions use any OpenAI-compatible server: OpenAI, or one you run yourself such as
         Ollama, llama.cpp, LM Studio or vLLM. Transcription runs on this server and needs none.
       </StepHead>
+      {canPick && nearby.isPending && <p className="text-[12.5px] text-fg-muted">Looking for model servers nearby…</p>}
+      {servers.length > 0 && (
+        <div className="flex flex-col gap-1.5" role="group" aria-label="Model servers found">
+          <p className="text-[12.5px] font-semibold text-fg">Found running nearby</p>
+          <div className="flex flex-wrap gap-2">
+            {servers.map((s) => (
+              <button
+                key={s.base_url}
+                type="button"
+                onClick={() => {
+                  setBaseUrl(s.base_url);
+                  setModel(s.suggested);
+                }}
+                aria-pressed={s.base_url === baseUrl}
+                className={cn(
+                  "flex flex-col rounded-md border px-3 py-1.5 text-left text-[12.5px]",
+                  s.base_url === baseUrl ? "border-blue bg-blue-surface" : "border-border hover:border-blue-border",
+                )}
+              >
+                <span className="font-semibold text-fg">{s.kind}</span>
+                <span className="text-fg-muted">
+                  {s.models.length} model{s.models.length === 1 ? "" : "s"} · {s.base_url}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {field("base_url", "Base URL", baseUrl, setBaseUrl, "For example http://localhost:11434/v1 (Ollama)")}
-      {field("model", "Model", model, setModel, "The model's name on that server, for example llama3.1")}
+      {field(
+        "model",
+        "Model",
+        model,
+        setModel,
+        here
+          ? `Pick one of the ${here.models.length} on ${here.kind}, or type another`
+          : "The model's name on that server, for example llama3.1",
+        here?.models,
+      )}
       <Field
         label="API key"
         optional={!locked.has("api_key")}

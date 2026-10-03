@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Setup finds your model server.** The setup wizard looks for Ollama, LM Studio, llama.cpp, vLLM and LocalAI on
+  their usual ports (this machine, the Docker host and an `ollama` service; `GET /setup/llm/detect`) and fills in the
+  address and a chat model, with the server's models to pick from, so connecting one is a single click. The compose
+  files map `host.docker.internal` on Linux too. When the namespace is already set, the wizard starts at the model
+  provider instead of a step with nothing to choose.
 - **Install in one line.** `curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh`
   installs Docker if it's missing, gets Lens, writes the secrets once, builds and starts the stack and opens the setup
   page with the setup code filled in. On a server without a desktop, Lens is reachable from the network

@@ -1574,6 +1574,32 @@
         }
       }
     },
+    "/api/v1/setup/llm/detect": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Detect Llm",
+        "description": "Model servers running on this machine or the Docker host (Ollama, LM Studio, llama.cpp, vLLM, LocalAI), with\ntheir models, so the wizard can offer one instead of asking for an address.",
+        "operationId": "detect_llm",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LocalModelServer"
+                  },
+                  "type": "array",
+                  "title": "Response Setup-Detect Llm"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/setup/storage": {
       "put": {
         "tags": [
@@ -23699,6 +23725,38 @@
           "ok"
         ],
         "title": "LlmTestResult"
+      },
+      "LocalModelServer": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "suggested": {
+            "type": "string",
+            "title": "Suggested"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "base_url",
+          "models",
+          "suggested"
+        ],
+        "title": "LocalModelServer"
       },
       "LoginRequest": {
         "properties": {
