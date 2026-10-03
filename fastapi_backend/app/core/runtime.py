@@ -9,7 +9,7 @@ import threading
 from typing import Any
 
 from app.config import settings as env
-from app.domain import auth, content_types, jobs, notify, routines, settings, setup, store, templates
+from app.domain import auth, components, content_types, jobs, notify, routines, settings, setup, store, templates
 
 log = logging.getLogger("lens")
 
@@ -19,6 +19,7 @@ class Archive:
 
     def __init__(self, cfg: dict[str, Any] | None = None, db: store.DB | None = None):
         self.base = cfg or store.load_config(env.ARCHIVE_CONFIG)
+        components.activate(self.base)  # packages and models fetched into the data folder
         self.db = db or store.connect(self.base)
         self.owns_db = db is None
         self.settings = settings.Settings(self.db, self.base)

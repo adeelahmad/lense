@@ -23,6 +23,7 @@ import {
   type LucideIcon,
   KeyRound,
   Users,
+  PackageCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -58,6 +59,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   reports: ChartNoAxesColumn,
   video: Clapperboard,
   workers: Cpu,
+  components: PackageCheck,
   access: ShieldCheck,
   notifications: Bell,
   telemetry: Activity,

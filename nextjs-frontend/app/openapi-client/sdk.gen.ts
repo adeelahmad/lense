@@ -46,6 +46,8 @@ import type {
   ChangePasswordResponses,
   ChatCapabilitiesData,
   ChatCapabilitiesResponses,
+  CheckComponentsData,
+  CheckComponentsResponses,
   CheckMessageData,
   CheckMessageErrors,
   CheckMessageResponses,
@@ -468,6 +470,8 @@ import type {
   ListCommentsData,
   ListCommentsErrors,
   ListCommentsResponses,
+  ListComponentsData,
+  ListComponentsResponses,
   ListContentTypesData,
   ListContentTypesResponses,
   ListCustomNodesData,
@@ -1565,6 +1569,35 @@ export class Admin {
   ): RequestResult<ReindexSearchResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<ReindexSearchResponses, unknown, ThrowOnError>({
       url: "/api/v1/admin/reindex",
+      ...options,
+    });
+  }
+
+  /**
+   * List Components
+   *
+   * Every component (programs, packages, models), whether the settings need it, and each worker's machine and where
+   * it is with each: ready, being fetched, failed or missing. Steps that need one being fetched wait for it.
+   */
+  public static listComponents<ThrowOnError extends boolean = false>(
+    options?: Options<ListComponentsData, ThrowOnError>,
+  ): RequestResult<ListComponentsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListComponentsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/components",
+      ...options,
+    });
+  }
+
+  /**
+   * Check Components
+   *
+   * Ask every worker to check what it needs now, and to try again what failed. Audited as ``components.check``.
+   */
+  public static checkComponents<ThrowOnError extends boolean = false>(
+    options?: Options<CheckComponentsData, ThrowOnError>,
+  ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/components/check",
       ...options,
     });
   }

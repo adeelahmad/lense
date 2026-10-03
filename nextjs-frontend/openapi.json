@@ -11509,6 +11509,50 @@
         }
       }
     },
+    "/api/v1/components": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Components",
+        "description": "Every component (programs, packages, models), whether the settings need it, and each worker's machine and where\nit is with each: ready, being fetched, failed or missing. Steps that need one being fetched wait for it.",
+        "operationId": "list_components",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Components"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/components/check": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Check Components",
+        "description": "Ask every worker to check what it needs now, and to try again what failed. Audited as ``components.check``.",
+        "operationId": "check_components",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sources/backends": {
       "get": {
         "tags": [
@@ -19175,6 +19219,197 @@
         "type": "object",
         "title": "CommentUpdate"
       },
+      "Component": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "program",
+              "package",
+              "model",
+              "server-model"
+            ],
+            "title": "Kind",
+            "description": "program: the image provides it (only checked); package and model: fetched into the data folder; server-model: pulled on the Ollama server"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "the job steps that wait for it"
+          },
+          "size_mb": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Mb",
+            "description": "about how much it downloads"
+          },
+          "optional": {
+            "type": "boolean",
+            "title": "Optional",
+            "description": "fetched only when listed in components.also",
+            "default": false
+          },
+          "license": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License"
+          },
+          "needed": {
+            "type": "boolean",
+            "title": "Needed",
+            "description": "this server's settings ask for it"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint",
+            "description": "for a program: how to get it"
+          },
+          "here": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Here",
+            "description": "for a program: whether the API's machine has it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "purpose",
+          "kind",
+          "needed"
+        ],
+        "title": "Component"
+      },
+      "ComponentState": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "waiting",
+              "fetching",
+              "failed",
+              "missing"
+            ],
+            "title": "State",
+            "description": "waiting/fetching: being fetched, and the steps that need it wait; missing: needed but fetching is off"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "what it's doing, e.g. pulling nomic-embed-text: 40%"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "ComponentState"
+      },
+      "Components": {
+        "properties": {
+          "auto": {
+            "type": "boolean",
+            "title": "Auto",
+            "description": "components.auto: fetch what's needed without asking"
+          },
+          "machine": {
+            "$ref": "#/components/schemas/Machine",
+            "description": "the API's machine"
+          },
+          "recommended": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Recommended",
+            "description": "the transcription settings that suit the API's machine"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/Component"
+            },
+            "type": "array",
+            "title": "Components"
+          },
+          "workers": {
+            "items": {
+              "$ref": "#/components/schemas/WorkerComponents"
+            },
+            "type": "array",
+            "title": "Workers"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "auto",
+          "machine",
+          "recommended",
+          "components",
+          "workers"
+        ],
+        "title": "Components"
+      },
       "Consent": {
         "properties": {
           "client": {
@@ -21944,6 +22179,31 @@
         ],
         "title": "ForgotPasswordRequest"
       },
+      "Gpu": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "memory_gb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Gb"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Gpu"
+      },
       "Graph": {
         "properties": {
           "scope": {
@@ -24013,6 +24273,86 @@
           "password"
         ],
         "title": "LoginRequest"
+      },
+      "Machine": {
+        "properties": {
+          "os": {
+            "type": "string",
+            "title": "Os"
+          },
+          "arch": {
+            "type": "string",
+            "title": "Arch"
+          },
+          "cpus": {
+            "type": "integer",
+            "title": "Cpus"
+          },
+          "memory_gb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Gb"
+          },
+          "gpus": {
+            "items": {
+              "$ref": "#/components/schemas/Gpu"
+            },
+            "type": "array",
+            "title": "Gpus"
+          },
+          "cuda": {
+            "type": "boolean",
+            "title": "Cuda",
+            "default": false
+          },
+          "apple_silicon": {
+            "type": "boolean",
+            "title": "Apple Silicon",
+            "default": false
+          },
+          "container": {
+            "type": "boolean",
+            "title": "Container",
+            "default": false
+          },
+          "python": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Python"
+          },
+          "disk_free_gb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disk Free Gb",
+            "description": "free space in the data folder, where models go"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "os",
+          "arch",
+          "cpus"
+        ],
+        "title": "Machine"
       },
       "Me": {
         "properties": {
@@ -35586,6 +35926,59 @@
         "title": "WebPage",
         "description": "A web page captured as a document: where it was, and when."
       },
+      "WorkerComponents": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "heartbeat_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heartbeat At"
+          },
+          "machine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Machine"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "components": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComponentState"
+            },
+            "type": "object",
+            "title": "Components"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "WorkerComponents"
+      },
       "WorkerInfo": {
         "properties": {
           "name": {
@@ -35688,6 +36081,25 @@
             "title": "Steps Last Hour",
             "description": "steps it finished (done or skipped) in the last hour",
             "default": 0
+          },
+          "components": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComponentState"
+            },
+            "type": "object",
+            "title": "Components",
+            "description": "what it needs, by component id (GET /components), and where each is"
+          },
+          "machine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Machine"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its processors, memory, GPUs and free disk"
           }
         },
         "additionalProperties": true,
