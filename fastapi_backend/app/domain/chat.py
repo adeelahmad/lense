@@ -386,6 +386,8 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
     answered without looking anything up (it never saw the archive, so the caller can answer from a search instead).
     Raises llm.ToolsUnsupported."""
     system = TOOL_SYSTEM + ("\n\n" + SETUP_SYSTEM if setup else "")
+    note = getattr(toolbox, "system_note", None)  # skills, and context from hooks (extensions.py)
+    system += note() if note else ""
     msgs = [{"role": "system", "content": system}] + [
         {"role": m["role"], "content": m["content"] + attached_note(m.get("attachments"))} for m in list(history)[-6:]
     ]

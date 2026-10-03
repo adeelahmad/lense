@@ -244,6 +244,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                     else:
                         answer = data
                 else:
+                    box.after_answer(answer)
                     for appr in box.approvals:
                         yield _ev("approval", appr)
                     cited = box.cited(answer)
