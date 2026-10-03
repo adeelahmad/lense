@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Chat answers from the archive even when the model skips its tools.** Some models answer straight away instead of
+  searching, so chat said the archive didn't cover things it did. When the model answers without looking anything up
+  and the archive has matching passages, the answer now comes from those passages, with citations, as it does for a
+  model that can't use tools.
 - **Calendar feeds on your own network.** A calendar server at home or on an intranet (Nextcloud, Radicale) was
   refused with "only public web pages can be captured", and Docker and the packages had no way to allow it.
   `LENS_WEB_NETWORKS` in `.env` (e.g. `192.168.1.0/24`) now adds networks to `documents.web_networks`, and the error

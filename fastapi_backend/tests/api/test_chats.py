@@ -389,3 +389,17 @@ def test_tools_stay_in_scope_and_say_what_is_missing(app, db, cfg, folder, new_c
     assert box.call("graph_neighbours", {})[1] == "graph_neighbours: give an entity_id or a speaker_id"
     assert box.call("propose_entity_change", {"action": "retype", "entity_id": 1})[1] == "propose_entity_change: retype needs new_type"
     assert box.approvals == []
+
+
+def test_a_model_that_skips_the_tools_still_answers_from_the_archive(app, db, cfg, folder, new_client, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    llm.tool_script = [{"content": "The archive doesn't seem to cover it."}]  # answers straight away, without looking
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "What does Dyno Therapeutics do?"}).text)
+    assert ev["passages"][0]  # the excerpts found up front
+    assert "".join(e["text"] for e in ev["token"]) == "The shipment leaves on Friday [1]."  # answered from them
+    assert "notice" not in ev
+    llm.tool_script = [{"content": "Hello!"}]  # nothing in the archive matches: the model's own answer stands
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "zzqx"}).text)
+    assert "".join(e["text"] for e in ev["token"]) == "Hello!"
