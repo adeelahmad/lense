@@ -97,6 +97,8 @@ def _main_base(argv=None):
     p.add_argument("--port", type=int)
     sub.add_parser("status")
     sub.add_parser("reindex", help="rebuild the search index (after changing search.tokenizer)")
+    p = sub.add_parser("encrypt", help="encrypt the files Lens keeps, and keep encrypting new ones (docs/encryption.md)")
+    p.add_argument("--off", action="store_true", help="decrypt them again and stop encrypting new ones")
     a = ap.parse_args(argv)
 
     if a.cmd == "init":
@@ -185,6 +187,12 @@ def _main_base(argv=None):
         elif a.cmd == "reindex":
             store.reindex(conn, cfg)
             print("search index rebuilt")
+        elif a.cmd == "encrypt":
+            from .domain import keyring, settings
+
+            # the setting first, so files that arrive meanwhile are already encrypted (or no longer)
+            settings.save(conn, cfg, "encryption", {"files": not a.off}, user="cli")
+            keyring.encrypt_all(conn, cfg, decrypt=a.off)
     except store.Busy as e:
         sys.exit(f"another '{e}' run is in progress" if str(e) else "busy")
     except (ValueError, KeyError) as e:

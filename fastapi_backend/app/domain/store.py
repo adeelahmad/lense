@@ -321,6 +321,9 @@ DEFAULTS = {
     # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
     # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the
     # endpoint's auth. prices: {model: {input, output}} in USD per million tokens, for cost estimates.
+    # encryption at rest (docs/encryption.md): files Lens keeps under data_dir, encrypted with their namespace's key;
+    # work_minutes: how long a plain working copy for ffmpeg and the other tools is kept after its last use
+    "encryption": {"files": False, "work_minutes": 30},
     "telemetry": {
         "enabled": False,
         "endpoint": None,
@@ -956,7 +959,13 @@ def ns_id(db, name, create=True):
     if not NS_RX.match(name or ""):
         raise SystemExit(f"namespace names use lowercase letters, digits, - and _: {name!r}")
     sid = db.next_id("space")
-    db.q("CREATE $r CONTENT $d", r=R("space", sid), d={"name": name, "graph": "shared"})
+    try:
+        db.q("CREATE $r CONTENT $d", r=R("space", sid), d={"name": name, "graph": "shared"})
+    except Exception:  # noqa: BLE001 - another process made it first (the API and a worker starting on a fresh database)
+        row = db.one("SELECT record::id(id) AS id FROM space WHERE name = $n LIMIT 1", n=name)
+        if not row:
+            raise
+        return row["id"]
     default_collection(db, sid)
     return sid
 

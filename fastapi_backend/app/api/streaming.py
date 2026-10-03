@@ -5,12 +5,14 @@ from __future__ import annotations
 import os
 import pathlib
 import re
+import urllib.parse
 from collections.abc import Callable, Iterator
+from typing import Any
 
-from fastapi import Request
-from fastapi.responses import Response, StreamingResponse
+from fastapi import HTTPException, Request
+from fastapi.responses import FileResponse, Response, StreamingResponse
 
-from app.domain import render
+from app.domain import keyring, render
 
 CHUNK = 1 << 16
 
@@ -34,18 +36,52 @@ def byte_range(size: int, request: Request) -> tuple[int, int, int] | None:
     return start, end, status
 
 
-def range_response(size: int, request: Request, ctype: str, body: Callable[[int, int], Iterator[bytes]]) -> Response:
+def range_response(
+    size: int, request: Request, ctype: str, body: Callable[[int, int], Iterator[bytes]], headers: dict[str, str] | None = None
+) -> Response:
     r = byte_range(size, request)
     if r is None:
         return Response(status_code=416, headers={"Content-Range": f"bytes */{size}"})
     start, end, status = r
-    headers = {"Accept-Ranges": "bytes", "Content-Length": str(end - start + 1)}
+    out = {**(headers or {}), "Accept-Ranges": "bytes", "Content-Length": str(end - start + 1)}
     if status == 206:
-        headers["Content-Range"] = f"bytes {start}-{end}/{size}"
-    return StreamingResponse(body(start, end), status_code=status, media_type=ctype, headers=headers)
+        out["Content-Range"] = f"bytes {start}-{end}/{size}"
+    return StreamingResponse(body(start, end), status_code=status, media_type=ctype, headers=out)
 
 
-def file_response(path: str | os.PathLike[str], request: Request, ctype: str | None = None) -> Response:
+def _plain_size(db: Any, cfg: dict[str, Any] | None, path: str | os.PathLike[str]) -> int:
+    """An encrypted file's plain size; a locked vault or a damaged file says so instead of failing as a 500."""
+    try:
+        return keyring.plain_size(db, cfg, path)
+    except keyring.Locked:
+        raise HTTPException(423, "this namespace is locked; unlock it with your passkey") from None
+    except keyring.Damaged:
+        raise HTTPException(500, "this file is damaged on the server and can't be opened") from None
+
+
+def _encrypted_body(db: Any, cfg: dict[str, Any] | None, path: str | os.PathLike[str]) -> Callable[[int, int], Iterator[bytes]]:
+    def body(start: int, end: int) -> Iterator[bytes]:
+        with keyring.Reader(db, cfg, path) as f:  # only the chunks the range touches are decrypted
+            f.seek(start)
+            left = end - start + 1
+            while left > 0:
+                chunk = f.read(min(CHUNK, left))
+                if not chunk:
+                    break
+                left -= len(chunk)
+                yield chunk
+
+    return body
+
+
+def file_response(
+    path: str | os.PathLike[str], request: Request, ctype: str | None = None, db: Any = None, cfg: dict[str, Any] | None = None
+) -> Response:
+    """A file with byte ranges; an encrypted one (pass the database and configuration) is decrypted as it's sent."""
+    guessed = render.AUDIO_TYPES.get(pathlib.Path(path).suffix.lower(), "application/octet-stream")
+    if db is not None and keyring.is_encrypted(path):
+        return range_response(_plain_size(db, cfg, path), request, ctype or guessed, _encrypted_body(db, cfg, path))
+
     def body(start: int, end: int) -> Iterator[bytes]:
         with open(path, "rb") as f:
             f.seek(start)
@@ -57,5 +93,25 @@ def file_response(path: str | os.PathLike[str], request: Request, ctype: str | N
                 left -= len(chunk)
                 yield chunk
 
-    guessed = render.AUDIO_TYPES.get(pathlib.Path(path).suffix.lower(), "application/octet-stream")
     return range_response(os.path.getsize(path), request, ctype or guessed, body)
+
+
+def stored_file(
+    db: Any,
+    cfg: dict[str, Any],
+    path: str | os.PathLike[str],
+    request: Request,
+    ctype: str,
+    filename: str | None = None,
+    headers: dict[str, str] | None = None,
+) -> Response:
+    """A file to save, like FileResponse; an encrypted one is decrypted as it's sent, with byte ranges."""
+    if not keyring.is_encrypted(path):
+        return FileResponse(path, media_type=ctype, filename=filename, headers=headers)
+    out = dict(headers or {})
+    if filename:
+        quoted = urllib.parse.quote(filename)
+        out["Content-Disposition"] = (
+            f"attachment; filename*=utf-8''{quoted}" if quoted != filename else f'attachment; filename="{filename}"'
+        )
+    return range_response(_plain_size(db, cfg, path), request, ctype, _encrypted_body(db, cfg, path), out)

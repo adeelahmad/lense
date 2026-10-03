@@ -35,7 +35,7 @@ That's all: it installs Docker if needed, starts Lens and opens the setup page (
 
 ```bash
 make run          # builds once and runs everything (Docker)
-make setup-code   # the first-admin setup code
+make setup-code   # the first-admin setup code, and a link that fills it in
 ```
 
 Open <http://localhost:3000> and create the first admin with the setup code. For hot reload while working on the

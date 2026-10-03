@@ -17,7 +17,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from . import convert, ingest, netguard, render, store
+from . import convert, ingest, keyring, netguard, render, store
 
 R = store.R
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Lens/1.0 (archive capture)"
@@ -147,7 +147,7 @@ def ensure(db, cfg, rid, rec, say):
     web = rec.get("web") or {}
     have = store.resolve_path(cfg, rec.get("path"))
     if have and pathlib.Path(have).is_file():
-        return have
+        return keyring.working_copy(db, cfg, have)
     got = capture(cfg, web["url"], folder(cfg, rid) / "capture.pdf")
     out = folder(cfg, rid) / file_name(got["final"], got["title"])
     (folder(cfg, rid) / "capture.pdf").replace(out)
@@ -161,6 +161,7 @@ def ensure(db, cfg, rid, rec, say):
     }
     if got["title"] and rec.get("title") == placeholder(web["url"]):  # still called by its address: the page's own
         patch["title"] = got["title"]
+    keyring.protect(db, cfg, rec["space"], out)
     db.q("UPDATE $r MERGE $d", r=R("recording", rid), d=patch)
     say(f"captured {got['final']}" + (" (a PDF)" if got["how"] == "pdf" else ""))
-    return str(out)
+    return keyring.working_copy(db, cfg, str(out))
