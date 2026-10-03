@@ -42,10 +42,15 @@ def pending(db):
     return bool(row) and not row.get("done_at")
 
 
-def mark_fresh(db):
-    """Called at startup while no accounts exist: this install gets the wizard (once; finishing it is kept)."""
+def mark_fresh(db, cfg=None):
+    """Called at startup while no accounts exist: this install gets the wizard (once; finishing it is kept). A new
+    archive (nothing in it yet) also encrypts the files it keeps from the start (docs/encryption.md); one that has
+    files already keeps its setting, and `lens encrypt` converts it."""
     if not db.one("SELECT id FROM $r", r=R(*WIZARD)):
         db.q("UPSERT $r CONTENT $d", r=R(*WIZARD), d={"created_at": store.now()})
+        empty = not db.values("SELECT VALUE id FROM recording LIMIT 1")
+        if cfg is not None and empty and not db.one("SELECT id FROM $r", r=R("app_setting", "encryption")):
+            settings.save(db, cfg, "encryption", {"files": True}, user="setup")
 
 
 def finish(db, user=None, skipped=False):

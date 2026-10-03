@@ -785,10 +785,10 @@ def keep_attachments(db, cfg, rid, attachments, say):
 
 def _resource_of(db, cfg, rid, rec, f, kind):
     """One attachment as a resource of its own (or the one the same file is already, in its namespace): 1 if made."""
-    from . import files, ingest, jobs
+    from . import files, ingest, jobs, keyring
 
     src = files.path_of(cfg, f)
-    fp = ingest.fingerprint(src)
+    fp = ingest.fingerprint(src, db=db, cfg=cfg)
     known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{rec['space']}:{fp}")
     if known:
         db.q("UPDATE $r SET resource = $x", r=R("resource_file", f["id"]), x=known["id"])
@@ -796,7 +796,8 @@ def _resource_of(db, cfg, rid, rec, f, kind):
     ns = store.space_names(db).get(rec["space"]) or str(rec["space"])
     dest = pathlib.Path(cfg["data_dir"]) / "uploads" / ns / f"attachment-{int(rid)}-{f['id']}" / f["name"]
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(src, dest)
+    shutil.copyfile(src, dest)  # an encrypted attachment stays encrypted: its header names the key it needs
+    keyring.protect(db, cfg, rec["space"], dest)
     st = dest.stat()
     new = db.next_id("recording")
     db.q(
@@ -809,7 +810,7 @@ def _resource_of(db, cfg, rid, rec, f, kind):
                 "path": str(dest),
                 "source": kind,
                 "media": {"kind": kind} if kind != "audio" else None,
-                "size": st.st_size,
+                "size": keyring.plain_size(db, cfg, dest),
                 "mtime": st.st_mtime,
                 "fingerprint": fp,
                 "fp_key": f"{rec['space']}:{fp}",

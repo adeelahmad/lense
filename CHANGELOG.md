@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Files are encrypted at rest.** Each namespace has its own AES-256-GCM key, and uploads, attachments, captured web
+  pages and IIIF imports are stored encrypted with it. Audio and video still stream with seeking. New archives encrypt
+  from the start. For an archive that already has files, `lens encrypt` turns it on and converts them. See
+  docs/encryption.md.
 - **Lens fetches what it needs.** Each worker checks what the settings ask for (SenseVoice or a Whisper model, voice
   IDs, face and object models, the chat and embedding models on Ollama) and fetches what's missing into the data folder,
   sized to its machine (PyTorch's CPU build without a GPU). Steps wait for their engine instead of falling back. Models

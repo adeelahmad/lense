@@ -29,6 +29,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import Cfg, Db, OptionalUser, Principal, client_ip, get_cfg, get_db, network
+from app.api.streaming import stored_file
 from app.api.v1.routes.recordings import serve_audio
 from app.api.v1.routes.video import serve_document
 from app.domain import access as acc
@@ -525,7 +526,7 @@ def iiif_file(rid: int, name: str, request: Request, user: OptionalUser, db: Db,
     path = filemod.path_of(cfg, f)
     if not path.is_file():
         raise HTTPException(404, "not found")
-    return FileResponse(path, media_type=filemod.served_type(f), filename=f["name"], headers=filemod.HEADERS)
+    return stored_file(db, cfg, path, filemod.served_type(f), f["name"], filemod.HEADERS)
 
 
 @router.get("/iiif/{rid}/search")

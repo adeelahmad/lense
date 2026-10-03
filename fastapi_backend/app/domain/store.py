@@ -286,6 +286,9 @@ DEFAULTS = {
     # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
     # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the
     # endpoint's auth. prices: {model: {input, output}} in USD per million tokens, for cost estimates.
+    # encryption at rest (docs/encryption.md): files Lens keeps under data_dir, encrypted with their namespace's key;
+    # work_minutes: how long a plain working copy for ffmpeg and the other tools is kept after its last use
+    "encryption": {"files": False, "work_minutes": 30},
     "telemetry": {
         "enabled": False,
         "endpoint": None,

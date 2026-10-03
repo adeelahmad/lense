@@ -39,6 +39,7 @@ EDITABLE = {
     "components": None,
     "notifications": None,
     "telemetry": None,
+    "encryption": None,
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -274,6 +275,10 @@ def _check(section, key, value, default):
         if names is None or not all(names) or len(names) > 50 or any(len(n) > 200 for n in names):
             raise ValueError("llm.chat_models is a list of up to 50 model names")
         return list(dict.fromkeys(names))
+    if (section, key) == ("encryption", "work_minutes"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 5 <= value <= 1440):
+            raise ValueError("encryption.work_minutes is a whole number of minutes from 5 to 1440")
+        return value
     if section == "embeddings":
         return _embed_setting(key, value)
     if section == "uploads":

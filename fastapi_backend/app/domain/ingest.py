@@ -68,15 +68,26 @@ def _probe_wav(path):
         return None, None
 
 
-def fingerprint(path, block=65536):
+def fingerprint(path, block=65536, db=None, cfg=None):
+    """What tells the same file apart from others: its size and its first and last 64 KB. An encrypted file (pass the
+    database and configuration) is fingerprinted by its plain bytes, so it matches the file it was."""
     p = pathlib.Path(path)
-    size = p.stat().st_size
-    h = hashlib.sha1(str(size).encode())
+    if db is not None:
+        from . import keyring
+
+        if keyring.is_encrypted(p):
+            with keyring.Reader(db, cfg, p) as f:
+                return _fingerprint(f, f.size, block)
     with open(p, "rb") as f:
+        return _fingerprint(f, p.stat().st_size, block)
+
+
+def _fingerprint(f, size, block):
+    h = hashlib.sha1(str(size).encode())
+    h.update(f.read(block))
+    if size > 2 * block:
+        f.seek(size - block)
         h.update(f.read(block))
-        if size > 2 * block:
-            f.seek(size - block)
-            h.update(f.read(block))
     return h.hexdigest()[:20]
 
 
@@ -426,13 +437,17 @@ def write_transcript(db, rid, nid, segs, patch):
     db.q("UPDATE $rec SET error = NONE, diarized_at = NONE, analyzed_at = NONE", rec=store.R("recording", rid))
 
 
-def audio_path(db, cfg, rec):
-    """A local file for a recording's audio: the file itself, or a cached copy of one on a storage source."""
+def audio_path(db, cfg, rec, plain=True):
+    """A local file for a recording's audio: the file itself, or a cached copy of one on a storage source. An
+    encrypted file comes as a plain working copy for the tools to read, unless `plain` is False."""
     if rec.get("remote"):
         from . import sources
 
         return str(sources.cached_copy(db, cfg, rec["remote"]["source"], rec["remote"]["path"]))
-    return store.resolve_path(cfg, rec.get("path"))
+    from . import keyring
+
+    path = store.resolve_path(cfg, rec.get("path"))
+    return keyring.working_copy(db, cfg, path) if plain else path
 
 
 def add_envelope(db, cfg, rid):

@@ -469,3 +469,126 @@ def plain_path(db, cfg, path):
     finally:
         with contextlib.suppress(OSError):
             os.unlink(tmp)
+
+
+# ---------- files Lens keeps ----------
+def enabled(cfg) -> bool:
+    return bool((cfg.get("encryption") or {}).get("files"))
+
+
+def owned(cfg, path) -> bool:
+    """Whether a file is Lens's own, under data_dir (uploads, attachments, captures, imports), rather than one of the
+    folders it scans, which it only ever reads."""
+    try:
+        return pathlib.Path(path).resolve().is_relative_to(pathlib.Path(cfg["data_dir"]).resolve())
+    except (OSError, ValueError, TypeError):
+        return False
+
+
+def protect(db, cfg, sid, path) -> bool:
+    """Encrypt a file Lens has just stored, when encryption.files is on; its modification time is kept. Returns
+    whether it was encrypted now."""
+    if not (enabled(cfg) and owned(cfg, path)):
+        return False
+    st = os.stat(path)
+    if not encrypt_file(db, cfg, sid, path):
+        return False
+    os.utime(path, (st.st_atime, st.st_mtime))
+    return True
+
+
+def plain_size(db, cfg, path) -> int:
+    """A file's size as its plain bytes."""
+    if is_encrypted(path):
+        with Reader(db, cfg, path) as r:
+            return r.size
+    return os.path.getsize(path)
+
+
+def _work_dir(cfg):
+    d = pathlib.Path(cfg["data_dir"]) / "tmp" / "work"
+    d.mkdir(parents=True, exist_ok=True, mode=0o700)
+    return d
+
+
+def working_copy(db, cfg, path):
+    """A path the tools that need one (ffmpeg, pdftoppm, LibreOffice, …) can read: the file itself when it isn't
+    encrypted, else a plain copy under the same name in data_dir/tmp/work, made once and kept while it is being used
+    (each use refreshes it; sweep() removes copies unused for encryption.work_minutes)."""
+    if not path or not is_encrypted(path):
+        return path
+    import hashlib
+
+    st = os.stat(path)
+    key = hashlib.sha256(f"{os.path.abspath(path)}:{st.st_size}:{st.st_mtime_ns}".encode()).hexdigest()[:32]
+    folder = _work_dir(cfg) / key
+    out = folder / pathlib.Path(path).name  # its own name: readers go by the extension, and some show the name
+    if out.exists():
+        os.utime(folder)
+        return str(out)
+    folder.mkdir(exist_ok=True, mode=0o700)
+    r = Reader(db, cfg, path)
+    fd, tmp = tempfile.mkstemp(dir=folder, prefix=".work-")
+    try:
+        with r, os.fdopen(fd, "wb") as f:
+            while part := r.read(1024 * 1024):
+                f.write(part)
+        os.replace(tmp, out)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+    sweep(cfg)
+    return str(out)
+
+
+def sweep(cfg, minutes=None):
+    """Remove plain working copies nobody has used for encryption.work_minutes. Returns how many went."""
+    import shutil
+    import time
+
+    d = pathlib.Path(cfg["data_dir"]) / "tmp" / "work"
+    if not d.is_dir():
+        return 0
+    limit = time.time() - 60 * (minutes if minutes is not None else (cfg.get("encryption") or {}).get("work_minutes") or 30)
+    gone = 0
+    for p in d.iterdir():
+        with contextlib.suppress(OSError):
+            if p.stat().st_mtime < limit:
+                shutil.rmtree(p) if p.is_dir() else p.unlink()
+                gone += 1
+    return gone
+
+
+def stored_files(db, cfg):
+    """(space, path) for every file Lens keeps of the archive: recordings' own files under data_dir (uploads, email
+    attachments, web captures, IIIF imports) and resources' supplementary files. Files in scanned folders aren't
+    among them."""
+    from . import files as filemod
+
+    for r in db.rows("SELECT space, path FROM recording WHERE path != NONE AND remote = NONE"):
+        p = store.resolve_path(cfg, r["path"])
+        if p and owned(cfg, p) and os.path.isfile(p):
+            yield r["space"], p
+    for f in db.rows("SELECT record::id(id) AS id, recording, space, name FROM resource_file"):
+        p = filemod.path_of(cfg, f)
+        if p.is_file():
+            yield f["space"], str(p)
+
+
+def encrypt_all(db, cfg, decrypt=False, log=print):
+    """Encrypt (or, with decrypt, turn back) every file Lens keeps; files already that way are skipped, so it can run
+    again after stopping half way. Returns how many changed."""
+    changed = 0
+    for sid, p in stored_files(db, cfg):
+        st = os.stat(p)
+        try:
+            done = decrypt_file(db, cfg, p) if decrypt else encrypt_file(db, cfg, sid, p)
+        except (Locked, Damaged) as e:
+            log(f"skipped {p}: {e.__class__.__name__.lower()}")
+            continue
+        if done:
+            os.utime(p, (st.st_atime, st.st_mtime))
+            changed += 1
+    log(f"{'decrypted' if decrypt else 'encrypted'} {changed} file(s)")
+    return changed

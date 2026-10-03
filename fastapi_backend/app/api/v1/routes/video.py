@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, Response
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_urls
+from app.api.streaming import stored_file
 from app.api.v1.routes.recordings import serve_audio
 from app.domain import auth, convert, documents, files, ingest, jobs, store, video
 from app.domain import faces as facemod
@@ -57,15 +58,15 @@ def get_media(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "
     return serve_audio(db, cfg, rec, rid, request)
 
 
-def serve_document(db: DB, cfg: dict[str, Any], rec: dict[str, Any]) -> FileResponse:
+def serve_document(db: DB, cfg: dict[str, Any], rec: dict[str, Any]) -> Response:
     """A document's or an image's own file, as a download that browsers never run."""
     with domain_errors():  # its source was removed (404) or the path is no longer allowed (400)
-        path = ingest.audio_path(db, cfg, rec)
+        path = ingest.audio_path(db, cfg, rec, plain=False)
     if not path or not pathlib.Path(path).is_file():
         raise HTTPException(404, "the file is missing on the server")
     name = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or path)).name
     ctype = documents.content_type(name) or "application/octet-stream"
-    return FileResponse(path, media_type=ctype, filename=name, headers=files.HEADERS)
+    return stored_file(db, cfg, path, ctype, name, files.HEADERS)
 
 
 @router.get("/recordings/{rid}/pdf", response_class=FileResponse, responses={200: {"content": {"application/pdf": {}}}})
