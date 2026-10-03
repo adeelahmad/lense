@@ -802,6 +802,9 @@ import type {
   UpdateContentTypeData,
   UpdateContentTypeErrors,
   UpdateContentTypeResponses,
+  UpdateEntityData,
+  UpdateEntityErrors,
+  UpdateEntityResponses,
   UpdateFieldData,
   UpdateFieldErrors,
   UpdateFieldResponses,
@@ -3424,7 +3427,8 @@ export class Entities {
    *
    * Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
    * With `recording`, those said in it, also for someone who sees it through a role on its collection (then counted
-   * over the recordings they see).
+   * over the recordings they see). With `collection`, those said in its recordings and those of the collections inside
+   * it (counted over them).
    */
   public static listEntities<ThrowOnError extends boolean = false>(
     options?: Options<ListEntitiesData, ThrowOnError>,
@@ -3558,6 +3562,24 @@ export class Entities {
     return (options.client ?? client).get<GetEntityResponses, GetEntityErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}",
       ...options,
+    });
+  }
+
+  /**
+   * Update Entity
+   *
+   * Describe the entity: what it is, in your words.
+   */
+  public static updateEntity<ThrowOnError extends boolean = false>(
+    options: Options<UpdateEntityData, ThrowOnError>,
+  ): RequestResult<UpdateEntityResponses, UpdateEntityErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateEntityResponses, UpdateEntityErrors, ThrowOnError>({
+      url: "/api/v1/entities/{eid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

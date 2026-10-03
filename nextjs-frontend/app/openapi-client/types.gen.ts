@@ -2241,6 +2241,10 @@ export type EntityDetail = {
    */
   type_label: string;
   /**
+   * Description
+   */
+  description?: string | null;
+  /**
    * Namespace
    */
   namespace?: string | null;
@@ -2459,6 +2463,18 @@ export type EntityType = {
    */
   quiet: boolean;
   [key: string]: unknown;
+};
+
+/**
+ * EntityUpdate
+ */
+export type EntityUpdate = {
+  /**
+   * Description
+   *
+   * what the entity is; empty clears it
+   */
+  description?: string | null;
 };
 
 /**
@@ -15702,6 +15718,10 @@ export type ListEntitiesData = {
      * Group
      */
     group?: boolean;
+    /**
+     * Collection
+     */
+    collection?: number | null;
   };
   url: "/api/v1/entities";
 };
@@ -15972,6 +15992,36 @@ export type GetEntityResponses = {
 };
 
 export type GetEntityResponse = GetEntityResponses[keyof GetEntityResponses];
+
+export type UpdateEntityData = {
+  body: EntityUpdate;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/entities/{eid}";
+};
+
+export type UpdateEntityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateEntityError = UpdateEntityErrors[keyof UpdateEntityErrors];
+
+export type UpdateEntityResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntityDetail;
+};
+
+export type UpdateEntityResponse = UpdateEntityResponses[keyof UpdateEntityResponses];
 
 export type ListEntityMentionsData = {
   body?: never;

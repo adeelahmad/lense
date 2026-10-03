@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Access, Acl, CurrentUser, Db, Writer, domain_errors
-from app.domain import auth, jobs
+from app.domain import auth, hierarchy, jobs
 from app.domain import entities as ents
 from app.domain.store import DB, R
 from app.schemas.common import Ok
@@ -26,6 +26,7 @@ from app.schemas.entities import (
     EntityRename,
     EntityRetype,
     EntityType,
+    EntityUpdate,
     MentionList,
     MentionMove,
     MentionMoved,
@@ -73,15 +74,29 @@ def list_entities(
     limit: int = 50,
     offset: int = 0,
     group: bool = False,
+    collection: int | None = None,
 ) -> EntityList:
     """Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
     With `recording`, those said in it, also for someone who sees it through a role on its collection (then counted
-    over the recordings they see)."""
+    over the recordings they see). With `collection`, those said in its recordings and those of the collections inside
+    it (counted over them)."""
     spaces, within = set(acl.roles), None
     if recording is not None:
         rec = acl.recording(recording)  # 404 unless they may see it
         if rec["space"] not in spaces:
             spaces, within = {rec["space"]}, acl.partial_recordings()
+    if collection is not None:
+        try:
+            col = hierarchy.get(db, collection)
+        except KeyError:
+            raise HTTPException(404, "not found") from None
+        sid = col["space"]
+        only = acl.visible(sid)  # 404 unless they see some of the namespace
+        cols = hierarchy.subtree(db, sid, collection)
+        if only is not None:
+            cols &= set(only)
+        recs = hierarchy.recordings_in(db, cols)
+        spaces, within = {sid}, recs if within is None else recs & within
     return EntityList.model_validate(
         ents.list_entities(
             db,
@@ -222,6 +237,17 @@ def rename_entity(eid: int, body: EntityRename, request: Request, user: Writer, 
         auth.audit(db, user.as_audit(), "entity.rename", f"entity:{eid}", {"name": out["name"], "lines": out["lines"]})
         _changed(request)
     return out
+
+
+@router.patch("/entities/{eid}")
+def update_entity(eid: int, body: EntityUpdate, request: Request, user: Writer, acl: Acl, db: Db) -> EntityDetail:
+    """Describe the entity: what it is, in your words."""
+    _entity_space(db, acl, eid, "editor")
+    with domain_errors():
+        ents.describe(db, eid, body.description)
+    auth.audit(db, user.as_audit(), "entity.describe", f"entity:{eid}", {"description": body.description})
+    _changed(request)
+    return EntityDetail.model_validate(ents.detail(db, eid, set(acl.roles)))
 
 
 @router.post("/entities/{eid}/hide")

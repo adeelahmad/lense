@@ -28,7 +28,8 @@ TYPES = {
     "NUMBER": "Number",
 }
 QUIET = ("DATE", "NUMBER")  # extracted, but hidden unless a filter asks for them
-FIELDS = "record::id(id) AS id, space, key, name, type, hidden, hidden_reason"
+FIELDS = "record::id(id) AS id, space, key, name, type, description, hidden, hidden_reason"
+DESCRIPTION_MAX = 2000
 
 
 def _day(s):
@@ -139,6 +140,7 @@ def list_entities(
                 "type": e["type"],
                 "type_label": TYPES.get(e["type"], e["type"].title()),
                 "key": e["key"],
+                "description": e.get("description"),
                 "namespace": names.get(e["space"]),
                 "aliases": al.get(e["id"], []),
                 "mentions": s["mentions"],
@@ -645,6 +647,15 @@ def retype(db, eids, typ):
     if typ not in TYPES:
         raise ValueError(f"type is one of {', '.join(TYPES)}")
     db.q("UPDATE $ids SET type = $t", ids=[R("entity", int(i)) for i in eids], t=typ)
+
+
+def describe(db, eid, description):
+    """What the entity is, in people's words: shown with it, and given to the assistant."""
+    _entity(db, eid)
+    text = str(description or "").strip()
+    if len(text) > DESCRIPTION_MAX:
+        raise ValueError(f"A description can have up to {DESCRIPTION_MAX} characters.")
+    db.q("UPDATE $r SET description = $d", r=R("entity", int(eid)), d=text or None)
 
 
 def hide(db, eid, hidden=True, reason=None):
