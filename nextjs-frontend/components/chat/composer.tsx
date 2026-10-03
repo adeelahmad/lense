@@ -10,6 +10,8 @@ import {
   FolderClosed,
   FolderSearch,
   Library,
+  ListPlus,
+  Paperclip,
   Plus,
   Sparkles,
   Wrench,
@@ -18,6 +20,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Collections } from "@/app/openapi-client";
+import { chooseFiles } from "@/components/import/pending";
 import {
   collectionsLabel,
   datesLabel,
@@ -429,7 +432,11 @@ export function ScopeBar({
   );
 }
 
-/** The question box: Enter sends, Shift+Enter makes a new line. */
+/**
+ * The question box: Enter sends, Shift+Enter makes a new line. Typing goes on while an answer is written: what you
+ * send then waits its turn (`busy`). With `onFiles`, files can be attached (the clip, dropping them on the box, or
+ * pasting them), shown in `files`; a message can be only files.
+ */
 export function Composer({
   value,
   onChange,
@@ -438,6 +445,10 @@ export function Composer({
   placeholder,
   autoFocus,
   className,
+  onFiles,
+  files,
+  hasFiles = false,
+  uploading = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -446,53 +457,97 @@ export function Composer({
   placeholder: string;
   autoFocus?: boolean;
   className?: string;
+  onFiles?: (files: File[]) => void;
+  files?: ReactNode;
+  /** Files are attached and uploaded: the message can go without words. */
+  hasFiles?: boolean;
+  /** A file is still uploading: the message waits for it. */
+  uploading?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const [over, setOver] = useState(false);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
   }, [value]);
-  const ready = value.trim().length > 0 && !busy;
+  const ready = (value.trim().length > 0 || hasFiles) && !uploading;
+  const label = uploading ? "Waiting for the files to upload" : busy ? "Send when this answer is done" : "Send";
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         if (ready) onSend();
       }}
+      onDragOver={(e) => {
+        if (!onFiles || !e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        if (!onFiles || !e.dataTransfer.files.length) return;
+        e.preventDefault();
+        setOver(false);
+        onFiles(Array.from(e.dataTransfer.files));
+      }}
       className={cn(
-        "flex items-end gap-2 rounded-[14px] border border-border bg-background py-2.5 pl-3.5 pr-2.5 transition-[border-color,box-shadow] duration-fast focus-within:border-blue focus-within:shadow-[0_0_0_3px_var(--intent-surface)]",
+        "flex flex-col gap-2 rounded-[14px] border border-border bg-background py-2.5 pl-3.5 pr-2.5 transition-[border-color,box-shadow] duration-fast focus-within:border-blue focus-within:shadow-[0_0_0_3px_var(--intent-surface)]",
+        over && "border-blue bg-blue-surface",
         className,
       )}
     >
-      <textarea
-        ref={ref}
-        rows={1}
-        value={value}
-        autoFocus={autoFocus}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            if (ready) onSend();
-          }
-        }}
-        placeholder={placeholder}
-        aria-label="Your question"
-        className="max-h-[180px] min-h-[24px] flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-normal text-fg outline-none placeholder:text-fg-muted"
-      />
-      <button
-        type="submit"
-        aria-label={busy ? "Answering…" : "Send"}
-        disabled={!ready}
-        className={cn(
-          "grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-fast",
-          ready ? "bg-blue text-white hover:bg-blue-dark" : "bg-surface-neutral text-fg-muted",
+      {files}
+      <div className="flex items-end gap-2">
+        {onFiles && (
+          <button
+            type="button"
+            aria-label="Attach files"
+            title="Attach files (or drop or paste them here)"
+            onClick={async () => {
+              const picked = await chooseFiles();
+              if (picked.length) onFiles(picked);
+            }}
+            className="grid size-9 shrink-0 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral hover:text-fg"
+          >
+            <Paperclip className="size-[18px]" />
+          </button>
         )}
-      >
-        <ArrowUp className="size-[18px]" />
-      </button>
+        <textarea
+          ref={ref}
+          rows={1}
+          value={value}
+          autoFocus={autoFocus}
+          onChange={(e) => onChange(e.target.value)}
+          onPaste={(e) => {
+            if (!onFiles || !e.clipboardData.files.length) return;
+            e.preventDefault();
+            onFiles(Array.from(e.clipboardData.files));
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              if (ready) onSend();
+            }
+          }}
+          placeholder={placeholder}
+          aria-label="Your question"
+          className="max-h-[180px] min-h-[24px] flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-normal text-fg outline-none placeholder:text-fg-muted"
+        />
+        <button
+          type="submit"
+          aria-label={label}
+          title={label}
+          disabled={!ready}
+          className={cn(
+            "grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-fast",
+            ready ? "bg-blue text-white hover:bg-blue-dark" : "bg-surface-neutral text-fg-muted",
+          )}
+        >
+          {busy && ready ? <ListPlus className="size-[18px]" /> : <ArrowUp className="size-[18px]" />}
+        </button>
+      </div>
     </form>
   );
 }

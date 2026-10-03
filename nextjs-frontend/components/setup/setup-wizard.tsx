@@ -76,6 +76,18 @@ export function SetupWizard() {
     },
   });
 
+  // Once a model answers, the assistant can do the rest by conversation (a setup chat makes the changes itself).
+  const llmSet = Boolean(
+    (view.data?.llm.values as { base_url?: string | null; model?: string | null } | undefined)?.model,
+  );
+  const withAssistant = useMutation({
+    mutationFn: () => data(Setup.finish({ client, body: { skipped: false } })),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      router.replace("/chat?setup=1");
+    },
+  });
+
   const next = (from: StepId, saved: boolean) => {
     if (saved) setDone((d) => new Set(d).add(from));
     queryClient.invalidateQueries({ queryKey: ["setup"] });
@@ -138,6 +150,18 @@ export function SetupWizard() {
           );
         })}
       </ol>
+
+      {llmSet && step !== "llm" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-border bg-blue-surface px-4 py-3">
+          <p className="text-[13.5px] text-fg">
+            <span className="font-semibold">Rather talk it through?</span> The assistant can set up the rest with you,
+            and you can drop files in as you go.
+          </p>
+          <Button variant="primary" size="sm" onClick={() => withAssistant.mutate()} disabled={withAssistant.isPending}>
+            Finish with the assistant
+          </Button>
+        </div>
+      )}
 
       <section className="flex flex-col gap-4 rounded-xl border border-border bg-background p-6 sm:p-7">
         {view.isPending ? (

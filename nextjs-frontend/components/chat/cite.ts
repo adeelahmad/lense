@@ -83,6 +83,13 @@ export const NO_MODEL_PREFIX = "No language model is configured";
 export const NOTHING_MATCHES = "Nothing you can access in the archive matches that.";
 export const NO_ANSWER = "(no answer)";
 
+/** The model saying the archive doesn't answer it (as it's told to), rather than answering something else. */
+export function saysNotCovered(text: string): boolean {
+  return /doesn[’']?t (seem to )?cover|does not (seem to )?cover|nothing (in|about)|no (information|mention|excerpts?)|(not|isn[’']?t) (mentioned|covered)/i.test(
+    text,
+  );
+}
+
 export function isNoModelAnswer(text: string | null | undefined): boolean {
   return (text ?? "").startsWith(NO_MODEL_PREFIX);
 }

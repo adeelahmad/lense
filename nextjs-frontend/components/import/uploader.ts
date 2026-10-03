@@ -18,6 +18,8 @@ export type SendOptions = {
   /** The collection of the namespace its recording goes into (its default when null; not when attaching). */
   collection?: number | null;
   title?: string | null;
+  /** Keep it out of the archive once it's here, for the assistant to put somewhere (a file sent in a chat). */
+  hold?: boolean;
   pieceMb: number;
   signal: AbortSignal;
   onProgress: (u: Upload) => void;
@@ -60,12 +62,13 @@ export async function sendFile(client: Client, file: File, o: SendOptions): Prom
           size: file.size,
           title: o.title || null,
           modified: file.lastModified || null,
+          ...(o.hold ? { hold: true } : {}),
         },
       }),
     ));
   o.onProgress(up);
   let tries = 0;
-  while (up.state !== "done") {
+  while (up.state === "receiving") {
     const [start, end] = nextPiece(up.offset, up.size, o.pieceMb);
     try {
       up = await data(

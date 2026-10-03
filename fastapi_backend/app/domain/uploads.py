@@ -28,7 +28,7 @@ R = store.R
 MB = 1024 * 1024
 ROOM = 512 * MB  # what an upload must leave free on the server's disk
 FIELDS = (
-    "record::id(id) AS id, account, email, namespace, collection, filename, title, size, modified, attach, pipeline, state, "
+    "record::id(id) AS id, account, email, namespace, collection, filename, title, size, modified, attach, pipeline, hold, state, "
     "recording, job, duplicate, created_at, touched_at"
 )
 # What runs once media is attached to a transcript: its waveform (the transcript is kept), speakers by voice unless the
@@ -100,6 +100,7 @@ def _ago(hours):
 def view(cfg, row):
     """An upload as the API shows it. `offset` is how many bytes have arrived: the next chunk starts there."""
     done = row.get("state") == "done"
+    held = row.get("state") == "held"
     part = _part(cfg, row["id"])
     touched = dt.datetime.fromisoformat(row.get("touched_at") or row["created_at"])
     return {
@@ -109,7 +110,7 @@ def view(cfg, row):
         "title": row.get("title"),
         "size": row["size"],
         "offset": row["size"] if done else (part.stat().st_size if part.exists() else 0),
-        "state": "done" if done else "receiving",
+        "state": "done" if done else "held" if held else "receiving",
         "attach": row.get("attach"),
         "pipeline": row.get("pipeline"),
         "recording": row.get("recording"),
@@ -140,13 +141,14 @@ def _home(db, sid, collection):
         return store.default_collection(db, sid)
 
 
-def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=None, pipeline=None, collection=None):
+def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=None, pipeline=None, collection=None, hold=False):
     """A new upload into namespace `ns`, by `by` ({id, email}). Its name, type and size are checked, and the disk
     must have room for it; nothing is in the archive until the last byte arrives. `modified` is the file's own time
     (milliseconds since 1970), which dates the recording when its name doesn't. `attach` is a transcript-only
     recording in `ns` the file becomes the audio of, instead of a recording of its own; `pipeline` runs instead of the
     namespace's once a new recording is made; `collection` (one of the namespace's) is where it goes, else the
-    namespace's default."""
+    namespace's default. `hold` keeps it out of the archive once it's all here (state "held", no namespace yet), for
+    the assistant to place with `place` (a file dropped into a conversation)."""
     sweep(db, cfg)
     u = cfg["uploads"]
     name = clean_name(filename)
@@ -186,6 +188,7 @@ def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=Non
                 "attach": attach,
                 "pipeline": pipeline,
                 "collection": collection,
+                "hold": hold or None,
                 "state": "receiving",
                 "created_at": t,
                 "touched_at": t,
@@ -251,7 +254,27 @@ def received(db, cfg, uid, admin=False):
     if not part.exists():
         raise KeyError(uid)  # cancelled, or expired, meanwhile
     db.q("UPDATE $r SET touched_at = $t", r=R("upload", uid), t=store.now())
-    return finish(db, cfg, row, admin) if part.stat().st_size >= row["size"] else get(db, uid)
+    if part.stat().st_size < row["size"]:
+        return get(db, uid)
+    if row.get("hold"):  # all here, and waits to be placed
+        db.q("UPDATE $r SET state = 'held'", r=R("upload", uid))
+        return get(db, uid)
+    return finish(db, cfg, row, admin)
+
+
+def place(db, cfg, uid, ns, account, admin=False, collection=None):
+    """Put a held upload (all of it here) into namespace `ns` (and `collection`, one of its own): it becomes a
+    recording or a resource as if it had been uploaded there. Only its uploader may; `admin` may name a new
+    namespace. The caller checks they may add to `ns`."""
+    row = get(db, uid)
+    if row.get("account") != account:
+        raise KeyError(uid)
+    if row.get("state") != "held":
+        raise ValueError(f"{row['filename']} isn't waiting to be placed")
+    if collection is not None:
+        store.home(db, store.ns_id(db, ns, create=False), collection)
+    db.q("UPDATE $r SET namespace = $n, collection = $c, hold = NONE", r=R("upload", uid), n=ns, c=collection)
+    return finish(db, cfg, {**row, "namespace": ns, "collection": collection}, admin)
 
 
 def finish(db, cfg, row, admin=False):
