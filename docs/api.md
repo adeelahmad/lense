@@ -920,6 +920,9 @@ question can name another (`POST /chats/{cid}/messages {content, model}`, e.g. t
 a 400. Each answer records the `model` that wrote it. `POST /chats/{cid}/stop` stops the answer being written in your conversation after the piece or tool
 step it's on: the stream sends `stopped`, then `done` with the saved message, whose `stopped` is true and whose
 `content` is what came before (`(stopped)` when nothing had). `{stopping: false}` when nothing was being written.
+`POST /chats/{cid}/messages {content, edit}` edits one of your earlier questions (`edit` is its message id): it and
+everything after it are replaced by this question and its new answer; 404 when `edit` isn't a question in that
+conversation. A conversation titled after the first question is retitled when that question is edited.
 
 A conversation's `scope` narrows what it draws on: `namespaces`, `recordings`, `collections`, `speakers`, `from` and
 `to`; every key narrows it further, and an empty scope is everything you can read. `collections` are ids of

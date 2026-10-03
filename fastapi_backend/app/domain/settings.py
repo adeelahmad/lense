@@ -37,6 +37,7 @@ EDITABLE = {
     "ai": None,
     "decisions": None,
     "components": None,
+    "voice": None,
     "notifications": None,
     "telemetry": None,
     "video": (
@@ -63,7 +64,7 @@ EDITABLE = {
     # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
     "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
-SECRETS = {"llm": ("api_key",), "embeddings": ("api_key",), "decisions": ("api_key",), "telemetry": ("headers",)}
+SECRETS = {"llm": ("api_key",), "embeddings": ("api_key",), "decisions": ("api_key",), "voice": ("tts_api_key",), "telemetry": ("headers",)}
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"},
     ("transcribe", "device"): {"auto", "cpu", "cuda", "mps"},
@@ -77,6 +78,7 @@ ENUMS = {
     ("video", "face_engine"): {"opencv", "insightface", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "off"},
     ("decisions", "engine"): {"auto", "jev", "llm", "off"},
+    ("voice", "input"): {"auto", "server", "browser"},
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
 # break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
@@ -296,6 +298,18 @@ def _check(section, key, value, default):
         return _telemetry_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
+    if (section, key) == ("voice", "tts_base_url"):
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("voice.tts_base_url is the http(s) address of an OpenAI-compatible server with /audio/speech")
+        return value.strip().rstrip("/")
+    if section == "voice" and key in ("tts_model", "tts_voice", "tts_api_key"):
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and len(value.strip()) <= 500):
+            raise ValueError(f"voice.{key} is text")
+        return value.strip()
     if section == "decisions" and key != "engine":
         return _decision_setting(key, value)
     if (section, key) == ("documents", "attachment_resources"):

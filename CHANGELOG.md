@@ -11,6 +11,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   admin turns them off in Settings › Sign-in (which needs an admin with a passkey). Passkeys need an `https://`
   address or `localhost`; on a plain `http://` address setup takes the code alone and a sign-in link signs in by
   itself, so there is still no password.
+- **Voice stays on the server.** The mic records in the browser and this server turns it into text with its own
+  transcription engine (`POST /voice/transcribe`), showing what's been heard while you talk and ending at a pause;
+  it works in any browser that can record. Spoken answers can come from a speech model (`voice.tts_model`, any
+  OpenAI-compatible `/audio/speech`), else the browser reads them. Settings → AI assistant → Voice.
 
 - **Lens fetches what it needs.** Each worker checks what the settings ask for (SenseVoice or a Whisper model, voice
   IDs, face and object models, the chat and embedding models on Ollama) and fetches what's missing into the data folder,

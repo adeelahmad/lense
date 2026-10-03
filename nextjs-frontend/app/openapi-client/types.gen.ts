@@ -3161,6 +3161,314 @@ export type EventInfo = {
 };
 
 /**
+ * Extension
+ */
+export type Extension = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   *
+   * what the assistant calls it: its tool or skill name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: "tool" | "skill" | "hook" | "plugin";
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   *
+   * who sees it, when shared with namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Enabled
+   *
+   * whether it's switched on in conversations
+   */
+  enabled: boolean;
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null;
+  /**
+   * Editable
+   */
+  editable?: boolean;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Spec
+   *
+   * the tool, skill, hook or plugin itself, as its manifest has it
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Origin
+   *
+   * how this version was made: code, canvas or chat
+   */
+  origin?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionCreate
+ */
+export type ExtensionCreate = {
+  /**
+   * Manifest
+   *
+   * {name, kind, description, ...settings}
+   */
+  manifest?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Text
+   *
+   * the manifest as code: YAML, JSON, or Markdown with frontmatter
+   */
+  text?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+  /**
+   * Origin
+   */
+  origin?: "code" | "canvas" | "chat";
+};
+
+/**
+ * ExtensionDetail
+ */
+export type ExtensionDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   *
+   * what the assistant calls it: its tool or skill name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: "tool" | "skill" | "hook" | "plugin";
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   *
+   * who sees it, when shared with namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Enabled
+   *
+   * whether it's switched on in conversations
+   */
+  enabled: boolean;
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null;
+  /**
+   * Editable
+   */
+  editable?: boolean;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Spec
+   *
+   * the tool, skill, hook or plugin itself, as its manifest has it
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Origin
+   *
+   * how this version was made: code, canvas or chat
+   */
+  origin?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Manifest
+   *
+   * the extension as a manifest to read, change and import again
+   */
+  manifest: string;
+  /**
+   * History
+   */
+  history?: Array<ExtensionVersionInfo>;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionTest
+ */
+export type ExtensionTest = {
+  /**
+   * Tool
+   *
+   * which of a plugin's tools (a tool extension: itself)
+   */
+  tool?: string | null;
+  /**
+   * Args
+   */
+  args?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Confirm
+   *
+   * needed to try a tool that changes something: it really runs
+   */
+  confirm?: boolean;
+};
+
+/**
+ * ExtensionTestResult
+ */
+export type ExtensionTestResult = {
+  /**
+   * Output
+   */
+  output?: unknown;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionUpdate
+ */
+export type ExtensionUpdate = {
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone" | null;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<string> | null;
+};
+
+/**
+ * ExtensionVersionCreate
+ */
+export type ExtensionVersionCreate = {
+  /**
+   * Manifest
+   */
+  manifest?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Text
+   */
+  text?: string | null;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Origin
+   */
+  origin?: "code" | "canvas" | "chat";
+};
+
+/**
+ * ExtensionVersionInfo
+ */
+export type ExtensionVersionInfo = {
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Origin
+   */
+  origin?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * FaceDismiss
  */
 export type FaceDismiss = {
@@ -3825,6 +4133,31 @@ export type HealthSource = {
   health?: {
     [key: string]: unknown;
   } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Heard
+ */
+export type Heard = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Language
+   */
+  language?: string | null;
+  /**
+   * Engine
+   */
+  engine?: string | null;
+  /**
+   * Seconds
+   *
+   * how long the clip was
+   */
+  seconds?: number;
   [key: string]: unknown;
 };
 
@@ -4836,6 +5169,31 @@ export type Machine = {
 };
 
 /**
+ * ManifestCheck
+ */
+export type ManifestCheck = {
+  /**
+   * Text
+   */
+  text: string;
+};
+
+/**
+ * ManifestChecked
+ */
+export type ManifestChecked = {
+  /**
+   * Manifest
+   *
+   * the manifest, read and checked
+   */
+  manifest: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * Me
  */
 export type Me = {
@@ -5041,6 +5399,12 @@ export type MessageCreate = {
    * answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry
    */
   model?: string | null;
+  /**
+   * Edit
+   *
+   * edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer
+   */
+  edit?: number | null;
 };
 
 /**
@@ -10041,6 +10405,16 @@ export type SparqlQuery = {
 };
 
 /**
+ * SpeakRequest
+ */
+export type SpeakRequest = {
+  /**
+   * Text
+   */
+  text: string;
+};
+
+/**
  * Speaker
  */
 export type Speaker = {
@@ -11525,6 +11899,31 @@ export type ViewerLink = {
    * Url
    */
   url: string;
+  [key: string]: unknown;
+};
+
+/**
+ * VoiceInfo
+ */
+export type VoiceInfo = {
+  /**
+   * Transcribe
+   *
+   * the server turns speech into text itself (POST /voice/transcribe)
+   */
+  transcribe: boolean;
+  /**
+   * Engine
+   *
+   * the speech-to-text engine it uses
+   */
+  engine?: string | null;
+  /**
+   * Speak
+   *
+   * the server reads answers aloud (POST /voice/speak); else the browser does
+   */
+  speak: boolean;
   [key: string]: unknown;
 };
 
@@ -20961,6 +21360,243 @@ export type CreateCustomNodeVersionResponses = {
 
 export type CreateCustomNodeVersionResponse = CreateCustomNodeVersionResponses[keyof CreateCustomNodeVersionResponses];
 
+export type ListExtensionsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Kind
+     */
+    kind?: "tool" | "skill" | "hook" | "plugin" | null;
+  };
+  url: "/api/v1/extensions";
+};
+
+export type ListExtensionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListExtensionsError = ListExtensionsErrors[keyof ListExtensionsErrors];
+
+export type ListExtensionsResponses = {
+  /**
+   * Response Extensions-List Extensions
+   *
+   * Successful Response
+   */
+  200: Array<Extension>;
+};
+
+export type ListExtensionsResponse = ListExtensionsResponses[keyof ListExtensionsResponses];
+
+export type CreateExtensionData = {
+  body: ExtensionCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions";
+};
+
+export type CreateExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateExtensionError = CreateExtensionErrors[keyof CreateExtensionErrors];
+
+export type CreateExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type CreateExtensionResponse = CreateExtensionResponses[keyof CreateExtensionResponses];
+
+export type CheckManifestData = {
+  body: ManifestCheck;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/check";
+};
+
+export type CheckManifestErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CheckManifestError = CheckManifestErrors[keyof CheckManifestErrors];
+
+export type CheckManifestResponses = {
+  /**
+   * Successful Response
+   */
+  200: ManifestChecked;
+};
+
+export type CheckManifestResponse = CheckManifestResponses[keyof CheckManifestResponses];
+
+export type DeleteExtensionData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}";
+};
+
+export type DeleteExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteExtensionError = DeleteExtensionErrors[keyof DeleteExtensionErrors];
+
+export type DeleteExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteExtensionResponse = DeleteExtensionResponses[keyof DeleteExtensionResponses];
+
+export type GetExtensionData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: {
+    /**
+     * Version
+     */
+    version?: number | null;
+  };
+  url: "/api/v1/extensions/{eid}";
+};
+
+export type GetExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetExtensionError = GetExtensionErrors[keyof GetExtensionErrors];
+
+export type GetExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionDetail;
+};
+
+export type GetExtensionResponse = GetExtensionResponses[keyof GetExtensionResponses];
+
+export type UpdateExtensionData = {
+  body: ExtensionUpdate;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}";
+};
+
+export type UpdateExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateExtensionError = UpdateExtensionErrors[keyof UpdateExtensionErrors];
+
+export type UpdateExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateExtensionResponse = UpdateExtensionResponses[keyof UpdateExtensionResponses];
+
+export type CreateExtensionVersionData = {
+  body: ExtensionVersionCreate;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}/versions";
+};
+
+export type CreateExtensionVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateExtensionVersionError = CreateExtensionVersionErrors[keyof CreateExtensionVersionErrors];
+
+export type CreateExtensionVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: VersionSaved;
+};
+
+export type CreateExtensionVersionResponse = CreateExtensionVersionResponses[keyof CreateExtensionVersionResponses];
+
+export type TestExtensionData = {
+  body: ExtensionTest;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}/test";
+};
+
+export type TestExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestExtensionError = TestExtensionErrors[keyof TestExtensionErrors];
+
+export type TestExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionTestResult;
+};
+
+export type TestExtensionResponse = TestExtensionResponses[keyof TestExtensionResponses];
+
 export type ListChatsData = {
   body?: never;
   path?: never;
@@ -22571,3 +23207,64 @@ export type UndoGraphChangeResponses = {
 };
 
 export type UndoGraphChangeResponse = UndoGraphChangeResponses[keyof UndoGraphChangeResponses];
+
+export type VoiceInfoData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/voice";
+};
+
+export type VoiceInfoResponses = {
+  /**
+   * Successful Response
+   */
+  200: VoiceInfo;
+};
+
+export type VoiceInfoResponse = VoiceInfoResponses[keyof VoiceInfoResponses];
+
+export type TranscribeClipData = {
+  body: Blob | File;
+  path?: never;
+  query?: never;
+  url: "/api/v1/voice/transcribe";
+};
+
+export type TranscribeClipResponses = {
+  /**
+   * Successful Response
+   */
+  200: Heard;
+};
+
+export type TranscribeClipResponse = TranscribeClipResponses[keyof TranscribeClipResponses];
+
+export type SpeakTextData = {
+  body: SpeakRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/voice/speak";
+};
+
+export type SpeakTextErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SpeakTextError = SpeakTextErrors[keyof SpeakTextErrors];
+
+export type SpeakTextResponses = {
+  /**
+   * the text read aloud
+   */
+  200: Blob | File;
+  /**
+   * the browser reads it
+   */
+  204: void;
+};
+
+export type SpeakTextResponse = SpeakTextResponses[keyof SpeakTextResponses];

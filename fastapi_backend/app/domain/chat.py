@@ -357,6 +357,16 @@ def add(
     return mid
 
 
+def rewind(db, cid, mid):
+    """Remove a question of yours and everything said after it, to ask it again as edited; returns the old question
+    (its content and the page context it was asked with)."""
+    m = db.one("SELECT chat, role, content, context FROM $r", r=R("chat_message", mid))
+    if not m or m["chat"] != cid or m["role"] != "user":
+        raise KeyError(mid)
+    db.q("DELETE chat_message WHERE chat = $c AND record::id(id) >= $m", c=cid, m=mid)
+    return m
+
+
 def model_choices(cfg):
     """The models people may pick: the configured one first, then llm.chat_models, or (when that's empty) whatever
     the model server lists. Just the configured one when the server's list can't be had."""
@@ -438,6 +448,8 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
     answered without looking anything up (it never saw the archive, so the caller can answer from a search instead).
     Raises llm.ToolsUnsupported."""
     system = TOOL_SYSTEM + ("\n\n" + SETUP_SYSTEM if setup else "")
+    note = getattr(toolbox, "system_note", None)  # skills, and context from hooks (extensions.py)
+    system += note() if note else ""
     msgs = [{"role": "system", "content": system}] + past_turns(history)
     msgs.append({"role": "user", "content": question})
     for step in range(max_steps):

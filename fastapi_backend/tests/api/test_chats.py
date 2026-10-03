@@ -391,6 +391,70 @@ def test_tools_stay_in_scope_and_say_what_is_missing(app, db, cfg, folder, new_c
     assert box.approvals == []
 
 
+def test_editing_a_question(plain, client, new_client, db, cfg, folder, llm):
+    seed(db, cfg, folder)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor", "calls": "editor"})
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    h = login(client, "ed@x.io", "editor password 1")
+    other = new_client()
+    hv = login(other, "vi@x.io", "viewer password 1")
+    cid = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    for q in ("When does the shipment leave?", "Who is shipping it?", "And where to?"):
+        sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": q}).text)
+    msgs = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]
+    assert len(msgs) == 6
+    second = msgs[2]["id"]
+
+    # an answer, someone else's or another conversation's message isn't a question you can edit here
+    assert client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "x", "edit": msgs[1]["id"]}).status_code == 404
+    assert client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "x", "edit": 999999}).status_code == 404
+    assert other.post(f"/api/v1/chats/{cid}/messages", headers=hv, json={"content": "x", "edit": second}).status_code == 404
+    elsewhere = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    assert client.post(f"/api/v1/chats/{elsewhere}/messages", headers=h, json={"content": "x", "edit": second}).status_code == 404
+    assert len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]) == 6  # nothing was removed
+
+    # editing the second question replaces it and everything after it; the model sees only what came before
+    llm.seen.clear()
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Who ships it, exactly?", "edit": second}).text)
+    assert ev["done"]
+    sent = [m["content"] for m in llm.seen[-1]["messages"] if m["role"] == "user"]
+    assert "When does the shipment leave?" in sent[0] and not any("Who is shipping it?" in s or "And where to?" in s for s in sent)
+    c = client.get(f"/api/v1/chats/{cid}", headers=h).json()
+    assert [m["content"] for m in c["messages"] if m["role"] == "user"] == ["When does the shipment leave?", "Who ships it, exactly?"]
+    assert [m["role"] for m in c["messages"]] == ["user", "assistant", "user", "assistant"]
+    assert c["title"] == "When does the shipment leave?"
+
+    # editing the first question retitles a conversation titled after it, but keeps a title you set
+    first = c["messages"][0]["id"]
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When is the Friday shipment?", "edit": first}).text)
+    c = client.get(f"/api/v1/chats/{cid}", headers=h).json()
+    assert ([m["content"] for m in c["messages"] if m["role"] == "user"], c["title"]) == (
+        ["When is the Friday shipment?"],
+        "When is the Friday shipment?",
+    )
+    assert client.patch(f"/api/v1/chats/{cid}", headers=h, json={"title": "Shipping"}).status_code == 200
+    first = c["messages"][0]["id"]
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does it ship?", "edit": first}).text)
+    assert client.get(f"/api/v1/chats/{cid}", headers=h).json()["title"] == "Shipping"
+
+    # a refused edit (a model that isn't offered) removes nothing
+    n = len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"])
+    assert (
+        client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "x", "edit": first, "model": "gpt-9"}).status_code == 400
+    )
+    assert len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]) == n
+
+    # a question asked from a page keeps the page and the highlighted text when edited
+    page = {"url": "/library", "title": "Library", "text": "Shipment report", "selection": "Dyno shipment"}
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When?", "context": page}).text)
+    asked = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-2]
+    llm.seen.clear()
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When exactly?", "edit": asked["id"]}).text)
+    assert '"""\nDyno shipment\n"""' in llm.seen[-1]["messages"][-1]["content"]
+    edited = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-2]
+    assert (edited["content"], edited["context"]) == ("When exactly?", asked["context"])
+
+
 def test_asking_from_a_page(plain, client, db, cfg, folder, llm):
     """Chat on any page: the model reads the page and the highlighted part with the question; the question keeps where
     it was asked and what was highlighted, not the page's text."""

@@ -14,6 +14,7 @@ from app.api.v1.routes import (
     custom_nodes,
     entities,
     entity_setup,
+    extensions,
     fields,
     files,
     hierarchy,
@@ -42,6 +43,7 @@ from app.api.v1.routes import (
     users,
     video,
     views,
+    voice,
     workflows,
 )
 
@@ -81,6 +83,7 @@ for module in (
     content_types,
     workflows,
     custom_nodes,
+    extensions,
     chats,
     collections,
     batches,
@@ -89,5 +92,6 @@ for module in (
     views,
     notifications,
     routines,
+    voice,
 ):
     api_router.include_router(module.router)

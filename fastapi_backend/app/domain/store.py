@@ -238,6 +238,7 @@ DEFAULTS = {
     # the chat assistant's tools, and the double check before batch runs
     "ai": {
         "tools": True,
+        "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
@@ -246,6 +247,9 @@ DEFAULTS = {
         "price_in": None,
         "price_out": None,
     },
+    # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
+    # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
+    "voice": {"input": "auto", "tts_base_url": None, "tts_model": None, "tts_voice": None, "tts_api_key": None},
     # what Lens fetches for itself (components.py): auto fetches what the settings need; also names optional ones
     "components": {"auto": True, "also": []},
     # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
@@ -711,6 +715,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS custom_node SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS custom_node_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS custom_node_version_n ON custom_node_version FIELDS node",
+    # extensions: tools, skills, hooks and plugins added to the assistant (extensions.py)
+    "DEFINE TABLE IF NOT EXISTS extension SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS extension_version SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS extension_version_e ON extension_version FIELDS extension",
     # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
     "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
     "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",
