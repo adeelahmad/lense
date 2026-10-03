@@ -1,4 +1,4 @@
-import { alsoKnownAs, entityQuery, filtersFrom, PAGE } from "@/components/entities/model";
+import { alsoKnownAs, entityQuery, filtersFrom, keptTypes, PAGE } from "@/components/entities/model";
 
 describe("entities page model", () => {
   it("reads filters from the address, with defaults for anything odd", () => {
@@ -38,5 +38,19 @@ describe("entities page model", () => {
         aliases: ["north wind labs", "northwind labs", "nwl", "nwl"],
       }),
     ).toEqual(["north wind labs", "nwl"]);
+  });
+});
+
+describe("entity setup", () => {
+  it("says which types a setup keeps", () => {
+    const all = [
+      { type: "ORG", label: "Organisation" },
+      { type: "PLACE", label: "Place" },
+      { type: "CLIENT", label: "Client" },
+    ];
+    expect(keptTypes([], all)).toBe("Every type");
+    expect(keptTypes(["ORG"], all)).toBe("Organisation");
+    expect(keptTypes(["ORG", "PLACE", "CLIENT"], all)).toBe("Organisation, Place and Client");
+    expect(keptTypes(["GONE"], all)).toBe("GONE");
   });
 });

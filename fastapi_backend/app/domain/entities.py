@@ -13,7 +13,7 @@ import math
 import re
 from collections import Counter, defaultdict, deque
 
-from . import analyze, render, store
+from . import analyze, entity_setup, render, store
 
 R = store.R
 TYPES = {
@@ -111,6 +111,7 @@ def list_entities(
     st = _stats(db, sp, speaker, recording, within)
     ents = db.rows(f"SELECT {FIELDS} FROM entity WHERE space IN $s", s=sorted(sp)) if sp else []
     al = aliases(db, [e["id"] for e in ents])
+    own = entity_setup.labels(db, sp)
     months, today = _months(), dt.date.today()
     recent, before = (today - dt.timedelta(days=90)).isoformat(), (today - dt.timedelta(days=180)).isoformat()
     ql = (q or "").strip().lower()
@@ -138,7 +139,7 @@ def list_entities(
                 "id": e["id"],
                 "name": e["name"],
                 "type": e["type"],
-                "type_label": TYPES.get(e["type"], e["type"].title()),
+                "type_label": TYPES.get(e["type"]) or own.get(e["space"], {}).get(e["type"]) or e["type"].title(),
                 "key": e["key"],
                 "description": e.get("description"),
                 "namespace": names.get(e["space"]),
@@ -212,7 +213,7 @@ def detail(db, eid, spaces):
     ]
     return {
         **e,
-        "type_label": TYPES.get(e["type"], e["type"]),
+        "type_label": TYPES.get(e["type"]) or entity_setup.labels(db, {e["space"]}).get(e["space"], {}).get(e["type"]) or e["type"].title(),
         "namespace": names.get(e["space"]),
         "aliases": aliases(db, [e["id"]]).get(e["id"], []),
         "mentions": s["mentions"],
@@ -643,9 +644,15 @@ def not_same(db, a, b):
     db.q("UPSERT $r CONTENT $d", r=R("entity_distinct", f"{lo}-{hi}"), d={"a": lo, "b": hi, "at": store.now()})
 
 
+def _check_type(db, space, typ):
+    known = entity_setup.type_codes(db, space)
+    if typ not in known:
+        raise ValueError(f"type is one of {', '.join(sorted(known))}")
+
+
 def retype(db, eids, typ):
-    if typ not in TYPES:
-        raise ValueError(f"type is one of {', '.join(TYPES)}")
+    for sp in {e["space"] for e in db.rows("SELECT space FROM entity WHERE id IN $ids", ids=[R("entity", int(i)) for i in eids])}:
+        _check_type(db, sp, typ)
     db.q("UPDATE $ids SET type = $t", ids=[R("entity", int(i)) for i in eids], t=typ)
 
 
@@ -870,8 +877,7 @@ def move_mention(db, mention, target=None, new_name=None, new_type="TERM", remov
             if row:
                 tid = row["id"]
             else:
-                if new_type not in TYPES:
-                    raise ValueError(f"type is one of {', '.join(TYPES)}")
+                _check_type(db, m["space"], new_type)
                 tid = db.next_id("entity")
                 db.q(
                     "CREATE $r CONTENT $d",

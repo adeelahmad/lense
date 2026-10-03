@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Access, Acl, CurrentUser, Db, Writer, domain_errors
-from app.domain import auth, hierarchy, jobs
+from app.domain import auth, entity_setup, hierarchy, jobs
 from app.domain import entities as ents
 from app.domain.store import DB, R
 from app.schemas.common import Ok
@@ -120,8 +120,13 @@ def list_entities(
 
 
 @router.get("/entities/types")
-def list_entity_types(user: CurrentUser) -> list[EntityType]:
-    return [EntityType(type=k, label=v, quiet=k in ents.QUIET) for k, v in ents.TYPES.items()]
+def list_entity_types(user: CurrentUser, acl: Acl, db: Db, ns: str = "") -> list[EntityType]:
+    """The types an entity may have: the built-in ones, and with `ns` that namespace's own too."""
+    sid = None
+    if ns:
+        sid = acl.nsid(ns)
+        acl.visible(sid)
+    return [EntityType(**t) for t in entity_setup.types_of(db, sid)]
 
 
 @router.get("/entities/suggestions")
