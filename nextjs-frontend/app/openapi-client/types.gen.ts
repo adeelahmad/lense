@@ -3586,6 +3586,86 @@ export type FacetCount = {
 };
 
 /**
+ * FedoraStatus
+ */
+export type FedoraStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Url
+   */
+  url?: string | null;
+  /**
+   * Root
+   */
+  root: string;
+  /**
+   * Pending
+   */
+  pending: number;
+  /**
+   * Resources
+   */
+  resources: number;
+  /**
+   * Last Sync
+   */
+  last_sync?: string | null;
+  /**
+   * Last Full
+   */
+  last_full?: string | null;
+  /**
+   * Last Counts
+   */
+  last_counts?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  /**
+   * Full Requested
+   */
+  full_requested: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * FedoraSyncResult
+ */
+export type FedoraSyncResult = {
+  /**
+   * Sent
+   */
+  sent: number;
+  /**
+   * Files
+   */
+  files: number;
+  /**
+   * Unchanged
+   */
+  unchanged: number;
+  /**
+   * Deleted
+   */
+  deleted: number;
+  /**
+   * Failed
+   */
+  failed: number;
+  /**
+   * Errors
+   */
+  errors: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
  * FieldCreate
  */
 export type FieldCreate = {
@@ -14050,6 +14130,38 @@ export type ReindexSearchResponses = {
 };
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
+
+export type GetFedoraStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/fedora";
+};
+
+export type GetFedoraStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: FedoraStatus;
+};
+
+export type GetFedoraStatusResponse = GetFedoraStatusResponses[keyof GetFedoraStatusResponses];
+
+export type SyncFedoraData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/fedora/sync";
+};
+
+export type SyncFedoraResponses = {
+  /**
+   * Successful Response
+   */
+  200: FedoraSyncResult;
+};
+
+export type SyncFedoraResponse = SyncFedoraResponses[keyof SyncFedoraResponses];
 
 export type GetSetupData = {
   body?: never;

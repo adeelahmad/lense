@@ -331,6 +331,20 @@ DEFAULTS = {
         "service_name": "lens",
         "prices": {},
     },
+    # Fedora (docs/fedora.md): a copy of the archive in a Fedora 6 repository, off until url is set (enabled: false pauses
+    # it). password is a
+    # secret; files: send recordings' files too (up to max_file_mb each, 0: any size).
+    "fedora": {
+        "enabled": True,
+        "url": None,
+        "user": None,
+        "password": None,
+        "root": "lens",
+        "files": True,
+        "max_file_mb": 0,
+        "sync_seconds": 60,
+        "full_hours": 24,
+    },
     # IIIF: identifiers are built from base_url (set it to the stable public HTTPS address; null: the request's address)
     "iiif": {
         "base_url": None,
@@ -756,6 +770,10 @@ SCHEMA = [
     # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
     "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
     "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",
+    # Fedora (fedora.py): what to send, what was sent (a hash per resource path) and how the last sync went
+    "DEFINE TABLE IF NOT EXISTS fedora_outbox SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS fedora_state SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS fedora_status SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS routine_run SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS routine_run_r ON routine_run FIELDS routine",
     "DEFINE TABLE IF NOT EXISTS graph_change SCHEMALESS",

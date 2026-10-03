@@ -109,9 +109,25 @@ services:
       - "127.0.0.1:8025:8025" # the mailbox
     networks: [lens]
 
+  # Fedora 6 (docs/fedora.md), the repository Lens can keep a copy of the archive in. Opt-in, and not needed on small
+  # machines: `docker compose --profile fedora up`, with LENS_FEDORA_URL=http://fedora:8080/fcrepo/rest (and
+  # LENS_FEDORA_USER / LENS_FEDORA_PASSWORD) in .env, or set it in Settings → Fedora.
+  fedora:
+    image: fcrepo/fcrepo:${FEDORA_VERSION:-6.5.1-tomcat9}
+    profiles: [fedora]
+    environment:
+      CATALINA_OPTS: >-
+        -Dfcrepo.home=/fcrepo-home -Djava.awt.headless=true -Dfcrepo.autoversioning.enabled=true
+    ports:
+      - "127.0.0.1:8081:8080"       # its web UI and REST API, for this machine only
+    volumes:
+      - fedora-data:/fcrepo-home
+    networks: [lens]
+
 volumes:
   surreal-data:
   archive-data:
+  fedora-data:
 
 networks:
   lens:

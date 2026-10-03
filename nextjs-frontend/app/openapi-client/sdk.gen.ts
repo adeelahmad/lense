@@ -347,6 +347,8 @@ import type {
   GetExtensionData,
   GetExtensionErrors,
   GetExtensionResponses,
+  GetFedoraStatusData,
+  GetFedoraStatusResponses,
   GetFieldData,
   GetFieldErrors,
   GetFieldResponses,
@@ -873,6 +875,8 @@ import type {
   SuggestTermsData,
   SuggestTermsErrors,
   SuggestTermsResponses,
+  SyncFedoraData,
+  SyncFedoraResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
   TestEmbeddingsData,
@@ -1698,6 +1702,34 @@ export class Admin {
   ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
       url: "/api/v1/components/check",
+      ...options,
+    });
+  }
+}
+
+export class Fedora {
+  /**
+   * Get Fedora Status
+   */
+  public static getFedoraStatus<ThrowOnError extends boolean = false>(
+    options?: Options<GetFedoraStatusData, ThrowOnError>,
+  ): RequestResult<GetFedoraStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetFedoraStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/fedora",
+      ...options,
+    });
+  }
+
+  /**
+   * Sync Fedora
+   *
+   * Compare everything with Fedora now and send what differs (the background sync does this every fedora.full_hours).
+   */
+  public static syncFedora<ThrowOnError extends boolean = false>(
+    options?: Options<SyncFedoraData, ThrowOnError>,
+  ): RequestResult<SyncFedoraResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<SyncFedoraResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/fedora/sync",
       ...options,
     });
   }
