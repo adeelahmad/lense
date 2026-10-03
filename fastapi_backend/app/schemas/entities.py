@@ -34,6 +34,7 @@ class EntityDetail(ResponseModel):
     key: str
     type: str
     type_label: str
+    description: str | None = None
     namespace: str | None = None
     aliases: list[str] = []
     mentions: int = 0
@@ -75,6 +76,10 @@ class EntityRename(RequestModel):
     keep_alias: bool = True
     correct: bool = Field(False, description="also correct the transcript lines that say the old name")
     dry_run: bool = False
+
+
+class EntityUpdate(RequestModel):
+    description: str | None = Field(None, description="what the entity is; empty clears it")
 
 
 class EntityHide(RequestModel):
