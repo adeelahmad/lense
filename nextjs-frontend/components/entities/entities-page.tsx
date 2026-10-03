@@ -197,7 +197,22 @@ export function EntitiesPage() {
             </Banner>
           )}
           {list.data && !rows.length && (
-            <EmptyState icon={<Shapes />} title="No entities here" className="rounded-lg border border-border">
+            <EmptyState
+              icon={<Shapes />}
+              title="No entities here"
+              className="rounded-lg border border-border"
+              actions={
+                f.q || f.type || f.collection ? (
+                  <Button size="sm" onClick={() => set({ q: null, type: null, collection: null })}>
+                    Clear filters
+                  </Button>
+                ) : !f.hidden && can("editor", ns) ? (
+                  <Button size="sm" variant="primary" onClick={() => setDefining(true)}>
+                    Add an entity
+                  </Button>
+                ) : undefined
+              }
+            >
               {f.q || f.type || f.collection
                 ? "Nothing matches these filters."
                 : f.hidden

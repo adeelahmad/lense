@@ -524,6 +524,8 @@ export function ChatApp() {
   };
   const noProvider = llm.known && !llm.configured;
   const showThread = activeId != null || liveHere != null;
+  // setting the server up doesn't look in the archive: no sources column to fill
+  const setupChat = activeId != null && chat.data?.kind === "setup";
   const title = chat.data?.title ?? (activeId == null ? "New conversation" : "Conversation");
   const addScope = (ns: string) =>
     setScope({
@@ -554,7 +556,12 @@ export function ChatApp() {
   );
 
   return (
-    <div className="grid h-[calc(100dvh-4rem)] grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_360px]">
+    <div
+      className={cn(
+        "grid h-[calc(100dvh-4rem)] grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)]",
+        !setupChat && "xl:grid-cols-[260px_minmax(0,1fr)_360px]",
+      )}
+    >
       <h1 className="sr-only">Chat</h1>
       <div aria-live="polite" className="sr-only">
         {announce}
@@ -794,7 +801,7 @@ export function ChatApp() {
 
       <aside
         aria-label="Sources"
-        className="hidden min-h-0 overflow-y-auto border-l border-border px-[18px] py-4 xl:block"
+        className={cn("hidden min-h-0 overflow-y-auto border-l border-border px-[18px] py-4", !setupChat && "xl:block")}
       >
         <SourcesPanel
           passages={focusPassages}

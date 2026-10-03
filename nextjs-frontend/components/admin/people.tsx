@@ -20,13 +20,13 @@ import { isUnreachable } from "@/components/errors/error-states";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Field, Input, Switch } from "@/components/ui/field";
+import { Field, Input, Select, Switch } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Avatar, CodeBlock, EmptyState, SkeletonRows } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
-import { count, shortDate } from "@/lib/format";
+import { count, nameFromEmail, shortDate } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
@@ -516,24 +516,36 @@ function Done({ title, password }: { title: string; password: string }) {
 function CreateDialog({ onClose }: { onClose: () => void }) {
   const client = useApiClient();
   const qc = useQueryClient();
+  const { namespaces, namespace: topNs } = useArchive();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState(() => tempPassword());
   const [admin, setAdmin] = useState(false);
+  const [ns, setNs] = useState(topNs ?? namespaces[0]?.name ?? "");
+  const [role, setRole] = useState<"none" | "viewer" | "editor" | "owner">("viewer");
+  const shownName = name.trim() || nameFromEmail(email);
   const create = useMutation({
-    mutationFn: () =>
-      data(
+    mutationFn: async () => {
+      const made = await data(
         Users.createUser({
           client,
           body: {
-            name: name.trim() || null,
+            name: shownName || null,
             email: email.trim(),
             password,
             admin,
           },
         }),
-      ),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["users"] }),
+      );
+      // a role in a namespace in the same step, so nobody is sent to the role matrix afterwards
+      if (!admin && ns && role !== "none")
+        await data(Users.setMember({ client, path: { name: ns }, body: { account: made.id, role } }));
+      return made;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["users"] });
+      void qc.invalidateQueries({ queryKey: ["members"] });
+    },
   });
   const err = create.error instanceof ApiError ? create.error.message : create.error?.message;
   const emailErr = err && /email/i.test(err) ? err[0].toUpperCase() + err.slice(1) : null;
@@ -566,12 +578,9 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
       }
     >
       {create.isSuccess ? (
-        <Done title={`Created ${name.trim() || email.trim()}.`} password={password} />
+        <Done title={`Created ${shownName || email.trim()}.`} password={password} />
       ) : (
         <>
-          <Field label="Name">
-            {(f) => <Input id={f.id} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}
-          </Field>
           <Field label="Email" error={emailErr}>
             {(f) => (
               <Input
@@ -581,14 +590,51 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
                 type="email"
                 value={email}
                 onChange={(e) => (setEmail(e.target.value), create.reset())}
+                autoFocus
+              />
+            )}
+          </Field>
+          <Field label="Name" optional>
+            {(f) => (
+              <Input
+                id={f.id}
+                value={name}
+                placeholder={nameFromEmail(email) || undefined}
+                onChange={(e) => setName(e.target.value)}
               />
             )}
           </Field>
           <PasswordField value={password} onChange={setPassword} />
           <Switch checked={admin} onCheckedChange={setAdmin} label="Platform admin" />
-          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
-            New accounts have no namespace roles. Add them in the role matrix or from a namespace’s members.
-          </p>
+          {!admin && namespaces.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Namespace">
+                {(f) => (
+                  <Select
+                    id={f.id}
+                    value={ns}
+                    onChange={(e) => setNs(e.target.value)}
+                    options={namespaces.map((n) => n.name)}
+                  />
+                )}
+              </Field>
+              <Field label="Role there">
+                {(f) => (
+                  <Select
+                    id={f.id}
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as typeof role)}
+                    options={[
+                      { value: "viewer", label: "Viewer" },
+                      { value: "editor", label: "Editor" },
+                      { value: "owner", label: "Owner" },
+                      { value: "none", label: "No role yet" },
+                    ]}
+                  />
+                )}
+              </Field>
+            </div>
+          )}
           {err && !emailErr && <Banner tone="error">{err}</Banner>}
         </>
       )}
