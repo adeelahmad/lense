@@ -122,8 +122,9 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: "ai",
     label: "AI assistant",
-    backend: ["ai"],
-    description: "What the chat assistant may do with tools, and when a batch run needs a typed confirmation.",
+    backend: ["ai", "decisions"],
+    description:
+      "What the chat assistant may do with tools, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
   },
   {
     id: "search",
@@ -291,6 +292,12 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
     label: "Propose entity merges, renames, type changes, descriptions and new entities",
     acts: true,
   },
+  { name: "import_files", label: "Import files sent in a conversation", acts: true },
+  { name: "server_status", label: "Check what the server has set up (admins)", acts: false },
+  { name: "find_model_servers", label: "Find model servers nearby (admins)", acts: false },
+  { name: "read_settings", label: "Read settings (admins)", acts: false },
+  { name: "change_settings", label: "Change settings (admins)", acts: true },
+  { name: "create_namespace", label: "Create namespaces (admins)", acts: true },
 ];
 
 export const FIELDS: FieldSpec[] = [
@@ -601,6 +608,45 @@ export const FIELDS: FieldSpec[] = [
     min: 0,
     nullable: true,
   },
+  // Decisions
+  {
+    section: "decisions",
+    key: "engine",
+    label: "Who makes routine choices",
+    kind: "select",
+    options: [
+      { value: "auto", label: "Decision model when it has a key, else the LLM" },
+      { value: "jev", label: "Decision model (Jev)" },
+      { value: "llm", label: "LLM provider" },
+      { value: "off", label: "Nobody: always ask me" },
+    ],
+  },
+  {
+    section: "decisions",
+    key: "act_above",
+    label: "Act without asking from (confidence)",
+    kind: "number",
+    min: 0.5,
+    max: 1,
+    hint: "Below this the assistant asks, with its best guess first",
+  },
+  {
+    section: "decisions",
+    key: "base_url",
+    label: "Decision model server",
+    kind: "text",
+    mono: true,
+  },
+  { section: "decisions", key: "model", label: "Decision model", kind: "text", mono: true },
+  {
+    section: "decisions",
+    key: "timeout",
+    label: "Timeout (seconds)",
+    kind: "number",
+    min: 1,
+    max: 120,
+  },
+  { section: "decisions", key: "api_key", label: "API key", kind: "secret" },
   // Search
   {
     section: "search",
