@@ -22,6 +22,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   searching, so chat said the archive didn't cover things it did. When the model answers without looking anything up
   and the archive has matching passages, the answer now comes from those passages, with citations, as it does for a
   model that can't use tools.
+- **Docker Compose builds the full image by default.** `docker compose up` and `make dev` built the lean image, so
+  capturing web pages and converting Office files, text and emails failed with "needs Chromium or LibreOffice on the
+  server" until you rebuilt with `LENS_TARGET=full` (`make run` already used it). `LENS_TARGET=lean` still builds the
+  smaller one.
 - **Set up the first admin without copying the code.** The API log now prints a link next to the setup code
   (`…/setup?code=…`, from `FRONTEND_URL`) that opens the setup page with the code filled in and the cursor in Name.
   Without the link, the page offers `make setup-code` with a copy button; it named a `lens` container that no

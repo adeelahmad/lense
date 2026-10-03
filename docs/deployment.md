@@ -34,9 +34,9 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
   use SenseVoice in Docker, set `EXTRAS=sensevoice` in `.env` and rebuild (`make dev`); it adds PyTorch. For GPU transcription, build with
   `EXTRAS="sensevoice voices"` and give the worker the GPU; or run workers on other machines with `SURREAL_URL`
   pointing at the database and `--steps` limited to what they can do.
-* **Documents.** The default image reads PDFs and images. To read Word, PowerPoint and spreadsheet files, text,
-  Markdown, saved web pages and emails too, build the full image: `LENS_TARGET=full docker compose up` (or
-  `docker build --target full -t lens:full fastapi_backend`), which adds LibreOffice, Chromium and fonts for most
+* **Documents.** Docker Compose builds the full image, which reads Word, PowerPoint and spreadsheet files, text,
+  Markdown, saved web pages and emails as well as PDFs and images (`LENS_TARGET=lean` builds the smaller one that
+  reads only PDFs and images; a bare `docker build` makes the lean one unless given `--target full -t lens:full`): it adds LibreOffice, Chromium and fonts for most
   scripts, and ONNX Runtime with the YOLOX-s model for the objects step ([Configuration](configuration.md#objects));
   add `EXTRAS="msg"` for Outlook `.msg` emails ([Configuration](configuration.md#documents-and-images)), and
   `EXTRAS="doctr"` for docTR as the OCR engine (PyTorch: several GB;
