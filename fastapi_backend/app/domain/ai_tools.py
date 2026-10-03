@@ -550,7 +550,7 @@ class Toolbox(ops_tools.OpsTools):
         return [{**r, "used": r["n"] in used} for r in self.refs if r["n"] in used]
 
 
-def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False):
+def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None):
     """Carry out an approved action: a batch run (or a sample of it), an entity change, or a change to the server
     (ops_tools.py: settings, a namespace, importing attached files)."""
     a = db.one("SELECT record::id(id) AS id, chat, account, tool, args, status FROM $r", r=R("approval", int(aid)))
@@ -563,7 +563,7 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
         return {"status": "declined"}
     args = a["args"]
     if a["tool"] == "extension":
-        result = run_extension(db, cfg, args, user, admin, editable)
+        result = run_extension(db, cfg, args, user, admin, readable if readable is not None else editable)
     elif a["tool"] in ("change_settings", "create_namespace", "import_files"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
     elif a["tool"] == "run_template":
@@ -619,10 +619,10 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
     return {"status": "done", **result}
 
 
-def run_extension(db, cfg, args, user, admin, editable):
+def run_extension(db, cfg, args, user, admin, readable):
     """An approved extension tool: the version that was proposed, if it's still on and still the person's to use."""
     g = extensions.get(db, int(args["extension"]), args.get("version"))
-    me = extensions.who(user["id"], user.get("email"), admin, {s: "editor" for s in editable})
+    me = extensions.who(user["id"], user.get("email"), admin, {s: "viewer" for s in readable})
     if g.get("deleted_at") or not g.get("enabled") or not extensions.can_see(g, me):
         raise ValueError("that extension was switched off or removed")
     items = g["spec"]["items"] if g["kind"] == "plugin" else [g]
