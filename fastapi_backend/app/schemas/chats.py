@@ -116,6 +116,11 @@ class MessageCreate(RequestModel):
     model: str | None = Field(
         None, description="answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry"
     )
+    edit: int | None = Field(
+        None,
+        description="edit one of your earlier questions (its message id): it and everything after it are replaced by this "
+        "question and a new answer",
+    )
 
 
 class Approval(ResponseModel):

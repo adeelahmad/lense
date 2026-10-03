@@ -157,7 +157,10 @@ def _ev(name: str, data: Any) -> str:
 )
 async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> StreamingResponse:
     """Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
-    /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id)."""
+    /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
+
+    With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
+    its new answer (404 if it isn't a question in this conversation)."""
     c = await run_in_threadpool(_own_chat, db, cid, user)
     q = body.content.strip()[:4000]
     if not q:
@@ -169,9 +172,17 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     readable = set(acl.roles)
 
     def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        title = c["title"]
+        if body.edit is not None:
+            try:
+                old = chat.rewind(db, cid, body.edit)
+            except KeyError:
+                raise HTTPException(404, "no such question in this conversation") from None
+            if title == old[:80]:  # titled after the question being edited: retitle it after the edit
+                title = "New conversation"
         past = chat.history(db, cid)
         chat.add(db, cid, "user", q)
-        if not past and c["title"] == "New conversation":
+        if not past and title == "New conversation":
             db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
         return past, chat.retrieve(db, q, readable, c.get("scope"), cfg=cfg)
 

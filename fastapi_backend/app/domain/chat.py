@@ -299,6 +299,15 @@ def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice
     return mid
 
 
+def rewind(db, cid, mid):
+    """Remove a question of yours and everything said after it, to ask it again as edited; returns its old text."""
+    m = db.one("SELECT chat, role, content FROM $r", r=R("chat_message", mid))
+    if not m or m["chat"] != cid or m["role"] != "user":
+        raise KeyError(mid)
+    db.q("DELETE chat_message WHERE chat = $c AND record::id(id) >= $m", c=cid, m=mid)
+    return m["content"]
+
+
 def model_choices(cfg):
     """The models people may pick: the configured one first, then llm.chat_models, or (when that's empty) whatever
     the model server lists. Just the configured one when the server's list can't be had."""

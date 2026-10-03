@@ -8,7 +8,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Chats } from "@/app/openapi-client";
-import type { AnswerCheck, Approval, ChatMessage, Estimate, Passage } from "@/app/openapi-client/types.gen";
+import type { AnswerCheck, Approval, Chat, ChatMessage, Estimate, Passage } from "@/app/openapi-client/types.gen";
 import { Answer } from "@/components/chat/answer";
 import { shortTitle } from "@/components/chat/cite";
 import { Composer, ScopeBar } from "@/components/chat/composer";
@@ -18,6 +18,7 @@ import { EmptyChat } from "@/components/chat/empty";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
 import { applyEvent, newTurn, savedSteps, type ToolStep, type TurnState } from "@/components/chat/stream";
+import { UserBubble } from "@/components/chat/user-bubble";
 import { useRecordingIndex, useSpeakerDirectory } from "@/components/search/data";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
@@ -45,14 +46,6 @@ function pairs(msgs: ChatMessage[]): Pair[] {
     } else out.push({ key: `m${m.id}`, q: null, a: m });
   }
   return out;
-}
-
-function UserBubble({ text }: { text: string }) {
-  return (
-    <div className="max-w-[520px] self-end whitespace-pre-wrap rounded-[16px_16px_4px_16px] bg-surface-neutral px-4 py-3 text-[15px] leading-normal text-fg">
-      {text}
-    </div>
-  );
 }
 
 function streamError(e: unknown): string {
@@ -149,7 +142,11 @@ export function ChatApp() {
   );
 
   const run = useCallback(
-    async (cid: number, question: string, model?: string) => {
+    async (cid: number, question: string, model?: string, edit?: number) => {
+      if (edit != null)
+        qc.setQueryData<Chat>(["chat", cid], (c) =>
+          c ? { ...c, messages: (c.messages ?? []).filter((m) => m.id < edit) } : c,
+        );
       const ac = new AbortController();
       abortRef.current = ac;
       let turn = newTurn(question);
@@ -158,7 +155,7 @@ export function ChatApp() {
       try {
         for await (const msg of streamSSE(`/api/v1/chats/${cid}/messages`, {
           method: "POST",
-          body: { content: question, model },
+          body: { content: question, model, edit },
           accessToken: session?.accessToken,
           signal: ac.signal,
         })) {
@@ -195,10 +192,10 @@ export function ChatApp() {
   );
 
   const send = useCallback(
-    async (text?: string, model?: string) => {
+    async (text?: string, model?: string, edit?: number) => {
       const question = (text ?? draft).trim();
       if (!question || streaming) return;
-      setDraft("");
+      if (edit == null) setDraft("");
       let cid = activeId;
       if (cid == null) {
         try {
@@ -222,7 +219,7 @@ export function ChatApp() {
           return;
         }
       }
-      void run(cid, question, model);
+      void run(cid, question, model, edit);
     },
     [activeId, client, draft, draftScope, draftModel, qc, router, run, streaming, toast],
   );
@@ -428,7 +425,12 @@ export function ChatApp() {
               const ex = it.a ? extras[it.a.id] : undefined;
               return (
                 <div key={it.key} className="flex flex-col gap-5">
-                  {it.q && <UserBubble text={it.q.content} />}
+                  {it.q && (
+                    <UserBubble
+                      text={it.q.content}
+                      onEdit={activeId != null && !streaming ? (t) => send(t, undefined, it.q!.id) : undefined}
+                    />
+                  )}
                   {it.a ? (
                     <Answer
                       chatId={activeId}

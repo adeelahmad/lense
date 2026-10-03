@@ -4924,6 +4924,9 @@ export class Chats {
    *
    * Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
    * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
+   *
+   * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
+   * its new answer (404 if it isn't a question in this conversation).
    */
   public static sendMessage<ThrowOnError extends boolean = false>(
     options: Options<SendMessageData, ThrowOnError, unknown>,

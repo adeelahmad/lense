@@ -4287,6 +4287,12 @@ export type MessageCreate = {
    * answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry
    */
   model?: string | null;
+  /**
+   * Edit
+   *
+   * edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer
+   */
+  edit?: number | null;
 };
 
 /**
