@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Adding a source takes fewer steps.** Picking a type moves straight to its details, the tested connection is
+  named on the same screen (its suggested name kept with **Done**), and the folder browser opens next so you can pick
+  what to watch. "Connect a source" links elsewhere in the app open Add connection directly.
 - **Settings save in one click.** Save (or Ctrl/Cmd+S) applies a section's changes at once; only a new public base
   URL, which changes every IIIF identifier, is still reviewed and typed out first.
 - **Less typing and clicking.** Every dialog opens on its first field, and Enter there runs its main action. A web

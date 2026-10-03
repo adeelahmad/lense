@@ -216,7 +216,7 @@ export function FileTooLarge({
       actions={
         <>
           <Button asChild variant="primary" size="sm">
-            <Link href="/sources">Use a source</Link>
+            <Link href="/sources?add=1">Use a source</Link>
           </Button>
           {onRemove && (
             <Button variant="ghost" size="sm" onClick={onRemove}>
