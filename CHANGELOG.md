@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Settings save in one click.** Save (or Ctrl/Cmd+S) applies a section's changes at once; only a new public base
+  URL, which changes every IIIF identifier, is still reviewed and typed out first.
 - **Less typing and clicking.** Every dialog opens on its first field, and Enter there runs its main action. A web
   page's address needs no https://, namespace names are cleaned up as you type ("Customer Calls" becomes
   customer-calls), a routine left unnamed is named from its schedule and actions, and a new account gets its name from
