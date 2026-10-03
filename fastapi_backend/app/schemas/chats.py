@@ -48,7 +48,7 @@ class ChatUpdate(RequestModel):
 class ChatSummary(ResponseModel):
     id: int
     title: str
-    kind: Literal["chat", "setup"] = "chat"
+    kind: Literal["chat", "setup", "bridge"] = Field("chat", description="bridge: a conversation in a chat room, through Matterbridge")
     scope: dict[str, Any] = {}
     model: str | None = Field(None, description="the model chosen for this conversation; null: the configured one")
     created_at: str | None = None

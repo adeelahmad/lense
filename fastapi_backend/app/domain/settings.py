@@ -39,6 +39,7 @@ EDITABLE = {
     "components": None,
     "voice": None,
     "mail": None,
+    "bridge": None,
     "notifications": None,
     "telemetry": None,
     "encryption": None,
@@ -89,6 +90,7 @@ SECRETS = {
     "decisions": ("api_key",),
     "voice": ("tts_api_key",),
     "mail": ("password",),
+    "bridge": ("token",),
     "telemetry": ("headers",),
     "fedora": ("password",),
 }
@@ -107,6 +109,7 @@ ENUMS = {
     ("decisions", "engine"): {"auto", "jev", "llm", "off"},
     ("voice", "input"): {"auto", "server", "browser"},
     ("mail", "security"): {"starttls", "ssl", "none"},
+    ("bridge", "answer"): {"mention", "all"},
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
 # break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
@@ -340,6 +343,8 @@ def _check(section, key, value, default):
         return _component_setting(key, value)
     if section == "mail" and key != "security":
         return _mail_setting(key, value)
+    if section == "bridge" and key not in ("answer", "enabled"):
+        return _bridge_setting(key, value)
     if (section, key) == ("voice", "tts_base_url"):
         if value in (None, ""):
             return None
@@ -420,6 +425,36 @@ def _mail_setting(key, value):
         return "Lens"
     if key not in ("server", "port", "username", "password", "from_address", "from_name"):
         raise ValueError(f"unknown setting mail.{key}")
+    return value
+
+
+def _bridge_setting(key, value):
+    if key == "poll_seconds":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 300):
+            raise ValueError("bridge.poll_seconds is a whole number of seconds from 1 to 300")
+        return value
+    if key == "users":
+        if not (isinstance(value, list) and all(isinstance(v, str) and len(v) <= 200 for v in value) and len(value) <= 500):
+            raise ValueError("bridge.users is a list of chat usernames")
+        return list(dict.fromkeys(v.strip() for v in value if v.strip()))
+    if key not in ("url", "token", "gateway", "account", "name"):
+        raise ValueError(f"unknown setting bridge.{key}")
+    if value in (None, ""):
+        return "Lens" if key == "name" else None
+    if not (isinstance(value, str) and len(value.strip()) <= 500):
+        raise ValueError(f"bridge.{key} is text")
+    value = value.strip() if key != "token" else value
+    if key == "url":
+        u = urllib.parse.urlsplit(value)
+        if u.scheme not in ("http", "https") or not u.hostname:
+            raise ValueError("bridge.url is the address of Matterbridge's API, such as http://matterbridge:4242")
+        return value.rstrip("/")
+    if key == "account":
+        if not EMAIL_RX.match(value):
+            raise ValueError("bridge.account is the email of the Lens account it answers as")
+        return value.lower()
+    if key == "name" and not re.match(r"^[\w .-]{1,40}$", value):
+        raise ValueError("bridge.name is a short name, such as Lens")
     return value
 
 
