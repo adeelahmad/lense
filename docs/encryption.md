@@ -25,7 +25,8 @@ What is encrypted:
   email attachments (as files and as resources of their own), captured web pages, IIIF imports and resources'
   supplementary files. A new archive turns this on at its first start. An archive that already has files keeps its
   setting until you run `lens encrypt`, which turns it on and encrypts what is there (`lens encrypt --off` turns it
-  back). The command can be stopped and run again.
+  back). The command can be stopped and run again. Changing the setting in the app (Settings) only affects files that
+  arrive from then on.
 
 How encrypted files are used:
 

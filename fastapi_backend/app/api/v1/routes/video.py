@@ -54,11 +54,11 @@ def get_media(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "
     share link (``?s=``) or a signed link."""
     rec = acl.recording(rid, share=s)
     if rec.get("source") in documents.KINDS:
-        return serve_document(db, cfg, rec)
+        return serve_document(db, cfg, rec, request)
     return serve_audio(db, cfg, rec, rid, request)
 
 
-def serve_document(db: DB, cfg: dict[str, Any], rec: dict[str, Any]) -> Response:
+def serve_document(db: DB, cfg: dict[str, Any], rec: dict[str, Any], request: Request) -> Response:
     """A document's or an image's own file, as a download that browsers never run."""
     with domain_errors():  # its source was removed (404) or the path is no longer allowed (400)
         path = ingest.audio_path(db, cfg, rec, plain=False)
@@ -66,7 +66,7 @@ def serve_document(db: DB, cfg: dict[str, Any], rec: dict[str, Any]) -> Response
         raise HTTPException(404, "the file is missing on the server")
     name = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or path)).name
     ctype = documents.content_type(name) or "application/octet-stream"
-    return stored_file(db, cfg, path, ctype, name, files.HEADERS)
+    return stored_file(db, cfg, path, request, ctype, name, files.HEADERS)
 
 
 @router.get("/recordings/{rid}/pdf", response_class=FileResponse, responses={200: {"content": {"application/pdf": {}}}})

@@ -202,14 +202,14 @@ def delete_file(rid: int, fid: int, acl: Acl, user: Writer, db: Db, cfg: Cfg) ->
 
 
 @router.get("/{fid}/download", response_class=FileResponse, responses={200: {"content": {"application/octet-stream": {}}}})
-def download_file(rid: int, fid: int, acl: Acl, db: Db, cfg: Cfg) -> Response:
+def download_file(rid: int, fid: int, request: Request, acl: Acl, db: Db, cfg: Cfg) -> Response:
     """The file as it was added, to save. Accepts a bearer token or a signed link (from the list)."""
     acl.recording(rid)
     f = _file(db, rid, fid)
     path = files.path_of(cfg, f)
     if not path.is_file():
         raise HTTPException(404, "the file is missing on the server")
-    return stored_file(db, cfg, path, files.served_type(f), f["name"], files.HEADERS)
+    return stored_file(db, cfg, path, request, files.served_type(f), f["name"], files.HEADERS)
 
 
 @router.get("/{fid}/lines")

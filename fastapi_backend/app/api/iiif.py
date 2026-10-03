@@ -440,7 +440,7 @@ def iiif_audio(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg)
         raise HTTPException(401, "sign in through the viewer to play this recording")
     full = db.one("SELECT * FROM $r", r=R("recording", rid))
     if full.get("source") in documents.KINDS:  # a document or an image: its file, to save
-        return serve_document(db, cfg, full)
+        return serve_document(db, cfg, full, request)
     return serve_audio(db, cfg, full, rid, request)
 
 
@@ -526,7 +526,7 @@ def iiif_file(rid: int, name: str, request: Request, user: OptionalUser, db: Db,
     path = filemod.path_of(cfg, f)
     if not path.is_file():
         raise HTTPException(404, "not found")
-    return stored_file(db, cfg, path, filemod.served_type(f), f["name"], filemod.HEADERS)
+    return stored_file(db, cfg, path, request, filemod.served_type(f), f["name"], filemod.HEADERS)
 
 
 @router.get("/iiif/{rid}/search")

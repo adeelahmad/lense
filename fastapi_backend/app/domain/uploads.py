@@ -305,8 +305,6 @@ def finish(db, cfg, row, admin=False):
         st = dest.stat()
         fp = ingest.fingerprint(dest)
         kind = documents.kind_of(row["filename"])
-        probed = ingest.probe(dest) if target or not kind else None  # read before the file is encrypted
-        keyring.protect(db, cfg, sid, dest)
         deletion.forget(db, sid, fp)  # uploaded on purpose: a recording deleted before comes back
         dup = (
             None
@@ -318,6 +316,9 @@ def finish(db, cfg, row, admin=False):
             )
         )
         copy = bool(dup and (has_file(db, cfg, dup) if kind else has_media(db, cfg, dup)))  # it's here already, with its file
+        probed = ingest.probe(dest) if not copy and (target or not kind) else None  # read before the file is encrypted
+        if not copy:
+            keyring.protect(db, cfg, sid, dest)
         job = None
         if target:
             rid, job = target, _attach(db, cfg, target, sid, dest, st, fp, by, probed)

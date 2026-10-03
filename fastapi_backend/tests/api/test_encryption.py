@@ -65,6 +65,15 @@ def test_documents_download_as_they_were(client, db, cfg):
     r = client.get(f"/api/v1/recordings/{rid}/media", headers=he)
     assert r.status_code == 200 and r.content == pdf
     assert 'filename="harbour.pdf"' in r.headers["content-disposition"]
+    r = client.get(f"/api/v1/recordings/{rid}/media", headers={**he, "Range": "bytes=10-19"})
+    assert r.status_code == 206 and r.content == pdf[10:20]
+
+
+def test_a_file_that_only_looks_encrypted_is_encrypted_too(client, db, cfg):
+    he = _editor(client, db)
+    odd = b"LENSE1" + b"\x00" * 40 + b"just text"
+    rid = _upload(client, he, odd, "odd.pdf")
+    assert client.get(f"/api/v1/recordings/{rid}/media", headers=he).content == odd
 
 
 def test_lens_encrypt_converts_an_archive_that_has_files(client, db, cfg, folder):
@@ -108,4 +117,6 @@ def test_working_copies_go_once_unused(db, cfg, folder):
     assert keyring.sweep(cfg) == 0
     old = time.time() - 3600
     os.utime(pathlib.Path(w).parent, (old, old))
+    assert keyring.sweep(cfg) == 0  # still held by the job using it
+    keyring.release()
     assert keyring.sweep(cfg) == 1 and not os.path.exists(w)

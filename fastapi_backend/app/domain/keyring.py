@@ -416,9 +416,10 @@ class Reader(io.RawIOBase):
         super().close()
 
 
-def encrypt_file(db, cfg, sid, path, chunk=CHUNK):
-    """Encrypt a file in place (atomically); a file already encrypted is left alone. Returns whether it changed."""
-    if is_encrypted(path):
+def encrypt_file(db, cfg, sid, path, chunk=CHUNK, force=False):
+    """Encrypt a file in place (atomically); a file already encrypted is left alone, unless `force` says it's known to
+    be plain (one that has just arrived and only happens to start like one). Returns whether it changed."""
+    if not force and is_encrypted(path):
         return False
     with Writer(db, cfg, sid, path, chunk=chunk) as w, open(path, "rb") as src:
         while part := src.read(1024 * 1024):
@@ -486,13 +487,13 @@ def owned(cfg, path) -> bool:
 
 
 def protect(db, cfg, sid, path) -> bool:
-    """Encrypt a file Lens has just stored, when encryption.files is on; its modification time is kept. Returns
-    whether it was encrypted now."""
+    """Encrypt a file Lens has just stored (so it is plain, whatever its first bytes), when encryption.files is on; its
+    modification time is kept. Returns whether it was encrypted. A vault nobody has unlocked here raises Locked: its
+    files are never stored plain."""
     if not (enabled(cfg) and owned(cfg, path)):
         return False
     st = os.stat(path)
-    if not encrypt_file(db, cfg, sid, path):
-        return False
+    encrypt_file(db, cfg, sid, path, force=True)
     os.utime(path, (st.st_atime, st.st_mtime))
     return True
 
@@ -505,16 +506,59 @@ def plain_size(db, cfg, path) -> int:
     return os.path.getsize(path)
 
 
+_HELD = threading.local()
+_WORK = threading.Lock()
+
+
 def _work_dir(cfg):
     d = pathlib.Path(cfg["data_dir"]) / "tmp" / "work"
     d.mkdir(parents=True, exist_ok=True, mode=0o700)
     return d
 
 
+def _hold(path):
+    """Keep a shared lock on a working copy until release(), so no sweep (in any process) removes it while in use."""
+    import fcntl
+
+    held = getattr(_HELD, "fds", None)
+    if held is None:
+        held = _HELD.fds = {}
+    if path in held:
+        return
+    fd = os.open(path, os.O_RDONLY)
+    fcntl.flock(fd, fcntl.LOCK_SH)
+    held[path] = fd
+
+
+def release():
+    """Let go of the working copies this thread is using (at the end of a job)."""
+    for fd in (getattr(_HELD, "fds", None) or {}).values():
+        with contextlib.suppress(OSError):
+            os.close(fd)
+    _HELD.fds = {}
+
+
+def _in_use(path):
+    import fcntl
+
+    try:
+        fd = os.open(path, os.O_RDONLY)
+    except OSError:
+        return False
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return False
+    except OSError:
+        return True
+    finally:
+        os.close(fd)
+
+
 def working_copy(db, cfg, path):
     """A path the tools that need one (ffmpeg, pdftoppm, LibreOffice, …) can read: the file itself when it isn't
-    encrypted, else a plain copy under the same name in data_dir/tmp/work, made once and kept while it is being used
-    (each use refreshes it; sweep() removes copies unused for encryption.work_minutes)."""
+    encrypted, else a plain copy under the same name in data_dir/tmp/work, made once. It is held until this thread
+    calls release() (jobs do when they end) and removed by sweep() once nobody holds it and it has gone unused for
+    encryption.work_minutes."""
     if not path or not is_encrypted(path):
         return path
     import hashlib
@@ -523,27 +567,28 @@ def working_copy(db, cfg, path):
     key = hashlib.sha256(f"{os.path.abspath(path)}:{st.st_size}:{st.st_mtime_ns}".encode()).hexdigest()[:32]
     folder = _work_dir(cfg) / key
     out = folder / pathlib.Path(path).name  # its own name: readers go by the extension, and some show the name
-    if out.exists():
+    with _WORK:
+        if not out.exists():
+            folder.mkdir(exist_ok=True, mode=0o700)
+            r = Reader(db, cfg, path)
+            fd, tmp = tempfile.mkstemp(dir=folder, prefix=".work-")
+            try:
+                with r, os.fdopen(fd, "wb") as f:
+                    while part := r.read(1024 * 1024):
+                        f.write(part)
+                os.replace(tmp, out)
+            except BaseException:
+                with contextlib.suppress(OSError):
+                    os.unlink(tmp)
+                raise
         os.utime(folder)
-        return str(out)
-    folder.mkdir(exist_ok=True, mode=0o700)
-    r = Reader(db, cfg, path)
-    fd, tmp = tempfile.mkstemp(dir=folder, prefix=".work-")
-    try:
-        with r, os.fdopen(fd, "wb") as f:
-            while part := r.read(1024 * 1024):
-                f.write(part)
-        os.replace(tmp, out)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp)
-        raise
-    sweep(cfg)
+        _hold(str(out))
     return str(out)
 
 
 def sweep(cfg, minutes=None):
-    """Remove plain working copies nobody has used for encryption.work_minutes. Returns how many went."""
+    """Remove plain working copies nobody holds that have gone unused for encryption.work_minutes. Returns how many
+    went."""
     import shutil
     import time
 
@@ -554,9 +599,10 @@ def sweep(cfg, minutes=None):
     gone = 0
     for p in d.iterdir():
         with contextlib.suppress(OSError):
-            if p.stat().st_mtime < limit:
-                shutil.rmtree(p) if p.is_dir() else p.unlink()
-                gone += 1
+            if p.stat().st_mtime >= limit or any(_in_use(f) for f in p.iterdir() if f.is_file()):
+                continue
+            shutil.rmtree(p)
+            gone += 1
     return gone
 
 
@@ -581,11 +627,11 @@ def encrypt_all(db, cfg, decrypt=False, log=print):
     again after stopping half way. Returns how many changed."""
     changed = 0
     for sid, p in stored_files(db, cfg):
-        st = os.stat(p)
         try:
+            st = os.stat(p)
             done = decrypt_file(db, cfg, p) if decrypt else encrypt_file(db, cfg, sid, p)
-        except (Locked, Damaged) as e:
-            log(f"skipped {p}: {e.__class__.__name__.lower()}")
+        except (Locked, Damaged, OSError) as e:  # a vault, a damaged file, one gone or not writable: the rest go on
+            log(f"skipped {p}: {e}")
             continue
         if done:
             os.utime(p, (st.st_atime, st.st_mtime))

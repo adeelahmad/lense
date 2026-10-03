@@ -437,7 +437,8 @@ def update(db, cfg, rid, fid, changes):
         check(role, f["name"])
         if role in PARSED:
             duration = (db.one("SELECT duration_ms FROM $r", r=R("recording", int(rid))) or {}).get("duration_ms")
-            lines, timed = read(keyring.working_copy(db, cfg, str(path_of(cfg, f))), role, duration)
+            with keyring.plain_path(db, cfg, path_of(cfg, f)) as plain:
+                lines, timed = read(plain, role, duration)
         else:
             lines, timed = [], None
         _write_lines(db, fid, _line_rows(f, lines))
