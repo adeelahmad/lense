@@ -165,7 +165,7 @@ def create_jobs(body: JobsCreate, acl: Acl, user: Writer, db: Db) -> JobsQueued:
 
 def _worker(w: dict[str, Any]) -> WorkerInfo:
     draining = bool(w.get("drain")) and w.get("current") is not None  # only while it has a run to hand back
-    return WorkerInfo(**{**w, "paused": bool(w.get("paused")), "draining": draining})
+    return WorkerInfo(**{**w, "paused": bool(w.get("paused")), "draining": draining, "components": w.get("components") or {}})
 
 
 @router.get("/workers")

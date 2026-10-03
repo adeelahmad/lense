@@ -61,6 +61,7 @@ export type SectionId =
   | "reports"
   | "video"
   | "workers"
+  | "components"
   | "access"
   | "notifications"
   | "telemetry"
@@ -149,6 +150,13 @@ export const SECTIONS: SectionSpec[] = [
     label: "Workers",
     backend: ["workers"],
     description: "The workers inside the server, and how the job queue retries.",
+  },
+  {
+    id: "components",
+    label: "Components",
+    backend: ["components"],
+    description:
+      "The engines and models Lens fetches for itself, sized to each worker’s machine. Steps that need one wait while it arrives.",
   },
   {
     id: "access",
@@ -608,6 +616,15 @@ export const FIELDS: FieldSpec[] = [
     min: 0,
     nullable: true,
   },
+  // Components
+  {
+    section: "components",
+    key: "auto",
+    label: "Fetch what’s needed by itself",
+    kind: "switch",
+    hint: "Off: only report what’s missing",
+  },
+  { section: "components", key: "also", label: "Also fetch", kind: "checks" },
   // Decisions
   {
     section: "decisions",

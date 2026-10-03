@@ -26,6 +26,7 @@ def make_cfg(folder: pathlib.Path, url: str = TEST_URL, **overrides):
         "namespaces": {"pods": {"paths": [], "graph": "shared"}, "calls": {"paths": [], "graph": "isolated"}},
         "server": {"allowed_hosts": ["127.0.0.1", "localhost", "testserver"]},
         "sources": {"local_roots": [str(folder / "inbox")]},
+        "components": {"auto": False},  # tests never fetch packages or models
     }
     return store.load_config(str(folder / "missing.yaml"), overrides=store._merge(base, overrides))
 

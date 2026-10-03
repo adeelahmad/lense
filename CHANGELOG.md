@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Lens fetches what it needs.** Each worker checks what the settings ask for (SenseVoice or a Whisper model, voice
+  IDs, face and object models, the chat and embedding models on Ollama) and fetches what's missing into the data folder,
+  sized to its machine (PyTorch's CPU build without a GPU). Steps wait for their engine instead of falling back. Models
+  now outlast container rebuilds. **Settings → Components** shows each worker's machine and where everything is
+  (docs/components.md).
+
 - **The assistant decides routine choices.** Files sent in a conversation go into the namespace that fits without
   asking, chosen by a decision model (Jev, with a key in Settings → AI assistant or `TYPESAFE_API_KEY`) or the LLM.
   Below `decisions.act_above` confidence it asks, best guess first. The admin tools are now listed in Settings → AI

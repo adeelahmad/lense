@@ -243,6 +243,8 @@ DEFAULTS = {
         "price_in": None,
         "price_out": None,
     },
+    # what Lens fetches for itself (components.py): auto fetches what the settings need; also names optional ones
+    "components": {"auto": True, "also": []},
     # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
     # has a key, else the language model. act_above: the confidence it acts on; below it, it asks.
     "decisions": {

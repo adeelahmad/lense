@@ -34,7 +34,7 @@ R = store.R
 PROJECT = pathlib.Path(__file__).resolve().parents[2]  # fastapi_backend: pyproject.toml and uv.lock
 TORCH_CPU = "https://download.pytorch.org/whl/cpu"
 GPU_ONLY = re.compile(r"^(nvidia-|cuda-|triton$)")
-TORCH_FAMILY = {"torch", "torchvision"}
+TORCH_FAMILY = {"torch", "torchaudio", "torchvision"}  # PyPI's builds need CUDA on Linux
 RETRY_SECONDS = 3600  # a failed fetch is tried again after this, or when the settings change
 CHECK_SECONDS = 300
 # files fetched by URL, checked against their hash: (url, sha256, size in MB)
@@ -145,14 +145,14 @@ def pip_install(cfg, extra, say=None):
     rest = [line for n, line in reqs if n not in TORCH_FAMILY]
     target = packages_dir(cfg)
     target.mkdir(parents=True, exist_ok=True)
-    env = {**os.environ, "UV_CACHE_DIR": str(pathlib.Path(cfg["data_dir"]) / "cache" / "uv")}
+    env = {**os.environ, "UV_NO_CACHE": "1"}  # a second copy of every wheel would only fill the disk
     base = [shutil.which("uv"), "pip", "install", "--python", sys.executable, "--target", str(target), "--no-deps", "--quiet"]
     cpu_torch = not m["cuda"] and m["os"] == "linux"
     for group, index in ((torch, TORCH_CPU if cpu_torch else None), (rest, None)):
         if not group:
             continue
         reqfile = target.parent / f".{extra}-requirements.txt"
-        lines = [re.sub(r"^(torch(?:vision)?)==([^\s;+]+)", r"\1==\2+cpu", x) if index else x for x in group]
+        lines = [re.sub(r"^(torch(?:audio|vision)?)==([^\s;+]+)", r"\1==\2+cpu", x) if index else x for x in group]
         reqfile.write_text("\n".join(lines) + "\n", encoding="utf-8")
         if say:
             say(f"installing {len(group)} package(s) for {extra}")
@@ -482,9 +482,7 @@ COMPONENTS = [
     Faces("faces", "Face models", "finds and recognises faces in video (YuNet and SFace)", steps={"faces"}, size_mb=80),
     Objects("objects", "Object model", "finds objects in frames and pages (YOLOX-s)", steps={"objects"}, size_mb=50),
     OllamaModel("llm-model", "Chat model", "the LLM provider's model, pulled on Ollama", section="llm"),
-    OllamaModel(
-        "embedding-model", "Embedding model", "search by meaning's model, pulled on Ollama", section="embeddings", steps={"embed"}
-    ),
+    OllamaModel("embedding-model", "Embedding model", "search by meaning's model, pulled on Ollama", section="embeddings", steps={"embed"}),
     Msg("msg", "Outlook .msg emails", "reads Outlook .msg files (extract-msg)", optional=True, license="GPL-3.0", size_mb=5),
 ]
 BY_ID = {c.id: c for c in COMPONENTS}
@@ -572,7 +570,10 @@ class Keeper:
                 todo.append(c)
             else:
                 prev = self.state.get(c.id) or {}
-                state[c.id] = {"state": "failed" if prev.get("error") else "missing", **({"error": prev["error"]} if prev.get("error") else {})}
+                state[c.id] = {
+                    "state": "failed" if prev.get("error") else "missing",
+                    **({"error": prev["error"]} if prev.get("error") else {}),
+                }
         with self.lock:
             self.state = state
         self.report()
@@ -602,9 +603,10 @@ class Keeper:
         last = 0.0
         while not stop.is_set():
             ver = self.settings_version()
-            if ver != self.seen or time.time() - last > CHECK_SECONDS or _poked(self.db, last):
-                if ver != self.seen:
-                    self.failed_at.clear()  # new settings: try again at once
+            poked = _poked(self.db, last)
+            if ver != self.seen or poked or time.time() - last > CHECK_SECONDS:
+                if ver != self.seen or poked:
+                    self.failed_at.clear()  # new settings, or asked to: try again at once
                 self.seen, last = ver, time.time()
                 try:
                     self.check()
