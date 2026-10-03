@@ -556,20 +556,23 @@ def work(cfg):
             sweep(cfg)
 
 
-def _in_use(path):
+def _claim(folder):
+    """Exclusive locks on every file of a working copy's folder, or None when one is held."""
     import fcntl
 
-    try:
-        fd = os.open(path, os.O_RDONLY)
-    except OSError:
-        return False
-    try:
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return False
-    except OSError:
-        return True
-    finally:
-        os.close(fd)
+    fds = []
+    for f in folder.iterdir():
+        if not f.is_file():
+            continue
+        fd = os.open(f, os.O_RDONLY)
+        fds.append(fd)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            for x in fds:
+                os.close(x)
+            return None
+    return fds
 
 
 def working_copy(db, cfg, path):
@@ -627,10 +630,17 @@ def sweep(cfg, minutes=None):
     with _WORK:  # not while this process is making or taking one
         for p in d.iterdir():
             with contextlib.suppress(OSError):
-                if p.stat().st_mtime >= limit or any(_in_use(f) for f in p.iterdir() if f.is_file()):
+                if p.stat().st_mtime >= limit:
                     continue
-                shutil.rmtree(p)
-                gone += 1
+                locks = _claim(p)
+                if locks is None:  # someone holds it
+                    continue
+                try:  # removed while locked, so nobody takes it in between (_hold then sees it's gone)
+                    shutil.rmtree(p)
+                    gone += 1
+                finally:
+                    for fd in locks:
+                        os.close(fd)
     return gone
 
 
