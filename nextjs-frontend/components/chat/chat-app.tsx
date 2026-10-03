@@ -28,6 +28,7 @@ import { data, useApiClient } from "@/lib/api/browser";
 import { SSEError, streamSSE } from "@/lib/api/sse";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
+import { useVoice, VoiceError } from "@/lib/voice";
 
 type Sent = { id: string; filename: string; size: number };
 type Live = { chatId: number; turn: TurnState; files: Sent[] };
@@ -103,7 +104,14 @@ export function ChatApp() {
   const [draftModel, setDraftModel] = useState<string | null>(null); // for the conversation that isn't started yet
   const [draft, setDraft] = useState(() => search.get("q") ?? "");
   const [composing, setComposing] = useState(() =>
-    Boolean(search.get("q") || search.get("ns") || search.get("recording") || search.get("speaker")),
+    Boolean(
+      search.get("q") ||
+      search.get("ns") ||
+      search.get("recording") ||
+      search.get("speaker") ||
+      search.get("global") ||
+      search.get("voice"),
+    ),
   );
   const [live, setLive] = useState<Live | null>(null);
   const [extras, setExtras] = useState<Record<number, Extra>>({});
@@ -161,7 +169,7 @@ export function ChatApp() {
   );
 
   const run = useCallback(
-    async (cid: number, question: string, model?: string, attached: Sent[] = []) => {
+    async (cid: number, question: string, model?: string, attached: Sent[] = []): Promise<TurnState> => {
       const ac = new AbortController();
       abortRef.current = ac;
       let turn = newTurn(question);
@@ -203,13 +211,19 @@ export function ChatApp() {
       if (mid == null) setPartials((p) => ({ ...p, [`${cid}:${question}`]: turn }));
       setLive(null);
       setFocusKey(mid != null ? `a${mid}` : null);
+      return turn;
     },
     [qc, session?.accessToken],
   );
 
   // Sends now, starting the conversation if there isn't one yet.
   const dispatch = useCallback(
-    async (question: string, model?: string, attached: Sent[] = [], kind: "chat" | "setup" = "chat") => {
+    async (
+      question: string,
+      model?: string,
+      attached: Sent[] = [],
+      kind: "chat" | "setup" = "chat",
+    ): Promise<TurnState | null> => {
       let cid = kind === "setup" ? null : activeId;
       if (cid == null) {
         try {
@@ -230,10 +244,10 @@ export function ChatApp() {
             body: e instanceof Error ? e.message : undefined,
             tone: "red",
           });
-          return;
+          return null;
         }
       }
-      void run(cid, question, model, attached);
+      return run(cid, question, model, attached);
     },
     [activeId, client, draftScope, draftModel, qc, router, run, toast],
   );
@@ -260,6 +274,62 @@ export function ChatApp() {
     setQueue(rest);
     void dispatch(next.text, undefined, next.files);
   }, [live, queue, dispatch]);
+
+  // Voice mode: hear a question, send it, read the answer aloud, listen again, until the mic is tapped off or
+  // nothing is said twice in a row. /chat?voice=1 (the assistant home's mic) starts it at once.
+  const voice = useVoice();
+  const [voiceOn, setVoiceOn] = useState(() => search.get("voice") === "1");
+  const voiceRef = useRef(voiceOn);
+  const dispatchRef = useRef(dispatch);
+  dispatchRef.current = dispatch;
+  const looping = useRef(false);
+  const { listen, speak, stop: hush } = voice;
+  useEffect(() => {
+    voiceRef.current = voiceOn;
+    if (!voiceOn) {
+      hush();
+      return;
+    }
+    if (looping.current) return;
+    looping.current = true;
+    void (async () => {
+      let quiet = 0;
+      try {
+        while (voiceRef.current) {
+          let said: string;
+          try {
+            said = await listen();
+          } catch (e) {
+            if (voiceRef.current)
+              toast({
+                title: "Couldn’t listen",
+                body: e instanceof VoiceError ? e.message : undefined,
+                tone: "red",
+              });
+            break;
+          }
+          if (!voiceRef.current) break;
+          if (!said) {
+            if (++quiet >= 2) break;
+            continue;
+          }
+          quiet = 0;
+          const turn = await dispatchRef.current(said);
+          if (!voiceRef.current || !turn) break;
+          if (turn.status === "done" && turn.text) await speak(turn.text);
+        }
+      } finally {
+        looping.current = false;
+        setVoiceOn(false);
+      }
+    })();
+  }, [voiceOn, listen, speak, hush, toast]);
+  useEffect(
+    () => () => {
+      voiceRef.current = false;
+    },
+    [],
+  );
 
   // /chat?setup=1 (from the setup wizard): a conversation in which the assistant sets the server up.
   const setupAsked = useRef(false);
@@ -595,7 +665,7 @@ export function ChatApp() {
               </ul>
             )}
             <Composer
-              value={draft}
+              value={voice.listening && voice.heard ? voice.heard : draft}
               onChange={setDraft}
               onSend={() => send()}
               onFiles={files.add}
@@ -604,7 +674,16 @@ export function ChatApp() {
               uploading={files.sending}
               busy={Boolean(live)}
               autoFocus={composing}
-              placeholder={msgs.length || liveHere ? "Ask a follow-up…" : "Ask across your archive…"}
+              placeholder={
+                voice.listening
+                  ? "Listening…"
+                  : voice.speaking
+                    ? "Reading the answer aloud…"
+                    : msgs.length || liveHere
+                      ? "Ask a follow-up…"
+                      : "Ask across your archive…"
+              }
+              voice={voice.supported ? { on: voiceOn, onToggle: () => setVoiceOn((v) => !v) } : undefined}
             />
           </div>
         </div>
