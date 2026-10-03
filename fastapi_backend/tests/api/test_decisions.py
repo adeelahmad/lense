@@ -39,6 +39,7 @@ def app(cfg, db, llm):
 
 def test_the_decision_model_answers_when_it_has_a_key(cfg, jev, llm):
     jev.answer = {"type": "choice", "choice": "work", "confidence": 0.59, "probabilities": {"kids": 0.27, "work": 0.73}}
+    asked = len(llm.seen)
     d = decide.choose(cfg, "Where does this go?", OPTIONS, {"subject": "Parents evening", "from": "hr@work.example"})
     assert (d["choice"], d["by"], d["ranked"][0]) == ("work", "jev", {"option": "work", "p": 0.73})
     assert not decide.sure(cfg, d)  # below act_above: ask
@@ -50,7 +51,7 @@ def test_the_decision_model_answers_when_it_has_a_key(cfg, jev, llm):
         "criteria": OPTIONS,
     }
     assert json.loads(body["state"])["from"] == "hr@work.example"
-    assert not [b for b in llm.seen if b.get("response_format")]  # the language model wasn't asked
+    assert len(llm.seen) == asked  # the language model wasn't asked
 
 
 def test_the_language_model_decides_without_one_and_when_it_fails(cfg, jev, llm):
