@@ -1,6 +1,7 @@
 "use client";
 
 import { Fingerprint } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { AuthAlert } from "@/components/auth/auth-card";
@@ -42,7 +43,15 @@ export function PasskeySignIn({
   if (unavailable && hideIfUnavailable) return null;
   return (
     <div className="flex flex-col gap-3">
-      {unavailable && <AuthAlert tone="gate">{unavailable}</AuthAlert>}
+      {unavailable && (
+        <AuthAlert tone="gate">
+          {unavailable} Or sign in with a one-time link:{" "}
+          <Link href="/password-recovery" className="font-bold underline underline-offset-2">
+            email me one
+          </Link>
+          .
+        </AuthAlert>
+      )}
       {error && <AuthAlert tone="error">{error}</AuthAlert>}
       <Button
         variant="primary"

@@ -35,8 +35,8 @@ export function LostPasskeyForm() {
 
   return (
     <AuthCard
-      title="Lost your passkey?"
-      description="Enter your email and we'll send a link for adding a new passkey on this device."
+      title="Get a sign-in link"
+      description="Lost your passkey, or on a device without one? Enter your email and we'll send a one-time link that signs you in and adds a passkey."
       footer={
         <>
           No email? Ask an admin for a sign-in link. ·{" "}

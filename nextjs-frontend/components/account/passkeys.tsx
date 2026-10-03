@@ -102,6 +102,7 @@ function PasskeyRow({
 }) {
   const client = useApiClient();
   const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [name, setName] = useState(p.name);
   const rename = useMutation({
     mutationFn: () => data(Auth.renamePasskey({ client, path: { pid: p.id }, body: { name: name.trim() } })),
@@ -156,13 +157,24 @@ function PasskeyRow({
           <Pencil />
         </IconButton>
       )}
-      <IconButton
-        label={last ? "Your last passkey: add another before removing it" : "Remove"}
-        disabled={last}
-        onClick={onRemove}
-      >
-        <Trash2 />
-      </IconButton>
+      {confirming ? (
+        <span className="flex items-center gap-1.5">
+          <Button size="sm" variant="danger" onClick={onRemove}>
+            Remove
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>
+            Keep
+          </Button>
+        </span>
+      ) : (
+        <IconButton
+          label={last ? "Your last passkey: add another before removing it" : "Remove"}
+          disabled={last}
+          onClick={() => setConfirming(true)}
+        >
+          <Trash2 />
+        </IconButton>
+      )}
     </li>
   );
 }

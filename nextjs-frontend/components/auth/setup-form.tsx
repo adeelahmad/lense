@@ -3,78 +3,61 @@
 import { Fingerprint } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
-import { setup } from "@/components/actions/setup-action";
 import { AuthAlert, AuthCard } from "@/components/auth/auth-card";
 import { AuthField } from "@/components/auth/auth-field";
-import { AuthSubmit } from "@/components/auth/auth-submit";
-import { finishSignIn, PasskeyFlowError, setupTicket } from "@/components/auth/passkey-flows";
-import { useFormAction } from "@/components/auth/use-form-action";
+import {
+  finishSignIn,
+  PasskeyFlowError,
+  setupTicket,
+  setupWithoutPasskeyTicket,
+} from "@/components/auth/passkey-flows";
 import { Button } from "@/components/ui/button";
-import { PASSWORD_MIN_LENGTH, passwordShortBy } from "@/lib/definitions";
 import { deviceName, passkeyErrorMessage, passkeysUnavailableReason } from "@/lib/auth/webauthn";
 
 const EMAIL = /^\S+@\S+\.\S+$/;
 
 /**
  * First-run setup with the one-time code from the server log (Access AC1). Shown only while no accounts exist. The
- * first admin signs in with a passkey: no password at all. Where the browser can't use passkeys (plain http:// other
- * than localhost) they get a password instead, which turns passwords on.
+ * first admin signs in with a passkey: no password at all. Where the browser can't make passkeys (a plain http://
+ * address other than localhost) the code alone makes the admin; they sign in later with a passkey at the https://
+ * address, or with a one-time sign-in link.
  */
 export function SetupForm({ initialCode = "" }: { initialCode?: string }) {
-  const { state, pending, onSubmit, action } = useFormAction(setup);
   const [code, setCode] = useState(initialCode);
   const [name, setName] = useState("");
-  // null until mounted: whether passkeys work here is only known in the browser
-  const [unavailable, setUnavailable] = useState<string | null | undefined>(undefined);
-  const [usePassword, setUsePassword] = useState(false);
-  const [passkeyBusy, setPasskeyBusy] = useState(false);
-  const [passkeyError, setPasskeyError] = useState<{ field?: "code" | "email"; text: string } | null>(null);
-  useEffect(() => setUnavailable(passkeysUnavailableReason()), []);
-  const passwordMode = usePassword || Boolean(unavailable);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  // A server error for a field stays until that field changes.
-  const [sent, setSent] = useState<{
-    code: string;
-    email: string;
-    password: string;
-  } | null>(null);
+  // undefined until mounted: whether passkeys work here is only known in the browser
+  const [unavailable, setUnavailable] = useState<string | null | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<{ field?: "code" | "email"; text: string } | null>(null);
+  useEffect(() => setUnavailable(passkeysUnavailableReason()), []);
 
-  const identified = code.trim().length > 0 && EMAIL.test(email.trim());
-  const ready = identified && [...password].length >= PASSWORD_MIN_LENGTH;
-  const current = { code, email, password };
-  const fieldState = (field: keyof typeof current) => (sent && sent[field] !== current[field] ? undefined : state);
-  const formError = passwordMode
-    ? state?.server_validation_error || state?.server_error
-    : passkeyError?.field
-      ? null
-      : passkeyError?.text;
+  const ready = code.trim().length > 0 && EMAIL.test(email.trim());
+  const fieldError = (field: "code" | "email") => (error?.field === field ? error.text : null);
 
-  async function withPasskey(e: FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setPasskeyBusy(true);
-    setPasskeyError(null);
+    if (!ready || busy) return;
+    setBusy(true);
+    setError(null);
+    const body = { code: code.trim(), email: email.trim(), name: name.trim() || undefined };
     try {
-      const ticket = await setupTicket(
-        { code: code.trim(), email: email.trim(), name: name.trim() || undefined },
-        deviceName(),
-      );
+      const ticket = unavailable ? await setupWithoutPasskeyTicket(body) : await setupTicket(body, deviceName());
       await finishSignIn(ticket, "/welcome");
     } catch (err) {
       if (err instanceof PasskeyFlowError && err.status === 403) {
-        setPasskeyError({
+        setError({
           field: "code",
           text: "Setup is closed or the code is wrong. Copy the code again from the server log.",
         });
       } else if (err instanceof PasskeyFlowError && /email/i.test(err.message)) {
-        setPasskeyError({ field: "email", text: err.message });
+        setError({ field: "email", text: err.message });
       } else {
-        setPasskeyError({ text: passkeyErrorMessage(err, true) });
+        setError({ text: passkeyErrorMessage(err, true) });
       }
-      setPasskeyBusy(false);
+      setBusy(false);
     }
   }
-  const passkeyField = (field: "code" | "email") => (passkeyError?.field === field ? passkeyError.text : null);
 
   return (
     <AuthCard
@@ -93,16 +76,7 @@ export function SetupForm({ initialCode = "" }: { initialCode?: string }) {
           to choose it yourself.
         </span>
       </div>
-      <form
-        action={action}
-        onSubmit={(e) => {
-          if (!passwordMode) return void withPasskey(e);
-          setSent({ code, email, password });
-          onSubmit(e);
-        }}
-        className="flex flex-col gap-4"
-        noValidate
-      >
+      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
         <AuthField
           name="code"
           label="Setup code"
@@ -110,21 +84,21 @@ export function SetupForm({ initialCode = "" }: { initialCode?: string }) {
           autoComplete="off"
           spellCheck={false}
           required
+          autoFocus={!initialCode}
           value={code}
           onChange={(e) => {
             setCode(e.target.value);
-            setPasskeyError(null);
+            setError(null);
           }}
-          error={passkeyField("code")}
-          state={fieldState("code")}
+          error={fieldError("code")}
         />
         <AuthField
           name="name"
           label="Name"
           autoComplete="name"
+          autoFocus={Boolean(initialCode)}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          state={state}
         />
         <AuthField
           name="email"
@@ -135,63 +109,34 @@ export function SetupForm({ initialCode = "" }: { initialCode?: string }) {
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
-            setPasskeyError(null);
+            setError(null);
           }}
-          error={passkeyField("email")}
-          state={fieldState("email")}
+          error={fieldError("email")}
         />
-        {passwordMode && (
-          <AuthField
-            name="password"
-            label="Password"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            hint={`At least ${PASSWORD_MIN_LENGTH} characters`}
-            error={passwordShortBy(password)}
-            state={fieldState("password")}
-          />
-        )}
         {unavailable && (
           <p className="text-[12.5px] leading-snug text-fg-muted">
-            {unavailable} You can set up with a password now, add a passkey later at the https:// address, and then turn
-            passwords off in Settings.
+            {unavailable} You can set up now without one: sign in later with a passkey at the https:// address, or with
+            a one-time sign-in link (by email, or <code className="font-mono">lens users link</code> on the server).
           </p>
         )}
-        {formError && <AuthAlert tone="error">{formError}</AuthAlert>}
-        {passwordMode ? (
-          <AuthSubmit
-            pending={pending}
-            pendingText="Creating…"
-            disabled={!ready}
-            disabledReason="Fill in the setup code, your email and a password of at least 10 characters"
-          >
-            Create admin account
-          </AuthSubmit>
-        ) : (
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            className="w-full"
-            icon={<Fingerprint />}
-            disabled={!identified || passkeyBusy || unavailable === undefined}
-            disabledReason={!identified ? "Fill in the setup code and your email" : undefined}
-          >
-            {passkeyBusy ? "Waiting for your passkey…" : "Create admin with a passkey"}
-          </Button>
-        )}
-        {!unavailable && unavailable !== undefined && (
-          <button
-            type="button"
-            className="self-center text-[12.5px] text-fg-secondary underline underline-offset-2 hover:text-fg"
-            onClick={() => setUsePassword((v) => !v)}
-          >
-            {usePassword ? "Use a passkey instead (no password)" : "Use a password instead"}
-          </button>
-        )}
+        {error && !error.field && <AuthAlert tone="error">{error.text}</AuthAlert>}
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          className="w-full"
+          icon={unavailable ? undefined : <Fingerprint />}
+          disabled={!ready || busy || unavailable === undefined}
+          disabledReason={!ready ? "Fill in the setup code and your email" : undefined}
+        >
+          {busy
+            ? unavailable
+              ? "Creating…"
+              : "Waiting for your passkey…"
+            : unavailable
+              ? "Create admin account"
+              : "Create admin with a passkey"}
+        </Button>
       </form>
     </AuthCard>
   );

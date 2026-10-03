@@ -16,12 +16,16 @@ export function anonymousClient(): Client {
 
 /** Whether this browser, on this address, can use passkeys at all (they need https:// or localhost). */
 export function passkeysSupported(): boolean {
-  return typeof window !== "undefined" && window.isSecureContext && typeof window.PublicKeyCredential === "function";
+  return passkeysUnavailableReason() === null && typeof window !== "undefined";
 }
 
 /** Why passkeys can't be used here, for the page to say; null when they can. */
 export function passkeysUnavailableReason(): string | null {
   if (typeof window === "undefined") return null;
+  const host = window.location.hostname;
+  if (/^[\d.]+$/.test(host) || host.includes(":") || host.startsWith("[")) {
+    return "Passkeys don't work on an IP address. Open Lens at its name (like localhost, or its https:// address).";
+  }
   if (!window.isSecureContext) {
     return "Passkeys only work on https:// addresses and on localhost. Open Lens at its https:// address (or localhost on this machine).";
   }

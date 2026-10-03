@@ -13,12 +13,12 @@ People sign in with a **passkey**: their fingerprint, face or device PIN, on the
 no passwords on a fresh install (`auth.passwords` is off), so there is nothing to guess, reuse or phish.
 
 * **The first admin** makes theirs on the setup page, with the setup code. Where the browser can't use passkeys (a
-  plain `http://` address other than localhost, or an IP address) the setup page offers a password instead, which
-  turns passwords on.
+  plain `http://` address other than localhost, or an IP address) the code alone makes the admin, still without a
+  password; they sign in later with a passkey at the `https://` address, or with a sign-in link.
 * **Everyone else** gets a one-time **sign-in link** from an admin (People › Send a sign-in link, or
-  `lens users link them@example.com` on the server). Opening it adds a passkey on that device and signs them in. A link
-  lasts three days and works once; making another stops the last. The token is in the link's `#fragment`, so it never
-  reaches a server log.
+  `lens users link them@example.com` on the server). Opening it adds a passkey on that device and signs them in; on an
+  address browsers won't use passkeys on, the link alone signs them in. A link lasts three days and works once; making
+  another stops the last. The token is in the link's `#fragment`, so it never reaches a server log.
 * **More devices**: Profile and sign-in › Add a passkey. Passkeys synced by a password manager or the device's cloud
   account work on all of that person's devices.
 * **Lost a passkey**: "Lost your passkey?" on the sign-in page emails a sign-in link (when mail is set up; it lasts
@@ -67,10 +67,12 @@ Sign out ──► POST /api/v1/auth/logout (ends the session on the API too)
 |---|---|
 | `GET /api/v1/auth/status` | `{setup_required, wizard_pending, passwords}`: the sign-in page shows the setup form while the first admin is missing; admins are taken to the setup wizard while it is pending; `passwords` says whether the password form is shown |
 | `POST /api/v1/auth/passkey/setup/options` · `/auth/passkey/setup` | first admin with a passkey, with the setup code; answers a ticket |
-| `POST /api/v1/auth/setup` | first admin with a password, with the setup code (turns passwords on) |
+| `POST /api/v1/auth/setup/no-passkey` | first admin with the setup code alone (for addresses without passkeys); answers a ticket |
+| `POST /api/v1/auth/setup` | first admin with a password, with the setup code (for scripts; turns passwords on) |
 | `POST /api/v1/auth/passkey/options` · `/auth/passkey` | sign in with a passkey; answers a ticket |
 | `POST /api/v1/auth/ticket` | swap a one-time ticket for a token pair |
 | `POST /api/v1/auth/signin-link/info` · `/options` · `/auth/signin-link` | who a sign-in link is for; add a passkey with it and sign in |
+| `POST /api/v1/auth/signin-link/use` | sign in with a sign-in link alone, without adding a passkey |
 | `POST /api/v1/auth/signin-link/lost` | email a sign-in link; answers the same for unknown addresses |
 | `GET` · `POST /api/v1/auth/passkeys` (and `/options`) · `PATCH` · `DELETE /api/v1/auth/passkeys/{id}` | your passkeys: list, add, rename, remove (not the last); audited as `passkey.add` and `passkey.remove` |
 | `POST /api/v1/users/{id}/signin-link` · `DELETE /api/v1/users/{id}/passkeys` | admins: a sign-in link for someone; remove all their passkeys |

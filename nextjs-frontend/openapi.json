@@ -33,7 +33,7 @@
           "auth"
         ],
         "summary": "Setup",
-        "description": "Create the first admin with a password and the one-time code printed in the server log. This turns passwords on\n(auth.passwords): for servers whose address browsers won't use passkeys on (plain http:// other than localhost).\nPOST /auth/passkey/setup/options makes the first admin with a passkey instead.",
+        "description": "Create the first admin with a password and the one-time code printed in the server log, for scripts. This turns\npasswords on (auth.passwords). The web app makes the first admin with a passkey (POST /auth/passkey/setup/options),\nor with the code alone where browsers won't make passkeys (POST /auth/setup/no-passkey).",
         "operationId": "setup",
         "requestBody": {
           "content": {
@@ -594,6 +594,48 @@
         }
       }
     },
+    "/api/v1/auth/setup/no-passkey": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Setup Without Passkey",
+        "description": "Make the first admin with the setup code alone, where the browser can't make passkeys (a plain http:// address\nother than localhost). No password: they sign in later with a passkey (at an https:// address) or a sign-in link.",
+        "operationId": "setup_without_passkey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeySetupStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginTicket"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/passkey/options": {
       "post": {
         "tags": [
@@ -796,6 +838,48 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SigninLinkAnswer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginTicket"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/signin-link/use": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Signin Link Use",
+        "description": "Sign in with a sign-in link alone, without adding a passkey: for addresses browsers won't use passkeys on\n(plain http:// other than localhost). The link stops working. Audited as `login` with `signin-link`.",
+        "operationId": "signin_link_use",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SigninLinkToken"
               }
             }
           },

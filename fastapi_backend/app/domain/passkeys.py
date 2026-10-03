@@ -167,9 +167,13 @@ def _verify_creation(db, row, credential):
     }
 
 
-def _save(db, uid, cred, name=None):
+def _room(db, uid):
     if len(db.values("SELECT VALUE id FROM passkey WHERE account = $a", a=uid)) >= MAX_PER_ACCOUNT:
         raise PasskeyError(f"an account can have at most {MAX_PER_ACCOUNT} passkeys; remove one first")
+
+
+def _save(db, uid, cred, name=None):
+    _room(db, uid)
     db.q(
         "CREATE $r CONTENT $d",
         r=R("passkey", auth.sha(cred["cred_id"])),
@@ -221,10 +225,14 @@ def setup_finish(db, flow, credential, name=None):
 
 
 # ---------- sign-in links (no passkey yet, or lost it) ----------
-def create_link(db, uid, hours=LINK_HOURS, by=None):
-    """A one-time link for adding a passkey: the raw token (shown once). Older links for the account stop working."""
+def create_link(db, uid, hours=LINK_HOURS, by=None, replace=True):
+    """A one-time link for adding a passkey: the raw token (shown once). With `replace` (an admin's), older links for
+    the account stop working; an emailed one leaves them, so a stranger asking for one can't cancel an admin's."""
     raw = secrets.token_urlsafe(32)
-    db.q("DELETE signin_link WHERE account = $a", a=uid)
+    if replace:
+        db.q("DELETE signin_link WHERE account = $a", a=uid)
+    else:
+        db.q("DELETE signin_link WHERE account = $a AND expires_at < $n", a=uid, n=store.now())
     db.q(
         "CREATE $r CONTENT $d",
         r=R("signin_link", auth.sha(raw)),
@@ -262,9 +270,22 @@ def link_finish(db, raw, flow, credential, name=None):
     if not u or u["id"] != row.get("account") or row["data"].get("link") != auth.sha(raw):
         raise PasskeyError("this sign-in link is invalid or has expired; ask an admin for a new one")
     cred = _verify_creation(db, row, credential)
+    _room(db, u["id"])  # before the link is used up
     if not db.rows("DELETE $r RETURN BEFORE", r=R("signin_link", auth.sha(raw))):
         raise PasskeyError("this sign-in link was already used")
     _save(db, u["id"], cred, name)
+    db.q("DELETE signin_link WHERE account = $a", a=u["id"])  # signed in: the others aren't needed
+    return u["id"]
+
+
+def use_link(db, raw):
+    """Sign in with the link alone, without adding a passkey (for addresses browsers won't use passkeys on): the
+    account id, with the link used up; PasskeyError when it's invalid or expired."""
+    u = link_account(db, raw)
+    if not u or not db.rows("DELETE $r RETURN BEFORE", r=R("signin_link", auth.sha(raw))):
+        raise PasskeyError("this sign-in link is invalid, used or expired; ask for a new one")
+    db.q("DELETE signin_link WHERE account = $a", a=u["id"])
+    db.q("UPDATE $r SET last_login_at = $t", r=R("account", u["id"]), t=store.now())
     return u["id"]
 
 
@@ -364,13 +385,18 @@ def rename(db, uid, pid, name):
     return True
 
 
-def remove(db, uid, pid, passwords_on=False):
-    """Remove one of the account's passkeys. Refused for the last way in (no other passkey, and no password that works)."""
+def remove(db, uid, pid, passwords_on=False, here=None):
+    """Remove one of the account's passkeys. Refused for the last way in (no other passkey, and no password that works),
+    and for the last one that works on the site you're on (`here`, an RP ID): others for another site don't help here."""
     r = _find(db, uid, pid)
     if not r:
         return False
-    if count(db, uid) <= 1 and not (passwords_on and has_password(db, uid)):
-        raise ValueError("this is your last passkey: add another one first, or you couldn't sign in")
+    if not (passwords_on and has_password(db, uid)):
+        if count(db, uid) <= 1:
+            raise ValueError("this is your last passkey: add another one first, or you couldn't sign in")
+        rp = (db.one("SELECT rp_id FROM $r", r=r) or {}).get("rp_id")
+        if here and rp == here and len(db.values("SELECT VALUE id FROM passkey WHERE account = $a AND rp_id = $p", a=uid, p=here)) <= 1:
+            raise ValueError(f"this is your last passkey for {here}: add another one here first, or you couldn't sign in here")
     db.q("DELETE $r", r=r)
     return True
 

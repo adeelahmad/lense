@@ -38,16 +38,28 @@ people = APIRouter(tags=["users"])
 
 
 def _visitor(request: Request) -> str:
-    """The visitor's address (through trusted proxies), so one person's failures don't throttle everyone behind the web app."""
+    """The visitor's address (through trusted proxies), else the peer's (for the session's record)."""
     addr = visitor_address(request)
     return str(addr) if addr else (request.client.host if request.client else "")
 
 
-def _throttle(request: Request, what: str) -> str:
-    key = f"{what}|{_visitor(request)}"
+def _throttle(request: Request, what: str, shared: bool = False) -> str | None:
+    """The throttle key for this visitor, or None when the server can't tell visitors apart (the web app isn't in
+    server.trusted_proxies, so everyone arrives from its address): one bucket for everyone would let anybody lock
+    everyone out. Passkey signatures and 256-bit links can't be guessed anyway; `shared` keeps one bucket for the
+    setup code, which is shorter."""
+    addr = visitor_address(request)
+    if not addr and not shared:
+        return None
+    key = f"{what}|{addr or (request.client.host if request.client else '')}"
     if auth.throttled(key):
         raise HTTPException(429, "too many attempts; try again in a few minutes")
     return key
+
+
+def _hit(key: str | None) -> None:
+    if key:
+        auth.hit(key)
 
 
 def _options(fn, *args) -> PasskeyOptions:
@@ -63,10 +75,10 @@ def _options(fn, *args) -> PasskeyOptions:
 @router.post("/passkey/setup/options")
 def passkey_setup_options(body: PasskeySetupStart, request: Request, db: Db, cfg: Cfg) -> PasskeyOptions:
     """Start making the first admin with a passkey, with the one-time setup code from the server log."""
-    key = _throttle(request, "setup")
+    key = _throttle(request, "setup", shared=True)
     code = request.app.state.archive.setup_code
     if not code or auth.account_count(db) or not secrets.compare_digest(body.code.strip(), code):
-        auth.hit(key)
+        _hit(key)
         raise HTTPException(403, "setup is closed or the code is wrong")
     return _options(passkeys.setup_options, db, cfg, web_origin(request), body.email, body.name)
 
@@ -87,6 +99,23 @@ def passkey_setup(body: PasskeyAnswer, request: Request, db: Db) -> LoginTicket:
     return LoginTicket(ticket=passkeys.issue_ticket(db, uid, "passkey"))
 
 
+@router.post("/setup/no-passkey")
+def setup_without_passkey(body: PasskeySetupStart, request: Request, db: Db) -> LoginTicket:
+    """Make the first admin with the setup code alone, where the browser can't make passkeys (a plain http:// address
+    other than localhost). No password: they sign in later with a passkey (at an https:// address) or a sign-in link."""
+    key = _throttle(request, "setup", shared=True)
+    archive = request.app.state.archive
+    code = archive.setup_code
+    if not code or auth.account_count(db) or not secrets.compare_digest(body.code.strip(), code):
+        _hit(key)
+        raise HTTPException(403, "setup is closed or the code is wrong")
+    with domain_errors():
+        uid = auth.create_account(db, body.email, None, body.name, admin=True)
+    archive.setup_code = None
+    auth.audit(db, {"id": uid, "email": body.email.strip().lower()}, "setup", detail=["setup-code"])
+    return LoginTicket(ticket=passkeys.issue_ticket(db, uid, "setup"))
+
+
 # ---------- signing in ----------
 @router.post("/passkey/options")
 def passkey_options(request: Request, db: Db) -> PasskeyOptions:
@@ -102,7 +131,7 @@ def passkey_login(body: PasskeyAnswer, request: Request, db: Db) -> LoginTicket:
     try:
         u = passkeys.login_finish(db, body.flow, body.credential)
     except ValueError as e:
-        auth.hit(key)
+        _hit(key)
         raise HTTPException(401, str(e)) from None
     return LoginTicket(ticket=passkeys.issue_ticket(db, u["id"], "passkey"))
 
@@ -135,7 +164,7 @@ def signin_link_info(body: SigninLinkToken, request: Request, db: Db) -> SigninL
     try:
         u = _link_account(db, body.token)
     except HTTPException:
-        auth.hit(key)
+        _hit(key)
         raise
     return SigninLinkInfo(email=u["email"], name=u.get("name"))
 
@@ -153,21 +182,38 @@ def signin_link(body: SigninLinkAnswer, request: Request, db: Db) -> LoginTicket
     try:
         uid = passkeys.link_finish(db, body.token, body.flow, body.credential, body.name)
     except ValueError as e:
-        auth.hit(key)
+        _hit(key)
         raise HTTPException(400, str(e)) from None
     auth.audit(db, auth.get_account(db, uid), "passkey.add", f"account:{uid}", ["signin-link"])
     return LoginTicket(ticket=passkeys.issue_ticket(db, uid, "passkey"))
 
 
+@router.post("/signin-link/use")
+def signin_link_use(body: SigninLinkToken, request: Request, db: Db) -> LoginTicket:
+    """Sign in with a sign-in link alone, without adding a passkey: for addresses browsers won't use passkeys on
+    (plain http:// other than localhost). The link stops working. Audited as `login` with `signin-link`."""
+    key = _throttle(request, "link")
+    try:
+        uid = passkeys.use_link(db, body.token)
+    except ValueError as e:
+        _hit(key)
+        raise HTTPException(400, str(e)) from None
+    return LoginTicket(ticket=passkeys.issue_ticket(db, uid, "signin-link"))
+
+
 @router.post("/signin-link/lost")
 def lost_passkey(body: ForgotPasswordRequest, request: Request, db: Db, tasks: BackgroundTasks) -> Ok:
     """Email a sign-in link to this address, for adding a passkey. Answers the same whether or not it has an account."""
-    key = _throttle(request, "lost")
-    auth.hit(key)  # every request counts: it sends email
-    u = auth.find_account(db, body.email)
+    # every request counts, per address asked for (it sends email), and per visitor where the server can tell them apart
+    email = body.email.strip().lower()
+    for key in (f"lost|{email}", _throttle(request, "lost")):
+        if key and auth.throttled(key):
+            raise HTTPException(429, "too many requests; try again in a few minutes")
+        _hit(key)
+    u = auth.find_account(db, email)
     if u and not u.get("disabled"):
         minutes = settings.PASSWORD_RESET_EXPIRE_MINUTES
-        raw = passkeys.create_link(db, u["id"], hours=minutes / 60)
+        raw = passkeys.create_link(db, u["id"], hours=minutes / 60, replace=False)  # an admin's link keeps working
         tasks.add_task(send_signin_link_email, u["email"], u.get("name"), passkeys.link_url(raw), minutes)
     return Ok()
 
@@ -211,11 +257,15 @@ def rename_passkey(pid: str, body: PasskeyRename, user: Writer, db: Db) -> Ok:
 
 
 @router.delete("/passkeys/{pid}")
-def remove_passkey(pid: str, user: Writer, db: Db, cfg: Cfg) -> Ok:
+def remove_passkey(pid: str, user: Writer, request: Request, db: Db, cfg: Cfg) -> Ok:
     """Remove one of your passkeys; not the last one (you couldn't sign in). Audited as `passkey.remove`."""
     _signed_in(user)
     with domain_errors():
-        if not passkeys.remove(db, user.id, pid, auth.passwords_on(cfg)):
+        try:
+            here = passkeys.site(web_origin(request))[1]
+        except ValueError:
+            here = None
+        if not passkeys.remove(db, user.id, pid, auth.passwords_on(cfg), here):
             raise HTTPException(404, "not found")
     auth.audit(db, user.as_audit(), "passkey.remove", f"account:{user.id}")
     return Ok()

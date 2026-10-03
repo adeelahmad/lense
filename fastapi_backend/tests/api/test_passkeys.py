@@ -255,3 +255,51 @@ def test_upgrades_keep_passwords(folder):
         assert settings.keep_passwords(db, cfg) is False  # saved already: never again
     finally:
         db.close()
+
+
+def test_plain_http_setup_and_sign_in_links_without_passkeys(app, client, db):
+    """On a plain http:// address browsers refuse passkeys: setup takes the code alone, and a sign-in link signs in by
+    itself. No password anywhere."""
+    assert client.post("/api/v1/auth/setup/no-passkey", json={"code": "nope", "email": "ada@x.io"}).status_code == 403
+    r = client.post("/api/v1/auth/setup/no-passkey", json={"code": app.state.archive.setup_code, "email": "ada@x.io", "name": "Ada"})
+    assert r.status_code == 200, r.text
+    admin = _session(client, r.json()["ticket"])
+    me = client.get("/api/v1/auth/me", headers=admin).json()
+    assert me["user"]["admin"] and not passkeys.has_password(db, me["user"]["id"])
+    assert client.post("/api/v1/auth/setup/no-passkey", json={"code": "x", "email": "b@x.io"}).status_code == 403
+
+    token = client.post(f"/api/v1/users/{me['user']['id']}/signin-link", headers=admin).json()["url"].split("#")[1]
+    t = client.post("/api/v1/auth/signin-link/use", json={"token": token})
+    assert t.status_code == 200, t.text
+    assert client.get("/api/v1/auth/me", headers=_session(client, t.json()["ticket"])).status_code == 200
+    assert client.post("/api/v1/auth/signin-link/use", json={"token": token}).status_code == 400  # once only
+
+
+def test_strangers_cant_throttle_everyone_or_cancel_links(app, client, db):
+    """Behind a web app the server can't tell visitors apart, failures don't lock everyone out; and asking for a link
+    by email doesn't cancel the one an admin sent."""
+    admin = _session(client, _setup(app, client, Authenticator()))
+    for _ in range(12):
+        assert client.post("/api/v1/auth/passkey", json={"flow": "x", "credential": {}}, headers=WEB).status_code == 401
+    assert client.post("/api/v1/auth/passkey/options", headers=WEB).status_code == 200  # not 429
+    uid = client.post("/api/v1/users", json={"email": "ed@x.io"}, headers=admin).json()["id"]
+    token = client.post(f"/api/v1/users/{uid}/signin-link", headers=admin).json()["url"].split("#")[1]
+    assert client.post("/api/v1/auth/signin-link/lost", json={"email": "ed@x.io"}).status_code == 200
+    assert client.post("/api/v1/auth/signin-link/info", json={"token": token}).status_code == 200
+    # per address asked for: a flood is cut off
+    codes = [client.post("/api/v1/auth/signin-link/lost", json={"email": "ed@x.io"}).status_code for _ in range(10)]
+    assert 429 in codes
+
+
+def test_the_last_passkey_for_this_site_stays(app, client, db):
+    laptop = Authenticator()
+    h = _session(client, _setup(app, client, laptop))
+    # a second passkey, for another site
+    o = client.post("/api/v1/auth/passkeys/options", headers={**h, **WEB}).json()
+    cred = Authenticator().create(o["options"], ORIGIN)
+    client.post("/api/v1/auth/passkeys", json={"flow": o["flow"], "credential": cred, "name": "Other"}, headers=h)
+    db.q("UPDATE passkey SET rp_id = 'lens.example.com' WHERE name = 'Other'")
+    keys = {k["name"]: k["id"] for k in client.get("/api/v1/auth/passkeys", headers=h).json()}
+    r = client.delete(f"/api/v1/auth/passkeys/{keys['Laptop']}", headers={**h, **WEB})
+    assert r.status_code == 400 and "last passkey for localhost" in r.json()["detail"]
+    assert client.delete(f"/api/v1/auth/passkeys/{keys['Other']}", headers={**h, **WEB}).status_code == 200

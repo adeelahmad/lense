@@ -12115,6 +12115,31 @@ export type PasskeySetupResponses = {
 
 export type PasskeySetupResponse = PasskeySetupResponses[keyof PasskeySetupResponses];
 
+export type SetupWithoutPasskeyData = {
+  body: PasskeySetupStart;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/setup/no-passkey";
+};
+
+export type SetupWithoutPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetupWithoutPasskeyError = SetupWithoutPasskeyErrors[keyof SetupWithoutPasskeyErrors];
+
+export type SetupWithoutPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: LoginTicket;
+};
+
+export type SetupWithoutPasskeyResponse = SetupWithoutPasskeyResponses[keyof SetupWithoutPasskeyResponses];
+
 export type PasskeyOptionsData = {
   body?: never;
   path?: never;
@@ -12255,6 +12280,31 @@ export type SigninLinkResponses = {
 };
 
 export type SigninLinkResponse = SigninLinkResponses[keyof SigninLinkResponses];
+
+export type SigninLinkUseData = {
+  body: SigninLinkToken;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/signin-link/use";
+};
+
+export type SigninLinkUseErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SigninLinkUseError = SigninLinkUseErrors[keyof SigninLinkUseErrors];
+
+export type SigninLinkUseResponses = {
+  /**
+   * Successful Response
+   */
+  200: LoginTicket;
+};
+
+export type SigninLinkUseResponse = SigninLinkUseResponses[keyof SigninLinkUseResponses];
 
 export type LostPasskeyData = {
   body: ForgotPasswordRequest;

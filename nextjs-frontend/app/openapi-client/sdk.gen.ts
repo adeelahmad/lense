@@ -809,6 +809,9 @@ import type {
   SetupData,
   SetupErrors,
   SetupResponses,
+  SetupWithoutPasskeyData,
+  SetupWithoutPasskeyErrors,
+  SetupWithoutPasskeyResponses,
   SigninLinkData,
   SigninLinkErrors,
   SigninLinkInfoData,
@@ -818,6 +821,9 @@ import type {
   SigninLinkOptionsErrors,
   SigninLinkOptionsResponses,
   SigninLinkResponses,
+  SigninLinkUseData,
+  SigninLinkUseErrors,
+  SigninLinkUseResponses,
   SplitSegmentData,
   SplitSegmentErrors,
   SplitSegmentResponses,
@@ -1003,9 +1009,9 @@ export class Auth {
   /**
    * Setup
    *
-   * Create the first admin with a password and the one-time code printed in the server log. This turns passwords on
-   * (auth.passwords): for servers whose address browsers won't use passkeys on (plain http:// other than localhost).
-   * POST /auth/passkey/setup/options makes the first admin with a passkey instead.
+   * Create the first admin with a password and the one-time code printed in the server log, for scripts. This turns
+   * passwords on (auth.passwords). The web app makes the first admin with a passkey (POST /auth/passkey/setup/options),
+   * or with the code alone where browsers won't make passkeys (POST /auth/setup/no-passkey).
    */
   public static setup<ThrowOnError extends boolean = false>(
     options: Options<SetupData, ThrowOnError>,
@@ -1190,6 +1196,25 @@ export class Auth {
   }
 
   /**
+   * Setup Without Passkey
+   *
+   * Make the first admin with the setup code alone, where the browser can't make passkeys (a plain http:// address
+   * other than localhost). No password: they sign in later with a passkey (at an https:// address) or a sign-in link.
+   */
+  public static setupWithoutPasskey<ThrowOnError extends boolean = false>(
+    options: Options<SetupWithoutPasskeyData, ThrowOnError>,
+  ): RequestResult<SetupWithoutPasskeyResponses, SetupWithoutPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<SetupWithoutPasskeyResponses, SetupWithoutPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/auth/setup/no-passkey",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Passkey Options
    *
    * Start signing in with a passkey: the browser offers the ones made on this site.
@@ -1283,6 +1308,25 @@ export class Auth {
   ): RequestResult<SigninLinkResponses, SigninLinkErrors, ThrowOnError> {
     return (options.client ?? client).post<SigninLinkResponses, SigninLinkErrors, ThrowOnError>({
       url: "/api/v1/auth/signin-link",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Signin Link Use
+   *
+   * Sign in with a sign-in link alone, without adding a passkey: for addresses browsers won't use passkeys on
+   * (plain http:// other than localhost). The link stops working. Audited as `login` with `signin-link`.
+   */
+  public static signinLinkUse<ThrowOnError extends boolean = false>(
+    options: Options<SigninLinkUseData, ThrowOnError>,
+  ): RequestResult<SigninLinkUseResponses, SigninLinkUseErrors, ThrowOnError> {
+    return (options.client ?? client).post<SigninLinkUseResponses, SigninLinkUseErrors, ThrowOnError>({
+      url: "/api/v1/auth/signin-link/use",
       ...options,
       headers: {
         "Content-Type": "application/json",

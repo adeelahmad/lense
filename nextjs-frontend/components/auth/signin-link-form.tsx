@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { Auth } from "@/app/openapi-client";
 import { AuthAlert, AuthCard } from "@/components/auth/auth-card";
 import { AuthField } from "@/components/auth/auth-field";
-import { finishSignIn, linkTicket } from "@/components/auth/passkey-flows";
+import { finishSignIn, linkOnlyTicket, linkTicket } from "@/components/auth/passkey-flows";
 import { Button } from "@/components/ui/button";
 import { anonymousClient, deviceName, passkeyErrorMessage, passkeysUnavailableReason } from "@/lib/auth/webauthn";
 
@@ -44,7 +44,9 @@ export function SigninLinkForm() {
     setBusy(true);
     setError(null);
     try {
-      await finishSignIn(await linkTicket(token, label.trim() || undefined), "/");
+      // where browsers won't use passkeys (plain http://), the link alone signs in, once
+      const ticket = unavailable ? await linkOnlyTicket(token) : await linkTicket(token, label.trim() || undefined);
+      await finishSignIn(ticket, "/");
     } catch (err) {
       setError(passkeyErrorMessage(err, true));
       setBusy(false);
@@ -55,7 +57,11 @@ export function SigninLinkForm() {
     <AuthCard
       title={who ? `Welcome${who.name ? `, ${who.name}` : ""}` : "Add a passkey"}
       description={
-        who ? (
+        who && unavailable ? (
+          <>
+            Sign in as <strong>{who.email}</strong>. No password needed.
+          </>
+        ) : who ? (
           <>
             Add a passkey for <strong>{who.email}</strong> on this device. You sign in with your fingerprint, face or
             device PIN: no password.
@@ -69,28 +75,40 @@ export function SigninLinkForm() {
       }
     >
       {problem && <AuthAlert tone="error">{problem}</AuthAlert>}
-      {unavailable && who && <AuthAlert tone="gate">{unavailable}</AuthAlert>}
+      {unavailable && who && (
+        <p className="text-[12.5px] leading-snug text-fg-muted">
+          {unavailable} This link signs you in once without one; add a passkey later at the https:// address.
+        </p>
+      )}
       {error && <AuthAlert tone="error">{error}</AuthAlert>}
       {who && (
         <>
-          <AuthField
-            name="label"
-            label="Name this passkey"
-            hint="So you can tell your passkeys apart later"
-            value={label}
-            maxLength={60}
-            onChange={(e) => setLabel(e.target.value)}
-          />
+          {!unavailable && (
+            <AuthField
+              name="label"
+              label="Name this passkey"
+              hint="So you can tell your passkeys apart later"
+              value={label}
+              maxLength={60}
+              onChange={(e) => setLabel(e.target.value)}
+            />
+          )}
           <Button
             variant="primary"
             size="lg"
             className="w-full"
-            icon={<Fingerprint />}
+            icon={unavailable ? undefined : <Fingerprint />}
             onClick={go}
-            disabled={busy || Boolean(unavailable)}
+            disabled={busy}
             autoFocus
           >
-            {busy ? "Waiting for your passkey…" : "Add a passkey and sign in"}
+            {busy
+              ? unavailable
+                ? "Signing in…"
+                : "Waiting for your passkey…"
+              : unavailable
+                ? "Sign in"
+                : "Add a passkey and sign in"}
           </Button>
         </>
       )}

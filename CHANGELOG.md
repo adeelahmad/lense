@@ -9,7 +9,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   (or `lens users link`), and "Lost your passkey?" emails one. Profile and sign-in lists your passkeys, adds more and
   removes old ones. Fresh installs have no passwords at all; installs that already use passwords keep them until an
   admin turns them off in Settings › Sign-in (which needs an admin with a passkey). Passkeys need an `https://`
-  address or `localhost`; on a plain `http://` address setup offers a password instead.
+  address or `localhost`; on a plain `http://` address setup takes the code alone and a sign-in link signs in by
+  itself, so there is still no password.
 
 - **Chat answers from the archive even when the model skips its tools.** Some models answer straight away instead of
   searching, so chat said the archive didn't cover things it did. When the model answers without looking anything up

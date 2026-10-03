@@ -63,9 +63,9 @@ def status(request: Request, db: Db, cfg: Cfg) -> AuthStatus:
 
 @router.post("/setup")
 def setup(body: SetupRequest, request: Request, db: Db, cfg: Cfg) -> TokenPair:
-    """Create the first admin with a password and the one-time code printed in the server log. This turns passwords on
-    (auth.passwords): for servers whose address browsers won't use passkeys on (plain http:// other than localhost).
-    POST /auth/passkey/setup/options makes the first admin with a passkey instead."""
+    """Create the first admin with a password and the one-time code printed in the server log, for scripts. This turns
+    passwords on (auth.passwords). The web app makes the first admin with a passkey (POST /auth/passkey/setup/options),
+    or with the code alone where browsers won't make passkeys (POST /auth/setup/no-passkey)."""
     archive = request.app.state.archive
     code = archive.setup_code
     if not code or auth.account_count(db) or not secrets.compare_digest(body.code, code):

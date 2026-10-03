@@ -63,3 +63,13 @@ export async function finishSignIn(ticket: string, redirectTo = "/"): Promise<vo
   if (!res || res.error) throw new PasskeyFlowError("That sign-in expired. Try again.");
   window.location.assign(redirectTo);
 }
+
+/** Make the first admin with the setup code alone (where the browser can't make passkeys): a one-time ticket. */
+export async function setupWithoutPasskeyTicket(body: { code: string; email: string; name?: string }): Promise<string> {
+  return must(await Auth.setupWithoutPasskey({ client: anonymousClient(), body })).ticket;
+}
+
+/** Sign in with a sign-in link alone, without adding a passkey: a one-time ticket. */
+export async function linkOnlyTicket(token: string): Promise<string> {
+  return must(await Auth.signinLinkUse({ client: anonymousClient(), body: { token } })).ticket;
+}
