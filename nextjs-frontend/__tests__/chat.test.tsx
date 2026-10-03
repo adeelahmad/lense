@@ -7,6 +7,7 @@ import {
   isNoModelAnswer,
   passageLines,
   quoteOf,
+  saysNotCovered,
   sentences,
   shortTitle,
   splitCitations,
@@ -65,6 +66,13 @@ describe("citations", () => {
       speaker: "Host A",
       text: "Just one line",
     });
+  });
+
+  it("tells the model saying the archive doesn't cover it from an answer that cites nothing", () => {
+    expect(saysNotCovered("The archive doesn't seem to cover that.")).toBe(true);
+    expect(saysNotCovered("There's no mention of a budget in the excerpts.")).toBe(true);
+    expect(saysNotCovered("Your model is connected and I made a family namespace.")).toBe(false);
+    expect(saysNotCovered("Hello! What would you like to know?")).toBe(false);
   });
 
   it("recognises the no-model fallback and splits sentences", () => {

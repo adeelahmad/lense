@@ -40,7 +40,22 @@ When the configured model supports function calling, chat becomes an agent.
   (`POST /api/v1/approvals/<id>`). Viewers only get the read tools.
 - **Check sources** (`POST /api/v1/chats/<id>/messages/<id>/check`) re-checks every cited claim against the lines it
   cites, and lists sentences that cite nothing.
-- **Fallback:** a model that can't call tools falls back to search-and-answer, with a notice.
+- **Fallback:** a model that can't call tools falls back to search-and-answer, with a notice. A model that answers
+  straight away without looking anything up gets the same, when the archive has passages that match.
+- **Files:** attach files to a message with the clip, or by dropping or pasting them on the box. They upload as you
+  type (`POST /api/v1/uploads` with `hold`), stay out of the archive, and the assistant puts them in a namespace
+  with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`).
+- **Keep typing:** what you send while an answer is being written waits its turn and goes next.
+
+## Setting up and running the server by chat
+
+Admins also get the server tools: `server_status` (what's set up and what's missing), `find_model_servers`,
+`read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens) and
+`create_namespace`. In an ordinary conversation their changes are approval cards. In a **setup conversation**
+(`POST /api/v1/chats` with `"kind": "setup"`, or **Finish with the assistant** in the setup wizard once a model is
+connected) the admin has asked the assistant to set the server up, so it makes the changes itself and says what it
+changed. Every change is audited with `assistant` in its detail, and all of them stay changeable in Settings.
+Turning telemetry on or off always asks first.
 
 ## Collections, batch runs and collection reports
 

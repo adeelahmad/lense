@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, LibraryBig, Plus } from "lucide-react";
+import { ChevronLeft, Clock, LibraryBig, Plus, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chats } from "@/app/openapi-client";
 import type { AnswerCheck, Approval, ChatMessage, Estimate, Passage } from "@/app/openapi-client/types.gen";
 import { Answer } from "@/components/chat/answer";
+import { AttachmentChips, SentFiles, useAttachments } from "@/components/chat/attachments";
 import { shortTitle } from "@/components/chat/cite";
 import { Composer, ScopeBar } from "@/components/chat/composer";
 import { ConversationList } from "@/components/chat/conversations";
@@ -28,7 +29,12 @@ import { SSEError, streamSSE } from "@/lib/api/sse";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-type Live = { chatId: number; turn: TurnState };
+type Sent = { id: string; filename: string; size: number };
+type Live = { chatId: number; turn: TurnState; files: Sent[] };
+type Queued = { key: number; text: string; files: Sent[] };
+
+/** What a message with only files says (the server says the same when it gets none). */
+const onlyFiles = (n: number) => (n === 1 ? "I attached this file." : "I attached these files.");
 type Extra = { steps: ToolStep[]; notice: string | null; error: string | null };
 type Pair = { key: string; q: ChatMessage | null; a: ChatMessage | null };
 
@@ -47,10 +53,15 @@ function pairs(msgs: ChatMessage[]): Pair[] {
   return out;
 }
 
-function UserBubble({ text }: { text: string }) {
+function UserBubble({ text, files = [] }: { text: string; files?: { filename: string; size: number }[] }) {
   return (
-    <div className="max-w-[520px] self-end whitespace-pre-wrap rounded-[16px_16px_4px_16px] bg-surface-neutral px-4 py-3 text-[15px] leading-normal text-fg">
-      {text}
+    <div className="flex flex-col gap-1.5 self-end">
+      <SentFiles files={files} />
+      {!(files.length && text === onlyFiles(files.length)) && (
+        <div className="max-w-[520px] self-end whitespace-pre-wrap rounded-[16px_16px_4px_16px] bg-surface-neutral px-4 py-3 text-[15px] leading-normal text-fg">
+          {text}
+        </div>
+      )}
     </div>
   );
 }
@@ -105,6 +116,8 @@ export function ChatApp() {
   const [scopeOpenTick, setScopeOpenTick] = useState(0);
   const [announce, setAnnounce] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const files = useAttachments();
+  const [queue, setQueue] = useState<Queued[]>([]);
   const threadRef = useRef<HTMLDivElement>(null);
 
   // A new conversation starts from the top-bar namespace unless a link says otherwise.
@@ -122,7 +135,6 @@ export function ChatApp() {
   }, [collectionId]);
 
   const scope = activeId != null ? fromApiScope(chat.data?.scope) : draftScope;
-  const streaming = live?.turn.status === "streaming";
 
   const setScope = useCallback(
     async (s: Scope) => {
@@ -149,21 +161,22 @@ export function ChatApp() {
   );
 
   const run = useCallback(
-    async (cid: number, question: string, model?: string) => {
+    async (cid: number, question: string, model?: string, attached: Sent[] = []) => {
       const ac = new AbortController();
       abortRef.current = ac;
       let turn = newTurn(question);
-      setLive({ chatId: cid, turn });
+      const show = (t: TurnState) => setLive({ chatId: cid, turn: t, files: attached });
+      show(turn);
       setFocusKey("live");
       try {
         for await (const msg of streamSSE(`/api/v1/chats/${cid}/messages`, {
           method: "POST",
-          body: { content: question, model },
+          body: { content: question, model, attachments: attached.map((f) => f.id) },
           accessToken: session?.accessToken,
           signal: ac.signal,
         })) {
           turn = applyEvent(turn, msg);
-          setLive({ chatId: cid, turn });
+          show(turn);
         }
         if (turn.status === "streaming")
           turn = {
@@ -174,7 +187,7 @@ export function ChatApp() {
       } catch (e) {
         turn = ac.signal.aborted ? { ...turn, status: "stopped" } : { ...turn, status: "error", error: streamError(e) };
       }
-      setLive({ chatId: cid, turn });
+      show(turn);
       const mid = turn.messageId;
       if (mid != null)
         setExtras((x) => ({
@@ -194,18 +207,16 @@ export function ChatApp() {
     [qc, session?.accessToken],
   );
 
-  const send = useCallback(
-    async (text?: string, model?: string) => {
-      const question = (text ?? draft).trim();
-      if (!question || streaming) return;
-      setDraft("");
-      let cid = activeId;
+  // Sends now, starting the conversation if there isn't one yet.
+  const dispatch = useCallback(
+    async (question: string, model?: string, attached: Sent[] = [], kind: "chat" | "setup" = "chat") => {
+      let cid = kind === "setup" ? null : activeId;
       if (cid == null) {
         try {
           const created = await data(
             Chats.createChat({
               client,
-              body: { scope: toApiScope(draftScope), model: draftModel ?? undefined },
+              body: kind === "setup" ? { kind } : { scope: toApiScope(draftScope), model: draftModel ?? undefined },
             }),
           );
           cid = created.id;
@@ -222,10 +233,41 @@ export function ChatApp() {
           return;
         }
       }
-      void run(cid, question, model);
+      void run(cid, question, model, attached);
     },
-    [activeId, client, draft, draftScope, draftModel, qc, router, run, streaming, toast],
+    [activeId, client, draftScope, draftModel, qc, router, run, toast],
   );
+
+  // What you send while an answer is being written waits its turn, so you never have to wait to type.
+  const send = useCallback(
+    (text?: string, model?: string) => {
+      const attached: Sent[] =
+        text == null ? files.take().map((x) => ({ id: x.upload!.id, filename: x.file.name, size: x.file.size })) : [];
+      const question = (text ?? draft).trim() || (attached.length ? onlyFiles(attached.length) : "");
+      if (!question) return;
+      if (text == null) setDraft("");
+      if (live) {
+        setQueue((q) => [...q, { key: Date.now() + q.length, text: question, files: attached }]);
+        return;
+      }
+      void dispatch(question, model, attached);
+    },
+    [dispatch, draft, files, live],
+  );
+  useEffect(() => {
+    if (live || !queue.length) return;
+    const [next, ...rest] = queue;
+    setQueue(rest);
+    void dispatch(next.text, undefined, next.files);
+  }, [live, queue, dispatch]);
+
+  // /chat?setup=1 (from the setup wizard): a conversation in which the assistant sets the server up.
+  const setupAsked = useRef(false);
+  useEffect(() => {
+    if (!admin || setupAsked.current || search.get("setup") !== "1") return;
+    setupAsked.current = true;
+    void dispatch("Help me set up Lens.", undefined, [], "setup");
+  }, [admin, search, dispatch]);
 
   const stopAnswer = useStopAnswer();
   const [stopping, setStopping] = useState<number | null>(null); // the conversation whose answer is stopping
@@ -428,7 +470,7 @@ export function ChatApp() {
               const ex = it.a ? extras[it.a.id] : undefined;
               return (
                 <div key={it.key} className="flex flex-col gap-5">
-                  {it.q && <UserBubble text={it.q.content} />}
+                  {it.q && <UserBubble text={it.q.content} files={it.q.attachments ?? []} />}
                   {it.a ? (
                     <Answer
                       chatId={activeId}
@@ -486,7 +528,7 @@ export function ChatApp() {
             })}
             {liveHere && (
               <div className="flex flex-col gap-5">
-                <UserBubble text={liveHere.question} />
+                <UserBubble text={liveHere.question} files={live?.files ?? []} />
                 <Answer
                   chatId={activeId}
                   messageId={liveHere.messageId}
@@ -532,11 +574,35 @@ export function ChatApp() {
               onModel={(m) => void pickModel(m)}
               openTick={scopeOpenTick}
             />
+            {queue.length > 0 && (
+              <ul className="flex flex-col gap-1" aria-label="Waiting to send">
+                {queue.map((m) => (
+                  <li key={m.key} className="flex items-center gap-2 text-[12.5px] text-fg-secondary">
+                    <Clock className="size-3.5 shrink-0" aria-hidden />
+                    <span className="min-w-0 flex-1 truncate">
+                      Sends next: {m.text}
+                      {m.files.length ? ` (+${m.files.length} file${m.files.length === 1 ? "" : "s"})` : ""}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Don’t send this"
+                      onClick={() => setQueue((q) => q.filter((x) => x.key !== m.key))}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             <Composer
               value={draft}
               onChange={setDraft}
               onSend={() => send()}
-              busy={streaming}
+              onFiles={files.add}
+              files={<AttachmentChips items={files.items} onRemove={files.remove} onRetry={files.retry} />}
+              hasFiles={files.ready}
+              uploading={files.sending}
+              busy={Boolean(live)}
               autoFocus={composing}
               placeholder={msgs.length || liveHere ? "Ask a follow-up…" : "Ask across your archive…"}
             />

@@ -191,6 +191,26 @@ describe("SetupWizard", () => {
     expect(Setup.saveNamespace).not.toHaveBeenCalled();
   });
 
+  it("hands the rest to the assistant once a model is set", async () => {
+    m(Setup.getSetup).mockImplementation(() =>
+      ok(
+        VIEW({
+          namespace: { existing: ["media"], locked: false },
+          llm: {
+            values: { base_url: "http://x/v1", model: "qwen3:8b", api_key: { secret: true, set: false } },
+            locked: [],
+          },
+        }),
+      ),
+    );
+    m(Setup.finish).mockImplementation(() => ok({ ok: true }));
+    wrap(<SetupWizard />);
+    fireEvent.click(await screen.findByRole("button", { name: /Storage/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Finish with the assistant" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/chat?setup=1"));
+    expect(Setup.finish).toHaveBeenCalledWith(expect.objectContaining({ body: { skipped: false } }));
+  });
+
   it("can skip the whole wizard", async () => {
     m(Setup.getSetup).mockImplementation(() => ok(VIEW()));
     m(Setup.finish).mockImplementation(() => ok({ ok: true }));

@@ -79,6 +79,7 @@ export type {
   ApproveAccessRequestResponse,
   ApproveAccessRequestResponses,
   AttachedTo,
+  Attachment,
   AuditEntry,
   AuthStatus,
   Backend,

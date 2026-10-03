@@ -4,6 +4,17 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Set up Lens by talking to it.** Once a model is connected, **Finish with the assistant** in the setup wizard
+  opens a setup conversation: the assistant checks what's missing and sets it up (the model provider, namespaces,
+  search by meaning) through new admin tools (`server_status`, `find_model_servers`, `read_settings`,
+  `change_settings`, `create_namespace`), and says what it changed. In other conversations those changes are approval
+  cards; telemetry always asks.
+- **Files in chat.** Attach files to a message (the clip, or drop or paste them): they upload while you type, held
+  out of the archive (`hold` on `POST /uploads`), and the assistant imports them into the namespace that fits.
+- **No waiting to type.** A message sent while an answer is being written waits its turn and goes next.
+- **Chat shows answers that cite nothing.** An answer without citations (a greeting, setting the server up) was
+  replaced by "Nothing in this scope answers that"; that card now shows only when the model says the archive doesn't
+  cover the question.
 - **Setup finds your model server.** The setup wizard looks for Ollama, LM Studio, llama.cpp, vLLM and LocalAI on
   their usual ports (this machine, the Docker host and an `ollama` service; `GET /setup/llm/detect`) and fills in the
   address and a chat model, with the server's models to pick from, so connecting one is a single click. The compose
