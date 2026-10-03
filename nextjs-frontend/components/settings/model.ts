@@ -70,6 +70,16 @@ export type SectionId =
   | "iiif"
   | "startup";
 
+/** Sections every member of a namespace has, kept apart from the archive's settings (which are for admins). */
+export type WorkspaceSectionId = "speakers";
+export type AnySectionId = SectionId | WorkspaceSectionId;
+
+export const WORKSPACE_SECTIONS: { id: WorkspaceSectionId; label: string }[] = [{ id: "speakers", label: "Speakers" }];
+
+export function isWorkspaceSection(id: string): id is WorkspaceSectionId {
+  return WORKSPACE_SECTIONS.some((s) => s.id === id);
+}
+
 export type SectionSpec = {
   id: SectionId;
   label: string;

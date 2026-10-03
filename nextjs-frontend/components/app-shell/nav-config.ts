@@ -1,5 +1,4 @@
 import {
-  AudioLines,
   CalendarClock,
   ChartNoAxesColumn,
   HardDriveDownload,
@@ -20,7 +19,7 @@ export type NavItem = {
   icon: LucideIcon;
   /** Only shown to archive administrators. */
   adminOnly?: boolean;
-  /** A count shown next to the label (library size, speakers to review). */
+  /** A count shown next to the label (library size, speakers to review in Settings). */
   countKey?: "recordings" | "reviews";
   /** Draw a divider after this item. */
   divider?: boolean;
@@ -37,12 +36,6 @@ export const NAV: NavItem[] = [
   },
   { label: "Search", href: "/search", icon: Search },
   { label: "Chat", href: "/chat", icon: MessagesSquare },
-  {
-    label: "Speakers",
-    href: "/speakers",
-    icon: AudioLines,
-    countKey: "reviews",
-  },
   { label: "Graph", href: "/graph", icon: Waypoints },
   {
     label: "Reports",
@@ -53,7 +46,8 @@ export const NAV: NavItem[] = [
   { label: "Pipelines", href: "/pipelines", icon: Workflow },
   { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true },
   { label: "Sources", href: "/sources", icon: HardDriveDownload },
-  { label: "Settings", href: "/settings", icon: Settings, adminOnly: true },
+  // Everyone has Settings: members find Speakers there, admins the archive's settings too.
+  { label: "Settings", href: "/settings", icon: Settings, countKey: "reviews" },
   { label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
 ];
 
@@ -76,5 +70,7 @@ export function isActive(pathname: string, href: string): boolean {
     ["/templates", "/workflows", "/content-types"].some((p) => pathname === p || pathname.startsWith(`${p}/`))
   )
     return true;
+  // Speakers live in Settings; a speaker's profile keeps its own address.
+  if (href === "/settings" && (pathname === "/speakers" || pathname.startsWith("/speakers/"))) return true;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
