@@ -5,7 +5,9 @@ admin through the rest (the first namespace, the model provider, storage) until 
 already had accounts never see the wizard. Whatever the environment sets is applied at startup and wins: the wizard
 shows those fields locked.
 
-  LENS_ADMIN_EMAIL, LENS_ADMIN_PASSWORD, LENS_ADMIN_NAME   the first admin, created at startup (no setup code needed)
+  LENS_ADMIN_EMAIL, LENS_ADMIN_NAME                        the first admin, created at startup (no setup code needed);
+                                                           the log prints a link for adding their passkey
+  LENS_ADMIN_PASSWORD                                      ... with a password instead (passwords stay on)
   LENS_NAMESPACE                                           the first namespace, created at startup while there is none
   LENS_LLM_BASE_URL, LENS_LLM_MODEL, LENS_LLM_API_KEY      the model provider (settings.ENV_OVERRIDES)
   LENS_TELEMETRY, LENS_TELEMETRY_ENDPOINT                  opt-in telemetry (off unless set on; docs/telemetry.md)
@@ -59,7 +61,7 @@ def finish(db, user=None, skipped=False):
 
 def env_admin():
     email, password = os.environ.get("LENS_ADMIN_EMAIL", "").strip(), os.environ.get("LENS_ADMIN_PASSWORD", "")
-    return (email, password, os.environ.get("LENS_ADMIN_NAME", "").strip() or None) if email and password else None
+    return (email, password or None, os.environ.get("LENS_ADMIN_NAME", "").strip() or None) if email else None
 
 
 def env_namespace():
@@ -78,6 +80,11 @@ def apply_env(db):
         else:
             auth.audit(db, {"id": uid, "email": admin[0]}, "setup", detail=["environment"])
             log.info("Created the first admin %s from the environment", admin[0])
+            if not admin[1]:
+                from . import passkeys
+
+                raw = passkeys.create_link(db, uid)
+                log.warning("Add the first admin's passkey at %s", passkeys.link_url(raw))
     name = env_namespace()
     if name and not store.space_names(db):
         if not store.NS_RX.match(name):

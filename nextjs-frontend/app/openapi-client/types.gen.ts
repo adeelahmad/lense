@@ -358,6 +358,10 @@ export type AuthStatus = {
    * Wizard Pending
    */
   wizard_pending?: boolean;
+  /**
+   * Passwords
+   */
+  passwords?: boolean;
   [key: string]: unknown;
 };
 
@@ -5418,6 +5422,19 @@ export type LoginRequest = {
 };
 
 /**
+ * LoginTicket
+ */
+export type LoginTicket = {
+  /**
+   * Ticket
+   *
+   * swap it for a session at POST /auth/ticket within two minutes; it works once
+   */
+  ticket: string;
+  [key: string]: unknown;
+};
+
+/**
  * Machine
  */
 export type Machine = {
@@ -7023,6 +7040,112 @@ export type Passage = {
    */
   used?: boolean | null;
   [key: string]: unknown;
+};
+
+/**
+ * Passkey
+ */
+export type Passkey = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Rp Id
+   *
+   * the site it works on (a passkey only works there)
+   */
+  rp_id: string;
+  /**
+   * Backed Up
+   *
+   * synced by a password manager or the device's cloud account
+   */
+  backed_up?: boolean;
+  /**
+   * Created At
+   */
+  created_at: string;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PasskeyAnswer
+ */
+export type PasskeyAnswer = {
+  /**
+   * Flow
+   */
+  flow: string;
+  /**
+   * Credential
+   *
+   * the browser's PublicKeyCredential, as JSON (toJSON())
+   */
+  credential: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name
+   *
+   * what to call a new passkey, like 'MacBook'
+   */
+  name?: string | null;
+};
+
+/**
+ * PasskeyOptions
+ *
+ * What to pass to the browser (navigator.credentials.create or .get, as JSON), and the flow to answer.
+ */
+export type PasskeyOptions = {
+  /**
+   * Flow
+   */
+  flow: string;
+  /**
+   * Options
+   */
+  options: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * PasskeyRename
+ */
+export type PasskeyRename = {
+  /**
+   * Name
+   */
+  name: string;
+};
+
+/**
+ * PasskeySetupStart
+ */
+export type PasskeySetupStart = {
+  /**
+   * Code
+   */
+  code: string;
+  /**
+   * Email
+   */
+  email: string;
+  /**
+   * Name
+   */
+  name?: string | null;
 };
 
 /**
@@ -10861,6 +10984,76 @@ export type SharedContext = {
 };
 
 /**
+ * SigninLink
+ */
+export type SigninLink = {
+  /**
+   * Url
+   *
+   * open it on the device to sign in with; it works once
+   */
+  url: string;
+  /**
+   * Expires At
+   */
+  expires_at: string;
+  [key: string]: unknown;
+};
+
+/**
+ * SigninLinkAnswer
+ */
+export type SigninLinkAnswer = {
+  /**
+   * Flow
+   */
+  flow: string;
+  /**
+   * Credential
+   *
+   * the browser's PublicKeyCredential, as JSON (toJSON())
+   */
+  credential: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name
+   *
+   * what to call a new passkey, like 'MacBook'
+   */
+  name?: string | null;
+  /**
+   * Token
+   */
+  token: string;
+};
+
+/**
+ * SigninLinkInfo
+ */
+export type SigninLinkInfo = {
+  /**
+   * Email
+   */
+  email: string;
+  /**
+   * Name
+   */
+  name?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SigninLinkToken
+ */
+export type SigninLinkToken = {
+  /**
+   * Token
+   */
+  token: string;
+};
+
+/**
  * Source
  */
 export type Source = {
@@ -12057,6 +12250,16 @@ export type TermSuggestion = {
 };
 
 /**
+ * TicketRequest
+ */
+export type TicketRequest = {
+  /**
+   * Ticket
+   */
+  ticket: string;
+};
+
+/**
  * TokenLimits
  *
  * How long API keys may last, set by admins (the tokens settings).
@@ -12324,8 +12527,10 @@ export type UserCreate = {
   email: string;
   /**
    * Password
+   *
+   * only where passwords are on; without one, send them a sign-in link
    */
-  password: string;
+  password?: string | null;
   /**
    * Name
    */
@@ -12435,6 +12640,18 @@ export type UserWithRoles = {
   roles?: {
     [key: string]: "viewer" | "editor" | "owner";
   };
+  /**
+   * Passkeys
+   *
+   * how many passkeys they have
+   */
+  passkeys?: number;
+  /**
+   * Password
+   *
+   * whether they have a password
+   */
+  password?: boolean;
   [key: string]: unknown;
 };
 
@@ -13687,6 +13904,451 @@ export type RevokeTokenResponses = {
 };
 
 export type RevokeTokenResponse = RevokeTokenResponses[keyof RevokeTokenResponses];
+
+export type PasskeySetupOptionsData = {
+  body: PasskeySetupStart;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkey/setup/options";
+};
+
+export type PasskeySetupOptionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PasskeySetupOptionsError = PasskeySetupOptionsErrors[keyof PasskeySetupOptionsErrors];
+
+export type PasskeySetupOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasskeyOptions;
+};
+
+export type PasskeySetupOptionsResponse = PasskeySetupOptionsResponses[keyof PasskeySetupOptionsResponses];
+
+export type PasskeySetupData = {
+  body: PasskeyAnswer;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkey/setup";
+};
+
+export type PasskeySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PasskeySetupError = PasskeySetupErrors[keyof PasskeySetupErrors];
+
+export type PasskeySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: LoginTicket;
+};
+
+export type PasskeySetupResponse = PasskeySetupResponses[keyof PasskeySetupResponses];
+
+export type SetupWithoutPasskeyData = {
+  body: PasskeySetupStart;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/setup/no-passkey";
+};
+
+export type SetupWithoutPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetupWithoutPasskeyError = SetupWithoutPasskeyErrors[keyof SetupWithoutPasskeyErrors];
+
+export type SetupWithoutPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: LoginTicket;
+};
+
+export type SetupWithoutPasskeyResponse = SetupWithoutPasskeyResponses[keyof SetupWithoutPasskeyResponses];
+
+export type PasskeyOptionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkey/options";
+};
+
+export type PasskeyOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasskeyOptions;
+};
+
+export type PasskeyOptionsResponse = PasskeyOptionsResponses[keyof PasskeyOptionsResponses];
+
+export type PasskeyLoginData = {
+  body: PasskeyAnswer;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkey";
+};
+
+export type PasskeyLoginErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PasskeyLoginError = PasskeyLoginErrors[keyof PasskeyLoginErrors];
+
+export type PasskeyLoginResponses = {
+  /**
+   * Successful Response
+   */
+  200: LoginTicket;
+};
+
+export type PasskeyLoginResponse = PasskeyLoginResponses[keyof PasskeyLoginResponses];
+
+export type RedeemTicketData = {
+  body: TicketRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/ticket";
+};
+
+export type RedeemTicketErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RedeemTicketError = RedeemTicketErrors[keyof RedeemTicketErrors];
+
+export type RedeemTicketResponses = {
+  /**
+   * Successful Response
+   */
+  200: TokenPair;
+};
+
+export type RedeemTicketResponse = RedeemTicketResponses[keyof RedeemTicketResponses];
+
+export type SigninLinkInfoData = {
+  body: SigninLinkToken;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/signin-link/info";
+};
+
+export type SigninLinkInfoErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SigninLinkInfoError = SigninLinkInfoErrors[keyof SigninLinkInfoErrors];
+
+export type SigninLinkInfoResponses = {
+  /**
+   * Successful Response
+   */
+  200: SigninLinkInfo;
+};
+
+export type SigninLinkInfoResponse = SigninLinkInfoResponses[keyof SigninLinkInfoResponses];
+
+export type SigninLinkOptionsData = {
+  body: SigninLinkToken;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/signin-link/options";
+};
+
+export type SigninLinkOptionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SigninLinkOptionsError = SigninLinkOptionsErrors[keyof SigninLinkOptionsErrors];
+
+export type SigninLinkOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasskeyOptions;
+};
+
+export type SigninLinkOptionsResponse = SigninLinkOptionsResponses[keyof SigninLinkOptionsResponses];
+
+export type SigninLinkData = {
+  body: SigninLinkAnswer;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/signin-link";
+};
+
+export type SigninLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SigninLinkError = SigninLinkErrors[keyof SigninLinkErrors];
+
+export type SigninLinkResponses = {
+  /**
+   * Successful Response
+   */
+  200: LoginTicket;
+};
+
+export type SigninLinkResponse = SigninLinkResponses[keyof SigninLinkResponses];
+
+export type SigninLinkUseData = {
+  body: SigninLinkToken;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/signin-link/use";
+};
+
+export type SigninLinkUseErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SigninLinkUseError = SigninLinkUseErrors[keyof SigninLinkUseErrors];
+
+export type SigninLinkUseResponses = {
+  /**
+   * Successful Response
+   */
+  200: LoginTicket;
+};
+
+export type SigninLinkUseResponse = SigninLinkUseResponses[keyof SigninLinkUseResponses];
+
+export type LostPasskeyData = {
+  body: ForgotPasswordRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/signin-link/lost";
+};
+
+export type LostPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LostPasskeyError = LostPasskeyErrors[keyof LostPasskeyErrors];
+
+export type LostPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type LostPasskeyResponse = LostPasskeyResponses[keyof LostPasskeyResponses];
+
+export type ListPasskeysData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkeys";
+};
+
+export type ListPasskeysResponses = {
+  /**
+   * Response Auth-List Passkeys
+   *
+   * Successful Response
+   */
+  200: Array<Passkey>;
+};
+
+export type ListPasskeysResponse = ListPasskeysResponses[keyof ListPasskeysResponses];
+
+export type AddPasskeyData = {
+  body: PasskeyAnswer;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkeys";
+};
+
+export type AddPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddPasskeyError = AddPasskeyErrors[keyof AddPasskeyErrors];
+
+export type AddPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Passkey;
+};
+
+export type AddPasskeyResponse = AddPasskeyResponses[keyof AddPasskeyResponses];
+
+export type AddPasskeyOptionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkeys/options";
+};
+
+export type AddPasskeyOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasskeyOptions;
+};
+
+export type AddPasskeyOptionsResponse = AddPasskeyOptionsResponses[keyof AddPasskeyOptionsResponses];
+
+export type RemovePasskeyData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/passkeys/{pid}";
+};
+
+export type RemovePasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemovePasskeyError = RemovePasskeyErrors[keyof RemovePasskeyErrors];
+
+export type RemovePasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemovePasskeyResponse = RemovePasskeyResponses[keyof RemovePasskeyResponses];
+
+export type RenamePasskeyData = {
+  body: PasskeyRename;
+  path: {
+    /**
+     * Pid
+     */
+    pid: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/passkeys/{pid}";
+};
+
+export type RenamePasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RenamePasskeyError = RenamePasskeyErrors[keyof RenamePasskeyErrors];
+
+export type RenamePasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RenamePasskeyResponse = RenamePasskeyResponses[keyof RenamePasskeyResponses];
+
+export type MakeSigninLinkData = {
+  body?: never;
+  path: {
+    /**
+     * Uid
+     */
+    uid: number;
+  };
+  query?: never;
+  url: "/api/v1/users/{uid}/signin-link";
+};
+
+export type MakeSigninLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MakeSigninLinkError = MakeSigninLinkErrors[keyof MakeSigninLinkErrors];
+
+export type MakeSigninLinkResponses = {
+  /**
+   * Successful Response
+   */
+  200: SigninLink;
+};
+
+export type MakeSigninLinkResponse = MakeSigninLinkResponses[keyof MakeSigninLinkResponses];
+
+export type DropPasskeysData = {
+  body?: never;
+  path: {
+    /**
+     * Uid
+     */
+    uid: number;
+  };
+  query?: never;
+  url: "/api/v1/users/{uid}/passkeys";
+};
+
+export type DropPasskeysErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DropPasskeysError = DropPasskeysErrors[keyof DropPasskeysErrors];
+
+export type DropPasskeysResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DropPasskeysResponse = DropPasskeysResponses[keyof DropPasskeysResponses];
 
 export type RegisterData = {
   body: ClientRegistration;

@@ -4,10 +4,15 @@ import * as D from "@radix-ui/react-dialog";
 import { getSession, signIn, signOut } from "next-auth/react";
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 
+import { Fingerprint } from "lucide-react";
+
+import { Auth } from "@/app/openapi-client";
 import { AuthAlert } from "@/components/auth/auth-card";
+import { passkeyTicket } from "@/components/auth/passkey-flows";
 import { AuthField } from "@/components/auth/auth-field";
 import { Button } from "@/components/ui/button";
 import { describeHeld, discardHeld, getReauthState, signedInAgain, subscribe } from "@/lib/auth/reauth";
+import { anonymousClient, passkeyErrorMessage, passkeysUnavailableReason } from "@/lib/auth/webauthn";
 
 const CLOSED = { open: false, held: [] };
 
@@ -26,14 +31,59 @@ export function SignedOutDialog({ email }: { email?: string | null }) {
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const passkeyRef = useRef<HTMLButtonElement>(null);
+  const [passwords, setPasswords] = useState(false);
+  const [noPasskeys, setNoPasskeys] = useState<string | null>(null);
 
   useEffect(() => {
     if (state.open) {
       setWho((w) => w || email || "");
       setPassword("");
       setError(null);
+      setNoPasskeys(passkeysUnavailableReason());
+      Auth.status({ client: anonymousClient() })
+        .then(({ data }) => setPasswords(Boolean(data?.passwords)))
+        .catch(() => undefined);
     }
   }, [state.open, email]);
+
+  /** Signed in again (either way): replay what was held, or start over as someone else. */
+  async function resume(): Promise<void> {
+    const session = await getSession();
+    if (!session?.accessToken || session.error) {
+      setError({
+        tone: "error",
+        text: "Signed in, but the session couldn't be read. Try again.",
+      });
+      return;
+    }
+    const now = session.user?.email ?? "";
+    if (email && now.toLowerCase() !== email.toLowerCase()) {
+      // Another person: what was held belonged to someone else.
+      discardHeld();
+      window.location.assign("/");
+      return;
+    }
+    signedInAgain(session.accessToken);
+  }
+
+  async function withPasskey() {
+    setBusy(true);
+    setError(null);
+    try {
+      const ticket = await passkeyTicket();
+      const res = await signIn("ticket", { ticket, redirect: false });
+      if (!res || res.error) {
+        setError({ tone: "error", text: "That sign-in expired. Try again." });
+        return;
+      }
+      await resume();
+    } catch (err) {
+      setError({ tone: "error", text: passkeyErrorMessage(err) });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const task = describeHeld(state.held);
 
@@ -62,21 +112,7 @@ export function SignedOutDialog({ email }: { email?: string | null }) {
         );
         return;
       }
-      const session = await getSession();
-      if (!session?.accessToken || session.error) {
-        setError({
-          tone: "error",
-          text: "Signed in, but the session couldn't be read. Try again.",
-        });
-        return;
-      }
-      if (email && who.trim().toLowerCase() !== email.toLowerCase()) {
-        // Another person: what was held belonged to someone else.
-        discardHeld();
-        window.location.assign("/");
-        return;
-      }
-      signedInAgain(session.accessToken);
+      await resume();
     } catch {
       setError({
         tone: "error",
@@ -102,7 +138,7 @@ export function SignedOutDialog({ email }: { email?: string | null }) {
           onInteractOutside={(e) => e.preventDefault()}
           onOpenAutoFocus={(e) => {
             e.preventDefault();
-            (who ? passwordRef.current : document.getElementById("so-email"))?.focus();
+            (passkeyRef.current ?? (who ? passwordRef.current : document.getElementById("so-email")))?.focus();
           }}
           className="fixed left-1/2 top-1/2 z-[501] flex w-[calc(100vw-32px)] max-w-[420px] -translate-x-1/2 -translate-y-1/2 flex-col gap-3.5 rounded-xl bg-background p-[26px] shadow-3 animate-fade-in"
         >
@@ -119,39 +155,62 @@ export function SignedOutDialog({ email }: { email?: string | null }) {
             — nothing on this page has been lost.
           </D.Description>
           {error && <AuthAlert tone={error.tone}>{error.text}</AuthAlert>}
-          <form method="post" onSubmit={submit} className="flex flex-col gap-3.5" noValidate>
-            <AuthField
-              id="so-email"
-              name="email"
-              label="Email"
-              type="email"
-              autoComplete="email"
-              value={who}
-              onChange={(e) => setWho(e.target.value)}
-            />
-            <AuthField
-              ref={passwordRef}
-              id="so-password"
-              name="password"
-              label="Password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={someoneElse}
-                className="text-[13px] font-semibold text-fg-secondary hover:text-fg hover:underline"
-              >
-                Sign in as someone else
-              </button>
-              <Button type="submit" variant="primary" disabled={busy}>
-                {busy ? "Signing in…" : "Sign in and continue"}
-              </Button>
-            </div>
-          </form>
+          {noPasskeys && !passwords && <AuthAlert tone="gate">{noPasskeys}</AuthAlert>}
+          <Button
+            ref={noPasskeys ? undefined : passkeyRef}
+            variant="primary"
+            size="lg"
+            className="w-full"
+            icon={<Fingerprint />}
+            disabled={busy || Boolean(noPasskeys)}
+            onClick={withPasskey}
+          >
+            {busy ? "Waiting for your passkey…" : "Sign in with a passkey"}
+          </Button>
+          {!passwords && (
+            <button
+              type="button"
+              onClick={someoneElse}
+              className="self-start text-[13px] font-semibold text-fg-secondary hover:text-fg hover:underline"
+            >
+              Sign in as someone else
+            </button>
+          )}
+          {passwords && (
+            <form method="post" onSubmit={submit} className="flex flex-col gap-3.5" noValidate>
+              <AuthField
+                id="so-email"
+                name="email"
+                label="Email"
+                type="email"
+                autoComplete="email"
+                value={who}
+                onChange={(e) => setWho(e.target.value)}
+              />
+              <AuthField
+                ref={passwordRef}
+                id="so-password"
+                name="password"
+                label="Password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={someoneElse}
+                  className="text-[13px] font-semibold text-fg-secondary hover:text-fg hover:underline"
+                >
+                  Sign in as someone else
+                </button>
+                <Button type="submit" disabled={busy}>
+                  {busy ? "Signing in…" : "Sign in with password"}
+                </Button>
+              </div>
+            </form>
+          )}
         </D.Content>
       </D.Portal>
     </D.Root>

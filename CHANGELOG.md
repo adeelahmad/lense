@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Sign in with a passkey, no passwords.** People sign in with their fingerprint, face or device PIN (or a phone
+  nearby). The first admin makes a passkey on the setup page; everyone else gets a one-time sign-in link from People
+  (or `lens users link`), and "Lost your passkey?" emails one. Profile and sign-in lists your passkeys, adds more and
+  removes old ones. Fresh installs have no passwords at all; installs that already use passwords keep them until an
+  admin turns them off in Settings › Sign-in (which needs an admin with a passkey). Passkeys need an `https://`
+  address or `localhost`; on a plain `http://` address setup takes the code alone and a sign-in link signs in by
+  itself, so there is still no password.
 - **Adding a source takes fewer steps.** Picking a type moves straight to its details, the tested connection is
   named on the same screen (its suggested name kept with **Done**), and the folder browser opens next so you can pick
   what to watch. "Connect a source" links elsewhere in the app open Add connection directly.

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import contextlib
 import ipaddress
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal
@@ -310,3 +311,40 @@ def network(request: Request, db: DB) -> ipgroups.Network:
     if not hasattr(request.state, "network"):
         request.state.network = ipgroups.of(db, visitor_address(request))
     return request.state.network
+
+
+def _web_hosts(cfg: Config) -> set[str]:
+    """Host names the web app is known to be served at: FRONTEND_URL's, localhost and server.allowed_hosts."""
+    from urllib.parse import urlsplit
+
+    from app.config import settings as env
+
+    hosts = {h.lower() for h in cfg["server"].get("allowed_hosts") or () if h != "*"}
+    hosts |= {(urlsplit(env.FRONTEND_URL).hostname or "").lower(), "localhost", "127.0.0.1"}
+    return hosts - {""}
+
+
+def web_origin(request: Request) -> str:
+    """The web app's address the browser is on (for passkeys and sign-in redirects). Through the web app that's what
+    it says in X-Forwarded-Host, when the host is one Lens is served at (or the web app is a trusted proxy); otherwise
+    FRONTEND_URL. Called directly, the API's own address."""
+    from app.config import settings as env
+    from app.core.middleware import host_name
+
+    h = request.headers
+    host = (h.get("x-forwarded-host") or "").split(",")[0].strip()
+    if not host:
+        return str(request.base_url).rstrip("/")
+    proto = (h.get("x-forwarded-proto") or "").split(",")[0].strip() or request.url.scheme
+    cfg = request.app.state.settings.current()
+    peer = request.client.host if request.client else ""
+    try:
+        trusted = any(
+            ipaddress.ip_address(peer) in ipaddress.ip_network(t, strict=False) for t in cfg["server"].get("trusted_proxies") or ()
+        )
+    except ValueError:
+        trusted = False
+    shaped = re.fullmatch(r"[A-Za-z0-9.\-]+(:\d+)?|\[[0-9A-Fa-f:.]+\](:\d+)?", host)
+    if shaped and proto in ("http", "https") and (trusted or host_name(host) in _web_hosts(cfg)):
+        return f"{proto}://{host}"
+    return env.FRONTEND_URL.rstrip("/")

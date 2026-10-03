@@ -1,10 +1,10 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Ellipsis, RefreshCw, UserPlus, Users as UsersIcon } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
 
-import { Users } from "@/app/openapi-client";
+import { Auth, Users } from "@/app/openapi-client";
 import { AdminFrame, usePeople } from "@/components/admin/admin-frame";
 import {
   cellKey,
@@ -36,7 +36,9 @@ type Dialogs =
   | { kind: "create" }
   | { kind: "reset"; person: Person }
   | { kind: "disable"; person: Person }
-  | { kind: "rename"; person: Person };
+  | { kind: "rename"; person: Person }
+  | { kind: "link"; person: Person }
+  | { kind: "passkeys"; person: Person };
 
 /** People: accounts with their role in every namespace (Admin AD1); create, reset, disable (AD2). */
 export function PeoplePage() {
@@ -47,6 +49,8 @@ export function PeoplePage() {
   const people = usePeople();
   const [pending, setPending] = useState<Map<string, Pending>>(new Map());
   const [dialog, setDialog] = useState<Dialogs | null>(null);
+  const status = useQuery({ queryKey: ["auth-status"], queryFn: () => data(Auth.status({ client })) });
+  const passwords = Boolean(status.data?.passwords);
 
   const list = (people.data ?? []) as Person[];
   const disabled = list.filter((p) => p.disabled).length;
@@ -140,6 +144,7 @@ export function PeoplePage() {
           namespaces={nsNames}
           pending={pending}
           myId={me?.user.id}
+          passwords={passwords}
           onEdit={(p) => setPending((m) => withPending(m, list, p))}
           onAction={(kind, person) => (kind === "enable" ? enable.mutate(person) : setDialog({ kind, person }))}
         />
@@ -176,7 +181,9 @@ export function PeoplePage() {
         Each cell is a role: — (none), Viewer, Editor or Owner. Arrow keys move between cells; Enter opens the role.
         Platform admins own every namespace.
       </p>
-      {dialog?.kind === "create" && <CreateDialog onClose={() => setDialog(null)} />}
+      {dialog?.kind === "create" && <CreateDialog passwords={passwords} onClose={() => setDialog(null)} />}
+      {dialog?.kind === "link" && <LinkDialog person={dialog.person} onClose={() => setDialog(null)} />}
+      {dialog?.kind === "passkeys" && <PasskeysDialog person={dialog.person} onClose={() => setDialog(null)} />}
       {dialog?.kind === "reset" && <ResetDialog person={dialog.person} onClose={() => setDialog(null)} />}
       {dialog?.kind === "disable" && <DisableDialog person={dialog.person} onClose={() => setDialog(null)} />}
       {dialog?.kind === "rename" && <RenameDialog person={dialog.person} onClose={() => setDialog(null)} />}
@@ -184,7 +191,7 @@ export function PeoplePage() {
   );
 }
 
-type Action = "reset" | "disable" | "enable" | "rename";
+type Action = "reset" | "disable" | "enable" | "rename" | "link" | "passkeys";
 
 /** The role matrix, an ARIA grid: arrows move between cells, Enter opens the cell's control, Escape comes back. */
 function RoleGrid({
@@ -192,6 +199,7 @@ function RoleGrid({
   namespaces,
   pending,
   myId,
+  passwords,
   onEdit,
   onAction,
 }: {
@@ -199,6 +207,7 @@ function RoleGrid({
   namespaces: string[];
   pending: Map<string, Pending>;
   myId?: number;
+  passwords?: boolean;
   onEdit: (p: Pending) => void;
   onAction: (kind: Action, p: Person) => void;
 }) {
@@ -414,7 +423,15 @@ function RoleGrid({
                   </MenuTrigger>
                   <MenuContent className="w-[220px]">
                     <MenuItem onSelect={() => onAction("rename", p)}>Rename…</MenuItem>
-                    <MenuItem onSelect={() => onAction("reset", p)}>Reset password…</MenuItem>
+                    <MenuItem disabled={Boolean(p.disabled)} onSelect={() => onAction("link", p)}>
+                      Send a sign-in link…
+                    </MenuItem>
+                    {passwords && <MenuItem onSelect={() => onAction("reset", p)}>Reset password…</MenuItem>}
+                    {!me && Boolean(p.passkeys) && (
+                      <MenuItem danger onSelect={() => onAction("passkeys", p)}>
+                        Remove passkeys…
+                      </MenuItem>
+                    )}
                     <MenuSeparator />
                     {p.disabled ? (
                       <MenuItem onSelect={() => onAction("enable", p)}>Enable account</MenuItem>
@@ -513,14 +530,30 @@ function Done({ title, password }: { title: string; password: string }) {
   );
 }
 
-function CreateDialog({ onClose }: { onClose: () => void }) {
+/** A one-time sign-in link to share privately: it adds a passkey on the device it's opened on. */
+function LinkDone({ title, url }: { title: string; url: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Banner tone="success">{title}</Banner>
+      <span className="text-[13px] text-fg-secondary">
+        Send them this sign-in link privately. It works once, for three days, and isn’t shown again. Opening it adds a
+        passkey (fingerprint, face or device PIN) on their device.
+      </span>
+      <CodeBlock text={url} label="sign-in link" />
+    </div>
+  );
+}
+
+function CreateDialog({ passwords, onClose }: { passwords: boolean; onClose: () => void }) {
   const client = useApiClient();
   const qc = useQueryClient();
   const { namespaces, namespace: topNs } = useArchive();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState(() => tempPassword());
+  const [withPassword, setWithPassword] = useState(false);
   const [admin, setAdmin] = useState(false);
+  const usePassword = passwords && withPassword;
   const [ns, setNs] = useState(topNs ?? namespaces[0]?.name ?? "");
   const [role, setRole] = useState<"none" | "viewer" | "editor" | "owner">("viewer");
   const shownName = name.trim() || nameFromEmail(email);
@@ -532,7 +565,7 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
           body: {
             name: shownName || null,
             email: email.trim(),
-            password,
+            password: usePassword ? password : null,
             admin,
           },
         }),
@@ -540,7 +573,7 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
       // a role in a namespace in the same step, so nobody is sent to the role matrix afterwards
       if (!admin && ns && role !== "none")
         await data(Users.setMember({ client, path: { name: ns }, body: { account: made.id, role } }));
-      return made;
+      return usePassword ? null : await data(Users.makeSigninLink({ client, path: { uid: made.id } }));
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["users"] });
@@ -549,7 +582,7 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
   });
   const err = create.error instanceof ApiError ? create.error.message : create.error?.message;
   const emailErr = err && /email/i.test(err) ? err[0].toUpperCase() + err.slice(1) : null;
-  const ready = /^\S+@\S+\.\S+$/.test(email.trim()) && password.length >= 10;
+  const ready = /^\S+@\S+\.\S+$/.test(email.trim()) && (!usePassword || password.length >= 10);
   return (
     <Dialog
       open
@@ -568,7 +601,9 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
             <Button
               variant="primary"
               disabled={!ready || create.isPending}
-              disabledReason={!ready ? "Enter an email and a password of at least 10 characters" : undefined}
+              disabledReason={
+                !ready ? `Enter an email${usePassword ? " and a password of at least 10 characters" : ""}` : undefined
+              }
               onClick={() => create.mutate()}
             >
               {create.isPending ? "Creating…" : "Create account"}
@@ -578,7 +613,11 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
       }
     >
       {create.isSuccess ? (
-        <Done title={`Created ${shownName || email.trim()}.`} password={password} />
+        create.data ? (
+          <LinkDone title={`Created ${shownName || email.trim()}.`} url={create.data.url} />
+        ) : (
+          <Done title={`Created ${shownName || email.trim()}.`} password={password} />
+        )
       ) : (
         <>
           <Field label="Email" error={emailErr}>
@@ -604,7 +643,14 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
               />
             )}
           </Field>
-          <PasswordField value={password} onChange={setPassword} />
+          {passwords && (
+            <Switch
+              checked={withPassword}
+              onCheckedChange={setWithPassword}
+              label="Give them a temporary password instead of a sign-in link"
+            />
+          )}
+          {usePassword && <PasswordField value={password} onChange={setPassword} />}
           <Switch checked={admin} onCheckedChange={setAdmin} label="Platform admin" />
           {!admin && namespaces.length > 0 && (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -784,6 +830,78 @@ function RenameDialog({ person, onClose }: { person: Person; onClose: () => void
         {(f) => <Input id={f.id} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} autoFocus />}
       </Field>
       {rename.isError && <Banner tone="error">{rename.error.message}</Banner>}
+    </Dialog>
+  );
+}
+
+function LinkDialog({ person, onClose }: { person: Person; onClose: () => void }) {
+  const client = useApiClient();
+  const who = person.name || person.email;
+  const make = useMutation({ mutationFn: () => data(Users.makeSigninLink({ client, path: { uid: person.id } })) });
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={`A sign-in link for ${who}`}
+      description={
+        make.isSuccess
+          ? undefined
+          : "For someone new, or who lost their passkey: opening it adds a passkey on their device and signs them in. A link made before stops working."
+      }
+      actions={
+        make.isSuccess ? (
+          <Button variant="primary" onClick={onClose}>
+            Done
+          </Button>
+        ) : (
+          <>
+            <Button variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button variant="primary" disabled={make.isPending} onClick={() => make.mutate()} autoFocus>
+              {make.isPending ? "Making…" : "Make the link"}
+            </Button>
+          </>
+        )
+      }
+    >
+      {make.isSuccess && <LinkDone title={`The link for ${who} is ready.`} url={make.data.url} />}
+      {make.isError && <Banner tone="error">{make.error.message}</Banner>}
+    </Dialog>
+  );
+}
+
+function PasskeysDialog({ person, onClose }: { person: Person; onClose: () => void }) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const who = person.name || person.email;
+  const drop = useMutation({
+    mutationFn: () => data(Users.dropPasskeys({ client, path: { uid: person.id } })),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["users"] });
+      toast({ title: `Removed ${who}’s passkeys`, body: "Send them a sign-in link to add a new one.", tone: "green" });
+      onClose();
+    },
+  });
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={`Remove ${who}’s passkeys?`}
+      description={`For a lost or stolen device: all ${person.passkeys ?? ""} of their passkeys stop working and they're signed out everywhere. Their API tokens keep working. Send them a sign-in link afterwards to add a new passkey.`}
+      actions={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="danger" disabled={drop.isPending} onClick={() => drop.mutate()}>
+            {drop.isPending ? "Removing…" : "Remove passkeys"}
+          </Button>
+        </>
+      }
+    >
+      {drop.isError && <Banner tone="error">{drop.error.message}</Banner>}
     </Dialog>
   );
 }

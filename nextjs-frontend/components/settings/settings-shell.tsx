@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
+  LockKeyhole,
   Activity,
   Archive,
   AudioLines,
@@ -64,6 +65,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   workers: Cpu,
   components: PackageCheck,
   access: ShieldCheck,
+  "sign-in": LockKeyhole,
   notifications: Bell,
   mail: Mail,
   bridge: MessagesSquare,

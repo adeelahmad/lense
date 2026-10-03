@@ -292,6 +292,16 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="server.max_upload_mb" />
         </>
       );
+    case "sign-in":
+      return (
+        <>
+          <F ctx={ctx} id="auth.passwords" />
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            People add passkeys in their profile. Someone new, or who lost their passkey, gets a sign-in link from
+            People (or <code className="font-mono text-[12px]">lens users link their@email</code> on the server).
+          </p>
+        </>
+      );
     case "tokens":
       return (
         <>

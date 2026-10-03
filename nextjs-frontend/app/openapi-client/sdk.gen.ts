@@ -17,6 +17,11 @@ import type {
   AddFileData,
   AddFileErrors,
   AddFileResponses,
+  AddPasskeyData,
+  AddPasskeyErrors,
+  AddPasskeyOptionsData,
+  AddPasskeyOptionsResponses,
+  AddPasskeyResponses,
   AddRecordingPermissionData,
   AddRecordingPermissionErrors,
   AddRecordingPermissionResponses,
@@ -280,6 +285,9 @@ import type {
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
+  DropPasskeysData,
+  DropPasskeysErrors,
+  DropPasskeysResponses,
   EditSegmentData,
   EditSegmentErrors,
   EditSegmentResponses,
@@ -594,6 +602,8 @@ import type {
   ListOutputsData,
   ListOutputsErrors,
   ListOutputsResponses,
+  ListPasskeysData,
+  ListPasskeysResponses,
   ListPatternsData,
   ListPatternsErrors,
   ListPatternsResponses,
@@ -664,6 +674,12 @@ import type {
   LogoutData,
   LogoutErrors,
   LogoutResponses,
+  LostPasskeyData,
+  LostPasskeyErrors,
+  LostPasskeyResponses,
+  MakeSigninLinkData,
+  MakeSigninLinkErrors,
+  MakeSigninLinkResponses,
   MarkEntitiesNotSameData,
   MarkEntitiesNotSameErrors,
   MarkEntitiesNotSameResponses,
@@ -696,6 +712,17 @@ import type {
   OpenRecordingToIpGroupData,
   OpenRecordingToIpGroupErrors,
   OpenRecordingToIpGroupResponses,
+  PasskeyLoginData,
+  PasskeyLoginErrors,
+  PasskeyLoginResponses,
+  PasskeyOptionsData,
+  PasskeyOptionsResponses,
+  PasskeySetupData,
+  PasskeySetupErrors,
+  PasskeySetupOptionsData,
+  PasskeySetupOptionsErrors,
+  PasskeySetupOptionsResponses,
+  PasskeySetupResponses,
   PlaceRecordingsData,
   PlaceRecordingsErrors,
   PlaceRecordingsResponses,
@@ -731,6 +758,9 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  RedeemTicketData,
+  RedeemTicketErrors,
+  RedeemTicketResponses,
   RefreshData,
   RefreshErrors,
   RefreshResponses,
@@ -739,6 +769,9 @@ import type {
   RegisterResponses,
   ReindexSearchData,
   ReindexSearchResponses,
+  RemovePasskeyData,
+  RemovePasskeyErrors,
+  RemovePasskeyResponses,
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionErrors,
   RemoveRecordingPermissionResponses,
@@ -748,6 +781,9 @@ import type {
   RenameFaceData,
   RenameFaceErrors,
   RenameFaceResponses,
+  RenamePasskeyData,
+  RenamePasskeyErrors,
+  RenamePasskeyResponses,
   RenameSpeakerData,
   RenameSpeakerErrors,
   RenameSpeakerResponses,
@@ -860,6 +896,21 @@ import type {
   SetupData,
   SetupErrors,
   SetupResponses,
+  SetupWithoutPasskeyData,
+  SetupWithoutPasskeyErrors,
+  SetupWithoutPasskeyResponses,
+  SigninLinkData,
+  SigninLinkErrors,
+  SigninLinkInfoData,
+  SigninLinkInfoErrors,
+  SigninLinkInfoResponses,
+  SigninLinkOptionsData,
+  SigninLinkOptionsErrors,
+  SigninLinkOptionsResponses,
+  SigninLinkResponses,
+  SigninLinkUseData,
+  SigninLinkUseErrors,
+  SigninLinkUseResponses,
   SpeakTextData,
   SpeakTextErrors,
   SpeakTextResponses,
@@ -1070,7 +1121,9 @@ export class Auth {
   /**
    * Setup
    *
-   * Create the first admin with the one-time code printed in the server log.
+   * Create the first admin with a password and the one-time code printed in the server log, for scripts. This turns
+   * passwords on (auth.passwords). The web app makes the first admin with a passkey (POST /auth/passkey/setup/options),
+   * or with the code alone where browsers won't make passkeys (POST /auth/setup/no-passkey).
    */
   public static setup<ThrowOnError extends boolean = false>(
     options: Options<SetupData, ThrowOnError>,
@@ -1087,6 +1140,8 @@ export class Auth {
 
   /**
    * Login
+   *
+   * Sign in with a password, where passwords are on (auth.passwords); else 403.
    */
   public static login<ThrowOnError extends boolean = false>(
     options: Options<LoginData, ThrowOnError>,
@@ -1184,7 +1239,8 @@ export class Auth {
   /**
    * Forgot Password
    *
-   * Email a reset link. Answers the same whether or not the address has an account.
+   * Email a reset link. Answers the same whether or not the address has an account. Where passwords are off, see
+   * POST /auth/signin-link/lost.
    */
   public static forgotPassword<ThrowOnError extends boolean = false>(
     options: Options<ForgotPasswordData, ThrowOnError>,
@@ -1207,6 +1263,274 @@ export class Auth {
   ): RequestResult<ResetPasswordResponses, ResetPasswordErrors, ThrowOnError> {
     return (options.client ?? client).post<ResetPasswordResponses, ResetPasswordErrors, ThrowOnError>({
       url: "/api/v1/auth/password/reset",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Passkey Setup Options
+   *
+   * Start making the first admin with a passkey, with the one-time setup code from the server log.
+   */
+  public static passkeySetupOptions<ThrowOnError extends boolean = false>(
+    options: Options<PasskeySetupOptionsData, ThrowOnError>,
+  ): RequestResult<PasskeySetupOptionsResponses, PasskeySetupOptionsErrors, ThrowOnError> {
+    return (options.client ?? client).post<PasskeySetupOptionsResponses, PasskeySetupOptionsErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkey/setup/options",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Passkey Setup
+   *
+   * Make the first admin with the passkey the browser just created. Answers a ticket for signing in.
+   */
+  public static passkeySetup<ThrowOnError extends boolean = false>(
+    options: Options<PasskeySetupData, ThrowOnError>,
+  ): RequestResult<PasskeySetupResponses, PasskeySetupErrors, ThrowOnError> {
+    return (options.client ?? client).post<PasskeySetupResponses, PasskeySetupErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkey/setup",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Setup Without Passkey
+   *
+   * Make the first admin with the setup code alone, where the browser can't make passkeys (a plain http:// address
+   * other than localhost). No password: they sign in later with a passkey (at an https:// address) or a sign-in link.
+   */
+  public static setupWithoutPasskey<ThrowOnError extends boolean = false>(
+    options: Options<SetupWithoutPasskeyData, ThrowOnError>,
+  ): RequestResult<SetupWithoutPasskeyResponses, SetupWithoutPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<SetupWithoutPasskeyResponses, SetupWithoutPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/auth/setup/no-passkey",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Passkey Options
+   *
+   * Start signing in with a passkey: the browser offers the ones made on this site.
+   */
+  public static passkeyOptions<ThrowOnError extends boolean = false>(
+    options?: Options<PasskeyOptionsData, ThrowOnError>,
+  ): RequestResult<PasskeyOptionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<PasskeyOptionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/passkey/options",
+      ...options,
+    });
+  }
+
+  /**
+   * Passkey Login
+   *
+   * Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session.
+   */
+  public static passkeyLogin<ThrowOnError extends boolean = false>(
+    options: Options<PasskeyLoginData, ThrowOnError>,
+  ): RequestResult<PasskeyLoginResponses, PasskeyLoginErrors, ThrowOnError> {
+    return (options.client ?? client).post<PasskeyLoginResponses, PasskeyLoginErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkey",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Redeem Ticket
+   *
+   * Swap a sign-in ticket (from a passkey or an outside account) for a session. Each ticket works once.
+   */
+  public static redeemTicket<ThrowOnError extends boolean = false>(
+    options: Options<RedeemTicketData, ThrowOnError>,
+  ): RequestResult<RedeemTicketResponses, RedeemTicketErrors, ThrowOnError> {
+    return (options.client ?? client).post<RedeemTicketResponses, RedeemTicketErrors, ThrowOnError>({
+      url: "/api/v1/auth/ticket",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Signin Link Info
+   *
+   * Who a sign-in link is for (the page greets them).
+   */
+  public static signinLinkInfo<ThrowOnError extends boolean = false>(
+    options: Options<SigninLinkInfoData, ThrowOnError>,
+  ): RequestResult<SigninLinkInfoResponses, SigninLinkInfoErrors, ThrowOnError> {
+    return (options.client ?? client).post<SigninLinkInfoResponses, SigninLinkInfoErrors, ThrowOnError>({
+      url: "/api/v1/auth/signin-link/info",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Signin Link Options
+   */
+  public static signinLinkOptions<ThrowOnError extends boolean = false>(
+    options: Options<SigninLinkOptionsData, ThrowOnError>,
+  ): RequestResult<SigninLinkOptionsResponses, SigninLinkOptionsErrors, ThrowOnError> {
+    return (options.client ?? client).post<SigninLinkOptionsResponses, SigninLinkOptionsErrors, ThrowOnError>({
+      url: "/api/v1/auth/signin-link/options",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Signin Link
+   *
+   * Add the passkey the browser just made and sign in. The link stops working.
+   */
+  public static signinLink<ThrowOnError extends boolean = false>(
+    options: Options<SigninLinkData, ThrowOnError>,
+  ): RequestResult<SigninLinkResponses, SigninLinkErrors, ThrowOnError> {
+    return (options.client ?? client).post<SigninLinkResponses, SigninLinkErrors, ThrowOnError>({
+      url: "/api/v1/auth/signin-link",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Signin Link Use
+   *
+   * Sign in with a sign-in link alone, without adding a passkey: for addresses browsers won't use passkeys on
+   * (plain http:// other than localhost). The link stops working. Audited as `login` with `signin-link`.
+   */
+  public static signinLinkUse<ThrowOnError extends boolean = false>(
+    options: Options<SigninLinkUseData, ThrowOnError>,
+  ): RequestResult<SigninLinkUseResponses, SigninLinkUseErrors, ThrowOnError> {
+    return (options.client ?? client).post<SigninLinkUseResponses, SigninLinkUseErrors, ThrowOnError>({
+      url: "/api/v1/auth/signin-link/use",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Lost Passkey
+   *
+   * Email a sign-in link to this address, for adding a passkey. Answers the same whether or not it has an account.
+   */
+  public static lostPasskey<ThrowOnError extends boolean = false>(
+    options: Options<LostPasskeyData, ThrowOnError>,
+  ): RequestResult<LostPasskeyResponses, LostPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<LostPasskeyResponses, LostPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/auth/signin-link/lost",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Passkeys
+   */
+  public static listPasskeys<ThrowOnError extends boolean = false>(
+    options?: Options<ListPasskeysData, ThrowOnError>,
+  ): RequestResult<ListPasskeysResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListPasskeysResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/passkeys",
+      ...options,
+    });
+  }
+
+  /**
+   * Add Passkey
+   *
+   * Add the passkey the browser just made. Audited as `passkey.add`.
+   */
+  public static addPasskey<ThrowOnError extends boolean = false>(
+    options: Options<AddPasskeyData, ThrowOnError>,
+  ): RequestResult<AddPasskeyResponses, AddPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddPasskeyResponses, AddPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkeys",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Add Passkey Options
+   *
+   * Start adding a passkey to your account (on the site you're on).
+   */
+  public static addPasskeyOptions<ThrowOnError extends boolean = false>(
+    options?: Options<AddPasskeyOptionsData, ThrowOnError>,
+  ): RequestResult<AddPasskeyOptionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<AddPasskeyOptionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/options",
+      ...options,
+    });
+  }
+
+  /**
+   * Remove Passkey
+   *
+   * Remove one of your passkeys; not the last one (you couldn't sign in). Audited as `passkey.remove`.
+   */
+  public static removePasskey<ThrowOnError extends boolean = false>(
+    options: Options<RemovePasskeyData, ThrowOnError>,
+  ): RequestResult<RemovePasskeyResponses, RemovePasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemovePasskeyResponses, RemovePasskeyErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Rename Passkey
+   */
+  public static renamePasskey<ThrowOnError extends boolean = false>(
+    options: Options<RenamePasskeyData, ThrowOnError>,
+  ): RequestResult<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).patch<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/{pid}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1274,6 +1598,122 @@ export class Tokens {
     return (options.client ?? client).delete<RevokeTokenResponses, RevokeTokenErrors, ThrowOnError>({
       url: "/api/v1/tokens/{token_id}",
       ...options,
+    });
+  }
+}
+
+export class Users {
+  /**
+   * Make Signin Link
+   *
+   * A one-time link for this person to add a passkey and sign in (a new person, or one who lost theirs). It lasts
+   * three days; making another stops the last one. Share it privately. Audited as `user.signin_link`.
+   */
+  public static makeSigninLink<ThrowOnError extends boolean = false>(
+    options: Options<MakeSigninLinkData, ThrowOnError>,
+  ): RequestResult<MakeSigninLinkResponses, MakeSigninLinkErrors, ThrowOnError> {
+    return (options.client ?? client).post<MakeSigninLinkResponses, MakeSigninLinkErrors, ThrowOnError>({
+      url: "/api/v1/users/{uid}/signin-link",
+      ...options,
+    });
+  }
+
+  /**
+   * Drop Passkeys
+   *
+   * Remove all of this person's passkeys and end their sessions (a lost or stolen device). Send them a sign-in link
+   * to add a new one. Audited as `user.passkeys_remove`.
+   */
+  public static dropPasskeys<ThrowOnError extends boolean = false>(
+    options: Options<DropPasskeysData, ThrowOnError>,
+  ): RequestResult<DropPasskeysResponses, DropPasskeysErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DropPasskeysResponses, DropPasskeysErrors, ThrowOnError>({
+      url: "/api/v1/users/{uid}/passkeys",
+      ...options,
+    });
+  }
+
+  /**
+   * List Users
+   *
+   * Every account, with its role in each namespace.
+   */
+  public static listUsers<ThrowOnError extends boolean = false>(
+    options?: Options<ListUsersData, ThrowOnError>,
+  ): RequestResult<ListUsersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListUsersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/users",
+      ...options,
+    });
+  }
+
+  /**
+   * Create User
+   *
+   * A new account. Without a password (the only way where passwords are off), send them a sign-in link
+   * (POST /users/{uid}/signin-link) to add a passkey.
+   */
+  public static createUser<ThrowOnError extends boolean = false>(
+    options: Options<CreateUserData, ThrowOnError>,
+  ): RequestResult<CreateUserResponses, CreateUserErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateUserResponses, CreateUserErrors, ThrowOnError>({
+      url: "/api/v1/users",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Update User
+   *
+   * Rename, promote or demote, disable, or set a new password (which signs the person out everywhere; only where
+   * passwords are on).
+   */
+  public static updateUser<ThrowOnError extends boolean = false>(
+    options: Options<UpdateUserData, ThrowOnError>,
+  ): RequestResult<UpdateUserResponses, UpdateUserErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateUserResponses, UpdateUserErrors, ThrowOnError>({
+      url: "/api/v1/users/{uid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Members
+   *
+   * Who has a role in this namespace (owners only).
+   */
+  public static listMembers<ThrowOnError extends boolean = false>(
+    options: Options<ListMembersData, ThrowOnError>,
+  ): RequestResult<ListMembersResponses, ListMembersErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListMembersResponses, ListMembersErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/members",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Member
+   *
+   * Give someone a role in this namespace, change it, or (role null) remove them. Owners only.
+   */
+  public static setMember<ThrowOnError extends boolean = false>(
+    options: Options<SetMemberData, ThrowOnError>,
+  ): RequestResult<SetMemberResponses, SetMemberErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetMemberResponses, SetMemberErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/members",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
@@ -1399,88 +1839,6 @@ export class Oauth {
     return (options.client ?? client).delete<RevokeGrantResponses, RevokeGrantErrors, ThrowOnError>({
       url: "/api/v1/oauth/grants/{grant_id}",
       ...options,
-    });
-  }
-}
-
-export class Users {
-  /**
-   * List Users
-   *
-   * Every account, with its role in each namespace.
-   */
-  public static listUsers<ThrowOnError extends boolean = false>(
-    options?: Options<ListUsersData, ThrowOnError>,
-  ): RequestResult<ListUsersResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListUsersResponses, unknown, ThrowOnError>({
-      url: "/api/v1/users",
-      ...options,
-    });
-  }
-
-  /**
-   * Create User
-   */
-  public static createUser<ThrowOnError extends boolean = false>(
-    options: Options<CreateUserData, ThrowOnError>,
-  ): RequestResult<CreateUserResponses, CreateUserErrors, ThrowOnError> {
-    return (options.client ?? client).post<CreateUserResponses, CreateUserErrors, ThrowOnError>({
-      url: "/api/v1/users",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-  }
-
-  /**
-   * Update User
-   *
-   * Rename, promote or demote, disable, or set a new password (which signs the person out everywhere).
-   */
-  public static updateUser<ThrowOnError extends boolean = false>(
-    options: Options<UpdateUserData, ThrowOnError>,
-  ): RequestResult<UpdateUserResponses, UpdateUserErrors, ThrowOnError> {
-    return (options.client ?? client).patch<UpdateUserResponses, UpdateUserErrors, ThrowOnError>({
-      url: "/api/v1/users/{uid}",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-  }
-
-  /**
-   * List Members
-   *
-   * Who has a role in this namespace (owners only).
-   */
-  public static listMembers<ThrowOnError extends boolean = false>(
-    options: Options<ListMembersData, ThrowOnError>,
-  ): RequestResult<ListMembersResponses, ListMembersErrors, ThrowOnError> {
-    return (options.client ?? client).get<ListMembersResponses, ListMembersErrors, ThrowOnError>({
-      url: "/api/v1/namespaces/{name}/members",
-      ...options,
-    });
-  }
-
-  /**
-   * Set Member
-   *
-   * Give someone a role in this namespace, change it, or (role null) remove them. Owners only.
-   */
-  public static setMember<ThrowOnError extends boolean = false>(
-    options: Options<SetMemberData, ThrowOnError>,
-  ): RequestResult<SetMemberResponses, SetMemberErrors, ThrowOnError> {
-    return (options.client ?? client).put<SetMemberResponses, SetMemberErrors, ThrowOnError>({
-      url: "/api/v1/namespaces/{name}/members",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
     });
   }
 }

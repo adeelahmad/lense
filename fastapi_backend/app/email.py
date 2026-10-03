@@ -1,4 +1,4 @@
-"""Outgoing email (password reset, access requests), sent through the SMTP server in Settings → Email (or MAIL_* in
+"""Outgoing email (password reset, sign-in links, access requests), sent through the SMTP server in Settings → Email (or MAIL_* in
 .env, which win and show locked). Without one, links are logged instead."""
 
 from __future__ import annotations
@@ -78,6 +78,23 @@ async def send_reset_password_email(cfg: dict[str, Any], email: str, name: str |
         subtype=MessageType.html,
     )
     await _mailer(cfg).send_message(message, template_name="password_reset.html")
+
+
+async def send_signin_link_email(cfg: dict[str, Any], email: str, name: str | None, link: str, minutes: int) -> None:
+    """A link for adding a passkey, for someone who lost theirs (passwords off)."""
+    if not mail_enabled(cfg):
+        log.warning("no email server is set up (Settings → Email); sign-in link for %s: %s", email, link)
+        return
+    from fastapi_mail import MessageSchema, MessageType
+    from pydantic import NameEmail
+
+    message = MessageSchema(
+        subject="Sign in to Lens",
+        recipients=[NameEmail(name or email, email)],
+        template_body={"username": name or email, "link": link, "minutes": minutes},
+        subtype=MessageType.html,
+    )
+    await _mailer(cfg).send_message(message, template_name="signin_link.html")
 
 
 async def send_access_request_email(

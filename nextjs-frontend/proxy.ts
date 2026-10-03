@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 
 /** Pages reachable without a session: signing in, and the pages for visitors (docs/access.md). */
-const PUBLIC_PATHS = ["/login", "/setup", "/password-recovery", "/explore"];
+const PUBLIC_PATHS = ["/login", "/setup", "/password-recovery", "/signin-link", "/explore"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

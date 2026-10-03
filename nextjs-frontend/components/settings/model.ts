@@ -63,6 +63,7 @@ export type SectionId =
   | "workers"
   | "components"
   | "access"
+  | "sign-in"
   | "notifications"
   | "mail"
   | "bridge"
@@ -153,6 +154,13 @@ export const SECTIONS: SectionSpec[] = [
     label: "Workers",
     backend: ["workers"],
     description: "The workers inside the server, and how the job queue retries.",
+  },
+  {
+    id: "sign-in",
+    label: "Sign-in",
+    backend: ["auth"],
+    description:
+      "How people sign in: passkeys (fingerprint, face or device PIN) always; passwords only if you allow them.",
   },
   {
     id: "components",
@@ -1181,6 +1189,14 @@ export const FIELDS: FieldSpec[] = [
     hint: "Audio and video have their own limit, under Uploads",
   },
   // Uploads
+  // Sign-in
+  {
+    section: "auth",
+    key: "passwords",
+    label: "Allow passwords",
+    kind: "switch",
+    hint: "Off: everyone signs in with a passkey, and password sign-in, changes and resets stop working. Turning it off needs a passkey on an admin's account first.",
+  },
   // API keys
   // Fedora (opt-in)
   {
