@@ -224,3 +224,109 @@ export function RdfImportDialog({ ns, open, onClose }: { ns: string; open: boole
     </Dialog>
   );
 }
+
+type SparqlTerm = { type: string; value: string; "xml:lang"?: string };
+export type SparqlResults = {
+  head: { vars?: string[] };
+  boolean?: boolean;
+  results?: { bindings: Record<string, SparqlTerm>[] };
+};
+
+export const SPARQL_EXAMPLE = `# The 20 entities mentioned in the most recordings
+SELECT ?entity ?name (COUNT(?r) AS ?recordings) WHERE {
+  ?r dcterms:references ?entity .
+  ?entity skos:prefLabel ?name .
+}
+GROUP BY ?entity ?name
+ORDER BY DESC(?recordings)
+LIMIT 20`;
+
+/** A result cell in words: a value, with its language when it has one. */
+export function sparqlCell(t: SparqlTerm | undefined): string {
+  if (!t) return "";
+  return t["xml:lang"] ? `${t.value} @${t["xml:lang"]}` : t.value;
+}
+
+/** A read-only SPARQL query over a namespace's linked data, with its results as a table (or Turtle). */
+export function SparqlDialog({ ns, open, onClose }: { ns: string; open: boolean; onClose: () => void }) {
+  const client = useApiClient();
+  const [query, setQuery] = useState(SPARQL_EXAMPLE);
+  const run = useMutation({
+    mutationFn: async () => {
+      const out = await data(
+        Rdf.postNamespaceSparql({
+          client,
+          path: { name: ns },
+          body: { query },
+          query: { format: "turtle" },
+          parseAs: "text",
+        }),
+      );
+      const text = out as unknown as string;
+      try {
+        return { results: JSON.parse(text) as SparqlResults };
+      } catch {
+        return { turtle: text };
+      }
+    },
+  });
+  const res = run.data && "results" in run.data ? run.data.results : null;
+  const vars = res?.head.vars ?? [];
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      wide
+      title={`Query ${ns} with SPARQL`}
+      description="Read-only: SELECT, ASK, CONSTRUCT or DESCRIBE over this namespace's recordings (Dublin Core), collections, entities and speakers. dcterms, skos, foaf, owl, rdfs, xsd and lens are known prefixes."
+      actions={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Close
+          </Button>
+          <Button variant="primary" disabled={!query.trim() || run.isPending} onClick={() => run.mutate()}>
+            {run.isPending ? "Running…" : "Run"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <Textarea aria-label="SPARQL query" mono rows={8} value={query} onChange={(e) => setQuery(e.target.value)} />
+        {run.error && <Banner tone="error">{run.error.message}</Banner>}
+        {res?.boolean !== undefined && <b aria-live="polite">{res.boolean ? "Yes" : "No"}</b>}
+        {res?.results && (
+          <div className="max-h-[40vh] overflow-auto rounded-md border border-border" aria-live="polite">
+            <table className="w-full text-left text-[12.5px]">
+              <thead className="sticky top-0 bg-surface">
+                <tr>
+                  {vars.map((v) => (
+                    <th key={v} className="px-2 py-1.5 font-mono font-semibold">
+                      ?{v}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {res.results.bindings.map((row, i) => (
+                  <tr key={i} className="border-t border-border">
+                    {vars.map((v) => (
+                      <td key={v} className="max-w-[320px] truncate px-2 py-1">
+                        {sparqlCell(row[v])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!res.results.bindings.length && <p className="p-3 text-fg-muted">No results.</p>}
+          </div>
+        )}
+        {run.data && "turtle" in run.data && (
+          <pre className="max-h-[40vh] overflow-auto rounded-md border border-border p-2 text-[12px]">
+            {run.data.turtle}
+          </pre>
+        )}
+      </div>
+    </Dialog>
+  );
+}

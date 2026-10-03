@@ -33,3 +33,7 @@ class RdfImportResult(ResponseModel):
     changed: int
     items: list[RdfImportItem]
     unmatched: list[RdfUnmatched]
+
+
+class SparqlQuery(RequestModel):
+    query: str = Field(description="a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query")

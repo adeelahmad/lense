@@ -7,11 +7,23 @@ import { Rdf } from "@/app/openapi-client";
 import type { RdfImportResult } from "@/app/openapi-client/types.gen";
 import { DublinCore } from "@/components/iiif/metadata-fields";
 import { describeChange, dirtyFields, patchFor, validate, type Meta } from "@/components/iiif/metadata-model";
-import { importSummary, linkedDataUri, RdfImportDialog, rdfFileName } from "@/components/iiif/rdf";
+import {
+  importSummary,
+  linkedDataUri,
+  RdfImportDialog,
+  rdfFileName,
+  SparqlDialog,
+  sparqlCell,
+} from "@/components/iiif/rdf";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/app/openapi-client", () => ({
-  Rdf: { importNamespaceRdf: jest.fn(), getRecordingRdf: jest.fn(), getNamespaceRdf: jest.fn() },
+  Rdf: {
+    importNamespaceRdf: jest.fn(),
+    getRecordingRdf: jest.fn(),
+    getNamespaceRdf: jest.fn(),
+    postNamespaceSparql: jest.fn(),
+  },
   Entities: {},
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
@@ -127,5 +139,30 @@ describe("the RDF import dialog", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(m(Rdf.importNamespaceRdf).mock.calls[1][0].body.dry_run).toBe(false);
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "RDF imported" }));
+  });
+});
+
+describe("the SPARQL dialog", () => {
+  it("runs the query and shows a table, or Turtle", async () => {
+    const results = {
+      head: { vars: ["name", "n"] },
+      results: {
+        bindings: [{ name: { type: "literal", value: "Dyno", "xml:lang": "en" }, n: { type: "literal", value: "2" } }],
+      },
+    };
+    m(Rdf.postNamespaceSparql)
+      .mockReturnValueOnce(ok(JSON.stringify(results)))
+      .mockReturnValueOnce(ok("<a> <b> <c> ."));
+    wrap(<SparqlDialog ns="pods" open onClose={jest.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    expect(await screen.findByText("Dyno @en")).toBeInTheDocument();
+    expect(screen.getByText("?name")).toBeInTheDocument();
+    expect(m(Rdf.postNamespaceSparql).mock.calls[0][0]).toMatchObject({ path: { name: "pods" } });
+    fireEvent.change(screen.getByLabelText("SPARQL query"), {
+      target: { value: "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    expect(await screen.findByText("<a> <b> <c> .")).toBeInTheDocument();
+    expect(sparqlCell(undefined)).toBe("");
   });
 });

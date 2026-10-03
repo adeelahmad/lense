@@ -197,3 +197,35 @@ def test_import_round_trip_and_dublin_core(env):
     assert c.post(url, headers=h, json={"data": other}).json()["matched"] == 0
     vh = login(c, "vi@x.io", "viewer password 1")
     assert c.post(url, headers=vh, json={"data": ttl}).status_code == 403
+
+
+def test_sparql(env):
+    c, h = env.admin()
+    url = "/api/v1/namespaces/pods/sparql"
+    q = "SELECT ?name WHERE { ?e a skos:Concept ; skos:prefLabel ?name } ORDER BY ?name"
+    r = c.get(url, headers=h, params={"query": q})
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/sparql-results+json")
+    names = [b["name"]["value"] for b in r.json()["results"]["bindings"]]
+    assert "Dyno Therapeutics" in names and r.json()["head"]["vars"] == ["name"]
+
+    ask = c.post(url, headers=h, json={"query": 'ASK { ?r dcterms:title "ep1" }'}).json()
+    assert ask["boolean"] is True
+    built = c.post(url, headers=h, json={"query": "CONSTRUCT { ?r dcterms:title ?t } WHERE { ?r a lens:Item ; dcterms:title ?t }"})
+    assert built.headers["content-type"].startswith("text/turtle")
+    assert len(list(parse(built).triples((None, DCTERMS.title, None)))) == 3
+
+    for bad, why in (
+        ("SELECT * WHERE { SERVICE <https://dbpedia.org/sparql> { ?s ?p ?o } }", "SERVICE"),
+        ("SELECT * FROM <https://example.org/data.ttl> WHERE { ?s ?p ?o }", "FROM"),
+        ("SELECT * FROM NAMED <https://example.org/data.ttl> WHERE { GRAPH ?g { ?s ?p ?o } }", "FROM"),
+        ("INSERT DATA { <a:b> <a:c> <a:d> }", "SELECT"),
+        ("LOAD <https://example.org/data.ttl>", "SELECT"),
+        ("SELECT nonsense", "SELECT"),
+    ):
+        r = c.post(url, headers=h, json={"query": bad})
+        assert r.status_code == 400 and why in r.text, (bad, r.text)
+
+    vh = login(c, "vi@x.io", "viewer password 1")
+    assert c.get(url, headers=vh, params={"query": q}).status_code == 200
+    assert c.get("/api/v1/namespaces/calls/sparql", headers=vh, params={"query": q}).status_code == 404
+    assert c.get(url, params={"query": q}).status_code == 401

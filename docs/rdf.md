@@ -63,6 +63,22 @@ includes those of them that refine one of its 15 elements (spatial becomes `dc:c
 
 Both accept `?format=` or an `Accept` header, and return Turtle when neither is given.
 
+## SPARQL
+
+`GET /api/v1/namespaces/{name}/sparql?query=…` (or `POST` with `{query}`) runs a read-only SPARQL query over the
+namespace's graph, the same graph `/rdf` returns. It is for the namespace's members. SELECT and ASK return SPARQL 1.1
+JSON results (`application/sparql-results+json`). CONSTRUCT and DESCRIBE return RDF (Turtle unless `format` or
+`Accept` asks for another format). The prefixes dcterms, dcmitype, foaf, skos, owl, rdf, rdfs, xsd and lens are
+already known. `SERVICE` and `FROM` are refused, because a query never reaches outside the archive. A SELECT returns
+at most 10,000 rows. The same query is available to agents as the MCP tool `sparql`. The app runs it from a
+Collection page's SPARQL button.
+
+```sparql
+# entities mentioned in the most recordings
+SELECT ?name (COUNT(?r) AS ?n) WHERE { ?r dcterms:references ?e . ?e skos:prefLabel ?name }
+GROUP BY ?name ORDER BY DESC(?n) LIMIT 20
+```
+
 ## Import
 
 `POST /api/v1/namespaces/{name}/rdf/import` reads Dublin Core descriptions into the namespace's recordings. It is for
@@ -89,3 +105,5 @@ editors, and the body is `{data, format, dry_run}`.
   every recording.
 - Collections and entities that visitors can see in public namespaces.
 - Importing descriptions that match no recording as new resources, and importing collections, entities and speakers.
+- SPARQL builds the namespace's graph for every query. Cache it, or keep a triple store in step with the database,
+  once namespaces get large. There is also no query timeout yet.

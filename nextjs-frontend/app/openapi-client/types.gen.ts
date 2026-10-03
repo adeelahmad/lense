@@ -9771,6 +9771,18 @@ export type SourceUpdated = {
 };
 
 /**
+ * SparqlQuery
+ */
+export type SparqlQuery = {
+  /**
+   * Query
+   *
+   * a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query
+   */
+  query: string;
+};
+
+/**
  * Speaker
  */
 export type Speaker = {
@@ -18013,6 +18025,90 @@ export type ImportNamespaceRdfResponses = {
 };
 
 export type ImportNamespaceRdfResponse = ImportNamespaceRdfResponses[keyof ImportNamespaceRdfResponses];
+
+export type QueryNamespaceSparqlData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query: {
+    /**
+     * Query
+     *
+     * a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query
+     */
+    query: string;
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/namespaces/{name}/sparql";
+};
+
+export type QueryNamespaceSparqlErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type QueryNamespaceSparqlError = QueryNamespaceSparqlErrors[keyof QueryNamespaceSparqlErrors];
+
+export type QueryNamespaceSparqlResponses = {
+  /**
+   * SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type QueryNamespaceSparqlResponse = QueryNamespaceSparqlResponses[keyof QueryNamespaceSparqlResponses];
+
+export type PostNamespaceSparqlData = {
+  body: SparqlQuery;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/namespaces/{name}/sparql";
+};
+
+export type PostNamespaceSparqlErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PostNamespaceSparqlError = PostNamespaceSparqlErrors[keyof PostNamespaceSparqlErrors];
+
+export type PostNamespaceSparqlResponses = {
+  /**
+   * SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type PostNamespaceSparqlResponse = PostNamespaceSparqlResponses[keyof PostNamespaceSparqlResponses];
 
 export type GetMediaData = {
   body?: never;
