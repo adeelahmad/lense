@@ -222,7 +222,7 @@ def retrieve(db, question, spaces, scope=None, k=8, cfg=None):
 def messages_for(question, passages, history=()):
     ctx = "\n\n".join(f"[{p['n']}] {p['title']} · {(p.get('recorded_at') or '')[:10]} · {p['time']}\n{p['text']}" for p in passages)
     msgs = [{"role": "system", "content": SYSTEM}]
-    msgs += [{"role": m["role"], "content": m["content"]} for m in list(history)[-6:]]
+    msgs += [{"role": m["role"], "content": m["content"] + attached_note(m.get("attachments"))} for m in list(history)[-6:]]
     msgs.append({"role": "user", "content": f"Excerpts:\n\n{ctx or '(nothing in the archive matched)'}\n\nQuestion: {question}"})
     return msgs
 
@@ -240,7 +240,8 @@ def cited(text, passages):
 
 
 # ---------- conversations ----------
-def create(db, account, title=None, scope=None, model=None):
+def create(db, account, title=None, scope=None, model=None, kind="chat"):
+    """A conversation. A `setup` one (admins) is the assistant setting the server up: it acts instead of asking."""
     cid = db.next_id("chat")
     db.q(
         "CREATE $r CONTENT $d",
@@ -248,7 +249,8 @@ def create(db, account, title=None, scope=None, model=None):
         d=store.clean(
             {
                 "account": account,
-                "title": (title or "New conversation")[:120],
+                "title": (title or ("Set up Lens" if kind == "setup" else "New conversation"))[:120],
+                "kind": kind if kind != "chat" else None,
                 "scope": scope or {},
                 "model": model,
                 "created_at": store.now(),
@@ -260,7 +262,10 @@ def create(db, account, title=None, scope=None, model=None):
 
 
 def get(db, cid, account):
-    c = db.one("SELECT record::id(id) AS id, account, title, scope, model, created_at, updated_at FROM $r", r=R("chat", cid))
+    c = db.one(
+        "SELECT record::id(id) AS id, account, title, scope, model, kind ?? 'chat' AS kind, created_at, updated_at FROM $r",
+        r=R("chat", cid),
+    )
     if not c or c["account"] != account:
         raise KeyError(cid)
     return c
@@ -269,12 +274,12 @@ def get(db, cid, account):
 def history(db, cid):
     return db.rows(
         "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped, steps ?? [] AS steps, "
-        "notice, error, check, model FROM chat_message WHERE chat = $c ORDER BY id",
+        "attachments ?? [] AS attachments, notice, error, check, model FROM chat_message WHERE chat = $c ORDER BY id",
         c=cid,
     )
 
 
-def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None, model=None):
+def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None, model=None, attachments=None):
     """Save a message; an answer keeps the tool steps it took, any notice (e.g. the model can't use tools) and error."""
     mid = db.next_id("chat_message")
     db.q(
@@ -285,6 +290,7 @@ def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice
                 "chat": cid,
                 "role": role,
                 "content": content,
+                "attachments": attachments or None,
                 "passages": passages,
                 "created_at": store.now(),
                 "stopped": stopped or None,
@@ -362,14 +368,41 @@ TOOL_SYSTEM = (
 )
 
 
-def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None):
-    """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text). Raises llm.ToolsUnsupported."""
-    msgs = [{"role": "system", "content": TOOL_SYSTEM}] + [{"role": m["role"], "content": m["content"]} for m in list(history)[-6:]]
+def attached_note(files):
+    """What the model reads about the files sent with a question."""
+    if not files:
+        return ""
+    lines = [f"- {f['filename']} ({round(f['size'] / 1e6, 1)} MB, attachment id {f['id']})" for f in files]
+    return "\n\nAttached files, not in the archive yet (import_files puts them in a namespace, choosing one when not named):\n" + "\n".join(
+        lines
+    )
+
+
+SETUP_SYSTEM = (
+    "You are setting up this Lens server with its admin, who asked you to do it for them. Lens archives recordings, "
+    "documents and images, transcribes and indexes them, and answers questions about them. Start with server_status and "
+    "work through what's missing, most important first: a model provider (find_model_servers, then change_settings llm "
+    "with the server's address and a chat model), a namespace, then search by meaning (an embedding model). Prefer "
+    "sensible defaults and make the changes yourself; they're made as soon as you call the tool, and the admin can change "
+    "them in Settings. Ask only what you can't decide (one short question at a time), and never for something a tool can "
+    "find out. When files are attached, import them (leave the namespace out unless the admin named one: it's chosen "
+    "for them, and you're told when to ask). Say in a sentence what you changed. Be brief."
+)
+
+
+def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, setup=False):
+    """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text), or ("direct", text) when the model
+    answered without looking anything up (it never saw the archive, so the caller can answer from a search instead).
+    Raises llm.ToolsUnsupported."""
+    system = TOOL_SYSTEM + ("\n\n" + SETUP_SYSTEM if setup else "")
+    msgs = [{"role": "system", "content": system}] + [
+        {"role": m["role"], "content": m["content"] + attached_note(m.get("attachments"))} for m in list(history)[-6:]
+    ]
     msgs.append({"role": "user", "content": question})
-    for _ in range(max_steps):
+    for step in range(max_steps):
         msg = llm.chat_message(cfg, msgs, tools=toolbox.specs(), model=model)
         if not msg["tool_calls"]:
-            yield "answer", msg["content"]
+            yield ("direct" if step == 0 else "answer"), msg["content"]
             return
         msgs.append({"role": "assistant", "content": msg["content"], "tool_calls": msg["tool_calls"]})
         for c in msg["tool_calls"]:

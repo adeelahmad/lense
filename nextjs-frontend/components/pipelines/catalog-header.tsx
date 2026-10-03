@@ -49,13 +49,16 @@ export function useContentTypes() {
 const NEW = {
   pipelines: ["/pipelines/new", "New pipeline"],
   workflows: ["/workflows/new", "New workflow"],
+  nodes: ["/workflows/nodes/new", "New custom node"],
   "content-types": ["/content-types#new", "New content type"],
   templates: ["/templates/new", "New template"],
 } as const;
 
 /** PL1 header: "Pipelines" with the Pipelines / Workflows / Templates tabs and the one "New" action. */
-export function CatalogHeader({ tab }: { tab: "pipelines" | "workflows" | "content-types" | "templates" }) {
-  const { admin } = useArchive();
+export function CatalogHeader({ tab }: { tab: "pipelines" | "workflows" | "nodes" | "content-types" | "templates" }) {
+  const { admin: isAdmin, can } = useArchive();
+  // Anyone who can edit somewhere can make custom nodes (their own, to share or not); the rest is for admins.
+  const admin = tab === "nodes" ? can("editor") : isAdmin;
   const pipelines = usePipelineCatalog();
   const workflows = useWorkflowCatalog();
   const templates = useTemplateList();
@@ -72,7 +75,13 @@ export function CatalogHeader({ tab }: { tab: "pipelines" | "workflows" | "conte
             </Link>
           </Button>
         ) : (
-          <Button size="sm" variant="primary" icon={<Plus />} disabled disabledReason={`Only admins can create ${tab}`}>
+          <Button
+            size="sm"
+            variant="primary"
+            icon={<Plus />}
+            disabled
+            disabledReason={tab === "nodes" ? "Needs editor access to a namespace" : `Only admins can create ${tab}`}
+          >
             {newLabel}
           </Button>
         )}
@@ -92,6 +101,12 @@ export function CatalogHeader({ tab }: { tab: "pipelines" | "workflows" | "conte
             label: "Workflows",
             count: workflows.data?.workflows.length,
             href: "/workflows",
+          },
+          {
+            value: "nodes",
+            label: "Custom nodes",
+            count: workflows.data?.custom_nodes?.length,
+            href: "/workflows/nodes",
           },
           {
             value: "content-types",

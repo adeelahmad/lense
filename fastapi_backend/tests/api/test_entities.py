@@ -49,7 +49,7 @@ def test_browse_and_explore(env):
     names = {x["name"] for x in c.get("/api/v1/entities", params={"q": "northwnd"}, headers=h).json()["items"]}
     assert names == {"Northwind Labs", "North Wind Labs"}
     types = c.get("/api/v1/entities/types", headers=h).json()
-    assert {"type": "ORG", "label": "Organisation", "quiet": False} in types
+    assert {"type": "ORG", "label": "Organisation", "quiet": False, "builtin": True}.items() <= types[1].items()
     dyno = env.eid("Dyno Therapeutics")
     d = c.get(f"/api/v1/entities/{dyno}", headers=h).json()
     assert (d["type"], d["mentions"], d["namespace"]) == ("ORG", 5, "pods")
@@ -123,3 +123,26 @@ def test_curation_survives_reanalysis(env, db, cfg):
     # a read-only API token can't curate
     tok = c.post("/api/v1/tokens", headers=h, json={"name": "ro"}).json()["token"]
     assert c.post(f"/api/v1/entities/{dyno}/hide", headers={"Authorization": f"Bearer {tok}"}, json={}).status_code == 403
+
+
+def test_describe_and_filter_by_collection(env, db):
+    c, ed, vi = env.c, env.h["editor"], env.h["viewer"]
+    dyno = env.eid("Dyno Therapeutics")
+    assert c.patch(f"/api/v1/entities/{dyno}", headers=vi, json={"description": "x"}).status_code == 403
+    d = c.patch(f"/api/v1/entities/{dyno}", headers=ed, json={"description": "  A gene therapy company.  "}).json()
+    assert d["description"] == "A gene therapy company."
+    lst = c.get("/api/v1/entities", params={"q": "Dyno"}, headers=vi).json()["items"]
+    assert lst[0]["description"] == "A gene therapy company."
+    long = c.patch(f"/api/v1/entities/{dyno}", headers=ed, json={"description": "x" * 2001})
+    assert long.status_code == 400
+    assert c.patch(f"/api/v1/entities/{dyno}", headers=ed, json={"description": ""}).json()["description"] is None
+
+    sid = store.ns_id(db, "pods")
+    from app.domain import hierarchy
+
+    sub = hierarchy.create(db, sid, "Extra")
+    hierarchy.place(db, [env.x], sub)
+    inside = {x["name"]: x["mentions"] for x in c.get("/api/v1/entities", params={"collection": sub}, headers=vi).json()["items"]}
+    assert inside["Dyno Therapeutics"] == 1  # counted over its recordings only (5 in the namespace)
+    assert "Northwind Labs" in inside and "Amazon Web Services" in inside
+    assert c.get("/api/v1/entities", params={"collection": 999999}, headers=vi).status_code == 404

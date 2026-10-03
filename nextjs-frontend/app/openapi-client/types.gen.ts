@@ -293,6 +293,33 @@ export type AttachedTo = {
 };
 
 /**
+ * Attachment
+ */
+export type Attachment = {
+  /**
+   * Id
+   *
+   * the upload
+   */
+  id: string;
+  /**
+   * Filename
+   */
+  filename: string;
+  /**
+   * Size
+   */
+  size: number;
+  /**
+   * Recording
+   *
+   * the recording it became, once imported
+   */
+  recording?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * AuditEntry
  */
 export type AuditEntry = {
@@ -853,6 +880,10 @@ export type Chat = {
    */
   title: string;
   /**
+   * Kind
+   */
+  kind?: "chat" | "setup";
+  /**
    * Scope
    */
   scope?: {
@@ -934,6 +965,12 @@ export type ChatCreate = {
    * Title
    */
   title?: string | null;
+  /**
+   * Kind
+   *
+   * setup (admins): the assistant sets the server up with you, and makes the changes it proposes without asking (telemetry still asks)
+   */
+  kind?: "chat" | "setup";
   scope?: ChatScope | null;
   /**
    * Model
@@ -959,6 +996,12 @@ export type ChatMessage = {
    * Content
    */
   content: string;
+  /**
+   * Attachments
+   *
+   * files sent with it (POST /uploads with hold)
+   */
+  attachments?: Array<Attachment>;
   /**
    * Passages
    */
@@ -1054,6 +1097,10 @@ export type ChatSummary = {
    * Title
    */
   title: string;
+  /**
+   * Kind
+   */
+  kind?: "chat" | "setup";
   /**
    * Scope
    */
@@ -2091,6 +2138,188 @@ export type Created = {
 };
 
 /**
+ * CustomNode
+ */
+export type CustomNode = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Icon
+   *
+   * a lucide icon name, e.g. sparkles
+   */
+  icon?: string | null;
+  /**
+   * Color
+   *
+   * blue, green, gold, red, purple or neutral
+   */
+  color?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   *
+   * who sees it, when shared with namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null;
+  /**
+   * Editable
+   */
+  editable?: boolean;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Version
+   */
+  version: number;
+  graph: WorkflowGraph;
+  /**
+   * Params
+   */
+  params?: Array<NodeParam>;
+  /**
+   * Inputs
+   *
+   * its input ports: the names of the arg nodes in its body
+   */
+  inputs: Array<string>;
+  /**
+   * Outputs
+   *
+   * its output ports: the names of the return nodes in its body
+   */
+  outputs: Array<string>;
+  /**
+   * Scopes
+   *
+   * the workflows it can be used in: recording, graph or both
+   */
+  scopes: Array<string>;
+  /**
+   * Keeps
+   *
+   * whether it saves something itself
+   */
+  keeps?: boolean;
+  /**
+   * Deleted At
+   */
+  deleted_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * History
+   */
+  history?: Array<WorkflowVersionInfo>;
+  [key: string]: unknown;
+};
+
+/**
+ * CustomNodeCreate
+ */
+export type CustomNodeCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  graph: WorkflowGraph;
+  /**
+   * Params
+   */
+  params?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Icon
+   */
+  icon?: string | null;
+  /**
+   * Color
+   */
+  color?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<string>;
+};
+
+/**
+ * CustomNodeUpdate
+ */
+export type CustomNodeUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Icon
+   */
+  icon?: string | null;
+  /**
+   * Color
+   */
+  color?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone" | null;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<string> | null;
+};
+
+/**
+ * CustomNodeVersionCreate
+ */
+export type CustomNodeVersionCreate = {
+  graph: WorkflowGraph;
+  /**
+   * Params
+   */
+  params?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+};
+
+/**
  * Description
  *
  * What a model that can see images said a page or a shot shows.
@@ -2217,6 +2446,36 @@ export type EmbedTestResult = {
 };
 
 /**
+ * EntityDefine
+ */
+export type EntityDefine = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Type
+   */
+  type?: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Aliases
+   *
+   * other ways it's said
+   */
+  aliases?: Array<string>;
+  /**
+   * Collection
+   *
+   * for this collection (and those inside it) only; default: the namespace
+   */
+  collection?: number | null;
+};
+
+/**
  * EntityDetail
  */
 export type EntityDetail = {
@@ -2240,6 +2499,10 @@ export type EntityDetail = {
    * Type Label
    */
   type_label: string;
+  /**
+   * Description
+   */
+  description?: string | null;
   /**
    * Namespace
    */
@@ -2282,6 +2545,24 @@ export type EntityDetail = {
    * Hidden
    */
   hidden?: boolean;
+  /**
+   * Defined
+   *
+   * on the fixed list people defined
+   */
+  defined?: boolean;
+  /**
+   * Builtin
+   *
+   * unknown or unlabeled: one of the two entities that are always there
+   */
+  builtin?: string | null;
+  /**
+   * Collection
+   *
+   * a defined entity of one collection (and those inside it)
+   */
+  collection?: number | null;
   [key: string]: unknown;
 };
 
@@ -2441,6 +2722,143 @@ export type EntityRetype = {
 };
 
 /**
+ * EntitySetup
+ */
+export type EntitySetup = {
+  /**
+   * Mode
+   *
+   * self: every name found becomes an entity, and people curate them; fixed: names found are mapped onto the entities people defined, or onto Unlabeled (it belongs here) or Unknown; hybrid: the defined entities first, then names of the types kept become entities of their own and others go to Unknown
+   */
+  mode: string;
+  /**
+   * Types
+   *
+   * the types kept; empty: all of them
+   */
+  types?: Array<string>;
+  /**
+   * Description
+   *
+   * what this place is about
+   */
+  description?: string | null;
+  /**
+   * Matching
+   */
+  matching?: string;
+  /**
+   * Collection
+   *
+   * the collection this setup is saved on; null: the namespace
+   */
+  collection?: number | null;
+  /**
+   * Collection Path
+   */
+  collection_path?: Array<string>;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  /**
+   * Can Change
+   */
+  can_change?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * EntitySetupApplied
+ */
+export type EntitySetupApplied = {
+  /**
+   * Recordings
+   *
+   * how many recordings are analysed again
+   */
+  recordings: number;
+  [key: string]: unknown;
+};
+
+/**
+ * EntitySetupApply
+ */
+export type EntitySetupApply = {
+  /**
+   * Collection
+   *
+   * only this collection's recordings (and those inside it)
+   */
+  collection?: number | null;
+};
+
+/**
+ * EntitySetupSave
+ */
+export type EntitySetupSave = {
+  /**
+   * Collection
+   *
+   * save it on this collection (default: the namespace)
+   */
+  collection?: number | null;
+  /**
+   * Mode
+   */
+  mode?: "self" | "fixed" | "hybrid";
+  /**
+   * Types
+   */
+  types?: Array<string>;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Matching
+   */
+  matching?: "rules" | "model";
+};
+
+/**
+ * EntitySetupView
+ */
+export type EntitySetupView = {
+  /**
+   * the namespace's setup (the default when none is saved)
+   */
+  namespace: EntitySetup;
+  /**
+   * Saved
+   *
+   * whether the namespace has a setup of its own
+   */
+  saved: boolean;
+  /**
+   * Collections
+   *
+   * collections with a setup of their own
+   */
+  collections?: Array<EntitySetup>;
+  /**
+   * Types
+   */
+  types?: Array<EntityTypeInfo>;
+  /**
+   * Can Change
+   *
+   * you may change the namespace's setup and types: its editors
+   */
+  can_change: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * EntityType
  */
 export type EntityType = {
@@ -2458,7 +2876,104 @@ export type EntityType = {
    * extracted but hidden unless a filter asks for it (dates, numbers)
    */
   quiet: boolean;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Builtin
+   *
+   * one of Lens's types; false: the namespace's own
+   */
+  builtin?: boolean;
   [key: string]: unknown;
+};
+
+/**
+ * EntityTypeCreate
+ */
+export type EntityTypeCreate = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+};
+
+/**
+ * EntityTypeInfo
+ */
+export type EntityTypeInfo = {
+  /**
+   * Type
+   *
+   * the code extractors and models use, e.g. ORG or CLIENT_TEAM
+   */
+  type: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Quiet
+   *
+   * extracted but hidden unless a filter asks for it (dates, numbers)
+   */
+  quiet?: boolean;
+  /**
+   * Builtin
+   *
+   * one of Lens's types; false: the namespace's own
+   */
+  builtin?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * EntityTypeUpdate
+ */
+export type EntityTypeUpdate = {
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Description
+   *
+   * empty clears it
+   */
+  description?: string | null;
+};
+
+/**
+ * EntityUpdate
+ */
+export type EntityUpdate = {
+  /**
+   * Description
+   *
+   * what the entity is; empty clears it
+   */
+  description?: string | null;
+  /**
+   * Aliases
+   *
+   * the other ways it's said (these replace the ones it has)
+   */
+  aliases?: Array<string> | null;
+  /**
+   * Defined
+   *
+   * on the fixed list of entities (namespaces in the fixed mode map names onto it)
+   */
+  defined?: boolean | null;
 };
 
 /**
@@ -4078,6 +4593,29 @@ export type LlmTestResult = {
 };
 
 /**
+ * LocalModelServer
+ */
+export type LocalModelServer = {
+  /**
+   * Kind
+   */
+  kind: string;
+  /**
+   * Base Url
+   */
+  base_url: string;
+  /**
+   * Models
+   */
+  models: Array<string>;
+  /**
+   * Suggested
+   */
+  suggested: string;
+  [key: string]: unknown;
+};
+
+/**
  * LoginRequest
  */
 export type LoginRequest = {
@@ -4278,9 +4816,15 @@ export type MessageCreate = {
   /**
    * Content
    *
-   * the question (up to 4000 characters)
+   * the question (up to 4000 characters); may be empty when files are attached
    */
-  content: string;
+  content?: string;
+  /**
+   * Attachments
+   *
+   * your uploads started with `hold` and finished: the assistant can import them into a namespace
+   */
+  attachments?: Array<string>;
   /**
    * Model
    *
@@ -4674,6 +5218,68 @@ export type NamespaceUpdate = {
 };
 
 /**
+ * NodeParam
+ */
+export type NodeParam = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Kind
+   */
+  kind?: "text" | "number" | "bool" | "json" | "choice";
+  /**
+   * Default
+   */
+  default?: unknown;
+  /**
+   * Options
+   */
+  options?: Array<unknown> | null;
+  /**
+   * Help
+   */
+  help?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NodeTrace
+ */
+export type NodeTrace = {
+  /**
+   * Status
+   */
+  status: "done" | "skipped" | "failed";
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  /**
+   * Ports
+   *
+   * the output ports it passed something on along
+   */
+  ports?: Array<string>;
+  /**
+   * Value
+   *
+   * what it passed on (or took in, if it passes nothing on), as JSON, cut short
+   */
+  value?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * NodeType
  */
 export type NodeType = {
@@ -4703,6 +5309,30 @@ export type NodeType = {
    * its outgoing ports: [] for none, ['out'], or a condition's ['yes', 'no']
    */
   outputs: Array<string>;
+  /**
+   * Input Ports
+   *
+   * its input ports, by name
+   */
+  input_ports?: Array<string>;
+  /**
+   * Dynamic
+   *
+   * which ports its settings make: inputs, outputs or both
+   */
+  dynamic?: string | null;
+  /**
+   * Primitive
+   *
+   * a building block every workflow has
+   */
+  primitive?: boolean;
+  /**
+   * Keeps
+   *
+   * it saves something
+   */
+  keeps?: boolean;
   [key: string]: unknown;
 };
 
@@ -9860,8 +10490,10 @@ export type Upload = {
   offset: number;
   /**
    * State
+   *
+   * held: all here, waiting to be put in a namespace
    */
-  state: "receiving" | "done";
+  state: "receiving" | "held" | "done";
   /**
    * Attach
    *
@@ -9987,6 +10619,12 @@ export type UploadStart = {
    * the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't
    */
   modified?: number | null;
+  /**
+   * Hold
+   *
+   * keep it out of the archive once it's here (state `held`), to attach to a chat message: the assistant puts it in a namespace (no `namespace` needed)
+   */
+  hold?: boolean;
 };
 
 /**
@@ -10772,6 +11410,14 @@ export type WorkflowCatalog = {
    * Workflows
    */
   workflows: Array<WorkflowSummary>;
+  /**
+   * Custom Nodes
+   *
+   * the custom nodes you can use
+   */
+  custom_nodes?: Array<{
+    [key: string]: unknown;
+  }>;
   [key: string]: unknown;
 };
 
@@ -10809,7 +11455,7 @@ export type WorkflowGraph = {
   /**
    * Edges
    *
-   * {source, target, branch (a condition's yes or no)}
+   * {source, target, port (the source's output, default out), input (the target's input, default in)}
    */
   edges?: Array<{
     [key: string]: unknown;
@@ -10867,6 +11513,56 @@ export type WorkflowSummary = {
    */
   pipelines?: Array<string>;
   [key: string]: unknown;
+};
+
+/**
+ * WorkflowTry
+ */
+export type WorkflowTry = {
+  /**
+   * Trace
+   *
+   * by node id; nodes in a body as body node id/node id (first item)
+   */
+  trace: {
+    [key: string]: NodeTrace;
+  };
+  /**
+   * Log
+   */
+  log: Array<string>;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Steps
+   */
+  steps: number;
+  [key: string]: unknown;
+};
+
+/**
+ * WorkflowTryRequest
+ */
+export type WorkflowTryRequest = {
+  graph: WorkflowGraph;
+  /**
+   * Scope
+   */
+  scope?: "recording" | "graph";
+  /**
+   * Recording
+   *
+   * the recording to try a recording workflow on
+   */
+  recording?: number | null;
+  /**
+   * Namespaces
+   *
+   * the namespaces to try a graph workflow over (default: all)
+   */
+  namespaces?: Array<string>;
 };
 
 /**
@@ -11933,6 +12629,24 @@ export type SaveLlmResponses = {
 };
 
 export type SaveLlmResponse = SaveLlmResponses[keyof SaveLlmResponses];
+
+export type DetectLlmData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/llm/detect";
+};
+
+export type DetectLlmResponses = {
+  /**
+   * Response Setup-Detect Llm
+   *
+   * Successful Response
+   */
+  200: Array<LocalModelServer>;
+};
+
+export type DetectLlmResponse = DetectLlmResponses[keyof DetectLlmResponses];
 
 export type SaveStorageData = {
   body: SetupStorage;
@@ -15708,6 +16422,10 @@ export type ListEntitiesData = {
      * Group
      */
     group?: boolean;
+    /**
+     * Collection
+     */
+    collection?: number | null;
   };
   url: "/api/v1/entities";
 };
@@ -15733,9 +16451,23 @@ export type ListEntitiesResponse = ListEntitiesResponses[keyof ListEntitiesRespo
 export type ListEntityTypesData = {
   body?: never;
   path?: never;
-  query?: never;
+  query?: {
+    /**
+     * Ns
+     */
+    ns?: string;
+  };
   url: "/api/v1/entities/types";
 };
+
+export type ListEntityTypesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListEntityTypesError = ListEntityTypesErrors[keyof ListEntityTypesErrors];
 
 export type ListEntityTypesResponses = {
   /**
@@ -15949,6 +16681,36 @@ export type MarkEntitiesNotSameResponses = {
 
 export type MarkEntitiesNotSameResponse = MarkEntitiesNotSameResponses[keyof MarkEntitiesNotSameResponses];
 
+export type DeleteEntityData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/entities/{eid}";
+};
+
+export type DeleteEntityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteEntityError = DeleteEntityErrors[keyof DeleteEntityErrors];
+
+export type DeleteEntityResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteEntityResponse = DeleteEntityResponses[keyof DeleteEntityResponses];
+
 export type GetEntityData = {
   body?: never;
   path: {
@@ -15978,6 +16740,36 @@ export type GetEntityResponses = {
 };
 
 export type GetEntityResponse = GetEntityResponses[keyof GetEntityResponses];
+
+export type UpdateEntityData = {
+  body: EntityUpdate;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/entities/{eid}";
+};
+
+export type UpdateEntityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateEntityError = UpdateEntityErrors[keyof UpdateEntityErrors];
+
+export type UpdateEntityResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntityDetail;
+};
+
+export type UpdateEntityResponse = UpdateEntityResponses[keyof UpdateEntityResponses];
 
 export type ListEntityMentionsData = {
   body?: never;
@@ -16105,6 +16897,36 @@ export type RenameEntityResponses = {
 };
 
 export type RenameEntityResponse = RenameEntityResponses[keyof RenameEntityResponses];
+
+export type DefineEntityData = {
+  body: EntityDefine;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entities";
+};
+
+export type DefineEntityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DefineEntityError = DefineEntityErrors[keyof DefineEntityErrors];
+
+export type DefineEntityResponses = {
+  /**
+   * Successful Response
+   */
+  201: EntityDetail;
+};
+
+export type DefineEntityResponse = DefineEntityResponses[keyof DefineEntityResponses];
 
 export type HideEntityData = {
   /**
@@ -16333,6 +17155,228 @@ export type FindGraphPathResponses = {
 
 export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
 
+export type GetEntitySetupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-setup";
+};
+
+export type GetEntitySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetEntitySetupError = GetEntitySetupErrors[keyof GetEntitySetupErrors];
+
+export type GetEntitySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntitySetupView;
+};
+
+export type GetEntitySetupResponse = GetEntitySetupResponses[keyof GetEntitySetupResponses];
+
+export type SaveEntitySetupData = {
+  body: EntitySetupSave;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-setup";
+};
+
+export type SaveEntitySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveEntitySetupError = SaveEntitySetupErrors[keyof SaveEntitySetupErrors];
+
+export type SaveEntitySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntitySetup;
+};
+
+export type SaveEntitySetupResponse = SaveEntitySetupResponses[keyof SaveEntitySetupResponses];
+
+export type ClearEntitySetupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-setup/collections/{cid}";
+};
+
+export type ClearEntitySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ClearEntitySetupError = ClearEntitySetupErrors[keyof ClearEntitySetupErrors];
+
+export type ClearEntitySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type ClearEntitySetupResponse = ClearEntitySetupResponses[keyof ClearEntitySetupResponses];
+
+export type ApplyEntitySetupData = {
+  body: EntitySetupApply;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-setup/apply";
+};
+
+export type ApplyEntitySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ApplyEntitySetupError = ApplyEntitySetupErrors[keyof ApplyEntitySetupErrors];
+
+export type ApplyEntitySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntitySetupApplied;
+};
+
+export type ApplyEntitySetupResponse = ApplyEntitySetupResponses[keyof ApplyEntitySetupResponses];
+
+export type CreateEntityTypeData = {
+  body: EntityTypeCreate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-types";
+};
+
+export type CreateEntityTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateEntityTypeError = CreateEntityTypeErrors[keyof CreateEntityTypeErrors];
+
+export type CreateEntityTypeResponses = {
+  /**
+   * Successful Response
+   */
+  201: EntityTypeInfo;
+};
+
+export type CreateEntityTypeResponse = CreateEntityTypeResponses[keyof CreateEntityTypeResponses];
+
+export type DeleteEntityTypeData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Code
+     */
+    code: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-types/{code}";
+};
+
+export type DeleteEntityTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteEntityTypeError = DeleteEntityTypeErrors[keyof DeleteEntityTypeErrors];
+
+export type DeleteEntityTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteEntityTypeResponse = DeleteEntityTypeResponses[keyof DeleteEntityTypeResponses];
+
+export type UpdateEntityTypeData = {
+  body: EntityTypeUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Code
+     */
+    code: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-types/{code}";
+};
+
+export type UpdateEntityTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateEntityTypeError = UpdateEntityTypeErrors[keyof UpdateEntityTypeErrors];
+
+export type UpdateEntityTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntityTypeInfo;
+};
+
+export type UpdateEntityTypeResponse = UpdateEntityTypeResponses[keyof UpdateEntityTypeResponses];
+
 export type GetRecordingMetadataData = {
   body?: never;
   path: {
@@ -16541,6 +17585,86 @@ export type BulkUpdateMetadataResponses = {
 };
 
 export type BulkUpdateMetadataResponse = BulkUpdateMetadataResponses[keyof BulkUpdateMetadataResponses];
+
+export type GetRecordingRdfData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/resources/{rid}/rdf";
+};
+
+export type GetRecordingRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRecordingRdfError = GetRecordingRdfErrors[keyof GetRecordingRdfErrors];
+
+export type GetRecordingRdfResponses = {
+  /**
+   * RDF
+   */
+  200: string;
+};
+
+export type GetRecordingRdfResponse = GetRecordingRdfResponses[keyof GetRecordingRdfResponses];
+
+export type GetNamespaceRdfData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+    /**
+     * Download
+     *
+     * as a file to save
+     */
+    download?: boolean;
+  };
+  url: "/api/v1/namespaces/{name}/rdf";
+};
+
+export type GetNamespaceRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceRdfError = GetNamespaceRdfErrors[keyof GetNamespaceRdfErrors];
+
+export type GetNamespaceRdfResponses = {
+  /**
+   * RDF
+   */
+  200: string;
+};
+
+export type GetNamespaceRdfResponse = GetNamespaceRdfResponses[keyof GetNamespaceRdfResponses];
 
 export type GetMediaData = {
   body?: never;
@@ -18302,6 +19426,31 @@ export type CreateWorkflowResponses = {
 
 export type CreateWorkflowResponse = CreateWorkflowResponses[keyof CreateWorkflowResponses];
 
+export type TryWorkflowData = {
+  body: WorkflowTryRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/workflows/test";
+};
+
+export type TryWorkflowErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TryWorkflowError = TryWorkflowErrors[keyof TryWorkflowErrors];
+
+export type TryWorkflowResponses = {
+  /**
+   * Successful Response
+   */
+  200: WorkflowTry;
+};
+
+export type TryWorkflowResponse = TryWorkflowResponses[keyof TryWorkflowResponses];
+
 export type GetWorkflowData = {
   body?: never;
   path: {
@@ -18426,6 +19575,188 @@ export type RunWorkflowResponses = {
 };
 
 export type RunWorkflowResponse = RunWorkflowResponses[keyof RunWorkflowResponses];
+
+export type ListCustomNodesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Scope
+     */
+    scope?: string | null;
+  };
+  url: "/api/v1/custom-nodes";
+};
+
+export type ListCustomNodesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListCustomNodesError = ListCustomNodesErrors[keyof ListCustomNodesErrors];
+
+export type ListCustomNodesResponses = {
+  /**
+   * Response Workflows-List Custom Nodes
+   *
+   * Successful Response
+   */
+  200: Array<CustomNode>;
+};
+
+export type ListCustomNodesResponse = ListCustomNodesResponses[keyof ListCustomNodesResponses];
+
+export type CreateCustomNodeData = {
+  body: CustomNodeCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/custom-nodes";
+};
+
+export type CreateCustomNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateCustomNodeError = CreateCustomNodeErrors[keyof CreateCustomNodeErrors];
+
+export type CreateCustomNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type CreateCustomNodeResponse = CreateCustomNodeResponses[keyof CreateCustomNodeResponses];
+
+export type DeleteCustomNodeData = {
+  body?: never;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/custom-nodes/{nid}";
+};
+
+export type DeleteCustomNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteCustomNodeError = DeleteCustomNodeErrors[keyof DeleteCustomNodeErrors];
+
+export type DeleteCustomNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteCustomNodeResponse = DeleteCustomNodeResponses[keyof DeleteCustomNodeResponses];
+
+export type GetCustomNodeData = {
+  body?: never;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: {
+    /**
+     * Version
+     */
+    version?: number | null;
+  };
+  url: "/api/v1/custom-nodes/{nid}";
+};
+
+export type GetCustomNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetCustomNodeError = GetCustomNodeErrors[keyof GetCustomNodeErrors];
+
+export type GetCustomNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: CustomNode;
+};
+
+export type GetCustomNodeResponse = GetCustomNodeResponses[keyof GetCustomNodeResponses];
+
+export type UpdateCustomNodeData = {
+  body: CustomNodeUpdate;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/custom-nodes/{nid}";
+};
+
+export type UpdateCustomNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateCustomNodeError = UpdateCustomNodeErrors[keyof UpdateCustomNodeErrors];
+
+export type UpdateCustomNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateCustomNodeResponse = UpdateCustomNodeResponses[keyof UpdateCustomNodeResponses];
+
+export type CreateCustomNodeVersionData = {
+  body: CustomNodeVersionCreate;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/custom-nodes/{nid}/versions";
+};
+
+export type CreateCustomNodeVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateCustomNodeVersionError = CreateCustomNodeVersionErrors[keyof CreateCustomNodeVersionErrors];
+
+export type CreateCustomNodeVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: VersionSaved;
+};
+
+export type CreateCustomNodeVersionResponse = CreateCustomNodeVersionResponses[keyof CreateCustomNodeVersionResponses];
 
 export type ListChatsData = {
   body?: never;

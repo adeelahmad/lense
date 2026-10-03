@@ -4,6 +4,46 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Assistant mode.** Home opens on a page with one field and a big mic once the archive has something in it (an
+  empty archive still opens on the overview; the **Assistant / Overview** switch at the top right remembers your
+  pick). Touching or typing in the field turns it into a chat over all your namespaces; the mic starts a voice
+  conversation straight away: it listens, sends what you said, reads the answer aloud and listens again, until you tap
+  the mic or say nothing twice. Recent conversations are a tap below the field. Chat's composer has the same mic.
+  Voice uses the browser's speech recognition and synthesis for now, behind one hook (`lib/voice.ts`).
+- **The assistant decides routine choices.** Files sent in a conversation go into the namespace that fits without
+  asking, chosen by a decision model (Jev, with a key in Settings → AI assistant or `TYPESAFE_API_KEY`) or the LLM.
+  Below `decisions.act_above` confidence it asks, best guess first. The admin tools are now listed in Settings → AI
+  assistant, where each can be turned off.
+
+- **Set up Lens by talking to it.** Once a model is connected, **Finish with the assistant** in the setup wizard
+  opens a setup conversation: the assistant checks what's missing and sets it up (the model provider, namespaces,
+  search by meaning) through new admin tools (`server_status`, `find_model_servers`, `read_settings`,
+  `change_settings`, `create_namespace`), and says what it changed. In other conversations those changes are approval
+  cards; telemetry always asks.
+- **Files in chat.** Attach files to a message (the clip, or drop or paste them): they upload while you type, held
+  out of the archive (`hold` on `POST /uploads`), and the assistant imports them into the namespace that fits.
+- **No waiting to type.** A message sent while an answer is being written waits its turn and goes next.
+- **Chat shows answers that cite nothing.** An answer without citations (a greeting, setting the server up) was
+  replaced by "Nothing in this scope answers that"; that card now shows only when the model says the archive doesn't
+  cover the question.
+- **Setup finds your model server.** The setup wizard looks for Ollama, LM Studio, llama.cpp, vLLM and LocalAI on
+  their usual ports (this machine, the Docker host and an `ollama` service; `GET /setup/llm/detect`) and fills in the
+  address and a chat model, with the server's models to pick from, so connecting one is a single click. The compose
+  files map `host.docker.internal` on Linux too. When the namespace is already set, the wizard starts at the model
+  provider instead of a step with nothing to choose.
+- **Install in one line.** `curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh`
+  installs Docker if it's missing, gets Lens, writes the secrets once, builds and starts the stack and opens the setup
+  page with the setup code filled in. On a server without a desktop, Lens is reachable from the network
+  (`LENS_BIND`/`LENS_PORT` in `docker-compose.prod.yml`, `127.0.0.1:3000` by default as before). Running it again
+  updates Lens and keeps the data.
+- **The whole graph fits on the canvas.** Workflow and pipeline canvases showed wide graphs cut off at both edges, or
+  an empty canvas, because the view couldn't zoom out past half size and was fitted only once, before the nodes were
+  measured. The canvas now zooms out as far as it needs to, fits again when the nodes are measured, when nodes are
+  added or removed and when the canvas changes size (until you pan or zoom yourself), and the minimap shows the nodes.
+- **Chat answers from the archive even when the model skips its tools.** Some models answer straight away instead of
+  searching, so chat said the archive didn't cover things it did. When the model answers without looking anything up
+  and the archive has matching passages, the answer now comes from those passages, with citations, as it does for a
+  model that can't use tools.
 - **Calendar feeds on your own network.** A calendar server at home or on an intranet (Nextcloud, Radicale) was
   refused with "only public web pages can be captured", and Docker and the packages had no way to allow it.
   `LENS_WEB_NETWORKS` in `.env` (e.g. `192.168.1.0/24`) now adds networks to `documents.web_networks`, and the error

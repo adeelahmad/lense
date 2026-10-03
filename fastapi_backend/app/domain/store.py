@@ -243,6 +243,16 @@ DEFAULTS = {
         "price_in": None,
         "price_out": None,
     },
+    # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
+    # has a key, else the language model. act_above: the confidence it acts on; below it, it asks.
+    "decisions": {
+        "engine": "auto",
+        "base_url": "https://api.typesafe.ai/v1",
+        "model": "jev-latest",
+        "api_key": None,
+        "act_above": 0.8,
+        "timeout": 10,
+    },
     "video": {
         "sample_seconds": 5,
         "scene_threshold": 0.3,
@@ -577,6 +587,11 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS entity SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS entity_space ON entity FIELDS space",
     "DEFINE INDEX IF NOT EXISTS entity_key ON entity FIELDS ekey UNIQUE",
+    # how a namespace (or one of its collections) organises its entities, and its own entity types (entity_setup.py)
+    "DEFINE TABLE IF NOT EXISTS entity_scope SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS entity_scope_space ON entity_scope FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS entity_kind SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS entity_kind_space ON entity_kind FIELDS space",
     "DEFINE TABLE IF NOT EXISTS mentions TYPE RELATION IN segment OUT entity",
     "DEFINE INDEX IF NOT EXISTS mentions_rec ON mentions FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS mentions_space ON mentions FIELDS space",
@@ -588,6 +603,8 @@ SCHEMA = [
     # Note: on 2.x, CONTAINS against an indexed field also returns nothing; use string::contains() there.
     # settings, people and access
     "DEFINE TABLE IF NOT EXISTS app_setting SCHEMALESS",
+    # each namespace's data key, wrapped by the keys that can open it (app/domain/keyring.py)
+    "DEFINE TABLE IF NOT EXISTS data_key SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS account SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS account_email ON account FIELDS email UNIQUE",
     "DEFINE TABLE IF NOT EXISTS membership SCHEMALESS",
@@ -676,6 +693,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS content_type SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS workflow_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS workflow_version_w ON workflow_version FIELDS workflow",
+    # custom nodes: bodies of nodes saved under a name, used in workflows (custom_nodes.py)
+    "DEFINE TABLE IF NOT EXISTS custom_node SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS custom_node_version SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS custom_node_version_n ON custom_node_version FIELDS node",
     # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
     "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
     "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",

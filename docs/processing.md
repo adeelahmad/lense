@@ -86,9 +86,13 @@ Nodes are speakers and named things. Edges are:
 People, organisations, products, places, events, works and topics are extracted from every transcript. Dates and
 numbers are extracted too, but hidden unless asked for.
 
+The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab)
+and opens each in a side panel where editors rename, retype, describe and hide it.
+
 - **Index** (`GET /api/v1/entities`):
   - Search forgives misspellings and covers aliases.
-  - Filters: type, namespace, speaker, recording, date range, minimum mentions, and hidden entities.
+  - Filters: type, namespace, collection (and the collections inside it), speaker, recording, date range, minimum
+    mentions, and hidden entities.
   - Sorts: most mentioned, most recordings, most recent, rising, and name.
   - Options: grouping by name across namespaces, a twelve-month sparkline, and facets.
 - **Entity page:** its details and aliases, paged mentions (each line with the words highlighted, linking to its moment),
@@ -100,13 +104,48 @@ numbers are extracted too, but hidden unless asked for.
 - **Curation** (editors of the entity's namespace):
   - **Rename:** the old name stays as an alias. It can optionally correct the words in every transcript line, with a
     dry-run preview first, then re-analysis.
-  - **Change type, and hide or restore.**
+  - **Change type, describe (`PATCH /api/v1/entities/{id}`), and hide or restore.**
   - **Merge:** with undo.
   - **Mark two entities as not the same.**
   - **Move or remove a single mention.**
   - **Link the same thing across namespaces.**
 - **Merge suggestions:** same letters (ignoring case, spaces and punctuation), acronyms, one name containing the other,
   close spellings, and names that sound alike (likely transcription errors).
+
+### Entity setup
+
+Each namespace has an entity setup (Entities → Setup, `GET`/`PUT /api/v1/namespaces/{name}/entity-setup`): the types
+it keeps (names of other types are left out when a recording is analysed) and a description of what it's about. Any
+collection can have its own setup, which also holds for the collections inside it; a recording follows the setup of the
+nearest collection that has one, else its namespace's. Editors of the namespace change its setup and any collection's;
+editors of a collection change that collection's. A namespace can add entity types of its own (Entities → Types,
+`/api/v1/namespaces/{name}/entity-types`), each with a description of what counts as one; a type can be deleted once no
+entity has it. Changes apply to recordings analysed from then on; "Apply to analysed recordings"
+(`POST /api/v1/namespaces/{name}/entity-setup/apply`) analyses the namespace's or a collection's recordings again.
+
+A setup has a mode:
+
+- **Self-organizing** (the default): every name the extractors find becomes an entity, and people merge, rename and
+  describe them. Names of types the setup doesn't keep are left out.
+- **Fixed list:** editors define the entities (Entities → Add entity, `POST /api/v1/namespaces/{name}/entities`), each
+  with a type, the other ways it's said and a description, for the whole namespace or for one collection and those
+  inside it. Each name found goes to the defined entity it names (by name or another way it's said, in any case; the
+  defined names are looked for in the transcript too), else to **Unlabeled** when it belongs here (a type the setup
+  keeps; with every type kept, anything but dates and numbers), else to **Unknown**. Unknown and Unlabeled are always
+  there and can't be renamed, retyped, merged, hidden or deleted. Moving a mention to a new name in a fixed-list place
+  adds that name to the list. `PATCH /api/v1/entities/{id}` sets an entity's other names and whether it is on the list;
+  a defined entity nothing mentions can be deleted.
+- **Hybrid:** a few defined entities, then self-organizing. Names go to a defined entity as in the fixed list, or to
+  an entity they already are; any other name of a type that belongs here becomes an entity of its own, and names of
+  other types go to **Unknown**.
+
+**Matching names** is by name (in any case, or one of an entity's other names) unless the setup says "by name, then by
+description": then the names the rules can't place go to the LLM with the entities' descriptions, their other names and
+what the namespace is about. In the self-organizing mode it says which described entity a new name is, if any; the name
+then becomes one of that entity's other names, so the rules place it from then on. In the fixed mode it says which
+defined entity a name is, or that it doesn't belong here (Unknown); in the hybrid mode it may place a name on a defined
+or described entity, or say it doesn't belong here. Without a reachable LLM the rules decide. The assistant reads a namespace's setup (`entity_setup`) and proposes entity changes for approval, including
+descriptions, other names and new entities on a fixed list.
 
 Curation survives re-analysis: merged names become aliases, and moved or removed mentions become per-line overrides.
 Everything is audited. People who can't read a namespace never see its entities, mentions or graph nodes, and requests

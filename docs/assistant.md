@@ -26,6 +26,19 @@ then.
 
 Retrieval is keyword-based for now; vector search is not built yet.
 
+### Assistant mode and voice
+
+Home opens in **assistant mode** (one field and a big mic, like a search page) when the archive has any content, and
+on the overview when it's empty; the switch at the top right remembers the person's pick in the browser. The field
+opens a new conversation over everything the person can read (`/chat?global=1`, plus `q=` with what was typed); the
+mic opens one in voice mode (`/chat?global=1&voice=1`). Voice mode listens, sends what was heard, reads the answer
+aloud (without citation marks) and listens again, until the mic is tapped off or nothing is said twice in a row. The
+chat composer's mic turns it on in any conversation.
+
+Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`listen`, `speak`, `stop`). It uses the
+browser's speech recognition and synthesis today (Chrome, Edge and Safari; Chrome sends the audio to its own speech
+service); a server engine replaces its internals without changing the callers.
+
 ## The assistant's tools
 
 When the configured model supports function calling, chat becomes an agent.
@@ -36,12 +49,40 @@ When the configured model supports function calling, chat becomes an agent.
   `ai.max_steps` and `ai.max_transcript_reads`.
 - **Citations:** every moment a tool returns is numbered, so answers cite [n] across everything the assistant read.
 - **Visible steps:** each tool call streams as a step, for example 'Searched for "refund": 42 matches'.
-- **Approvals:** running a template on recordings and merging, renaming or retyping entities don't happen directly.
+- **Approvals:** running a template on recordings and changing entities (merging, renaming, retyping, describing one
+  and the other ways it's said, hiding one, or adding one to a namespace's fixed list) don't happen directly.
   They become approval cards (with the batch estimate) that the person approves, approves on a sample, or declines
   (`POST /api/v1/approvals/<id>`). Viewers only get the read tools.
 - **Check sources** (`POST /api/v1/chats/<id>/messages/<id>/check`) re-checks every cited claim against the lines it
   cites, and lists sentences that cite nothing.
-- **Fallback:** a model that can't call tools falls back to search-and-answer, with a notice.
+- **Fallback:** a model that can't call tools falls back to search-and-answer, with a notice. A model that answers
+  straight away without looking anything up gets the same, when the archive has passages that match.
+- **Files:** attach files to a message with the clip, or by dropping or pasting them on the box. They upload as you
+  type (`POST /api/v1/uploads` with `hold`), stay out of the archive, and the assistant puts them in a namespace
+  with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`).
+- **Keep typing:** what you send while an answer is being written waits its turn and goes next.
+
+## Setting up and running the server by chat
+
+Admins also get the server tools: `server_status` (what's set up and what's missing), `find_model_servers`,
+`read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens) and
+`create_namespace`. In an ordinary conversation their changes are approval cards. In a **setup conversation**
+(`POST /api/v1/chats` with `"kind": "setup"`, or **Finish with the assistant** in the setup wizard once a model is
+connected) the admin has asked the assistant to set the server up, so it makes the changes itself and says what it
+changed. Every change is audited with `assistant` in its detail, and all of them stay changeable in Settings.
+Turning telemetry on or off always asks first.
+
+### Routine choices
+
+The assistant makes routine choices for you instead of asking. The first is where files sent in a conversation go:
+`import_files` without a namespace picks one from the namespaces you can add to, judging from their descriptions,
+what's in them lately, the file names and your message. You're asked only when it isn't sure: below
+`decisions.act_above` (0.8) confidence it lists the namespaces, its best guess first.
+
+A **decision model** answers these: Jev, typesafe.ai's System One, which takes a few hundred milliseconds and costs a
+fraction of an LLM call. Set its key in **Settings → AI assistant → Routine choices**, or `TYPESAFE_API_KEY` in `.env`.
+Without a key, or if it can't be reached, the LLM provider decides. `decisions.engine` is `auto` (the default), `jev`,
+`llm`, or `off` to always be asked.
 
 ## Collections, batch runs and collection reports
 

@@ -1574,6 +1574,32 @@
         }
       }
     },
+    "/api/v1/setup/llm/detect": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Detect Llm",
+        "description": "Model servers running on this machine or the Docker host (Ollama, LM Studio, llama.cpp, vLLM, LocalAI), with\ntheir models, so the wizard can offer one instead of asking for an address.",
+        "operationId": "detect_llm",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LocalModelServer"
+                  },
+                  "type": "array",
+                  "title": "Response Setup-Detect Llm"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/setup/storage": {
       "put": {
         "tags": [
@@ -7829,7 +7855,7 @@
           "entities"
         ],
         "summary": "List Entities",
-        "description": "Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.\nWith `recording`, those said in it, also for someone who sees it through a role on its collection (then counted\nover the recordings they see).",
+        "description": "Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.\nWith `recording`, those said in it, also for someone who sees it through a role on its collection (then counted\nover the recordings they see). With `collection`, those said in its recordings and those of the collections inside\nit (counted over them).",
         "operationId": "list_entities",
         "parameters": [
           {
@@ -7973,6 +7999,22 @@
               "default": false,
               "title": "Group"
             }
+          },
+          {
+            "name": "collection",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Collection"
+            }
           }
         ],
         "responses": {
@@ -8005,18 +8047,41 @@
           "entities"
         ],
         "summary": "List Entity Types",
+        "description": "The types an entity may have: the built-in ones, and with `ns` that namespace's own too.",
         "operationId": "list_entity_types",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Ns"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/EntityType"
                   },
-                  "type": "array",
                   "title": "Response Entities-List Entity Types"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -8376,6 +8441,98 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Update Entity",
+        "description": "Describe the entity (what it is, in your words), say how else it's said, or put it on (or off) the fixed list.",
+        "operationId": "update_entity",
+        "parameters": [
+          {
+            "name": "eid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Eid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntityUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Delete Entity",
+        "description": "Take a defined entity that nothing mentions off the fixed list.",
+        "operationId": "delete_entity",
+        "parameters": [
+          {
+            "name": "eid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Eid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/entities/{eid}/mentions": {
@@ -8586,6 +8743,59 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Entities-Rename Entity"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entities": {
+      "post": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Define Entity",
+        "description": "Add an entity to the namespace's fixed list (or one collection's), or put the one of that name on it.",
+        "operationId": "define_entity",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntityDefine"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityDetail"
                 }
               }
             }
@@ -8988,6 +9198,369 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/entity-setup": {
+      "get": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Get Entity Setup",
+        "description": "The namespace's entity setup, the collections (you see) with their own, and the types entities may have.",
+        "operationId": "get_entity_setup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitySetupView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Save Entity Setup",
+        "description": "Save the namespace's setup, or (with `collection`) one collection's own.",
+        "operationId": "save_entity_setup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntitySetupSave"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitySetup"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entity-setup/collections/{cid}": {
+      "delete": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Clear Entity Setup",
+        "description": "The collection follows its parents' setup again.",
+        "operationId": "clear_entity_setup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entity-setup/apply": {
+      "post": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Apply Entity Setup",
+        "description": "Analyse the recordings of the namespace (or of a collection and those inside it) again, so their entities follow\nthe setup as it is now.",
+        "operationId": "apply_entity_setup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntitySetupApply"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitySetupApplied"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entity-types": {
+      "post": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Create Entity Type",
+        "description": "A type of the namespace's own, e.g. \"Client\" or \"Project\"; its code is the name in capitals.",
+        "operationId": "create_entity_type",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntityTypeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityTypeInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entity-types/{code}": {
+      "patch": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Update Entity Type",
+        "operationId": "update_entity_type",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntityTypeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityTypeInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Delete Entity Type",
+        "description": "Only a type no entity has.",
+        "operationId": "delete_entity_type",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/metadata": {
       "get": {
         "tags": [
@@ -9289,6 +9862,170 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MetadataBulkResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/rdf": {
+      "get": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Get Recording Rdf",
+        "description": "The recording described with Dublin Core, with the entities it mentions.",
+        "operationId": "get_recording_rdf",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)",
+              "title": "Format"
+            },
+            "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RDF",
+            "content": {
+              "text/turtle": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/ld+json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/n-triples": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/rdf+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/rdf": {
+      "get": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Get Namespace Rdf",
+        "description": "Everything in the namespace as one graph: itself, its collections, recordings, entities and speakers.",
+        "operationId": "get_namespace_rdf",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)",
+              "title": "Format"
+            },
+            "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)"
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "as a file to save",
+              "default": false,
+              "title": "Download"
+            },
+            "description": "as a file to save"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RDF",
+            "content": {
+              "text/turtle": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/ld+json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/n-triples": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/rdf+xml": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -12054,7 +12791,7 @@
           "workflows"
         ],
         "summary": "List Workflows",
-        "description": "Saved workflows, plus the nodes a workflow can be built from.",
+        "description": "Saved workflows, plus the nodes a workflow can be built from: the primitives, each scope's own nodes, and the\ncustom nodes you can use.",
         "operationId": "list_workflows",
         "responses": {
           "200": {
@@ -12092,6 +12829,48 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/test": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Try Workflow",
+        "description": "Run a graph (saved or not) once without keeping anything: what each node passed on, for the canvas. Nodes\nthat would save something say what they would save; models are still asked.",
+        "operationId": "try_workflow",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowTryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowTry"
                 }
               }
             }
@@ -12307,6 +13086,302 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/JobQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/custom-nodes": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "List Custom Nodes",
+        "description": "The custom nodes you can use: yours, the ones shared with your namespaces or with everyone (admins: all).",
+        "operationId": "list_custom_nodes",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scope"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomNode"
+                  },
+                  "title": "Response Workflows-List Custom Nodes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Create Custom Node",
+        "operationId": "create_custom_node",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomNodeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/custom-nodes/{nid}": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Get Custom Node",
+        "description": "One version (default: the current one) and the list of versions.",
+        "operationId": "get_custom_node",
+        "parameters": [
+          {
+            "name": "nid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Nid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomNode"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Update Custom Node",
+        "description": "Its name, look, and who sees it.",
+        "operationId": "update_custom_node",
+        "parameters": [
+          {
+            "name": "nid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Nid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomNodeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Delete Custom Node",
+        "description": "Takes it off the palette; workflows that use it keep running the version they pinned.",
+        "operationId": "delete_custom_node",
+        "parameters": [
+          {
+            "name": "nid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Nid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/custom-nodes/{nid}/versions": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Create Custom Node Version",
+        "operationId": "create_custom_node_version",
+        "parameters": [
+          {
+            "name": "nid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Nid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomNodeVersionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionSaved"
                 }
               }
             }
@@ -15369,6 +16444,43 @@
         "title": "AttachedTo",
         "description": "The email a resource was attached to (it's one of that email's files too)."
       },
+      "Attachment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the upload"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording",
+            "description": "the recording it became, once imported"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "size"
+        ],
+        "title": "Attachment"
+      },
       "AuditEntry": {
         "properties": {
           "at": {
@@ -16357,6 +17469,15 @@
             "type": "string",
             "title": "Title"
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "chat",
+              "setup"
+            ],
+            "title": "Kind",
+            "default": "chat"
+          },
           "scope": {
             "additionalProperties": true,
             "type": "object",
@@ -16485,6 +17606,16 @@
             ],
             "title": "Title"
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "chat",
+              "setup"
+            ],
+            "title": "Kind",
+            "description": "setup (admins): the assistant sets the server up with you, and makes the changes it proposes without asking (telemetry still asks)",
+            "default": "chat"
+          },
           "scope": {
             "anyOf": [
               {
@@ -16529,6 +17660,14 @@
           "content": {
             "type": "string",
             "title": "Content"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Attachments",
+            "description": "files sent with it (POST /uploads with hold)"
           },
           "passages": {
             "anyOf": [
@@ -16724,6 +17863,15 @@
           "title": {
             "type": "string",
             "title": "Title"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "chat",
+              "setup"
+            ],
+            "title": "Kind",
+            "default": "chat"
           },
           "scope": {
             "additionalProperties": true,
@@ -18591,6 +19739,371 @@
         ],
         "title": "Created"
       },
+      "CustomNode": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon",
+            "description": "a lucide icon name, e.g. sparkles"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "description": "blue, green, gold, red, purple or neutral"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "namespace",
+              "everyone"
+            ],
+            "title": "Visibility",
+            "default": "private"
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "who sees it, when shared with namespaces"
+          },
+          "owner_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Email"
+          },
+          "editable": {
+            "type": "boolean",
+            "title": "Editable",
+            "default": false
+          },
+          "current": {
+            "type": "integer",
+            "title": "Current"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/WorkflowGraph"
+          },
+          "params": {
+            "items": {
+              "$ref": "#/components/schemas/NodeParam"
+            },
+            "type": "array",
+            "title": "Params",
+            "default": []
+          },
+          "inputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Inputs",
+            "description": "its input ports: the names of the arg nodes in its body"
+          },
+          "outputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Outputs",
+            "description": "its output ports: the names of the return nodes in its body"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes",
+            "description": "the workflows it can be used in: recording, graph or both"
+          },
+          "keeps": {
+            "type": "boolean",
+            "title": "Keeps",
+            "description": "whether it saves something itself",
+            "default": false
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowVersionInfo"
+            },
+            "type": "array",
+            "title": "History",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "current",
+          "version",
+          "graph",
+          "inputs",
+          "outputs",
+          "scopes"
+        ],
+        "title": "CustomNode"
+      },
+      "CustomNodeCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/WorkflowGraph"
+          },
+          "params": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Params",
+            "default": []
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "namespace",
+              "everyone"
+            ],
+            "title": "Visibility",
+            "default": "private"
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "graph"
+        ],
+        "title": "CustomNodeCreate"
+      },
+      "CustomNodeUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "private",
+                  "namespace",
+                  "everyone"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visibility"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespaces"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CustomNodeUpdate"
+      },
+      "CustomNodeVersionCreate": {
+        "properties": {
+          "graph": {
+            "$ref": "#/components/schemas/WorkflowGraph"
+          },
+          "params": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Params",
+            "default": []
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "graph"
+        ],
+        "title": "CustomNodeVersionCreate"
+      },
       "Description": {
         "properties": {
           "idx": {
@@ -18794,6 +20307,60 @@
         ],
         "title": "EmbedTestResult"
       },
+      "EntityDefine": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "TERM"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Aliases",
+            "description": "other ways it's said"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "for this collection (and those inside it) only; default: the namespace"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "EntityDefine"
+      },
       "EntityDetail": {
         "properties": {
           "id": {
@@ -18815,6 +20382,17 @@
           "type_label": {
             "type": "string",
             "title": "Type Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           },
           "namespace": {
             "anyOf": [
@@ -18893,6 +20471,36 @@
             "type": "boolean",
             "title": "Hidden",
             "default": false
+          },
+          "defined": {
+            "type": "boolean",
+            "title": "Defined",
+            "description": "on the fixed list people defined",
+            "default": false
+          },
+          "builtin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Builtin",
+            "description": "unknown or unlabeled: one of the two entities that are always there"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a defined entity of one collection (and those inside it)"
           }
         },
         "additionalProperties": true,
@@ -19136,6 +20744,226 @@
         "type": "object",
         "title": "EntityRetype"
       },
+      "EntitySetup": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "description": "self: every name found becomes an entity, and people curate them; fixed: names found are mapped onto the entities people defined, or onto Unlabeled (it belongs here) or Unknown; hybrid: the defined entities first, then names of the types kept become entities of their own and others go to Unknown"
+          },
+          "types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Types",
+            "description": "the types kept; empty: all of them"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "what this place is about"
+          },
+          "matching": {
+            "type": "string",
+            "title": "Matching",
+            "default": "rules"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "the collection this setup is saved on; null: the namespace"
+          },
+          "collection_path": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Collection Path"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "can_change": {
+            "type": "boolean",
+            "title": "Can Change",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "EntitySetup"
+      },
+      "EntitySetupApplied": {
+        "properties": {
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "description": "how many recordings are analysed again"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recordings"
+        ],
+        "title": "EntitySetupApplied"
+      },
+      "EntitySetupApply": {
+        "properties": {
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "only this collection's recordings (and those inside it)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EntitySetupApply"
+      },
+      "EntitySetupSave": {
+        "properties": {
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "save it on this collection (default: the namespace)"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "self",
+              "fixed",
+              "hybrid"
+            ],
+            "title": "Mode",
+            "default": "self"
+          },
+          "types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Types"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "matching": {
+            "type": "string",
+            "enum": [
+              "rules",
+              "model"
+            ],
+            "title": "Matching",
+            "default": "rules"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EntitySetupSave"
+      },
+      "EntitySetupView": {
+        "properties": {
+          "namespace": {
+            "$ref": "#/components/schemas/EntitySetup",
+            "description": "the namespace's setup (the default when none is saved)"
+          },
+          "saved": {
+            "type": "boolean",
+            "title": "Saved",
+            "description": "whether the namespace has a setup of its own"
+          },
+          "collections": {
+            "items": {
+              "$ref": "#/components/schemas/EntitySetup"
+            },
+            "type": "array",
+            "title": "Collections",
+            "description": "collections with a setup of their own"
+          },
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/EntityTypeInfo"
+            },
+            "type": "array",
+            "title": "Types",
+            "default": []
+          },
+          "can_change": {
+            "type": "boolean",
+            "title": "Can Change",
+            "description": "you may change the namespace's setup and types: its editors"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "namespace",
+          "saved",
+          "can_change"
+        ],
+        "title": "EntitySetupView"
+      },
       "EntityType": {
         "properties": {
           "type": {
@@ -19150,6 +20978,23 @@
             "type": "boolean",
             "title": "Quiet",
             "description": "extracted but hidden unless a filter asks for it (dates, numbers)"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "one of Lens's types; false: the namespace's own",
+            "default": true
           }
         },
         "additionalProperties": true,
@@ -19160,6 +21005,157 @@
           "quiet"
         ],
         "title": "EntityType"
+      },
+      "EntityTypeCreate": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "EntityTypeCreate"
+      },
+      "EntityTypeInfo": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "the code extractors and models use, e.g. ORG or CLIENT_TEAM"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "quiet": {
+            "type": "boolean",
+            "title": "Quiet",
+            "description": "extracted but hidden unless a filter asks for it (dates, numbers)",
+            "default": false
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin",
+            "description": "one of Lens's types; false: the namespace's own",
+            "default": true
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "type",
+          "label"
+        ],
+        "title": "EntityTypeInfo"
+      },
+      "EntityTypeUpdate": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "empty clears it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EntityTypeUpdate"
+      },
+      "EntityUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "what the entity is; empty clears it"
+          },
+          "aliases": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aliases",
+            "description": "the other ways it's said (these replace the ones it has)"
+          },
+          "defined": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defined",
+            "description": "on the fixed list of entities (namespaces in the fixed mode map names onto it)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EntityUpdate"
       },
       "Estimate": {
         "properties": {
@@ -21967,6 +23963,38 @@
         ],
         "title": "LlmTestResult"
       },
+      "LocalModelServer": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "suggested": {
+            "type": "string",
+            "title": "Suggested"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "base_url",
+          "models",
+          "suggested"
+        ],
+        "title": "LocalModelServer"
+      },
       "LoginRequest": {
         "properties": {
           "email": {
@@ -22317,7 +24345,17 @@
           "content": {
             "type": "string",
             "title": "Content",
-            "description": "the question (up to 4000 characters)"
+            "description": "the question (up to 4000 characters); may be empty when files are attached",
+            "default": ""
+          },
+          "attachments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Attachments",
+            "description": "your uploads started with `hold` and finished: the assistant can import them into a namespace"
           },
           "model": {
             "anyOf": [
@@ -22346,9 +24384,6 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "content"
-        ],
         "title": "MessageCreate"
       },
       "MetadataBulk": {
@@ -22956,6 +24991,130 @@
         "title": "NamespaceUpdate",
         "description": "Only the fields you send change; send ``pipeline: null`` to go back to the default pipeline."
       },
+      "NodeParam": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "text",
+              "number",
+              "bool",
+              "json",
+              "choice"
+            ],
+            "title": "Kind",
+            "default": "text"
+          },
+          "default": {
+            "title": "Default"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "NodeParam"
+      },
+      "NodeTrace": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "skipped",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          },
+          "ports": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ports",
+            "description": "the output ports it passed something on along"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "what it passed on (or took in, if it passes nothing on), as JSON, cut short"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "NodeTrace"
+      },
       "NodeType": {
         "properties": {
           "type": {
@@ -22989,6 +25148,38 @@
             "type": "array",
             "title": "Outputs",
             "description": "its outgoing ports: [] for none, ['out'], or a condition's ['yes', 'no']"
+          },
+          "input_ports": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Input Ports",
+            "description": "its input ports, by name"
+          },
+          "dynamic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dynamic",
+            "description": "which ports its settings make: inputs, outputs or both"
+          },
+          "primitive": {
+            "type": "boolean",
+            "title": "Primitive",
+            "description": "a building block every workflow has",
+            "default": false
+          },
+          "keeps": {
+            "type": "boolean",
+            "title": "Keeps",
+            "description": "it saves something",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -31911,9 +34102,11 @@
             "type": "string",
             "enum": [
               "receiving",
+              "held",
               "done"
             ],
-            "title": "State"
+            "title": "State",
+            "description": "held: all here, waiting to be put in a namespace"
           },
           "attach": {
             "anyOf": [
@@ -32114,6 +34307,12 @@
             ],
             "title": "Modified",
             "description": "the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't"
+          },
+          "hold": {
+            "type": "boolean",
+            "title": "Hold",
+            "description": "keep it out of the archive once it's here (state `held`), to attach to a chat message: the assistant puts it in a namespace (no `namespace` needed)",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -33648,6 +35847,15 @@
             },
             "type": "array",
             "title": "Workflows"
+          },
+          "custom_nodes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Custom Nodes",
+            "description": "the custom nodes you can use"
           }
         },
         "additionalProperties": true,
@@ -33716,7 +35924,7 @@
             },
             "type": "array",
             "title": "Edges",
-            "description": "{source, target, branch (a condition's yes or no)}"
+            "description": "{source, target, port (the source's output, default out), input (the target's input, default in)}"
           }
         },
         "type": "object",
@@ -33809,6 +36017,90 @@
           "current"
         ],
         "title": "WorkflowSummary"
+      },
+      "WorkflowTry": {
+        "properties": {
+          "trace": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NodeTrace"
+            },
+            "type": "object",
+            "title": "Trace",
+            "description": "by node id; nodes in a body as body node id/node id (first item)"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "steps": {
+            "type": "integer",
+            "title": "Steps"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "trace",
+          "log",
+          "steps"
+        ],
+        "title": "WorkflowTry"
+      },
+      "WorkflowTryRequest": {
+        "properties": {
+          "graph": {
+            "$ref": "#/components/schemas/WorkflowGraph"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "recording",
+              "graph"
+            ],
+            "title": "Scope",
+            "default": "recording"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording",
+            "description": "the recording to try a recording workflow on"
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "the namespaces to try a graph workflow over (default: all)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "graph"
+        ],
+        "title": "WorkflowTryRequest"
       },
       "WorkflowUpdate": {
         "properties": {

@@ -436,3 +436,17 @@ def test_editing_a_question(plain, client, new_client, db, cfg, folder, llm):
     first = c["messages"][0]["id"]
     sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does it ship?", "edit": first}).text)
     assert client.get(f"/api/v1/chats/{cid}", headers=h).json()["title"] == "Shipping"
+
+
+def test_a_model_that_skips_the_tools_still_answers_from_the_archive(app, db, cfg, folder, new_client, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    llm.tool_script = [{"content": "The archive doesn't seem to cover it."}]  # answers straight away, without looking
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "What does Dyno Therapeutics do?"}).text)
+    assert ev["passages"][0]  # the excerpts found up front
+    assert "".join(e["text"] for e in ev["token"]) == "The shipment leaves on Friday [1]."  # answered from them
+    assert "notice" not in ev
+    llm.tool_script = [{"content": "Hello!"}]  # nothing in the archive matches: the model's own answer stands
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "zzqx"}).text)
+    assert "".join(e["text"] for e in ev["token"]) == "Hello!"

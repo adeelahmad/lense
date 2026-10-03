@@ -12,14 +12,14 @@ import logging
 from collections.abc import Iterator
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.api.media import sign_urls
 from app.api.v1.routes.collections import own_collection
-from app.domain import ai_tools, auth, chat, llm, store
+from app.domain import ai_tools, auth, chat, llm, store, uploads
 from app.domain.store import DB
 from app.schemas.chats import (
     AnswerCheck,
@@ -71,7 +71,7 @@ def _own_chat(db: DB, cid: int, user: Principal) -> dict[str, Any]:
 def list_chats(user: CurrentUser, db: Db) -> list[ChatSummary]:
     """Your conversations, most recent first."""
     return db.rows(
-        "SELECT record::id(id) AS id, title, scope, model, created_at, updated_at FROM chat WHERE account = $a "
+        "SELECT record::id(id) AS id, title, scope, model, kind ?? 'chat' AS kind, created_at, updated_at FROM chat WHERE account = $a "
         "ORDER BY updated_at DESC LIMIT 200",
         a=user.id,
     )
@@ -103,7 +103,9 @@ def _model(cfg: dict[str, Any], model: str | None) -> str | None:
 @router.post("/chats")
 def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, body: ChatCreate | None = None) -> Created:
     body = body or ChatCreate()
-    return Created(id=chat.create(db, user.id, body.title, _scope(acl, db, body.scope), _model(cfg, body.model)))
+    if body.kind == "setup" and not user.admin:
+        raise HTTPException(403, "only admins set up the server")
+    return Created(id=chat.create(db, user.id, body.title, _scope(acl, db, body.scope), _model(cfg, body.model), body.kind))
 
 
 @router.get("/chats/{cid}")
@@ -146,6 +148,22 @@ def delete_chat(cid: int, user: Writer, db: Db) -> Ok:
     return Ok()
 
 
+def _attachments(db: DB, ids: list[str], user: Principal) -> list[dict[str, Any]]:
+    """The files attached to a message: the sender's own uploads, all here and held for the assistant to place."""
+    out = []
+    for uid in dict.fromkeys(ids):
+        try:
+            up = uploads.get(db, uid)
+        except KeyError:
+            raise HTTPException(404, f"no upload {uid}") from None
+        if up.get("account") != user.id:
+            raise HTTPException(404, f"no upload {uid}")
+        if up.get("state") not in ("held", "done"):
+            raise HTTPException(409, f"{up['filename']} hasn't finished uploading")
+        out.append(store.clean({"id": uid, "filename": up["filename"], "size": up["size"], "recording": up.get("recording")}))
+    return out
+
+
 def _ev(name: str, data: Any) -> str:
     return f"event: {name}\ndata: {json.dumps(sign_urls(data, full=True), default=str)}\n\n"
 
@@ -155,7 +173,7 @@ def _ev(name: str, data: Any) -> str:
     response_class=StreamingResponse,
     responses={200: {"content": {"text/event-stream": {}}, "description": "server-sent events"}},
 )
-async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> StreamingResponse:
+async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request) -> StreamingResponse:
     """Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
     /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
 
@@ -163,8 +181,12 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     its new answer (404 if it isn't a question in this conversation)."""
     c = await run_in_threadpool(_own_chat, db, cid, user)
     q = body.content.strip()[:4000]
+    files = await run_in_threadpool(_attachments, db, body.attachments, user)
+    if not q and files:
+        q = "I attached " + ("this file." if len(files) == 1 else "these files.")
     if not q:
         raise HTTPException(400, "ask something")
+    asked = q + chat.attached_note(files)  # what the model reads: the question, and the files it can import
     # this answer's model: the one asked for (400 if it isn't offered), else the conversation's while it's still offered
     model = await run_in_threadpool(_model, cfg, body.model) if body.model else c.get("model")
     if model and not body.model and model not in await run_in_threadpool(chat.model_choices, cfg):
@@ -181,7 +203,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             if title == old[:80]:  # titled after the question being edited: retitle it after the edit
                 title = "New conversation"
         past = chat.history(db, cid)
-        chat.add(db, cid, "user", q)
+        chat.add(db, cid, "user", q, attachments=files)
         if not past and title == "New conversation":
             db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
         return past, chat.retrieve(db, q, readable, c.get("scope"), cfg=cfg)
@@ -202,10 +224,24 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     def answer(on: chat.Answering) -> Iterator[str]:
         nonlocal notice
         if llm.configured(cfg) and cfg["ai"].get("tools"):
-            box = ai_tools.Toolbox(db, cfg, user.as_audit(), readable, set(acl.editable()), c.get("scope"), cid)
+            setup = c.get("kind") == "setup"
+            box = ai_tools.Toolbox(
+                db,
+                cfg,
+                user.as_audit(),
+                readable,
+                set(acl.editable()),
+                c.get("scope"),
+                cid,
+                request.app.state.archive.base,
+                user.admin,
+                act=setup,
+                said=q,
+            )
             try:
                 answer = ""
-                for kind, data in chat.tool_answer(cfg, box, q, past, cfg["ai"].get("max_steps") or 6, model):
+                steps_max = max(cfg["ai"].get("max_steps") or 6, 12 if setup else 0)
+                for kind, data in chat.tool_answer(cfg, box, asked, past, steps_max, model, setup=setup):
                     if kind == "step":
                         steps.append(data)
                         yield _ev("step", data)
@@ -214,15 +250,18 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                                 yield _ev("approval", appr)
                             yield from stopped("", [])
                             return
+                    elif kind == "direct" and passages and not setup:  # a model that skips the tools hasn't seen the archive
+                        break
                     else:
                         answer = data
-                for appr in box.approvals:
-                    yield _ev("approval", appr)
-                cited = box.cited(answer)
-                yield _ev("passages", cited)
-                yield _ev("token", {"text": answer})
-                yield _ev("done", {"message": save(answer or "(no answer)", cited)})
-                return
+                else:
+                    for appr in box.approvals:
+                        yield _ev("approval", appr)
+                    cited = box.cited(answer)
+                    yield _ev("passages", cited)
+                    yield _ev("token", {"text": answer})
+                    yield _ev("done", {"message": save(answer or "(no answer)", cited)})
+                    return
             except llm.ToolsUnsupported:
                 notice = "This model can't use tools, so the answer comes from a search instead."
                 yield _ev("notice", {"message": notice})
@@ -234,7 +273,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         text, error = "", None
         try:
             if llm.configured(cfg):
-                for piece in llm.stream_chat(cfg, chat.messages_for(q, passages, past), model=model):
+                for piece in llm.stream_chat(cfg, chat.messages_for(asked, passages, past), model=model):
                     text += piece
                     yield _ev("token", {"text": piece})
                     if on.stop_requested():
@@ -304,14 +343,16 @@ def list_approvals(user: CurrentUser, db: Db, chat_id: int | None = None) -> lis
 
 
 @router.post("/approvals/{aid}")
-def decide_approval(aid: int, body: ApprovalDecision, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> ApprovalOutcome:
+def decide_approval(aid: int, body: ApprovalDecision, user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request) -> ApprovalOutcome:
     """Approve (or run a sample of, or decline) something the assistant proposed. Each approval is decided once."""
     a = db.one("SELECT account FROM $r", r=R("approval", aid))
     if not a or a["account"] != user.id:
         raise HTTPException(404, "not found")
     try:
-        out = ai_tools.approve(db, cfg, aid, user.as_audit(), set(acl.editable()), body.decision)
-    except (ValueError, PermissionError) as e:
+        out = ai_tools.approve(
+            db, cfg, aid, user.as_audit(), set(acl.editable()), body.decision, request.app.state.archive.base, user.admin
+        )
+    except (ValueError, PermissionError, KeyError) as e:
         raise HTTPException(400, str(e)) from None
     auth.audit(db, user.as_audit(), "assistant.approval", f"approval:{aid}", {"decision": body.decision, **out})
     return out

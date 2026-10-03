@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, LibraryBig, Plus } from "lucide-react";
+import { ChevronLeft, Clock, LibraryBig, Plus, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chats } from "@/app/openapi-client";
 import type { AnswerCheck, Approval, Chat, ChatMessage, Estimate, Passage } from "@/app/openapi-client/types.gen";
 import { Answer } from "@/components/chat/answer";
+import { AttachmentChips, useAttachments } from "@/components/chat/attachments";
 import { shortTitle } from "@/components/chat/cite";
 import { Composer, ScopeBar } from "@/components/chat/composer";
 import { ConversationList } from "@/components/chat/conversations";
@@ -18,7 +19,7 @@ import { EmptyChat } from "@/components/chat/empty";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
 import { applyEvent, newTurn, savedSteps, type ToolStep, type TurnState } from "@/components/chat/stream";
-import { UserBubble } from "@/components/chat/user-bubble";
+import { onlyFiles, UserBubble } from "@/components/chat/user-bubble";
 import { useRecordingIndex, useSpeakerDirectory } from "@/components/search/data";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
@@ -28,8 +29,13 @@ import { data, useApiClient } from "@/lib/api/browser";
 import { SSEError, streamSSE } from "@/lib/api/sse";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
+import { useVoice, VoiceError } from "@/lib/voice";
 
-type Live = { chatId: number; turn: TurnState };
+type Sent = { id: string; filename: string; size: number };
+type Live = { chatId: number; turn: TurnState; files: Sent[] };
+type Queued = { key: number; text: string; files: Sent[] };
+
+/** What a message with only files says (the server says the same when it gets none). */
 type Extra = { steps: ToolStep[]; notice: string | null; error: string | null };
 type Pair = { key: string; q: ChatMessage | null; a: ChatMessage | null };
 
@@ -85,7 +91,14 @@ export function ChatApp() {
   const [draftModel, setDraftModel] = useState<string | null>(null); // for the conversation that isn't started yet
   const [draft, setDraft] = useState(() => search.get("q") ?? "");
   const [composing, setComposing] = useState(() =>
-    Boolean(search.get("q") || search.get("ns") || search.get("recording") || search.get("speaker")),
+    Boolean(
+      search.get("q") ||
+      search.get("ns") ||
+      search.get("recording") ||
+      search.get("speaker") ||
+      search.get("global") ||
+      search.get("voice"),
+    ),
   );
   const [live, setLive] = useState<Live | null>(null);
   const [extras, setExtras] = useState<Record<number, Extra>>({});
@@ -98,6 +111,8 @@ export function ChatApp() {
   const [scopeOpenTick, setScopeOpenTick] = useState(0);
   const [announce, setAnnounce] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const files = useAttachments();
+  const [queue, setQueue] = useState<Queued[]>([]);
   const threadRef = useRef<HTMLDivElement>(null);
 
   // A new conversation starts from the top-bar namespace unless a link says otherwise.
@@ -115,7 +130,6 @@ export function ChatApp() {
   }, [collectionId]);
 
   const scope = activeId != null ? fromApiScope(chat.data?.scope) : draftScope;
-  const streaming = live?.turn.status === "streaming";
 
   const setScope = useCallback(
     async (s: Scope) => {
@@ -142,7 +156,7 @@ export function ChatApp() {
   );
 
   const run = useCallback(
-    async (cid: number, question: string, model?: string, edit?: number) => {
+    async (cid: number, question: string, model?: string, attached: Sent[] = [], edit?: number): Promise<TurnState> => {
       if (edit != null)
         qc.setQueryData<Chat>(["chat", cid], (c) =>
           c ? { ...c, messages: (c.messages ?? []).filter((m) => m.id < edit) } : c,
@@ -150,17 +164,18 @@ export function ChatApp() {
       const ac = new AbortController();
       abortRef.current = ac;
       let turn = newTurn(question);
-      setLive({ chatId: cid, turn });
+      const show = (t: TurnState) => setLive({ chatId: cid, turn: t, files: attached });
+      show(turn);
       setFocusKey("live");
       try {
         for await (const msg of streamSSE(`/api/v1/chats/${cid}/messages`, {
           method: "POST",
-          body: { content: question, model, edit },
+          body: { content: question, model, attachments: attached.map((f) => f.id), edit },
           accessToken: session?.accessToken,
           signal: ac.signal,
         })) {
           turn = applyEvent(turn, msg);
-          setLive({ chatId: cid, turn });
+          show(turn);
         }
         if (turn.status === "streaming")
           turn = {
@@ -171,7 +186,7 @@ export function ChatApp() {
       } catch (e) {
         turn = ac.signal.aborted ? { ...turn, status: "stopped" } : { ...turn, status: "error", error: streamError(e) };
       }
-      setLive({ chatId: cid, turn });
+      show(turn);
       const mid = turn.messageId;
       if (mid != null)
         setExtras((x) => ({
@@ -187,22 +202,27 @@ export function ChatApp() {
       if (mid == null) setPartials((p) => ({ ...p, [`${cid}:${question}`]: turn }));
       setLive(null);
       setFocusKey(mid != null ? `a${mid}` : null);
+      return turn;
     },
     [qc, session?.accessToken],
   );
 
-  const send = useCallback(
-    async (text?: string, model?: string, edit?: number) => {
-      const question = (text ?? draft).trim();
-      if (!question || streaming) return;
-      if (edit == null) setDraft("");
-      let cid = activeId;
+  // Sends now, starting the conversation if there isn't one yet.
+  const dispatch = useCallback(
+    async (
+      question: string,
+      model?: string,
+      attached: Sent[] = [],
+      kind: "chat" | "setup" = "chat",
+      edit?: number,
+    ): Promise<TurnState | null> => {
+      let cid = kind === "setup" ? null : activeId;
       if (cid == null) {
         try {
           const created = await data(
             Chats.createChat({
               client,
-              body: { scope: toApiScope(draftScope), model: draftModel ?? undefined },
+              body: kind === "setup" ? { kind } : { scope: toApiScope(draftScope), model: draftModel ?? undefined },
             }),
           );
           cid = created.id;
@@ -216,13 +236,111 @@ export function ChatApp() {
             body: e instanceof Error ? e.message : undefined,
             tone: "red",
           });
-          return;
+          return null;
         }
       }
-      void run(cid, question, model, edit);
+      return run(cid, question, model, attached, edit);
     },
-    [activeId, client, draft, draftScope, draftModel, qc, router, run, streaming, toast],
+    [activeId, client, draftScope, draftModel, qc, router, run, toast],
   );
+
+  // What you send while an answer is being written waits its turn, so you never have to wait to type.
+  const send = useCallback(
+    (text?: string, model?: string) => {
+      const attached: Sent[] =
+        text == null ? files.take().map((x) => ({ id: x.upload!.id, filename: x.file.name, size: x.file.size })) : [];
+      const question = (text ?? draft).trim() || (attached.length ? onlyFiles(attached.length) : "");
+      if (!question) return;
+      if (text == null) setDraft("");
+      if (live) {
+        setQueue((q) => [...q, { key: Date.now() + q.length, text: question, files: attached }]);
+        return;
+      }
+      void dispatch(question, model, attached);
+    },
+    [dispatch, draft, files, live],
+  );
+  useEffect(() => {
+    if (live || !queue.length) return;
+    const [next, ...rest] = queue;
+    setQueue(rest);
+    void dispatch(next.text, undefined, next.files);
+  }, [live, queue, dispatch]);
+
+  // Editing a question asks it again (with the files it had): it and everything after it are replaced.
+  const editQuestion = useCallback(
+    (q: ChatMessage, text: string) => {
+      const attached: Sent[] = (q.attachments ?? []).map(({ id, filename, size }) => ({ id, filename, size }));
+      const question = text.trim() || (attached.length ? onlyFiles(attached.length) : "");
+      if (!question || live) return;
+      void dispatch(question, undefined, attached, "chat", q.id);
+    },
+    [dispatch, live],
+  );
+
+  // Voice mode: hear a question, send it, read the answer aloud, listen again, until the mic is tapped off or
+  // nothing is said twice in a row. /chat?voice=1 (the assistant home's mic) starts it at once.
+  const voice = useVoice();
+  const [voiceOn, setVoiceOn] = useState(() => search.get("voice") === "1");
+  const voiceRef = useRef(voiceOn);
+  const dispatchRef = useRef(dispatch);
+  dispatchRef.current = dispatch;
+  const looping = useRef(false);
+  const { listen, speak, stop: hush } = voice;
+  useEffect(() => {
+    voiceRef.current = voiceOn;
+    if (!voiceOn) {
+      hush();
+      return;
+    }
+    if (looping.current) return;
+    looping.current = true;
+    void (async () => {
+      let quiet = 0;
+      try {
+        while (voiceRef.current) {
+          let said: string;
+          try {
+            said = await listen();
+          } catch (e) {
+            if (voiceRef.current)
+              toast({
+                title: "Couldn’t listen",
+                body: e instanceof VoiceError ? e.message : undefined,
+                tone: "red",
+              });
+            break;
+          }
+          if (!voiceRef.current) break;
+          if (!said) {
+            if (++quiet >= 2) break;
+            continue;
+          }
+          quiet = 0;
+          const turn = await dispatchRef.current(said);
+          if (!voiceRef.current || !turn) break;
+          if (turn.status === "done" && turn.text) await speak(turn.text);
+        }
+      } finally {
+        looping.current = false;
+        setVoiceOn(false);
+      }
+    })();
+  }, [voiceOn, listen, speak, hush, toast]);
+  useEffect(
+    () => () => {
+      voiceRef.current = false;
+    },
+    [],
+  );
+
+  // /chat?setup=1 (from the setup wizard): a conversation in which the assistant sets the server up.
+  const setupAsked = useRef(false);
+  useEffect(() => {
+    if (!admin || setupAsked.current || search.get("setup") !== "1") return;
+    setupAsked.current = true;
+    void dispatch("Help me set up Lens.", undefined, [], "setup");
+  }, [admin, search, dispatch]);
 
   const stopAnswer = useStopAnswer();
   const [stopping, setStopping] = useState<number | null>(null); // the conversation whose answer is stopping
@@ -428,7 +546,8 @@ export function ChatApp() {
                   {it.q && (
                     <UserBubble
                       text={it.q.content}
-                      onEdit={activeId != null && !streaming ? (t) => send(t, undefined, it.q!.id) : undefined}
+                      files={it.q.attachments ?? []}
+                      onEdit={activeId != null && !live ? (t) => editQuestion(it.q!, t) : undefined}
                     />
                   )}
                   {it.a ? (
@@ -488,7 +607,7 @@ export function ChatApp() {
             })}
             {liveHere && (
               <div className="flex flex-col gap-5">
-                <UserBubble text={liveHere.question} />
+                <UserBubble text={liveHere.question} files={live?.files ?? []} />
                 <Answer
                   chatId={activeId}
                   messageId={liveHere.messageId}
@@ -534,13 +653,46 @@ export function ChatApp() {
               onModel={(m) => void pickModel(m)}
               openTick={scopeOpenTick}
             />
+            {queue.length > 0 && (
+              <ul className="flex flex-col gap-1" aria-label="Waiting to send">
+                {queue.map((m) => (
+                  <li key={m.key} className="flex items-center gap-2 text-[12.5px] text-fg-secondary">
+                    <Clock className="size-3.5 shrink-0" aria-hidden />
+                    <span className="min-w-0 flex-1 truncate">
+                      Sends next: {m.text}
+                      {m.files.length ? ` (+${m.files.length} file${m.files.length === 1 ? "" : "s"})` : ""}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Don’t send this"
+                      onClick={() => setQueue((q) => q.filter((x) => x.key !== m.key))}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             <Composer
-              value={draft}
+              value={voice.listening && voice.heard ? voice.heard : draft}
               onChange={setDraft}
               onSend={() => send()}
-              busy={streaming}
+              onFiles={files.add}
+              files={<AttachmentChips items={files.items} onRemove={files.remove} onRetry={files.retry} />}
+              hasFiles={files.ready}
+              uploading={files.sending}
+              busy={Boolean(live)}
               autoFocus={composing}
-              placeholder={msgs.length || liveHere ? "Ask a follow-up…" : "Ask across your archive…"}
+              placeholder={
+                voice.listening
+                  ? "Listening…"
+                  : voice.speaking
+                    ? "Reading the answer aloud…"
+                    : msgs.length || liveHere
+                      ? "Ask a follow-up…"
+                      : "Ask across your archive…"
+              }
+              voice={voice.supported ? { on: voiceOn, onToggle: () => setVoiceOn((v) => !v) } : undefined}
             />
           </div>
         </div>

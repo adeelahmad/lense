@@ -70,6 +70,16 @@ export type SectionId =
   | "iiif"
   | "startup";
 
+/** Sections every member of a namespace has, kept apart from the archive's settings (which are for admins). */
+export type WorkspaceSectionId = "speakers";
+export type AnySectionId = SectionId | WorkspaceSectionId;
+
+export const WORKSPACE_SECTIONS: { id: WorkspaceSectionId; label: string }[] = [{ id: "speakers", label: "Speakers" }];
+
+export function isWorkspaceSection(id: string): id is WorkspaceSectionId {
+  return WORKSPACE_SECTIONS.some((s) => s.id === id);
+}
+
 export type SectionSpec = {
   id: SectionId;
   label: string;
@@ -112,8 +122,9 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: "ai",
     label: "AI assistant",
-    backend: ["ai"],
-    description: "What the chat assistant may do with tools, and when a batch run needs a typed confirmation.",
+    backend: ["ai", "decisions"],
+    description:
+      "What the chat assistant may do with tools, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
   },
   {
     id: "search",
@@ -268,6 +279,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "find_entities", label: "Find entities", acts: false },
   { name: "entity_mentions", label: "Entity mentions", acts: false },
   { name: "entity_timeline", label: "Entities over time", acts: false },
+  { name: "entity_setup", label: "How a namespace organises its entities", acts: false },
   {
     name: "graph_neighbours",
     label: "Explore the graph (neighbours)",
@@ -277,9 +289,15 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "run_template", label: "Run a template on recordings", acts: true },
   {
     name: "propose_entity_change",
-    label: "Propose entity merges, renames, type changes",
+    label: "Propose entity merges, renames, type changes, descriptions and new entities",
     acts: true,
   },
+  { name: "import_files", label: "Import files sent in a conversation", acts: true },
+  { name: "server_status", label: "Check what the server has set up (admins)", acts: false },
+  { name: "find_model_servers", label: "Find model servers nearby (admins)", acts: false },
+  { name: "read_settings", label: "Read settings (admins)", acts: false },
+  { name: "change_settings", label: "Change settings (admins)", acts: true },
+  { name: "create_namespace", label: "Create namespaces (admins)", acts: true },
 ];
 
 export const FIELDS: FieldSpec[] = [
@@ -590,6 +608,45 @@ export const FIELDS: FieldSpec[] = [
     min: 0,
     nullable: true,
   },
+  // Decisions
+  {
+    section: "decisions",
+    key: "engine",
+    label: "Who makes routine choices",
+    kind: "select",
+    options: [
+      { value: "auto", label: "Decision model when it has a key, else the LLM" },
+      { value: "jev", label: "Decision model (Jev)" },
+      { value: "llm", label: "LLM provider" },
+      { value: "off", label: "Nobody: always ask me" },
+    ],
+  },
+  {
+    section: "decisions",
+    key: "act_above",
+    label: "Act without asking from (confidence)",
+    kind: "number",
+    min: 0.5,
+    max: 1,
+    hint: "Below this the assistant asks, with its best guess first",
+  },
+  {
+    section: "decisions",
+    key: "base_url",
+    label: "Decision model server",
+    kind: "text",
+    mono: true,
+  },
+  { section: "decisions", key: "model", label: "Decision model", kind: "text", mono: true },
+  {
+    section: "decisions",
+    key: "timeout",
+    label: "Timeout (seconds)",
+    kind: "number",
+    min: 1,
+    max: 120,
+  },
+  { section: "decisions", key: "api_key", label: "API key", kind: "secret" },
   // Search
   {
     section: "search",
