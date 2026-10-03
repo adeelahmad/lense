@@ -51,6 +51,8 @@ import type {
   ChangePasswordResponses,
   ChatCapabilitiesData,
   ChatCapabilitiesResponses,
+  CheckComponentsData,
+  CheckComponentsResponses,
   CheckMessageData,
   CheckMessageErrors,
   CheckMessageResponses,
@@ -355,6 +357,9 @@ import type {
   GetNamespaceMetadataData,
   GetNamespaceMetadataErrors,
   GetNamespaceMetadataResponses,
+  GetNamespaceRdfData,
+  GetNamespaceRdfErrors,
+  GetNamespaceRdfResponses,
   GetNamespaceStatsData,
   GetNamespaceStatsErrors,
   GetNamespaceStatsResponses,
@@ -392,6 +397,9 @@ import type {
   GetRecordingMetadataData,
   GetRecordingMetadataErrors,
   GetRecordingMetadataResponses,
+  GetRecordingRdfData,
+  GetRecordingRdfErrors,
+  GetRecordingRdfResponses,
   GetRecordingResponses,
   GetRecordingWordcloudData,
   GetRecordingWordcloudErrors,
@@ -427,6 +435,9 @@ import type {
   ImportIiifData,
   ImportIiifErrors,
   ImportIiifResponses,
+  ImportNamespaceRdfData,
+  ImportNamespaceRdfErrors,
+  ImportNamespaceRdfResponses,
   ImportTranscriptData,
   ImportTranscriptErrors,
   ImportTranscriptResponses,
@@ -470,6 +481,8 @@ import type {
   ListCommentsData,
   ListCommentsErrors,
   ListCommentsResponses,
+  ListComponentsData,
+  ListComponentsResponses,
   ListContentTypesData,
   ListContentTypesResponses,
   ListCustomNodesData,
@@ -1917,6 +1930,35 @@ export class Admin {
   ): RequestResult<ReindexSearchResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<ReindexSearchResponses, unknown, ThrowOnError>({
       url: "/api/v1/admin/reindex",
+      ...options,
+    });
+  }
+
+  /**
+   * List Components
+   *
+   * Every component (programs, packages, models), whether the settings need it, and each worker's machine and where
+   * it is with each: ready, being fetched, failed or missing. Steps that need one being fetched wait for it.
+   */
+  public static listComponents<ThrowOnError extends boolean = false>(
+    options?: Options<ListComponentsData, ThrowOnError>,
+  ): RequestResult<ListComponentsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListComponentsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/components",
+      ...options,
+    });
+  }
+
+  /**
+   * Check Components
+   *
+   * Ask every worker to check what it needs now, and to try again what failed. Audited as ``components.check``.
+   */
+  public static checkComponents<ThrowOnError extends boolean = false>(
+    options?: Options<CheckComponentsData, ThrowOnError>,
+  ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/components/check",
       ...options,
     });
   }
@@ -4402,6 +4444,55 @@ export class Metadata {
   ): RequestResult<BulkUpdateMetadataResponses, BulkUpdateMetadataErrors, ThrowOnError> {
     return (options.client ?? client).post<BulkUpdateMetadataResponses, BulkUpdateMetadataErrors, ThrowOnError>({
       url: "/api/v1/metadata/bulk",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Rdf {
+  /**
+   * Get Recording Rdf
+   *
+   * The recording described with Dublin Core, with the entities it mentions.
+   */
+  public static getRecordingRdf<ThrowOnError extends boolean = false>(
+    options: Options<GetRecordingRdfData, ThrowOnError>,
+  ): RequestResult<GetRecordingRdfResponses, GetRecordingRdfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetRecordingRdfResponses, GetRecordingRdfErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/rdf",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Namespace Rdf
+   *
+   * Everything in the namespace as one graph: itself, its collections, recordings, entities and speakers.
+   */
+  public static getNamespaceRdf<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceRdfData, ThrowOnError>,
+  ): RequestResult<GetNamespaceRdfResponses, GetNamespaceRdfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetNamespaceRdfResponses, GetNamespaceRdfErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/rdf",
+      ...options,
+    });
+  }
+
+  /**
+   * Import Namespace Rdf
+   *
+   * Read Dublin Core descriptions into the namespace's recordings (matched by their URI or an identifier). Each change
+   * is a metadata edit, kept in the recording's history. With dry_run (the default) nothing changes.
+   */
+  public static importNamespaceRdf<ThrowOnError extends boolean = false>(
+    options: Options<ImportNamespaceRdfData, ThrowOnError>,
+  ): RequestResult<ImportNamespaceRdfResponses, ImportNamespaceRdfErrors, ThrowOnError> {
+    return (options.client ?? client).post<ImportNamespaceRdfResponses, ImportNamespaceRdfErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/rdf/import",
       ...options,
       headers: {
         "Content-Type": "application/json",

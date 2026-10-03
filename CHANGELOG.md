@@ -12,6 +12,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   address or `localhost`; on a plain `http://` address setup takes the code alone and a sign-in link signs in by
   itself, so there is still no password.
 
+- **Lens fetches what it needs.** Each worker checks what the settings ask for (SenseVoice or a Whisper model, voice
+  IDs, face and object models, the chat and embedding models on Ollama) and fetches what's missing into the data folder,
+  sized to its machine (PyTorch's CPU build without a GPU). Steps wait for their engine instead of falling back. Models
+  now outlast container rebuilds. **Settings → Components** shows each worker's machine and where everything is
+  (docs/components.md).
 - **Assistant mode.** Home opens on a page with one field and a big mic once the archive has something in it (an
   empty archive still opens on the overview; the **Assistant / Overview** switch at the top right remembers your
   pick). Touching or typing in the field turns it into a chat over all your namespaces; the mic starts a voice

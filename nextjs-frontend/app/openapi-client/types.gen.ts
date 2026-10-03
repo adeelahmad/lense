@@ -1808,6 +1808,127 @@ export type CommentUpdate = {
 };
 
 /**
+ * Component
+ */
+export type Component = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Purpose
+   */
+  purpose: string;
+  /**
+   * Kind
+   *
+   * program: the image provides it (only checked); package and model: fetched into the data folder; server-model: pulled on the Ollama server
+   */
+  kind: "program" | "package" | "model" | "server-model";
+  /**
+   * Steps
+   *
+   * the job steps that wait for it
+   */
+  steps?: Array<string>;
+  /**
+   * Size Mb
+   *
+   * about how much it downloads
+   */
+  size_mb?: number | null;
+  /**
+   * Optional
+   *
+   * fetched only when listed in components.also
+   */
+  optional?: boolean;
+  /**
+   * License
+   */
+  license?: string | null;
+  /**
+   * Needed
+   *
+   * this server's settings ask for it
+   */
+  needed: boolean;
+  /**
+   * Hint
+   *
+   * for a program: how to get it
+   */
+  hint?: string | null;
+  /**
+   * Here
+   *
+   * for a program: whether the API's machine has it
+   */
+  here?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ComponentState
+ */
+export type ComponentState = {
+  /**
+   * State
+   *
+   * waiting/fetching: being fetched, and the steps that need it wait; missing: needed but fetching is off
+   */
+  state: "ready" | "waiting" | "fetching" | "failed" | "missing";
+  /**
+   * Detail
+   *
+   * what it's doing, e.g. pulling nomic-embed-text: 40%
+   */
+  detail?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Components
+ */
+export type Components = {
+  /**
+   * Auto
+   *
+   * components.auto: fetch what's needed without asking
+   */
+  auto: boolean;
+  /**
+   * the API's machine
+   */
+  machine: Machine;
+  /**
+   * Recommended
+   *
+   * the transcription settings that suit the API's machine
+   */
+  recommended: {
+    [key: string]: unknown;
+  };
+  /**
+   * Components
+   */
+  components: Array<Component>;
+  /**
+   * Workers
+   */
+  workers: Array<WorkerComponents>;
+  [key: string]: unknown;
+};
+
+/**
  * Consent
  *
  * What the consent page shows.
@@ -3447,6 +3568,21 @@ export type ForgotPasswordRequest = {
 };
 
 /**
+ * Gpu
+ */
+export type Gpu = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Memory Gb
+   */
+  memory_gb?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * Graph
  */
 export type Graph = {
@@ -4643,6 +4779,55 @@ export type LoginTicket = {
    * swap it for a session at POST /auth/ticket within two minutes; it works once
    */
   ticket: string;
+  [key: string]: unknown;
+};
+
+/**
+ * Machine
+ */
+export type Machine = {
+  /**
+   * Os
+   */
+  os: string;
+  /**
+   * Arch
+   */
+  arch: string;
+  /**
+   * Cpus
+   */
+  cpus: number;
+  /**
+   * Memory Gb
+   */
+  memory_gb?: number | null;
+  /**
+   * Gpus
+   */
+  gpus?: Array<Gpu>;
+  /**
+   * Cuda
+   */
+  cuda?: boolean;
+  /**
+   * Apple Silicon
+   */
+  apple_silicon?: boolean;
+  /**
+   * Container
+   */
+  container?: boolean;
+  /**
+   * Python
+   */
+  python?: string | null;
+  /**
+   * Disk Free Gb
+   *
+   * free space in the data folder, where models go
+   */
+  disk_free_gb?: number | null;
   [key: string]: unknown;
 };
 
@@ -7406,6 +7591,107 @@ export type PublicTranscript = {
    * transcript files; offered when the transcript is open to everyone
    */
   downloads: Array<PublicDownload>;
+  [key: string]: unknown;
+};
+
+/**
+ * RdfImport
+ */
+export type RdfImport = {
+  /**
+   * Data
+   *
+   * the RDF: Turtle, N-Triples or JSON-LD (with its @context inline)
+   */
+  data: string;
+  /**
+   * Format
+   *
+   * turtle, nt or json-ld; guessed from the data when left out
+   */
+  format?: string | null;
+  /**
+   * Dry Run
+   *
+   * report what would change without changing it
+   */
+  dry_run?: boolean;
+};
+
+/**
+ * RdfImportItem
+ */
+export type RdfImportItem = {
+  /**
+   * Subject
+   */
+  subject: string;
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Fields
+   *
+   * the metadata fields it changes (or would)
+   */
+  fields: Array<string>;
+  /**
+   * Notes
+   */
+  notes: Array<string>;
+  /**
+   * Statements
+   *
+   * other statements kept with the recording
+   */
+  statements: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RdfImportResult
+ */
+export type RdfImportResult = {
+  /**
+   * Dry Run
+   */
+  dry_run: boolean;
+  /**
+   * Triples
+   */
+  triples: number;
+  /**
+   * Matched
+   */
+  matched: number;
+  /**
+   * Changed
+   */
+  changed: number;
+  /**
+   * Items
+   */
+  items: Array<RdfImportItem>;
+  /**
+   * Unmatched
+   */
+  unmatched: Array<RdfUnmatched>;
+  [key: string]: unknown;
+};
+
+/**
+ * RdfUnmatched
+ */
+export type RdfUnmatched = {
+  /**
+   * Subject
+   */
+  subject: string;
+  /**
+   * Title
+   */
+  title?: string | null;
   [key: string]: unknown;
 };
 
@@ -11477,6 +11763,32 @@ export type WebPage = {
 };
 
 /**
+ * WorkerComponents
+ */
+export type WorkerComponents = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Host
+   */
+  host?: string | null;
+  /**
+   * Heartbeat At
+   */
+  heartbeat_at?: string | null;
+  machine?: Machine | null;
+  /**
+   * Components
+   */
+  components?: {
+    [key: string]: ComponentState;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * WorkerInfo
  */
 export type WorkerInfo = {
@@ -11540,6 +11852,18 @@ export type WorkerInfo = {
    * steps it finished (done or skipped) in the last hour
    */
   steps_last_hour?: number;
+  /**
+   * Components
+   *
+   * what it needs, by component id (GET /components), and where each is
+   */
+  components?: {
+    [key: string]: ComponentState;
+  };
+  /**
+   * its processors, memory, GPUs and free disk
+   */
+  machine?: Machine | null;
   [key: string]: unknown;
 };
 
@@ -18242,6 +18566,116 @@ export type BulkUpdateMetadataResponses = {
 
 export type BulkUpdateMetadataResponse = BulkUpdateMetadataResponses[keyof BulkUpdateMetadataResponses];
 
+export type GetRecordingRdfData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/resources/{rid}/rdf";
+};
+
+export type GetRecordingRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRecordingRdfError = GetRecordingRdfErrors[keyof GetRecordingRdfErrors];
+
+export type GetRecordingRdfResponses = {
+  /**
+   * RDF
+   */
+  200: string;
+};
+
+export type GetRecordingRdfResponse = GetRecordingRdfResponses[keyof GetRecordingRdfResponses];
+
+export type GetNamespaceRdfData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+    /**
+     * Download
+     *
+     * as a file to save
+     */
+    download?: boolean;
+  };
+  url: "/api/v1/namespaces/{name}/rdf";
+};
+
+export type GetNamespaceRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceRdfError = GetNamespaceRdfErrors[keyof GetNamespaceRdfErrors];
+
+export type GetNamespaceRdfResponses = {
+  /**
+   * RDF
+   */
+  200: string;
+};
+
+export type GetNamespaceRdfResponse = GetNamespaceRdfResponses[keyof GetNamespaceRdfResponses];
+
+export type ImportNamespaceRdfData = {
+  body: RdfImport;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/rdf/import";
+};
+
+export type ImportNamespaceRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportNamespaceRdfError = ImportNamespaceRdfErrors[keyof ImportNamespaceRdfErrors];
+
+export type ImportNamespaceRdfResponses = {
+  /**
+   * Successful Response
+   */
+  200: RdfImportResult;
+};
+
+export type ImportNamespaceRdfResponse = ImportNamespaceRdfResponses[keyof ImportNamespaceRdfResponses];
+
 export type GetMediaData = {
   body?: never;
   path: {
@@ -19143,6 +19577,38 @@ export type StreamEventsResponses = {
    */
   200: unknown;
 };
+
+export type ListComponentsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/components";
+};
+
+export type ListComponentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Components;
+};
+
+export type ListComponentsResponse = ListComponentsResponses[keyof ListComponentsResponses];
+
+export type CheckComponentsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/components/check";
+};
+
+export type CheckComponentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type CheckComponentsResponse = CheckComponentsResponses[keyof CheckComponentsResponses];
 
 export type ListBackendsData = {
   body?: never;

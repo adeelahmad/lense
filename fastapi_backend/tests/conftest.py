@@ -28,6 +28,7 @@ def make_cfg(folder: pathlib.Path, url: str = TEST_URL, **overrides):
         "sources": {"local_roots": [str(folder / "inbox")]},
         # most tests sign in with passwords; tests/api/test_passkeys.py covers installs without them
         "auth": {"passwords": True},
+        "components": {"auto": False},  # tests never fetch packages or models
     }
     return store.load_config(str(folder / "missing.yaml"), overrides=store._merge(base, overrides))
 

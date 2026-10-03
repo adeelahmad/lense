@@ -61,6 +61,7 @@ export type SectionId =
   | "reports"
   | "video"
   | "workers"
+  | "components"
   | "access"
   | "sign-in"
   | "notifications"
@@ -157,6 +158,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["auth"],
     description:
       "How people sign in: passkeys (fingerprint, face or device PIN) always; passwords only if you allow them.",
+  },
+  {
+    id: "components",
+    label: "Components",
+    backend: ["components"],
+    description:
+      "The engines and models Lens fetches for itself, sized to each worker’s machine. Steps that need one wait while it arrives.",
   },
   {
     id: "access",
@@ -616,6 +624,15 @@ export const FIELDS: FieldSpec[] = [
     min: 0,
     nullable: true,
   },
+  // Components
+  {
+    section: "components",
+    key: "auto",
+    label: "Fetch what’s needed by itself",
+    kind: "switch",
+    hint: "Off: only report what’s missing",
+  },
+  { section: "components", key: "also", label: "Also fetch", kind: "checks" },
   // Decisions
   {
     section: "decisions",

@@ -10588,6 +10588,223 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/rdf": {
+      "get": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Get Recording Rdf",
+        "description": "The recording described with Dublin Core, with the entities it mentions.",
+        "operationId": "get_recording_rdf",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)",
+              "title": "Format"
+            },
+            "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RDF",
+            "content": {
+              "text/turtle": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/ld+json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/n-triples": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/rdf+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/rdf": {
+      "get": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Get Namespace Rdf",
+        "description": "Everything in the namespace as one graph: itself, its collections, recordings, entities and speakers.",
+        "operationId": "get_namespace_rdf",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)",
+              "title": "Format"
+            },
+            "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)"
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "as a file to save",
+              "default": false,
+              "title": "Download"
+            },
+            "description": "as a file to save"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RDF",
+            "content": {
+              "text/turtle": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/ld+json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/n-triples": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/rdf+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/rdf/import": {
+      "post": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Import Namespace Rdf",
+        "description": "Read Dublin Core descriptions into the namespace's recordings (matched by their URI or an identifier). Each change\nis a metadata edit, kept in the recording's history. With dry_run (the default) nothing changes.",
+        "operationId": "import_namespace_rdf",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RdfImport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RdfImportResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/media": {
       "get": {
         "tags": [
@@ -12047,6 +12264,50 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/components": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Components",
+        "description": "Every component (programs, packages, models), whether the settings need it, and each worker's machine and where\nit is with each: ready, being fetched, failed or missing. Steps that need one being fetched wait for it.",
+        "operationId": "list_components",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Components"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/components/check": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Check Components",
+        "description": "Ask every worker to check what it needs now, and to try again what failed. Audited as ``components.check``.",
+        "operationId": "check_components",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -19725,6 +19986,197 @@
         "type": "object",
         "title": "CommentUpdate"
       },
+      "Component": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "program",
+              "package",
+              "model",
+              "server-model"
+            ],
+            "title": "Kind",
+            "description": "program: the image provides it (only checked); package and model: fetched into the data folder; server-model: pulled on the Ollama server"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "the job steps that wait for it"
+          },
+          "size_mb": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Mb",
+            "description": "about how much it downloads"
+          },
+          "optional": {
+            "type": "boolean",
+            "title": "Optional",
+            "description": "fetched only when listed in components.also",
+            "default": false
+          },
+          "license": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License"
+          },
+          "needed": {
+            "type": "boolean",
+            "title": "Needed",
+            "description": "this server's settings ask for it"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint",
+            "description": "for a program: how to get it"
+          },
+          "here": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Here",
+            "description": "for a program: whether the API's machine has it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "purpose",
+          "kind",
+          "needed"
+        ],
+        "title": "Component"
+      },
+      "ComponentState": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "waiting",
+              "fetching",
+              "failed",
+              "missing"
+            ],
+            "title": "State",
+            "description": "waiting/fetching: being fetched, and the steps that need it wait; missing: needed but fetching is off"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "what it's doing, e.g. pulling nomic-embed-text: 40%"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "ComponentState"
+      },
+      "Components": {
+        "properties": {
+          "auto": {
+            "type": "boolean",
+            "title": "Auto",
+            "description": "components.auto: fetch what's needed without asking"
+          },
+          "machine": {
+            "$ref": "#/components/schemas/Machine",
+            "description": "the API's machine"
+          },
+          "recommended": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Recommended",
+            "description": "the transcription settings that suit the API's machine"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/Component"
+            },
+            "type": "array",
+            "title": "Components"
+          },
+          "workers": {
+            "items": {
+              "$ref": "#/components/schemas/WorkerComponents"
+            },
+            "type": "array",
+            "title": "Workers"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "auto",
+          "machine",
+          "recommended",
+          "components",
+          "workers"
+        ],
+        "title": "Components"
+      },
       "Consent": {
         "properties": {
           "client": {
@@ -22494,6 +22946,31 @@
         ],
         "title": "ForgotPasswordRequest"
       },
+      "Gpu": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "memory_gb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Gb"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Gpu"
+      },
       "Graph": {
         "properties": {
           "scope": {
@@ -24578,6 +25055,86 @@
           "ticket"
         ],
         "title": "LoginTicket"
+      },
+      "Machine": {
+        "properties": {
+          "os": {
+            "type": "string",
+            "title": "Os"
+          },
+          "arch": {
+            "type": "string",
+            "title": "Arch"
+          },
+          "cpus": {
+            "type": "integer",
+            "title": "Cpus"
+          },
+          "memory_gb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Gb"
+          },
+          "gpus": {
+            "items": {
+              "$ref": "#/components/schemas/Gpu"
+            },
+            "type": "array",
+            "title": "Gpus"
+          },
+          "cuda": {
+            "type": "boolean",
+            "title": "Cuda",
+            "default": false
+          },
+          "apple_silicon": {
+            "type": "boolean",
+            "title": "Apple Silicon",
+            "default": false
+          },
+          "container": {
+            "type": "boolean",
+            "title": "Container",
+            "default": false
+          },
+          "python": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Python"
+          },
+          "disk_free_gb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disk Free Gb",
+            "description": "free space in the data folder, where models go"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "os",
+          "arch",
+          "cpus"
+        ],
+        "title": "Machine"
       },
       "Me": {
         "properties": {
@@ -29291,6 +29848,151 @@
           "downloads"
         ],
         "title": "PublicTranscript"
+      },
+      "RdfImport": {
+        "properties": {
+          "data": {
+            "type": "string",
+            "title": "Data",
+            "description": "the RDF: Turtle, N-Triples or JSON-LD (with its @context inline)"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format",
+            "description": "turtle, nt or json-ld; guessed from the data when left out"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "description": "report what would change without changing it",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "RdfImport"
+      },
+      "RdfImportItem": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "the metadata fields it changes (or would)"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "statements": {
+            "type": "integer",
+            "title": "Statements",
+            "description": "other statements kept with the recording"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "subject",
+          "recording",
+          "fields",
+          "notes",
+          "statements"
+        ],
+        "title": "RdfImportItem"
+      },
+      "RdfImportResult": {
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run"
+          },
+          "triples": {
+            "type": "integer",
+            "title": "Triples"
+          },
+          "matched": {
+            "type": "integer",
+            "title": "Matched"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RdfImportItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "unmatched": {
+            "items": {
+              "$ref": "#/components/schemas/RdfUnmatched"
+            },
+            "type": "array",
+            "title": "Unmatched"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "dry_run",
+          "triples",
+          "matched",
+          "changed",
+          "items",
+          "unmatched"
+        ],
+        "title": "RdfImportResult"
+      },
+      "RdfUnmatched": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "subject"
+        ],
+        "title": "RdfUnmatched"
       },
       "Recording": {
         "properties": {
@@ -36430,6 +37132,59 @@
         "title": "WebPage",
         "description": "A web page captured as a document: where it was, and when."
       },
+      "WorkerComponents": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "heartbeat_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heartbeat At"
+          },
+          "machine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Machine"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "components": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComponentState"
+            },
+            "type": "object",
+            "title": "Components"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "WorkerComponents"
+      },
       "WorkerInfo": {
         "properties": {
           "name": {
@@ -36532,6 +37287,25 @@
             "title": "Steps Last Hour",
             "description": "steps it finished (done or skipped) in the last hour",
             "default": 0
+          },
+          "components": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComponentState"
+            },
+            "type": "object",
+            "title": "Components",
+            "description": "what it needs, by component id (GET /components), and where each is"
+          },
+          "machine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Machine"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its processors, memory, GPUs and free disk"
           }
         },
         "additionalProperties": true,
