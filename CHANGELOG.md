@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Sensors understand their logs.** Log lines are grouped into patterns (`query[A] <name> from <ip>`), each with a
+  count, an example, a label (routine, notable, alert) and an action (drop: counted, not kept). With `triage` on, the
+  decision model labels new patterns, one question per pattern, not per line. Brokers you already run (Mosquitto, Home
+  Assistant) can be bridged in: Lens subscribes to the topics you name. With `digest` on, each day of a sensor becomes
+  a document in its namespace. All three run in the **Tidy sensor data** routine.
 - **Sensors.** Everything that feeds Lens is a sensor, in one list (`GET /sensors`): the storage, email and
   calendar sources as they are, and new stream sensors. Lens runs an MQTT hub (an ordinary local broker on 1883, with
   hub logins), listens for syslog from local networks (UDP and TCP 5514) and takes webhooks. Devices and hosts become

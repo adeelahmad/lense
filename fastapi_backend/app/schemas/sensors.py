@@ -9,7 +9,7 @@ from pydantic import Field
 
 from app.schemas.common import RequestModel, ResponseModel
 
-StreamType = Literal["mqtt", "syslog", "webhook"]
+StreamType = Literal["mqtt", "syslog", "webhook", "bridge"]
 SensorStatus = Literal["new", "active", "paused", "ignored"]
 StoreMode = Literal["all", "changes", "summary", "none"]
 
@@ -28,6 +28,8 @@ class Handling(ResponseModel):
     rollup_days: int | None = Field(None, description="days hourly summaries are kept; none: for good")
     important_days: int | None = Field(None, description="days log lines of warning or worse are kept, when longer than raw_days")
     max_per_minute: int | None = Field(None, description="readings a stream may send a minute; more are dropped")
+    triage: bool = Field(False, description="the decision model labels new log patterns routine, notable or alert")
+    digest: bool = Field(False, description="a daily digest becomes a document in the sensor's namespace")
 
 
 class HandlingChange(RequestModel):
@@ -38,6 +40,8 @@ class HandlingChange(RequestModel):
     rollup_days: int | None = None
     important_days: int | None = None
     max_per_minute: int | None = None
+    triage: bool | None = None
+    digest: bool | None = None
 
 
 class Suggestion(ResponseModel):
@@ -62,6 +66,7 @@ class Sensor(ResponseModel):
     channels: int = Field(0, description="watched folders of a file sensor, streams of a stream sensor")
     readings: int = 0
     has_token: bool = False
+    secrets: dict[str, dict[str, bool]] | None = Field(None, description="which secrets are set (a bridge's password)")
     health: dict[str, Any] | None = None
     last_seen_at: str | None = None
     created_at: str | None = None
@@ -106,7 +111,11 @@ class SensorCatalog(ResponseModel):
 class SensorCreate(RequestModel):
     type: StreamType
     name: str | None = None
-    params: dict[str, Any] = Field(default_factory=dict, description="mqtt: {prefix}; syslog: {address}; webhook: none")
+    params: dict[str, Any] = Field(
+        default_factory=dict,
+        description="mqtt: {prefix}; syslog: {address}; webhook: none; bridge: {host, port, tls, topics, user}",
+    )
+    secrets: dict[str, str] | None = Field(None, description="bridge: {pass}")
     space: int | None = None
     handling: HandlingChange | None = None
 
@@ -121,6 +130,8 @@ class SensorUpdate(RequestModel):
     status: SensorStatus | None = None
     space: int | None = Field(None, description="the namespace; null takes it out of any")
     handling: HandlingChange | None = None
+    params: dict[str, Any] | None = Field(None, description="a bridge's connection")
+    secrets: dict[str, str | None] | None = Field(None, description="a bridge's password; empty or null removes it")
 
 
 class SensorToken(ResponseModel):
@@ -169,3 +180,24 @@ class HubLoginCreate(RequestModel):
     username: str
     password: str
     space: int | None = Field(None, description="the namespace new devices that sign in with it go to")
+
+
+class Pattern(ResponseModel):
+    id: str
+    stream: str
+    stream_name: str | None = None
+    template: str = Field(description="the line with what changes taken out: <ip>, <name>, <n>...")
+    example: str | None = None
+    count: int = 0
+    first_at: str | None = None
+    last_at: str | None = None
+    label: Literal["routine", "notable", "alert"] | None = None
+    label_by: str | None = Field(None, description="jev, llm, or who set it")
+    confidence: float | None = None
+    sure: bool | None = Field(None, description="false: the model wasn't sure; a person should look")
+    action: Literal["keep", "drop"] = "keep"
+
+
+class PatternUpdate(RequestModel):
+    label: Literal["routine", "notable", "alert"] | None = Field(None, description="null clears it")
+    action: Literal["keep", "drop"] | None = None

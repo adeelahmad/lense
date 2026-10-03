@@ -192,6 +192,8 @@ export function resultText(r: Record<string, unknown>): string {
       plural(n("sensors") ?? 0, "sensor"),
       `${n("readings") ?? 0} readings and ${n("rollups") ?? 0} summaries removed`,
     );
+    if (n("triaged")) parts.push(`${plural(n("triaged")!, "log pattern")} labelled`);
+    if (n("digests")) parts.push(plural(n("digests")!, "daily digest"));
     return parts.join(" · ");
   }
   if (n("applied") != null || n("proposed") != null) {

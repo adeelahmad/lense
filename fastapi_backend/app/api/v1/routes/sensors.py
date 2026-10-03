@@ -7,11 +7,13 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
-from app.domain import auth, sensors
+from app.domain import auth, sensor_patterns, sensors
 from app.schemas.common import Created, Ok
 from app.schemas.sensors import (
     HubLogin,
     HubLoginCreate,
+    Pattern,
+    PatternUpdate,
     Pushed,
     Reading,
     Reviewed,
@@ -58,6 +60,7 @@ def create_sensor(body: SensorCreate, user: AdminWriter, db: Db, cfg: Cfg) -> Se
             body.space,
             body.handling.model_dump(exclude_unset=True) if body.handling else None,
             user.email,
+            body.secrets,
         )
     auth.audit(db, user.as_audit(), "sensor.create", f"storage_source:{sid}")
     return SensorCreated(id=sid, token=token)
@@ -83,7 +86,7 @@ def get_sensor(sid: int, user: AdminReader, db: Db, cfg: Cfg) -> SensorDetail:
 
 
 @router.patch("/sensors/{sid}")
-def update_sensor(sid: int, body: SensorUpdate, user: AdminWriter, db: Db) -> Ok:
+def update_sensor(sid: int, body: SensorUpdate, user: AdminWriter, db: Db, cfg: Cfg) -> Ok:
     """Rename a stream sensor, change its status (new, active, paused: nothing kept, ignored: nothing kept and out of
     sight), its namespace (`space: null` for none) or its handling (a handling setting of null goes back to the
     settings' default)."""
@@ -91,7 +94,7 @@ def update_sensor(sid: int, body: SensorUpdate, user: AdminWriter, db: Db) -> Ok
     if "handling" in changes and body.handling is not None:
         changes["handling"] = body.handling.model_dump(exclude_unset=True)
     with domain_errors():
-        sensors.update(db, sid, **changes)
+        sensors.update(db, sid, cfg, **changes)
     auth.audit(db, user.as_audit(), "sensor.update", f"storage_source:{sid}", sorted(changes))
     return Ok()
 
@@ -151,6 +154,32 @@ def get_series(
     with domain_errors():
         sensors.get(db, sid)
     return [SeriesPoint.model_validate(p) for p in sensors.series(db, sid, stream, field, hours)]
+
+
+@router.get("/sensors/{sid}/patterns")
+def list_patterns(
+    sid: int,
+    user: AdminReader,
+    db: Db,
+    stream: str | None = Query(None, description="a stream's id"),
+    label: str | None = Query(None, description="routine, notable, alert, or none for those without one"),
+    limit: int = Query(200, ge=1, le=2000),
+) -> list[Pattern]:
+    """A log sensor's kinds of line, busiest first."""
+    with domain_errors():
+        sensors.get(db, sid)
+    return [Pattern.model_validate(p) for p in sensor_patterns.list_patterns(db, sid, stream, label, limit)]
+
+
+@router.patch("/sensor-patterns/{pid}")
+def update_pattern(pid: str, body: PatternUpdate, user: AdminWriter, db: Db) -> Ok:
+    """Label a kind of line yourself (`label: null` clears it), or stop keeping its lines (`action: drop`; they're
+    still counted)."""
+    sent = body.model_dump(exclude_unset=True)
+    with domain_errors():
+        sensor_patterns.update(db, pid, body.label, body.action, user.email, clear_label="label" in sent and body.label is None)
+    auth.audit(db, user.as_audit(), "sensor_pattern.update", f"sensor_pattern:{pid}", sorted(sent))
+    return Ok()
 
 
 # ---------- hub logins ----------
