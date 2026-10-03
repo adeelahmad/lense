@@ -79,6 +79,8 @@ export function isActive(pathname: string, href: string): boolean {
     return true;
   // Sources (files, email, calendars) are a tab of Sensors.
   if (href === "/sensors" && (pathname === "/sources" || pathname.startsWith("/sources/"))) return true;
+  // Members opening /sensors see their Sources page.
+  if (href === "/sources" && pathname === "/sensors") return true;
   // Speakers live in Settings; a speaker's profile keeps its own address.
   if (href === "/settings" && (pathname === "/speakers" || pathname.startsWith("/speakers/"))) return true;
   return pathname === href || pathname.startsWith(`${href}/`);

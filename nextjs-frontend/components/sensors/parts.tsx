@@ -189,7 +189,8 @@ export function HandlingEditor({
       : null,
   } as const;
   const bad = Object.entries(days).find(([, v]) => v === "bad")?.[0];
-  const perMinuteBad = days.max_per_minute === 0;
+  const perMinuteBad =
+    typeof days.max_per_minute === "number" && (days.max_per_minute < 1 || days.max_per_minute > 100000);
   const form: Handling = {
     store: (f.store || null) as Handling["store"],
     raw_days: days.raw_days === "bad" ? null : days.raw_days,
@@ -250,7 +251,7 @@ export function HandlingEditor({
       </div>
       <Field
         label="Most readings a minute, per stream"
-        error={bad === "max_per_minute" || perMinuteBad ? "A whole number of at least 1" : undefined}
+        error={bad === "max_per_minute" || perMinuteBad ? "A whole number from 1 to 100,000" : undefined}
         hint="More than this are dropped and counted, so a chatty device can’t fill the disk"
       >
         {({ id, describedBy, invalid }) => (

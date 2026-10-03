@@ -8,7 +8,14 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Sensors } from "@/app/openapi-client";
 import type { Pattern, SensorDetail as Detail, Stream } from "@/app/openapi-client/types.gen";
-import { usePatterns, useReadings, useSensor, useSensorActions, useSeries } from "@/components/sensors/data";
+import {
+  usePatterns,
+  useReadings,
+  useSensor,
+  useSensorActions,
+  useSensors,
+  useSeries,
+} from "@/components/sensors/data";
 import {
   BridgeFields,
   HandlingEditor,
@@ -54,7 +61,9 @@ const RANGES = [
 
 function StreamCard({ sid, st, hours }: { sid: number; st: Stream; hours: number }) {
   const fields = st.fields ?? [];
-  const [field, setField] = useState<string | null>(st.kind === "json" ? (fields[0] ?? null) : null);
+  const [picked, setField] = useState<string | null>(null);
+  // Fields can arrive after the card first shows: chart the first one until another is picked.
+  const field = st.kind === "json" ? (picked ?? fields[0] ?? null) : null;
   const charted = st.kind === "number" || st.kind === "boolean" || (st.kind === "json" && field != null);
   const series = useSeries(sid, st.id, field, hours, charted);
   const path = useMemo(() => {
@@ -376,11 +385,13 @@ function WebhookToken({ s }: { s: Detail }) {
   const toast = useToast();
   const [token, setToken] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
+  const qc = useQueryClient();
   const make = useMutation({
     mutationFn: () => data(Sensors.newToken({ client, path: { sid: s.id } })),
     onSuccess: (r) => {
       setAsking(false);
       setToken(r.token);
+      void qc.invalidateQueries({ queryKey: ["sensor", s.id] });
     },
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t make a token", body: e.message }),
   });
@@ -436,6 +447,7 @@ function WebhookToken({ s }: { s: Detail }) {
 
 function SettingsTab({ s }: { s: Detail }) {
   const { update } = useSensorActions();
+  const hub = useSensors().data?.hub;
   const log = (s.streams ?? []).some((x) => x.kind === "log" || x.kind === "text") || s.type === "syslog";
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -460,10 +472,10 @@ function SettingsTab({ s }: { s: Detail }) {
                   {connectText(
                     s.type as StreamType,
                     typeof window === "undefined" ? "lens" : window.location.hostname,
-                    {},
+                    hub ?? {},
                   )}
-                </span>{" "}
-                by default.
+                </span>
+                .
               </p>
             )}
           </div>
