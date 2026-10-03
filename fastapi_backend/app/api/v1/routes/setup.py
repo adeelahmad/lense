@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import AdminReader, AdminWriter, Db
 from app.domain import auth, setup
-from app.schemas.setup import SetupFinish, SetupLlm, SetupNamespace, SetupSaved, SetupStorage, SetupTelemetry, SetupView
+from app.schemas.setup import LocalModelServer, SetupFinish, SetupLlm, SetupNamespace, SetupSaved, SetupStorage, SetupTelemetry, SetupView
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 
@@ -48,6 +48,13 @@ def save_llm(body: SetupLlm, user: AdminWriter, request: Request, db: Db) -> Set
     if saved:
         auth.audit(db, user.as_audit(), "settings.save", "llm", saved)
     return SetupSaved(saved=saved)
+
+
+@router.get("/llm/detect")
+def detect_llm(user: AdminWriter) -> list[LocalModelServer]:
+    """Model servers running on this machine or the Docker host (Ollama, LM Studio, llama.cpp, vLLM, LocalAI), with
+    their models, so the wizard can offer one instead of asking for an address."""
+    return [LocalModelServer(**s) for s in setup.detect_llm()]
 
 
 @router.put("/storage")

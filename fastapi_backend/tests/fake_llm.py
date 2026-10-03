@@ -12,6 +12,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     tool_script = []  # assistant messages to return, in order, when a request offers tools
     reject_tools = False  # behave like a server whose model can't call tools
     blind = False  # behave like a server whose model can't see images
+    decision = None  # the answer to a decision (decide.py) when no decision model is set up; else the first option
     usage = None  # token counts to report with each answer (and as a streamed answer's last chunk), like OpenAI
 
     def _json(self, obj):
@@ -99,6 +100,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     ]
                 }
             )
+        elif "mappings" in schema.get("properties", {}):
+            # entity matching: a name goes to the entity whose description says it, else the first other answer offered
+            text = body["messages"][-1]["content"]
+            ents = re.findall(r"^e(\d+): .*? - (.*)$", text, re.M)
+            names = re.findall(r'^(\d+)\. "(.*?)"', text, re.M)
+            other = re.findall(r'"(new|unlabeled|unknown)"', text.split("Answers:", 1)[1].split("\n", 1)[0])
+            out = []
+            for i, name in names:
+                hit = next((e for e, d in ents if name.lower() in d.lower()), None)
+                out.append({"name": int(i), "to": f"e{hit}" if hit else other[0], "confidence": 0.9})
+            content = json.dumps({"mappings": out})
         elif "entities" in schema.get("properties", {}):
             content = json.dumps(
                 {
@@ -109,6 +121,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     ]
                 }
             )
+        elif set(schema.get("properties", {})) == {"choice", "confidence"}:
+            content = json.dumps(Handler.decision or {"choice": schema["properties"]["choice"]["enum"][0], "confidence": 0.9})
         elif body.get("response_format"):
             content = json.dumps(
                 {

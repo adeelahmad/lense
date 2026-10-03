@@ -57,7 +57,7 @@ export function SummaryTab() {
             </Button>
             {admin ? (
               <Button asChild size="sm" variant="secondary">
-                <Link href="/settings">Open provider settings</Link>
+                <Link href="/settings/llm">Open provider settings</Link>
               </Button>
             ) : (
               <Button size="sm" variant="secondary" disabled disabledReason="Only admins can change the AI provider">

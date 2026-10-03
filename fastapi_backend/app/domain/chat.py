@@ -257,12 +257,13 @@ def with_context(question, ctx):
 
 
 def past_turns(history, n=6):
-    """The conversation's last messages for the model; a question asked about highlighted text keeps (the start of)
-    that text, so a follow-up still knows what "it" was."""
+    """The conversation's last messages for the model, with the files sent with each; a question asked about
+    highlighted text keeps (the start of) that text, so a follow-up still knows what "it" was."""
     out = []
     for m in list(history)[-n:]:
         sel = ((m.get("context") or {}).get("selection") or "")[:500] if m["role"] == "user" else ""
-        out.append({"role": m["role"], "content": f'(About the highlighted text: "{sel}") {m["content"]}' if sel else m["content"]})
+        said = f'(About the highlighted text: "{sel}") {m["content"]}' if sel else m["content"]
+        out.append({"role": m["role"], "content": said + attached_note(m.get("attachments"))})
     return out
 
 
@@ -287,7 +288,8 @@ def cited(text, passages):
 
 
 # ---------- conversations ----------
-def create(db, account, title=None, scope=None, model=None):
+def create(db, account, title=None, scope=None, model=None, kind="chat"):
+    """A conversation. A `setup` one (admins) is the assistant setting the server up: it acts instead of asking."""
     cid = db.next_id("chat")
     db.q(
         "CREATE $r CONTENT $d",
@@ -295,7 +297,8 @@ def create(db, account, title=None, scope=None, model=None):
         d=store.clean(
             {
                 "account": account,
-                "title": (title or "New conversation")[:120],
+                "title": (title or ("Set up Lens" if kind == "setup" else "New conversation"))[:120],
+                "kind": kind if kind != "chat" else None,
                 "scope": scope or {},
                 "model": model,
                 "created_at": store.now(),
@@ -307,7 +310,10 @@ def create(db, account, title=None, scope=None, model=None):
 
 
 def get(db, cid, account):
-    c = db.one("SELECT record::id(id) AS id, account, title, scope, model, created_at, updated_at FROM $r", r=R("chat", cid))
+    c = db.one(
+        "SELECT record::id(id) AS id, account, title, scope, model, kind ?? 'chat' AS kind, created_at, updated_at FROM $r",
+        r=R("chat", cid),
+    )
     if not c or c["account"] != account:
         raise KeyError(cid)
     return c
@@ -316,12 +322,14 @@ def get(db, cid, account):
 def history(db, cid):
     return db.rows(
         "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped, steps ?? [] AS steps, "
-        "notice, error, check, model, context FROM chat_message WHERE chat = $c ORDER BY id",
+        "attachments ?? [] AS attachments, notice, error, check, model, context FROM chat_message WHERE chat = $c ORDER BY id",
         c=cid,
     )
 
 
-def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None, model=None, context=None):
+def add(
+    db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None, model=None, attachments=None, context=None
+):
     """Save a message; an answer keeps the tool steps it took, any notice (e.g. the model can't use tools) and error; a
     question asked from a page keeps what it shared of it (shared_context)."""
     mid = db.next_id("chat_message")
@@ -333,6 +341,7 @@ def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice
                 "chat": cid,
                 "role": role,
                 "content": content,
+                "attachments": attachments or None,
                 "passages": passages,
                 "created_at": store.now(),
                 "stopped": stopped or None,
@@ -402,14 +411,39 @@ TOOL_SYSTEM = (
 )
 
 
-def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None):
-    """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text). Raises llm.ToolsUnsupported."""
-    msgs = [{"role": "system", "content": TOOL_SYSTEM}] + past_turns(history)
+def attached_note(files):
+    """What the model reads about the files sent with a question."""
+    if not files:
+        return ""
+    lines = [f"- {f['filename']} ({round(f['size'] / 1e6, 1)} MB, attachment id {f['id']})" for f in files]
+    return "\n\nAttached files, not in the archive yet (import_files puts them in a namespace, choosing one when not named):\n" + "\n".join(
+        lines
+    )
+
+
+SETUP_SYSTEM = (
+    "You are setting up this Lens server with its admin, who asked you to do it for them. Lens archives recordings, "
+    "documents and images, transcribes and indexes them, and answers questions about them. Start with server_status and "
+    "work through what's missing, most important first: a model provider (find_model_servers, then change_settings llm "
+    "with the server's address and a chat model), a namespace, then search by meaning (an embedding model). Prefer "
+    "sensible defaults and make the changes yourself; they're made as soon as you call the tool, and the admin can change "
+    "them in Settings. Ask only what you can't decide (one short question at a time), and never for something a tool can "
+    "find out. When files are attached, import them (leave the namespace out unless the admin named one: it's chosen "
+    "for them, and you're told when to ask). Say in a sentence what you changed. Be brief."
+)
+
+
+def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, setup=False):
+    """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text), or ("direct", text) when the model
+    answered without looking anything up (it never saw the archive, so the caller can answer from a search instead).
+    Raises llm.ToolsUnsupported."""
+    system = TOOL_SYSTEM + ("\n\n" + SETUP_SYSTEM if setup else "")
+    msgs = [{"role": "system", "content": system}] + past_turns(history)
     msgs.append({"role": "user", "content": question})
-    for _ in range(max_steps):
+    for step in range(max_steps):
         msg = llm.chat_message(cfg, msgs, tools=toolbox.specs(), model=model)
         if not msg["tool_calls"]:
-            yield "answer", msg["content"]
+            yield ("direct" if step == 0 else "answer"), msg["content"]
             return
         msgs.append({"role": "assistant", "content": msg["content"], "tool_calls": msg["tool_calls"]})
         for c in msg["tool_calls"]:

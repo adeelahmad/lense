@@ -26,6 +26,11 @@ class ChatScope(RequestModel):
 
 class ChatCreate(RequestModel):
     title: str | None = None
+    kind: Literal["chat", "setup"] = Field(
+        "chat",
+        description="setup (admins): the assistant sets the server up with you, and makes the changes it proposes without asking "
+        "(telemetry still asks)",
+    )
     scope: ChatScope | None = None
     model: str | None = Field(
         None, description="the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one"
@@ -43,6 +48,7 @@ class ChatUpdate(RequestModel):
 class ChatSummary(ResponseModel):
     id: int
     title: str
+    kind: Literal["chat", "setup"] = "chat"
     scope: dict[str, Any] = {}
     model: str | None = Field(None, description="the model chosen for this conversation; null: the configured one")
     created_at: str | None = None
@@ -100,11 +106,19 @@ class SharedContext(ResponseModel):
     page: bool = Field(False, description="the page's text was shared")
 
 
+class Attachment(ResponseModel):
+    id: str = Field(description="the upload")
+    filename: str
+    size: int
+    recording: int | None = Field(None, description="the recording it became, once imported")
+
+
 class ChatMessage(ResponseModel):
     id: int
     role: Literal["user", "assistant"]
     content: str
     context: SharedContext | None = Field(None, description="a question asked from a page: the page, and any highlighted text")
+    attachments: list[Attachment] = Field(default_factory=list, description="files sent with it (POST /uploads with hold)")
     passages: list[Passage] | None = None
     created_at: str | None = None
     stopped: bool = Field(False, description="the answer was stopped (POST /chats/{cid}/stop): `content` is what came before")
@@ -137,8 +151,13 @@ class Chat(ChatSummary):
 
 
 class MessageCreate(RequestModel):
-    content: str = Field(description="the question (up to 4000 characters)")
+    content: str = Field("", description="the question (up to 4000 characters); may be empty when files are attached")
     context: PageContext | None = Field(None, description="asked from a page: the page, its text and any highlighted part")
+    attachments: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="your uploads started with `hold` and finished: the assistant can import them into a namespace",
+    )
     model: str | None = Field(
         None, description="answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry"
     )

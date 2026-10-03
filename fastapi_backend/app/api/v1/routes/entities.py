@@ -11,11 +11,12 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Access, Acl, CurrentUser, Db, Writer, domain_errors
-from app.domain import auth, jobs
+from app.domain import auth, entity_map, entity_setup, hierarchy, jobs
 from app.domain import entities as ents
 from app.domain.store import DB, R
 from app.schemas.common import Ok
 from app.schemas.entities import (
+    EntityDefine,
     EntityDetail,
     EntityHide,
     EntityLinkRequest,
@@ -26,6 +27,7 @@ from app.schemas.entities import (
     EntityRename,
     EntityRetype,
     EntityType,
+    EntityUpdate,
     MentionList,
     MentionMove,
     MentionMoved,
@@ -73,15 +75,29 @@ def list_entities(
     limit: int = 50,
     offset: int = 0,
     group: bool = False,
+    collection: int | None = None,
 ) -> EntityList:
     """Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
     With `recording`, those said in it, also for someone who sees it through a role on its collection (then counted
-    over the recordings they see)."""
+    over the recordings they see). With `collection`, those said in its recordings and those of the collections inside
+    it (counted over them)."""
     spaces, within = set(acl.roles), None
     if recording is not None:
         rec = acl.recording(recording)  # 404 unless they may see it
         if rec["space"] not in spaces:
             spaces, within = {rec["space"]}, acl.partial_recordings()
+    if collection is not None:
+        try:
+            col = hierarchy.get(db, collection)
+        except KeyError:
+            raise HTTPException(404, "not found") from None
+        sid = col["space"]
+        only = acl.visible(sid)  # 404 unless they see some of the namespace
+        cols = hierarchy.subtree(db, sid, collection)
+        if only is not None:
+            cols &= set(only)
+        recs = hierarchy.recordings_in(db, cols)
+        spaces, within = {sid}, recs if within is None else recs & within
     return EntityList.model_validate(
         ents.list_entities(
             db,
@@ -105,8 +121,13 @@ def list_entities(
 
 
 @router.get("/entities/types")
-def list_entity_types(user: CurrentUser) -> list[EntityType]:
-    return [EntityType(type=k, label=v, quiet=k in ents.QUIET) for k, v in ents.TYPES.items()]
+def list_entity_types(user: CurrentUser, acl: Acl, db: Db, ns: str = "") -> list[EntityType]:
+    """The types an entity may have: the built-in ones, and with `ns` that namespace's own too."""
+    sid = None
+    if ns:
+        sid = acl.nsid(ns)
+        acl.visible(sid)
+    return [EntityType(**t) for t in entity_setup.types_of(db, sid)]
 
 
 @router.get("/entities/suggestions")
@@ -224,11 +245,59 @@ def rename_entity(eid: int, body: EntityRename, request: Request, user: Writer, 
     return out
 
 
+@router.patch("/entities/{eid}")
+def update_entity(eid: int, body: EntityUpdate, request: Request, user: Writer, acl: Acl, db: Db) -> EntityDetail:
+    """Describe the entity (what it is, in your words), say how else it's said, or put it on (or off) the fixed list."""
+    sid = _entity_space(db, acl, eid, "editor")
+    changes = body.model_dump(exclude_unset=True)
+    with domain_errors():
+        if "description" in changes:
+            ents.describe(db, eid, body.description)
+        if body.aliases is not None:
+            entity_map.set_aliases(db, eid, body.aliases, user=user.email)
+        if body.defined is not None:
+            if db.one("SELECT builtin FROM $r", r=R("entity", eid)).get("builtin"):
+                raise ValueError("Unknown and Unlabeled are always there.")
+            db.q("UPDATE $r SET defined = $d", r=R("entity", eid), d=body.defined)
+            if body.defined:
+                entity_map.builtins(db, sid)
+    auth.audit(db, user.as_audit(), "entity.update", f"entity:{eid}", changes)
+    _changed(request)
+    return EntityDetail.model_validate(ents.detail(db, eid, set(acl.roles)))
+
+
+@router.delete("/entities/{eid}")
+def delete_entity(eid: int, request: Request, user: Writer, acl: Acl, db: Db) -> Ok:
+    """Take a defined entity that nothing mentions off the fixed list."""
+    _entity_space(db, acl, eid, "editor")
+    with domain_errors():
+        ents.remove(db, eid)
+    auth.audit(db, user.as_audit(), "entity.delete", f"entity:{eid}", None)
+    _changed(request)
+    return Ok()
+
+
+@router.post("/namespaces/{name}/entities", status_code=201)
+def define_entity(name: str, body: EntityDefine, request: Request, user: Writer, acl: Acl, db: Db) -> EntityDetail:
+    """Add an entity to the namespace's fixed list (or one collection's), or put the one of that name on it."""
+    sid = acl.nsid(name)
+    if body.collection is not None:
+        acl.visible(sid)
+    if not (auth.allows(acl.roles, sid, "editor") or (body.collection is not None and acl.rank_in(sid, body.collection) >= 2)):
+        raise HTTPException(403, "needs editor access to the namespace" + ("" if body.collection is None else ", or to this collection"))
+    with domain_errors():
+        eid = entity_map.define(db, sid, body.name, body.type, body.description, body.aliases, body.collection, user=user.email)
+    auth.audit(db, user.as_audit(), "entity.define", f"entity:{eid}", body.model_dump())
+    _changed(request)
+    return EntityDetail.model_validate(ents.detail(db, eid, set(acl.roles) | {sid}))
+
+
 @router.post("/entities/{eid}/hide")
 def hide_entity(eid: int, request: Request, user: Writer, acl: Acl, db: Db, body: EntityHide | None = None) -> Ok:
     body = body or EntityHide()
     _entity_space(db, acl, eid, "editor")
-    ents.hide(db, eid, body.hidden, body.reason)
+    with domain_errors():
+        ents.hide(db, eid, body.hidden, body.reason)
     action = "entity.hide" if body.hidden else "entity.restore"
     auth.audit(db, user.as_audit(), action, f"entity:{eid}", {"reason": body.reason})
     _changed(request)

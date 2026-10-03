@@ -12,6 +12,9 @@ x-backend: &backend
     target: ${LENS_TARGET:-lean}  # full: LibreOffice and Chromium, to read Office files, text, web pages and emails
     args:
       EXTRAS: ${EXTRAS:-}
+  # model servers on this machine (Ollama, LM Studio) as host.docker.internal, on Linux as on a Mac
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   environment:
     ACCESS_SECRET_KEY: ${ACCESS_SECRET_KEY:?set ACCESS_SECRET_KEY}
     ARCHIVE_SECRET_KEY: ${ARCHIVE_SECRET_KEY:?set ARCHIVE_SECRET_KEY}
@@ -88,7 +91,8 @@ services:
       AUTH_TRUST_HOST: "true"
       AUTH_URL: ${FRONTEND_URL:-http://localhost:3000}
     ports:
-      - "127.0.0.1:3000:3000"
+      # this machine only by default; LENS_BIND=0.0.0.0 to reach it from the network (install.sh does on a server)
+      - "${LENS_BIND:-127.0.0.1}:${LENS_PORT:-3000}:3000"
     depends_on: [backend]
     restart: unless-stopped
     networks: [lens]

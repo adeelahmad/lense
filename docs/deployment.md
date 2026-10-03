@@ -24,13 +24,14 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
 * **Visitors' addresses, for IP groups.** Have the reverse proxy set `X-Forwarded-For`, and list the web app's address
   (in Docker, the compose network) in `server.trusted_proxies`. See [Trusted proxies](configuration.md#trusted-proxies).
 * **Stable secrets.** `ACCESS_SECRET_KEY` (changing it signs everyone out), `ARCHIVE_SECRET_KEY` (changing it makes
-  stored source credentials and LLM keys unreadable), `AUTH_SECRET`.
+  stored source credentials, LLM keys and everything [encrypted at rest](encryption.md) unreadable), `AUTH_SECRET`.
 * **SurrealDB storage engine**: `surrealkv` (as in the compose file), RocksDB or TiKV. Not `memory`; see
   [Database](database.md).
 * **Backups** of SurrealDB (`surreal export`) and of the `archive-data` volume.
 * **Mail** (`MAIL_*`) for password resets.
 * **Workers.** Scale with `docker compose up -d --scale worker=3`. The images transcribe with faster-whisper on the
-  CPU (SenseVoice, the default engine, is used where it is installed). For GPU transcription, build with
+  CPU (SenseVoice, the default engine, is used where it is installed; elsewhere the job log notes the fallback). To
+  use SenseVoice in Docker, set `EXTRAS=sensevoice` in `.env` and rebuild (`make dev`); it adds PyTorch. For GPU transcription, build with
   `EXTRAS="sensevoice voices"` and give the worker the GPU; or run workers on other machines with `SURREAL_URL`
   pointing at the database and `--steps` limited to what they can do.
 * **Documents.** The default image reads PDFs and images. To read Word, PowerPoint and spreadsheet files, text,

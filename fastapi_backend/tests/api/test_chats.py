@@ -455,3 +455,17 @@ def test_page_context_reaches_the_tools_too(app, db, cfg, folder, new_client, ll
     assert ev["token"][0]["text"] == "It's the capsid one."
     asked = llm.seen[0]["messages"][-1]["content"]
     assert "Lens page Ep 1 (/resources/1)" in asked and "Capsid talk" in asked and asked.endswith("Question: Which?")
+
+
+def test_a_model_that_skips_the_tools_still_answers_from_the_archive(app, db, cfg, folder, new_client, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    llm.tool_script = [{"content": "The archive doesn't seem to cover it."}]  # answers straight away, without looking
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "What does Dyno Therapeutics do?"}).text)
+    assert ev["passages"][0]  # the excerpts found up front
+    assert "".join(e["text"] for e in ev["token"]) == "The shipment leaves on Friday [1]."  # answered from them
+    assert "notice" not in ev
+    llm.tool_script = [{"content": "Hello!"}]  # nothing in the archive matches: the model's own answer stands
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "zzqx"}).text)
+    assert "".join(e["text"] for e in ev["token"]) == "Hello!"

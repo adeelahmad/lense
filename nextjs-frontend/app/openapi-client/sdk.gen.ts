@@ -23,6 +23,9 @@ import type {
   AnswerData,
   AnswerErrors,
   AnswerResponses,
+  ApplyEntitySetupData,
+  ApplyEntitySetupErrors,
+  ApplyEntitySetupResponses,
   ApproveAccessRequestData,
   ApproveAccessRequestErrors,
   ApproveAccessRequestResponses,
@@ -46,6 +49,9 @@ import type {
   CheckMessageData,
   CheckMessageErrors,
   CheckMessageResponses,
+  ClearEntitySetupData,
+  ClearEntitySetupErrors,
+  ClearEntitySetupResponses,
   CloseRecordingToIpGroupData,
   CloseRecordingToIpGroupErrors,
   CloseRecordingToIpGroupResponses,
@@ -76,6 +82,15 @@ import type {
   CreateContentTypeData,
   CreateContentTypeErrors,
   CreateContentTypeResponses,
+  CreateCustomNodeData,
+  CreateCustomNodeErrors,
+  CreateCustomNodeResponses,
+  CreateCustomNodeVersionData,
+  CreateCustomNodeVersionErrors,
+  CreateCustomNodeVersionResponses,
+  CreateEntityTypeData,
+  CreateEntityTypeErrors,
+  CreateEntityTypeResponses,
   CreateFieldData,
   CreateFieldErrors,
   CreateFieldResponses,
@@ -148,6 +163,9 @@ import type {
   DeclineAccessRequestData,
   DeclineAccessRequestErrors,
   DeclineAccessRequestResponses,
+  DefineEntityData,
+  DefineEntityErrors,
+  DefineEntityResponses,
   DeleteChatData,
   DeleteChatErrors,
   DeleteChatResponses,
@@ -160,6 +178,15 @@ import type {
   DeleteContentTypeData,
   DeleteContentTypeErrors,
   DeleteContentTypeResponses,
+  DeleteCustomNodeData,
+  DeleteCustomNodeErrors,
+  DeleteCustomNodeResponses,
+  DeleteEntityData,
+  DeleteEntityErrors,
+  DeleteEntityResponses,
+  DeleteEntityTypeData,
+  DeleteEntityTypeErrors,
+  DeleteEntityTypeResponses,
   DeleteFaceData,
   DeleteFaceErrors,
   DeleteFaceResponses,
@@ -208,6 +235,8 @@ import type {
   DeleteWatchData,
   DeleteWatchErrors,
   DeleteWatchResponses,
+  DetectLlmData,
+  DetectLlmResponses,
   DiffTemplateVersionsData,
   DiffTemplateVersionsErrors,
   DiffTemplateVersionsResponses,
@@ -268,6 +297,9 @@ import type {
   GetContentStateData,
   GetContentStateErrors,
   GetContentStateResponses,
+  GetCustomNodeData,
+  GetCustomNodeErrors,
+  GetCustomNodeResponses,
   GetEmbedLinkData,
   GetEmbedLinkErrors,
   GetEmbedLinkResponses,
@@ -277,6 +309,9 @@ import type {
   GetEntityData,
   GetEntityErrors,
   GetEntityResponses,
+  GetEntitySetupData,
+  GetEntitySetupErrors,
+  GetEntitySetupResponses,
   GetEntityTimelineData,
   GetEntityTimelineErrors,
   GetEntityTimelineResponses,
@@ -312,6 +347,9 @@ import type {
   GetNamespaceMetadataData,
   GetNamespaceMetadataErrors,
   GetNamespaceMetadataResponses,
+  GetNamespaceRdfData,
+  GetNamespaceRdfErrors,
+  GetNamespaceRdfResponses,
   GetNamespaceStatsData,
   GetNamespaceStatsErrors,
   GetNamespaceStatsResponses,
@@ -349,6 +387,9 @@ import type {
   GetRecordingMetadataData,
   GetRecordingMetadataErrors,
   GetRecordingMetadataResponses,
+  GetRecordingRdfData,
+  GetRecordingRdfErrors,
+  GetRecordingRdfResponses,
   GetRecordingResponses,
   GetRecordingWordcloudData,
   GetRecordingWordcloudErrors,
@@ -429,6 +470,9 @@ import type {
   ListCommentsResponses,
   ListContentTypesData,
   ListContentTypesResponses,
+  ListCustomNodesData,
+  ListCustomNodesErrors,
+  ListCustomNodesResponses,
   ListEntitiesData,
   ListEntitiesErrors,
   ListEntitiesResponses,
@@ -441,6 +485,7 @@ import type {
   ListEntitySuggestionsErrors,
   ListEntitySuggestionsResponses,
   ListEntityTypesData,
+  ListEntityTypesErrors,
   ListEntityTypesResponses,
   ListFieldsData,
   ListFieldsErrors,
@@ -683,6 +728,9 @@ import type {
   SaveCollectionFieldsData,
   SaveCollectionFieldsErrors,
   SaveCollectionFieldsResponses,
+  SaveEntitySetupData,
+  SaveEntitySetupErrors,
+  SaveEntitySetupResponses,
   SaveFileFieldsData,
   SaveFileFieldsErrors,
   SaveFileFieldsResponses,
@@ -769,6 +817,9 @@ import type {
   TokenLimitsData,
   TokenLimitsResponses,
   TokenResponses,
+  TryWorkflowData,
+  TryWorkflowErrors,
+  TryWorkflowResponses,
   UndoEntityMergeData,
   UndoEntityMergeErrors,
   UndoEntityMergeResponses,
@@ -802,6 +853,15 @@ import type {
   UpdateContentTypeData,
   UpdateContentTypeErrors,
   UpdateContentTypeResponses,
+  UpdateCustomNodeData,
+  UpdateCustomNodeErrors,
+  UpdateCustomNodeResponses,
+  UpdateEntityData,
+  UpdateEntityErrors,
+  UpdateEntityResponses,
+  UpdateEntityTypeData,
+  UpdateEntityTypeErrors,
+  UpdateEntityTypeResponses,
   UpdateFieldData,
   UpdateFieldErrors,
   UpdateFieldResponses,
@@ -1558,6 +1618,21 @@ export class Setup {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Detect Llm
+   *
+   * Model servers running on this machine or the Docker host (Ollama, LM Studio, llama.cpp, vLLM, LocalAI), with
+   * their models, so the wizard can offer one instead of asking for an address.
+   */
+  public static detectLlm<ThrowOnError extends boolean = false>(
+    options?: Options<DetectLlmData, ThrowOnError>,
+  ): RequestResult<DetectLlmResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<DetectLlmResponses, unknown, ThrowOnError>({
+      url: "/api/v1/setup/llm/detect",
+      ...options,
     });
   }
 
@@ -3424,7 +3499,8 @@ export class Entities {
    *
    * Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
    * With `recording`, those said in it, also for someone who sees it through a role on its collection (then counted
-   * over the recordings they see).
+   * over the recordings they see). With `collection`, those said in its recordings and those of the collections inside
+   * it (counted over them).
    */
   public static listEntities<ThrowOnError extends boolean = false>(
     options?: Options<ListEntitiesData, ThrowOnError>,
@@ -3437,11 +3513,13 @@ export class Entities {
 
   /**
    * List Entity Types
+   *
+   * The types an entity may have: the built-in ones, and with `ns` that namespace's own too.
    */
   public static listEntityTypes<ThrowOnError extends boolean = false>(
     options?: Options<ListEntityTypesData, ThrowOnError>,
-  ): RequestResult<ListEntityTypesResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListEntityTypesResponses, unknown, ThrowOnError>({
+  ): RequestResult<ListEntityTypesResponses, ListEntityTypesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListEntityTypesResponses, ListEntityTypesErrors, ThrowOnError>({
       url: "/api/v1/entities/types",
       ...options,
     });
@@ -3550,6 +3628,20 @@ export class Entities {
   }
 
   /**
+   * Delete Entity
+   *
+   * Take a defined entity that nothing mentions off the fixed list.
+   */
+  public static deleteEntity<ThrowOnError extends boolean = false>(
+    options: Options<DeleteEntityData, ThrowOnError>,
+  ): RequestResult<DeleteEntityResponses, DeleteEntityErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteEntityResponses, DeleteEntityErrors, ThrowOnError>({
+      url: "/api/v1/entities/{eid}",
+      ...options,
+    });
+  }
+
+  /**
    * Get Entity
    */
   public static getEntity<ThrowOnError extends boolean = false>(
@@ -3558,6 +3650,24 @@ export class Entities {
     return (options.client ?? client).get<GetEntityResponses, GetEntityErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}",
       ...options,
+    });
+  }
+
+  /**
+   * Update Entity
+   *
+   * Describe the entity (what it is, in your words), say how else it's said, or put it on (or off) the fixed list.
+   */
+  public static updateEntity<ThrowOnError extends boolean = false>(
+    options: Options<UpdateEntityData, ThrowOnError>,
+  ): RequestResult<UpdateEntityResponses, UpdateEntityErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateEntityResponses, UpdateEntityErrors, ThrowOnError>({
+      url: "/api/v1/entities/{eid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 
@@ -3599,6 +3709,24 @@ export class Entities {
   ): RequestResult<RenameEntityResponses, RenameEntityErrors, ThrowOnError> {
     return (options.client ?? client).post<RenameEntityResponses, RenameEntityErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}/rename",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Define Entity
+   *
+   * Add an entity to the namespace's fixed list (or one collection's), or put the one of that name on it.
+   */
+  public static defineEntity<ThrowOnError extends boolean = false>(
+    options: Options<DefineEntityData, ThrowOnError>,
+  ): RequestResult<DefineEntityResponses, DefineEntityErrors, ThrowOnError> {
+    return (options.client ?? client).post<DefineEntityResponses, DefineEntityErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entities",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -3696,6 +3824,119 @@ export class Entities {
     return (options.client ?? client).get<FindGraphPathResponses, FindGraphPathErrors, ThrowOnError>({
       url: "/api/v1/graph/path",
       ...options,
+    });
+  }
+
+  /**
+   * Get Entity Setup
+   *
+   * The namespace's entity setup, the collections (you see) with their own, and the types entities may have.
+   */
+  public static getEntitySetup<ThrowOnError extends boolean = false>(
+    options: Options<GetEntitySetupData, ThrowOnError>,
+  ): RequestResult<GetEntitySetupResponses, GetEntitySetupErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetEntitySetupResponses, GetEntitySetupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-setup",
+      ...options,
+    });
+  }
+
+  /**
+   * Save Entity Setup
+   *
+   * Save the namespace's setup, or (with `collection`) one collection's own.
+   */
+  public static saveEntitySetup<ThrowOnError extends boolean = false>(
+    options: Options<SaveEntitySetupData, ThrowOnError>,
+  ): RequestResult<SaveEntitySetupResponses, SaveEntitySetupErrors, ThrowOnError> {
+    return (options.client ?? client).put<SaveEntitySetupResponses, SaveEntitySetupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-setup",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Clear Entity Setup
+   *
+   * The collection follows its parents' setup again.
+   */
+  public static clearEntitySetup<ThrowOnError extends boolean = false>(
+    options: Options<ClearEntitySetupData, ThrowOnError>,
+  ): RequestResult<ClearEntitySetupResponses, ClearEntitySetupErrors, ThrowOnError> {
+    return (options.client ?? client).delete<ClearEntitySetupResponses, ClearEntitySetupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-setup/collections/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Apply Entity Setup
+   *
+   * Analyse the recordings of the namespace (or of a collection and those inside it) again, so their entities follow
+   * the setup as it is now.
+   */
+  public static applyEntitySetup<ThrowOnError extends boolean = false>(
+    options: Options<ApplyEntitySetupData, ThrowOnError>,
+  ): RequestResult<ApplyEntitySetupResponses, ApplyEntitySetupErrors, ThrowOnError> {
+    return (options.client ?? client).post<ApplyEntitySetupResponses, ApplyEntitySetupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-setup/apply",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create Entity Type
+   *
+   * A type of the namespace's own, e.g. "Client" or "Project"; its code is the name in capitals.
+   */
+  public static createEntityType<ThrowOnError extends boolean = false>(
+    options: Options<CreateEntityTypeData, ThrowOnError>,
+  ): RequestResult<CreateEntityTypeResponses, CreateEntityTypeErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateEntityTypeResponses, CreateEntityTypeErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-types",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Entity Type
+   *
+   * Only a type no entity has.
+   */
+  public static deleteEntityType<ThrowOnError extends boolean = false>(
+    options: Options<DeleteEntityTypeData, ThrowOnError>,
+  ): RequestResult<DeleteEntityTypeResponses, DeleteEntityTypeErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteEntityTypeResponses, DeleteEntityTypeErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-types/{code}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Entity Type
+   */
+  public static updateEntityType<ThrowOnError extends boolean = false>(
+    options: Options<UpdateEntityTypeData, ThrowOnError>,
+  ): RequestResult<UpdateEntityTypeResponses, UpdateEntityTypeErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateEntityTypeResponses, UpdateEntityTypeErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-types/{code}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
@@ -3814,6 +4055,36 @@ export class Metadata {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class Rdf {
+  /**
+   * Get Recording Rdf
+   *
+   * The recording described with Dublin Core, with the entities it mentions.
+   */
+  public static getRecordingRdf<ThrowOnError extends boolean = false>(
+    options: Options<GetRecordingRdfData, ThrowOnError>,
+  ): RequestResult<GetRecordingRdfResponses, GetRecordingRdfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetRecordingRdfResponses, GetRecordingRdfErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/rdf",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Namespace Rdf
+   *
+   * Everything in the namespace as one graph: itself, its collections, recordings, entities and speakers.
+   */
+  public static getNamespaceRdf<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceRdfData, ThrowOnError>,
+  ): RequestResult<GetNamespaceRdfResponses, GetNamespaceRdfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetNamespaceRdfResponses, GetNamespaceRdfErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/rdf",
+      ...options,
     });
   }
 }
@@ -4734,7 +5005,8 @@ export class Workflows {
   /**
    * List Workflows
    *
-   * Saved workflows, plus the nodes a workflow can be built from.
+   * Saved workflows, plus the nodes a workflow can be built from: the primitives, each scope's own nodes, and the
+   * custom nodes you can use.
    */
   public static listWorkflows<ThrowOnError extends boolean = false>(
     options?: Options<ListWorkflowsData, ThrowOnError>,
@@ -4753,6 +5025,25 @@ export class Workflows {
   ): RequestResult<CreateWorkflowResponses, CreateWorkflowErrors, ThrowOnError> {
     return (options.client ?? client).post<CreateWorkflowResponses, CreateWorkflowErrors, ThrowOnError>({
       url: "/api/v1/workflows",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Try Workflow
+   *
+   * Run a graph (saved or not) once without keeping anything: what each node passed on, for the canvas. Nodes
+   * that would save something say what they would save; models are still asked.
+   */
+  public static tryWorkflow<ThrowOnError extends boolean = false>(
+    options: Options<TryWorkflowData, ThrowOnError>,
+  ): RequestResult<TryWorkflowResponses, TryWorkflowErrors, ThrowOnError> {
+    return (options.client ?? client).post<TryWorkflowResponses, TryWorkflowErrors, ThrowOnError>({
+      url: "/api/v1/workflows/test",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -4819,6 +5110,102 @@ export class Workflows {
   ): RequestResult<RunWorkflowResponses, RunWorkflowErrors, ThrowOnError> {
     return (options.client ?? client).post<RunWorkflowResponses, RunWorkflowErrors, ThrowOnError>({
       url: "/api/v1/workflows/{wid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Custom Nodes
+   *
+   * The custom nodes you can use: yours, the ones shared with your namespaces or with everyone (admins: all).
+   */
+  public static listCustomNodes<ThrowOnError extends boolean = false>(
+    options?: Options<ListCustomNodesData, ThrowOnError>,
+  ): RequestResult<ListCustomNodesResponses, ListCustomNodesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListCustomNodesResponses, ListCustomNodesErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Custom Node
+   */
+  public static createCustomNode<ThrowOnError extends boolean = false>(
+    options: Options<CreateCustomNodeData, ThrowOnError>,
+  ): RequestResult<CreateCustomNodeResponses, CreateCustomNodeErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateCustomNodeResponses, CreateCustomNodeErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Custom Node
+   *
+   * Takes it off the palette; workflows that use it keep running the version they pinned.
+   */
+  public static deleteCustomNode<ThrowOnError extends boolean = false>(
+    options: Options<DeleteCustomNodeData, ThrowOnError>,
+  ): RequestResult<DeleteCustomNodeResponses, DeleteCustomNodeErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteCustomNodeResponses, DeleteCustomNodeErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes/{nid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Custom Node
+   *
+   * One version (default: the current one) and the list of versions.
+   */
+  public static getCustomNode<ThrowOnError extends boolean = false>(
+    options: Options<GetCustomNodeData, ThrowOnError>,
+  ): RequestResult<GetCustomNodeResponses, GetCustomNodeErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetCustomNodeResponses, GetCustomNodeErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes/{nid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Custom Node
+   *
+   * Its name, look, and who sees it.
+   */
+  public static updateCustomNode<ThrowOnError extends boolean = false>(
+    options: Options<UpdateCustomNodeData, ThrowOnError>,
+  ): RequestResult<UpdateCustomNodeResponses, UpdateCustomNodeErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateCustomNodeResponses, UpdateCustomNodeErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes/{nid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create Custom Node Version
+   */
+  public static createCustomNodeVersion<ThrowOnError extends boolean = false>(
+    options: Options<CreateCustomNodeVersionData, ThrowOnError>,
+  ): RequestResult<CreateCustomNodeVersionResponses, CreateCustomNodeVersionErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreateCustomNodeVersionResponses,
+      CreateCustomNodeVersionErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/custom-nodes/{nid}/versions",
       ...options,
       headers: {
         "Content-Type": "application/json",
