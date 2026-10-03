@@ -232,8 +232,8 @@ def rotate(db, cfg, sid, keks=None):
                 raise ValueError(f"rotating needs the key for {name}")
             wrapped[name] = wrap(kek, key, sid, new, name)
         keys = {**row["keys"], str(new): {"created_at": store.now(), "wrapped": wrapped}}
-        _cache(db)[(sid, new)] = key
         _save(db, sid, row, keys, current=new)
+        _cache(db)[(sid, new)] = key  # only once stored: a rotation that lost a race must not write with its key
     return new
 
 
@@ -400,11 +400,11 @@ class Reader(io.RawIOBase):
         if n is None or n < 0:
             n = self.size - self._pos
         out = bytearray()
-        while len(out) < n:
-            part = super().read(n - len(out))
-            if not part:
-                break
+        while len(out) < n and self._pos < self.size:
+            i, off = divmod(self._pos, self._chunk)
+            part = self._block(i)[off : off + n - len(out)]
             out += part
+            self._pos += len(part)
         return bytes(out)
 
     def readall(self):
