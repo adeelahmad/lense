@@ -1,7 +1,7 @@
 /**
  * Settings saved in the app (Settings ST1–ST3, IIIF & metadata MD5): the backend's sections and fields, how each field
  * is shown and parsed, validation that mirrors the backend (app/domain/settings.py), and the list of changes shown in
- * "Review & save".
+ * the review before a new public base URL is saved.
  */
 import { RIGHTS_RX, rightsShort } from "@/components/iiif/rights";
 

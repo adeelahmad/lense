@@ -100,7 +100,11 @@ function SaveViewDialog({
               setName(e.target.value);
               setError(null);
             }}
-            onKeyDown={(e) => e.key === "Enter" && go()}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              go();
+            }}
           />
         )}
       </Field>

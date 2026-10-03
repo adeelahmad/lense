@@ -25,12 +25,11 @@ import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { cn } from "@/lib/utils";
 
-type Step = "type" | "details" | "test" | "name";
+type Step = "type" | "details" | "test";
 const STEPS: { key: Step; label: string }[] = [
   { key: "type", label: "Choose type" },
   { key: "details", label: "Details" },
-  { key: "test", label: "Test" },
-  { key: "name", label: "Name" },
+  { key: "test", label: "Test and name" },
 ];
 
 function StepTrail({ step, editing }: { step: Step; editing: boolean }) {
@@ -52,7 +51,7 @@ function StepTrail({ step, editing }: { step: Step; editing: boolean }) {
   );
 }
 
-/** SO2: add a connection (choose type → details → test → name), or edit one (details → test). */
+/** SO2: add a connection (choose type → details → test, named there), or edit one (details → test). */
 export function ConnectionDialog({
   open,
   onOpenChange,
@@ -79,6 +78,8 @@ export function ConnectionDialog({
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [createdId, setCreatedId] = useState<number | null>(source?.id ?? null);
+  /** The name the connection was created with (suggested from its details), so an unchanged name isn't saved again. */
+  const [createdName, setCreatedName] = useState("");
   const [result, setResult] = useState<{
     health: SourceHealth;
     ms: number;
@@ -126,12 +127,14 @@ export function ConnectionDialog({
         const body = buildPayload(spec, form, type);
         sent = body.secrets;
         if (id == null) {
+          const name = form.name.trim() || suggestName(type, form.params);
           const r = await data(
             Sources.createSource({
               client,
-              body: { type, name: suggestName(type, form.params), ...body },
+              body: { type, name, ...body },
             }),
           );
+          setCreatedName(name);
           id = r.id;
           health = r.health;
         } else {
@@ -173,17 +176,12 @@ export function ConnectionDialog({
   });
 
   const rename = useMutation({
-    mutationFn: (name: string) =>
-      data(
-        Sources.updateSource({
-          client,
-          path: { sid: createdId! },
-          body: { name },
-        }),
-      ),
+    mutationFn: async (name: string) => {
+      if (name !== createdName) await data(Sources.updateSource({ client, path: { sid: createdId! }, body: { name } }));
+    },
     onSuccess: () => {
       refresh();
-      toast({ tone: "green", title: "Connection added", body: form.name });
+      toast({ tone: "green", title: "Connection added", body: form.name.trim() || createdName });
       onSaved?.(createdId!);
       onOpenChange(false);
     },
@@ -224,7 +222,7 @@ export function ConnectionDialog({
             : result?.health.ok
               ? "Test · passed"
               : "Test · failed"
-          : "Name the connection";
+          : "";
 
   let body: ReactNode = null;
   let actions: ReactNode = null;
@@ -252,10 +250,10 @@ export function ConnectionDialog({
               data-type={t}
               aria-checked={on}
               tabIndex={on ? 0 : -1}
-              onClick={() => setType(t)}
-              onDoubleClick={() => {
+              onClick={() => {
                 setType(t);
                 setForm(emptyForm(backends[t]));
+                setErrors({});
                 setStep("details");
               }}
               className={cn(
@@ -271,21 +269,9 @@ export function ConnectionDialog({
       </div>
     );
     actions = (
-      <>
-        <Button variant="ghost" onClick={() => onOpenChange(false)}>
-          Cancel
-        </Button>
-        <Button
-          variant="primary"
-          onClick={() => {
-            setForm(emptyForm(spec));
-            setErrors({});
-            setStep("details");
-          }}
-        >
-          Next
-        </Button>
-      </>
+      <Button variant="ghost" onClick={() => onOpenChange(false)}>
+        Cancel
+      </Button>
     );
   } else if (step === "details") {
     body = (
@@ -369,7 +355,7 @@ export function ConnectionDialog({
         )}
         {result && ok && (
           <p className="text-[13px] text-fg-secondary">
-            The archive can read this storage. {editing ? "Changes are saved." : "Give it a name you’ll recognise."}
+            The archive can read this storage. {editing ? "Changes are saved." : "Next, pick a folder to watch."}
           </p>
         )}
         {result && !ok && (
@@ -379,6 +365,24 @@ export function ConnectionDialog({
               ? "Your changes are saved."
               : "The connection is saved; you can fix the details, test again, or discard it."}
           </p>
+        )}
+        {result && !editing && (
+          <Field
+            label="Name"
+            hint="Shown in the list, in watched folders and on imported recordings’ paths"
+            error={errors.name}
+          >
+            {({ id, describedBy, invalid }) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                invalid={invalid}
+                value={form.name}
+                maxLength={80}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            )}
+          </Field>
         )}
       </div>
     );
@@ -417,12 +421,22 @@ export function ConnectionDialog({
           Edit details
         </Button>
         {result?.health.ok ? (
-          <Button size="sm" variant="primary" onClick={() => setStep("name")}>
-            Next
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!form.name.trim() || rename.isPending}
+            onClick={() => rename.mutate(form.name.trim())}
+          >
+            {rename.isPending ? "Saving…" : "Done"}
           </Button>
         ) : (
           <>
-            <Button size="sm" variant="secondary" onClick={() => setStep("name")}>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!form.name.trim() || rename.isPending}
+              onClick={() => rename.mutate(form.name.trim())}
+            >
               Keep anyway
             </Button>
             <Button size="sm" variant="primary" onClick={() => test.mutate("retest")}>
@@ -432,48 +446,13 @@ export function ConnectionDialog({
         )}
       </>
     );
-  } else {
-    body = (
-      <Field
-        label="Name"
-        hint="Shown in the list, in watched folders and on imported recordings’ paths"
-        error={errors.name}
-      >
-        {({ id, describedBy, invalid }) => (
-          <Input
-            id={id}
-            aria-describedby={describedBy}
-            invalid={invalid}
-            autoFocus
-            value={form.name}
-            maxLength={80}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            onKeyDown={(e) => e.key === "Enter" && form.name.trim() && rename.mutate(form.name.trim())}
-          />
-        )}
-      </Field>
-    );
-    actions = (
-      <>
-        <Button variant="ghost" onClick={() => setStep("test")}>
-          Back
-        </Button>
-        <Button
-          variant="primary"
-          disabled={!form.name.trim() || rename.isPending}
-          onClick={() => rename.mutate(form.name.trim())}
-        >
-          {rename.isPending ? "Saving…" : "Save connection"}
-        </Button>
-      </>
-    );
   }
 
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (!o && !editing && createdId != null && step !== "name") refresh();
+        if (!o && !editing && createdId != null) refresh();
         onOpenChange(o);
       }}
       title={title}

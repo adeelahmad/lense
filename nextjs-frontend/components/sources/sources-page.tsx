@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ellipsis, FolderSearch, HardDriveDownload, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 import { Pipelines, Sources } from "@/app/openapi-client";
 import type { Source, Watch } from "@/app/openapi-client/types.gen";
@@ -67,6 +68,9 @@ export function SourcesPage() {
   const [browsing, setBrowsing] = useState<Source | null>(null);
   const [watching, setWatching] = useState<Watching>(null);
   const [deleting, setDeleting] = useState<Source | null>(null);
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const backends = useQuery({
     queryKey: ["source-backends"],
@@ -111,6 +115,14 @@ export function SourcesPage() {
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t test", body: e.message }),
   });
 
+  // /sources?add=1 (from "Connect a source" elsewhere) opens the add dialog straight away
+  const adding = params.get("add") === "1";
+  useEffect(() => {
+    if (!adding || !admin || !backends.data) return;
+    setEditing({ source: null });
+    router.replace(pathname);
+  }, [adding, admin, backends.data, router, pathname]);
+
   const all = (sources.data ?? []) as Source[];
   const ws = (watches.data ?? []) as Watch[];
   const bySource = (id: number) => ws.filter((w) => w.source === id);
@@ -126,7 +138,15 @@ export function SourcesPage() {
           backends={specs}
           source={editing.source}
           replaceToken={editing.replaceToken}
-          onSaved={(id) => setSelected(id)}
+          onSaved={(id) => {
+            setSelected(id);
+            // a new connection is for watching a folder of it: the folder browser opens next
+            if (!editing.source)
+              void sources.refetch().then((r) => {
+                const made = ((r.data ?? []) as Source[]).find((x) => x.id === id);
+                if (made) setBrowsing(made);
+              });
+          }}
         />
       )}
       {browsing && (
