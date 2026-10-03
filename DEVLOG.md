@@ -23,7 +23,7 @@ Todo:
 - [x] Canvas: a `tool` workflow scope whose arg nodes are the tool's parameters (ask_model, call_tool nodes)
 - [ ] Canvas editor for tool graphs in the web app (save a graph as a tool)
 - [x] Authoring from chat and voice: the assistant drafts and saves extensions behind an approval card
-- [ ] Extensions page in the web app: list, manifest editor, switch on/off, share, try
+- [x] Extensions page in the web app: list, manifest editor, switch on/off, share, try, versions
 - [ ] `lens ext` CLI (push/pull manifests)
 
 Refine later: hook-called tools don't show as steps; web tools reach ports 80/443 only and have no secret
