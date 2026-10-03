@@ -487,9 +487,12 @@ def transcribe_pending(db, cfg, ns=None, limit=0, force=False, log=print):
     if not rows:
         return 0
     engine, done = get_engine(cfg, log), 0
+    from . import keyring
+
     for r in rows:
         try:
-            transcribe_one(db, cfg, r["id"], log, engine)
+            with keyring.work(cfg):
+                transcribe_one(db, cfg, r["id"], log, engine)
             done += 1
         except Exception as e:  # noqa: BLE001 - one bad file must not stop the batch
             db.q("UPDATE $r SET status = 'error', error = $e", r=store.R("recording", r["id"]), e=f"{type(e).__name__}: {e}"[:500])

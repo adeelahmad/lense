@@ -527,6 +527,12 @@ def _hold(path):
         return
     fd = os.open(path, os.O_RDONLY)
     fcntl.flock(fd, fcntl.LOCK_SH)
+    try:
+        if os.fstat(fd).st_ino != os.stat(path).st_ino:  # swept by another process meanwhile
+            raise FileNotFoundError(path)
+    except OSError:
+        os.close(fd)
+        raise
     held[path] = fd
 
 
@@ -536,6 +542,18 @@ def release():
         with contextlib.suppress(OSError):
             os.close(fd)
     _HELD.fds = {}
+
+
+@contextlib.contextmanager
+def work(cfg):
+    """Around one piece of work (a job, one recording of a batch): the working copies it takes are let go after, and
+    those nobody else holds are swept once unused."""
+    try:
+        yield
+    finally:
+        release()
+        with contextlib.suppress(Exception):
+            sweep(cfg)
 
 
 def _in_use(path):
