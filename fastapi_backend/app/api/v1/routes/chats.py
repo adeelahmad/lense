@@ -1,7 +1,7 @@
 """Conversations with the archive, the assistant's approvals, and checking an answer against its sources.
 
 A question streams back server-sent events: ``scoped`` (the namespace a conversation over everything was narrowed
-to), ``step`` (a tool the assistant used), ``approval`` (work it proposed that waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error`` and ``done``.
+to) or ``suggested`` (namespaces to offer when it isn't clear, new ones included), ``step`` (a tool the assistant used), ``approval`` (work it proposed that waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error`` and ``done``.
 The assistant only ever sees, and cites, what the asker can read.
 """
 
@@ -190,7 +190,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         model = None
     readable = set(acl.roles)
 
-    def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any] | None]:
+    def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]], Any]:
         past = chat.history(db, cid)
         chat.add(db, cid, "user", q, attachments=files)
         if not past and c["title"] == "New conversation":
@@ -199,14 +199,16 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         if past or c.get("kind") == "setup" or c.get("scope"):
             return past, chat.retrieve(db, q, readable, c.get("scope"), cfg=cfg), None
         everywhere = chat.retrieve(db, q, readable, None, cfg=cfg)
-        picked = auto_scope.pick(db, cfg, q, readable, everywhere)
-        if not picked:
-            return past, everywhere, None
-        c["scope"] = {"namespaces": [picked["choice"]]}
+        placed = auto_scope.place(db, cfg, q, readable, everywhere, admin=user.admin)
+        if not placed or placed[0] != "scoped":
+            return past, everywhere, placed
+        c["scope"] = {"namespaces": [placed[1]["choice"]]}
         db.q("UPDATE $r SET scope = $s", r=R("chat", cid), s=c["scope"])
-        return past, chat.retrieve(db, q, readable, c["scope"], cfg=cfg), picked
+        return past, chat.retrieve(db, q, readable, c["scope"], cfg=cfg), placed
 
-    past, passages, picked = await run_in_threadpool(prepare)
+    past, passages, placed = await run_in_threadpool(prepare)
+    picked = placed[1] if placed and placed[0] == "scoped" else None
+    suggested = placed[1] if placed and placed[0] == "suggest" else None
 
     steps: list[dict[str, Any]] = []
     if picked:
@@ -300,6 +302,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             if picked:
                 yield _ev("scoped", {"namespaces": c["scope"]["namespaces"], "confidence": picked["confidence"], "by": picked["by"]})
                 yield _ev("step", steps[0])
+            if suggested:
+                yield _ev("suggested", {"namespaces": suggested})
             for ev in answer(on):
                 saved = saved or ev.startswith("event: done")
                 yield ev

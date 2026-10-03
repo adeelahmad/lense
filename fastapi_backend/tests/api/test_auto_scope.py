@@ -9,6 +9,7 @@ import pytest
 
 from tests import fake_jev, fake_llm
 from tests.api._assist import Assist, sse, start_llm
+from tests.helpers import login, make_user
 
 Q = "When does the Dyno Therapeutics shipment leave?"
 
@@ -64,7 +65,9 @@ def test_unsure_or_already_scoped_chats_are_left_alone(app, db, cfg, folder, new
     c, h = s.cl["admin"]
     jev.answer = {"type": "choice", "choice": "calls", "confidence": 0.55, "probabilities": {"calls": 0.55, "pods": 0.45}}
     cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
-    assert "scoped" not in ask(c, h, cid)
+    ev = ask(c, h, cid)
+    assert "scoped" not in ev  # unsure: the likeliest to tap, nothing set
+    assert ev["suggested"] == [{"namespaces": [{"name": "calls", "new": False}, {"name": "pods", "new": False}]}]
     assert not c.get(f"/api/v1/chats/{cid}", headers=h).json().get("scope")
     n = len(jev.seen)
     cid = c.post("/api/v1/chats", headers=h, json={"scope": {"namespaces": ["pods"]}}).json()["id"]
@@ -73,3 +76,21 @@ def test_unsure_or_already_scoped_chats_are_left_alone(app, db, cfg, folder, new
     v, hv = s.cl["viewer"]
     vid = v.post("/api/v1/chats", headers=hv, json={}).json()["id"]
     assert "scoped" not in ask(v, hv, vid) and len(jev.seen) == n
+
+
+def test_when_nothing_fits_admins_get_new_namespaces_to_pick(app, db, cfg, folder, new_client, jev, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["admin"]
+    jev.answer = {"type": "choice", "choice": "none of these", "confidence": 0.9, "probabilities": {"none of these": 0.9}}
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = ask(c, h, cid, "Where should we go on holiday this summer?")
+    # the model's names, made valid, without ones that exist; nothing is created until one is picked
+    assert ev["suggested"] == [{"namespaces": [{"name": "travel", "new": True}, {"name": "family-trips", "new": True}]}]
+    assert "travel" not in [n["name"] for n in c.get("/api/v1/namespaces", headers=h).json()]
+    assert "scoped" not in ev and not c.get(f"/api/v1/chats/{cid}", headers=h).json().get("scope")
+    # someone who can't create namespaces isn't offered new ones
+    make_user(db, "two@x.io", "two password 1", roles={"pods": "viewer", "calls": "viewer"})
+    t = new_client()
+    ht = login(t, "two@x.io", "two password 1")
+    tid = t.post("/api/v1/chats", headers=ht, json={}).json()["id"]
+    assert "suggested" not in ask(t, ht, tid, "Where should we go on holiday this summer?")

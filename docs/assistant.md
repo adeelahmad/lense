@@ -30,8 +30,11 @@ When a conversation has no scope (the assistant home starts it over everything),
 decision model (`decide.choose`, see the decisions settings) with the namespaces the person can read, a line about each
 (its description and recent titles) and how many matching excerpts each holds. A choice at or above
 `decisions.act_above` narrows the conversation to that namespace before it answers: the stream starts with a `scoped`
-event and the answer records a `choose_namespace` step. Unsure, or with only one namespace to read, nothing changes. A
-scope the person set, setup conversations and later questions are never narrowed this way.
+event and the answer records a `choose_namespace` step. When it isn't sure, a `suggested` event offers the likeliest
+namespaces; when "none of these" wins, admins are also offered a couple of new names from the language model. The app
+shows them as chips above the composer (in voice mode too, where saying a name picks it); a new one is created only
+when picked, and nothing changes if none is. A scope the person set, setup conversations and later questions are
+never narrowed this way.
 
 ### Assistant mode and voice
 
