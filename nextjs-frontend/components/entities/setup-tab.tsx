@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { Entities } from "@/app/openapi-client";
 import type { EntitySetup, EntityTypeInfo } from "@/app/openapi-client/types.gen";
-import { keptTypes } from "@/components/entities/model";
+import { keptTypes, type Mode, MODES, typesWording } from "@/components/entities/model";
 import { useCollectionTree } from "@/components/library/use-collections";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,9 @@ import { Panel } from "@/components/ui/panel";
 import { SkeletonRows } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
-import { shortDate } from "@/lib/format";
+import { plural, shortDate } from "@/lib/format";
 import { needRole } from "@/lib/hooks/session";
+import { cn } from "@/lib/utils";
 
 export const setupKey = (ns: string) => ["entity-setup", ns] as const;
 
@@ -44,19 +45,35 @@ function SetupForm({
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
+  const [mode, setMode] = useState<Mode>((setup.mode as Mode) ?? "self");
   const [kept, setKept] = useState<string[]>(setup.types ?? []);
   const [description, setDescription] = useState(setup.description ?? "");
   useEffect(() => {
+    setMode((setup.mode as Mode) ?? "self");
     setKept(setup.types ?? []);
     setDescription(setup.description ?? "");
   }, [setup]);
+  const apply = useMutation({
+    mutationFn: () => data(Entities.applyEntitySetup({ client, path: { name: ns }, body: { collection } })),
+    onSuccess: (r) =>
+      toast({
+        title: r.recordings
+          ? `Analysing ${plural(r.recordings, "recording")} again`
+          : "No analysed recordings to update",
+        body: r.recordings ? "Their entities follow this setup once the jobs finish (Activity)." : undefined,
+        tone: "green",
+      }),
+    onError: (e) =>
+      toast({ title: "Couldn’t start it", body: e instanceof ApiError ? e.message : "Please try again.", tone: "red" }),
+  });
+  const words = typesWording(mode);
   const save = useMutation({
     mutationFn: () =>
       data(
         Entities.saveEntitySetup({
           client,
           path: { name: ns },
-          body: { collection, mode: "self", types: kept, description, matching: "rules" },
+          body: { collection, mode, types: kept, description, matching: "rules" },
         }),
       ),
     onSuccess: () => {
@@ -78,27 +95,59 @@ function SetupForm({
       }}
     >
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-1.5 text-[13px] font-bold text-fg-strong">Types to keep</legend>
+        <legend className="mb-1.5 text-[13px] font-bold text-fg-strong">How entities are organised</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {MODES.map((m) => (
+            <label
+              key={m.value}
+              className={cn(
+                "flex cursor-pointer gap-2.5 rounded-md border p-3 transition-colors duration-fast",
+                mode === m.value ? "border-blue bg-blue-surface" : "border-border hover:bg-surface",
+                !can && "cursor-not-allowed opacity-70",
+              )}
+            >
+              <input
+                type="radio"
+                name={`mode-${collection ?? "ns"}`}
+                value={m.value}
+                checked={mode === m.value}
+                disabled={!can}
+                onChange={() => setMode(m.value)}
+                className="mt-0.5 accent-[var(--aladdin-blue)]"
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[14px] font-bold text-fg">{m.label}</span>
+                <span className="text-[12.5px] leading-snug text-fg-secondary">{m.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {mode === "fixed" && (
+          <p className="m-0 text-[12.5px] text-fg-secondary">
+            Define the entities on the Entities tab with “Add entity”. Unknown and Unlabeled are always there.
+          </p>
+        )}
+      </fieldset>
+      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend className="mb-1.5 text-[13px] font-bold text-fg-strong">{words.legend}</legend>
         <Checkbox
           checked={all}
           disabled={!can}
-          label="Every type"
+          label={words.all}
           onCheckedChange={(v) => setKept(v ? [] : types.filter((t) => !t.quiet).map((t) => t.type))}
         />
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 pl-7 sm:grid-cols-3">
           {types.map((t) => (
             <Checkbox
               key={t.type}
-              checked={all || kept.includes(t.type)}
+              checked={all ? !(mode === "fixed" && t.quiet) : kept.includes(t.type)}
               disabled={!can || all}
               label={t.label}
               onCheckedChange={(v) => setKept((k) => (v ? [...k, t.type] : k.filter((x) => x !== t.type)))}
             />
           ))}
         </div>
-        <p className="m-0 text-[12.5px] text-fg-muted">
-          Names of other types are left out when a recording is analysed.
-        </p>
+        <p className="m-0 text-[12.5px] text-fg-muted">{words.hint}</p>
       </fieldset>
       <Field
         label="What this is about"
@@ -131,6 +180,18 @@ function SetupForm({
         {onDone && (
           <Button type="button" size="sm" variant="ghost" onClick={onDone}>
             Cancel
+          </Button>
+        )}
+        {setup.updated_at && !onDone && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={!can || apply.isPending}
+            disabledReason={!can ? needRole("editor", ns) : undefined}
+            onClick={() => apply.mutate()}
+          >
+            Apply to analysed recordings
           </Button>
         )}
         {setup.updated_at && (
@@ -175,10 +236,7 @@ export function SetupTab({ ns }: { ns: string }) {
 
   return (
     <div className="flex max-w-[860px] flex-col gap-4">
-      <Panel
-        title={`${ns}`}
-        subtitle="Every name the extractors find becomes an entity; people merge, rename and describe them."
-      >
+      <Panel title={ns} subtitle="The namespace’s setup. Recordings analysed from now on follow it.">
         <SetupForm ns={ns} setup={v.namespace} types={types} collection={null} />
       </Panel>
       <Panel
@@ -259,7 +317,7 @@ export function SetupTab({ ns }: { ns: string }) {
                 <SetupForm ns={ns} setup={c} types={types} collection={c.collection!} onDone={() => setEditing(null)} />
               ) : (
                 <p className="m-0 text-[13px] text-fg-secondary">
-                  {keptTypes(c.types ?? [], types)}
+                  {MODES.find((m) => m.value === c.mode)?.label ?? c.mode} · {keptTypes(c.types ?? [], types)}
                   {c.description ? ` · ${c.description}` : ""}
                 </p>
               )}

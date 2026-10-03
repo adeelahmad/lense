@@ -28,7 +28,7 @@ TYPES = {
     "NUMBER": "Number",
 }
 QUIET = ("DATE", "NUMBER")  # extracted, but hidden unless a filter asks for them
-FIELDS = "record::id(id) AS id, space, key, name, type, description, hidden, hidden_reason"
+FIELDS = "record::id(id) AS id, space, key, name, type, description, hidden, hidden_reason, defined, builtin, collection"
 DESCRIPTION_MAX = 2000
 
 
@@ -50,6 +50,11 @@ def _entity(db, eid):
     if not e:
         raise KeyError(eid)
     return e
+
+
+def _not_builtin(e, what):
+    if e.get("builtin"):
+        raise ValueError(f"{e['name']} is always there: it can't be {what}.")
 
 
 def aliases(db, eids):
@@ -118,7 +123,11 @@ def list_entities(
     rows = []
     for e in ents:
         s = st.get(e["id"])
-        if not s or s["mentions"] < max(1, min_mentions) or ((speaker or recording) and not s["hit"]):
+        # defined entities (and Unknown, Unlabeled) are listed before anything is said of them
+        listed = (e.get("defined") or e.get("builtin")) and within is None and not (speaker or recording) and min_mentions <= 1
+        if not s and listed:
+            s = {"mentions": 0, "recordings": set(), "speakers": Counter(), "dates": [], "hit": False}
+        elif not s or s["mentions"] < max(1, min_mentions) or ((speaker or recording) and not s["hit"]):
             continue
         if bool(e.get("hidden")) != bool(hidden) or (types and e["type"] not in types) or (not types and e["type"] in QUIET):
             continue
@@ -153,6 +162,9 @@ def list_entities(
                 "rising": sum(d >= recent for d in ds) - sum(before <= d < recent for d in ds),
                 "match": round(score, 3),
                 "hidden": bool(e.get("hidden")),
+                "defined": bool(e.get("defined")),
+                "builtin": e.get("builtin"),
+                "collection": e.get("collection"),
             }
         )
     spk_names = render.speaker_names(db, [sid for r in rows for sid, _ in r["top_speakers"]])
@@ -224,6 +236,9 @@ def detail(db, eid, spaces):
         "links": links,
         "same_name_elsewhere": same_name,
         "hidden": bool(e.get("hidden")),
+        "defined": bool(e.get("defined")),
+        "builtin": e.get("builtin"),
+        "collection": e.get("collection"),
     }
 
 
@@ -595,7 +610,7 @@ def suggestions(db, spaces, eid=None, limit=50):
         [
             e
             for e in db.rows(f"SELECT {FIELDS} FROM entity WHERE space IN $s", s=sorted(spaces))
-            if not e.get("hidden") and e["type"] not in QUIET
+            if not e.get("hidden") and not e.get("builtin") and e["type"] not in QUIET
         ]
         if spaces
         else []
@@ -651,6 +666,8 @@ def _check_type(db, space, typ):
 
 
 def retype(db, eids, typ):
+    for e in db.rows(f"SELECT {FIELDS} FROM entity WHERE id IN $ids", ids=[R("entity", int(i)) for i in eids]):
+        _not_builtin(e, "retyped")
     for sp in {e["space"] for e in db.rows("SELECT space FROM entity WHERE id IN $ids", ids=[R("entity", int(i)) for i in eids])}:
         _check_type(db, sp, typ)
     db.q("UPDATE $ids SET type = $t", ids=[R("entity", int(i)) for i in eids], t=typ)
@@ -666,7 +683,7 @@ def describe(db, eid, description):
 
 
 def hide(db, eid, hidden=True, reason=None):
-    _entity(db, eid)
+    _not_builtin(_entity(db, eid), "hidden")
     db.q(
         "UPDATE $r SET hidden = $h, hidden_reason = $why", r=R("entity", int(eid)), h=bool(hidden), why=(reason or None) if hidden else None
     )
@@ -680,6 +697,7 @@ def _add_alias(db, space, key, eid):
 def rename(db, eid, name, keep_alias=True, correct=False, dry_run=False):
     """Rename; optionally rewrite the words in the transcripts too. dry_run shows every line that would change."""
     e = _entity(db, eid)
+    _not_builtin(e, "renamed")
     new = re.sub(r"\s+", " ", (name or "")).strip()
     if not new:
         raise ValueError("give the entity a name")
@@ -738,11 +756,13 @@ def rename(db, eid, name, keep_alias=True, correct=False, dry_run=False):
 def merge(db, keep, others, user=None):
     """Fold other entities in the same namespace into one. Returns a merge id for undo."""
     k = _entity(db, keep)
+    _not_builtin(k, "merged")
     snaps = []
     for o in others:
         o = _entity(db, o)
         if o["id"] == k["id"]:
             continue
+        _not_builtin(o, "merged")
         if o["space"] != k["space"]:
             raise ValueError("entities in different namespaces are linked, not merged")
         ms = db.rows("SELECT record::id(in) AS segment, recording, space, speaker, text FROM mentions WHERE entity = $e", e=o["id"])
@@ -873,17 +893,18 @@ def move_mention(db, mention, target=None, new_name=None, new_type="TERM", remov
     if not remove:
         if new_name:
             nk = analyze.ent_key(new_name)
-            row = db.one("SELECT record::id(id) AS id FROM entity WHERE ekey = $k", k=f"{m['space']}:{nk}")
+            row = db.one("SELECT record::id(id) AS id, builtin FROM entity WHERE ekey = $k", k=f"{m['space']}:{nk}")
+            rec = db.one("SELECT collection FROM $r", r=R("recording", m["recording"])) or {}
+            fixed = entity_setup.effective(db, m["space"], rec.get("collection"))["mode"] == "fixed"
             if row:
                 tid = row["id"]
             else:
                 _check_type(db, m["space"], new_type)
                 tid = db.next_id("entity")
-                db.q(
-                    "CREATE $r CONTENT $d",
-                    r=R("entity", tid),
-                    d={"space": m["space"], "key": nk, "ekey": f"{m['space']}:{nk}", "name": new_name.strip(), "type": new_type},
-                )
+                d = {"space": m["space"], "key": nk, "ekey": f"{m['space']}:{nk}", "name": new_name.strip(), "type": new_type}
+                db.q("CREATE $r CONTENT $d", r=R("entity", tid), d=d)
+            if fixed and not (row or {}).get("builtin"):  # a name given where the list is fixed joins the list
+                db.q("UPDATE $r SET defined = true", r=R("entity", tid))
         else:
             t = _entity(db, target)
             if t["space"] != m["space"]:
@@ -905,6 +926,17 @@ def move_mention(db, mention, target=None, new_name=None, new_type="TERM", remov
         d={"segment": m["segment"], "key": key, "recording": m["recording"], "space": m["space"], "target": tid},
     )
     return tid
+
+
+def remove(db, eid):
+    """Take a defined entity nobody has mentioned off the list."""
+    e = _entity(db, eid)
+    _not_builtin(e, "deleted")
+    if not e.get("defined"):
+        raise ValueError("Only a defined entity can be deleted; hide this one instead.")
+    if db.rows("SELECT id FROM mentions WHERE entity = $e LIMIT 1", e=e["id"]):
+        raise ValueError(f"{e['name']} is mentioned: merge it into another entity, or hide it.")
+    db.run(["DELETE entity_alias WHERE entity = $e", "DELETE $r"], e=e["id"], r=R("entity", e["id"]))
 
 
 def link(db, a, b, check_spaces=True):

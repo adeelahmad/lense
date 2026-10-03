@@ -8421,7 +8421,7 @@
           "entities"
         ],
         "summary": "Update Entity",
-        "description": "Describe the entity: what it is, in your words.",
+        "description": "Describe the entity (what it is, in your words), say how else it's said, or put it on (or off) the fixed list.",
         "operationId": "update_entity",
         "parameters": [
           {
@@ -8451,6 +8451,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EntityDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Delete Entity",
+        "description": "Take a defined entity that nothing mentions off the fixed list.",
+        "operationId": "delete_entity",
+        "parameters": [
+          {
+            "name": "eid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Eid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -8676,6 +8717,59 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Entities-Rename Entity"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entities": {
+      "post": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Define Entity",
+        "description": "Add an entity to the namespace's fixed list (or one collection's), or put the one of that name on it.",
+        "operationId": "define_entity",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntityDefine"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityDetail"
                 }
               }
             }
@@ -9207,6 +9301,59 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/entity-setup/apply": {
+      "post": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Apply Entity Setup",
+        "description": "Analyse the recordings of the namespace (or of a collection and those inside it) again, so their entities follow\nthe setup as it is now.",
+        "operationId": "apply_entity_setup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntitySetupApply"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitySetupApplied"
                 }
               }
             }
@@ -19194,6 +19341,60 @@
         ],
         "title": "EmbedTestResult"
       },
+      "EntityDefine": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "TERM"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Aliases",
+            "description": "other ways it's said"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "for this collection (and those inside it) only; default: the namespace"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "EntityDefine"
+      },
       "EntityDetail": {
         "properties": {
           "id": {
@@ -19304,6 +19505,36 @@
             "type": "boolean",
             "title": "Hidden",
             "default": false
+          },
+          "defined": {
+            "type": "boolean",
+            "title": "Defined",
+            "description": "on the fixed list people defined",
+            "default": false
+          },
+          "builtin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Builtin",
+            "description": "unknown or unlabeled: one of the two entities that are always there"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a defined entity of one collection (and those inside it)"
           }
         },
         "additionalProperties": true,
@@ -19552,7 +19783,7 @@
           "mode": {
             "type": "string",
             "title": "Mode",
-            "description": "self: every name found becomes an entity, and people curate them"
+            "description": "self: every name found becomes an entity, and people curate them; fixed: names found are mapped onto the entities people defined, or onto Unlabeled (it belongs here) or Unknown"
           },
           "types": {
             "items": {
@@ -19633,6 +19864,40 @@
         ],
         "title": "EntitySetup"
       },
+      "EntitySetupApplied": {
+        "properties": {
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "description": "how many recordings are analysed again"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recordings"
+        ],
+        "title": "EntitySetupApplied"
+      },
+      "EntitySetupApply": {
+        "properties": {
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "only this collection's recordings (and those inside it)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EntitySetupApply"
+      },
       "EntitySetupSave": {
         "properties": {
           "collection": {
@@ -19649,7 +19914,10 @@
           },
           "mode": {
             "type": "string",
-            "const": "self",
+            "enum": [
+              "self",
+              "fixed"
+            ],
             "title": "Mode",
             "default": "self"
           },
@@ -19888,6 +20156,34 @@
             ],
             "title": "Description",
             "description": "what the entity is; empty clears it"
+          },
+          "aliases": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aliases",
+            "description": "the other ways it's said (these replace the ones it has)"
+          },
+          "defined": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defined",
+            "description": "on the fixed list of entities (namespaces in the fixed mode map names onto it)"
           }
         },
         "additionalProperties": false,

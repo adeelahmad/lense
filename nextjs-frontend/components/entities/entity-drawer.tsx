@@ -11,7 +11,8 @@ import { recordingHref } from "@/components/search/links";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/dialog";
-import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { splitAliases } from "@/components/entities/model";
+import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
@@ -55,10 +56,12 @@ export function EntityDrawer({
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [aliases, setAliases] = useState("");
   useEffect(() => {
     if (e.data) {
       setName(e.data.name);
       setDescription(e.data.description ?? "");
+      setAliases((e.data.aliases ?? []).join(", "));
     }
   }, [e.data]);
 
@@ -74,8 +77,10 @@ export function EntityDrawer({
       const d = e.data!;
       if (name.trim() && name.trim() !== d.name)
         await data(Entities.renameEntity({ client, path: { eid: id }, body: { name: name.trim() } }));
-      if (description.trim() !== (d.description ?? ""))
-        await data(Entities.updateEntity({ client, path: { eid: id }, body: { description } }));
+      const body: { description?: string; aliases?: string[] } = {};
+      if (description.trim() !== (d.description ?? "")) body.description = description;
+      if (aliasesChanged) body.aliases = splitAliases(aliases);
+      if (Object.keys(body).length) await data(Entities.updateEntity({ client, path: { eid: id }, body }));
     },
     onSuccess: () => {
       refresh();
@@ -88,6 +93,20 @@ export function EntityDrawer({
     onSuccess: refresh,
     onError: fail("Couldn’t change the type"),
   });
+  const listed = useMutation({
+    mutationFn: (defined: boolean) => data(Entities.updateEntity({ client, path: { eid: id }, body: { defined } })),
+    onSuccess: refresh,
+    onError: fail("Couldn’t change it"),
+  });
+  const remove = useMutation({
+    mutationFn: () => data(Entities.deleteEntity({ client, path: { eid: id } })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["entities"] });
+      toast({ title: "Taken off the list", tone: "green" });
+      onClose();
+    },
+    onError: fail("Couldn’t delete it"),
+  });
   const hide = useMutation({
     mutationFn: (hidden: boolean) => data(Entities.hideEntity({ client, path: { eid: id }, body: { hidden } })),
     onSuccess: (_, hidden) => {
@@ -98,7 +117,10 @@ export function EntityDrawer({
   });
 
   const d = e.data;
-  const dirty = Boolean(d) && (name.trim() !== d!.name || description.trim() !== (d!.description ?? ""));
+  const aliasesChanged = Boolean(d) && splitAliases(aliases).join("\n") !== (d!.aliases ?? []).join("\n");
+  const dirty =
+    Boolean(d) && (name.trim() !== d!.name || description.trim() !== (d!.description ?? "") || aliasesChanged);
+  const builtin = Boolean(d?.builtin);
   return (
     <Drawer
       open
@@ -142,7 +164,7 @@ export function EntityDrawer({
                   <Input
                     id={ids.id}
                     value={name}
-                    disabled={!canEdit}
+                    disabled={!canEdit || builtin}
                     maxLength={200}
                     onChange={(ev) => setName(ev.target.value)}
                   />
@@ -153,7 +175,7 @@ export function EntityDrawer({
                   <Select
                     id={ids.id}
                     value={d.type}
-                    disabled={!canEdit || retype.isPending}
+                    disabled={!canEdit || builtin || retype.isPending}
                     onChange={(ev) => retype.mutate(ev.target.value)}
                     options={[
                       ...types.map((t) => ({ value: t.type, label: t.label })),
@@ -180,8 +202,26 @@ export function EntityDrawer({
                   />
                 )}
               </Field>
-              {(d.aliases ?? []).length > 0 && (
-                <p className="m-0 text-[12.5px] text-fg-secondary">Also said as: {(d.aliases ?? []).join(", ")}</p>
+              {!builtin && (
+                <Field label="Also said as" optional hint="Other names and spellings, separated by commas.">
+                  {(ids) => (
+                    <Input
+                      id={ids.id}
+                      aria-describedby={ids.describedBy}
+                      value={aliases}
+                      disabled={!canEdit}
+                      onChange={(ev) => setAliases(ev.target.value)}
+                    />
+                  )}
+                </Field>
+              )}
+              {!builtin && (
+                <Checkbox
+                  checked={Boolean(d.defined)}
+                  disabled={!canEdit || listed.isPending}
+                  label="On the fixed list"
+                  onCheckedChange={(v) => listed.mutate(v)}
+                />
               )}
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -198,12 +238,23 @@ export function EntityDrawer({
                   size="sm"
                   variant="ghost"
                   icon={d.hidden ? <Eye /> : <EyeOff />}
-                  disabled={!canEdit || hide.isPending}
+                  disabled={!canEdit || builtin || hide.isPending}
                   disabledReason={!canEdit ? needRole("editor", ns) : undefined}
                   onClick={() => hide.mutate(!d.hidden)}
                 >
                   {d.hidden ? "Show again" : "Hide"}
                 </Button>
+                {d.defined && !d.mentions && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="danger-ghost"
+                    disabled={!canEdit || remove.isPending}
+                    onClick={() => remove.mutate()}
+                  >
+                    Delete
+                  </Button>
+                )}
               </div>
             </form>
             <section className="flex flex-col gap-2">

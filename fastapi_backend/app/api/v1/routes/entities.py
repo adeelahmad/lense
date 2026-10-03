@@ -11,11 +11,12 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Access, Acl, CurrentUser, Db, Writer, domain_errors
-from app.domain import auth, entity_setup, hierarchy, jobs
+from app.domain import auth, entity_map, entity_setup, hierarchy, jobs
 from app.domain import entities as ents
 from app.domain.store import DB, R
 from app.schemas.common import Ok
 from app.schemas.entities import (
+    EntityDefine,
     EntityDetail,
     EntityHide,
     EntityLinkRequest,
@@ -246,20 +247,57 @@ def rename_entity(eid: int, body: EntityRename, request: Request, user: Writer, 
 
 @router.patch("/entities/{eid}")
 def update_entity(eid: int, body: EntityUpdate, request: Request, user: Writer, acl: Acl, db: Db) -> EntityDetail:
-    """Describe the entity: what it is, in your words."""
-    _entity_space(db, acl, eid, "editor")
+    """Describe the entity (what it is, in your words), say how else it's said, or put it on (or off) the fixed list."""
+    sid = _entity_space(db, acl, eid, "editor")
+    changes = body.model_dump(exclude_unset=True)
     with domain_errors():
-        ents.describe(db, eid, body.description)
-    auth.audit(db, user.as_audit(), "entity.describe", f"entity:{eid}", {"description": body.description})
+        if "description" in changes:
+            ents.describe(db, eid, body.description)
+        if body.aliases is not None:
+            entity_map.set_aliases(db, eid, body.aliases)
+        if body.defined is not None:
+            if db.one("SELECT builtin FROM $r", r=R("entity", eid)).get("builtin"):
+                raise ValueError("Unknown and Unlabeled are always there.")
+            db.q("UPDATE $r SET defined = $d", r=R("entity", eid), d=body.defined)
+            if body.defined:
+                entity_map.builtins(db, sid)
+    auth.audit(db, user.as_audit(), "entity.update", f"entity:{eid}", changes)
     _changed(request)
     return EntityDetail.model_validate(ents.detail(db, eid, set(acl.roles)))
+
+
+@router.delete("/entities/{eid}")
+def delete_entity(eid: int, request: Request, user: Writer, acl: Acl, db: Db) -> Ok:
+    """Take a defined entity that nothing mentions off the fixed list."""
+    _entity_space(db, acl, eid, "editor")
+    with domain_errors():
+        ents.remove(db, eid)
+    auth.audit(db, user.as_audit(), "entity.delete", f"entity:{eid}", None)
+    _changed(request)
+    return Ok()
+
+
+@router.post("/namespaces/{name}/entities", status_code=201)
+def define_entity(name: str, body: EntityDefine, request: Request, user: Writer, acl: Acl, db: Db) -> EntityDetail:
+    """Add an entity to the namespace's fixed list (or one collection's), or put the one of that name on it."""
+    sid = acl.nsid(name)
+    if body.collection is not None:
+        acl.visible(sid)
+    if not (auth.allows(acl.roles, sid, "editor") or (body.collection is not None and acl.rank_in(sid, body.collection) >= 2)):
+        raise HTTPException(403, "needs editor access to the namespace" + ("" if body.collection is None else ", or to this collection"))
+    with domain_errors():
+        eid = entity_map.define(db, sid, body.name, body.type, body.description, body.aliases, body.collection)
+    auth.audit(db, user.as_audit(), "entity.define", f"entity:{eid}", body.model_dump())
+    _changed(request)
+    return EntityDetail.model_validate(ents.detail(db, eid, set(acl.roles) | {sid}))
 
 
 @router.post("/entities/{eid}/hide")
 def hide_entity(eid: int, request: Request, user: Writer, acl: Acl, db: Db, body: EntityHide | None = None) -> Ok:
     body = body or EntityHide()
     _entity_space(db, acl, eid, "editor")
-    ents.hide(db, eid, body.hidden, body.reason)
+    with domain_errors():
+        ents.hide(db, eid, body.hidden, body.reason)
     action = "entity.hide" if body.hidden else "entity.restore"
     auth.audit(db, user.as_audit(), action, f"entity:{eid}", {"reason": body.reason})
     _changed(request)

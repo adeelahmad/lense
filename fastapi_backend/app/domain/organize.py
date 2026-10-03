@@ -137,7 +137,7 @@ def candidates(db, spaces, c):
     ents = [
         e
         for e in db.rows(f"SELECT {entities.FIELDS} FROM entity WHERE space IN $s", s=sorted(spaces))
-        if not e.get("hidden") and e["type"] not in entities.QUIET and (not types or e["type"] in types)
+        if not e.get("hidden") and not e.get("builtin") and e["type"] not in entities.QUIET and (not types or e["type"] in types)
     ]
     counts = Counter(db.values("SELECT VALUE entity FROM mentions WHERE space IN $s", s=sorted(spaces)))
     ents = [e for e in ents if counts[e["id"]]]

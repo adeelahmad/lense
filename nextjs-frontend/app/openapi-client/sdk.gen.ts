@@ -23,6 +23,9 @@ import type {
   AnswerData,
   AnswerErrors,
   AnswerResponses,
+  ApplyEntitySetupData,
+  ApplyEntitySetupErrors,
+  ApplyEntitySetupResponses,
   ApproveAccessRequestData,
   ApproveAccessRequestErrors,
   ApproveAccessRequestResponses,
@@ -154,6 +157,9 @@ import type {
   DeclineAccessRequestData,
   DeclineAccessRequestErrors,
   DeclineAccessRequestResponses,
+  DefineEntityData,
+  DefineEntityErrors,
+  DefineEntityResponses,
   DeleteChatData,
   DeleteChatErrors,
   DeleteChatResponses,
@@ -166,6 +172,9 @@ import type {
   DeleteContentTypeData,
   DeleteContentTypeErrors,
   DeleteContentTypeResponses,
+  DeleteEntityData,
+  DeleteEntityErrors,
+  DeleteEntityResponses,
   DeleteEntityTypeData,
   DeleteEntityTypeErrors,
   DeleteEntityTypeResponses,
@@ -3575,6 +3584,20 @@ export class Entities {
   }
 
   /**
+   * Delete Entity
+   *
+   * Take a defined entity that nothing mentions off the fixed list.
+   */
+  public static deleteEntity<ThrowOnError extends boolean = false>(
+    options: Options<DeleteEntityData, ThrowOnError>,
+  ): RequestResult<DeleteEntityResponses, DeleteEntityErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteEntityResponses, DeleteEntityErrors, ThrowOnError>({
+      url: "/api/v1/entities/{eid}",
+      ...options,
+    });
+  }
+
+  /**
    * Get Entity
    */
   public static getEntity<ThrowOnError extends boolean = false>(
@@ -3589,7 +3612,7 @@ export class Entities {
   /**
    * Update Entity
    *
-   * Describe the entity: what it is, in your words.
+   * Describe the entity (what it is, in your words), say how else it's said, or put it on (or off) the fixed list.
    */
   public static updateEntity<ThrowOnError extends boolean = false>(
     options: Options<UpdateEntityData, ThrowOnError>,
@@ -3642,6 +3665,24 @@ export class Entities {
   ): RequestResult<RenameEntityResponses, RenameEntityErrors, ThrowOnError> {
     return (options.client ?? client).post<RenameEntityResponses, RenameEntityErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}/rename",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Define Entity
+   *
+   * Add an entity to the namespace's fixed list (or one collection's), or put the one of that name on it.
+   */
+  public static defineEntity<ThrowOnError extends boolean = false>(
+    options: Options<DefineEntityData, ThrowOnError>,
+  ): RequestResult<DefineEntityResponses, DefineEntityErrors, ThrowOnError> {
+    return (options.client ?? client).post<DefineEntityResponses, DefineEntityErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entities",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -3785,6 +3826,25 @@ export class Entities {
     return (options.client ?? client).delete<ClearEntitySetupResponses, ClearEntitySetupErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/entity-setup/collections/{cid}",
       ...options,
+    });
+  }
+
+  /**
+   * Apply Entity Setup
+   *
+   * Analyse the recordings of the namespace (or of a collection and those inside it) again, so their entities follow
+   * the setup as it is now.
+   */
+  public static applyEntitySetup<ThrowOnError extends boolean = false>(
+    options: Options<ApplyEntitySetupData, ThrowOnError>,
+  ): RequestResult<ApplyEntitySetupResponses, ApplyEntitySetupErrors, ThrowOnError> {
+    return (options.client ?? client).post<ApplyEntitySetupResponses, ApplyEntitySetupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-setup/apply",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

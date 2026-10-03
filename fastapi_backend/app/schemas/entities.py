@@ -47,6 +47,9 @@ class EntityDetail(ResponseModel):
     links: list[EntityLink] = []
     same_name_elsewhere: list[dict[str, Any]] = []
     hidden: bool = False
+    defined: bool = Field(False, description="on the fixed list people defined")
+    builtin: str | None = Field(None, description="unknown or unlabeled: one of the two entities that are always there")
+    collection: int | None = Field(None, description="a defined entity of one collection (and those inside it)")
 
 
 class MentionList(ResponseModel):
@@ -82,6 +85,16 @@ class EntityRename(RequestModel):
 
 class EntityUpdate(RequestModel):
     description: str | None = Field(None, description="what the entity is; empty clears it")
+    aliases: list[str] | None = Field(None, max_length=100, description="the other ways it's said (these replace the ones it has)")
+    defined: bool | None = Field(None, description="on the fixed list of entities (namespaces in the fixed mode map names onto it)")
+
+
+class EntityDefine(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    type: str = "TERM"
+    description: str | None = Field(None, max_length=2000)
+    aliases: list[str] = Field(default_factory=list, max_length=100, description="other ways it's said")
+    collection: int | None = Field(None, description="for this collection (and those inside it) only; default: the namespace")
 
 
 class EntityHide(RequestModel):

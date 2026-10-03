@@ -12,12 +12,14 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import Access, Acl, CurrentUser, Db, Writer, domain_errors
-from app.domain import auth, hierarchy
+from app.domain import auth, hierarchy, jobs
 from app.domain import entity_setup as setup
 from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.entity_setup import (
     EntitySetup,
+    EntitySetupApplied,
+    EntitySetupApply,
     EntitySetupSave,
     EntitySetupView,
     EntityTypeCreate,
@@ -103,6 +105,29 @@ def clear_entity_setup(name: str, cid: int, user: Writer, acl: Acl, db: Db) -> O
     setup.clear(db, sid, cid)
     auth.audit(db, user.as_audit(), "entity_setup.clear", f"collection:{cid}", None)
     return Ok()
+
+
+@router.post("/namespaces/{name}/entity-setup/apply")
+def apply_entity_setup(name: str, body: EntitySetupApply, user: Writer, acl: Acl, db: Db) -> EntitySetupApplied:
+    """Analyse the recordings of the namespace (or of a collection and those inside it) again, so their entities follow
+    the setup as it is now."""
+    sid = acl.nsid(name)
+    if body.collection is not None:
+        acl.visible(sid)
+    _need(acl, sid, body.collection)
+    with domain_errors():
+        if body.collection is not None:
+            if hierarchy.get(db, body.collection)["space"] != sid:
+                raise KeyError(body.collection)
+            inside = hierarchy.recordings_in(db, hierarchy.subtree(db, sid, body.collection))
+        else:
+            inside = None
+    analysed = db.values("SELECT VALUE record::id(id) FROM recording WHERE space = $s AND status = 'analyzed'", s=sid)
+    rids = sorted(r for r in analysed if inside is None or r in inside)  # not ones still on their way
+    for rid in rids:
+        jobs.add_steps(db, rid, ["analyze", "embed", "report"], by=user.email)
+    auth.audit(db, user.as_audit(), "entity_setup.apply", f"namespace:{name}", {"collection": body.collection, "recordings": len(rids)})
+    return EntitySetupApplied(recordings=len(rids))
 
 
 @router.post("/namespaces/{name}/entity-types", status_code=201)
