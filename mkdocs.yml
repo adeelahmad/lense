@@ -76,6 +76,7 @@ nav:
   - Telemetry: telemetry.md
   - IIIF: iiif.md
   - Linked data (RDF): rdf.md
+  - Fedora repository: fedora.md
   - API: api.md
   - MCP server: mcp.md
   - API work the design needs: backend-gaps.md
