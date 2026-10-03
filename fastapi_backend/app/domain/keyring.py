@@ -568,22 +568,31 @@ def working_copy(db, cfg, path):
     folder = _work_dir(cfg) / key
     out = folder / pathlib.Path(path).name  # its own name: readers go by the extension, and some show the name
     with _WORK:
-        if not out.exists():
-            folder.mkdir(exist_ok=True, mode=0o700)
-            r = Reader(db, cfg, path)
-            fd, tmp = tempfile.mkstemp(dir=folder, prefix=".work-")
-            try:
-                with r, os.fdopen(fd, "wb") as f:
-                    while part := r.read(1024 * 1024):
-                        f.write(part)
-                os.replace(tmp, out)
-            except BaseException:
-                with contextlib.suppress(OSError):
-                    os.unlink(tmp)
-                raise
+        _make(db, cfg, path, folder, out)
+        try:
+            _hold(str(out))
+        except FileNotFoundError:  # another process swept it just now: make it again
+            _make(db, cfg, path, folder, out)
+            _hold(str(out))
         os.utime(folder)
-        _hold(str(out))
     return str(out)
+
+
+def _make(db, cfg, path, folder, out):
+    if out.exists():
+        return
+    folder.mkdir(exist_ok=True, mode=0o700)
+    r = Reader(db, cfg, path)
+    fd, tmp = tempfile.mkstemp(dir=folder, prefix=".work-")
+    try:
+        with r, os.fdopen(fd, "wb") as f:
+            while part := r.read(1024 * 1024):
+                f.write(part)
+        os.replace(tmp, out)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
 
 
 def sweep(cfg, minutes=None):
@@ -597,12 +606,13 @@ def sweep(cfg, minutes=None):
         return 0
     limit = time.time() - 60 * (minutes if minutes is not None else (cfg.get("encryption") or {}).get("work_minutes") or 30)
     gone = 0
-    for p in d.iterdir():
-        with contextlib.suppress(OSError):
-            if p.stat().st_mtime >= limit or any(_in_use(f) for f in p.iterdir() if f.is_file()):
-                continue
-            shutil.rmtree(p)
-            gone += 1
+    with _WORK:  # not while this process is making or taking one
+        for p in d.iterdir():
+            with contextlib.suppress(OSError):
+                if p.stat().st_mtime >= limit or any(_in_use(f) for f in p.iterdir() if f.is_file()):
+                    continue
+                shutil.rmtree(p)
+                gone += 1
     return gone
 
 

@@ -797,7 +797,8 @@ def _resource_of(db, cfg, rid, rec, f, kind):
     dest = pathlib.Path(cfg["data_dir"]) / "uploads" / ns / f"attachment-{int(rid)}-{f['id']}" / f["name"]
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(src, dest)  # an encrypted attachment stays encrypted: its header names the key it needs
-    keyring.protect(db, cfg, rec["space"], dest)
+    if not keyring.is_encrypted(src):
+        keyring.protect(db, cfg, rec["space"], dest)
     st = dest.stat()
     new = db.next_id("recording")
     db.q(
