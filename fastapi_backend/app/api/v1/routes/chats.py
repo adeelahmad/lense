@@ -156,7 +156,8 @@ def _ev(name: str, data: Any) -> str:
     responses={200: {"content": {"text/event-stream": {}}, "description": "server-sent events"}},
 )
 async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> StreamingResponse:
-    """Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
+    """Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
+    reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
     /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id)."""
     c = await run_in_threadpool(_own_chat, db, cid, user)
     q = body.content.strip()[:4000]
@@ -167,10 +168,12 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     if model and not body.model and model not in await run_in_threadpool(chat.model_choices, cfg):
         model = None
     readable = set(acl.roles)
+    page = body.context.model_dump() if body.context else None
+    asked = chat.with_context(q, page)  # the question as the model reads it: with the page it was asked from
 
     def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         past = chat.history(db, cid)
-        chat.add(db, cid, "user", q)
+        chat.add(db, cid, "user", q, context=chat.shared_context(page))
         if not past and c["title"] == "New conversation":
             db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
         return past, chat.retrieve(db, q, readable, c.get("scope"), cfg=cfg)
@@ -194,7 +197,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             box = ai_tools.Toolbox(db, cfg, user.as_audit(), readable, set(acl.editable()), c.get("scope"), cid)
             try:
                 answer = ""
-                for kind, data in chat.tool_answer(cfg, box, q, past, cfg["ai"].get("max_steps") or 6, model):
+                for kind, data in chat.tool_answer(cfg, box, asked, past, cfg["ai"].get("max_steps") or 6, model):
                     if kind == "step":
                         steps.append(data)
                         yield _ev("step", data)
@@ -223,7 +226,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         text, error = "", None
         try:
             if llm.configured(cfg):
-                for piece in llm.stream_chat(cfg, chat.messages_for(q, passages, past), model=model):
+                for piece in llm.stream_chat(cfg, chat.messages_for(asked, passages, past), model=model):
                     text += piece
                     yield _ev("token", {"text": piece})
                     if on.stop_requested():

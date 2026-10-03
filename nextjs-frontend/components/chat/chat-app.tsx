@@ -18,6 +18,7 @@ import { EmptyChat } from "@/components/chat/empty";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
 import { applyEvent, newTurn, savedSteps, type ToolStep, type TurnState } from "@/components/chat/stream";
+import { SharedFrom } from "@/components/page-chat/page-chat";
 import { useRecordingIndex, useSpeakerDirectory } from "@/components/search/data";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
@@ -428,7 +429,12 @@ export function ChatApp() {
               const ex = it.a ? extras[it.a.id] : undefined;
               return (
                 <div key={it.key} className="flex flex-col gap-5">
-                  {it.q && <UserBubble text={it.q.content} />}
+                  {it.q && (
+                    <div className="flex flex-col gap-1.5">
+                      <SharedFrom context={it.q.context} />
+                      <UserBubble text={it.q.content} />
+                    </div>
+                  )}
                   {it.a ? (
                     <Answer
                       chatId={activeId}

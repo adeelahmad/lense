@@ -960,6 +960,10 @@ export type ChatMessage = {
    */
   content: string;
   /**
+   * a question asked from a page: the page, and any highlighted text
+   */
+  context?: SharedContext | null;
+  /**
    * Passages
    */
   passages?: Array<Passage> | null;
@@ -4282,6 +4286,10 @@ export type MessageCreate = {
    */
   content: string;
   /**
+   * asked from a page: the page, its text and any highlighted part
+   */
+  context?: PageContext | null;
+  /**
    * Model
    *
    * answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry
@@ -5413,6 +5421,36 @@ export type Page = {
    */
   label?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * PageContext
+ *
+ * The page a question was asked from (chat on any page): where it is, and what of it the person shared.
+ */
+export type PageContext = {
+  /**
+   * Url
+   *
+   * the page's path in Lens, e.g. /resources/12?t=30
+   */
+  url: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Text
+   *
+   * the page's visible text, when the person shares the page (only the first 12,000 characters are used)
+   */
+  text?: string | null;
+  /**
+   * Selection
+   *
+   * text the person highlighted on it (only the first 4,000 characters are used)
+   */
+  selection?: string | null;
 };
 
 /**
@@ -8628,6 +8666,33 @@ export type ShareSite = {
    * Last At
    */
   last_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SharedContext
+ *
+ * What a question shared from the page it was asked on. The page's text itself isn't kept.
+ */
+export type SharedContext = {
+  /**
+   * Url
+   */
+  url: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Selection
+   */
+  selection?: string | null;
+  /**
+   * Page
+   *
+   * the page's text was shared
+   */
+  page?: boolean;
   [key: string]: unknown;
 };
 
