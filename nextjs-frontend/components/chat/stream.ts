@@ -2,7 +2,7 @@ import type { Estimate, Passage } from "@/app/openapi-client/types.gen";
 
 /**
  * One question's answer as it streams from POST /chats/{id}/messages. The backend sends server-sent events:
- * `step` (a tool the assistant used), `approval` (work waiting for the person), `notice`, `passages` (the numbered
+ * `scoped` (a conversation over everything narrowed to the namespace it's about), `step` (a tool the assistant used), `approval` (work waiting for the person), `notice`, `passages` (the numbered
  * excerpts), `token` (answer text), `error`, `stopped` (Stop was pressed: what came is saved, marked stopped) and
  * `done` (the saved message id).
  */
@@ -26,6 +26,8 @@ export type TurnState = {
   steps: ToolStep[];
   approvals: PendingApproval[];
   notice: string | null;
+  /** The namespaces a conversation over everything was narrowed to, chosen for the person. */
+  scoped: string[] | null;
   /** null until the passages event arrives. */
   passages: Passage[] | null;
   text: string;
@@ -40,6 +42,7 @@ export function newTurn(question: string): TurnState {
     steps: [],
     approvals: [],
     notice: null,
+    scoped: null,
     passages: null,
     text: "",
     error: null,
@@ -88,6 +91,8 @@ export function applyEvent(s: TurnState, ev: { event: string; data: string }): T
           },
         ],
       };
+    case "scoped":
+      return { ...s, scoped: Array.isArray(o.namespaces) ? o.namespaces.map(String) : null };
     case "notice":
       return { ...s, notice: str(o.message) || null };
     case "passages":

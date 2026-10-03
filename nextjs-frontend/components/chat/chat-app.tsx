@@ -168,6 +168,34 @@ export function ChatApp() {
     [activeId, client, qc, toast],
   );
 
+  // A conversation over everything was narrowed to the namespace its question is about: say so, with a way back.
+  const narrowed = useCallback(
+    (cid: number, namespaces: string[]) => {
+      void qc.invalidateQueries({ queryKey: ["chat", cid] });
+      toast({
+        title: `Looking in ${namespaces.join(", ")}`,
+        body: "Picked from your question.",
+        action: {
+          label: "Use everything",
+          onClick: async () => {
+            try {
+              await data(Chats.updateChat({ client, path: { cid }, body: { scope: {} } }));
+              void qc.invalidateQueries({ queryKey: ["chat", cid] });
+              void qc.invalidateQueries({ queryKey: ["chats"] });
+            } catch (e) {
+              toast({
+                title: "Couldn’t change the scope",
+                body: e instanceof Error ? e.message : undefined,
+                tone: "red",
+              });
+            }
+          },
+        },
+      });
+    },
+    [client, qc, toast],
+  );
+
   const run = useCallback(
     async (cid: number, question: string, model?: string, attached: Sent[] = []): Promise<TurnState> => {
       const ac = new AbortController();
@@ -183,8 +211,10 @@ export function ChatApp() {
           accessToken: session?.accessToken,
           signal: ac.signal,
         })) {
+          const was = turn.scoped;
           turn = applyEvent(turn, msg);
           show(turn);
+          if (turn.scoped && !was) narrowed(cid, turn.scoped);
         }
         if (turn.status === "streaming")
           turn = {
@@ -213,7 +243,7 @@ export function ChatApp() {
       setFocusKey(mid != null ? `a${mid}` : null);
       return turn;
     },
-    [qc, session?.accessToken],
+    [qc, session?.accessToken, narrowed],
   );
 
   // Sends now, starting the conversation if there isn't one yet.

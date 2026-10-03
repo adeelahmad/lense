@@ -24,6 +24,15 @@ then.
 
 Retrieval is keyword-based for now; vector search is not built yet.
 
+### Picking the namespace for a conversation over everything
+
+When a conversation has no scope (the assistant home starts it over everything), its first question goes to the
+decision model (`decide.choose`, see the decisions settings) with the namespaces the person can read, a line about each
+(its description and recent titles) and how many matching excerpts each holds. A choice at or above
+`decisions.act_above` narrows the conversation to that namespace before it answers: the stream starts with a `scoped`
+event and the answer records a `choose_namespace` step. Unsure, or with only one namespace to read, nothing changes. A
+scope the person set, setup conversations and later questions are never narrowed this way.
+
 ### Assistant mode and voice
 
 Home opens in **assistant mode** (one field and a big mic, like a search page) when the archive has any content, and

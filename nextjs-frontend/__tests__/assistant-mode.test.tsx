@@ -146,3 +146,12 @@ describe("voice", () => {
     expect(onToggle).toHaveBeenCalled();
   });
 });
+
+describe("a chat over everything", () => {
+  it("hears which namespace it was narrowed to", () => {
+    const { applyEvent, newTurn } = jest.requireActual("@/components/chat/stream");
+    const t = applyEvent(newTurn("q"), { event: "scoped", data: '{"namespaces":["calls"],"confidence":0.9}' });
+    expect(t.scoped).toEqual(["calls"]);
+    expect(newTurn("q").scoped).toBeNull();
+  });
+});

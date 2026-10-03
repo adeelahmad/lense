@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Global chats pick their namespace.** The first question in a conversation over everything (the assistant home)
+  is matched to the namespace it's about by the decision model (or the language model without one), using what each
+  namespace holds and where the question's excerpts are. A sure match narrows the conversation (a `scoped` event and a
+  "Looked in …" step; the app says so, with **Use everything** to undo); otherwise it stays over everything. A scope
+  you chose, and later questions, are left alone.
 - **Assistant mode.** Home opens on a page with one field and a big mic once the archive has something in it (an
   empty archive still opens on the overview; the **Assistant / Overview** switch at the top right remembers your
   pick). Touching or typing in the field turns it into a chat over all your namespaces; the mic starts a voice
