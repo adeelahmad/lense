@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The whole graph fits on the canvas.** Workflow and pipeline canvases showed wide graphs cut off at both edges, or
+  an empty canvas, because the view couldn't zoom out past half size and was fitted only once, before the nodes were
+  measured. The canvas now zooms out as far as it needs to, fits again when the nodes are measured, when nodes are
+  added or removed and when the canvas changes size (until you pan or zoom yourself), and the minimap shows the nodes.
 - **Chat answers from the archive even when the model skips its tools.** Some models answer straight away instead of
   searching, so chat said the archive didn't cover things it did. When the model answers without looking anything up
   and the archive has matching passages, the answer now comes from those passages, with citations, as it does for a
