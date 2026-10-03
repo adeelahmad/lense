@@ -54,6 +54,15 @@ export function scheduleFor(preset: Preset, custom: string): string | null {
   return PRESETS.find((p) => p.value === preset)?.cron ?? null;
 }
 
+/** A name for a routine nobody named, from when it runs and what it does ("Daily: sync sources, run a pipeline"). */
+export function suggestedName(preset: Preset, actions: RoutineAction[]): string {
+  const when = { hourly: "Hourly", daily: "Nightly", weekdays: "Weekday", custom: "Scheduled", manual: "On demand" }[
+    preset
+  ];
+  const what = [...new Set(actions.map((a) => ACTION_LABEL[a.type]))].join(", ").toLowerCase();
+  return what ? `${when}: ${what}` : `${when} routine`;
+}
+
 // ---------- actions ----------
 export const ACTION_LABEL: Record<RoutineAction["type"], string> = {
   sync: "Sync sources",

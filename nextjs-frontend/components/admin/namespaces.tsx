@@ -23,7 +23,7 @@ import { Table, Td, Th, THead, Tr } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
-import { count } from "@/lib/format";
+import { count, nsSlug } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
@@ -161,7 +161,8 @@ function CreateNamespace({ onClose }: { onClose: () => void }) {
             invalid={f.invalid}
             mono
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => setName(nsSlug(e.target.value))}
+            placeholder="customer-calls"
             autoFocus
           />
         )}

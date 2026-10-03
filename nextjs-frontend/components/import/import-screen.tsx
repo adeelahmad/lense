@@ -33,7 +33,7 @@ import { LibraryTabs } from "@/components/library/library-tabs";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/states";
-import { bytes, plural } from "@/lib/format";
+import { bytes, nsSlug, plural } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
@@ -67,7 +67,7 @@ function NamespaceField({
             aria-labelledby="import-ns-label"
             value={value}
             autoFocus
-            onChange={(e) => onChange(e.target.value.toLowerCase())}
+            onChange={(e) => onChange(nsSlug(e.target.value))}
             placeholder="new-namespace"
             invalid={Boolean(problem)}
             mono

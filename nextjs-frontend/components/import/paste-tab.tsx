@@ -88,6 +88,7 @@ export function PasteTab({
           id={id}
           value={text}
           onChange={(e) => setText(e.target.value)}
+          autoFocus
           spellCheck={false}
           placeholder={
             "Interviewer: Thanks for making time after a night shift.\nP09: It’s fine — this is the only hour I’m properly awake."

@@ -448,7 +448,11 @@ export function ConnectionDialog({
             value={form.name}
             maxLength={80}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            onKeyDown={(e) => e.key === "Enter" && form.name.trim() && rename.mutate(form.name.trim())}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              if (form.name.trim()) rename.mutate(form.name.trim());
+            }}
           />
         )}
       </Field>
