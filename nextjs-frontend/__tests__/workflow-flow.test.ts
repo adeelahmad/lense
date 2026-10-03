@@ -6,7 +6,9 @@ import {
   normalize,
   portsOf,
   problems,
+  inScope,
   replaceSelection,
+  starterTool,
   withBody,
   type CustomDef,
   type WfGraph,
@@ -101,5 +103,23 @@ describe("bodies", () => {
     ]);
     expect(problems(out, kind)).toEqual({});
     expect(foldSelection(g, ["in", "p"])).toMatch(/start/);
+  });
+});
+
+describe("tool graphs", () => {
+  it("checks an assistant tool drawn on the canvas", () => {
+    const g = starterTool();
+    expect(problems(g, () => undefined, "tool", "custom")).toEqual({});
+    expect(inScope("ask_model", "tool")).toBe(true);
+    expect(inScope("extract_rules", "tool")).toBe(false);
+    const empty = { ...g, nodes: g.nodes.map((n) => (n.type === "ask_model" ? { ...n, config: { prompt: " " } } : n)) };
+    expect(problems(empty, () => undefined, "tool", "custom").ask).toBe("Write its prompt.");
+    const call = {
+      ...g,
+      nodes: g.nodes.map((n) => (n.type === "ask_model" ? { ...n, type: "call_tool", config: { tool: "X" } } : n)),
+    };
+    expect(problems(call, () => undefined, "tool", "custom").ask).toBe("Name the tool it calls.");
+    const recording = { ...g, nodes: [...g.nodes, { id: "keep", type: "save_entities", config: {} }] };
+    expect(problems(recording, () => undefined, "tool", "custom").keep).toBe("This node isn’t for tools.");
   });
 });

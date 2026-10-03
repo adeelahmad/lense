@@ -25,6 +25,7 @@ import {
   Sparkles,
   Tags,
   TextCursorInput,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 
@@ -40,8 +41,9 @@ export type WfNode = {
  * Old graphs said a condition's yes or no as `branch`; normalize() reads it as the port. */
 export type WfEdge = { source: string; target: string; port?: string; input?: string; branch?: string };
 export type WfGraph = { nodes: WfNode[]; edges: WfEdge[] };
-/** What a workflow runs on: one recording (from a pipeline), or the entity graph of namespaces (from a routine). */
-export type Scope = "recording" | "graph";
+/** What a workflow runs on: one recording (from a pipeline), or the entity graph of namespaces (from a routine); or
+ * an assistant tool drawn on the canvas, from its parameters to what it gives back. */
+export type Scope = "recording" | "graph" | "tool";
 
 type Info = {
   label: string;
@@ -56,6 +58,29 @@ type Info = {
 };
 
 export const NODES: Record<string, Info> = {
+  ask_model: {
+    label: "Ask the model",
+    describe: "Writes a prompt (what came in is {{ input }}) and passes on the model’s reply, as text or JSON",
+    icon: Sparkles,
+    tone: "gold",
+    inputs: 1,
+    outputs: ["out"],
+    takes: "anything",
+    gives: "text or JSON",
+    group: "AI",
+  },
+  call_tool: {
+    label: "Call a tool",
+    describe:
+      "Calls one of the assistant’s tools, with what came in (an object) over the arguments set here; tools that change something ask first",
+    icon: Wrench,
+    tone: "blue",
+    inputs: 1,
+    outputs: ["out"],
+    takes: "arguments",
+    gives: "the tool’s result",
+    group: "AI",
+  },
   input: {
     label: "Recording",
     describe:
@@ -353,6 +378,7 @@ export const PRIMITIVES = [
 const SCOPE_NODES: Record<Scope, string[]> = {
   recording: [...PRIMITIVES, "extract_rules", "extract_llm", "save_entities", "llm", "output", "field"],
   graph: [...PRIMITIVES, "candidates", "llm_judge", "apply_changes"],
+  tool: [...PRIMITIVES, "ask_model", "call_tool"],
 };
 
 /** Whether a node type can be used in a workflow of this scope. */
@@ -413,6 +439,21 @@ export function starter(scope: Scope = "recording"): WfGraph {
   };
 }
 
+/** A new tool's graph: its text goes to the model, and the reply is what it gives back. */
+export function starterTool(): WfGraph {
+  return {
+    nodes: [
+      { id: "text", type: "arg", config: { name: "text" }, x: 0, y: 120 },
+      { id: "ask", type: "ask_model", config: { prompt: "Summarise in one line: {{ input }}" }, x: 300, y: 120 },
+      { id: "out", type: "return", config: { name: "out" }, x: 600, y: 120 },
+    ],
+    edges: [
+      { source: "text", target: "ask" },
+      { source: "ask", target: "out" },
+    ],
+  };
+}
+
 /** A starting body for a loop or group: its inputs on the left, a Return on the right. */
 export function starterBody(type: string): WfGraph {
   const args = LOOP_ARGS[type]?.slice(0, 1) ?? ["in"];
@@ -435,6 +476,8 @@ export function defaultConfig(type: string): Record<string, unknown> {
   if (type === "switch") return { cases: [{ port: "first", op: "exists" }] };
   if (type === "set") return { fields: [{ key: "value", path: "" }] };
   if (type === "template") return { template: "{{ input }}" };
+  if (type === "ask_model") return { prompt: "{{ input }}" };
+  if (type === "call_tool") return { tool: "search_transcripts" };
   if (type === "for_each") return { body: starterBody("for_each") };
   if (type === "repeat") return { body: starterBody("repeat"), max_rounds: 5 };
   if (type === "group") return { body: starterBody("group") };
@@ -739,6 +782,14 @@ export function nodeSummary(
     case "arg":
     case "return":
       return String(c.name ?? "");
+    case "ask_model":
+      return (
+        String(c.prompt ?? "Write the prompt")
+          .replace(/\s+/g, " ")
+          .slice(0, 60) + (c.json ? " · JSON" : "")
+      );
+    case "call_tool":
+      return c.tool ? String(c.tool) : "Name the tool";
     case "extract_rules": {
       const parts = [c.builtin === false ? "your rules only" : "built-in"];
       const t = (c.terms as string[] | undefined)?.length;
@@ -801,7 +852,13 @@ export function problems(
       if (!out[n.id]) out[n.id] = m;
     };
     if (!SCOPE_NODES[scope].includes(n.type))
-      fail(scope === "graph" ? "This node works on recordings, not the graph." : "This node is for graph workflows.");
+      fail(
+        scope === "tool"
+          ? "This node isn’t for tools."
+          : scope === "graph"
+            ? "This node works on recordings, not the graph."
+            : "This node is for graph workflows.",
+      );
     if (kind === "workflow" && (n.type === "arg" || n.type === "return"))
       fail("Input and Return nodes belong in a body.");
     if (kind !== "workflow" && n.type === "input") fail("A body starts from Input nodes.");
@@ -867,6 +924,9 @@ export function problems(
         fail(`Start each path with an input: ${ins.join(", ")}.`);
       else if (ins.some((x) => !NAME_RX.test(x))) fail("Input names are lowercase letters, digits and _.");
     } else if (n.type === "template" && !String(c.template ?? "").trim()) fail("Write the template.");
+    else if (n.type === "ask_model" && !String(c.prompt ?? "").trim()) fail("Write its prompt.");
+    else if (n.type === "call_tool" && !/^[a-z][a-z0-9_]{1,40}$/.test(String(c.tool ?? "")))
+      fail("Name the tool it calls.");
     else if (n.type === "output" && !KEY_RX.test(String(c.key ?? "")))
       fail("Name it: lowercase letters, digits and _, e.g. meeting_notes.");
     else if (n.type === "field" && c.field == null) fail("Choose a custom field.");

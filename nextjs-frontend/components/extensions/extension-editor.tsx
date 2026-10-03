@@ -136,6 +136,13 @@ export function ExtensionEditor({ id }: { id?: number }) {
         </Link>
       </div>
       <PageHeader
+        actions={
+          e?.kind === "tool" && (e.spec.run as { type?: string } | undefined)?.type === "graph" ? (
+            <Button asChild variant="secondary">
+              <Link href={`/extensions/${e.id}/canvas`}>Open on the canvas</Link>
+            </Button>
+          ) : undefined
+        }
         title={e ? <span className="font-mono">{e.name}</span> : "New extension"}
         meta={
           e ? (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Blocks, MessagesSquare, Mic, Plus } from "lucide-react";
+import { Blocks, MessagesSquare, Mic, Plus, Workflow } from "lucide-react";
 import Link from "next/link";
 
 import { Extensions } from "@/app/openapi-client";
@@ -63,6 +63,12 @@ export function ExtensionsPage() {
               <Link href={`/chat?q=${ask}`}>
                 <MessagesSquare aria-hidden />
                 Ask the assistant
+              </Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/extensions/new/canvas">
+                <Workflow aria-hidden />
+                Draw a tool
               </Link>
             </Button>
             <Button asChild variant="primary">
