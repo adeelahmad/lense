@@ -244,6 +244,9 @@ DEFAULTS = {
         "price_in": None,
         "price_out": None,
     },
+    # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
+    # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
+    "voice": {"input": "auto", "tts_base_url": None, "tts_model": None, "tts_voice": None, "tts_api_key": None},
     # what Lens fetches for itself (components.py): auto fetches what the settings need; also names optional ones
     "components": {"auto": True, "also": []},
     # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it

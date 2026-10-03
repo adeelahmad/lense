@@ -16626,6 +16626,102 @@
           }
         }
       }
+    },
+    "/api/v1/voice": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Voice Info",
+        "description": "Whether the server hears and speaks itself; the web app uses the browser's speech for what it doesn't. Starts\nloading the speech-to-text engine, so the first thing said isn't kept waiting.",
+        "operationId": "voice_info",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice/transcribe": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Transcribe Clip",
+        "description": "What was said in a short clip, sent as the raw request body (webm, ogg, mp4 or wav, up to 25 MB), by the\nserver's speech-to-text engine. Nothing is kept. 409 when the server has no engine (use the browser's).",
+        "operationId": "transcribe_clip",
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Heard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice/speak": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Speak Text",
+        "description": "The text read aloud by the text-to-speech model (Settings \u2192 AI assistant \u2192 Voice). 204 when there's none, or it\nfailed: the browser reads it instead.",
+        "operationId": "speak_text",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "the text read aloud",
+            "content": {
+              "audio/mpeg": {}
+            }
+          },
+          "204": {
+            "description": "the browser reads it"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -23796,6 +23892,48 @@
           "type"
         ],
         "title": "HealthSource"
+      },
+      "Heard": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine"
+          },
+          "seconds": {
+            "type": "number",
+            "title": "Seconds",
+            "description": "how long the clip was",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "Heard"
       },
       "Highlight": {
         "properties": {
@@ -34259,6 +34397,21 @@
         ],
         "title": "SparqlQuery"
       },
+      "SpeakRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 8000,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "SpeakRequest"
+      },
       "Speaker": {
         "properties": {
           "id": {
@@ -36728,6 +36881,39 @@
           "url"
         ],
         "title": "ViewerLink"
+      },
+      "VoiceInfo": {
+        "properties": {
+          "transcribe": {
+            "type": "boolean",
+            "title": "Transcribe",
+            "description": "the server turns speech into text itself (POST /voice/transcribe)"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine",
+            "description": "the speech-to-text engine it uses"
+          },
+          "speak": {
+            "type": "boolean",
+            "title": "Speak",
+            "description": "the server reads answers aloud (POST /voice/speak); else the browser does"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "transcribe",
+          "speak"
+        ],
+        "title": "VoiceInfo"
       },
       "Watch": {
         "properties": {

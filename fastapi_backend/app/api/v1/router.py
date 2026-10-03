@@ -42,6 +42,7 @@ from app.api.v1.routes import (
     users,
     video,
     views,
+    voice,
     workflows,
 )
 
@@ -88,5 +89,6 @@ for module in (
     views,
     notifications,
     routines,
+    voice,
 ):
     api_router.include_router(module.router)
