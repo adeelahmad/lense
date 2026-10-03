@@ -254,7 +254,7 @@ def update_entity(eid: int, body: EntityUpdate, request: Request, user: Writer, 
         if "description" in changes:
             ents.describe(db, eid, body.description)
         if body.aliases is not None:
-            entity_map.set_aliases(db, eid, body.aliases)
+            entity_map.set_aliases(db, eid, body.aliases, user=user.email)
         if body.defined is not None:
             if db.one("SELECT builtin FROM $r", r=R("entity", eid)).get("builtin"):
                 raise ValueError("Unknown and Unlabeled are always there.")
@@ -286,7 +286,7 @@ def define_entity(name: str, body: EntityDefine, request: Request, user: Writer,
     if not (auth.allows(acl.roles, sid, "editor") or (body.collection is not None and acl.rank_in(sid, body.collection) >= 2)):
         raise HTTPException(403, "needs editor access to the namespace" + ("" if body.collection is None else ", or to this collection"))
     with domain_errors():
-        eid = entity_map.define(db, sid, body.name, body.type, body.description, body.aliases, body.collection)
+        eid = entity_map.define(db, sid, body.name, body.type, body.description, body.aliases, body.collection, user=user.email)
     auth.audit(db, user.as_audit(), "entity.define", f"entity:{eid}", body.model_dump())
     _changed(request)
     return EntityDetail.model_validate(ents.detail(db, eid, set(acl.roles) | {sid}))

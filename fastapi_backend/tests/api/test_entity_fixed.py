@@ -104,3 +104,20 @@ def test_a_collection_of_its_own(db, cfg, folder, client):
     assert said["Paris"] == "Unlabeled"  # every type kept (but dates)
     assert "3 March 2025" not in said or said["3 March 2025"] == "Unknown"
     assert entity_map.builtins(db, sid).keys() == {"unknown", "unlabeled"}
+
+
+def test_other_names_fold_in_what_was_found(db, cfg, folder, client):
+    rid, ed, vi = _env(db, cfg, folder, client)
+    base = "/api/v1/namespaces/pods/entities"
+    client.post(base, headers=ed, json={"name": "Dyno Therapeutics", "type": "ORG"})
+    refused = client.post(base, headers=ed, json={"name": "Northwind Labs", "type": "ORG", "aliases": ["Dyno Therapeutics"]})
+    assert refused.status_code == 400  # a defined entity's name
+    nw = [
+        e for e in client.get("/api/v1/entities", params={"q": "Northwind"}, headers=vi).json()["items"] if e["name"] == "Northwind Labs"
+    ][0]
+    assert nw["defined"] is False  # nothing was written
+    made = client.post(base, headers=ed, json={"name": "Northwind Labs", "type": "ORG", "aliases": ["Globex", "NWL"]}).json()
+    assert made["id"] == nw["id"] and made["defined"] and sorted(made["aliases"]) == ["globex", "nwl"]
+    assert _said(db, rid)["Globex"] == "Northwind Labs"  # folded in, as a merge that can be undone
+    merges = client.get("/api/v1/entities/merges", headers=vi).json()
+    assert merges[0]["names"] == ["Globex"]

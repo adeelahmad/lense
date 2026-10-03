@@ -108,7 +108,7 @@ def resolve(db, sid, cid, setup, found):
     return {key: idx.get(key) or special[UNLABELED if belongs(setup, typ) else UNKNOWN] for key, (_, typ) in found.items()}
 
 
-def define(db, sid, name, typ, description=None, aliases=(), collection=None):
+def define(db, sid, name, typ, description=None, aliases=(), collection=None, user=None):
     """Add an entity to the fixed list (or put an existing one of that name on it). Returns its id."""
     name = " ".join(str(name or "").split())
     key = analyze.ent_key(name)
@@ -124,6 +124,9 @@ def define(db, sid, name, typ, description=None, aliases=(), collection=None):
     row = db.one("SELECT record::id(id) AS id, builtin FROM entity WHERE ekey = $k", k=f"{sid}:{key}")
     if row and row.get("builtin"):
         raise ValueError(f"{name} is one of the entities that are always there.")
+    plan = _alias_plan(db, int(sid), key, row["id"] if row else None, aliases)  # check everything before writing
+    if description is not None and len(str(description).strip()) > 2000:
+        raise ValueError("A description can have up to 2000 characters.")
     if row:
         eid = row["id"]
         db.q(
@@ -153,22 +156,37 @@ def define(db, sid, name, typ, description=None, aliases=(), collection=None):
         from . import entities
 
         entities.describe(db, eid, description)
-    set_aliases(db, eid, aliases)
+    set_aliases(db, eid, aliases, user=user, plan=plan)
     builtins(db, sid)
     return eid
 
 
-def set_aliases(db, eid, aliases):
-    """The other ways an entity is said: these replace the ones it has. A way that's another entity's name is refused."""
-    e = db.one("SELECT space, key FROM $r", r=R("entity", int(eid)))
-    keys = [k for k in dict.fromkeys(analyze.ent_key(a) for a in aliases or []) if k and k != e["key"]]
+def _alias_plan(db, space, key, eid, aliases):
+    """The keys to keep as the entity's other names, and the entities found so far under one of them (they fold into
+    it). A name that's a defined entity's, Unknown, Unlabeled or another entity's other name is refused."""
+    keys = [k for k in dict.fromkeys(analyze.ent_key(a) for a in aliases or []) if k and k != key]
+    fold = []
     for k in keys:
-        other = db.one("SELECT record::id(id) AS id, name FROM entity WHERE ekey = $k", k=f"{e['space']}:{k}")
-        if other and other["id"] != int(eid):
-            raise ValueError(f"“{k}” is the name of another entity, {other['name']}: merge them instead.")
-        taken = db.one("SELECT entity FROM $r", r=R("entity_alias", f"{e['space']}:{k}"))
-        if taken and taken["entity"] != int(eid):
-            raise ValueError(f"“{k}” is already another entity's.")
+        other = db.one("SELECT record::id(id) AS id, name, defined, builtin FROM entity WHERE ekey = $k", k=f"{space}:{k}")
+        if other and other["id"] != eid:
+            if other.get("defined") or other.get("builtin"):
+                raise ValueError(f"“{k}” is the name of another entity on the list, {other['name']}.")
+            fold.append(other["id"])
+        taken = db.one("SELECT entity FROM $r", r=R("entity_alias", f"{space}:{k}"))
+        if taken and eid is not None and taken["entity"] != eid and taken["entity"] not in fold:
+            raise ValueError(f"“{k}” is already another entity's other name.")
+    return keys, fold
+
+
+def set_aliases(db, eid, aliases, user=None, plan=None):
+    """The other ways an entity is said: these replace the ones it has. Entities found under one of them so far are
+    merged into it (the merge can be undone)."""
+    e = db.one("SELECT space, key FROM $r", r=R("entity", int(eid)))
+    keys, fold = plan or _alias_plan(db, e["space"], e["key"], int(eid), aliases)
+    if fold:
+        from . import entities
+
+        entities.merge(db, int(eid), fold, user=user)
     db.q("DELETE entity_alias WHERE entity = $e", e=int(eid))
     for k in keys:
         db.q("UPSERT $r CONTENT $d", r=R("entity_alias", f"{e['space']}:{k}"), d={"space": e["space"], "key": k, "entity": int(eid)})
