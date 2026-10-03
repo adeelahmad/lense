@@ -561,6 +561,28 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         <F ctx={ctx} id="ai.max_transcript_reads" />
       </div>
       <div className="flex flex-col gap-3">
+        <span className="text-[13px] font-bold leading-tight text-fg-strong">Voice</span>
+        <p className="text-[13px] leading-normal text-fg-secondary">
+          The mic in chat and on the assistant home. This server turns speech into text with its own transcription
+          engine, so it doesn’t leave the server.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="voice.input" />
+          <F ctx={ctx} id="voice.tts_model" />
+          <F ctx={ctx} id="voice.tts_voice" />
+          <F ctx={ctx} id="voice.tts_base_url" />
+        </div>
+        <SecretSetting
+          key={ctx.view.voice?.updated_at ?? "none"}
+          label="Speech server API key"
+          isSet={Boolean(((ctx.view.voice?.values?.tts_api_key ?? {}) as { set?: boolean }).set)}
+          updatedBy={ctx.view.voice?.updated_by}
+          updatedAt={ctx.view.voice?.updated_at}
+          value={ctx.state("voice.tts_api_key").value as string | undefined}
+          onChange={(x) => ctx.state("voice.tts_api_key").onChange(x)}
+        />
+      </div>
+      <div className="flex flex-col gap-3">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Routine choices</span>
         <p className="text-[13px] leading-normal text-fg-secondary">
           Choices like which namespace a file goes in are made for you. A decision model answers them faster and for far

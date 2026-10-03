@@ -33,9 +33,21 @@ mic opens one in voice mode (`/chat?global=1&voice=1`). Voice mode listens, send
 aloud (without citation marks) and listens again, until the mic is tapped off or nothing is said twice in a row. The
 chat composer's mic turns it on in any conversation.
 
-Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`listen`, `speak`, `stop`). It uses the
-browser's speech recognition and synthesis today (Chrome, Edge and Safari; Chrome sends the audio to its own speech
-service); a server engine replaces its internals without changing the callers.
+Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`listen`, `speak`, `stop`).
+
+- **Hearing.** When the server has a speech-to-text engine (SenseVoice or Whisper, which it fetches for itself, see
+  [Components](components.md)), the browser records the mic and the server turns it into text with that engine:
+  speech stays on the server, and it works in every browser that can record (Firefox too). What's been heard so far
+  shows in the field while talking; a pause of about a second ends the turn, and nothing said for seven seconds ends
+  listening. Without a server engine, or with `voice.input: browser`, the browser's own recognition listens (Chrome,
+  Edge and Safari; Chrome sends the audio to its own speech service).
+- **Speaking.** Answers are read by a speech model when one is set (`voice.tts_model`: any OpenAI-compatible
+  `/audio/speech`, such as Kokoro-FastAPI, LocalAI or OpenAI's `tts-1`, on `voice.tts_base_url` or the LLM provider);
+  else by the browser.
+
+Settings → AI assistant → Voice holds these. The API: `GET /voice` (what the server does; it also starts loading the
+engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `POST /voice/speak` (`{text}`; 204 when
+the browser should read it).
 
 ## The assistant's tools
 

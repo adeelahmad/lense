@@ -785,6 +785,9 @@ import type {
   SetupData,
   SetupErrors,
   SetupResponses,
+  SpeakTextData,
+  SpeakTextErrors,
+  SpeakTextResponses,
   SplitSegmentData,
   SplitSegmentErrors,
   SplitSegmentResponses,
@@ -821,6 +824,8 @@ import type {
   TokenLimitsData,
   TokenLimitsResponses,
   TokenResponses,
+  TranscribeClipData,
+  TranscribeClipResponses,
   TryWorkflowData,
   TryWorkflowErrors,
   TryWorkflowResponses,
@@ -931,6 +936,8 @@ import type {
   UpdateWorkflowResponses,
   UploadLimitsData,
   UploadLimitsResponses,
+  VoiceInfoData,
+  VoiceInfoResponses,
 } from "./types.gen";
 
 export type Options<
@@ -6086,6 +6093,62 @@ export class Routines {
     return (options.client ?? client).post<UndoGraphChangeResponses, UndoGraphChangeErrors, ThrowOnError>({
       url: "/api/v1/graph-changes/{cid}/undo",
       ...options,
+    });
+  }
+}
+
+export class Voice {
+  /**
+   * Voice Info
+   *
+   * Whether the server hears and speaks itself; the web app uses the browser's speech for what it doesn't. Starts
+   * loading the speech-to-text engine, so the first thing said isn't kept waiting.
+   */
+  public static voiceInfo<ThrowOnError extends boolean = false>(
+    options?: Options<VoiceInfoData, ThrowOnError>,
+  ): RequestResult<VoiceInfoResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<VoiceInfoResponses, unknown, ThrowOnError>({
+      url: "/api/v1/voice",
+      ...options,
+    });
+  }
+
+  /**
+   * Transcribe Clip
+   *
+   * What was said in a short clip, sent as the raw request body (webm, ogg, mp4 or wav, up to 25 MB), by the
+   * server's speech-to-text engine. Nothing is kept. 409 when the server has no engine (use the browser's).
+   */
+  public static transcribeClip<ThrowOnError extends boolean = false>(
+    options: Options<TranscribeClipData, ThrowOnError>,
+  ): RequestResult<TranscribeClipResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).post<TranscribeClipResponses, unknown, ThrowOnError>({
+      bodySerializer: null,
+      url: "/api/v1/voice/transcribe",
+      ...options,
+      headers: {
+        "Content-Type": "application/octet-stream",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Speak Text
+   *
+   * The text read aloud by the text-to-speech model (Settings → AI assistant → Voice). 204 when there's none, or it
+   * failed: the browser reads it instead.
+   */
+  public static speakText<ThrowOnError extends boolean = false>(
+    options: Options<SpeakTextData, ThrowOnError>,
+  ): RequestResult<SpeakTextResponses, SpeakTextErrors, ThrowOnError> {
+    return (options.client ?? client).post<SpeakTextResponses, SpeakTextErrors, ThrowOnError>({
+      url: "/api/v1/voice/speak",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

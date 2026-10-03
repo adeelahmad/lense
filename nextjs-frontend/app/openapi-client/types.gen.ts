@@ -3821,6 +3821,31 @@ export type HealthSource = {
 };
 
 /**
+ * Heard
+ */
+export type Heard = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Language
+   */
+  language?: string | null;
+  /**
+   * Engine
+   */
+  engine?: string | null;
+  /**
+   * Seconds
+   *
+   * how long the clip was
+   */
+  seconds?: number;
+  [key: string]: unknown;
+};
+
+/**
  * Highlight
  */
 export type Highlight = {
@@ -9670,6 +9695,16 @@ export type SourceUpdated = {
 };
 
 /**
+ * SpeakRequest
+ */
+export type SpeakRequest = {
+  /**
+   * Text
+   */
+  text: string;
+};
+
+/**
  * Speaker
  */
 export type Speaker = {
@@ -11130,6 +11165,31 @@ export type ViewerLink = {
    * Url
    */
   url: string;
+  [key: string]: unknown;
+};
+
+/**
+ * VoiceInfo
+ */
+export type VoiceInfo = {
+  /**
+   * Transcribe
+   *
+   * the server turns speech into text itself (POST /voice/transcribe)
+   */
+  transcribe: boolean;
+  /**
+   * Engine
+   *
+   * the speech-to-text engine it uses
+   */
+  engine?: string | null;
+  /**
+   * Speak
+   *
+   * the server reads answers aloud (POST /voice/speak); else the browser does
+   */
+  speak: boolean;
   [key: string]: unknown;
 };
 
@@ -21617,3 +21677,64 @@ export type UndoGraphChangeResponses = {
 };
 
 export type UndoGraphChangeResponse = UndoGraphChangeResponses[keyof UndoGraphChangeResponses];
+
+export type VoiceInfoData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/voice";
+};
+
+export type VoiceInfoResponses = {
+  /**
+   * Successful Response
+   */
+  200: VoiceInfo;
+};
+
+export type VoiceInfoResponse = VoiceInfoResponses[keyof VoiceInfoResponses];
+
+export type TranscribeClipData = {
+  body: Blob | File;
+  path?: never;
+  query?: never;
+  url: "/api/v1/voice/transcribe";
+};
+
+export type TranscribeClipResponses = {
+  /**
+   * Successful Response
+   */
+  200: Heard;
+};
+
+export type TranscribeClipResponse = TranscribeClipResponses[keyof TranscribeClipResponses];
+
+export type SpeakTextData = {
+  body: SpeakRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/voice/speak";
+};
+
+export type SpeakTextErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SpeakTextError = SpeakTextErrors[keyof SpeakTextErrors];
+
+export type SpeakTextResponses = {
+  /**
+   * the text read aloud
+   */
+  200: Blob | File;
+  /**
+   * the browser reads it
+   */
+  204: void;
+};
+
+export type SpeakTextResponse = SpeakTextResponses[keyof SpeakTextResponses];
