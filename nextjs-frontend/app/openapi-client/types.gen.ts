@@ -17803,6 +17803,86 @@ export type BulkUpdateMetadataResponses = {
 
 export type BulkUpdateMetadataResponse = BulkUpdateMetadataResponses[keyof BulkUpdateMetadataResponses];
 
+export type GetRecordingRdfData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/resources/{rid}/rdf";
+};
+
+export type GetRecordingRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRecordingRdfError = GetRecordingRdfErrors[keyof GetRecordingRdfErrors];
+
+export type GetRecordingRdfResponses = {
+  /**
+   * RDF
+   */
+  200: string;
+};
+
+export type GetRecordingRdfResponse = GetRecordingRdfResponses[keyof GetRecordingRdfResponses];
+
+export type GetNamespaceRdfData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+    /**
+     * Download
+     *
+     * as a file to save
+     */
+    download?: boolean;
+  };
+  url: "/api/v1/namespaces/{name}/rdf";
+};
+
+export type GetNamespaceRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceRdfError = GetNamespaceRdfErrors[keyof GetNamespaceRdfErrors];
+
+export type GetNamespaceRdfResponses = {
+  /**
+   * RDF
+   */
+  200: string;
+};
+
+export type GetNamespaceRdfResponse = GetNamespaceRdfResponses[keyof GetNamespaceRdfResponses];
+
 export type GetMediaData = {
   body?: never;
   path: {

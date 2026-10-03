@@ -9879,6 +9879,170 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/rdf": {
+      "get": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Get Recording Rdf",
+        "description": "The recording described with Dublin Core, with the entities it mentions.",
+        "operationId": "get_recording_rdf",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)",
+              "title": "Format"
+            },
+            "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RDF",
+            "content": {
+              "text/turtle": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/ld+json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/n-triples": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/rdf+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/rdf": {
+      "get": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Get Namespace Rdf",
+        "description": "Everything in the namespace as one graph: itself, its collections, recordings, entities and speakers.",
+        "operationId": "get_namespace_rdf",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)",
+              "title": "Format"
+            },
+            "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)"
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "as a file to save",
+              "default": false,
+              "title": "Download"
+            },
+            "description": "as a file to save"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RDF",
+            "content": {
+              "text/turtle": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/ld+json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/n-triples": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/rdf+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/media": {
       "get": {
         "tags": [

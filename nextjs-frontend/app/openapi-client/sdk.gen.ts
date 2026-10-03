@@ -349,6 +349,9 @@ import type {
   GetNamespaceMetadataData,
   GetNamespaceMetadataErrors,
   GetNamespaceMetadataResponses,
+  GetNamespaceRdfData,
+  GetNamespaceRdfErrors,
+  GetNamespaceRdfResponses,
   GetNamespaceStatsData,
   GetNamespaceStatsErrors,
   GetNamespaceStatsResponses,
@@ -386,6 +389,9 @@ import type {
   GetRecordingMetadataData,
   GetRecordingMetadataErrors,
   GetRecordingMetadataResponses,
+  GetRecordingRdfData,
+  GetRecordingRdfErrors,
+  GetRecordingRdfResponses,
   GetRecordingResponses,
   GetRecordingWordcloudData,
   GetRecordingWordcloudErrors,
@@ -4082,6 +4088,36 @@ export class Metadata {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class Rdf {
+  /**
+   * Get Recording Rdf
+   *
+   * The recording described with Dublin Core, with the entities it mentions.
+   */
+  public static getRecordingRdf<ThrowOnError extends boolean = false>(
+    options: Options<GetRecordingRdfData, ThrowOnError>,
+  ): RequestResult<GetRecordingRdfResponses, GetRecordingRdfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetRecordingRdfResponses, GetRecordingRdfErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/rdf",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Namespace Rdf
+   *
+   * Everything in the namespace as one graph: itself, its collections, recordings, entities and speakers.
+   */
+  public static getNamespaceRdf<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceRdfData, ThrowOnError>,
+  ): RequestResult<GetNamespaceRdfResponses, GetNamespaceRdfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetNamespaceRdfResponses, GetNamespaceRdfErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/rdf",
+      ...options,
     });
   }
 }
