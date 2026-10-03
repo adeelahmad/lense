@@ -326,3 +326,38 @@ def test_tools_drawn_on_the_canvas(app, db, cfg, folder, new_client, llm):
     cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
     ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "how often is capsid mentioned"}).text)
     assert ev["step"][0]["summary"] == 'Ran count_mentions(topic="capsid")'
+
+
+def test_made_in_chat_behind_an_approval(app, db, cfg, folder, new_client, llm):
+    """Asked in chat (or by voice, which is chat), the assistant drafts an extension; it's saved once the person says yes."""
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    broken = TOOL.replace("{{text}}", "{{words}}")
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "save_extension", {"manifest": broken})]},
+        {"content": "", "tool_calls": [call(2, "save_extension", {"manifest": TOOL})]},
+        {"content": "I drafted a translate tool; approve it to add it."},
+    ]
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "make me a tool that translates text"}).text)
+    assert "{{words}}" in ev["step"][0]["summary"]  # the model hears what to fix
+    appr = ev["approval"][0]
+    assert appr["summary"] == "Add the tool translate to the assistant"
+    assert c.get("/api/v1/extensions", headers=h).json() == []  # nothing until the yes
+    out = c.post(f"/api/v1/approvals/{appr['id']}", headers=h, json={"decision": "approve"}).json()
+    got = c.get(f"/api/v1/extensions/{out['extension']}", headers=h).json()
+    assert (got["name"], got["origin"], got["enabled"]) == ("translate", "chat", True)
+
+    # changed and switched off from chat too
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "list_extensions", {})]},
+        {"content": "", "tool_calls": [call(2, "save_extension", {"manifest": TOOL.replace("French, German", "French, German, Swedish")})]},
+        {"content": "", "tool_calls": [call(3, "switch_extension", {"name": "translate", "enabled": False})]},
+        {"content": "Done."},
+    ]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "add Swedish, then switch it off"}).text)
+    assert [a["summary"] for a in ev["approval"]] == ["Save version 2 of the tool translate", "Switch tool translate off"]
+    for a in ev["approval"]:
+        c.post(f"/api/v1/approvals/{a['id']}", headers=h, json={"decision": "approve"})
+    got = c.get(f"/api/v1/extensions/{out['extension']}", headers=h).json()
+    assert (got["version"], got["enabled"]) == (2, False) and "Swedish" in got["spec"]["params"][1]["options"]
