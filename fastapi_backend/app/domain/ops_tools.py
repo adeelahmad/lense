@@ -102,6 +102,11 @@ def status(db, cfg, base):
     if not (emb.get("model") and (emb.get("base_url") or cfg["llm"].get("base_url"))):
         missing.append("search by meaning: an embedding model (embeddings.model, e.g. nomic-embed-text on Ollama)")
     recordings = db.values("SELECT VALUE count() FROM recording GROUP ALL")
+    fetching = {}
+    for w in jobs.workers(db):
+        for cid, st in (w.get("components") or {}).items():
+            if st.get("state") != "ready":
+                fetching.setdefault(cid, {})[w["name"]] = {k: v for k, v in st.items() if v}
     return {
         "missing": missing,
         "setup_wizard_pending": view["pending"],
@@ -116,6 +121,8 @@ def status(db, cfg, base):
         "max_upload_mb": view["storage"]["max_upload_mb"],
         "jobs": q,
         "telemetry_on": view["telemetry"]["enabled"],
+        # engines and models the workers are still fetching for themselves, or couldn't (Settings → Components)
+        "components_not_ready": fetching,
     }
 
 

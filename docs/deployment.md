@@ -24,7 +24,7 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
 * **Visitors' addresses, for IP groups.** Have the reverse proxy set `X-Forwarded-For`, and list the web app's address
   (in Docker, the compose network) in `server.trusted_proxies`. See [Trusted proxies](configuration.md#trusted-proxies).
 * **Stable secrets.** `ACCESS_SECRET_KEY` (changing it signs everyone out), `ARCHIVE_SECRET_KEY` (changing it makes
-  stored source credentials and LLM keys unreadable), `AUTH_SECRET`.
+  stored source credentials, LLM keys and everything [encrypted at rest](encryption.md) unreadable), `AUTH_SECRET`.
 * **SurrealDB storage engine**: `surrealkv` (as in the compose file), RocksDB or TiKV. Not `memory`; see
   [Database](database.md).
 * **Backups** of SurrealDB (`surreal export`) and of the `archive-data` volume.

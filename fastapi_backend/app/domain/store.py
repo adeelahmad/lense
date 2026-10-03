@@ -244,6 +244,8 @@ DEFAULTS = {
         "price_in": None,
         "price_out": None,
     },
+    # what Lens fetches for itself (components.py): auto fetches what the settings need; also names optional ones
+    "components": {"auto": True, "also": []},
     # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
     # has a key, else the language model. act_above: the confidence it acts on; below it, it asks.
     "decisions": {
@@ -604,6 +606,8 @@ SCHEMA = [
     # Note: on 2.x, CONTAINS against an indexed field also returns nothing; use string::contains() there.
     # settings, people and access
     "DEFINE TABLE IF NOT EXISTS app_setting SCHEMALESS",
+    # each namespace's data key, wrapped by the keys that can open it (app/domain/keyring.py)
+    "DEFINE TABLE IF NOT EXISTS data_key SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS account SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS account_email ON account FIELDS email UNIQUE",
     "DEFINE TABLE IF NOT EXISTS membership SCHEMALESS",

@@ -377,8 +377,12 @@ class OpenCVFaces:
     def __init__(self, cfg):
         import cv2
 
+        from . import components
+
         v = cfg["video"]
-        det, rec = v.get("yunet_model"), v.get("sface_model")
+        # set in archive.yaml, else the ones fetched into the data folder (components.py)
+        det = v.get("yunet_model") or components.model_file(cfg, components.FACE_FILES[0])
+        rec = v.get("sface_model") or components.model_file(cfg, components.FACE_FILES[1])
         if not (det and rec and pathlib.Path(det).exists() and pathlib.Path(rec).exists()):
             raise RuntimeError("set video.yunet_model and video.sface_model to the OpenCV Zoo ONNX files")
         self.cv2 = cv2

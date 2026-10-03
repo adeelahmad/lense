@@ -219,10 +219,58 @@ def retrieve(db, question, spaces, scope=None, k=8, cfg=None):
     return out
 
 
+PAGE_TEXT, PAGE_SELECTION = 12000, 4000
+
+
+def shared_context(ctx):
+    """What a question keeps of the page it was asked from: where, its title, the highlighted text, and whether the
+    page's text was shared (the text itself isn't kept)."""
+    if not ctx or not ctx.get("url"):
+        return None
+    return store.clean(
+        {
+            "url": str(ctx["url"])[:2000],
+            "title": (ctx.get("title") or "").strip()[:300] or None,
+            "selection": (ctx.get("selection") or "").strip()[:PAGE_SELECTION] or None,
+            "page": bool((ctx.get("text") or "").strip()) or None,
+        }
+    )
+
+
+def with_context(question, ctx):
+    """The question as the model reads it when it was asked from a page: the page, the highlighted text and (when
+    shared) the page's text come first, marked as what the person is looking at in Lens rather than archive excerpts."""
+    if not ctx or not ctx.get("url"):
+        return question
+    title = (ctx.get("title") or "").strip()[:300]
+    parts = [f"The person is looking at the Lens page {title + ' ' if title else ''}({str(ctx['url'])[:2000]})."]
+    sel = (ctx.get("selection") or "").strip()[:PAGE_SELECTION]
+    if sel:
+        parts.append(f'They highlighted this part of it:\n"""\n{sel}\n"""')
+    text = (ctx.get("text") or "").strip()
+    if text:
+        cut = text[:PAGE_TEXT]
+        more = " (cut short)" if len(text) > PAGE_TEXT else ""
+        parts.append(f'The page\'s text{more}:\n"""\n{cut}\n"""')
+    parts.append(f"Use the page to understand the question; it is not an archive excerpt, so don't cite it with [n]. Question: {question}")
+    return "\n\n".join(parts)
+
+
+def past_turns(history, n=6):
+    """The conversation's last messages for the model, with the files sent with each; a question asked about
+    highlighted text keeps (the start of) that text, so a follow-up still knows what "it" was."""
+    out = []
+    for m in list(history)[-n:]:
+        sel = ((m.get("context") or {}).get("selection") or "")[:500] if m["role"] == "user" else ""
+        said = f'(About the highlighted text: "{sel}") {m["content"]}' if sel else m["content"]
+        out.append({"role": m["role"], "content": said + attached_note(m.get("attachments"))})
+    return out
+
+
 def messages_for(question, passages, history=()):
     ctx = "\n\n".join(f"[{p['n']}] {p['title']} · {(p.get('recorded_at') or '')[:10]} · {p['time']}\n{p['text']}" for p in passages)
     msgs = [{"role": "system", "content": SYSTEM}]
-    msgs += [{"role": m["role"], "content": m["content"] + attached_note(m.get("attachments"))} for m in list(history)[-6:]]
+    msgs += past_turns(history)
     msgs.append({"role": "user", "content": f"Excerpts:\n\n{ctx or '(nothing in the archive matched)'}\n\nQuestion: {question}"})
     return msgs
 
@@ -274,13 +322,16 @@ def get(db, cid, account):
 def history(db, cid):
     return db.rows(
         "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped, steps ?? [] AS steps, "
-        "attachments ?? [] AS attachments, notice, error, check, model FROM chat_message WHERE chat = $c ORDER BY id",
+        "attachments ?? [] AS attachments, notice, error, check, model, context FROM chat_message WHERE chat = $c ORDER BY id",
         c=cid,
     )
 
 
-def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None, model=None, attachments=None):
-    """Save a message; an answer keeps the tool steps it took, any notice (e.g. the model can't use tools) and error."""
+def add(
+    db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None, model=None, attachments=None, context=None
+):
+    """Save a message; an answer keeps the tool steps it took, any notice (e.g. the model can't use tools) and error; a
+    question asked from a page keeps what it shared of it (shared_context)."""
     mid = db.next_id("chat_message")
     db.q(
         "CREATE $r CONTENT $d",
@@ -298,6 +349,7 @@ def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice
                 "notice": notice,
                 "error": error,
                 "model": model,
+                "context": context,
             }
         ),
     )
@@ -388,9 +440,7 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
     system = TOOL_SYSTEM + ("\n\n" + SETUP_SYSTEM if setup else "")
     note = getattr(toolbox, "system_note", None)  # skills, and context from hooks (extensions.py)
     system += note() if note else ""
-    msgs = [{"role": "system", "content": system}] + [
-        {"role": m["role"], "content": m["content"] + attached_note(m.get("attachments"))} for m in list(history)[-6:]
-    ]
+    msgs = [{"role": "system", "content": system}] + past_turns(history)
     msgs.append({"role": "user", "content": question})
     for step in range(max_steps):
         msg = llm.chat_message(cfg, msgs, tools=toolbox.specs(), model=model)

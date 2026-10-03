@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 
 import { Admin, Metadata } from "@/app/openapi-client";
+import { ComponentsStatus } from "@/components/settings/components-status";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
@@ -263,6 +264,13 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             </Link>
             .
           </p>
+        </>
+      );
+    case "components":
+      return (
+        <>
+          <F ctx={ctx} id="components.auto" />
+          <ComponentsStatus ctx={ctx} />
         </>
       );
     case "access":
