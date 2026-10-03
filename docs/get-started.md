@@ -1,6 +1,20 @@
 # Get started
 
-## With Docker (recommended)
+## In one line
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh
+```
+
+On Linux or a Mac, this installs Docker if it's missing (get.docker.com on Linux; OrbStack with Homebrew on a Mac),
+gets Lens into `~/lens`, writes the secrets once, builds and starts the stack, and opens the setup page with the setup
+code already filled in. On a server without a desktop, Lens is reachable from the network and the link uses the
+server's address. Run the same line again to update: the secrets, the database and the archive are kept. While the
+repository is private, put `GITHUB_TOKEN=<a token that can read it>` before `sh`. `LENS_DIR`, `LENS_PORT`,
+`LENS_PUBLIC` (`1`: from the network, `0`: this machine only), `LENS_TARGET` (`lean` for the smaller image) and
+`LENS_REF` (a branch or tag) change the defaults the same way; the top of `install.sh` lists them.
+
+## With Docker and make
 
 You need Docker with Compose, and `make`.
 

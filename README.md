@@ -28,6 +28,12 @@ recording.
 ## Quick start
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh
+```
+
+That's all: it installs Docker if needed, starts Lens and opens the setup page ([details](docs/get-started.md#in-one-line)). From a checkout:
+
+```bash
 make run          # builds once and runs everything (Docker)
 make setup-code   # the first-admin setup code
 ```
