@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Global chats pick their namespace.** The first question in a conversation over everything (the assistant home)
+  is matched to the namespace it's about by the decision model (or the language model without one), using what each
+  namespace holds and where the question's excerpts are. A sure match narrows the conversation (a `scoped` event and a
+  "Looked in …" step; the app says so, with **Use everything** to undo). When it isn't sure, the likeliest namespaces
+  are offered to tap (a `suggested` event); when none fits, admins are also offered new ones named for the question,
+  created only when picked. In voice mode, saying one picks it. Nothing changes until something is picked. A scope you
+  chose, and later questions, are left alone.
 - **Files are encrypted at rest.** Each namespace has its own AES-256-GCM key, and uploads, attachments, captured web
   pages and IIIF imports are stored encrypted with it. Audio and video still stream with seeking. New archives encrypt
   from the start. For an archive that already has files, `lens encrypt` turns it on and converts them. See

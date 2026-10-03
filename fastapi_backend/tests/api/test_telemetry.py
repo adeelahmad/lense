@@ -124,7 +124,7 @@ def test_traces_and_metrics_go_to_the_endpoint(client, db, cfg, folder, collecto
     assert client.post("/api/v1/settings/llm/test", headers=h).json()["ok"]
     jobs.enqueue(db, rid, ["analyze"])
     drain(db, cfg)
-    cid = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    cid = client.post("/api/v1/chats", headers=h, json={"scope": {"namespaces": ["calls"]}}).json()["id"]
     assert "The shipment" in client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does it ship?"}).text
     telemetry.flush()
 

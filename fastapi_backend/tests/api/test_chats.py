@@ -243,7 +243,7 @@ def test_choosing_the_model(plain, client, new_client, db, cfg, folder, llm):
     admin = new_client()
     ha = login(admin, "root@x.io", "root password 1")
     assert client.post("/api/v1/chats", headers=h, json={"model": "nope"}).status_code == 400
-    cid = client.post("/api/v1/chats", headers=h, json={"model": "fake-large"}).json()["id"]
+    cid = client.post("/api/v1/chats", headers=h, json={"model": "fake-large", "scope": {"namespaces": ["calls"]}}).json()["id"]
     assert client.get("/api/v1/chats", headers=h).json()[0]["model"] == "fake-large"
 
     # the conversation's model answers in it; one question can ask another (Retry with another model)

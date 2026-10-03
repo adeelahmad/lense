@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Chats } from "@/app/openapi-client";
+import { Chats, Namespaces } from "@/app/openapi-client";
 import type { AnswerCheck, Approval, Chat, ChatMessage, Estimate, Passage } from "@/app/openapi-client/types.gen";
 import { Answer } from "@/components/chat/answer";
 import { AttachmentChips, useAttachments } from "@/components/chat/attachments";
@@ -16,9 +16,17 @@ import { Composer, ScopeBar } from "@/components/chat/composer";
 import { ConversationList } from "@/components/chat/conversations";
 import { useApprovals, useChat, useChats, useLlmStatus, useStopAnswer } from "@/components/chat/data";
 import { EmptyChat } from "@/components/chat/empty";
+import { NamespaceOffer, spokenPick } from "@/components/chat/namespace-offer";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
-import { applyEvent, newTurn, savedSteps, type ToolStep, type TurnState } from "@/components/chat/stream";
+import {
+  applyEvent,
+  newTurn,
+  savedSteps,
+  type Suggested,
+  type ToolStep,
+  type TurnState,
+} from "@/components/chat/stream";
 import { onlyFiles, UserBubble } from "@/components/chat/user-bubble";
 import { SharedFrom } from "@/components/page-chat/page-chat";
 import { useRecordingIndex, useSpeakerDirectory } from "@/components/search/data";
@@ -156,6 +164,69 @@ export function ChatApp() {
     [activeId, client, qc, toast],
   );
 
+  // A conversation over everything was narrowed to the namespace its question is about: say so, with a way back.
+  const narrowed = useCallback(
+    (cid: number, namespaces: string[]) => {
+      void qc.invalidateQueries({ queryKey: ["chat", cid] });
+      toast({
+        title: `Looking in ${namespaces.join(", ")}`,
+        body: "Picked from your question.",
+        action: {
+          label: "Use everything",
+          onClick: async () => {
+            try {
+              await data(Chats.updateChat({ client, path: { cid }, body: { scope: {} } }));
+              void qc.invalidateQueries({ queryKey: ["chat", cid] });
+              void qc.invalidateQueries({ queryKey: ["chats"] });
+            } catch (e) {
+              toast({
+                title: "Couldn’t change the scope",
+                body: e instanceof Error ? e.message : undefined,
+                tone: "red",
+              });
+            }
+          },
+        },
+      });
+    },
+    [client, qc, toast],
+  );
+
+  // Namespaces offered when it isn't clear which one a conversation over everything is about; nothing changes until
+  // one is tapped (or said, in voice mode).
+  const [offer, setOffer] = useState<{ cid: number; items: Suggested[] } | null>(null);
+  const offerRef = useRef(offer);
+  offerRef.current = offer;
+  const [placing, setPlacing] = useState(false);
+  const pickNamespace = useCallback(
+    async (cid: number, it: Suggested) => {
+      setPlacing(true);
+      try {
+        if (it.new) {
+          await data(Namespaces.createNamespace({ client, body: { name: it.name } }));
+          void qc.invalidateQueries({ queryKey: ["namespaces"] });
+          void qc.invalidateQueries({ queryKey: ["me"] });
+        }
+        await data(Chats.updateChat({ client, path: { cid }, body: { scope: { namespaces: [it.name] } } }));
+        setOffer(null);
+        void qc.invalidateQueries({ queryKey: ["chat", cid] });
+        void qc.invalidateQueries({ queryKey: ["chats"] });
+        toast({ title: it.new ? `Created ${it.name} and using it here` : `Using ${it.name} here`, tone: "green" });
+        return true;
+      } catch (e) {
+        toast({
+          title: it.new ? `Couldn’t create ${it.name}` : "Couldn’t change the scope",
+          body: e instanceof Error ? e.message : undefined,
+          tone: "red",
+        });
+        return false;
+      } finally {
+        setPlacing(false);
+      }
+    },
+    [client, qc, toast],
+  );
+
   const run = useCallback(
     async (cid: number, question: string, model?: string, attached: Sent[] = [], edit?: number): Promise<TurnState> => {
       if (edit != null)
@@ -175,8 +246,11 @@ export function ChatApp() {
           accessToken: session?.accessToken,
           signal: ac.signal,
         })) {
+          const was = turn.scoped;
           turn = applyEvent(turn, msg);
           show(turn);
+          if (turn.scoped && !was) narrowed(cid, turn.scoped);
+          if (msg.event === "suggested" && turn.suggested?.length) setOffer({ cid, items: turn.suggested });
         }
         if (turn.status === "streaming")
           turn = {
@@ -205,7 +279,7 @@ export function ChatApp() {
       setFocusKey(mid != null ? `a${mid}` : null);
       return turn;
     },
-    [qc, session?.accessToken],
+    [qc, session?.accessToken, narrowed],
   );
 
   // Sends now, starting the conversation if there isn't one yet.
@@ -318,6 +392,14 @@ export function ChatApp() {
             continue;
           }
           quiet = 0;
+          // naming one of the offered namespaces picks it, rather than asking a question
+          const o = offerRef.current;
+          const named = o ? spokenPick(said, o.items) : null;
+          if (o && named) {
+            const ok = await pickNamespace(o.cid, named);
+            if (voiceRef.current) await speak(ok ? `Okay, using ${named.name}.` : `I couldn't use ${named.name}.`);
+            continue;
+          }
           const turn = await dispatchRef.current(said);
           if (!voiceRef.current || !turn) break;
           if (turn.status === "done" && turn.text) await speak(turn.text);
@@ -327,7 +409,7 @@ export function ChatApp() {
         setVoiceOn(false);
       }
     })();
-  }, [voiceOn, listen, speak, hush, toast]);
+  }, [voiceOn, listen, speak, hush, toast, pickNamespace]);
   useEffect(
     () => () => {
       voiceRef.current = false;
@@ -647,6 +729,14 @@ export function ChatApp() {
                   </Link>
                 )}
               </Banner>
+            )}
+            {offer && offer.cid === (activeId ?? live?.chatId) && (
+              <NamespaceOffer
+                items={offer.items}
+                busy={placing}
+                onPick={(it) => void pickNamespace(offer.cid, it)}
+                onDismiss={() => setOffer(null)}
+              />
             )}
             <ScopeBarWithOpen
               scope={scope}
