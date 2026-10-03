@@ -11,6 +11,7 @@ import {
   FolderSearch,
   Library,
   ListPlus,
+  Mic,
   Paperclip,
   Plus,
   Sparkles,
@@ -449,6 +450,7 @@ export function Composer({
   files,
   hasFiles = false,
   uploading = false,
+  voice,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -463,6 +465,8 @@ export function Composer({
   hasFiles?: boolean;
   /** A file is still uploading: the message waits for it. */
   uploading?: boolean;
+  /** Voice mode: a mic that talks the conversation (hear, send, read the answer aloud) until tapped again. */
+  voice?: { on: boolean; onToggle: () => void };
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [over, setOver] = useState(false);
@@ -535,6 +539,23 @@ export function Composer({
           aria-label="Your question"
           className="max-h-[180px] min-h-[24px] flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-normal text-fg outline-none placeholder:text-fg-muted"
         />
+        {voice && (
+          <button
+            type="button"
+            aria-label={voice.on ? "Stop talking" : "Talk"}
+            aria-pressed={voice.on}
+            title={voice.on ? "Stop the voice conversation" : "Talk instead of typing"}
+            onClick={voice.onToggle}
+            className={cn(
+              "grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-fast",
+              voice.on
+                ? "animate-pulse bg-red text-white hover:bg-red-dark"
+                : "text-fg-secondary hover:bg-surface-neutral hover:text-fg",
+            )}
+          >
+            <Mic className="size-[18px]" />
+          </button>
+        )}
         <button
           type="submit"
           aria-label={label}

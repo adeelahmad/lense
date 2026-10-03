@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Assistant mode.** Home opens on a page with one field and a big mic once the archive has something in it (an
+  empty archive still opens on the overview; the **Assistant / Overview** switch at the top right remembers your
+  pick). Touching or typing in the field turns it into a chat over all your namespaces; the mic starts a voice
+  conversation straight away: it listens, sends what you said, reads the answer aloud and listens again, until you tap
+  the mic or say nothing twice. Recent conversations are a tap below the field. Chat's composer has the same mic.
+  Voice uses the browser's speech recognition and synthesis for now, behind one hook (`lib/voice.ts`).
 - **The assistant decides routine choices.** Files sent in a conversation go into the namespace that fits without
   asking, chosen by a decision model (Jev, with a key in Settings → AI assistant or `TYPESAFE_API_KEY`) or the LLM.
   Below `decisions.act_above` confidence it asks, best guess first. The admin tools are now listed in Settings → AI
