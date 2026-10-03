@@ -1171,6 +1171,28 @@
         }
       }
     },
+    "/api/v1/settings/mail/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Mail",
+        "description": "Send a short message to your own address through the email settings, to check them.",
+        "operationId": "test_mail",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/embeddings/test": {
       "post": {
         "tags": [
@@ -26863,6 +26885,43 @@
           "cpus"
         ],
         "title": "Machine"
+      },
+      "MailTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "where the test message went: your own address"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "MailTestResult"
       },
       "ManifestCheck": {
         "properties": {

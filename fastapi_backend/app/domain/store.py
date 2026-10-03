@@ -306,6 +306,16 @@ DEFAULTS = {
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)
+    # outgoing email (app/email.py): access requests and password resets. MAIL_* in .env set them instead, locked.
+    "mail": {
+        "server": None,
+        "port": 587,
+        "username": None,
+        "password": None,
+        "from_address": None,
+        "from_name": "Lens",
+        "security": "starttls",
+    },
     "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
     # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
     # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the

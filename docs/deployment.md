@@ -28,7 +28,7 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
 * **SurrealDB storage engine**: `surrealkv` (as in the compose file), RocksDB or TiKV. Not `memory`; see
   [Database](database.md).
 * **Backups** of SurrealDB (`surreal export`) and of the `archive-data` volume.
-* **Mail** (`MAIL_*`) for password resets.
+* **Mail** for password resets and access requests: **Settings → Email** in the app (or `MAIL_*` in `.env`).
 * **Workers.** Scale with `docker compose up -d --scale worker=3`. The images transcribe with faster-whisper on the
   CPU (SenseVoice, the default engine, is used where it is installed; elsewhere the job log notes the fallback). To
   use SenseVoice in Docker, set `EXTRAS=sensevoice` in `.env` and rebuild (`make dev`); it adds PyTorch. For GPU transcription, build with
