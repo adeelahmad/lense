@@ -997,6 +997,10 @@ export type ChatMessage = {
    */
   content: string;
   /**
+   * a question asked from a page: the page, and any highlighted text
+   */
+  context?: SharedContext | null;
+  /**
    * Attachments
    *
    * files sent with it (POST /uploads with hold)
@@ -1801,6 +1805,127 @@ export type CommentUpdate = {
    * resolve or reopen the thread: its writer, or an editor of the resource
    */
   resolved?: boolean | null;
+};
+
+/**
+ * Component
+ */
+export type Component = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Purpose
+   */
+  purpose: string;
+  /**
+   * Kind
+   *
+   * program: the image provides it (only checked); package and model: fetched into the data folder; server-model: pulled on the Ollama server
+   */
+  kind: "program" | "package" | "model" | "server-model";
+  /**
+   * Steps
+   *
+   * the job steps that wait for it
+   */
+  steps?: Array<string>;
+  /**
+   * Size Mb
+   *
+   * about how much it downloads
+   */
+  size_mb?: number | null;
+  /**
+   * Optional
+   *
+   * fetched only when listed in components.also
+   */
+  optional?: boolean;
+  /**
+   * License
+   */
+  license?: string | null;
+  /**
+   * Needed
+   *
+   * this server's settings ask for it
+   */
+  needed: boolean;
+  /**
+   * Hint
+   *
+   * for a program: how to get it
+   */
+  hint?: string | null;
+  /**
+   * Here
+   *
+   * for a program: whether the API's machine has it
+   */
+  here?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ComponentState
+ */
+export type ComponentState = {
+  /**
+   * State
+   *
+   * waiting/fetching: being fetched, and the steps that need it wait; missing: needed but fetching is off
+   */
+  state: "ready" | "waiting" | "fetching" | "failed" | "missing";
+  /**
+   * Detail
+   *
+   * what it's doing, e.g. pulling nomic-embed-text: 40%
+   */
+  detail?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Components
+ */
+export type Components = {
+  /**
+   * Auto
+   *
+   * components.auto: fetch what's needed without asking
+   */
+  auto: boolean;
+  /**
+   * the API's machine
+   */
+  machine: Machine;
+  /**
+   * Recommended
+   *
+   * the transcription settings that suit the API's machine
+   */
+  recommended: {
+    [key: string]: unknown;
+  };
+  /**
+   * Components
+   */
+  components: Array<Component>;
+  /**
+   * Workers
+   */
+  workers: Array<WorkerComponents>;
+  [key: string]: unknown;
 };
 
 /**
@@ -3032,6 +3157,314 @@ export type EventInfo = {
 };
 
 /**
+ * Extension
+ */
+export type Extension = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   *
+   * what the assistant calls it: its tool or skill name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: "tool" | "skill" | "hook" | "plugin";
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   *
+   * who sees it, when shared with namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Enabled
+   *
+   * whether it's switched on in conversations
+   */
+  enabled: boolean;
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null;
+  /**
+   * Editable
+   */
+  editable?: boolean;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Spec
+   *
+   * the tool, skill, hook or plugin itself, as its manifest has it
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Origin
+   *
+   * how this version was made: code, canvas or chat
+   */
+  origin?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionCreate
+ */
+export type ExtensionCreate = {
+  /**
+   * Manifest
+   *
+   * {name, kind, description, ...settings}
+   */
+  manifest?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Text
+   *
+   * the manifest as code: YAML, JSON, or Markdown with frontmatter
+   */
+  text?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+  /**
+   * Origin
+   */
+  origin?: "code" | "canvas" | "chat";
+};
+
+/**
+ * ExtensionDetail
+ */
+export type ExtensionDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   *
+   * what the assistant calls it: its tool or skill name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: "tool" | "skill" | "hook" | "plugin";
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   *
+   * who sees it, when shared with namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Enabled
+   *
+   * whether it's switched on in conversations
+   */
+  enabled: boolean;
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null;
+  /**
+   * Editable
+   */
+  editable?: boolean;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Spec
+   *
+   * the tool, skill, hook or plugin itself, as its manifest has it
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Origin
+   *
+   * how this version was made: code, canvas or chat
+   */
+  origin?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Manifest
+   *
+   * the extension as a manifest to read, change and import again
+   */
+  manifest: string;
+  /**
+   * History
+   */
+  history?: Array<ExtensionVersionInfo>;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionTest
+ */
+export type ExtensionTest = {
+  /**
+   * Tool
+   *
+   * which of a plugin's tools (a tool extension: itself)
+   */
+  tool?: string | null;
+  /**
+   * Args
+   */
+  args?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Confirm
+   *
+   * needed to try a tool that changes something: it really runs
+   */
+  confirm?: boolean;
+};
+
+/**
+ * ExtensionTestResult
+ */
+export type ExtensionTestResult = {
+  /**
+   * Output
+   */
+  output?: unknown;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionUpdate
+ */
+export type ExtensionUpdate = {
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone" | null;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<string> | null;
+};
+
+/**
+ * ExtensionVersionCreate
+ */
+export type ExtensionVersionCreate = {
+  /**
+   * Manifest
+   */
+  manifest?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Text
+   */
+  text?: string | null;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Origin
+   */
+  origin?: "code" | "canvas" | "chat";
+};
+
+/**
+ * ExtensionVersionInfo
+ */
+export type ExtensionVersionInfo = {
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Origin
+   */
+  origin?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * FaceDismiss
  */
 export type FaceDismiss = {
@@ -3443,6 +3876,21 @@ export type ForgotPasswordRequest = {
 };
 
 /**
+ * Gpu
+ */
+export type Gpu = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Memory Gb
+   */
+  memory_gb?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * Graph
  */
 export type Graph = {
@@ -3746,6 +4194,31 @@ export type HealthSource = {
   health?: {
     [key: string]: unknown;
   } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Heard
+ */
+export type Heard = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Language
+   */
+  language?: string | null;
+  /**
+   * Engine
+   */
+  engine?: string | null;
+  /**
+   * Seconds
+   *
+   * how long the clip was
+   */
+  seconds?: number;
   [key: string]: unknown;
 };
 
@@ -4791,6 +5264,80 @@ export type LoginRequest = {
 };
 
 /**
+ * Machine
+ */
+export type Machine = {
+  /**
+   * Os
+   */
+  os: string;
+  /**
+   * Arch
+   */
+  arch: string;
+  /**
+   * Cpus
+   */
+  cpus: number;
+  /**
+   * Memory Gb
+   */
+  memory_gb?: number | null;
+  /**
+   * Gpus
+   */
+  gpus?: Array<Gpu>;
+  /**
+   * Cuda
+   */
+  cuda?: boolean;
+  /**
+   * Apple Silicon
+   */
+  apple_silicon?: boolean;
+  /**
+   * Container
+   */
+  container?: boolean;
+  /**
+   * Python
+   */
+  python?: string | null;
+  /**
+   * Disk Free Gb
+   *
+   * free space in the data folder, where models go
+   */
+  disk_free_gb?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ManifestCheck
+ */
+export type ManifestCheck = {
+  /**
+   * Text
+   */
+  text: string;
+};
+
+/**
+ * ManifestChecked
+ */
+export type ManifestChecked = {
+  /**
+   * Manifest
+   *
+   * the manifest, read and checked
+   */
+  manifest: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * Me
  */
 export type Me = {
@@ -4981,6 +5528,10 @@ export type MessageCreate = {
    */
   content?: string;
   /**
+   * asked from a page: the page, its text and any highlighted part
+   */
+  context?: PageContext | null;
+  /**
    * Attachments
    *
    * your uploads started with `hold` and finished: the assistant can import them into a namespace
@@ -4992,6 +5543,12 @@ export type MessageCreate = {
    * answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry
    */
   model?: string | null;
+  /**
+   * Edit
+   *
+   * edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer
+   */
+  edit?: number | null;
 };
 
 /**
@@ -6204,6 +6761,36 @@ export type Page = {
    */
   label?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * PageContext
+ *
+ * The page a question was asked from (chat on any page): where it is, and what of it the person shared.
+ */
+export type PageContext = {
+  /**
+   * Url
+   *
+   * the page's path in Lens, e.g. /resources/12?t=30
+   */
+  url: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Text
+   *
+   * the page's visible text, when the person shares the page (only the first 12,000 characters are used)
+   */
+  text?: string | null;
+  /**
+   * Selection
+   *
+   * text the person highlighted on it (only the first 4,000 characters are used)
+   */
+  selection?: string | null;
 };
 
 /**
@@ -7455,6 +8042,107 @@ export type Pushed = {
    * Kept
    */
   kept: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RdfImport
+ */
+export type RdfImport = {
+  /**
+   * Data
+   *
+   * the RDF: Turtle, N-Triples or JSON-LD (with its @context inline)
+   */
+  data: string;
+  /**
+   * Format
+   *
+   * turtle, nt or json-ld; guessed from the data when left out
+   */
+  format?: string | null;
+  /**
+   * Dry Run
+   *
+   * report what would change without changing it
+   */
+  dry_run?: boolean;
+};
+
+/**
+ * RdfImportItem
+ */
+export type RdfImportItem = {
+  /**
+   * Subject
+   */
+  subject: string;
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Fields
+   *
+   * the metadata fields it changes (or would)
+   */
+  fields: Array<string>;
+  /**
+   * Notes
+   */
+  notes: Array<string>;
+  /**
+   * Statements
+   *
+   * other statements kept with the recording
+   */
+  statements: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RdfImportResult
+ */
+export type RdfImportResult = {
+  /**
+   * Dry Run
+   */
+  dry_run: boolean;
+  /**
+   * Triples
+   */
+  triples: number;
+  /**
+   * Matched
+   */
+  matched: number;
+  /**
+   * Changed
+   */
+  changed: number;
+  /**
+   * Items
+   */
+  items: Array<RdfImportItem>;
+  /**
+   * Unmatched
+   */
+  unmatched: Array<RdfUnmatched>;
+  [key: string]: unknown;
+};
+
+/**
+ * RdfUnmatched
+ */
+export type RdfUnmatched = {
+  /**
+   * Subject
+   */
+  subject: string;
+  /**
+   * Title
+   */
+  title?: string | null;
   [key: string]: unknown;
 };
 
@@ -9846,6 +10534,33 @@ export type ShareSite = {
 };
 
 /**
+ * SharedContext
+ *
+ * What a question shared from the page it was asked on. The page's text itself isn't kept.
+ */
+export type SharedContext = {
+  /**
+   * Url
+   */
+  url: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Selection
+   */
+  selection?: string | null;
+  /**
+   * Page
+   *
+   * the page's text was shared
+   */
+  page?: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * Source
  */
 export type Source = {
@@ -10066,6 +10781,28 @@ export type SourceUpdated = {
   ok?: boolean;
   health: SourceHealth;
   [key: string]: unknown;
+};
+
+/**
+ * SparqlQuery
+ */
+export type SparqlQuery = {
+  /**
+   * Query
+   *
+   * a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query
+   */
+  query: string;
+};
+
+/**
+ * SpeakRequest
+ */
+export type SpeakRequest = {
+  /**
+   * Text
+   */
+  text: string;
 };
 
 /**
@@ -11605,6 +12342,31 @@ export type ViewerLink = {
 };
 
 /**
+ * VoiceInfo
+ */
+export type VoiceInfo = {
+  /**
+   * Transcribe
+   *
+   * the server turns speech into text itself (POST /voice/transcribe)
+   */
+  transcribe: boolean;
+  /**
+   * Engine
+   *
+   * the speech-to-text engine it uses
+   */
+  engine?: string | null;
+  /**
+   * Speak
+   *
+   * the server reads answers aloud (POST /voice/speak); else the browser does
+   */
+  speak: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * Watch
  */
 export type Watch = {
@@ -11916,6 +12678,32 @@ export type WebPage = {
 };
 
 /**
+ * WorkerComponents
+ */
+export type WorkerComponents = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Host
+   */
+  host?: string | null;
+  /**
+   * Heartbeat At
+   */
+  heartbeat_at?: string | null;
+  machine?: Machine | null;
+  /**
+   * Components
+   */
+  components?: {
+    [key: string]: ComponentState;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * WorkerInfo
  */
 export type WorkerInfo = {
@@ -11979,6 +12767,18 @@ export type WorkerInfo = {
    * steps it finished (done or skipped) in the last hour
    */
   steps_last_hour?: number;
+  /**
+   * Components
+   *
+   * what it needs, by component id (GET /components), and where each is
+   */
+  components?: {
+    [key: string]: ComponentState;
+  };
+  /**
+   * its processors, memory, GPUs and free disk
+   */
+  machine?: Machine | null;
   [key: string]: unknown;
 };
 
@@ -18236,6 +19036,200 @@ export type BulkUpdateMetadataResponses = {
 
 export type BulkUpdateMetadataResponse = BulkUpdateMetadataResponses[keyof BulkUpdateMetadataResponses];
 
+export type GetRecordingRdfData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/resources/{rid}/rdf";
+};
+
+export type GetRecordingRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRecordingRdfError = GetRecordingRdfErrors[keyof GetRecordingRdfErrors];
+
+export type GetRecordingRdfResponses = {
+  /**
+   * RDF
+   */
+  200: string;
+};
+
+export type GetRecordingRdfResponse = GetRecordingRdfResponses[keyof GetRecordingRdfResponses];
+
+export type GetNamespaceRdfData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+    /**
+     * Download
+     *
+     * as a file to save
+     */
+    download?: boolean;
+  };
+  url: "/api/v1/namespaces/{name}/rdf";
+};
+
+export type GetNamespaceRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceRdfError = GetNamespaceRdfErrors[keyof GetNamespaceRdfErrors];
+
+export type GetNamespaceRdfResponses = {
+  /**
+   * RDF
+   */
+  200: string;
+};
+
+export type GetNamespaceRdfResponse = GetNamespaceRdfResponses[keyof GetNamespaceRdfResponses];
+
+export type ImportNamespaceRdfData = {
+  body: RdfImport;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/rdf/import";
+};
+
+export type ImportNamespaceRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportNamespaceRdfError = ImportNamespaceRdfErrors[keyof ImportNamespaceRdfErrors];
+
+export type ImportNamespaceRdfResponses = {
+  /**
+   * Successful Response
+   */
+  200: RdfImportResult;
+};
+
+export type ImportNamespaceRdfResponse = ImportNamespaceRdfResponses[keyof ImportNamespaceRdfResponses];
+
+export type QueryNamespaceSparqlData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query: {
+    /**
+     * Query
+     *
+     * a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query
+     */
+    query: string;
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/namespaces/{name}/sparql";
+};
+
+export type QueryNamespaceSparqlErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type QueryNamespaceSparqlError = QueryNamespaceSparqlErrors[keyof QueryNamespaceSparqlErrors];
+
+export type QueryNamespaceSparqlResponses = {
+  /**
+   * SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type QueryNamespaceSparqlResponse = QueryNamespaceSparqlResponses[keyof QueryNamespaceSparqlResponses];
+
+export type PostNamespaceSparqlData = {
+  body: SparqlQuery;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/namespaces/{name}/sparql";
+};
+
+export type PostNamespaceSparqlErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PostNamespaceSparqlError = PostNamespaceSparqlErrors[keyof PostNamespaceSparqlErrors];
+
+export type PostNamespaceSparqlResponses = {
+  /**
+   * SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type PostNamespaceSparqlResponse = PostNamespaceSparqlResponses[keyof PostNamespaceSparqlResponses];
+
 export type GetMediaData = {
   body?: never;
   path: {
@@ -19137,6 +20131,38 @@ export type StreamEventsResponses = {
    */
   200: unknown;
 };
+
+export type ListComponentsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/components";
+};
+
+export type ListComponentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Components;
+};
+
+export type ListComponentsResponse = ListComponentsResponses[keyof ListComponentsResponses];
+
+export type CheckComponentsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/components/check";
+};
+
+export type CheckComponentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type CheckComponentsResponse = CheckComponentsResponses[keyof CheckComponentsResponses];
 
 export type ListBackendsData = {
   body?: never;
@@ -20327,6 +21353,243 @@ export type CreateCustomNodeVersionResponses = {
 };
 
 export type CreateCustomNodeVersionResponse = CreateCustomNodeVersionResponses[keyof CreateCustomNodeVersionResponses];
+
+export type ListExtensionsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Kind
+     */
+    kind?: "tool" | "skill" | "hook" | "plugin" | null;
+  };
+  url: "/api/v1/extensions";
+};
+
+export type ListExtensionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListExtensionsError = ListExtensionsErrors[keyof ListExtensionsErrors];
+
+export type ListExtensionsResponses = {
+  /**
+   * Response Extensions-List Extensions
+   *
+   * Successful Response
+   */
+  200: Array<Extension>;
+};
+
+export type ListExtensionsResponse = ListExtensionsResponses[keyof ListExtensionsResponses];
+
+export type CreateExtensionData = {
+  body: ExtensionCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions";
+};
+
+export type CreateExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateExtensionError = CreateExtensionErrors[keyof CreateExtensionErrors];
+
+export type CreateExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type CreateExtensionResponse = CreateExtensionResponses[keyof CreateExtensionResponses];
+
+export type CheckManifestData = {
+  body: ManifestCheck;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/check";
+};
+
+export type CheckManifestErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CheckManifestError = CheckManifestErrors[keyof CheckManifestErrors];
+
+export type CheckManifestResponses = {
+  /**
+   * Successful Response
+   */
+  200: ManifestChecked;
+};
+
+export type CheckManifestResponse = CheckManifestResponses[keyof CheckManifestResponses];
+
+export type DeleteExtensionData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}";
+};
+
+export type DeleteExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteExtensionError = DeleteExtensionErrors[keyof DeleteExtensionErrors];
+
+export type DeleteExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteExtensionResponse = DeleteExtensionResponses[keyof DeleteExtensionResponses];
+
+export type GetExtensionData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: {
+    /**
+     * Version
+     */
+    version?: number | null;
+  };
+  url: "/api/v1/extensions/{eid}";
+};
+
+export type GetExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetExtensionError = GetExtensionErrors[keyof GetExtensionErrors];
+
+export type GetExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionDetail;
+};
+
+export type GetExtensionResponse = GetExtensionResponses[keyof GetExtensionResponses];
+
+export type UpdateExtensionData = {
+  body: ExtensionUpdate;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}";
+};
+
+export type UpdateExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateExtensionError = UpdateExtensionErrors[keyof UpdateExtensionErrors];
+
+export type UpdateExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateExtensionResponse = UpdateExtensionResponses[keyof UpdateExtensionResponses];
+
+export type CreateExtensionVersionData = {
+  body: ExtensionVersionCreate;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}/versions";
+};
+
+export type CreateExtensionVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateExtensionVersionError = CreateExtensionVersionErrors[keyof CreateExtensionVersionErrors];
+
+export type CreateExtensionVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: VersionSaved;
+};
+
+export type CreateExtensionVersionResponse = CreateExtensionVersionResponses[keyof CreateExtensionVersionResponses];
+
+export type TestExtensionData = {
+  body: ExtensionTest;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}/test";
+};
+
+export type TestExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestExtensionError = TestExtensionErrors[keyof TestExtensionErrors];
+
+export type TestExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionTestResult;
+};
+
+export type TestExtensionResponse = TestExtensionResponses[keyof TestExtensionResponses];
 
 export type ListChatsData = {
   body?: never;
@@ -22396,3 +23659,64 @@ export type PushStreamResponses = {
 };
 
 export type PushStreamResponse = PushStreamResponses[keyof PushStreamResponses];
+
+export type VoiceInfoData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/voice";
+};
+
+export type VoiceInfoResponses = {
+  /**
+   * Successful Response
+   */
+  200: VoiceInfo;
+};
+
+export type VoiceInfoResponse = VoiceInfoResponses[keyof VoiceInfoResponses];
+
+export type TranscribeClipData = {
+  body: Blob | File;
+  path?: never;
+  query?: never;
+  url: "/api/v1/voice/transcribe";
+};
+
+export type TranscribeClipResponses = {
+  /**
+   * Successful Response
+   */
+  200: Heard;
+};
+
+export type TranscribeClipResponse = TranscribeClipResponses[keyof TranscribeClipResponses];
+
+export type SpeakTextData = {
+  body: SpeakRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/voice/speak";
+};
+
+export type SpeakTextErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SpeakTextError = SpeakTextErrors[keyof SpeakTextErrors];
+
+export type SpeakTextResponses = {
+  /**
+   * the text read aloud
+   */
+  200: Blob | File;
+  /**
+   * the browser reads it
+   */
+  204: void;
+};
+
+export type SpeakTextResponse = SpeakTextResponses[keyof SpeakTextResponses];

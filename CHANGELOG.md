@@ -12,6 +12,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   summaries only, none), retention (raw, important log lines, summaries) and a rate cap; a suggested handling is
   applied only when chosen. Retention runs as a routine action (**Tidy sensor data**, hourly). Off until turned on in
   Settings → Sensors; no model is called. See docs/sensors.md.
+- **Voice stays on the server.** The mic records in the browser and this server turns it into text with its own
+  transcription engine (`POST /voice/transcribe`), showing what's been heard while you talk and ending at a pause;
+  it works in any browser that can record. Spoken answers can come from a speech model (`voice.tts_model`, any
+  OpenAI-compatible `/audio/speech`), else the browser reads them. Settings → AI assistant → Voice.
+
+- **Lens fetches what it needs.** Each worker checks what the settings ask for (SenseVoice or a Whisper model, voice
+  IDs, face and object models, the chat and embedding models on Ollama) and fetches what's missing into the data folder,
+  sized to its machine (PyTorch's CPU build without a GPU). Steps wait for their engine instead of falling back. Models
+  now outlast container rebuilds. **Settings → Components** shows each worker's machine and where everything is
+  (docs/components.md).
 - **Assistant mode.** Home opens on a page with one field and a big mic once the archive has something in it (an
   empty archive still opens on the overview; the **Assistant / Overview** switch at the top right remembers your
   pick). Touching or typing in the field turns it into a chat over all your namespaces; the mic starts a voice

@@ -49,6 +49,11 @@ import type {
   ChangePasswordResponses,
   ChatCapabilitiesData,
   ChatCapabilitiesResponses,
+  CheckComponentsData,
+  CheckComponentsResponses,
+  CheckManifestData,
+  CheckManifestErrors,
+  CheckManifestResponses,
   CheckMessageData,
   CheckMessageErrors,
   CheckMessageResponses,
@@ -94,6 +99,12 @@ import type {
   CreateEntityTypeData,
   CreateEntityTypeErrors,
   CreateEntityTypeResponses,
+  CreateExtensionData,
+  CreateExtensionErrors,
+  CreateExtensionResponses,
+  CreateExtensionVersionData,
+  CreateExtensionVersionErrors,
+  CreateExtensionVersionResponses,
   CreateFieldData,
   CreateFieldErrors,
   CreateFieldResponses,
@@ -196,6 +207,9 @@ import type {
   DeleteEntityTypeData,
   DeleteEntityTypeErrors,
   DeleteEntityTypeResponses,
+  DeleteExtensionData,
+  DeleteExtensionErrors,
+  DeleteExtensionResponses,
   DeleteFaceData,
   DeleteFaceErrors,
   DeleteFaceResponses,
@@ -330,6 +344,9 @@ import type {
   GetEntityTimelineData,
   GetEntityTimelineErrors,
   GetEntityTimelineResponses,
+  GetExtensionData,
+  GetExtensionErrors,
+  GetExtensionResponses,
   GetFieldData,
   GetFieldErrors,
   GetFieldResponses,
@@ -362,6 +379,9 @@ import type {
   GetNamespaceMetadataData,
   GetNamespaceMetadataErrors,
   GetNamespaceMetadataResponses,
+  GetNamespaceRdfData,
+  GetNamespaceRdfErrors,
+  GetNamespaceRdfResponses,
   GetNamespaceStatsData,
   GetNamespaceStatsErrors,
   GetNamespaceStatsResponses,
@@ -399,6 +419,9 @@ import type {
   GetRecordingMetadataData,
   GetRecordingMetadataErrors,
   GetRecordingMetadataResponses,
+  GetRecordingRdfData,
+  GetRecordingRdfErrors,
+  GetRecordingRdfResponses,
   GetRecordingResponses,
   GetRecordingWordcloudData,
   GetRecordingWordcloudErrors,
@@ -440,6 +463,9 @@ import type {
   ImportIiifData,
   ImportIiifErrors,
   ImportIiifResponses,
+  ImportNamespaceRdfData,
+  ImportNamespaceRdfErrors,
+  ImportNamespaceRdfResponses,
   ImportTranscriptData,
   ImportTranscriptErrors,
   ImportTranscriptResponses,
@@ -483,6 +509,8 @@ import type {
   ListCommentsData,
   ListCommentsErrors,
   ListCommentsResponses,
+  ListComponentsData,
+  ListComponentsResponses,
   ListContentTypesData,
   ListContentTypesResponses,
   ListCustomNodesData,
@@ -502,6 +530,9 @@ import type {
   ListEntityTypesData,
   ListEntityTypesErrors,
   ListEntityTypesResponses,
+  ListExtensionsData,
+  ListExtensionsErrors,
+  ListExtensionsResponses,
   ListFieldsData,
   ListFieldsErrors,
   ListFieldsResponses,
@@ -661,6 +692,9 @@ import type {
   PlaceRecordingsData,
   PlaceRecordingsErrors,
   PlaceRecordingsResponses,
+  PostNamespaceSparqlData,
+  PostNamespaceSparqlErrors,
+  PostNamespaceSparqlResponses,
   PreviewIiifImportData,
   PreviewIiifImportErrors,
   PreviewIiifImportResponses,
@@ -684,6 +718,9 @@ import type {
   PushTokenData,
   PushTokenErrors,
   PushTokenResponses,
+  QueryNamespaceSparqlData,
+  QueryNamespaceSparqlErrors,
+  QueryNamespaceSparqlResponses,
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
@@ -816,6 +853,9 @@ import type {
   SetupData,
   SetupErrors,
   SetupResponses,
+  SpeakTextData,
+  SpeakTextErrors,
+  SpeakTextResponses,
   SplitSegmentData,
   SplitSegmentErrors,
   SplitSegmentResponses,
@@ -837,6 +877,9 @@ import type {
   TelemetryStatusResponses,
   TestEmbeddingsData,
   TestEmbeddingsResponses,
+  TestExtensionData,
+  TestExtensionErrors,
+  TestExtensionResponses,
   TestLlmData,
   TestLlmResponses,
   TestNotifyTargetData,
@@ -852,6 +895,8 @@ import type {
   TokenLimitsData,
   TokenLimitsResponses,
   TokenResponses,
+  TranscribeClipData,
+  TranscribeClipResponses,
   TryWorkflowData,
   TryWorkflowErrors,
   TryWorkflowResponses,
@@ -897,6 +942,9 @@ import type {
   UpdateEntityTypeData,
   UpdateEntityTypeErrors,
   UpdateEntityTypeResponses,
+  UpdateExtensionData,
+  UpdateExtensionErrors,
+  UpdateExtensionResponses,
   UpdateFieldData,
   UpdateFieldErrors,
   UpdateFieldResponses,
@@ -965,6 +1013,8 @@ import type {
   UpdateWorkflowResponses,
   UploadLimitsData,
   UploadLimitsResponses,
+  VoiceInfoData,
+  VoiceInfoResponses,
 } from "./types.gen";
 
 export type Options<
@@ -1603,6 +1653,35 @@ export class Admin {
   ): RequestResult<ReindexSearchResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<ReindexSearchResponses, unknown, ThrowOnError>({
       url: "/api/v1/admin/reindex",
+      ...options,
+    });
+  }
+
+  /**
+   * List Components
+   *
+   * Every component (programs, packages, models), whether the settings need it, and each worker's machine and where
+   * it is with each: ready, being fetched, failed or missing. Steps that need one being fetched wait for it.
+   */
+  public static listComponents<ThrowOnError extends boolean = false>(
+    options?: Options<ListComponentsData, ThrowOnError>,
+  ): RequestResult<ListComponentsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListComponentsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/components",
+      ...options,
+    });
+  }
+
+  /**
+   * Check Components
+   *
+   * Ask every worker to check what it needs now, and to try again what failed. Audited as ``components.check``.
+   */
+  public static checkComponents<ThrowOnError extends boolean = false>(
+    options?: Options<CheckComponentsData, ThrowOnError>,
+  ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/components/check",
       ...options,
     });
   }
@@ -4097,6 +4176,88 @@ export class Metadata {
   }
 }
 
+export class Rdf {
+  /**
+   * Get Recording Rdf
+   *
+   * The recording described with Dublin Core, with the entities it mentions.
+   */
+  public static getRecordingRdf<ThrowOnError extends boolean = false>(
+    options: Options<GetRecordingRdfData, ThrowOnError>,
+  ): RequestResult<GetRecordingRdfResponses, GetRecordingRdfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetRecordingRdfResponses, GetRecordingRdfErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/rdf",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Namespace Rdf
+   *
+   * Everything in the namespace as one graph: itself, its collections, recordings, entities and speakers.
+   */
+  public static getNamespaceRdf<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceRdfData, ThrowOnError>,
+  ): RequestResult<GetNamespaceRdfResponses, GetNamespaceRdfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetNamespaceRdfResponses, GetNamespaceRdfErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/rdf",
+      ...options,
+    });
+  }
+
+  /**
+   * Import Namespace Rdf
+   *
+   * Read Dublin Core descriptions into the namespace's recordings (matched by their URI or an identifier). Each change
+   * is a metadata edit, kept in the recording's history. With dry_run (the default) nothing changes.
+   */
+  public static importNamespaceRdf<ThrowOnError extends boolean = false>(
+    options: Options<ImportNamespaceRdfData, ThrowOnError>,
+  ): RequestResult<ImportNamespaceRdfResponses, ImportNamespaceRdfErrors, ThrowOnError> {
+    return (options.client ?? client).post<ImportNamespaceRdfResponses, ImportNamespaceRdfErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/rdf/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Query Namespace Sparql
+   *
+   * A read-only SPARQL query over the namespace's graph (what GET /namespaces/{name}/rdf returns). dcterms, dcmitype,
+   * foaf, skos, owl, rdf, rdfs, xsd and lens are known prefixes. SERVICE and FROM aren't allowed.
+   */
+  public static queryNamespaceSparql<ThrowOnError extends boolean = false>(
+    options: Options<QueryNamespaceSparqlData, ThrowOnError>,
+  ): RequestResult<QueryNamespaceSparqlResponses, QueryNamespaceSparqlErrors, ThrowOnError> {
+    return (options.client ?? client).get<QueryNamespaceSparqlResponses, QueryNamespaceSparqlErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/sparql",
+      ...options,
+    });
+  }
+
+  /**
+   * Post Namespace Sparql
+   *
+   * The same, with the query in the body (for long ones).
+   */
+  public static postNamespaceSparql<ThrowOnError extends boolean = false>(
+    options: Options<PostNamespaceSparqlData, ThrowOnError>,
+  ): RequestResult<PostNamespaceSparqlResponses, PostNamespaceSparqlErrors, ThrowOnError> {
+    return (options.client ?? client).post<PostNamespaceSparqlResponses, PostNamespaceSparqlErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/sparql",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
 export class Video {
   /**
    * Get Media
@@ -5223,6 +5384,139 @@ export class Workflows {
   }
 }
 
+export class Extensions {
+  /**
+   * List Extensions
+   *
+   * The extensions you can see: yours, the ones shared with your namespaces or with everyone (admins: all).
+   */
+  public static listExtensions<ThrowOnError extends boolean = false>(
+    options?: Options<ListExtensionsData, ThrowOnError>,
+  ): RequestResult<ListExtensionsResponses, ListExtensionsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListExtensionsResponses, ListExtensionsErrors, ThrowOnError>({
+      url: "/api/v1/extensions",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Extension
+   */
+  public static createExtension<ThrowOnError extends boolean = false>(
+    options: Options<CreateExtensionData, ThrowOnError>,
+  ): RequestResult<CreateExtensionResponses, CreateExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateExtensionResponses, CreateExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Check Manifest
+   *
+   * Read and check a manifest written as code, without saving it: 400 says what's wrong.
+   */
+  public static checkManifest<ThrowOnError extends boolean = false>(
+    options: Options<CheckManifestData, ThrowOnError>,
+  ): RequestResult<CheckManifestResponses, CheckManifestErrors, ThrowOnError> {
+    return (options.client ?? client).post<CheckManifestResponses, CheckManifestErrors, ThrowOnError>({
+      url: "/api/v1/extensions/check",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Extension
+   *
+   * Takes it out of the assistant at once.
+   */
+  public static deleteExtension<ThrowOnError extends boolean = false>(
+    options: Options<DeleteExtensionData, ThrowOnError>,
+  ): RequestResult<DeleteExtensionResponses, DeleteExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteExtensionResponses, DeleteExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Extension
+   *
+   * One version (default: the current one), as a manifest too, and the list of versions.
+   */
+  public static getExtension<ThrowOnError extends boolean = false>(
+    options: Options<GetExtensionData, ThrowOnError>,
+  ): RequestResult<GetExtensionResponses, GetExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetExtensionResponses, GetExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Extension
+   *
+   * Its title, description, who sees it, and whether it's switched on.
+   */
+  public static updateExtension<ThrowOnError extends boolean = false>(
+    options: Options<UpdateExtensionData, ThrowOnError>,
+  ): RequestResult<UpdateExtensionResponses, UpdateExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateExtensionResponses, UpdateExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create Extension Version
+   */
+  public static createExtensionVersion<ThrowOnError extends boolean = false>(
+    options: Options<CreateExtensionVersionData, ThrowOnError>,
+  ): RequestResult<CreateExtensionVersionResponses, CreateExtensionVersionErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateExtensionVersionResponses, CreateExtensionVersionErrors, ThrowOnError>(
+      {
+        url: "/api/v1/extensions/{eid}/versions",
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      },
+    );
+  }
+
+  /**
+   * Test Extension
+   *
+   * Try one of its tools with these arguments, switched on or not. A tool that changes something really runs, so it
+   * needs `confirm`.
+   */
+  public static testExtension<ThrowOnError extends boolean = false>(
+    options: Options<TestExtensionData, ThrowOnError>,
+  ): RequestResult<TestExtensionResponses, TestExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestExtensionResponses, TestExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
 export class Chats {
   /**
    * List Chats
@@ -5317,8 +5611,13 @@ export class Chats {
   /**
    * Send Message
    *
-   * Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
+   * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
+   * reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
    * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
+   *
+   * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
+   * its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
+   * from (where, and the highlighted text; not the page's text, which isn't kept).
    */
   public static sendMessage<ThrowOnError extends boolean = false>(
     options: Options<SendMessageData, ThrowOnError, unknown>,
@@ -6298,6 +6597,62 @@ export class Sensors {
     return (options.client ?? client).post<PushStreamResponses, PushStreamErrors, ThrowOnError>({
       url: "/api/v1/sensors/push/{token}/{stream}",
       ...options,
+    });
+  }
+}
+
+export class Voice {
+  /**
+   * Voice Info
+   *
+   * Whether the server hears and speaks itself; the web app uses the browser's speech for what it doesn't. Starts
+   * loading the speech-to-text engine, so the first thing said isn't kept waiting.
+   */
+  public static voiceInfo<ThrowOnError extends boolean = false>(
+    options?: Options<VoiceInfoData, ThrowOnError>,
+  ): RequestResult<VoiceInfoResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<VoiceInfoResponses, unknown, ThrowOnError>({
+      url: "/api/v1/voice",
+      ...options,
+    });
+  }
+
+  /**
+   * Transcribe Clip
+   *
+   * What was said in a short clip, sent as the raw request body (webm, ogg, mp4 or wav, up to 25 MB), by the
+   * server's speech-to-text engine. Nothing is kept. 409 when the server has no engine (use the browser's).
+   */
+  public static transcribeClip<ThrowOnError extends boolean = false>(
+    options: Options<TranscribeClipData, ThrowOnError>,
+  ): RequestResult<TranscribeClipResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).post<TranscribeClipResponses, unknown, ThrowOnError>({
+      bodySerializer: null,
+      url: "/api/v1/voice/transcribe",
+      ...options,
+      headers: {
+        "Content-Type": "application/octet-stream",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Speak Text
+   *
+   * The text read aloud by the text-to-speech model (Settings → AI assistant → Voice). 204 when there's none, or it
+   * failed: the browser reads it instead.
+   */
+  public static speakText<ThrowOnError extends boolean = false>(
+    options: Options<SpeakTextData, ThrowOnError>,
+  ): RequestResult<SpeakTextResponses, SpeakTextErrors, ThrowOnError> {
+    return (options.client ?? client).post<SpeakTextResponses, SpeakTextErrors, ThrowOnError>({
+      url: "/api/v1/voice/speak",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

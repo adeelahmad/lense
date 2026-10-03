@@ -8,7 +8,7 @@ import pathlib
 import shutil
 import sys
 
-from .domain import analyze, graph, ingest, render, store
+from .domain import analyze, components, graph, ingest, render, store
 from .domain import search as searchmod
 from .domain import speakers as spk
 
@@ -235,6 +235,7 @@ def platform_main(argv, config):
     x.add_argument("--once", action="store_true")
     a = ap.parse_args(argv)
     cfg = store.load_config(config)
+    components.activate(cfg)  # packages and models fetched into the data folder
     db = store.connect(cfg)
     C = settings.Settings(db, cfg).current
 

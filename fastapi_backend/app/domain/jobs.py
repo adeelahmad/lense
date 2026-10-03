@@ -686,7 +686,9 @@ def machine_load():
 
 
 WORKER_BEAT = 15  # seconds between a busy worker's heartbeats
-WORKER_FIELDS = "record::id(id) AS name, steps, host, heartbeat_at, current, paused, drain, paused_by, paused_at, load, cpus"
+WORKER_FIELDS = (
+    "record::id(id) AS name, steps, host, heartbeat_at, current, paused, drain, paused_by, paused_at, load, cpus, components, machine"
+)
 
 
 def workers(db, now=None):
@@ -735,6 +737,7 @@ class Worker:
         if not steps and log and (missing := sorted(set(STEPS) - self.can)):
             log(f"worker {self.name}: workers.steps leaves out {', '.join(missing)}; jobs with those steps wait for another worker")
         self.was_paused = False
+        self.keeper = None  # fetches what this machine needs (components.py), once the loop starts
 
     def register(self, current=None):
         # SET, not CONTENT: being paused (from the app) outlasts restarts
@@ -762,7 +765,9 @@ class Worker:
     def run_once(self):
         if self.paused():
             return False
-        job = claim(self.db, self.name, self.can)
+        # steps whose engine or model is still being fetched wait for it
+        can = self.can - self.keeper.blocked() if self.keeper else self.can
+        job = claim(self.db, self.name, can) if can else None
         if not job:
             return False
         self.register(job["id"])
@@ -788,6 +793,11 @@ class Worker:
         return n
 
     def loop(self, stop):
+        from . import components
+
+        self.keeper = components.Keeper(self.db, self.cfg_fn, self.name, self.can, self.log)
+        self.register()
+        self.keeper.start(stop)
         last = 0.0
         while not stop.is_set():
             try:

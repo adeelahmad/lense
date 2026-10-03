@@ -8,9 +8,9 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Chats } from "@/app/openapi-client";
-import type { AnswerCheck, Approval, ChatMessage, Estimate, Passage } from "@/app/openapi-client/types.gen";
+import type { AnswerCheck, Approval, Chat, ChatMessage, Estimate, Passage } from "@/app/openapi-client/types.gen";
 import { Answer } from "@/components/chat/answer";
-import { AttachmentChips, SentFiles, useAttachments } from "@/components/chat/attachments";
+import { AttachmentChips, useAttachments } from "@/components/chat/attachments";
 import { shortTitle } from "@/components/chat/cite";
 import { Composer, ScopeBar } from "@/components/chat/composer";
 import { ConversationList } from "@/components/chat/conversations";
@@ -19,6 +19,8 @@ import { EmptyChat } from "@/components/chat/empty";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
 import { applyEvent, newTurn, savedSteps, type ToolStep, type TurnState } from "@/components/chat/stream";
+import { onlyFiles, UserBubble } from "@/components/chat/user-bubble";
+import { SharedFrom } from "@/components/page-chat/page-chat";
 import { useRecordingIndex, useSpeakerDirectory } from "@/components/search/data";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
@@ -35,7 +37,6 @@ type Live = { chatId: number; turn: TurnState; files: Sent[] };
 type Queued = { key: number; text: string; files: Sent[] };
 
 /** What a message with only files says (the server says the same when it gets none). */
-const onlyFiles = (n: number) => (n === 1 ? "I attached this file." : "I attached these files.");
 type Extra = { steps: ToolStep[]; notice: string | null; error: string | null };
 type Pair = { key: string; q: ChatMessage | null; a: ChatMessage | null };
 
@@ -52,19 +53,6 @@ function pairs(msgs: ChatMessage[]): Pair[] {
     } else out.push({ key: `m${m.id}`, q: null, a: m });
   }
   return out;
-}
-
-function UserBubble({ text, files = [] }: { text: string; files?: { filename: string; size: number }[] }) {
-  return (
-    <div className="flex flex-col gap-1.5 self-end">
-      <SentFiles files={files} />
-      {!(files.length && text === onlyFiles(files.length)) && (
-        <div className="max-w-[520px] self-end whitespace-pre-wrap rounded-[16px_16px_4px_16px] bg-surface-neutral px-4 py-3 text-[15px] leading-normal text-fg">
-          {text}
-        </div>
-      )}
-    </div>
-  );
 }
 
 function streamError(e: unknown): string {
@@ -169,7 +157,11 @@ export function ChatApp() {
   );
 
   const run = useCallback(
-    async (cid: number, question: string, model?: string, attached: Sent[] = []): Promise<TurnState> => {
+    async (cid: number, question: string, model?: string, attached: Sent[] = [], edit?: number): Promise<TurnState> => {
+      if (edit != null)
+        qc.setQueryData<Chat>(["chat", cid], (c) =>
+          c ? { ...c, messages: (c.messages ?? []).filter((m) => m.id < edit) } : c,
+        );
       const ac = new AbortController();
       abortRef.current = ac;
       let turn = newTurn(question);
@@ -179,7 +171,7 @@ export function ChatApp() {
       try {
         for await (const msg of streamSSE(`/api/v1/chats/${cid}/messages`, {
           method: "POST",
-          body: { content: question, model, attachments: attached.map((f) => f.id) },
+          body: { content: question, model, attachments: attached.map((f) => f.id), edit },
           accessToken: session?.accessToken,
           signal: ac.signal,
         })) {
@@ -223,6 +215,7 @@ export function ChatApp() {
       model?: string,
       attached: Sent[] = [],
       kind: "chat" | "setup" = "chat",
+      edit?: number,
     ): Promise<TurnState | null> => {
       let cid = kind === "setup" ? null : activeId;
       if (cid == null) {
@@ -247,7 +240,7 @@ export function ChatApp() {
           return null;
         }
       }
-      return run(cid, question, model, attached);
+      return run(cid, question, model, attached, edit);
     },
     [activeId, client, draftScope, draftModel, qc, router, run, toast],
   );
@@ -274,6 +267,17 @@ export function ChatApp() {
     setQueue(rest);
     void dispatch(next.text, undefined, next.files);
   }, [live, queue, dispatch]);
+
+  // Editing a question asks it again (with the files it had): it and everything after it are replaced.
+  const editQuestion = useCallback(
+    (q: ChatMessage, text: string) => {
+      const attached: Sent[] = (q.attachments ?? []).map(({ id, filename, size }) => ({ id, filename, size }));
+      const question = text.trim() || (attached.length ? onlyFiles(attached.length) : "");
+      if (!question || live) return;
+      void dispatch(question, undefined, attached, "chat", q.id);
+    },
+    [dispatch, live],
+  );
 
   // Voice mode: hear a question, send it, read the answer aloud, listen again, until the mic is tapped off or
   // nothing is said twice in a row. /chat?voice=1 (the assistant home's mic) starts it at once.
@@ -540,7 +544,16 @@ export function ChatApp() {
               const ex = it.a ? extras[it.a.id] : undefined;
               return (
                 <div key={it.key} className="flex flex-col gap-5">
-                  {it.q && <UserBubble text={it.q.content} files={it.q.attachments ?? []} />}
+                  {it.q && (
+                    <div className="flex flex-col gap-1.5">
+                      <SharedFrom context={it.q.context} />
+                      <UserBubble
+                        text={it.q.content}
+                        files={it.q.attachments ?? []}
+                        onEdit={activeId != null && !live ? (t) => editQuestion(it.q!, t) : undefined}
+                      />
+                    </div>
+                  )}
                   {it.a ? (
                     <Answer
                       chatId={activeId}

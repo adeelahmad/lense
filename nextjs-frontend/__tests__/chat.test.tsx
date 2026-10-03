@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import {
@@ -14,6 +14,18 @@ import {
 } from "@/components/chat/cite";
 import { parseBlocks, RichText } from "@/components/chat/rich-text";
 import { applyEvent, newTurn, savedSteps, stepCall } from "@/components/chat/stream";
+import { UserBubble } from "@/components/chat/user-bubble";
+
+jest.mock("@/components/chat/attachments", () => ({
+  SentFiles: ({ files }: { files: { filename: string }[] }) => (
+    <ul aria-label="Files sent">
+      {files.map((f) => (
+        <li key={f.filename}>{f.filename}</li>
+      ))}
+    </ul>
+  ),
+}));
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 describe("citations", () => {
   it("splits [n], [n, m] and [n][m]", () => {
@@ -175,5 +187,51 @@ describe("rich text", () => {
     expect(screen.getByText("Unsupported claim:")).toBeInTheDocument();
     expect(screen.getByText("Bold").tagName).toBe("STRONG");
     expect(screen.getByText(/<b>not html<\/b>/)).toBeInTheDocument();
+  });
+});
+
+describe("editing a question", () => {
+  it("edits in place and sends the new text, or cancels", () => {
+    const onEdit = jest.fn();
+    render(
+      <TooltipProvider>
+        <UserBubble text="When does it ship?" onEdit={onEdit} />
+      </TooltipProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const box = screen.getByRole("textbox", { name: "Edit your question" });
+    expect(box).toHaveValue("When does it ship?");
+    fireEvent.change(box, { target: { value: "  When does the Friday shipment leave? " } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(onEdit).toHaveBeenCalledWith("When does the Friday shipment leave?");
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "something else" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("When does it ship?")).toBeInTheDocument();
+  });
+
+  it("re-sends a files-only question's files, with the text you add", () => {
+    const onEdit = jest.fn();
+    render(
+      <TooltipProvider>
+        <UserBubble text="I attached this file." files={[{ filename: "a.pdf", size: 3 }]} onEdit={onEdit} />
+      </TooltipProvider>,
+    );
+    expect(screen.queryByText("I attached this file.")).not.toBeInTheDocument();
+    expect(screen.getByText("a.pdf")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const box = screen.getByRole("textbox", { name: "Edit your question" });
+    expect(box).toHaveValue("");
+    fireEvent.change(box, { target: { value: "Summarise it" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(onEdit).toHaveBeenCalledWith("Summarise it");
+  });
+
+  it("can't be edited without a handler, e.g. while an answer is written", () => {
+    render(<UserBubble text="Hi" />);
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   });
 });
