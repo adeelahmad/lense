@@ -1,4 +1,5 @@
 import {
+  Blocks,
   CalendarClock,
   ChartNoAxesColumn,
   HardDriveDownload,
@@ -47,6 +48,7 @@ export const NAV: NavItem[] = [
   },
   { label: "Pipelines", href: "/pipelines", icon: Workflow },
   { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true },
+  { label: "Extensions", href: "/extensions", icon: Blocks },
   { label: "Sources", href: "/sources", icon: HardDriveDownload },
   // Everyone has Settings: members find Speakers there, admins the archive's settings too.
   { label: "Settings", href: "/settings", icon: Settings, countKey: "reviews" },
