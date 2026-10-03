@@ -22,6 +22,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   searching, so chat said the archive didn't cover things it did. When the model answers without looking anything up
   and the archive has matching passages, the answer now comes from those passages, with citations, as it does for a
   model that can't use tools.
+- **Set up the first admin without copying the code.** The API log now prints a link next to the setup code
+  (`…/setup?code=…`, from `FRONTEND_URL`) that opens the setup page with the code filled in and the cursor in Name.
+  Without the link, the page offers `make setup-code` with a copy button; it named a `lens` container that no
+  install uses.
 - **First start on a fresh database.** `docker compose up` on an empty database could stop the API with "Database
   index `space_name` already contains 'podcasts'": the API and the worker both created the configured namespaces at
   once. The one that loses now uses the other's.
