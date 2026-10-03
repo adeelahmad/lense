@@ -18,8 +18,12 @@ The first admin still needs the one-time setup code (or the environment), so a s
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import urllib.error
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 from . import auth, settings, sources, store
 
@@ -163,3 +167,43 @@ def save_storage(db, cfg, max_upload_mb=None, folder=None, namespace=None, user=
     if src is None:
         src = sources.create(db, cfg, "Folders on this machine", "local", {}, {}, user)
     return sources.create_watch(db, cfg, src, folder, sid, user)
+
+
+# Model servers people run themselves, on the ports they listen on by default. Looked for on this machine, on the
+# Docker host (host.docker.internal; the compose files map it on Linux too) and as a compose service named ollama.
+LOCAL_SERVERS = (("Ollama", 11434), ("LM Studio", 1234), ("llama.cpp", 8080), ("vLLM", 8000), ("LocalAI", 8081))
+LOCAL_HOSTS = ("localhost", "host.docker.internal", "ollama")
+NOT_CHAT = ("embed", "rerank", "whisper", "tts", "clip", "bge-", "minilm")
+
+
+_DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # local addresses: never through a proxy
+
+
+def _models_at(base_url, timeout):
+    try:
+        with _DIRECT.open(base_url + "/models", timeout=timeout) as r:
+            data = json.load(r).get("data")
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError, AttributeError):
+        return None
+    if not isinstance(data, list):
+        return None
+    return sorted({str(m["id"]) for m in data if isinstance(m, dict) and m.get("id")})
+
+
+def detect_llm(timeout=1.5, hosts=None, servers=None):
+    """OpenAI-compatible model servers that answer on their usual ports, with their models: what the wizard offers
+    so nobody has to type an address. One entry per server (the first address that reaches it), chat models first,
+    with the one to suggest."""
+    tries = [(kind, f"http://{h}:{port}/v1") for kind, port in servers or LOCAL_SERVERS for h in hosts or LOCAL_HOSTS]
+    with ThreadPoolExecutor(max_workers=len(tries)) as pool:
+        answers = list(pool.map(lambda t: _models_at(t[1], timeout), tries))
+    found, seen = [], set()
+    for (kind, url), models in zip(tries, answers, strict=True):
+        if not models or (kind, tuple(models)) in seen:
+            continue
+        seen.add((kind, tuple(models)))
+        chat = [m for m in models if not any(w in m.lower() for w in NOT_CHAT)]
+        found.append(
+            {"kind": kind, "base_url": url, "models": chat + [m for m in models if m not in chat], "suggested": (chat or models)[0]}
+        )
+    return found

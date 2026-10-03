@@ -2283,6 +2283,32 @@
         }
       }
     },
+    "/api/v1/setup/llm/detect": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Detect Llm",
+        "description": "Model servers running on this machine or the Docker host (Ollama, LM Studio, llama.cpp, vLLM, LocalAI), with\ntheir models, so the wizard can offer one instead of asking for an address.",
+        "operationId": "detect_llm",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LocalModelServer"
+                  },
+                  "type": "array",
+                  "title": "Response Setup-Detect Llm"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/setup/storage": {
       "put": {
         "tags": [
@@ -16963,6 +16989,43 @@
         "title": "AttachedTo",
         "description": "The email a resource was attached to (it's one of that email's files too)."
       },
+      "Attachment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the upload"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording",
+            "description": "the recording it became, once imported"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "size"
+        ],
+        "title": "Attachment"
+      },
       "AuditEntry": {
         "properties": {
           "at": {
@@ -17956,6 +18019,15 @@
             "type": "string",
             "title": "Title"
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "chat",
+              "setup"
+            ],
+            "title": "Kind",
+            "default": "chat"
+          },
           "scope": {
             "additionalProperties": true,
             "type": "object",
@@ -18084,6 +18156,16 @@
             ],
             "title": "Title"
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "chat",
+              "setup"
+            ],
+            "title": "Kind",
+            "description": "setup (admins): the assistant sets the server up with you, and makes the changes it proposes without asking (telemetry still asks)",
+            "default": "chat"
+          },
           "scope": {
             "anyOf": [
               {
@@ -18128,6 +18210,14 @@
           "content": {
             "type": "string",
             "title": "Content"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Attachments",
+            "description": "files sent with it (POST /uploads with hold)"
           },
           "passages": {
             "anyOf": [
@@ -18323,6 +18413,15 @@
           "title": {
             "type": "string",
             "title": "Title"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "chat",
+              "setup"
+            ],
+            "title": "Kind",
+            "default": "chat"
           },
           "scope": {
             "additionalProperties": true,
@@ -24414,6 +24513,38 @@
         ],
         "title": "LlmTestResult"
       },
+      "LocalModelServer": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "suggested": {
+            "type": "string",
+            "title": "Suggested"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "base_url",
+          "models",
+          "suggested"
+        ],
+        "title": "LocalModelServer"
+      },
       "LoginRequest": {
         "properties": {
           "email": {
@@ -24779,7 +24910,17 @@
           "content": {
             "type": "string",
             "title": "Content",
-            "description": "the question (up to 4000 characters)"
+            "description": "the question (up to 4000 characters); may be empty when files are attached",
+            "default": ""
+          },
+          "attachments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Attachments",
+            "description": "your uploads started with `hold` and finished: the assistant can import them into a namespace"
           },
           "model": {
             "anyOf": [
@@ -24796,9 +24937,6 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "content"
-        ],
         "title": "MessageCreate"
       },
       "MetadataBulk": {
@@ -34777,9 +34915,11 @@
             "type": "string",
             "enum": [
               "receiving",
+              "held",
               "done"
             ],
-            "title": "State"
+            "title": "State",
+            "description": "held: all here, waiting to be put in a namespace"
           },
           "attach": {
             "anyOf": [
@@ -34980,6 +35120,12 @@
             ],
             "title": "Modified",
             "description": "the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't"
+          },
+          "hold": {
+            "type": "boolean",
+            "title": "Hold",
+            "description": "keep it out of the archive once it's here (state `held`), to attach to a chat message: the assistant puts it in a namespace (no `namespace` needed)",
+            "default": false
           }
         },
         "additionalProperties": false,

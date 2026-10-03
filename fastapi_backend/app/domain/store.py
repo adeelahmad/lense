@@ -246,6 +246,16 @@ DEFAULTS = {
         "price_in": None,
         "price_out": None,
     },
+    # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
+    # has a key, else the language model. act_above: the confidence it acts on; below it, it asks.
+    "decisions": {
+        "engine": "auto",
+        "base_url": "https://api.typesafe.ai/v1",
+        "model": "jev-latest",
+        "api_key": None,
+        "act_above": 0.8,
+        "timeout": 10,
+    },
     "video": {
         "sample_seconds": 5,
         "scene_threshold": 0.3,

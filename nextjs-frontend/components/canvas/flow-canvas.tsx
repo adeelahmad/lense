@@ -13,6 +13,7 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  useNodesInitialized,
   useReactFlow,
   type Connection,
   type Edge,
@@ -23,7 +24,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { LucideIcon } from "lucide-react";
-import { useCallback, useMemo, useRef, type DragEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -189,6 +190,8 @@ type Props = {
   className?: string;
 };
 
+const FIT = { padding: 0.2, minZoom: 0.1, maxZoom: 1 };
+
 const edgeId = (e: CanvasEdge) => `${e.source}:${e.port ?? "out"}->${e.target}:${e.input ?? "in"}`;
 
 function Inner({
@@ -209,17 +212,39 @@ function Inner({
 }: Props) {
   const flow = useReactFlow();
   const lastClick = useRef<{ id: string; at: number }>({ id: "", at: 0 });
+  // The whole graph stays in view until the person pans or zooms: refit once the nodes are measured, when nodes come
+  // or go, and when the canvas changes size (a panel opening, the window resizing). A fit on first render alone left
+  // nodes off the edges, or the canvas empty, when they were measured or the canvas grew after it.
+  const box = useRef<HTMLDivElement>(null);
+  const moved = useRef(false);
+  const measured = useNodesInitialized();
+  const fit = useCallback(() => {
+    if (!moved.current) requestAnimationFrame(() => void flow.fitView(FIT));
+  }, [flow]);
+  useEffect(() => {
+    if (measured) fit();
+  }, [measured, nodes.length, fit]);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const watch = new ResizeObserver(fit);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [fit]);
+  // Each node's measured size, kept with the nodes as React Flow measures them: the minimap draws from it.
+  const [sizes, setSizes] = useState<Record<string, { width: number; height: number }>>({});
   const rfNodes = useMemo<Node<Data>[]>(
     () =>
       nodes.map((n) => ({
         id: n.id,
         type: "card",
         position: { x: n.x, y: n.y },
+        measured: sizes[n.id],
         data: n as Data,
         selected: n.id === selected || Boolean(multi?.includes(n.id)),
         deletable: !readOnly && n.inputs !== 0,
       })),
-    [nodes, selected, multi, readOnly],
+    [nodes, selected, multi, readOnly, sizes],
   );
   const rfEdges = useMemo<Edge[]>(
     () =>
@@ -243,8 +268,10 @@ function Inner({
       // Selection is kept by the parent: one node (its settings show), or several (Shift or Ctrl), to fold together.
       const picked = new Set(rfNodes.filter((n) => n.selected).map((n) => n.id));
       let last: string | null | undefined;
+      const measuredNow: Record<string, { width: number; height: number }> = {};
       for (const c of changes) {
-        if (c.type === "position" && c.position && !readOnly) onMove(c.id, c.position.x, c.position.y);
+        if (c.type === "dimensions" && c.dimensions) measuredNow[c.id] = c.dimensions;
+        else if (c.type === "position" && c.position && !readOnly) onMove(c.id, c.position.x, c.position.y);
         else if (c.type === "remove") gone.push(c.id);
         else if (c.type === "select") {
           if (c.selected) {
@@ -259,6 +286,7 @@ function Inner({
         else if (!picked.size) onSelect(null);
         else if (picked.size === 1) onSelect([...picked][0]);
       }
+      if (Object.keys(measuredNow).length) setSizes((was) => ({ ...was, ...measuredNow }));
       if (gone.length && !readOnly) onDeleteNodes(gone);
     },
     [onMove, onDeleteNodes, onSelect, onMultiSelect, readOnly, rfNodes],
@@ -286,6 +314,7 @@ function Inner({
   };
   return (
     <div
+      ref={box}
       className={cn("h-full min-h-[480px] w-full", className)}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes(DRAG_TYPE)) {
@@ -317,12 +346,16 @@ function Inner({
         nodesConnectable={!readOnly}
         deleteKeyCode={readOnly ? null : ["Delete", "Backspace"]}
         fitView
-        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
+        fitViewOptions={FIT}
+        minZoom={0.1}
+        onMoveStart={(e) => {
+          if (e) moved.current = true; // a pan or zoom by the person (fitting the view has no event)
+        }}
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={20} />
         <Controls showInteractive={false} />
-        <MiniMap pannable zoomable className="!hidden md:!block" />
+        <MiniMap pannable zoomable style={{ width: 150, height: 100 }} className="!hidden md:!block" />
       </ReactFlow>
     </div>
   );

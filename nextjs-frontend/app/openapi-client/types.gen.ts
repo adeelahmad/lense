@@ -293,6 +293,33 @@ export type AttachedTo = {
 };
 
 /**
+ * Attachment
+ */
+export type Attachment = {
+  /**
+   * Id
+   *
+   * the upload
+   */
+  id: string;
+  /**
+   * Filename
+   */
+  filename: string;
+  /**
+   * Size
+   */
+  size: number;
+  /**
+   * Recording
+   *
+   * the recording it became, once imported
+   */
+  recording?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * AuditEntry
  */
 export type AuditEntry = {
@@ -857,6 +884,10 @@ export type Chat = {
    */
   title: string;
   /**
+   * Kind
+   */
+  kind?: "chat" | "setup";
+  /**
    * Scope
    */
   scope?: {
@@ -938,6 +969,12 @@ export type ChatCreate = {
    * Title
    */
   title?: string | null;
+  /**
+   * Kind
+   *
+   * setup (admins): the assistant sets the server up with you, and makes the changes it proposes without asking (telemetry still asks)
+   */
+  kind?: "chat" | "setup";
   scope?: ChatScope | null;
   /**
    * Model
@@ -963,6 +1000,12 @@ export type ChatMessage = {
    * Content
    */
   content: string;
+  /**
+   * Attachments
+   *
+   * files sent with it (POST /uploads with hold)
+   */
+  attachments?: Array<Attachment>;
   /**
    * Passages
    */
@@ -1058,6 +1101,10 @@ export type ChatSummary = {
    * Title
    */
   title: string;
+  /**
+   * Kind
+   */
+  kind?: "chat" | "setup";
   /**
    * Scope
    */
@@ -4550,6 +4597,29 @@ export type LlmTestResult = {
 };
 
 /**
+ * LocalModelServer
+ */
+export type LocalModelServer = {
+  /**
+   * Kind
+   */
+  kind: string;
+  /**
+   * Base Url
+   */
+  base_url: string;
+  /**
+   * Models
+   */
+  models: Array<string>;
+  /**
+   * Suggested
+   */
+  suggested: string;
+  [key: string]: unknown;
+};
+
+/**
  * LoginRequest
  */
 export type LoginRequest = {
@@ -4763,9 +4833,15 @@ export type MessageCreate = {
   /**
    * Content
    *
-   * the question (up to 4000 characters)
+   * the question (up to 4000 characters); may be empty when files are attached
    */
-  content: string;
+  content?: string;
+  /**
+   * Attachments
+   *
+   * your uploads started with `hold` and finished: the assistant can import them into a namespace
+   */
+  attachments?: Array<string>;
   /**
    * Model
    *
@@ -10611,8 +10687,10 @@ export type Upload = {
   offset: number;
   /**
    * State
+   *
+   * held: all here, waiting to be put in a namespace
    */
-  state: "receiving" | "done";
+  state: "receiving" | "held" | "done";
   /**
    * Attach
    *
@@ -10738,6 +10816,12 @@ export type UploadStart = {
    * the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't
    */
   modified?: number | null;
+  /**
+   * Hold
+   *
+   * keep it out of the archive once it's here (state `held`), to attach to a chat message: the assistant puts it in a namespace (no `namespace` needed)
+   */
+  hold?: boolean;
 };
 
 /**
@@ -13201,6 +13285,24 @@ export type SaveLlmResponses = {
 };
 
 export type SaveLlmResponse = SaveLlmResponses[keyof SaveLlmResponses];
+
+export type DetectLlmData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/llm/detect";
+};
+
+export type DetectLlmResponses = {
+  /**
+   * Response Setup-Detect Llm
+   *
+   * Successful Response
+   */
+  200: Array<LocalModelServer>;
+};
+
+export type DetectLlmResponse = DetectLlmResponses[keyof DetectLlmResponses];
 
 export type SaveStorageData = {
   body: SetupStorage;

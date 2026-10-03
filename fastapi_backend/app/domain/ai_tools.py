@@ -9,7 +9,19 @@ from __future__ import annotations
 import json
 import logging
 
-from . import batches, entities, entity_map, entity_setup, recsets, render, search as searchmod, speakers as spk, store, templates
+from . import (
+    batches,
+    entities,
+    entity_map,
+    entity_setup,
+    ops_tools,
+    recsets,
+    render,
+    search as searchmod,
+    speakers as spk,
+    store,
+    templates,
+)
 
 R = store.R
 log = logging.getLogger("lens")
@@ -103,9 +115,13 @@ TOOLS = [
 ]
 
 
-class Toolbox:
-    def __init__(self, db, cfg, user, readable, editable, scope, chat_id):
-        self.db, self.cfg, self.user, self.chat = db, cfg, user, chat_id
+class Toolbox(ops_tools.OpsTools):
+    """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
+    makes their changes at once instead of asking for approval."""
+
+    def __init__(self, db, cfg, user, readable, editable, scope, chat_id, base=None, admin=False, act=False, said=""):
+        self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
+        self.base, self.admin, self.act = base or cfg, admin, act
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
         names = store.space_names(db)
@@ -117,13 +133,18 @@ class Toolbox:
     def specs(self):
         off = set(self.cfg["ai"].get("disabled_tools") or [])
         can_act = bool(self.editable)
+        tools = [t for t in TOOLS if can_act or not t[4]]
+        if self.admin:
+            tools += ops_tools.ADMIN_TOOLS
+        if can_act or self.admin:
+            tools += ops_tools.FILE_TOOLS
         return [
             {
                 "type": "function",
                 "function": {"name": n, "description": d, "parameters": {"type": "object", "properties": p, "required": req}},
             }
-            for n, d, p, req, needs in TOOLS
-            if n not in off and (can_act or not needs)
+            for n, d, p, req, _ in tools
+            if n not in off
         ]
 
     def ref(self, rid, t0, text, speaker=None, title=None, source="said", page=None):
@@ -151,7 +172,10 @@ class Toolbox:
         return row
 
     def call(self, name, args):
+        offered = {s["function"]["name"] for s in self.specs()}
         try:
+            if name not in offered:
+                raise AttributeError(name)
             fn = getattr(self, "t_" + name)
         except AttributeError:
             return json.dumps({"error": f"no tool {name}"}), f"unknown tool {name}"
@@ -159,7 +183,7 @@ class Toolbox:
             out, summary = fn(**{k: v for k, v in (args or {}).items() if v is not None})
         except KeyError as e:  # an id or name that doesn't exist
             return json.dumps({"error": f"not found: {e.args[0] if e.args else e}"}), f"{name}: not found"
-        except (ValueError, TypeError) as e:
+        except (ValueError, TypeError, PermissionError) as e:
             return json.dumps({"error": str(e)}), f"{name}: {e}"
         except Exception as e:  # noqa: BLE001 - the model hears what went wrong instead of the answer breaking off
             log.exception("assistant tool %s failed", name)
@@ -437,8 +461,9 @@ class Toolbox:
         return [{**r, "used": r["n"] in used} for r in self.refs if r["n"] in used]
 
 
-def approve(db, cfg, aid, user, editable, decision="approve"):
-    """Carry out an approved action: a batch run (or a sample of it) or an entity change."""
+def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False):
+    """Carry out an approved action: a batch run (or a sample of it), an entity change, or a change to the server
+    (ops_tools.py: settings, a namespace, importing attached files)."""
     a = db.one("SELECT record::id(id) AS id, chat, account, tool, args, status FROM $r", r=R("approval", int(aid)))
     if not a or a["status"] != "pending":
         raise ValueError("nothing to approve")
@@ -448,7 +473,9 @@ def approve(db, cfg, aid, user, editable, decision="approve"):
         )
         return {"status": "declined"}
     args = a["args"]
-    if a["tool"] == "run_template":
+    if a["tool"] in ("change_settings", "create_namespace", "import_files"):
+        result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
+    elif a["tool"] == "run_template":
         steps, label = batches.steps_for(db, {"template": args["template_id"]})
         ids = [i for i in args["recordings"] if (db.one("SELECT space FROM $r", r=R("recording", i)) or {}).get("space") in editable]
         bid = batches.create(

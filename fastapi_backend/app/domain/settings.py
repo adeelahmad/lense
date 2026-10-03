@@ -35,6 +35,7 @@ EDITABLE = {
     "workers": None,
     "iiif": None,
     "ai": None,
+    "decisions": None,
     "notifications": None,
     "telemetry": None,
     "video": (
@@ -61,7 +62,7 @@ EDITABLE = {
     # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
     "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
-SECRETS = {"llm": ("api_key",), "embeddings": ("api_key",), "telemetry": ("headers",)}
+SECRETS = {"llm": ("api_key",), "embeddings": ("api_key",), "decisions": ("api_key",), "telemetry": ("headers",)}
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"},
     ("transcribe", "device"): {"auto", "cpu", "cuda", "mps"},
@@ -74,6 +75,7 @@ ENUMS = {
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "off"},
+    ("decisions", "engine"): {"auto", "jev", "llm", "off"},
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
 # break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
@@ -87,6 +89,7 @@ ENV_OVERRIDES = {
     ("embeddings", "base_url"): "LENS_EMBED_BASE_URL",
     ("embeddings", "model"): "LENS_EMBED_MODEL",
     ("embeddings", "api_key"): "LENS_EMBED_API_KEY",
+    ("decisions", "api_key"): "TYPESAFE_API_KEY",
     ("telemetry", "enabled"): "LENS_TELEMETRY",
     ("telemetry", "endpoint"): "LENS_TELEMETRY_ENDPOINT",
     ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
@@ -290,6 +293,8 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "decisions" and key != "engine":
+        return _decision_setting(key, value)
     if (section, key) == ("documents", "attachment_resources"):
         if not isinstance(value, bool):
             raise ValueError("documents.attachment_resources is true or false")
@@ -333,6 +338,30 @@ def _check(section, key, value, default):
     if not ok:
         raise ValueError(f"{section}.{key} should be {type(default).__name__}")
     return value
+
+
+def _decision_setting(key, value):
+    if key == "base_url":
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("decisions.base_url is the decision model's http(s) address, such as https://api.typesafe.ai/v1")
+        return value.strip().rstrip("/")
+    if key in ("model", "api_key"):
+        if value is None or value == "":
+            if key == "model":
+                raise ValueError("decisions.model names the decision model, such as jev-latest")
+            return None
+        if not (isinstance(value, str) and len(value.strip()) <= 500):
+            raise ValueError(f"decisions.{key} is text")
+        return value.strip()
+    if key == "act_above":
+        if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0.5 <= value <= 1):
+            raise ValueError("decisions.act_above is a number from 0.5 to 1")
+        return float(value)
+    if key == "timeout":
+        if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 1 <= value <= 120):
+            raise ValueError("decisions.timeout is a number of seconds from 1 to 120")
+        return value
+    raise ValueError(f"unknown setting decisions.{key}")
 
 
 EMBED_RANGES = {"passage_chars": (200, 4000), "batch_size": (1, 256), "neighbours": (5, 500), "timeout": (5, 600)}

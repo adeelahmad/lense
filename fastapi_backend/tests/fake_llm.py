@@ -12,6 +12,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     tool_script = []  # assistant messages to return, in order, when a request offers tools
     reject_tools = False  # behave like a server whose model can't call tools
     blind = False  # behave like a server whose model can't see images
+    decision = None  # the answer to a decision (decide.py) when no decision model is set up; else the first option
     usage = None  # token counts to report with each answer (and as a streamed answer's last chunk), like OpenAI
 
     def _json(self, obj):
@@ -120,6 +121,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     ]
                 }
             )
+        elif set(schema.get("properties", {})) == {"choice", "confidence"}:
+            content = json.dumps(Handler.decision or {"choice": schema["properties"]["choice"]["enum"][0], "confidence": 0.9})
         elif body.get("response_format"):
             content = json.dumps(
                 {

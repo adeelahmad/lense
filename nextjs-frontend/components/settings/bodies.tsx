@@ -519,6 +519,10 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
 }
 
 function AiBody({ ctx }: { ctx: BodyCtx }) {
+  const d = ctx.view.decisions;
+  const secret = (d?.values?.api_key ?? {}) as { set?: boolean };
+  const key = ctx.state("decisions.api_key");
+  const keyFromEnv = (d?.locked ?? []).includes("api_key");
   const tools = ctx.state("ai.disabled_tools");
   const off = (tools.value as string[]) ?? [];
   const enabled = Boolean(ctx.form["ai.tools"]);
@@ -557,6 +561,35 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         <F ctx={ctx} id="ai.price_out" />
         <F ctx={ctx} id="ai.max_steps" />
         <F ctx={ctx} id="ai.max_transcript_reads" />
+      </div>
+      <div className="flex flex-col gap-3">
+        <span className="text-[13px] font-bold leading-tight text-fg-strong">Routine choices</span>
+        <p className="text-[13px] leading-normal text-fg-secondary">
+          Choices like which namespace a file goes in are made for you. A decision model answers them faster and for far
+          less than the LLM; get a key at typesafe.ai.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="decisions.engine" />
+          <F ctx={ctx} id="decisions.act_above" />
+        </div>
+        {keyFromEnv ? (
+          <p className="text-[13px] text-fg-secondary">The decision model’s key is set by TYPESAFE_API_KEY in .env.</p>
+        ) : (
+          <SecretSetting
+            key={d?.updated_at ?? "none"}
+            label="Decision model API key"
+            isSet={Boolean(secret.set)}
+            updatedBy={d?.updated_by}
+            updatedAt={d?.updated_at}
+            value={key.value as string | undefined}
+            onChange={(x) => key.onChange(x)}
+          />
+        )}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <F ctx={ctx} id="decisions.base_url" />
+          <F ctx={ctx} id="decisions.model" />
+          <F ctx={ctx} id="decisions.timeout" />
+        </div>
       </div>
       <div className="flex flex-col gap-1.5">
         <span className="text-[13px] font-bold text-fg-strong">Limits per role</span>

@@ -84,7 +84,7 @@ function AttentionRow({ item, onAct, reason }: { item: AttentionItem; onAct: () 
 }
 
 /** Home (HM1): what needs you, what just arrived, what's processing, and a quick way in. */
-export function HomeScreen() {
+export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
@@ -223,6 +223,7 @@ export function HomeScreen() {
 
   return (
     <div className="grid content-start gap-6 px-4 py-5 md:px-8 md:py-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      {switcher && <div className="-mb-3 flex justify-end lg:col-span-2">{switcher}</div>}
       <div className="flex min-w-0 flex-col gap-5">
         <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
           <h1 className="text-[24px] font-bold leading-[1.2] tracking-[-.015em] text-fg">

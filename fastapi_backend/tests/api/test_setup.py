@@ -186,3 +186,29 @@ def test_environment_admin_without_a_password_gets_a_passkey_link(fresh, monkeyp
     assert u["admin"] and not u.get("pw")
     assert "Add the first admin's passkey at http://localhost:3000/signin-link#" in caplog.text
     assert client.get("/api/v1/auth/status").json()["passwords"] is False
+
+
+def test_finds_model_servers_running_nearby(fresh, monkeypatch):
+    from app.domain import setup
+    from tests import fake_llm
+
+    srv, url = fake_llm.start()
+    port = srv.server_address[1]
+    try:
+        monkeypatch.setattr(fake_llm.Handler, "models", ["nomic-embed-text", "qwen3:8b", "llama3.1"])
+        # one server reached at two addresses is offered once; a port with nothing on it is left out
+        found = setup.detect_llm(timeout=2, hosts=("127.0.0.1", "localhost"), servers=(("Ollama", port), ("LM Studio", 9)))
+        assert found == [
+            {"kind": "Ollama", "base_url": url, "models": ["llama3.1", "qwen3:8b", "nomic-embed-text"], "suggested": "llama3.1"}
+        ]
+        app, client = fresh()
+        make_user(app.state.db, "ada@x.io", "admin password 1", admin=True)
+        make_user(app.state.db, "ed@x.io", "editor password 1")
+        app_settings.save(app.state.db, app.state.archive.base, "auth", {"passwords": True})  # made after startup
+        monkeypatch.setattr(setup, "LOCAL_HOSTS", ("127.0.0.1",))
+        monkeypatch.setattr(setup, "LOCAL_SERVERS", (("Ollama", port),))
+        h = login(client, "ada@x.io", "admin password 1")
+        assert client.get("/api/v1/setup/llm/detect", headers=h).json()[0]["suggested"] == "llama3.1"
+        assert client.get("/api/v1/setup/llm/detect", headers=login(client, "ed@x.io", "editor password 1")).status_code == 403
+    finally:
+        srv.shutdown()
