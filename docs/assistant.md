@@ -70,6 +70,18 @@ connected) the admin has asked the assistant to set the server up, so it makes t
 changed. Every change is audited with `assistant` in its detail, and all of them stay changeable in Settings.
 Turning telemetry on or off always asks first.
 
+### Routine choices
+
+The assistant makes routine choices for you instead of asking. The first is where files sent in a conversation go:
+`import_files` without a namespace picks one from the namespaces you can add to, judging from their descriptions,
+what's in them lately, the file names and your message. You're asked only when it isn't sure: below
+`decisions.act_above` (0.8) confidence it lists the namespaces, its best guess first.
+
+A **decision model** answers these: Jev, typesafe.ai's System One, which takes a few hundred milliseconds and costs a
+fraction of an LLM call. Set its key in **Settings → AI assistant → Routine choices**, or `TYPESAFE_API_KEY` in `.env`.
+Without a key, or if it can't be reached, the LLM provider decides. `decisions.engine` is `auto` (the default), `jev`,
+`llm`, or `off` to always be asked.
+
 ## Collections, batch runs and collection reports
 
 **Collections** are named sets of recordings. A collection is either a filter that stays up to date (namespaces,

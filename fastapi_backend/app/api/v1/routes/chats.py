@@ -225,6 +225,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 request.app.state.archive.base,
                 user.admin,
                 act=setup,
+                said=q,
             )
             try:
                 answer = ""

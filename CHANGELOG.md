@@ -10,6 +10,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   conversation straight away: it listens, sends what you said, reads the answer aloud and listens again, until you tap
   the mic or say nothing twice. Recent conversations are a tap below the field. Chat's composer has the same mic.
   Voice uses the browser's speech recognition and synthesis for now, behind one hook (`lib/voice.ts`).
+- **The assistant decides routine choices.** Files sent in a conversation go into the namespace that fits without
+  asking, chosen by a decision model (Jev, with a key in Settings → AI assistant or `TYPESAFE_API_KEY`) or the LLM.
+  Below `decisions.act_above` confidence it asks, best guess first. The admin tools are now listed in Settings → AI
+  assistant, where each can be turned off.
+
 - **Set up Lens by talking to it.** Once a model is connected, **Finish with the assistant** in the setup wizard
   opens a setup conversation: the assistant checks what's missing and sets it up (the model provider, namespaces,
   search by meaning) through new admin tools (`server_status`, `find_model_servers`, `read_settings`,
