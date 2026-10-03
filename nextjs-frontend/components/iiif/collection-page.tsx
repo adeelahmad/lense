@@ -14,7 +14,7 @@ import { CopyButton, usePublicIiif } from "@/components/iiif/collections";
 import { IiifPanel } from "@/components/iiif/iiif-panel";
 import { first, PUBLISH_BADGE, withLang, type Meta } from "@/components/iiif/metadata-model";
 import { keys, useNamespaceMeta } from "@/components/iiif/queries";
-import { RdfImportDialog, RdfMenu } from "@/components/iiif/rdf";
+import { RdfImportDialog, RdfMenu, SparqlDialog } from "@/components/iiif/rdf";
 import { RIGHTS } from "@/components/iiif/rights";
 import { SegmentedChoice } from "@/components/settings/controls";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +54,7 @@ export function CollectionPage({ ns }: { ns: string }) {
   const [bulk, setBulk] = useState<null | "edit" | "unpublish" | "publish">(null);
   const [editMeta, setEditMeta] = useState(false);
   const [rdfImport, setRdfImport] = useState(false);
+  const [sparql, setSparql] = useState(false);
 
   if (namespaces.length && !known)
     return (
@@ -211,6 +212,9 @@ export function CollectionPage({ ns }: { ns: string }) {
             Bulk edit
           </Button>
           <RdfMenu target={{ namespace: ns }} />
+          <Button size="sm" variant="ghost" onClick={() => setSparql(true)}>
+            SPARQL
+          </Button>
           <Button
             size="sm"
             variant="ghost"
@@ -323,6 +327,7 @@ export function CollectionPage({ ns }: { ns: string }) {
       </Drawer>
       <PublishDialog item={publishing} onClose={() => setPublishing(null)} />
       <RdfImportDialog ns={ns} open={rdfImport} onClose={() => setRdfImport(false)} />
+      <SparqlDialog ns={ns} open={sparql} onClose={() => setSparql(false)} />
       <BulkEditDialog ns={ns} open={bulk === "edit"} onClose={() => setBulk(null)} canPublish={isOwner} />
       <BulkEditDialog
         ns={ns}

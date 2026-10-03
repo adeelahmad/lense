@@ -643,6 +643,9 @@ import type {
   PlaceRecordingsData,
   PlaceRecordingsErrors,
   PlaceRecordingsResponses,
+  PostNamespaceSparqlData,
+  PostNamespaceSparqlErrors,
+  PostNamespaceSparqlResponses,
   PreviewIiifImportData,
   PreviewIiifImportErrors,
   PreviewIiifImportResponses,
@@ -658,6 +661,9 @@ import type {
   PreviewWatchData,
   PreviewWatchErrors,
   PreviewWatchResponses,
+  QueryNamespaceSparqlData,
+  QueryNamespaceSparqlErrors,
+  QueryNamespaceSparqlResponses,
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
@@ -4135,6 +4141,39 @@ export class Rdf {
   ): RequestResult<ImportNamespaceRdfResponses, ImportNamespaceRdfErrors, ThrowOnError> {
     return (options.client ?? client).post<ImportNamespaceRdfResponses, ImportNamespaceRdfErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/rdf/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Query Namespace Sparql
+   *
+   * A read-only SPARQL query over the namespace's graph (what GET /namespaces/{name}/rdf returns). dcterms, dcmitype,
+   * foaf, skos, owl, rdf, rdfs, xsd and lens are known prefixes. SERVICE and FROM aren't allowed.
+   */
+  public static queryNamespaceSparql<ThrowOnError extends boolean = false>(
+    options: Options<QueryNamespaceSparqlData, ThrowOnError>,
+  ): RequestResult<QueryNamespaceSparqlResponses, QueryNamespaceSparqlErrors, ThrowOnError> {
+    return (options.client ?? client).get<QueryNamespaceSparqlResponses, QueryNamespaceSparqlErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/sparql",
+      ...options,
+    });
+  }
+
+  /**
+   * Post Namespace Sparql
+   *
+   * The same, with the query in the body (for long ones).
+   */
+  public static postNamespaceSparql<ThrowOnError extends boolean = false>(
+    options: Options<PostNamespaceSparqlData, ThrowOnError>,
+  ): RequestResult<PostNamespaceSparqlResponses, PostNamespaceSparqlErrors, ThrowOnError> {
+    return (options.client ?? client).post<PostNamespaceSparqlResponses, PostNamespaceSparqlErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/sparql",
       ...options,
       headers: {
         "Content-Type": "application/json",

@@ -23,7 +23,7 @@ from app.api.v1.routes import entities as entity_routes
 from app.api.v1.routes import namespaces as namespace_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import search as search_routes
-from app.domain import analyze, library, render, store
+from app.domain import analyze, library, rdf, render, store
 from app.domain import entities as ents
 from app.domain import speakers as spk
 from app.domain.store import DB
@@ -902,3 +902,26 @@ def find_path(ctx: Context, from_node: str, to_node: str, namespace: str | None)
             for e in link.get("evidence", [])
         ]
     return res
+
+
+@tool(
+    "sparql",
+    "Query the archive with SPARQL",
+    "A read-only SPARQL query (SELECT, ASK, CONSTRUCT or DESCRIBE) over one namespace's linked data: recordings "
+    "described with Dublin Core (dcterms:title, creator, subject, created, references the entities they mention, …), "
+    "collections, entities (skos:Concept with skos:prefLabel) and speakers (foaf:Person). Prefixes dcterms, dcmitype, "
+    "foaf, skos, owl, rdf, rdfs, xsd and lens are known. SELECT and ASK give SPARQL JSON results; CONSTRUCT and "
+    "DESCRIBE give Turtle.",
+    Arg("namespace", "string", "the namespace to query", required=True),
+    Arg("query", "string", "the SPARQL query", required=True, max_length=20000),
+)
+def sparql(ctx: Context, namespace: str, query: str) -> dict[str, Any]:
+    sid = ctx.acl.namespace(namespace)
+    base = (ctx.cfg["iiif"].get("base_url") or ctx.web).rstrip("/")
+    try:
+        kind, out = rdf.sparql(rdf.namespace_graph(ctx.db, ctx.cfg, base, sid), query, base)
+    except rdf.QueryProblem as e:
+        raise ToolError(str(e)) from None
+    if kind == "results":
+        return out
+    return {"turtle": rdf.serialize(out, "turtle").decode()[:200000]}

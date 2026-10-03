@@ -10096,6 +10096,187 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/sparql": {
+      "get": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Query Namespace Sparql",
+        "description": "A read-only SPARQL query over the namespace's graph (what GET /namespaces/{name}/rdf returns). dcterms, dcmitype,\nfoaf, skos, owl, rdf, rdfs, xsd and lens are known prefixes. SERVICE and FROM aren't allowed.",
+        "operationId": "query_namespace_sparql",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query",
+              "title": "Query"
+            },
+            "description": "a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)",
+              "title": "Format"
+            },
+            "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)",
+            "content": {
+              "application/sparql-results+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "text/turtle": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/ld+json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/n-triples": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/rdf+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Post Namespace Sparql",
+        "description": "The same, with the query in the body (for long ones).",
+        "operationId": "post_namespace_sparql",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)",
+              "title": "Format"
+            },
+            "description": "turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SparqlQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)",
+            "content": {
+              "application/sparql-results+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "text/turtle": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/ld+json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/n-triples": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/rdf+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/media": {
       "get": {
         "tags": [
@@ -33088,6 +33269,21 @@
           "health"
         ],
         "title": "SourceUpdated"
+      },
+      "SparqlQuery": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query",
+            "description": "a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "SparqlQuery"
       },
       "Speaker": {
         "properties": {
