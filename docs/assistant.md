@@ -15,6 +15,8 @@ then.
   is writing it); what came before is saved, marked stopped. A model call already under way finishes first.
 - **Reopening:** a conversation's answers keep the tools the assistant used (and with what), any notice (the model
   couldn't use tools), the error when there was no answer, and their latest source check.
+- **Editing a question:** Edit on a question you asked asks it again as edited; the answer and everything after it
+  are replaced (`POST /api/v1/chats/<id>/messages` with `edit`).
 - **Changed access:** old citations are filtered by the person's current access when a conversation is reopened.
 - **Choosing the model:** a conversation can use any model an admin offers (`llm.chat_models`, else whatever the model
   server lists); Try another model asks a question again with a different one. Each answer records the model that
