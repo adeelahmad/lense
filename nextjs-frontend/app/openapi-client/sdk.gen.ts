@@ -235,6 +235,8 @@ import type {
   DeleteWatchData,
   DeleteWatchErrors,
   DeleteWatchResponses,
+  DetectLlmData,
+  DetectLlmResponses,
   DiffTemplateVersionsData,
   DiffTemplateVersionsErrors,
   DiffTemplateVersionsResponses,
@@ -1610,6 +1612,21 @@ export class Setup {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Detect Llm
+   *
+   * Model servers running on this machine or the Docker host (Ollama, LM Studio, llama.cpp, vLLM, LocalAI), with
+   * their models, so the wizard can offer one instead of asking for an address.
+   */
+  public static detectLlm<ThrowOnError extends boolean = false>(
+    options?: Options<DetectLlmData, ThrowOnError>,
+  ): RequestResult<DetectLlmResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<DetectLlmResponses, unknown, ThrowOnError>({
+      url: "/api/v1/setup/llm/detect",
+      ...options,
     });
   }
 
