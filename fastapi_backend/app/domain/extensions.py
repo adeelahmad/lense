@@ -34,6 +34,7 @@ R = store.R
 KINDS = ("tool", "skill", "hook", "plugin")
 VISIBILITY = ("private", "namespace", "everyone")
 NAME_RX = re.compile(r"^[a-z][a-z0-9_]{1,40}$")
+PARAM_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
 PARAM_KINDS = {"text": "string", "number": "number", "integer": "integer", "bool": "boolean", "json": "object", "list": "array"}
 EFFECTS = ("read", "change")
 RUNS = ("prompt", "http")
@@ -83,7 +84,7 @@ def _check_params(params):
         if not isinstance(p, dict) or set(p) - {"name", "kind", "description", "required", "options", "default"}:
             raise ValueError("a parameter is {name, kind, description, required, options, default}")
         name = str(p.get("name") or "")
-        if not NAME_RX.match(name) or name in names:
+        if not PARAM_RX.match(name) or name in names:
             raise ValueError("name each parameter differently, with lowercase letters, digits and _")
         names.add(name)
         kind = p.get("kind") or "text"
@@ -122,7 +123,7 @@ def _check_run(run, params, me):
         if method not in METHODS:
             raise ValueError(f"the method is one of {', '.join(METHODS)}")
         url = _text(run.get("url"), "the tool's web address", 2000, required=True)
-        if not re.match(r"^https?://[^/{}\s]+", url):
+        if not re.match(r"^https?://[^/?#{}\s]+(?:[/?#]|$)", url):
             raise ValueError("the web address starts with http:// or https:// and a host (parameters go after it)")
         headers = run.get("headers") or {}
         if not isinstance(headers, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in headers.items()):
@@ -288,6 +289,7 @@ def parse_manifest(text):
         body = (fm.group(2) or "").strip() or None
     if not isinstance(head, dict):
         raise ValueError("a manifest starts with its name, kind and description")
+    head = json.loads(json.dumps(head, default=str))  # dates and the like YAML reads, as text
     if body is not None:
         path = BODY_KEY.get(head.get("kind"))
         if not path:
@@ -352,6 +354,10 @@ def _check_share(db, me, visibility, namespaces):
     vis = visibility or "private"
     if vis not in VISIBILITY:
         raise ValueError(f"who sees it is one of {', '.join(VISIBILITY)}")
+    if vis == "everyone" and not me["admin"]:
+        raise ValueError("only admins share an extension with everyone; share it with your namespaces instead")
+    if namespaces is not None and (not isinstance(namespaces, list) or not all(isinstance(n, str) for n in namespaces)):
+        raise ValueError("namespaces are a list of names")
     sids = []
     if vis == "namespace":
         for name in namespaces or []:
@@ -428,6 +434,14 @@ def _row(db, eid):
 
 def can_see(d, me):
     if me["admin"] or d.get("owner") == me["id"] or d.get("visibility") == "everyone":
+        return True
+    return d.get("visibility") == "namespace" and bool(set(d.get("namespaces") or []) & set(me["roles"]))
+
+
+def can_use(d, me):
+    """Whether an extension is in this person's assistant: theirs, shared with everyone, or with one of their
+    namespaces. Admins see every extension, but only these run for them."""
+    if d.get("owner") == me["id"] or d.get("visibility") == "everyone":
         return True
     return d.get("visibility") == "namespace" and bool(set(d.get("namespaces") or []) & set(me["roles"]))
 
@@ -527,6 +541,10 @@ def visible_one(db, me, eid, version=None):
 
 
 # ---------- in a conversation ----------
+def _owner_admin(db, g):
+    return bool((db.one("SELECT admin FROM $r", r=R("account", g.get("owner"))) or {}).get("admin"))
+
+
 class Active:
     """The extensions switched on for one person, plugins opened up: tools and skills by name, hooks by event. Each
     item knows the extension (and version) it comes from."""
@@ -535,10 +553,14 @@ class Active:
         self.tools, self.skills, self.hooks = {}, {}, {e: [] for e in EVENTS}
         for d in db.rows("SELECT record::id(id) AS id FROM extension WHERE deleted_at = NONE AND enabled = true ORDER BY id"):
             g = get(db, d["id"])
-            if not can_see(g, me):
+            if not can_use(g, me):
                 continue
+            # hooks see what's said and what tools give back, so only one's own run, or those an admin shared
+            trusted = g.get("owner") == me["id"] or _owner_admin(db, g)
             items = g["spec"]["items"] if g["kind"] == "plugin" else [g]
             for it in items:
+                if it["kind"] == "hook" and not trusted:
+                    continue
                 item = {
                     "ext": g["id"],
                     "version": g["version"],
@@ -664,6 +686,8 @@ def http_call(cfg, run, args):
     from . import feeds, netguard, webcapture
 
     url = fill(run["url"], args, quote=lambda s: urllib.parse.quote(s, safe=""))
+    if urllib.parse.urlsplit(url).netloc != urllib.parse.urlsplit(run["url"]).netloc:
+        raise ValueError("the tool's arguments can't change where its request goes")
     webcapture.check_url(cfg, url)
     data = None
     headers = {"User-Agent": "Lens assistant tool", **{k: fill(v, args) for k, v in (run.get("headers") or {}).items()}}

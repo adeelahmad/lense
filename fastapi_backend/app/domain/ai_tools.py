@@ -136,7 +136,7 @@ class Toolbox(ops_tools.OpsTools):
         self.allowed = recsets.within(db, self.readable, self.scope.get("recordings"), self.scope.get("collections"))
         self.refs, self.reads, self.approvals = [], 0, []
         # the extensions this person switched on or was given (extensions.py); hooks don't run inside hooks
-        me = extensions.who(user["id"], user.get("email"), admin, {s: "viewer" for s in readable})
+        me = extensions.who(user["id"], user.get("email"), admin, {s: "viewer" for s in self.readable})
         self.ext = extensions.Active(db, me) if cfg["ai"].get("extensions", True) else None
         self.hooking = False
 
@@ -623,7 +623,7 @@ def run_extension(db, cfg, args, user, admin, readable):
     """An approved extension tool: the version that was proposed, if it's still on and still the person's to use."""
     g = extensions.get(db, int(args["extension"]), args.get("version"))
     me = extensions.who(user["id"], user.get("email"), admin, {s: "viewer" for s in readable})
-    if g.get("deleted_at") or not g.get("enabled") or not extensions.can_see(g, me):
+    if g.get("deleted_at") or not g.get("enabled") or not extensions.can_use(g, me):
         raise ValueError("that extension was switched off or removed")
     items = g["spec"]["items"] if g["kind"] == "plugin" else [g]
     t = next((it for it in items if it.get("kind") == "tool" and it["name"] == args["tool"]), None)
