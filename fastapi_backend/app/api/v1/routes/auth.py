@@ -150,7 +150,7 @@ def forgot_password(body: ForgotPasswordRequest, db: Db, cfg: Cfg, tasks: Backgr
     _need_passwords(cfg)
     raw, user = auth.start_reset(db, body.email, settings.PASSWORD_RESET_EXPIRE_MINUTES)
     if raw and user:
-        tasks.add_task(send_reset_password_email, user["email"], user.get("name"), raw)
+        tasks.add_task(send_reset_password_email, cfg, user["email"], user.get("name"), raw)
     return Ok()
 
 

@@ -38,8 +38,25 @@ EDITABLE = {
     "decisions": None,
     "components": None,
     "voice": None,
+    "mail": None,
     "notifications": None,
     "telemetry": None,
+    # bind is a startup setting only
+    "sensors": (
+        "enabled",
+        "mqtt",
+        "mqtt_port",
+        "mqtt_anonymous",
+        "syslog",
+        "syslog_port",
+        "syslog_networks",
+        "max_payload_kb",
+        "store",
+        "raw_days",
+        "rollup_days",
+        "important_days",
+        "max_per_minute",
+    ),
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -64,7 +81,14 @@ EDITABLE = {
     # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
     "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
-SECRETS = {"llm": ("api_key",), "embeddings": ("api_key",), "decisions": ("api_key",), "voice": ("tts_api_key",), "telemetry": ("headers",)}
+SECRETS = {
+    "llm": ("api_key",),
+    "embeddings": ("api_key",),
+    "decisions": ("api_key",),
+    "voice": ("tts_api_key",),
+    "mail": ("password",),
+    "telemetry": ("headers",),
+}
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"},
     ("transcribe", "device"): {"auto", "cpu", "cuda", "mps"},
@@ -79,6 +103,7 @@ ENUMS = {
     ("video", "object_engine"): {"yolox", "ultralytics", "off"},
     ("decisions", "engine"): {"auto", "jev", "llm", "off"},
     ("voice", "input"): {"auto", "server", "browser"},
+    ("mail", "security"): {"starttls", "ssl", "none"},
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
 # break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
@@ -93,6 +118,12 @@ ENV_OVERRIDES = {
     ("embeddings", "model"): "LENS_EMBED_MODEL",
     ("embeddings", "api_key"): "LENS_EMBED_API_KEY",
     ("decisions", "api_key"): "TYPESAFE_API_KEY",
+    ("mail", "server"): "MAIL_SERVER",
+    ("mail", "port"): "MAIL_PORT",
+    ("mail", "username"): "MAIL_USERNAME",
+    ("mail", "password"): "MAIL_PASSWORD",
+    ("mail", "from_address"): "MAIL_FROM",
+    ("mail", "from_name"): "MAIL_FROM_NAME",
     ("telemetry", "enabled"): "LENS_TELEMETRY",
     ("telemetry", "endpoint"): "LENS_TELEMETRY_ENDPOINT",
     ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
@@ -109,6 +140,11 @@ def env_value(section, key):
         return [x.strip() for x in raw.split(",") if x.strip()]
     if isinstance(default, bool):
         return raw.lower() in ("1", "true", "on", "yes")
+    if isinstance(default, int):
+        try:
+            return int(raw)
+        except ValueError:
+            return None
     return raw
 
 
@@ -296,8 +332,12 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "sensors":
+        return _sensor_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
+    if section == "mail" and key != "security":
+        return _mail_setting(key, value)
     if (section, key) == ("voice", "tts_base_url"):
         if value in (None, ""):
             return None
@@ -354,6 +394,30 @@ def _check(section, key, value, default):
         ok = True
     if not ok:
         raise ValueError(f"{section}.{key} should be {type(default).__name__}")
+    return value
+
+
+EMAIL_RX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _mail_setting(key, value):
+    if key == "port":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
+            raise ValueError("mail.port is a port number, usually 587 (STARTTLS), 465 (SSL) or 25")
+        return value
+    if value in (None, "") and key != "from_name":
+        return None
+    if not (isinstance(value, str) and len(value.strip()) <= 300):
+        raise ValueError(f"mail.{key} is text")
+    value = value.strip() if key != "password" else value
+    if key == "server" and not re.match(r"^[A-Za-z0-9.\-\[\]:]+$", value):
+        raise ValueError("mail.server is the SMTP server's host name, such as smtp.gmail.com")
+    if key == "from_address" and not EMAIL_RX.match(value):
+        raise ValueError("mail.from_address is an email address")
+    if key == "from_name" and not value:
+        return "Lens"
+    if key not in ("server", "port", "username", "password", "from_address", "from_name"):
+        raise ValueError(f"unknown setting mail.{key}")
     return value
 
 
@@ -461,6 +525,44 @@ def _notify_setting(key, value):
     lo, hi = NOTIFY_RANGES[key]
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"notifications.{key} is a whole number from {lo} to {hi}")
+    return value
+
+
+SENSOR_RANGES = {
+    "mqtt_port": (1, 65535),
+    "syslog_port": (1, 65535),
+    "max_payload_kb": (1, 16384),
+    "raw_days": (1, 36500),
+    "rollup_days": (1, 36500),
+    "important_days": (1, 36500),
+    "max_per_minute": (1, 100_000),
+}
+
+
+def _sensor_setting(key, value):
+    if key in ("enabled", "mqtt", "mqtt_anonymous", "syslog"):
+        if not isinstance(value, bool):
+            raise ValueError(f"sensors.{key} is true or false")
+        return value
+    if key == "store":
+        if value not in ("all", "changes", "summary", "none"):
+            raise ValueError("sensors.store is one of: all, changes, summary, none")
+        return value
+    if key == "syslog_networks":
+        if not isinstance(value, list):
+            raise ValueError("sensors.syslog_networks is a list of networks like 192.168.1.0/24")
+        out = []
+        for v in value:
+            try:
+                out.append(str(ipaddress.ip_network(str(v).strip(), strict=False)))
+            except ValueError:
+                raise ValueError(f"sensors.syslog_networks: {v} isn't a network like 192.168.1.0/24") from None
+        return list(dict.fromkeys(out))
+    lo, hi = SENSOR_RANGES[key]
+    if key in ("raw_days", "rollup_days", "important_days") and value is None:
+        return None  # kept for good
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"sensors.{key} is a whole number from {lo} to {hi}")
     return value
 
 

@@ -15,7 +15,7 @@ from app.api.deps import AdminWriter, Cfg, CurrentUser, Db, Writer, domain_error
 from app.config import settings
 from app.core.security import create_access_token
 from app.domain import auth, passkeys
-from app.email import send_signin_link_email
+from app.email import app_url, send_signin_link_email
 from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginTicket,
@@ -202,7 +202,7 @@ def signin_link_use(body: SigninLinkToken, request: Request, db: Db) -> LoginTic
 
 
 @router.post("/signin-link/lost")
-def lost_passkey(body: ForgotPasswordRequest, request: Request, db: Db, tasks: BackgroundTasks) -> Ok:
+def lost_passkey(body: ForgotPasswordRequest, request: Request, db: Db, cfg: Cfg, tasks: BackgroundTasks) -> Ok:
     """Email a sign-in link to this address, for adding a passkey. Answers the same whether or not it has an account."""
     # every request counts, per address asked for (it sends email), and per visitor where the server can tell them apart
     email = body.email.strip().lower()
@@ -214,7 +214,7 @@ def lost_passkey(body: ForgotPasswordRequest, request: Request, db: Db, tasks: B
     if u and not u.get("disabled"):
         minutes = settings.PASSWORD_RESET_EXPIRE_MINUTES
         raw = passkeys.create_link(db, u["id"], hours=minutes / 60, replace=False)  # an admin's link keeps working
-        tasks.add_task(send_signin_link_email, u["email"], u.get("name"), passkeys.link_url(raw), minutes)
+        tasks.add_task(send_signin_link_email, cfg, u["email"], u.get("name"), passkeys.link_url(raw, app_url(cfg)), minutes)
     return Ok()
 
 

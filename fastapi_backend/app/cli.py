@@ -198,10 +198,11 @@ PLATFORM_CMDS = ("users", "worker", "watch")
 
 def platform_main(argv, config):
     import getpass
+    import os
     import threading
     import time
 
-    from .domain import auth, jobs, notify, passkeys, routines, settings, sources, telemetry
+    from .domain import auth, jobs, notify, passkeys, routines, sensors, settings, sources, telemetry
 
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -290,6 +291,7 @@ def platform_main(argv, config):
                 notify.start(db, C, stop, name=wk.name, log=print)  # sends notifications too (docs/notifications.md)
                 if not (a.steps or a.no_schedule):  # and scans watched folders and runs routines, as `lens watch` does
                     routines.start(db, C, stop, log=print)
+                    sensors.start(db, C, stop, log=print, name=wk.name)  # and the sensor hub, while sensors are on
                 _stop_on_term()
                 try:
                     wk.loop(stop)
@@ -303,6 +305,7 @@ def platform_main(argv, config):
             telemetry.set_role("watcher")
             print("watching storage sources and running routines; Ctrl-C to stop")
             _stop_on_term()
+            sensors.start(db, C, threading.Event(), log=print, name=f"watch-{os.getpid()}")
             try:
                 while True:
                     sources.poll_due(db, C(), print)
