@@ -39,7 +39,7 @@ HEADER = struct.Struct(">6sQII7s")
 CHUNK = 64 * 1024
 TAG = 16
 SERVER = "server"
-_LOCK = threading.Lock()
+_LOCK = threading.RLock()  # data_key() runs inside rotate() and the wrapper changes, which hold it too
 
 
 class Locked(PermissionError):
@@ -107,6 +107,20 @@ def _create(db, cfg, sid):
     return _row(db, sid)
 
 
+def _save(db, sid, row, keys, current=None):
+    """Write the keys back only if nobody changed them since row was read (another process rotating, say)."""
+    cur = row["current"] if current is None else current
+    done = db.values(
+        "UPDATE $r SET keys = $k, current = $n, rev = $rev + 1 WHERE (rev ?? 0) = $rev RETURN VALUE rev",
+        r=R("data_key", int(sid)),
+        k=keys,
+        n=cur,
+        rev=int(row.get("rev") or 0),
+    )
+    if not done:
+        raise RuntimeError("the namespace's keys changed at the same time; try again")
+
+
 def status(db, sid):
     """What a namespace's keys look like, without any key: versions, wrappers, and whether it's a vault."""
     row = _row(db, sid)
@@ -154,27 +168,29 @@ def data_key(db, cfg, sid, version=None, create=True):
 def add_wrapper(db, cfg, sid, name, kek):
     """Let another key open the namespace (every version of its key); the namespace must be open now."""
     sid = int(sid)
-    row = _row(db, sid) or _create(db, cfg, sid)
-    keys = row["keys"]
-    for v in keys:
-        _, key = data_key(db, cfg, sid, int(v))
-        keys[v]["wrapped"][name] = wrap(kek, key, sid, int(v), name)
-    db.q("UPDATE $r SET keys = $k", r=R("data_key", sid), k=keys)
+    with _LOCK:
+        row = _row(db, sid) or _create(db, cfg, sid)
+        keys = row["keys"]
+        for v in keys:
+            _, key = data_key(db, cfg, sid, int(v))
+            keys[v]["wrapped"][name] = wrap(kek, key, sid, int(v), name)
+        _save(db, sid, row, keys)
 
 
 def remove_wrapper(db, sid, name):
     """Stop a key opening the namespace. Removing "server" makes it a vault; the last wrapper can't be removed."""
     sid = int(sid)
-    row = _row(db, sid)
-    if not row:
-        return
-    keys = row["keys"]
-    for v in keys:
-        w = keys[v]["wrapped"]
-        if name in w and len(w) == 1:
-            raise ValueError("the last key that opens this namespace can't be removed")
-        w.pop(name, None)
-    db.q("UPDATE $r SET keys = $k", r=R("data_key", sid), k=keys)
+    with _LOCK:
+        row = _row(db, sid)
+        if not row:
+            return
+        keys = row["keys"]
+        for v in keys:
+            w = keys[v]["wrapped"]
+            if name in w and len(w) == 1:
+                raise ValueError("the last key that opens this namespace can't be removed")
+            w.pop(name, None)
+        _save(db, sid, row, keys)
 
 
 def unlock(db, sid, name, kek):
@@ -216,8 +232,8 @@ def rotate(db, cfg, sid, keks=None):
                 raise ValueError(f"rotating needs the key for {name}")
             wrapped[name] = wrap(kek, key, sid, new, name)
         keys = {**row["keys"], str(new): {"created_at": store.now(), "wrapped": wrapped}}
-        db.q("UPDATE $r SET keys = $k, current = $n", r=R("data_key", sid), k=keys, n=new)
         _cache(db)[(sid, new)] = key
+        _save(db, sid, row, keys, current=new)
     return new
 
 
@@ -256,23 +272,34 @@ def is_encrypted(path) -> bool:
         return False
 
 
-class Writer(io.RawIOBase):
-    """Writes an encrypted file chunk by chunk; nothing is in place until close(), which renames it over the target."""
+class Writer:
+    """Writes an encrypted file chunk by chunk; nothing is in place until close(), which renames it over the target.
+    Leaving a `with` block on an error, or dropping the writer unclosed, throws the partial file away instead."""
 
     def __init__(self, db, cfg, sid, path, chunk=CHUNK):
         version, self._key = data_key(db, cfg, sid)
         self._aes = _aes(self._key)
         self._path = pathlib.Path(path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        fd, self._tmp = tempfile.mkstemp(dir=self._path.parent, prefix=".enc-")
-        self._f = os.fdopen(fd, "wb")
         self._prefix = secrets.token_bytes(7)
         self._header = HEADER.pack(MAGIC, int(sid), version, chunk, self._prefix)
         self._chunk, self._buf, self._i, self._done = chunk, bytearray(), 0, False
+        fd, self._tmp = tempfile.mkstemp(dir=self._path.parent, prefix=".enc-")
+        self._f = os.fdopen(fd, "wb")
         self._f.write(self._header)
 
-    def writable(self):
-        return True
+    def __enter__(self):
+        return self
+
+    def __exit__(self, kind, *_):
+        if kind is None:
+            self.close()
+        else:
+            self.abort()
+
+    def __del__(self):
+        if not getattr(self, "_done", True):
+            self.abort()
 
     def write(self, b):
         self._buf += b
@@ -296,8 +323,6 @@ class Writer(io.RawIOBase):
         except BaseException:
             self.abort()
             raise
-        finally:
-            super().close()
 
     def abort(self):
         """Throw away what was written; the target is left as it was."""
@@ -395,15 +420,9 @@ def encrypt_file(db, cfg, sid, path, chunk=CHUNK):
     """Encrypt a file in place (atomically); a file already encrypted is left alone. Returns whether it changed."""
     if is_encrypted(path):
         return False
-    w = Writer(db, cfg, sid, path, chunk=chunk)
-    try:
-        with open(path, "rb") as src:
-            while part := src.read(1024 * 1024):
-                w.write(part)
-    except BaseException:
-        w.abort()
-        raise
-    w.close()
+    with Writer(db, cfg, sid, path, chunk=chunk) as w, open(path, "rb") as src:
+        while part := src.read(1024 * 1024):
+            w.write(part)
     return True
 
 
@@ -412,9 +431,10 @@ def decrypt_file(db, cfg, path):
     if not is_encrypted(path):
         return False
     p = pathlib.Path(path)
+    r = Reader(db, cfg, p)  # before the temp file, so a locked or damaged file leaves nothing behind
     fd, tmp = tempfile.mkstemp(dir=p.parent, prefix=".dec-")
     try:
-        with Reader(db, cfg, p) as r, os.fdopen(fd, "wb") as out:
+        with r, os.fdopen(fd, "wb") as out:
             while part := r.read(1024 * 1024):
                 out.write(part)
         os.replace(tmp, p)
@@ -439,9 +459,10 @@ def plain_path(db, cfg, path):
         return
     d = pathlib.Path(cfg["data_dir"]) / "tmp"
     d.mkdir(parents=True, exist_ok=True, mode=0o700)
+    r = Reader(db, cfg, path)
     fd, tmp = tempfile.mkstemp(dir=d, suffix=pathlib.Path(path).suffix)
     try:
-        with Reader(db, cfg, path) as r, os.fdopen(fd, "wb") as out:
+        with r, os.fdopen(fd, "wb") as out:
             while part := r.read(1024 * 1024):
                 out.write(part)
         yield tmp

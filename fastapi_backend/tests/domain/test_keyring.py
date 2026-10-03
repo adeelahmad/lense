@@ -132,3 +132,48 @@ def test_a_vault_opens_only_with_its_own_key(db, cfg, sid, folder):
     keyring.remove_wrapper(db, sid, "passkey:laptop")
     with pytest.raises(ValueError):
         keyring.remove_wrapper(db, sid, "passkey:phone")  # the last key that opens it
+
+
+def test_rotating_a_key_this_process_has_not_opened_yet(db, cfg, sid):
+    keyring.data_key(db, cfg, sid)
+    db._data_keys.clear()
+    assert keyring.rotate(db, cfg, sid) == 2
+
+
+def test_key_changes_made_elsewhere_meanwhile_are_not_overwritten(db, cfg, sid):
+    keyring.data_key(db, cfg, sid)
+    stale = db.one("SELECT * FROM $r", r=store.R("data_key", sid))
+    keyring.rotate(db, cfg, sid)
+    with pytest.raises(RuntimeError):
+        keyring._save(db, sid, stale, stale["keys"])
+    assert keyring.status(db, sid)["versions"] == [1, 2]
+
+
+def test_a_write_that_fails_leaves_the_original_file(db, cfg, sid, folder):
+    folder = folder / "w"
+    folder.mkdir()
+    p = folder / "a.bin"
+    p.write_bytes(b"original")
+    with pytest.raises(OSError), keyring.Writer(db, cfg, sid, p) as w:
+        w.write(b"half")
+        raise OSError("disk went away")
+    assert p.read_bytes() == b"original" and [x.name for x in folder.iterdir()] == ["a.bin"]
+    w = keyring.Writer(db, cfg, sid, p)
+    w.write(b"dropped")
+    del w
+    assert p.read_bytes() == b"original" and [x.name for x in folder.iterdir()] == ["a.bin"]
+
+
+def test_a_locked_file_leaves_no_temporary_copy(db, cfg, sid, folder):
+    p = folder / "a.bin"
+    p.write_bytes(b"private")
+    keyring.encrypt_file(db, cfg, sid, p)
+    keyring.add_wrapper(db, cfg, sid, "passkey:x", keyring.derive(b"x", "t"))
+    keyring.remove_wrapper(db, sid, "server")
+    keyring.lock(db, sid)
+    with pytest.raises(keyring.Locked):
+        keyring.decrypt_file(db, cfg, p)
+    with pytest.raises(keyring.Locked), keyring.plain_path(db, cfg, p):
+        pass
+    assert [x.name for x in folder.iterdir() if x.name != "data"] == ["a.bin"]
+    assert not list((folder / "data" / "tmp").iterdir())
