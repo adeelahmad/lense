@@ -27,7 +27,8 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `ARCHIVE_ALLOWED_HOSTS` | | break-glass override of allowed Host headers if a bad setting locks everyone out |
 | `RUN_BACKGROUND` | follows `workers.inline` | run job workers and folder watching inside the API process |
 | `LENS_SETUP_CODE` | random | fix the first-run setup code (automation) |
-| `LENS_ADMIN_EMAIL` / `LENS_ADMIN_PASSWORD` / `LENS_ADMIN_NAME` | | create the first admin at startup, with no setup code ([First-run setup](#first-run-setup)) |
+| `LENS_ADMIN_EMAIL` / `LENS_ADMIN_NAME` | | create the first admin at startup, with no setup code; the log prints a sign-in link for adding their passkey ([First-run setup](#first-run-setup)) |
+| `LENS_ADMIN_PASSWORD` | | give that admin a password instead (passwords stay on) |
 | `LENS_NAMESPACE` | | create the first namespace at startup, while there is none |
 | `LENS_LLM_BASE_URL` / `LENS_LLM_MODEL` / `LENS_LLM_API_KEY` / `LENS_LLM_VISION_MODEL` | | the model provider; wins over Settings, which show these locked |
 | `LENS_SETUP_WIZARD` | | `off`: never show the setup wizard |
@@ -42,8 +43,9 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 A fresh install (no accounts when the API first starts) walks its first admin through setup in the web app:
 
 1. **Admin account**, with the one-time setup code from the log (`make setup-code`), so a stranger who finds a new
-   public server can't claim it. Skipped when `LENS_ADMIN_EMAIL` and `LENS_ADMIN_PASSWORD` create the admin at
-   startup; then you sign in with those.
+   public server can't claim it. The admin signs in with a passkey ([Authentication](authentication.md#signing-in-passkeys)).
+   Skipped when `LENS_ADMIN_EMAIL` creates the admin at startup; then open the sign-in link the log prints (or sign
+   in with `LENS_ADMIN_PASSWORD`, if you set one).
 2. **Namespace**: the first one, with its knowledge graph shared or isolated. Already done when archive.yaml or
    `LENS_NAMESPACE` names namespaces, or an install script made one.
 3. **Model provider**: an OpenAI-compatible server (OpenAI, Ollama, llama.cpp, LM Studio, vLLM), its model and key,

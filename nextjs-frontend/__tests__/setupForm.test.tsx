@@ -6,6 +6,17 @@ import { SetupForm } from "@/components/auth/setup-form";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/components/actions/setup-action", () => ({ setup: jest.fn() }));
+jest.mock("@/components/auth/passkey-flows", () => {
+  class PasskeyFlowError extends Error {
+    constructor(
+      message: string,
+      public status?: number,
+    ) {
+      super(message);
+    }
+  }
+  return { setupTicket: jest.fn(), finishSignIn: jest.fn(), PasskeyFlowError };
+});
 
 function renderForm() {
   return render(
@@ -96,5 +107,52 @@ describe("SetupForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /create admin account/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("An unexpected error occurred");
+  });
+});
+
+describe("SetupForm with passkeys", () => {
+  const secure = Object.getOwnPropertyDescriptor(window, "isSecureContext");
+  beforeEach(() => {
+    Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
+    (window as unknown as { PublicKeyCredential: unknown }).PublicKeyCredential = function PublicKeyCredential() {};
+  });
+  afterEach(() => {
+    if (secure) Object.defineProperty(window, "isSecureContext", secure);
+    else delete (window as unknown as { isSecureContext?: boolean }).isSecureContext;
+    delete (window as unknown as { PublicKeyCredential?: unknown }).PublicKeyCredential;
+    jest.clearAllMocks();
+  });
+
+  it("makes the first admin with a passkey and no password", async () => {
+    const flows = jest.requireMock("@/components/auth/passkey-flows");
+    flows.setupTicket.mockResolvedValue("lt_ticket");
+    renderForm();
+
+    expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+    fill({ code: "c0de", name: "Ada", email: "ada@example.com" });
+    fireEvent.click(screen.getByRole("button", { name: /create admin with a passkey/i }));
+
+    await waitFor(() => expect(flows.finishSignIn).toHaveBeenCalledWith("lt_ticket", "/welcome"));
+    expect(flows.setupTicket).toHaveBeenCalledWith({ code: "c0de", email: "ada@example.com", name: "Ada" }, "Passkey");
+    expect(setup).not.toHaveBeenCalled();
+  });
+
+  it("puts a wrong code under the setup code", async () => {
+    const flows = jest.requireMock("@/components/auth/passkey-flows");
+    flows.setupTicket.mockRejectedValue(new flows.PasskeyFlowError("Setup is closed or the code is wrong.", 403));
+    renderForm();
+
+    fill({ code: "nope", email: "ada@example.com" });
+    fireEvent.click(screen.getByRole("button", { name: /create admin with a passkey/i }));
+
+    await waitFor(() => expect(screen.getByLabelText("Setup code")).toHaveAttribute("aria-invalid", "true"));
+  });
+
+  it("can use a password instead", () => {
+    renderForm();
+
+    fireEvent.click(screen.getByRole("button", { name: /use a password instead/i }));
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /create admin account/i })).toBeInTheDocument();
   });
 });

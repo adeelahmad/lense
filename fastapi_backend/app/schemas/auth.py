@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -21,6 +21,8 @@ class AuthStatus(ResponseModel):
     setup_required: bool
     # a fresh install whose setup wizard (namespace, model provider, storage) the first admin hasn't finished
     wizard_pending: bool = False
+    # whether passwords sign in at all (auth.passwords); passkeys always do
+    passwords: bool = False
 
 
 class LoginRequest(RequestModel):
@@ -115,3 +117,61 @@ class ApiTokenCreated(ResponseModel):
     id: int
     token: str
     note: str = "copy it now; it won't be shown again"
+
+
+class PasskeyOptions(ResponseModel):
+    """What to pass to the browser (navigator.credentials.create or .get, as JSON), and the flow to answer."""
+
+    flow: str
+    options: dict[str, Any]
+
+
+class PasskeySetupStart(RequestModel):
+    code: str
+    email: str
+    name: str | None = None
+
+
+class PasskeyAnswer(RequestModel):
+    flow: str
+    credential: dict[str, Any] = Field(description="the browser's PublicKeyCredential, as JSON (toJSON())")
+    name: str | None = Field(default=None, max_length=60, description="what to call a new passkey, like 'MacBook'")
+
+
+class SigninLinkToken(RequestModel):
+    token: str
+
+
+class SigninLinkAnswer(PasskeyAnswer):
+    token: str
+
+
+class SigninLinkInfo(ResponseModel):
+    email: str
+    name: str | None = None
+
+
+class SigninLink(ResponseModel):
+    url: str = Field(description="open it on the device to sign in with; it works once")
+    expires_at: str
+
+
+class LoginTicket(ResponseModel):
+    ticket: str = Field(description="swap it for a session at POST /auth/ticket within two minutes; it works once")
+
+
+class TicketRequest(RequestModel):
+    ticket: str
+
+
+class Passkey(ResponseModel):
+    id: str
+    name: str
+    rp_id: str = Field(description="the site it works on (a passkey only works there)")
+    backed_up: bool = Field(False, description="synced by a password manager or the device's cloud account")
+    created_at: str
+    last_used_at: str | None = None
+
+
+class PasskeyRename(RequestModel):
+    name: str = Field(min_length=1, max_length=60)

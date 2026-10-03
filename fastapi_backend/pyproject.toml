@@ -6,7 +6,7 @@ requires-python = ">=3.12,<3.14"
 readme = "README.md"
 dependencies = [
     "fastapi[standard]>=0.142.2,<0.143",
-    "starlette>=1.3.1",  # security floor (Dependabot); fastapi itself allows older
+    "starlette>=1.3.1", # security floor (Dependabot); fastapi itself allows older
     "pydantic-settings>=2.5.2,<3",
     "pyjwt>=2.9,<3",
     "fastapi-mail>=1.4.1,<2",
@@ -22,6 +22,7 @@ dependencies = [
     "opentelemetry-api>=1.27,<2",
     "opentelemetry-sdk>=1.27,<2",
     "opentelemetry-exporter-otlp-proto-http>=1.27,<2",
+    "webauthn>=2.5,<3",
 ]
 
 [project.optional-dependencies]

@@ -189,6 +189,9 @@ DEFAULTS = {
         # proxies whose X-Forwarded-For names the visitor's address, for IP groups (docs/configuration.md)
         "trusted_proxies": ["127.0.0.0/8", "::1/128"],
     },
+    # signing in (docs/access.md#signing-in): whether passwords work at all. Passkeys always do. Fresh installs start
+    # without passwords; an install that already had them keeps them until an admin turns them off.
+    "auth": {"passwords": False},
     # how long API keys last (docs/configuration.md): what a new key gets, the most it may get, and whether keys may
     # never expire; and how long the tokens of apps given access through OAuth last (domain/oauth.py): the access token,
     # and the grant after the app last renewed it
@@ -621,6 +624,15 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS login_session_sid ON login_session FIELDS sid",
     "DEFINE TABLE IF NOT EXISTS password_reset SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS password_reset_account ON password_reset FIELDS account",
+    # passkeys (domain/passkeys.py): passkey:<hash of the credential id>, the challenges being answered
+    # (webauthn_flow:<hash>), one-time tickets the web app swaps for a session (login_ticket:<hash>) and links for adding
+    # a passkey (signin_link:<hash>)
+    "DEFINE TABLE IF NOT EXISTS passkey SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS passkey_account ON passkey FIELDS account",
+    "DEFINE TABLE IF NOT EXISTS webauthn_flow SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS login_ticket SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS signin_link SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS signin_link_account ON signin_link FIELDS account",
     "DEFINE TABLE IF NOT EXISTS api_token SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS api_token_hash ON api_token FIELDS hash UNIQUE",
     "DEFINE INDEX IF NOT EXISTS api_token_account ON api_token FIELDS account",

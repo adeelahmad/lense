@@ -33,7 +33,7 @@
           "auth"
         ],
         "summary": "Setup",
-        "description": "Create the first admin with the one-time code printed in the server log.",
+        "description": "Create the first admin with a password and the one-time code printed in the server log. This turns passwords on\n(auth.passwords): for servers whose address browsers won't use passkeys on (plain http:// other than localhost).\nPOST /auth/passkey/setup/options makes the first admin with a passkey instead.",
         "operationId": "setup",
         "requestBody": {
           "content": {
@@ -75,6 +75,7 @@
           "auth"
         ],
         "summary": "Login",
+        "description": "Sign in with a password, where passwords are on (auth.passwords); else 403.",
         "operationId": "login",
         "requestBody": {
           "content": {
@@ -302,7 +303,7 @@
           "auth"
         ],
         "summary": "Forgot Password",
-        "description": "Email a reset link. Answers the same whether or not the address has an account.",
+        "description": "Email a reset link. Answers the same whether or not the address has an account. Where passwords are off, see\nPOST /auth/signin-link/lost.",
         "operationId": "forgot_password",
         "requestBody": {
           "content": {
@@ -482,6 +483,629 @@
             "schema": {
               "type": "integer",
               "title": "Token Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/passkey/setup/options": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Passkey Setup Options",
+        "description": "Start making the first admin with a passkey, with the one-time setup code from the server log.",
+        "operationId": "passkey_setup_options",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeySetupStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOptions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/passkey/setup": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Passkey Setup",
+        "description": "Make the first admin with the passkey the browser just created. Answers a ticket for signing in.",
+        "operationId": "passkey_setup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyAnswer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginTicket"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/passkey/options": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Passkey Options",
+        "description": "Start signing in with a passkey: the browser offers the ones made on this site.",
+        "operationId": "passkey_options",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOptions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/passkey": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Passkey Login",
+        "description": "Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session.",
+        "operationId": "passkey_login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyAnswer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginTicket"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/ticket": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Redeem Ticket",
+        "description": "Swap a sign-in ticket (from a passkey or an outside account) for a session. Each ticket works once.",
+        "operationId": "redeem_ticket",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/signin-link/info": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Signin Link Info",
+        "description": "Who a sign-in link is for (the page greets them).",
+        "operationId": "signin_link_info",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SigninLinkToken"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SigninLinkInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/signin-link/options": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Signin Link Options",
+        "operationId": "signin_link_options",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SigninLinkToken"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOptions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/signin-link": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Signin Link",
+        "description": "Add the passkey the browser just made and sign in. The link stops working.",
+        "operationId": "signin_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SigninLinkAnswer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginTicket"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/signin-link/lost": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Lost Passkey",
+        "description": "Email a sign-in link to this address, for adding a passkey. Answers the same whether or not it has an account.",
+        "operationId": "lost_passkey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/passkeys": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "List Passkeys",
+        "operationId": "list_passkeys",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Passkey"
+                  },
+                  "type": "array",
+                  "title": "Response Auth-List Passkeys"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Add Passkey",
+        "description": "Add the passkey the browser just made. Audited as `passkey.add`.",
+        "operationId": "add_passkey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyAnswer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Passkey"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/passkeys/options": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Add Passkey Options",
+        "description": "Start adding a passkey to your account (on the site you're on).",
+        "operationId": "add_passkey_options",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOptions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/passkeys/{pid}": {
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Rename Passkey",
+        "operationId": "rename_passkey",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRename"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Remove Passkey",
+        "description": "Remove one of your passkeys; not the last one (you couldn't sign in). Audited as `passkey.remove`.",
+        "operationId": "remove_passkey",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{uid}/signin-link": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Make Signin Link",
+        "description": "A one-time link for this person to add a passkey and sign in (a new person, or one who lost theirs). It lasts\nthree days; making another stops the last one. Share it privately. Audited as `user.signin_link`.",
+        "operationId": "make_signin_link",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Uid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SigninLink"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{uid}/passkeys": {
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Drop Passkeys",
+        "description": "Remove all of this person's passkeys and end their sessions (a lost or stolen device). Send them a sign-in link\nto add a new one. Audited as `user.passkeys_remove`.",
+        "operationId": "drop_passkeys",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Uid"
             }
           }
         ],
@@ -884,6 +1508,7 @@
           "users"
         ],
         "summary": "Create User",
+        "description": "A new account. Without a password (the only way where passwords are off), send them a sign-in link\n(POST /users/{uid}/signin-link) to add a passkey.",
         "operationId": "create_user",
         "requestBody": {
           "content": {
@@ -925,7 +1550,7 @@
           "users"
         ],
         "summary": "Update User",
-        "description": "Rename, promote or demote, disable, or set a new password (which signs the person out everywhere).",
+        "description": "Rename, promote or demote, disable, or set a new password (which signs the person out everywhere; only where\npasswords are on).",
         "operationId": "update_user",
         "parameters": [
           {
@@ -16308,6 +16933,11 @@
             "type": "boolean",
             "title": "Wizard Pending",
             "default": false
+          },
+          "passwords": {
+            "type": "boolean",
+            "title": "Passwords",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -23719,6 +24349,21 @@
         ],
         "title": "LoginRequest"
       },
+      "LoginTicket": {
+        "properties": {
+          "ticket": {
+            "type": "string",
+            "title": "Ticket",
+            "description": "swap it for a session at POST /auth/ticket within two minutes; it works once"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ticket"
+        ],
+        "title": "LoginTicket"
+      },
       "Me": {
         "properties": {
           "user": {
@@ -26230,6 +26875,154 @@
           "text"
         ],
         "title": "Passage"
+      },
+      "Passkey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "rp_id": {
+            "type": "string",
+            "title": "Rp Id",
+            "description": "the site it works on (a passkey only works there)"
+          },
+          "backed_up": {
+            "type": "boolean",
+            "title": "Backed Up",
+            "description": "synced by a password manager or the device's cloud account",
+            "default": false
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "rp_id",
+          "created_at"
+        ],
+        "title": "Passkey"
+      },
+      "PasskeyAnswer": {
+        "properties": {
+          "flow": {
+            "type": "string",
+            "title": "Flow"
+          },
+          "credential": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Credential",
+            "description": "the browser's PublicKeyCredential, as JSON (toJSON())"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "what to call a new passkey, like 'MacBook'"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "flow",
+          "credential"
+        ],
+        "title": "PasskeyAnswer"
+      },
+      "PasskeyOptions": {
+        "properties": {
+          "flow": {
+            "type": "string",
+            "title": "Flow"
+          },
+          "options": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Options"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "flow",
+          "options"
+        ],
+        "title": "PasskeyOptions",
+        "description": "What to pass to the browser (navigator.credentials.create or .get, as JSON), and the flow to answer."
+      },
+      "PasskeyRename": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "PasskeyRename"
+      },
+      "PasskeySetupStart": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "email"
+        ],
+        "title": "PasskeySetupStart"
       },
       "PasswordChange": {
         "properties": {
@@ -31697,6 +32490,104 @@
         ],
         "title": "ShareSite"
       },
+      "SigninLink": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "open it on the device to sign in with; it works once"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "expires_at"
+        ],
+        "title": "SigninLink"
+      },
+      "SigninLinkAnswer": {
+        "properties": {
+          "flow": {
+            "type": "string",
+            "title": "Flow"
+          },
+          "credential": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Credential",
+            "description": "the browser's PublicKeyCredential, as JSON (toJSON())"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "what to call a new passkey, like 'MacBook'"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "flow",
+          "credential",
+          "token"
+        ],
+        "title": "SigninLinkAnswer"
+      },
+      "SigninLinkInfo": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "SigninLinkInfo"
+      },
+      "SigninLinkToken": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "SigninLinkToken"
+      },
       "Source": {
         "properties": {
           "id": {
@@ -33643,6 +34534,20 @@
         ],
         "title": "TermSuggestion"
       },
+      "TicketRequest": {
+        "properties": {
+          "ticket": {
+            "type": "string",
+            "title": "Ticket"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticket"
+        ],
+        "title": "TicketRequest"
+      },
       "TokenLimits": {
         "properties": {
           "default_days": {
@@ -34008,8 +34913,16 @@
             "title": "Email"
           },
           "password": {
-            "type": "string",
-            "title": "Password"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password",
+            "description": "only where passwords are on; without one, send them a sign-in link"
           },
           "name": {
             "anyOf": [
@@ -34031,8 +34944,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "email",
-          "password"
+          "email"
         ],
         "title": "UserCreate"
       },
@@ -34227,6 +35139,18 @@
             "type": "object",
             "title": "Roles",
             "description": "namespace name -> role"
+          },
+          "passkeys": {
+            "type": "integer",
+            "title": "Passkeys",
+            "description": "how many passkeys they have",
+            "default": 0
+          },
+          "password": {
+            "type": "boolean",
+            "title": "Password",
+            "description": "whether they have a password",
+            "default": false
           }
         },
         "additionalProperties": true,

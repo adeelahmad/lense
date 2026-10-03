@@ -57,6 +57,7 @@ EDITABLE = {
     "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
     "uploads": None,
     "tokens": None,
+    "auth": ("passwords",),
     # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
     "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
@@ -189,6 +190,17 @@ def effective(db, base, reveal=True):
         if v is not None:
             cfg[sec][key] = {"secret": True, "set": True} if not reveal and key in SECRETS.get(sec, ()) else v
     return cfg
+
+
+def keep_passwords(db, base):
+    """An install from before passkeys: its people sign in with passwords, so they keep working (auth.passwords on)
+    until an admin turns them off. Runs at startup; does nothing once auth is saved or where nobody has a password."""
+    if db.one("SELECT id FROM $r", r=R("app_setting", "auth")) or (base.get("auth") or {}).get("passwords"):
+        return False
+    if not db.values("SELECT VALUE id FROM account WHERE pw != NONE LIMIT 1"):
+        return False
+    save(db, base, "auth", {"passwords": True}, "upgrade")
+    return True
 
 
 class Settings:
@@ -518,6 +530,12 @@ def save(db, base, section, changes, user=None):
         raise ValueError("tokens.default_days can't be more than tokens.max_days")
     if section == "tokens" and data.get("oauth_refresh_days", defaults["oauth_refresh_days"]) > data.get("max_days", defaults["max_days"]):
         raise ValueError("tokens.oauth_refresh_days can't be more than tokens.max_days")
+    if section == "auth" and data.get("passwords") is False and (changes or {}).get("passwords") is False:
+        # nobody could sign in: every admin would need a password, and has none that works any more
+        if not db.values(
+            "SELECT VALUE id FROM passkey WHERE account IN (SELECT VALUE record::id(id) FROM account WHERE admin = true AND disabled != true) LIMIT 1"
+        ):
+            raise ValueError("add a passkey for an admin before turning passwords off, or nobody could administer Lens")
     if (
         section == "server"
         and "allowed_hosts" in data

@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Sign in with a passkey, no passwords.** People sign in with their fingerprint, face or device PIN (or a phone
+  nearby). The first admin makes a passkey on the setup page; everyone else gets a one-time sign-in link from People
+  (or `lens users link`), and "Lost your passkey?" emails one. Profile and sign-in lists your passkeys, adds more and
+  removes old ones. Fresh installs have no passwords at all; installs that already use passwords keep them until an
+  admin turns them off in Settings › Sign-in (which needs an admin with a passkey). Passkeys need an `https://`
+  address or `localhost`; on a plain `http://` address setup offers a password instead.
+
 - **Chat answers from the archive even when the model skips its tools.** Some models answer straight away instead of
   searching, so chat said the archive didn't cover things it did. When the model answers without looking anything up
   and the archive has matching passages, the answer now comes from those passages, with citations, as it does for a

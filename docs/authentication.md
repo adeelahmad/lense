@@ -3,17 +3,50 @@
 ## People and roles
 
 There is no public sign-up. The first admin is created with a one-time **setup code** that the API prints in its log
-on first start (or `lens users add you@example.com --admin`, or `LENS_ADMIN_EMAIL` and `LENS_ADMIN_PASSWORD` in
-`.env`). On a fresh install the web app then opens a short setup wizard ([Configuration](configuration.md#first-run-setup)). Admins then add people and give them roles per
-namespace: viewer, editor or owner.
+on first start (or `lens users add you@example.com --admin`, or `LENS_ADMIN_EMAIL` in `.env`). On a fresh install the
+web app then opens a short setup wizard ([Configuration](configuration.md#first-run-setup)). Admins then add people and
+give them roles per namespace: viewer, editor or owner.
 
-Passwords are hashed with scrypt and need at least 10 characters. Failed sign-ins are throttled per email and address
-(8 per 15 minutes). Unknown emails take as long to reject as wrong passwords.
+## Signing in: passkeys
+
+People sign in with a **passkey**: their fingerprint, face or device PIN, on the device or on a phone nearby. There are
+no passwords on a fresh install (`auth.passwords` is off), so there is nothing to guess, reuse or phish.
+
+* **The first admin** makes theirs on the setup page, with the setup code. Where the browser can't use passkeys (a
+  plain `http://` address other than localhost, or an IP address) the setup page offers a password instead, which
+  turns passwords on.
+* **Everyone else** gets a one-time **sign-in link** from an admin (People › Send a sign-in link, or
+  `lens users link them@example.com` on the server). Opening it adds a passkey on that device and signs them in. A link
+  lasts three days and works once; making another stops the last. The token is in the link's `#fragment`, so it never
+  reaches a server log.
+* **More devices**: Profile and sign-in › Add a passkey. Passkeys synced by a password manager or the device's cloud
+  account work on all of that person's devices.
+* **Lost a passkey**: "Lost your passkey?" on the sign-in page emails a sign-in link (when mail is set up; it lasts
+  `PASSWORD_RESET_EXPIRE_MINUTES`), or an admin sends one. An admin can remove all of someone's passkeys (a lost or
+  stolen device), which also signs them out everywhere.
+
+A passkey belongs to the address it was made at (its host name): one made at `https://lens.example.com` doesn't work at
+`http://localhost:3000`. Browsers only use passkeys on `https://` addresses and on `localhost`. The API learns the
+address from the web app (`X-Forwarded-Host`), accepted only for host names Lens is served at (`FRONTEND_URL`,
+`localhost`, `server.allowed_hosts`) or from `server.trusted_proxies`; anything else falls back to `FRONTEND_URL`.
+
+Passkeys must verify the person (fingerprint, face or PIN, not just a tap), and a key whose signature counter goes
+backwards (a clone) is refused. Failed passkey sign-ins are throttled per visitor address like passwords.
+
+**Passwords** stay available for installs that want them: Settings › Sign-in › Allow passwords. An install from before
+passkeys keeps them on until an admin turns them off, which needs an admin with a passkey first (or nobody could get
+in). With passwords off, password sign-in, changes and resets answer 403. Passwords are hashed with scrypt and need at
+least 10 characters. Failed sign-ins are throttled per email and address (8 per 15 minutes). Unknown emails take as
+long to reject as wrong passwords; an account without a password matches none.
 
 ## The web app: NextAuth with API tokens
 
 ```
-login form ──► NextAuth Credentials provider ──► POST /api/v1/auth/login
+passkey ──► browser ──► POST /api/v1/auth/passkey/options, then /auth/passkey   (through the web app)
+                         ◄── a one-time ticket (2 min)
+            NextAuth "ticket" provider ──► POST /api/v1/auth/ticket
+                                            ◄── { access_token, refresh_token, expires_in, user }
+login form ──► NextAuth Credentials provider ──► POST /api/v1/auth/login        (where passwords are on)
                                                   ◄── { access_token (JWT, 15 min), refresh_token, expires_in, user }
 NextAuth stores both in its encrypted session cookie (JWT strategy).
 Server components / actions ──► API with  Authorization: Bearer <access_token>
@@ -32,9 +65,16 @@ Sign out ──► POST /api/v1/auth/logout (ends the session on the API too)
 
 | Endpoint | |
 |---|---|
-| `GET /api/v1/auth/status` | `{setup_required, wizard_pending}`: the sign-in page shows the setup form while the first admin is missing; admins are taken to the setup wizard while it is pending |
-| `POST /api/v1/auth/setup` | first admin, with the setup code |
-| `POST /api/v1/auth/login` · `/refresh` · `/logout` | token pairs |
+| `GET /api/v1/auth/status` | `{setup_required, wizard_pending, passwords}`: the sign-in page shows the setup form while the first admin is missing; admins are taken to the setup wizard while it is pending; `passwords` says whether the password form is shown |
+| `POST /api/v1/auth/passkey/setup/options` · `/auth/passkey/setup` | first admin with a passkey, with the setup code; answers a ticket |
+| `POST /api/v1/auth/setup` | first admin with a password, with the setup code (turns passwords on) |
+| `POST /api/v1/auth/passkey/options` · `/auth/passkey` | sign in with a passkey; answers a ticket |
+| `POST /api/v1/auth/ticket` | swap a one-time ticket for a token pair |
+| `POST /api/v1/auth/signin-link/info` · `/options` · `/auth/signin-link` | who a sign-in link is for; add a passkey with it and sign in |
+| `POST /api/v1/auth/signin-link/lost` | email a sign-in link; answers the same for unknown addresses |
+| `GET` · `POST /api/v1/auth/passkeys` (and `/options`) · `PATCH` · `DELETE /api/v1/auth/passkeys/{id}` | your passkeys: list, add, rename, remove (not the last); audited as `passkey.add` and `passkey.remove` |
+| `POST /api/v1/users/{id}/signin-link` · `DELETE /api/v1/users/{id}/passkeys` | admins: a sign-in link for someone; remove all their passkeys |
+| `POST /api/v1/auth/login` · `/refresh` · `/logout` | token pairs (login only where passwords are on) |
 | `GET /api/v1/auth/me` | the account, roles by namespace, and how the caller authenticated (`via`: `access`, `token` or `oauth`) |
 | `PATCH /api/v1/auth/me` | change your own name |
 | `POST /api/v1/auth/password` | change your own password with your current one (signed in, not with an API token); wrong guesses are throttled like sign-ins; audited as `password.change` |
