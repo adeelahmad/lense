@@ -882,6 +882,8 @@ import type {
   TestExtensionResponses,
   TestLlmData,
   TestLlmResponses,
+  TestMailData,
+  TestMailResponses,
   TestNotifyTargetData,
   TestNotifyTargetErrors,
   TestNotifyTargetResponses,
@@ -1512,6 +1514,20 @@ export class Admin {
   ): RequestResult<TestLlmResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestLlmResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/llm/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Mail
+   *
+   * Send a short message to your own address through the email settings, to check them.
+   */
+  public static testMail<ThrowOnError extends boolean = false>(
+    options?: Options<TestMailData, ThrowOnError>,
+  ): RequestResult<TestMailResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestMailResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/mail/test",
       ...options,
     });
   }

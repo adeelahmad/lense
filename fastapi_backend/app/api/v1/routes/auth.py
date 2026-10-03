@@ -126,11 +126,11 @@ def change_password(body: PasswordChange, user: CurrentUser, db: Db) -> Ok:
 
 
 @router.post("/password/forgot")
-def forgot_password(body: ForgotPasswordRequest, db: Db, tasks: BackgroundTasks) -> Ok:
+def forgot_password(body: ForgotPasswordRequest, db: Db, cfg: Cfg, tasks: BackgroundTasks) -> Ok:
     """Email a reset link. Answers the same whether or not the address has an account."""
     raw, user = auth.start_reset(db, body.email, settings.PASSWORD_RESET_EXPIRE_MINUTES)
     if raw and user:
-        tasks.add_task(send_reset_password_email, user["email"], user.get("name"), raw)
+        tasks.add_task(send_reset_password_email, cfg, user["email"], user.get("name"), raw)
     return Ok()
 
 

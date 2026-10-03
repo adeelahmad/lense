@@ -266,6 +266,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "mail":
+      return <MailBody ctx={ctx} />;
     case "components":
       return (
         <>
@@ -508,6 +510,65 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
           </Banner>
         ) : (
           <Banner tone="error" title="The test failed.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function MailBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const m = ctx.view.mail;
+  const locked = m?.locked ?? [];
+  const pw = ctx.state("mail.password");
+  const test = useMutation({ mutationFn: () => data(Admin.testMail({ client })) });
+  return (
+    <>
+      {locked.length > 0 && (
+        <p className="text-[13px] text-fg-secondary">
+          Some of these are set in the server’s .env (MAIL_*), which wins: {locked.join(", ")}.
+        </p>
+      )}
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
+        <F ctx={ctx} id="mail.server" />
+        <F ctx={ctx} id="mail.port" />
+      </div>
+      <F ctx={ctx} id="mail.security" />
+      <F ctx={ctx} id="mail.username" />
+      {locked.includes("password") ? (
+        <p className="text-[13px] text-fg-secondary">The password is set by MAIL_PASSWORD in .env.</p>
+      ) : (
+        <SecretSetting
+          key={m?.updated_at ?? "none"}
+          label="Password"
+          isSet={Boolean(((m?.values?.password ?? {}) as { set?: boolean }).set)}
+          updatedBy={m?.updated_by}
+          updatedAt={m?.updated_at}
+          value={pw.value as string | undefined}
+          onChange={(x) => pw.onChange(x)}
+        />
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="mail.from_address" />
+        <F ctx={ctx} id="mail.from_name" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Sending…" : "Send a test email"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty ? "Uses the saved settings, not your unsaved changes" : "To your own address"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="Sent.">
+            Check {test.data.to} for “Lens can send email”.
+          </Banner>
+        ) : (
+          <Banner tone="error" title="It couldn’t be sent.">
             {test.data.error}
           </Banner>
         ))}

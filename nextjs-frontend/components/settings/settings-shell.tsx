@@ -23,6 +23,7 @@ import {
   type LucideIcon,
   KeyRound,
   Users,
+  Mail,
   PackageCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -62,6 +63,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   components: PackageCheck,
   access: ShieldCheck,
   notifications: Bell,
+  mail: Mail,
   telemetry: Activity,
   uploads: Upload,
   documents: FileType,
