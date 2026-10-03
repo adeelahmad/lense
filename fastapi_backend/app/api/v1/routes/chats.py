@@ -1,7 +1,7 @@
 """Conversations with the archive, the assistant's approvals, and checking an answer against its sources.
 
-A question streams back server-sent events: ``step`` (a tool the assistant used), ``approval`` (work it proposed that
-waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error`` and ``done``.
+A question streams back server-sent events: ``scoped`` (the namespace a conversation over everything was narrowed
+to) or ``suggested`` (namespaces to offer when it isn't clear, new ones included), ``step`` (a tool the assistant used), ``approval`` (work it proposed that waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error`` and ``done``.
 The assistant only ever sees, and cites, what the asker can read.
 """
 
@@ -19,7 +19,7 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.api.media import sign_urls
 from app.api.v1.routes.collections import own_collection
-from app.domain import ai_tools, auth, chat, llm, store, uploads
+from app.domain import ai_tools, auth, auto_scope, chat, llm, store, uploads
 from app.domain.store import DB
 from app.schemas.chats import (
     AnswerCheck,
@@ -208,16 +208,35 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     asked = chat.with_context(q, page) + chat.attached_note(files)
     readable = set(acl.roles)
 
-    def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]], Any]:
         past = chat.history(db, cid)
         chat.add(db, cid, "user", q, attachments=files, context=kept)
         if not past and title == "New conversation":
             db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
-        return past, chat.retrieve(db, q, readable, c.get("scope"), cfg=cfg)
+        # A conversation over everything gets the namespace its first question is about, when that's clear.
+        if past or c.get("kind") == "setup" or c.get("scope"):
+            return past, chat.retrieve(db, q, readable, c.get("scope"), cfg=cfg), None
+        everywhere = chat.retrieve(db, q, readable, None, cfg=cfg)
+        placed = auto_scope.place(db, cfg, q, readable, everywhere, admin=user.admin)
+        if not placed or placed[0] != "scoped":
+            return past, everywhere, placed
+        c["scope"] = {"namespaces": [placed[1]["choice"]]}
+        db.q("UPDATE $r SET scope = $s", r=R("chat", cid), s=c["scope"])
+        return past, chat.retrieve(db, q, readable, c["scope"], cfg=cfg), placed
 
-    past, passages = await run_in_threadpool(prepare)
+    past, passages, placed = await run_in_threadpool(prepare)
+    picked = placed[1] if placed and placed[0] == "scoped" else None
+    suggested = placed[1] if placed and placed[0] == "suggest" else None
 
     steps: list[dict[str, Any]] = []
+    if picked:
+        steps.append(
+            {
+                "tool": "choose_namespace",
+                "args": {"namespace": picked["choice"]},
+                "summary": f"Looked in {picked['choice']}, the namespace this is about",
+            }
+        )
     notice: str | None = None
 
     def save(text: str, cited: list[dict[str, Any]], **kw: Any) -> int:
@@ -300,6 +319,11 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         on = chat.Answering(db, cid)
         saved = False
         try:
+            if picked:
+                yield _ev("scoped", {"namespaces": c["scope"]["namespaces"], "confidence": picked["confidence"], "by": picked["by"]})
+                yield _ev("step", steps[0])
+            if suggested:
+                yield _ev("suggested", {"namespaces": suggested})
             for ev in answer(on):
                 saved = saved or ev.startswith("event: done")
                 yield ev

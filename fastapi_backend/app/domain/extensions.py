@@ -10,7 +10,7 @@ takes it out of the assistant at once.
 - A tool has parameters, an effect and a body. A `read` tool answers at once; a `change` tool waits for the person's
   approval, like the built-in tools that change data (a setup conversation, which acts, runs it at once). Bodies:
   `prompt` (the model, with the parameters written into a template) and `http` (a web request, to public addresses
-  only, unless an admin allowed a private network for web pages).
+  only, unless an admin allowed a private network for web pages) and `graph` (drawn on the canvas: tool_nodes.py).
 - A skill is instructions with a line saying when to use them. The assistant sees each skill's name and that line, and
   reads the instructions (`use_skill`) only when the skill applies.
 - A hook runs on an event: `message` (a question arrives), `before_tool`, `after_tool`, `answer` (an answer was
@@ -37,7 +37,7 @@ NAME_RX = re.compile(r"^[a-z][a-z0-9_]{1,40}$")
 PARAM_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
 PARAM_KINDS = {"text": "string", "number": "number", "integer": "integer", "bool": "boolean", "json": "object", "list": "array"}
 EFFECTS = ("read", "change")
-RUNS = ("prompt", "http")
+RUNS = ("prompt", "http", "graph")
 METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE")
 EVENTS = ("message", "before_tool", "after_tool", "answer")
 ACTIONS = {
@@ -104,11 +104,19 @@ def _check_params(params):
     return out
 
 
-def _check_run(run, params, me):
+def _check_run(run, params, me, db=None):
     if not isinstance(run, dict) or run.get("type") not in RUNS:
         raise ValueError(f"a tool runs one of: {', '.join(RUNS)}")
     known = {p["name"] for p in params}
     t = run["type"]
+    if t == "graph":  # drawn on the canvas (tool_nodes.py)
+        from . import tool_nodes
+
+        if set(run) - {"type", "graph"}:
+            raise ValueError("a canvas tool is {type, graph}")
+        if db is None:
+            raise ValueError("a canvas tool is checked when it's saved")
+        return {"type": t, "graph": tool_nodes.check(db, run.get("graph") or {}, params)}
     if t == "prompt":
         if set(run) - {"type", "system", "prompt"}:
             raise ValueError("a prompt tool is {type, system, prompt}")
@@ -139,17 +147,17 @@ def _check_run(run, params, me):
     return store.clean(out)
 
 
-def _check_tool(spec, me):
+def _check_tool(spec, me, db=None):
     if set(spec) - {"params", "effect", "run"}:
         raise ValueError("a tool is {params, effect, run}")
     params = _check_params(spec.get("params"))
     effect = spec.get("effect") or "read"
     if effect not in EFFECTS:
         raise ValueError("a tool's effect is read (answers at once) or change (asks first)")
-    return {"params": params, "effect": effect, "run": _check_run(spec.get("run"), params, me)}
+    return {"params": params, "effect": effect, "run": _check_run(spec.get("run"), params, me, db)}
 
 
-def _check_skill(spec, me):
+def _check_skill(spec, me, db=None):
     if set(spec) - {"when", "instructions", "tools"}:
         raise ValueError("a skill is {when, instructions, tools}")
     tools = spec.get("tools") or []
@@ -164,7 +172,7 @@ def _check_skill(spec, me):
     )
 
 
-def _check_hook(spec, me):
+def _check_hook(spec, me, db=None):
     if set(spec) - {"event", "match", "action"}:
         raise ValueError("a hook is {event, match, action}")
     event = spec.get("event")
@@ -213,7 +221,7 @@ def _check_hook(spec, me):
     )
 
 
-def _check_plugin(spec, me):
+def _check_plugin(spec, me, db=None):
     if set(spec) - {"items"}:
         raise ValueError("a plugin is {items}")
     items = spec.get("items")
@@ -223,7 +231,7 @@ def _check_plugin(spec, me):
     for it in items:
         if not isinstance(it, dict) or it.get("kind") not in ("tool", "skill", "hook"):
             raise ValueError("a plugin's items are tools, skills and hooks, each {kind, name, description, ...}")
-        m = check_manifest({**it}, me)
+        m = check_manifest({**it}, me, db)
         if m["name"] in names:
             raise ValueError(f"the plugin has two items called {m['name']}")
         names.add(m["name"])
@@ -234,15 +242,15 @@ def _check_plugin(spec, me):
 CHECKS = {"tool": _check_tool, "skill": _check_skill, "hook": _check_hook, "plugin": _check_plugin}
 
 
-def check_spec(kind, spec, me):
+def check_spec(kind, spec, me, db=None):
     if kind not in KINDS:
         raise ValueError(f"an extension is one of: {', '.join(KINDS)}")
     if not isinstance(spec, dict):
         raise ValueError(f"a {kind}'s settings are an object")
-    return CHECKS[kind](spec, me)
+    return CHECKS[kind](spec, me, db)
 
 
-def check_manifest(m, me):
+def check_manifest(m, me, db=None):
     """A manifest ({name, kind, description, spec}, or the spec's keys at the top level), checked and tidied."""
     if not isinstance(m, dict):
         raise ValueError("a manifest is an object: name, kind, description and the extension's settings")
@@ -264,7 +272,7 @@ def check_manifest(m, me):
             "description": _text(head["description"], "the description", 1000, required=head["kind"] != "hook"),
             "visibility": head["visibility"],
             "namespaces": head["namespaces"],
-            "spec": check_spec(head["kind"], spec, me),
+            "spec": check_spec(head["kind"], spec, me, db),
         }
     )
 
@@ -375,7 +383,7 @@ def _check_share(db, me, visibility, namespaces):
 
 def create(db, me, manifest, enabled=True, origin="code"):
     """A new extension from a manifest; its id. `origin` says how it was made: code, canvas or chat."""
-    m = check_manifest(manifest, me)
+    m = check_manifest(manifest, me, db)
     _check_names(db, m["kind"], m["name"], m["spec"])
     vis, sids = _check_share(db, me, m.get("visibility"), m.get("namespaces"))
     eid, t = db.next_id("extension"), store.now()
@@ -462,7 +470,7 @@ def _mine(db, me, eid):
 def save_version(db, me, eid, manifest, notes=None, origin="code"):
     """A new version from a manifest (its name and kind stay); the version's number."""
     d = _mine(db, me, eid)
-    m = check_manifest({**manifest, "name": d["name"], "kind": d["kind"]}, me)
+    m = check_manifest({**manifest, "name": d["name"], "kind": d["kind"]}, me, db)
     _check_names(db, d["kind"], d["name"], m["spec"], skip=d["id"])
     n = max(db.values("SELECT VALUE version FROM extension_version WHERE extension = $e", e=d["id"]) or [0]) + 1
     _save(db, me, d["id"], n, m["spec"], _text(notes, "the notes", 500), origin)
@@ -665,7 +673,7 @@ def tool_args(spec, args):
     return out
 
 
-def run_tool(db, cfg, spec, args, model=None):
+def run_tool(db, cfg, spec, args, model=None, toolbox=None):
     """Run a tool's body with checked arguments; what it gave back, for the model to read."""
     from . import llm
 
@@ -677,6 +685,10 @@ def run_tool(db, cfg, spec, args, model=None):
             {"role": "user", "content": fill(run["prompt"], args)}
         ]
         return {"text": llm.chat(cfg, msgs, model=model)}
+    if run["type"] == "graph":
+        from . import tool_nodes
+
+        return {"result": tool_nodes.run(db, cfg, run["graph"], args, toolbox)}
     return http_call(cfg, run, args)
 
 

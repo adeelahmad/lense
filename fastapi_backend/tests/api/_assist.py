@@ -25,6 +25,7 @@ def sse(text):
 
 def start_llm(cfg):
     fake_llm.Handler.tool_script, fake_llm.Handler.reject_tools, fake_llm.Handler.decision = [], False, None
+    fake_llm.Handler.names = None
     srv, url = fake_llm.start()
     cfg["llm"].update(base_url=url, model="fake")
     return srv

@@ -97,6 +97,8 @@ def _main_base(argv=None):
     p.add_argument("--port", type=int)
     sub.add_parser("status")
     sub.add_parser("reindex", help="rebuild the search index (after changing search.tokenizer)")
+    p = sub.add_parser("encrypt", help="encrypt the files Lens keeps, and keep encrypting new ones (docs/encryption.md)")
+    p.add_argument("--off", action="store_true", help="decrypt them again and stop encrypting new ones")
     a = ap.parse_args(argv)
 
     if a.cmd == "init":
@@ -185,6 +187,12 @@ def _main_base(argv=None):
         elif a.cmd == "reindex":
             store.reindex(conn, cfg)
             print("search index rebuilt")
+        elif a.cmd == "encrypt":
+            from .domain import keyring, settings
+
+            # the setting first, so files that arrive meanwhile are already encrypted (or no longer)
+            settings.save(conn, cfg, "encryption", {"files": not a.off}, user="cli")
+            keyring.encrypt_all(conn, cfg, decrypt=a.off)
     except store.Busy as e:
         sys.exit(f"another '{e}' run is in progress" if str(e) else "busy")
     except (ValueError, KeyError) as e:
@@ -202,7 +210,7 @@ def platform_main(argv, config):
     import threading
     import time
 
-    from .domain import auth, jobs, notify, passkeys, routines, sensors, settings, sources, telemetry
+    from .domain import auth, bridge, jobs, notify, passkeys, routines, sensors, settings, sources, telemetry
 
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -292,6 +300,7 @@ def platform_main(argv, config):
                 if not (a.steps or a.no_schedule):  # and scans watched folders and runs routines, as `lens watch` does
                     routines.start(db, C, stop, log=print)
                     sensors.start(db, C, stop, log=print, name=wk.name)  # and the sensor hub, while sensors are on
+                    bridge.start(db, C, stop, lambda: cfg, name=wk.name, log_fn=print)  # and the chat-room bridge, while it's on
                 _stop_on_term()
                 try:
                     wk.loop(stop)

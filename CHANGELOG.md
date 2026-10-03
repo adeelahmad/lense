@@ -11,11 +11,27 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   admin turns them off in Settings › Sign-in (which needs an admin with a passkey). Passkeys need an `https://`
   address or `localhost`; on a plain `http://` address setup takes the code alone and a sign-in link signs in by
   itself, so there is still no password.
+- **Global chats pick their namespace.** The first question in a conversation over everything (the assistant home)
+  is matched to the namespace it's about by the decision model (or the language model without one), using what each
+  namespace holds and where the question's excerpts are. A sure match narrows the conversation (a `scoped` event and a
+  "Looked in …" step; the app says so, with **Use everything** to undo). When it isn't sure, the likeliest namespaces
+  are offered to tap (a `suggested` event); when none fits, admins are also offered new ones named for the question,
+  created only when picked. In voice mode, saying one picks it. Nothing changes until something is picked. A scope you
+  chose, and later questions, are left alone.
+- **Files are encrypted at rest.** Each namespace has its own AES-256-GCM key, and uploads, attachments, captured web
+  pages and IIIF imports are stored encrypted with it. Audio and video still stream with seeking. New archives encrypt
+  from the start. For an archive that already has files, `lens encrypt` turns it on and converts them. See
+  docs/encryption.md.
 - **Sensors understand their logs.** Log lines are grouped into patterns (`query[A] <name> from <ip>`), each with a
   count, an example, a label (routine, notable, alert) and an action (drop: counted, not kept). With `triage` on, the
   decision model labels new patterns, one question per pattern, not per line. Brokers you already run (Mosquitto, Home
   Assistant) can be bridged in: Lens subscribes to the topics you name. With `digest` on, each day of a sensor becomes
   a document in its namespace. All three run in the **Tidy sensor data** routine.
+- **The assistant answers in chat rooms.** Through Matterbridge, Lens answers what's said to it in Slack, Discord,
+  Telegram, Matrix and other rooms ("Lens, …" or @Lens), as one Lens account, reading only what that account can and
+  asking for approval in the web app before changing anything. Each person in each room is a conversation listed in
+  Chat. Set up in Settings → Chat rooms with **Check the connection**; one server process reads the rooms at a time.
+  See docs/chat-rooms.md.
 - **Email is set up in the app.** Settings → Email holds the SMTP server, its password (kept secret) and the From
   address, with **Send a test email**; `MAIL_*` in `.env` still work and show locked. Links in emails use
   `notifications.app_url` when it's set.

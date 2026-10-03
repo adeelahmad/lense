@@ -1902,6 +1902,50 @@
         }
       }
     },
+    "/api/v1/settings/bridge": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Bridge Status",
+        "description": "How the assistant's chat-room bridge (Matterbridge) is doing.",
+        "operationId": "bridge_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/bridge/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Bridge",
+        "description": "Check that Matterbridge answers at its address with its token, and that the account to answer as exists.",
+        "operationId": "test_bridge",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/embeddings/test": {
       "post": {
         "tags": [
@@ -19785,6 +19829,100 @@
         ],
         "title": "Body_oauth-token"
       },
+      "BridgeStatus": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "off",
+              "incomplete",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "State",
+            "description": "off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at Matterbridge failed, `error` says why)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder",
+            "description": "the server process reading Matterbridge"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it last looked"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered",
+            "description": "messages it answered since it started"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "BridgeStatus"
+      },
+      "BridgeTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "BridgeTestResult"
+      },
       "BrowseEntry": {
         "properties": {
           "path": {
@@ -19882,9 +20020,11 @@
             "type": "string",
             "enum": [
               "chat",
-              "setup"
+              "setup",
+              "bridge"
             ],
             "title": "Kind",
+            "description": "bridge: a conversation in a chat room, through Matterbridge",
             "default": "chat"
           },
           "scope": {
@@ -20288,9 +20428,11 @@
             "type": "string",
             "enum": [
               "chat",
-              "setup"
+              "setup",
+              "bridge"
             ],
             "title": "Kind",
+            "description": "bridge: a conversation in a chat room, through Matterbridge",
             "default": "chat"
           },
           "scope": {

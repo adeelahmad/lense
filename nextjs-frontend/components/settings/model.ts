@@ -66,6 +66,7 @@ export type SectionId =
   | "sign-in"
   | "notifications"
   | "mail"
+  | "bridge"
   | "telemetry"
   | "fedora"
   | "uploads"
@@ -180,6 +181,13 @@ export const SECTIONS: SectionSpec[] = [
     label: "Email",
     backend: ["mail"],
     description: "The SMTP server Lens sends email through: access requests and password resets.",
+  },
+  {
+    id: "bridge",
+    label: "Chat rooms",
+    backend: ["bridge"],
+    description:
+      "The assistant in Slack, Discord, Telegram, Matrix and other chat rooms, through Matterbridge: it answers what’s said to it there.",
   },
   {
     id: "notifications",
@@ -672,6 +680,63 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "lens@example.org",
   },
   { section: "mail", key: "from_name", label: "From name", kind: "text" },
+  // Chat rooms (Matterbridge)
+  { section: "bridge", key: "enabled", label: "Answer in chat rooms", kind: "switch" },
+  {
+    section: "bridge",
+    key: "url",
+    label: "Matterbridge API address",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "http://matterbridge:4242",
+    hint: "The address of Matterbridge’s API account (its [api] section in matterbridge.toml).",
+  },
+  { section: "bridge", key: "token", label: "API token", kind: "secret" },
+  {
+    section: "bridge",
+    key: "account",
+    label: "Answers as",
+    kind: "text",
+    nullable: true,
+    placeholder: "you, when left empty",
+    hint: "The Lens account it answers as: it reads what that account can read, and changes wait for approval.",
+  },
+  { section: "bridge", key: "name", label: "Its name in the rooms", kind: "text" },
+  {
+    section: "bridge",
+    key: "answer",
+    label: "Answers",
+    kind: "select",
+    options: [
+      { value: "mention", label: "Messages that name it (“Lens, …” or @Lens)" },
+      { value: "all", label: "Every message" },
+    ],
+  },
+  {
+    section: "bridge",
+    key: "gateway",
+    label: "Only in gateway",
+    kind: "text",
+    nullable: true,
+    placeholder: "every gateway",
+  },
+  {
+    section: "bridge",
+    key: "users",
+    label: "Only for these chat usernames",
+    kind: "lines",
+    hint: "One per line; empty answers everyone in the bridged rooms.",
+  },
+  {
+    section: "bridge",
+    key: "poll_seconds",
+    label: "Look for messages every",
+    kind: "int",
+    min: 1,
+    max: 300,
+    unit: "s",
+  },
   // Components
   {
     section: "components",

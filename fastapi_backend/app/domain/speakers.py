@@ -358,9 +358,12 @@ def diarize_pending(db, cfg, ns=None, limit=0, force=False, log=print):
         s=store.ns_id(db, ns, create=False) if ns else None,
     )[: limit or None]
     done = 0
+    from . import keyring
+
     for r in rows:
         try:
-            diarize_one(db, cfg, r["id"], log)
+            with keyring.work(cfg):
+                diarize_one(db, cfg, r["id"], log)
             done += 1
         except Exception as e:  # noqa: BLE001
             db.q("UPDATE $r SET error = $e", r=R("recording", r["id"]), e=f"diarize: {type(e).__name__}: {e}"[:500])

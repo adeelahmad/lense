@@ -146,3 +146,46 @@ describe("voice", () => {
     expect(onToggle).toHaveBeenCalled();
   });
 });
+
+describe("a chat over everything", () => {
+  it("hears which namespace it was narrowed to", () => {
+    const { applyEvent, newTurn } = jest.requireActual("@/components/chat/stream");
+    const t = applyEvent(newTurn("q"), { event: "scoped", data: '{"namespaces":["calls"],"confidence":0.9}' });
+    expect(t.scoped).toEqual(["calls"]);
+    expect(newTurn("q").scoped).toBeNull();
+  });
+});
+
+describe("namespaces offered to pick from", () => {
+  const items = [
+    { name: "calls", new: false },
+    { name: "family-trips", new: true },
+  ];
+
+  it("hears the offer", () => {
+    const { applyEvent, newTurn } = jest.requireActual("@/components/chat/stream");
+    const t = applyEvent(newTurn("q"), {
+      event: "suggested",
+      data: JSON.stringify({ namespaces: [...items, { bad: 1 }] }),
+    });
+    expect(t.suggested).toEqual(items);
+  });
+
+  it("takes a spoken pick, and only one that names an offer", () => {
+    const { spokenPick } = jest.requireActual("@/components/chat/namespace-offer");
+    expect(spokenPick("Use family trips please", items)).toEqual(items[1]);
+    expect(spokenPick("calls", items)).toEqual(items[0]);
+    expect(spokenPick("what about the recalls?", items)).toBeNull();
+  });
+
+  it("shows existing and new ones to tap, and a way to keep everything", () => {
+    const { NamespaceOffer } = jest.requireActual("@/components/chat/namespace-offer");
+    const onPick = jest.fn();
+    const onDismiss = jest.fn();
+    render(<NamespaceOffer items={items} busy={false} onPick={onPick} onDismiss={onDismiss} />);
+    fireEvent.click(screen.getByRole("button", { name: "New: family-trips" }));
+    expect(onPick).toHaveBeenCalledWith(items[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Keep everything" }));
+    expect(onDismiss).toHaveBeenCalled();
+  });
+});

@@ -7,13 +7,14 @@ Workers heartbeat while they run; a job whose worker goes quiet is requeued, up 
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import os
 import socket
 import threading
 import time
 
-from . import analyze, ingest, pipelines, render, speakers as spk, store, telemetry
+from . import analyze, ingest, keyring, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
 PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
@@ -554,6 +555,9 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
         return "failed"
     finally:
         stop.set()
+        keyring.release()  # the plain working copies this job read may go once unused
+        with contextlib.suppress(Exception):
+            keyring.sweep(cfg_fn())
 
 
 def get(db, jid):

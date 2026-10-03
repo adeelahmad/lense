@@ -2,7 +2,7 @@ import type { Estimate, Passage } from "@/app/openapi-client/types.gen";
 
 /**
  * One question's answer as it streams from POST /chats/{id}/messages. The backend sends server-sent events:
- * `step` (a tool the assistant used), `approval` (work waiting for the person), `notice`, `passages` (the numbered
+ * `scoped` (a conversation over everything narrowed to the namespace it's about), `suggested` (namespaces to offer when that isn't clear), `step` (a tool the assistant used), `approval` (work waiting for the person), `notice`, `passages` (the numbered
  * excerpts), `token` (answer text), `error`, `stopped` (Stop was pressed: what came is saved, marked stopped) and
  * `done` (the saved message id).
  */
@@ -18,6 +18,8 @@ export type PendingApproval = {
   summary: string;
   estimate?: Estimate | null;
 };
+/** A namespace offered to a conversation over everything: an existing one, or a new one to create. */
+export type Suggested = { name: string; new: boolean };
 export type TurnStatus = "streaming" | "done" | "error" | "stopped";
 
 export type TurnState = {
@@ -26,6 +28,10 @@ export type TurnState = {
   steps: ToolStep[];
   approvals: PendingApproval[];
   notice: string | null;
+  /** The namespaces a conversation over everything was narrowed to, chosen for the person. */
+  scoped: string[] | null;
+  /** Namespaces offered to pick from, when which one it's about isn't clear. */
+  suggested: Suggested[] | null;
   /** null until the passages event arrives. */
   passages: Passage[] | null;
   text: string;
@@ -40,6 +46,8 @@ export function newTurn(question: string): TurnState {
     steps: [],
     approvals: [],
     notice: null,
+    scoped: null,
+    suggested: null,
     passages: null,
     text: "",
     error: null,
@@ -87,6 +95,17 @@ export function applyEvent(s: TurnState, ev: { event: string; data: string }): T
             estimate: (o.estimate as Estimate | null) ?? null,
           },
         ],
+      };
+    case "scoped":
+      return { ...s, scoped: Array.isArray(o.namespaces) ? o.namespaces.map(String) : null };
+    case "suggested":
+      return {
+        ...s,
+        suggested: Array.isArray(o.namespaces)
+          ? (o.namespaces as Record<string, unknown>[])
+              .filter((x) => x && typeof x.name === "string")
+              .map((x) => ({ name: String(x.name), new: Boolean(x.new) }))
+          : null,
       };
     case "notice":
       return { ...s, notice: str(o.message) || null };

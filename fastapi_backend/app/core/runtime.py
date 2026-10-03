@@ -10,7 +10,7 @@ import urllib.parse
 from typing import Any
 
 from app.config import settings as env
-from app.domain import auth, components, content_types, jobs, notify, routines, sensors, settings, setup, store, templates
+from app.domain import auth, bridge, components, content_types, jobs, notify, routines, sensors, settings, setup, store, templates
 
 log = logging.getLogger("lens")
 
@@ -37,7 +37,7 @@ class Archive:
         # Pay for the embedded engine's full-text repair at startup rather than in someone's first search.
         self.db.ready_fulltext()
         if auth.account_count(self.db) == 0:
-            setup.mark_fresh(self.db)  # a fresh install: the web app walks the first admin through setup
+            setup.mark_fresh(self.db, self.base)  # a fresh install: the web app walks the first admin through setup
         setup.apply_env(self.db)
         if settings.keep_passwords(self.db, self.base):
             log.info("People here sign in with passwords, so passwords stay on; an admin can turn them off in Settings > Sign-in")
@@ -51,8 +51,8 @@ class Archive:
             )
 
     def start_background(self) -> None:
-        """Inline workers, the watched-folder poller, the notifier, the routine scheduler and the sensor hub (idle while
-        sensors are off). Production runs these as separate processes (`lens worker`)."""
+        """Inline workers, the watched-folder poller, the notifier, the routine scheduler, the sensor hub (idle while
+        sensors are off) and the chat-room bridge (idle while it's off). Production runs these as separate processes (`lens worker`)."""
         for i in range(max(0, int(self.current()["workers"]["inline"]))):
             w = jobs.Worker(self.db, self.current, name=f"api-{os.getpid()}-{i}", log=log.info)
             threading.Thread(target=w.loop, args=(self.stop,), daemon=True, name=f"worker-{i}").start()
@@ -60,6 +60,7 @@ class Archive:
         notify.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.warning)
         routines.start(self.db, self.current, self.stop, log=log.info)
         sensors.start(self.db, self.current, self.stop, log=log.info, name=f"api-{os.getpid()}")
+        bridge.start(self.db, self.current, self.stop, lambda: self.base, name=f"api-{os.getpid()}", log_fn=log.warning)
 
     def close(self) -> None:
         self.stop.set()

@@ -13,9 +13,11 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 from app import email
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
-from app.domain import auth, jobs, llm, semantic, settings, sources, store, telemetry
+from app.domain import auth, bridge, jobs, llm, semantic, settings, sources, store, telemetry
 from app.schemas.admin import (
     AuditEntry,
+    BridgeStatus,
+    BridgeTestResult,
     EmbedTestResult,
     Health,
     IndexQueued,
@@ -47,6 +49,13 @@ def update_settings(section: str, body: dict[str, Any], user: AdminWriter, reque
         hosts = [str(h).lower() for h in body["allowed_hosts"] or []]
         if "*" not in hosts and here not in hosts:
             raise HTTPException(400, f"that list leaves out {here}, the address you're using, and would lock you out")
+    if (
+        section == "bridge"
+        and body.get("enabled")
+        and "account" not in body
+        and not request.app.state.archive.current()["bridge"].get("account")
+    ):
+        body = {**body, "account": user.email}  # turned on without saying who it answers as: the admin who turned it on
     with domain_errors():
         settings.save(db, request.app.state.archive.base, section, body, user.email)
     auth.audit(db, user.as_audit(), "settings.save", section, sorted(body))
@@ -76,6 +85,19 @@ async def test_mail(user: AdminWriter, cfg: Cfg) -> MailTestResult:
     except Exception as e:  # noqa: BLE001 - the server's answer is what's useful here
         return MailTestResult(ok=False, to=user.email, error=f"{type(e).__name__}: {e}"[:400])
     return MailTestResult(ok=True, to=user.email)
+
+
+@router.get("/settings/bridge")
+def bridge_status(user: AdminReader, cfg: Cfg, db: Db) -> BridgeStatus:
+    """How the assistant's chat-room bridge (Matterbridge) is doing."""
+    return BridgeStatus(**bridge.status(db, cfg))
+
+
+@router.post("/settings/bridge/test")
+def test_bridge(user: AdminWriter, cfg: Cfg, db: Db) -> BridgeTestResult:
+    """Check that Matterbridge answers at its address with its token, and that the account to answer as exists."""
+    error = bridge.check(db, cfg)
+    return BridgeTestResult(ok=error is None, error=error)
 
 
 @router.post("/settings/embeddings/test")

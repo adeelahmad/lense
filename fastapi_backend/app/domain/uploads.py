@@ -13,6 +13,7 @@ uploads.expire_hours are removed with their partial files.
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import errno
 import fcntl
@@ -22,7 +23,7 @@ import secrets
 import shutil
 import unicodedata
 
-from . import convert, deletion, documents, ingest, jobs, render, store
+from . import convert, deletion, documents, ingest, jobs, keyring, render, store
 
 R = store.R
 MB = 1024 * 1024
@@ -303,6 +304,7 @@ def finish(db, cfg, row, admin=False):
             os.utime(dest, (dest.stat().st_atime, modified / 1000))
         st = dest.stat()
         fp = ingest.fingerprint(dest)
+        kind = documents.kind_of(row["filename"])
         deletion.forget(db, sid, fp)  # uploaded on purpose: a recording deleted before comes back
         dup = (
             None
@@ -313,17 +315,19 @@ def finish(db, cfg, row, admin=False):
                 f=fp,
             )
         )
-        kind = documents.kind_of(row["filename"])
         copy = bool(dup and (has_file(db, cfg, dup) if kind else has_media(db, cfg, dup)))  # it's here already, with its file
+        probed = ingest.probe(dest) if not copy and (target or not kind) else None  # read before the file is encrypted
+        if not copy:
+            keyring.protect(db, cfg, sid, dest)
         job = None
         if target:
-            rid, job = target, _attach(db, cfg, target, sid, dest, st, fp, by)
+            rid, job = target, _attach(db, cfg, target, sid, dest, st, fp, by, probed)
         elif copy:
             rid = dup["id"]
         elif kind:
             rid, job = _document(db, dest, st, fp, sid, row, kind, dup, by)
         else:
-            dur, ch = ingest.probe(dest)
+            dur, ch = probed
             media = store.clean(
                 {"path": str(dest), "source": "audio", "size": st.st_size, "mtime": st.st_mtime, "duration_ms": dur, "channels": ch}
             )
@@ -356,6 +360,8 @@ def finish(db, cfg, row, admin=False):
             d=store.clean({"state": "done", "recording": rid, "job": job, "duplicate": bool(dup), "finished_at": store.now()}),
         )
     except BaseException:
+        with contextlib.suppress(Exception):
+            keyring.decrypt_file(db, cfg, dest)  # back as it arrived, so finishing can be tried again
         os.replace(dest, part)
         raise
     if copy:
@@ -390,10 +396,10 @@ def _document(db, dest, st, fp, sid, row, kind, dup, by):
     return rid, jobs.enqueue(db, rid, None, by=by, pipeline=row.get("pipeline"))
 
 
-def _attach(db, cfg, rid, sid, dest, st, fp, by):
+def _attach(db, cfg, rid, sid, dest, st, fp, by, probed):
     """The file becomes the media of a transcript-only recording; it takes the file's fingerprint (so scans and uploads
     know the file) unless another recording in the namespace has it."""
-    dur, ch = ingest.probe(dest)
+    dur, ch = probed
     d = store.clean({"path": str(dest), "source": "audio", "size": st.st_size, "mtime": st.st_mtime, "duration_ms": dur, "channels": ch})
     if not db.values("SELECT VALUE id FROM recording WHERE fp_key = $k", k=f"{sid}:{fp}"):
         d.update(fingerprint=fp, fp_key=f"{sid}:{fp}")

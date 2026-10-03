@@ -37,6 +37,8 @@ import type {
   ApproveAccessRequestData,
   ApproveAccessRequestErrors,
   ApproveAccessRequestResponses,
+  BridgeStatusData,
+  BridgeStatusResponses,
   BrowseSourceData,
   BrowseSourceErrors,
   BrowseSourceResponses,
@@ -933,6 +935,8 @@ import type {
   SyncFedoraResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
+  TestBridgeData,
+  TestBridgeResponses,
   TestEmbeddingsData,
   TestEmbeddingsResponses,
   TestExtensionData,
@@ -1896,6 +1900,34 @@ export class Admin {
   ): RequestResult<TestMailResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestMailResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/mail/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Bridge Status
+   *
+   * How the assistant's chat-room bridge (Matterbridge) is doing.
+   */
+  public static bridgeStatus<ThrowOnError extends boolean = false>(
+    options?: Options<BridgeStatusData, ThrowOnError>,
+  ): RequestResult<BridgeStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<BridgeStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/bridge",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Bridge
+   *
+   * Check that Matterbridge answers at its address with its token, and that the account to answer as exists.
+   */
+  public static testBridge<ThrowOnError extends boolean = false>(
+    options?: Options<TestBridgeData, ThrowOnError>,
+  ): RequestResult<TestBridgeResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestBridgeResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/bridge/test",
       ...options,
     });
   }

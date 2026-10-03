@@ -343,11 +343,15 @@ def report_recording(db, cfg, rid, out_dir, audio_mode="link"):
     path = has_audio(db, cfg, rid)
     if path:
         d["audio_api"] = f"{store.API}/recordings/{rid}/audio"
-        if audio_mode == "link":
+        from . import keyring
+
+        encrypted = keyring.is_encrypted(path)
+        if audio_mode == "link" and not encrypted:  # an encrypted file plays only through the API
             d["audio_local"] = urllib.parse.quote(os.path.relpath(path, out.parent).replace(os.sep, "/"))
         elif audio_mode == "embed":
             mime = AUDIO_TYPES.get(pathlib.Path(path).suffix.lower(), "audio/mpeg")
-            d["audio_local"] = f"data:{mime};base64," + base64.b64encode(pathlib.Path(path).read_bytes()).decode()
+            with keyring.open_plain(db, cfg, path) as f:
+                d["audio_local"] = f"data:{mime};base64," + base64.b64encode(f.read()).decode()
     cloud = wordcloud_svg(analyze.keywords(db, rid, 60), label=f"Word cloud for {d['title']}")
     page = ENV.get_template("report_recording.html").render(
         d=d, data=json_script(d), stats=recording_stats(db, rid), cloud=cloud, generated=store.now(), **_assets()

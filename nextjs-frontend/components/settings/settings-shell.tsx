@@ -26,6 +26,7 @@ import {
   KeyRound,
   Users,
   Mail,
+  MessagesSquare,
   PackageCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -67,6 +68,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   "sign-in": LockKeyhole,
   notifications: Bell,
   mail: Mail,
+  bridge: MessagesSquare,
   telemetry: Activity,
   fedora: Archive,
   uploads: Upload,

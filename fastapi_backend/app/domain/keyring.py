@@ -416,9 +416,10 @@ class Reader(io.RawIOBase):
         super().close()
 
 
-def encrypt_file(db, cfg, sid, path, chunk=CHUNK):
-    """Encrypt a file in place (atomically); a file already encrypted is left alone. Returns whether it changed."""
-    if is_encrypted(path):
+def encrypt_file(db, cfg, sid, path, chunk=CHUNK, force=False):
+    """Encrypt a file in place (atomically); a file already encrypted is left alone, unless `force` says it's known to
+    be plain (one that has just arrived and only happens to start like one). Returns whether it changed."""
+    if not force and is_encrypted(path):
         return False
     with Writer(db, cfg, sid, path, chunk=chunk) as w, open(path, "rb") as src:
         while part := src.read(1024 * 1024):
@@ -469,3 +470,209 @@ def plain_path(db, cfg, path):
     finally:
         with contextlib.suppress(OSError):
             os.unlink(tmp)
+
+
+# ---------- files Lens keeps ----------
+def enabled(cfg) -> bool:
+    return bool((cfg.get("encryption") or {}).get("files"))
+
+
+def owned(cfg, path) -> bool:
+    """Whether a file is Lens's own, under data_dir (uploads, attachments, captures, imports), rather than one of the
+    folders it scans, which it only ever reads."""
+    try:
+        return pathlib.Path(path).resolve().is_relative_to(pathlib.Path(cfg["data_dir"]).resolve())
+    except (OSError, ValueError, TypeError):
+        return False
+
+
+def protect(db, cfg, sid, path) -> bool:
+    """Encrypt a file Lens has just stored (so it is plain, whatever its first bytes), when encryption.files is on; its
+    modification time is kept. Returns whether it was encrypted. A vault nobody has unlocked here raises Locked: its
+    files are never stored plain."""
+    if not (enabled(cfg) and owned(cfg, path)):
+        return False
+    st = os.stat(path)
+    encrypt_file(db, cfg, sid, path, force=True)
+    os.utime(path, (st.st_atime, st.st_mtime))
+    return True
+
+
+def plain_size(db, cfg, path) -> int:
+    """A file's size as its plain bytes."""
+    if is_encrypted(path):
+        with Reader(db, cfg, path) as r:
+            return r.size
+    return os.path.getsize(path)
+
+
+_HELD = threading.local()
+_WORK = threading.Lock()
+
+
+def _work_dir(cfg):
+    d = pathlib.Path(cfg["data_dir"]) / "tmp" / "work"
+    d.mkdir(parents=True, exist_ok=True, mode=0o700)
+    return d
+
+
+def _hold(path):
+    """Keep a shared lock on a working copy until release(), so no sweep (in any process) removes it while in use."""
+    import fcntl
+
+    held = getattr(_HELD, "fds", None)
+    if held is None:
+        held = _HELD.fds = {}
+    if path in held:
+        return
+    fd = os.open(path, os.O_RDONLY)
+    fcntl.flock(fd, fcntl.LOCK_SH)
+    try:
+        if os.fstat(fd).st_ino != os.stat(path).st_ino:  # swept by another process meanwhile
+            raise FileNotFoundError(path)
+    except OSError:
+        os.close(fd)
+        raise
+    held[path] = fd
+
+
+def release():
+    """Let go of the working copies this thread is using (at the end of a job)."""
+    for fd in (getattr(_HELD, "fds", None) or {}).values():
+        with contextlib.suppress(OSError):
+            os.close(fd)
+    _HELD.fds = {}
+
+
+@contextlib.contextmanager
+def work(cfg):
+    """Around one piece of work (a job, one recording of a batch): the working copies it takes are let go after, and
+    those nobody else holds are swept once unused."""
+    try:
+        yield
+    finally:
+        release()
+        with contextlib.suppress(Exception):
+            sweep(cfg)
+
+
+def _claim(folder):
+    """Exclusive locks on every file of a working copy's folder, or None when one is held."""
+    import fcntl
+
+    fds = []
+    for f in folder.iterdir():
+        if not f.is_file():
+            continue
+        fd = os.open(f, os.O_RDONLY)
+        fds.append(fd)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            for x in fds:
+                os.close(x)
+            return None
+    return fds
+
+
+def working_copy(db, cfg, path):
+    """A path the tools that need one (ffmpeg, pdftoppm, LibreOffice, …) can read: the file itself when it isn't
+    encrypted, else a plain copy under the same name in data_dir/tmp/work, made once. It is held until this thread
+    calls release() (jobs do when they end) and removed by sweep() once nobody holds it and it has gone unused for
+    encryption.work_minutes."""
+    if not path or not is_encrypted(path):
+        return path
+    import hashlib
+
+    st = os.stat(path)
+    key = hashlib.sha256(f"{os.path.abspath(path)}:{st.st_size}:{st.st_mtime_ns}".encode()).hexdigest()[:32]
+    folder = _work_dir(cfg) / key
+    out = folder / pathlib.Path(path).name  # its own name: readers go by the extension, and some show the name
+    with _WORK:
+        _make(db, cfg, path, folder, out)
+        try:
+            _hold(str(out))
+        except FileNotFoundError:  # another process swept it just now: make it again
+            _make(db, cfg, path, folder, out)
+            _hold(str(out))
+        os.utime(folder)
+    return str(out)
+
+
+def _make(db, cfg, path, folder, out):
+    if out.exists():
+        return
+    folder.mkdir(exist_ok=True, mode=0o700)
+    r = Reader(db, cfg, path)
+    fd, tmp = tempfile.mkstemp(dir=folder, prefix=".work-")
+    try:
+        with r, os.fdopen(fd, "wb") as f:
+            while part := r.read(1024 * 1024):
+                f.write(part)
+        os.replace(tmp, out)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
+def sweep(cfg, minutes=None):
+    """Remove plain working copies nobody holds that have gone unused for encryption.work_minutes. Returns how many
+    went."""
+    import shutil
+    import time
+
+    d = pathlib.Path(cfg["data_dir"]) / "tmp" / "work"
+    if not d.is_dir():
+        return 0
+    limit = time.time() - 60 * (minutes if minutes is not None else (cfg.get("encryption") or {}).get("work_minutes") or 30)
+    gone = 0
+    with _WORK:  # not while this process is making or taking one
+        for p in d.iterdir():
+            with contextlib.suppress(OSError):
+                if p.stat().st_mtime >= limit:
+                    continue
+                locks = _claim(p)
+                if locks is None:  # someone holds it
+                    continue
+                try:  # removed while locked, so nobody takes it in between (_hold then sees it's gone)
+                    shutil.rmtree(p)
+                    gone += 1
+                finally:
+                    for fd in locks:
+                        os.close(fd)
+    return gone
+
+
+def stored_files(db, cfg):
+    """(space, path) for every file Lens keeps of the archive: recordings' own files under data_dir (uploads, email
+    attachments, web captures, IIIF imports) and resources' supplementary files. Files in scanned folders aren't
+    among them."""
+    from . import files as filemod
+
+    for r in db.rows("SELECT space, path FROM recording WHERE path != NONE AND remote = NONE"):
+        p = store.resolve_path(cfg, r["path"])
+        if p and owned(cfg, p) and os.path.isfile(p):
+            yield r["space"], p
+    for f in db.rows("SELECT record::id(id) AS id, recording, space, name FROM resource_file"):
+        p = filemod.path_of(cfg, f)
+        if p.is_file():
+            yield f["space"], str(p)
+
+
+def encrypt_all(db, cfg, decrypt=False, log=print):
+    """Encrypt (or, with decrypt, turn back) every file Lens keeps; files already that way are skipped, so it can run
+    again after stopping half way. Returns how many changed."""
+    changed = 0
+    for sid, p in stored_files(db, cfg):
+        try:
+            st = os.stat(p)
+            done = decrypt_file(db, cfg, p) if decrypt else encrypt_file(db, cfg, sid, p)
+        except (Locked, Damaged, OSError) as e:  # a vault, a damaged file, one gone or not writable: the rest go on
+            log(f"skipped {p}: {e}")
+            continue
+        if done:
+            os.utime(p, (st.st_atime, st.st_mtime))
+            changed += 1
+    log(f"{'decrypted' if decrypt else 'encrypted'} {changed} file(s)")
+    return changed

@@ -21,7 +21,7 @@ import shutil
 import unicodedata
 import xml.etree.ElementTree as ET
 
-from . import access as acc, ingest, render, store
+from . import access as acc, ingest, keyring, render, store
 from .metadata import LANG_RX
 
 R = store.R
@@ -412,6 +412,7 @@ def add(db, cfg, rid, src, name, role, language=None, label=None, description=No
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(src), str(dest))  # under its own name: readers go by the extension
         lines, timed = read(dest, role, rec.get("duration_ms")) if role in PARSED else ([], None)
+        keyring.protect(db, cfg, rec["space"], dest)
         t = store.now()
         row.update(lines=len(lines) if role in PARSED else None, timed=timed, created_at=t, created_by=by, updated_at=t)
         db.q("CREATE $r CONTENT $d", r=R("resource_file", fid), d=store.clean(row))
@@ -436,7 +437,8 @@ def update(db, cfg, rid, fid, changes):
         check(role, f["name"])
         if role in PARSED:
             duration = (db.one("SELECT duration_ms FROM $r", r=R("recording", int(rid))) or {}).get("duration_ms")
-            lines, timed = read(path_of(cfg, f), role, duration)
+            with keyring.plain_path(db, cfg, path_of(cfg, f)) as plain:
+                lines, timed = read(plain, role, duration)
         else:
             lines, timed = [], None
         _write_lines(db, fid, _line_rows(f, lines))
