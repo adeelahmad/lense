@@ -10043,6 +10043,59 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/rdf/import": {
+      "post": {
+        "tags": [
+          "rdf"
+        ],
+        "summary": "Import Namespace Rdf",
+        "description": "Read Dublin Core descriptions into the namespace's recordings (matched by their URI or an identifier). Each change\nis a metadata edit, kept in the recording's history. With dry_run (the default) nothing changes.",
+        "operationId": "import_namespace_rdf",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RdfImport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RdfImportResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/media": {
       "get": {
         "tags": [
@@ -28578,6 +28631,151 @@
           "downloads"
         ],
         "title": "PublicTranscript"
+      },
+      "RdfImport": {
+        "properties": {
+          "data": {
+            "type": "string",
+            "title": "Data",
+            "description": "the RDF: Turtle, N-Triples or JSON-LD (with its @context inline)"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format",
+            "description": "turtle, nt or json-ld; guessed from the data when left out"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "description": "report what would change without changing it",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "RdfImport"
+      },
+      "RdfImportItem": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "the metadata fields it changes (or would)"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "statements": {
+            "type": "integer",
+            "title": "Statements",
+            "description": "other statements kept with the recording"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "subject",
+          "recording",
+          "fields",
+          "notes",
+          "statements"
+        ],
+        "title": "RdfImportItem"
+      },
+      "RdfImportResult": {
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run"
+          },
+          "triples": {
+            "type": "integer",
+            "title": "Triples"
+          },
+          "matched": {
+            "type": "integer",
+            "title": "Matched"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RdfImportItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "unmatched": {
+            "items": {
+              "$ref": "#/components/schemas/RdfUnmatched"
+            },
+            "type": "array",
+            "title": "Unmatched"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "dry_run",
+          "triples",
+          "matched",
+          "changed",
+          "items",
+          "unmatched"
+        ],
+        "title": "RdfImportResult"
+      },
+      "RdfUnmatched": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "subject"
+        ],
+        "title": "RdfUnmatched"
       },
       "Recording": {
         "properties": {

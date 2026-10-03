@@ -138,3 +138,62 @@ def test_terms_field(env):
     assert m["meta"]["terms"] == {"alternative": ["Episode one"], "temporal": ["2026"]}
     dc = c.get(f"/iiif/{env.pub}/dc.xml").text
     assert "<dc:title>Episode one</dc:title>" in dc and "<dc:coverage>2026</dc:coverage>" in dc
+
+
+def test_import_round_trip_and_dublin_core(env):
+    c, h = env.admin()
+    rid = env.pub
+    metadata.save(env.db, env.cfg, rid, {"identifiers": [{"type": "DOI", "value": "10.1234/ep1"}], "terms": {"spatial": ["Berlin"]}})
+    exported = c.get(f"/api/v1/recordings/{rid}/rdf", headers=h).text
+    url = "/api/v1/namespaces/pods/rdf/import"
+    same = c.post(url, headers=h, json={"data": exported}).json()
+    assert same["matched"] == 1 and same["changed"] == 0, same  # what Lens says of itself changes nothing
+
+    ttl = f"""
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix ex: <https://example.org/vocab#> .
+<{BASE}/id/recording/{rid}> dcterms:title "Capsid episode"@en ;
+    dcterms:temporal "2026" ;
+    dcterms:license <https://creativecommons.org/licenses/by/4.0/> ;
+    ex:rating "5" .
+<https://elsewhere.example/item/9> dc:identifier "10.1234/ep1" ; dc:title "Episode one, catalogued" ; dc:coverage "Europe" .
+<https://elsewhere.example/item/10> dcterms:title "Nothing here" .
+"""
+    dry = c.post(url, headers=h, json={"data": ttl}).json()
+    assert dry["dry_run"] and dry["matched"] == 2 and [u["title"] for u in dry["unmatched"]] == ["Nothing here"]
+    first = next(i for i in dry["items"] if i["subject"].endswith(f"/id/recording/{rid}"))
+    assert first["fields"] == ["label", "rights", "statements", "terms"] and first["statements"] == 1
+    assert c.get(f"/api/v1/recordings/{rid}/metadata", headers=h).json()["meta"]["label"] != {"en": ["Capsid episode"]}
+
+    done = c.post(url, headers=h, json={"data": ttl, "dry_run": False}).json()
+    assert done["changed"] == 2
+    meta = c.get(f"/api/v1/recordings/{rid}/metadata", headers=h).json()["meta"]
+    assert meta["label"] == {"none": ["Episode one, catalogued"]}  # described twice: terms add up, the one read last wins
+    assert "more than once" in done["items"][1]["notes"][0]
+    assert meta["terms"] == {"spatial": ["Berlin"], "temporal": ["2026"], "coverage": ["Europe"]}  # the ones it didn't mention stay
+    assert meta["statements"] == [{"p": "https://example.org/vocab#rating", "o": "5"}]
+    g = parse(c.get(f"/api/v1/recordings/{rid}/rdf", headers=h))
+    assert (URIRef(f"{BASE}/id/recording/{rid}"), URIRef("https://example.org/vocab#rating"), Literal("5")) in g  # said again
+    assert "metadata.rdf_import" in [a["action"] for a in c.get("/api/v1/audit", headers=h).json()]
+    hist = c.get(f"/api/v1/recordings/{rid}/metadata/history", headers=h).json()
+    assert c.post(f"/api/v1/metadata/edits/{hist[0]['id']}/revert", headers=h).status_code == 200  # an import is revertable
+
+    jsonld = {
+        "@context": {"dcterms": "http://purl.org/dc/terms/"},
+        "@id": f"{BASE}/id/recording/{rid}",
+        "dcterms:audience": "Researchers",
+    }
+    r = c.post(url, headers=h, json={"data": json.dumps(jsonld), "dry_run": False}).json()
+    assert r["items"][0]["fields"] == ["terms"]
+    remote = {**jsonld, "@context": "https://schema.org/"}
+    bad = c.post(url, headers=h, json={"data": json.dumps(remote)})
+    assert bad.status_code == 400 and "@context" in bad.text
+    assert c.post(url, headers=h, json={"data": "<rdf:RDF/>", "format": "xml"}).status_code == 400
+    assert c.post(url, headers=h, json={"data": "this is not turtle ."}).status_code == 400
+
+    # a recording of another namespace isn't touched from here; viewers can't import
+    other = f'<{BASE}/id/recording/{env.call}> <http://purl.org/dc/terms/title> "x" .'
+    assert c.post(url, headers=h, json={"data": other}).json()["matched"] == 0
+    vh = login(c, "vi@x.io", "viewer password 1")
+    assert c.post(url, headers=vh, json={"data": ttl}).status_code == 403

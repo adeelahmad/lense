@@ -425,6 +425,9 @@ import type {
   ImportIiifData,
   ImportIiifErrors,
   ImportIiifResponses,
+  ImportNamespaceRdfData,
+  ImportNamespaceRdfErrors,
+  ImportNamespaceRdfResponses,
   ImportTranscriptData,
   ImportTranscriptErrors,
   ImportTranscriptResponses,
@@ -4085,6 +4088,25 @@ export class Rdf {
     return (options.client ?? client).get<GetNamespaceRdfResponses, GetNamespaceRdfErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/rdf",
       ...options,
+    });
+  }
+
+  /**
+   * Import Namespace Rdf
+   *
+   * Read Dublin Core descriptions into the namespace's recordings (matched by their URI or an identifier). Each change
+   * is a metadata edit, kept in the recording's history. With dry_run (the default) nothing changes.
+   */
+  public static importNamespaceRdf<ThrowOnError extends boolean = false>(
+    options: Options<ImportNamespaceRdfData, ThrowOnError>,
+  ): RequestResult<ImportNamespaceRdfResponses, ImportNamespaceRdfErrors, ThrowOnError> {
+    return (options.client ?? client).post<ImportNamespaceRdfResponses, ImportNamespaceRdfErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/rdf/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

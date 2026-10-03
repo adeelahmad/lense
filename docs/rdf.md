@@ -63,6 +63,24 @@ includes those of them that refine one of its 15 elements (spatial becomes `dc:c
 
 Both accept `?format=` or an `Accept` header, and return Turtle when neither is given.
 
+## Import
+
+`POST /api/v1/namespaces/{name}/rdf/import` reads Dublin Core descriptions into the namespace's recordings. It is for
+editors, and the body is `{data, format, dry_run}`.
+
+- Turtle, N-Triples and JSON-LD are accepted. A JSON-LD document must have its `@context` inline, because Lens
+  doesn't fetch anything while reading. RDF/XML isn't accepted. The limit is 5 MB.
+- A description is matched to a recording by its URI (`/id/recording/<id>`). Failing that, it is matched by an
+  identifier the recording already has (`dcterms:identifier`, `dc:identifier` or `lens:lensId`). Descriptions that
+  match nothing are listed but not created.
+- DCMI terms and the 15 DC 1.1 elements fill the fields in the mapping above. Speakers and entities named by URI must
+  belong to the namespace. A license that isn't Creative Commons or RightsStatements.org is kept as a statement.
+- Any other statement about the recording is kept as it came (`statements`) and included again on export. Exporting a
+  recording and importing it back changes nothing.
+- Terms and statements add to what the recording already has. Other fields replace what it has.
+- `dry_run` (the default) only reports what would change. Otherwise every change is a metadata edit that is kept in
+  the recording's history and can be reverted, and the import is written to the audit log.
+
 ## Refine later
 
 - A permanent vocabulary URI shared by every Lens. Today `lens:` is `<address>/ns#`, so two archives use different
@@ -70,3 +88,4 @@ Both accept `?format=` or an `Accept` header, and return Turtle when neither is 
 - Roles qualified per recording. Today a speaker's role is left out, because the speaker is the same resource in
   every recording.
 - Collections and entities that visitors can see in public namespaces.
+- Importing descriptions that match no recording as new resources, and importing collections, entities and speakers.

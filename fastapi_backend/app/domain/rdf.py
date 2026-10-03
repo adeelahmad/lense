@@ -189,6 +189,13 @@ def add_recording(g, db, cfg, u: Uris, rid, member=False, entities=None):
     for term, vals in (meta.get("terms") or {}).items():
         for v in vals:
             g.add((s, DCTERMS[term], _value(v)))
+    for st in meta.get("statements") or []:
+        o = (
+            URIRef(st["o"])
+            if st.get("uri")
+            else Literal(st["o"], lang=st.get("lang"), datatype=URIRef(st["datatype"]) if st.get("datatype") else None)
+        )
+        g.add((s, URIRef(st["p"]), o))
     if row.get("duration_ms") and kind in ("audio", "video"):
         g.add((s, DCTERMS.extent, Literal(md._iso_duration(row["duration_ms"]), datatype=XSD.duration)))
     path = str(row.get("path") or "")
