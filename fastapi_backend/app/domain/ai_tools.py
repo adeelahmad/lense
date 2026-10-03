@@ -12,6 +12,7 @@ import logging
 from . import (
     batches,
     entities,
+    extensions,
     entity_map,
     entity_setup,
     ops_tools,
@@ -115,6 +116,11 @@ TOOLS = [
 ]
 
 
+def builtin_names():
+    """The assistant's own tool names, which extensions can't take."""
+    return {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS} | {"use_skill"}
+
+
 class Toolbox(ops_tools.OpsTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
     makes their changes at once instead of asking for approval."""
@@ -129,6 +135,38 @@ class Toolbox(ops_tools.OpsTools):
             self.readable = {s for s in self.readable if names.get(s) in self.scope["namespaces"]}
         self.allowed = recsets.within(db, self.readable, self.scope.get("recordings"), self.scope.get("collections"))
         self.refs, self.reads, self.approvals = [], 0, []
+        # the extensions this person switched on or was given (extensions.py); hooks don't run inside hooks
+        me = extensions.who(user["id"], user.get("email"), admin, {s: "viewer" for s in self.readable})
+        self.ext = extensions.Active(db, me) if cfg["ai"].get("extensions", True) else None
+        self.hooking = False
+
+    def system_note(self):
+        """What the model is told besides its usual instructions: the skills it can follow, and context that hooks add
+        for this question."""
+        if not self.ext:
+            return ""
+        out = self.ext.system_note()
+        for h in self.ext.matching("message", text=self.said):
+            out += self._hook(h, {"said": self.said})
+        return out
+
+    def after_answer(self, text):
+        """Run the hooks for an answer that was written."""
+        for h in self.ext.matching("answer", text=text) if self.ext else ():
+            self._hook(h, {"said": self.said, "answer": text})
+
+    def _hook(self, h, values):
+        """Carry out one hook: context it adds (returned), a tool it calls (run like any other, approvals and all)."""
+        a = h["spec"]["action"]
+        if a["type"] == "context":
+            return "\n\n" + extensions.fill(a["text"], values)
+        if a["type"] == "tool" and not self.hooking:
+            self.hooking = True
+            try:
+                self.call(a["tool"], extensions.fill_json(a["args"], values))
+            finally:
+                self.hooking = False
+        return ""
 
     def specs(self):
         off = set(self.cfg["ai"].get("disabled_tools") or [])
@@ -138,6 +176,8 @@ class Toolbox(ops_tools.OpsTools):
             tools += ops_tools.ADMIN_TOOLS
         if can_act or self.admin:
             tools += ops_tools.FILE_TOOLS
+        if self.ext:
+            tools += self.ext.tool_specs(can_act or self.admin)
         return [
             {
                 "type": "function",
@@ -176,9 +216,58 @@ class Toolbox(ops_tools.OpsTools):
         try:
             if name not in offered:
                 raise AttributeError(name)
-            fn = getattr(self, "t_" + name)
+            fn = getattr(self, "t_" + name, None) or self._ext_tool(name)
         except AttributeError:
             return json.dumps({"error": f"no tool {name}"}), f"unknown tool {name}"
+        hooks, extra = self.ext and not self.hooking, ""
+        if hooks:
+            for h in self.ext.matching("before_tool", name, json.dumps(args or {}, default=str)):
+                if h["spec"]["action"]["type"] == "block":
+                    why = extensions.fill(h["spec"]["action"]["reason"], {"said": self.said, "tool": name})
+                    return json.dumps({"error": f"blocked: {why}"}), f"{name}: blocked ({why})"
+                extra += self._hook(h, {"said": self.said, "tool": name})
+        result, summary = self._run(name, fn, args)
+        if hooks:
+            for h in self.ext.matching("after_tool", name, result):
+                extra += self._hook(h, {"said": self.said, "tool": name, "result": result[:4000]})
+        if extra:  # what hooks add, next to what the tool gave back
+            try:
+                got = json.loads(result)
+            except ValueError:
+                got = result
+            result = json.dumps({"result": got, "note": extra.strip()}, ensure_ascii=False, default=str)
+        return result, summary
+
+    def _ext_tool(self, name):
+        """An extension's tool (or use_skill), called like the built-in ones."""
+        if name == "use_skill":
+            return self.t_use_skill
+        t = (self.ext.tools if self.ext else {}).get(name)
+        if not t:
+            raise AttributeError(name)
+
+        def run(**args):
+            args = extensions.tool_args(t["spec"], args)
+            what = f"{t['name']}(" + ", ".join(f"{k}={json.dumps(v, ensure_ascii=False)[:60]}" for k, v in args.items()) + ")"
+            if t["spec"]["effect"] == "change" and not self.act:
+                return self._approval(
+                    "extension", {"tool": t["name"], "extension": t["ext"], "version": t["version"], "args": args}, f"Run {what}"
+                )
+            out = extensions.run_tool(self.db, self.cfg, t["spec"], args)
+            return out, f"Ran {what}"
+
+        return run
+
+    def t_use_skill(self, name):
+        s = (self.ext.skills if self.ext else {}).get(name)
+        if not s:
+            raise ValueError(f"no skill {name}")
+        out = {"skill": name, "instructions": s["spec"]["instructions"]}
+        if s["spec"].get("tools"):
+            out["tools"] = s["spec"]["tools"]
+        return out, f"Read the skill {name}"
+
+    def _run(self, name, fn, args):
         try:
             out, summary = fn(**{k: v for k, v in (args or {}).items() if v is not None})
         except KeyError as e:  # an id or name that doesn't exist
@@ -461,7 +550,7 @@ class Toolbox(ops_tools.OpsTools):
         return [{**r, "used": r["n"] in used} for r in self.refs if r["n"] in used]
 
 
-def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False):
+def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None):
     """Carry out an approved action: a batch run (or a sample of it), an entity change, or a change to the server
     (ops_tools.py: settings, a namespace, importing attached files)."""
     a = db.one("SELECT record::id(id) AS id, chat, account, tool, args, status FROM $r", r=R("approval", int(aid)))
@@ -473,7 +562,9 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
         )
         return {"status": "declined"}
     args = a["args"]
-    if a["tool"] in ("change_settings", "create_namespace", "import_files"):
+    if a["tool"] == "extension":
+        result = run_extension(db, cfg, args, user, admin, readable if readable is not None else editable)
+    elif a["tool"] in ("change_settings", "create_namespace", "import_files"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
     elif a["tool"] == "run_template":
         steps, label = batches.steps_for(db, {"template": args["template_id"]})
@@ -526,3 +617,17 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
         res=result,
     )
     return {"status": "done", **result}
+
+
+def run_extension(db, cfg, args, user, admin, readable):
+    """An approved extension tool: the version that was proposed, if it's still on and still the person's to use."""
+    g = extensions.get(db, int(args["extension"]), args.get("version"))
+    me = extensions.who(user["id"], user.get("email"), admin, {s: "viewer" for s in readable})
+    if g.get("deleted_at") or not g.get("enabled") or not extensions.can_use(g, me):
+        raise ValueError("that extension was switched off or removed")
+    items = g["spec"]["items"] if g["kind"] == "plugin" else [g]
+    t = next((it for it in items if it.get("kind") == "tool" and it["name"] == args["tool"]), None)
+    if not t:
+        raise ValueError(f"the extension has no tool {args['tool']} any more")
+    out = extensions.run_tool(db, cfg, t["spec"], extensions.tool_args(t["spec"], args.get("args") or {}))
+    return {"output": out}

@@ -43,11 +43,56 @@ FIELDS = (
     "identifiers",
     "homepage",
     "related",
+    "terms",
+    "statements",
     "access",
     "open",
     "featured",
 )
 LANG_RX = re.compile(r"^(none|[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})*)$")
+# The DCMI Metadata Terms a recording can be given directly (`terms`: {term: [text or http(s) address]}), beyond the
+# ones its other fields already say (title, description, creator, contributor, subject, created, language, license,
+# rights, publisher, identifier, relation, isPartOf, type, format, extent). See rdf.py.
+DC_TERMS = (
+    "abstract",
+    "accessRights",
+    "accrualMethod",
+    "accrualPeriodicity",
+    "accrualPolicy",
+    "alternative",
+    "audience",
+    "available",
+    "bibliographicCitation",
+    "conformsTo",
+    "coverage",
+    "dateAccepted",
+    "dateCopyrighted",
+    "dateSubmitted",
+    "educationLevel",
+    "hasFormat",
+    "hasPart",
+    "hasVersion",
+    "instructionalMethod",
+    "isFormatOf",
+    "isReferencedBy",
+    "isReplacedBy",
+    "isRequiredBy",
+    "issued",
+    "isVersionOf",
+    "mediator",
+    "medium",
+    "modified",
+    "provenance",
+    "replaces",
+    "requires",
+    "rightsHolder",
+    "source",
+    "spatial",
+    "tableOfContents",
+    "temporal",
+    "valid",
+)
+TERM_MAX, TERM_VALUES = 2000, 50
 RIGHTS_RX = re.compile(r"^https?://(creativecommons\.org/(licenses|publicdomain)/|rightsstatements\.org/vocab/)")
 
 
@@ -89,6 +134,58 @@ def _uri(v, field):
     if not isinstance(v, str) or not re.match(r"^https?://[^\s<>\"]+$", v):
         raise MetaProblem(f"{field} must be an http(s) address")
     return v
+
+
+def _terms(v):
+    if not isinstance(v, dict):
+        raise MetaProblem('terms is an object of Dublin Core terms and their values, like {"spatial": ["Berlin"]}')
+    out = {}
+    for term, vals in v.items():
+        if term not in DC_TERMS:
+            raise MetaProblem(f"'{term}' isn't one of the Dublin Core terms a recording can be given here")
+        vals = [vals] if isinstance(vals, str) else vals
+        if vals is None:
+            continue
+        if not isinstance(vals, list) or not all(isinstance(x, str) for x in vals):
+            raise MetaProblem(f"{term}: each value is text or an http(s) address")
+        vals = list(dict.fromkeys(x.strip()[:TERM_MAX] for x in vals if x.strip()))[:TERM_VALUES]
+        if vals:
+            out[term] = vals
+    return out
+
+
+STATEMENTS_MAX = 500
+
+
+def _statements(v):
+    """Other RDF statements about the recording, kept as they came (an RDF import: rdf.py says them again):
+    [{p: property URI, o: value, uri: whether the value is a resource, lang, datatype}]."""
+    if not isinstance(v, list):
+        raise MetaProblem("statements is a list of {p, o} pairs")
+    out = []
+    for x in v[:STATEMENTS_MAX]:
+        if not isinstance(x, dict) or not isinstance(x.get("o"), str):
+            raise MetaProblem("every statement has a property (p) and a value (o)")
+        p = _uri(x.get("p"), "a statement's property")
+        if not p:
+            raise MetaProblem("every statement has a property (p) and a value (o)")
+        uri = bool(x.get("uri"))
+        if uri:
+            _uri(x["o"], "a statement's value")
+        if x.get("lang") and not LANG_RX.match(str(x["lang"])):
+            raise MetaProblem(f"'{x['lang']}' isn't a language code")
+        st = store.clean(
+            {
+                "p": p,
+                "o": x["o"][:TERM_MAX],
+                "uri": uri or None,
+                "lang": None if uri else x.get("lang") or None,
+                "datatype": None if uri else _uri(x.get("datatype"), "a statement's datatype"),
+            }
+        )
+        if st not in out:
+            out.append(st)
+    return out
 
 
 def clean(patch):
@@ -187,6 +284,10 @@ def clean(patch):
                 )
                 for x in (v if isinstance(v, list) else [v])
             ]
+        elif k == "terms":
+            out[k] = _terms(v) or None
+        elif k == "statements":
+            out[k] = _statements(v) or None
         elif k == "open":
             try:
                 out[k] = acc.parts(v)
@@ -516,6 +617,21 @@ def schema_org(meta, rec, urls):
     )
 
 
+# the one of the 15 Dublin Core elements each of those terms refines, for oai_dc (which has only those)
+DC_ELEMENT = {
+    **{t: "date" for t in ("available", "dateAccepted", "dateCopyrighted", "dateSubmitted", "issued", "modified", "valid")},
+    **{t: "relation" for t in ("conformsTo", "hasFormat", "hasPart", "hasVersion", "isFormatOf", "isReferencedBy", "isReplacedBy")},
+    **{t: "relation" for t in ("isRequiredBy", "isVersionOf", "replaces", "requires")},
+    **{t: "coverage" for t in ("coverage", "spatial", "temporal")},
+    **{t: "description" for t in ("abstract", "tableOfContents")},
+    **{t: "rights" for t in ("accessRights", "rightsHolder")},
+    "alternative": "title",
+    "source": "source",
+    "medium": "format",
+    "bibliographicCitation": "identifier",
+}
+
+
 def dublin_core(meta, rec, urls):
     def el(tag, text, lang=None):
         attr = f" xml:lang={quoteattr(lang)}" if lang and lang != "none" else ""
@@ -538,6 +654,7 @@ def dublin_core(meta, rec, urls):
         el("rights", first(meta.get("attribution"))),
     ]
     lines += [el("publisher", (meta.get("provider") or {}).get("name")), el("relation", urls["collection"])]
+    lines += [el(DC_ELEMENT[t], x) for t, vals in (meta.get("terms") or {}).items() if t in DC_ELEMENT for x in vals]
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" '
         'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '

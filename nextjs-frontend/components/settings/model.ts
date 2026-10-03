@@ -61,6 +61,7 @@ export type SectionId =
   | "reports"
   | "video"
   | "workers"
+  | "components"
   | "access"
   | "notifications"
   | "telemetry"
@@ -122,7 +123,7 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: "ai",
     label: "AI assistant",
-    backend: ["ai", "decisions"],
+    backend: ["ai", "decisions", "voice"],
     description:
       "What the chat assistant may do with tools, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
   },
@@ -149,6 +150,13 @@ export const SECTIONS: SectionSpec[] = [
     label: "Workers",
     backend: ["workers"],
     description: "The workers inside the server, and how the job queue retries.",
+  },
+  {
+    id: "components",
+    label: "Components",
+    backend: ["components"],
+    description:
+      "The engines and models Lens fetches for itself, sized to each worker’s machine. Steps that need one wait while it arrives.",
   },
   {
     id: "access",
@@ -608,6 +616,56 @@ export const FIELDS: FieldSpec[] = [
     min: 0,
     nullable: true,
   },
+  // Components
+  {
+    section: "components",
+    key: "auto",
+    label: "Fetch what’s needed by itself",
+    kind: "switch",
+    hint: "Off: only report what’s missing",
+  },
+  { section: "components", key: "also", label: "Also fetch", kind: "checks" },
+  // Voice
+  {
+    section: "voice",
+    key: "input",
+    label: "What’s said is heard by",
+    kind: "select",
+    options: [
+      { value: "auto", label: "This server when it can, else the browser" },
+      { value: "server", label: "This server (stays here)" },
+      { value: "browser", label: "The browser’s speech recognition" },
+    ],
+  },
+  {
+    section: "voice",
+    key: "tts_model",
+    label: "Speech model for spoken answers",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "none: the browser reads them",
+    hint: "An OpenAI-compatible /audio/speech model, e.g. kokoro or tts-1",
+  },
+  {
+    section: "voice",
+    key: "tts_voice",
+    label: "Voice",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "alloy",
+  },
+  {
+    section: "voice",
+    key: "tts_base_url",
+    label: "Speech server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "the LLM provider’s",
+  },
+  { section: "voice", key: "tts_api_key", label: "Speech server API key", kind: "secret" },
   // Decisions
   {
     section: "decisions",

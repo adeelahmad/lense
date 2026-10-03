@@ -12,6 +12,7 @@ import { ALL_PARTS, type Access, type AccessValue } from "@/components/access/mo
 import { isUnreachable } from "@/components/errors/error-states";
 import {
   DateLanguages,
+  DublinCore,
   IdentifiersLinks,
   Pairs,
   People,
@@ -50,6 +51,7 @@ import {
   useRecordingMeta,
   type RecordingMeta,
 } from "@/components/iiif/queries";
+import { RdfMenu } from "@/components/iiif/rdf";
 import { rightsShort } from "@/components/iiif/rights";
 import { ChoiceCards } from "@/components/settings/controls";
 import { Badge } from "@/components/ui/badge";
@@ -90,6 +92,7 @@ const SECTIONS: { id: string; label: string; fields: Field[] }[] = [
     fields: ["identifiers", "homepage", "related"],
   },
   { id: "md-pairs", label: "Label / value pairs", fields: ["metadata"] },
+  { id: "md-dc", label: "More Dublin Core", fields: ["terms", "statements"] },
   { id: "md-access", label: "Access", fields: ["access", "open", "featured"] },
 ];
 
@@ -383,6 +386,7 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
     "md-provider": <ProviderEditor {...fieldProps} />,
     "md-links": <IdentifiersLinks {...fieldProps} />,
     "md-pairs": <Pairs {...fieldProps} lang={currentLang} />,
+    "md-dc": <DublinCore {...fieldProps} />,
     "md-access": (
       <>
         <AccessEditor
@@ -577,6 +581,7 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
             "Not edited yet: values come from the recording"
           )}
         </span>
+        <RdfMenu target={{ recording: recordingId }} />
         <Button variant="ghost" size="sm" icon={<HistoryIcon />} onClick={() => setShowHistory(true)}>
           History
         </Button>

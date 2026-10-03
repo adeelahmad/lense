@@ -68,14 +68,17 @@ nav:
   - Database: database.md
   - Configuration: configuration.md
   - Processing: processing.md
+  - Components: components.md
   - Video: video.md
   - Chat and batch runs: assistant.md
   - Notifications: notifications.md
   - Telemetry: telemetry.md
   - IIIF: iiif.md
+  - Linked data (RDF): rdf.md
   - API: api.md
   - MCP server: mcp.md
   - API work the design needs: backend-gaps.md
+  - Encryption: encryption.md
   - Deployment: deployment.md
   - Technology: technology-selection.md
   - Contributing: contributing.md

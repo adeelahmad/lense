@@ -104,6 +104,32 @@ class StepQueued(Ok):
     queued: int | str = Field(description='how many recordings were queued, or "scanning"')
 
 
+class ComponentState(ResponseModel):
+    state: Literal["ready", "waiting", "fetching", "failed", "missing"] = Field(
+        description="waiting/fetching: being fetched, and the steps that need it wait; missing: needed but fetching is off"
+    )
+    detail: str | None = Field(None, description="what it's doing, e.g. pulling nomic-embed-text: 40%")
+    error: str | None = None
+
+
+class Gpu(ResponseModel):
+    name: str
+    memory_gb: float | None = None
+
+
+class Machine(ResponseModel):
+    os: str
+    arch: str
+    cpus: int
+    memory_gb: float | None = None
+    gpus: list[Gpu] = Field(default_factory=list)
+    cuda: bool = False
+    apple_silicon: bool = False
+    container: bool = False
+    python: str | None = None
+    disk_free_gb: float | None = Field(None, description="free space in the data folder, where models go")
+
+
 class WorkerInfo(ResponseModel):
     name: str
     steps: list[str] = Field(default_factory=list)
@@ -117,3 +143,7 @@ class WorkerInfo(ResponseModel):
     load: float | None = Field(None, description="its machine's 1-minute load average per CPU (1.0: every CPU busy)")
     cpus: int | None = None
     steps_last_hour: int = Field(0, description="steps it finished (done or skipped) in the last hour")
+    components: dict[str, ComponentState] = Field(
+        default_factory=dict, description="what it needs, by component id (GET /components), and where each is"
+    )
+    machine: Machine | None = Field(None, description="its processors, memory, GPUs and free disk")
