@@ -942,6 +942,9 @@ class Runner:
         if rx is None:
             if len(pattern) > 500:
                 raise CypherError("that regular expression is too long")
+            if _NESTED.search(pattern) or re.search(r"\\[1-9]", pattern):
+                # (a+)+ and backreferences can take exponential time, and a regex can't be stopped halfway
+                raise CypherError("that regular expression repeats a repeated group or refers back; simplify it")
             try:
                 rx = self._rx[pattern] = re.compile(pattern)
             except re.error as err:
@@ -1560,8 +1563,24 @@ def parse(src: str):
     return Parser(src).parse()
 
 
+_NESTED = re.compile(r"\((?:[^()\\]|\\.)*[+*}|](?:[^()\\]|\\.)*\)\s*[+*{]")
+
+
 def run(g: Graph, src: str, params=None, max_rows=DEFAULT_ROWS, max_seconds=MAX_SECONDS):
     """Run a query: {columns, rows (JSON values), nodes and edges it returned (for drawing), truncated, steps, ms}."""
+    try:
+        return _run(g, src, params, max_rows, max_seconds)
+    except RecursionError:
+        raise CypherError("the query nests too deeply") from None
+    except (OverflowError, MemoryError):
+        raise TooBig("a value in the query grew too large") from None
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError) as e:
+        if isinstance(e, CypherError):
+            raise
+        raise CypherError(f"can't run that: {type(e).__name__}: {e}") from None
+
+
+def _run(g, src, params, max_rows, max_seconds):
     started = time.monotonic()
     queries = parse(src)
     runner = Runner(g, params, max_rows=max_rows, max_seconds=max_seconds)

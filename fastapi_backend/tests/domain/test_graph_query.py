@@ -164,3 +164,20 @@ def test_where_prunes_early(g):
     full = cypher.run(g, "MATCH (a)-[*1..4]-(b) RETURN count(DISTINCT b)")
     assert out["steps"] < full["steps"] / 3
     assert out["rows"][0][0] > 0
+
+
+@pytest.mark.parametrize(
+    "src",
+    [
+        "MATCH (e:Entity) WHERE e.name =~ '(a+)+$' RETURN e",
+        "MATCH (e:Entity) WHERE e.name =~ '(\\\\w*)*x' RETURN e",
+        "RETURN " + "(" * 3000 + "1" + ")" * 3000,
+        "RETURN 10.0 ^ 400 * 10.0 ^ 400 AS x",
+        "RETURN 'a' - 1",
+    ],
+)
+def test_hostile_queries_fail_cleanly(g, src):
+    try:
+        cypher.run(g, src)
+    except cypher.CypherError:
+        pass
