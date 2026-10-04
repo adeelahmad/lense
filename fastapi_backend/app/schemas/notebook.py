@@ -12,7 +12,7 @@ Place = Literal["project", "area", "resource", "archive"]
 Sign = Literal["@", "#"]
 
 
-class PageItem(ResponseModel):
+class NotePageItem(ResponseModel):
     id: int
     title: str
     summary: str | None = Field(None, description="one line on what the page holds: the context the assistant reads first")
@@ -27,7 +27,7 @@ class PageItem(ResponseModel):
     updated_at: str | None = None
 
 
-class PageLink(ResponseModel):
+class NoteLink(ResponseModel):
     sign: Sign
     target: str = Field(description='what it links to, like "recording:12" or "page:3"')
     label: str = Field(description="the text the link shows")
@@ -35,24 +35,24 @@ class PageLink(ResponseModel):
     namespace: str | None = None
 
 
-class Backlink(ResponseModel):
+class NoteBacklink(ResponseModel):
     page: int
     title: str
     about: str | None = None
     updated_at: str | None = None
 
 
-class Page(PageItem):
+class NotePage(NotePageItem):
     namespace: str
     body: str = Field("", description="Markdown, with mentions written @[label](kind:id) and #[label](entity:id)")
     doc: str | None = Field(None, description="the editor's own document state, if it kept one")
     created_by: str | None = Field(None, description="its writer's email")
-    links: list[PageLink] = []
-    backlinks: list[Backlink] = []
+    links: list[NoteLink] = []
+    backlinks: list[NoteBacklink] = []
     can_edit: bool = False
 
 
-class PageDraft(ResponseModel):
+class NotePageDraft(ResponseModel):
     """A thing's page before anyone has written on it."""
 
     id: None = None
@@ -60,16 +60,16 @@ class PageDraft(ResponseModel):
     about: str
     title: str
     body: str = ""
-    backlinks: list[Backlink] = []
+    backlinks: list[NoteBacklink] = []
     can_edit: bool = False
 
 
-class PageTree(ResponseModel):
+class NoteTree(ResponseModel):
     namespace: str
-    pages: list[PageItem]
+    pages: list[NotePageItem]
 
 
-class PageCreate(RequestModel):
+class NotePageCreate(RequestModel):
     ns: str = Field(description="the namespace it goes in")
     title: str = Field(min_length=1, max_length=200)
     body: str = Field("", max_length=200_000)
@@ -81,7 +81,7 @@ class PageCreate(RequestModel):
     doc: str | None = None
 
 
-class PageUpdate(RequestModel):
+class NotePageUpdate(RequestModel):
     title: str | None = Field(None, min_length=1, max_length=200)
     body: str | None = Field(None, max_length=200_000)
     summary: str | None = Field(None, max_length=300, description="empty to clear it")
@@ -90,12 +90,12 @@ class PageUpdate(RequestModel):
     doc: str | None = Field(None, description="the editor's document state; a new body without it drops the old one")
 
 
-class PageMove(RequestModel):
+class NotePageMove(RequestModel):
     parent: int | None = Field(None, description="the page to put it inside; null for the top")
     before: int | None = Field(None, description="put it before this sibling; null for the end")
 
 
-class LinkTarget(ResponseModel):
+class NoteLinkTarget(ResponseModel):
     target: str
     label: str
     kind: Literal["page", "recording", "entity", "topic", "collection", "speaker"]

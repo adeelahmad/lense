@@ -14,7 +14,16 @@ from app.api.deps import Access, Acl, CurrentUser, Db, Principal, Writer, domain
 from app.domain import auth, notebook, store
 from app.domain.store import DB
 from app.schemas.common import Ok
-from app.schemas.notebook import LinkTarget, Page, PageCreate, PageDraft, PageItem, PageMove, PageTree, PageUpdate
+from app.schemas.notebook import (
+    NoteLinkTarget,
+    NotePage,
+    NotePageCreate,
+    NotePageDraft,
+    NotePageItem,
+    NotePageMove,
+    NotePageUpdate,
+    NoteTree,
+)
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -32,7 +41,7 @@ def _backlinks(acl: Access, db: DB, sid: int, targets: list[str]) -> list[dict[s
     return notebook.backlinks(db, sid, targets) if targets else []
 
 
-def _out(acl: Access, db: DB, p: dict[str, Any], user: Principal) -> Page:
+def _out(acl: Access, db: DB, p: dict[str, Any], user: Principal) -> NotePage:
     names = store.space_names(db)
     links = notebook.links(db, p["id"])
     found = notebook.labels(db, [x["target"] for x in links])
@@ -44,7 +53,7 @@ def _out(acl: Access, db: DB, p: dict[str, Any], user: Principal) -> Page:
         out_links.append({**x, "name": t["name"] if seen else None, "namespace": names.get(t["space"]) if seen else None})
     writer = db.one("SELECT email FROM $r", r=store.R("account", p["created_by"])) if p.get("created_by") else None
     targets = [f"page:{p['id']}"] + ([p["about"]] if p.get("about") else [])
-    return Page(
+    return NotePage(
         **{k: v for k, v in p.items() if k not in ("space", "created_by", "updated_by")},
         namespace=names.get(p["space"], ""),
         created_by=(writer or {}).get("email"),
@@ -55,14 +64,14 @@ def _out(acl: Access, db: DB, p: dict[str, Any], user: Principal) -> Page:
 
 
 @router.get("")
-def list_pages(ns: str, user: CurrentUser, acl: Acl, db: Db, everything: bool = Query(False, alias="all")) -> PageTree:
+def list_pages(ns: str, user: CurrentUser, acl: Acl, db: Db, everything: bool = Query(False, alias="all")) -> NoteTree:
     """The namespace's free notes for the tree (no bodies), in order; `all=true` adds the pages of things."""
     sid = acl.namespace(ns)
-    return PageTree(namespace=ns, pages=[PageItem(**p) for p in notebook.tree(db, sid, everything)])
+    return NoteTree(namespace=ns, pages=[NotePageItem(**p) for p in notebook.tree(db, sid, everything)])
 
 
 @router.post("")
-def create_page(body: PageCreate, user: Writer, acl: Acl, db: Db) -> Page:
+def create_page(body: NotePageCreate, user: Writer, acl: Acl, db: Db) -> NotePage:
     """Write a free note (optionally inside `parent`), or the page of a thing (`about`, like "recording:12"), which
     each thing has one of. Needs editor access to the namespace."""
     sid = acl.namespace(body.ns, "editor")
@@ -76,17 +85,17 @@ def create_page(body: PageCreate, user: Writer, acl: Acl, db: Db) -> Page:
 @router.get("/targets")
 def link_targets(
     ns: str, user: CurrentUser, acl: Acl, db: Db, q: str = "", sign: str = "@", limit: int = Query(20, ge=1, le=50)
-) -> list[LinkTarget]:
+) -> list[NoteLinkTarget]:
     """What a mention can link to, best matches first: `#` for topics; `@` for pages, recordings, people and other
     entities, collections and speakers."""
     sid = acl.namespace(ns)
     if sign not in ("@", "#"):
         raise HTTPException(400, "sign is @ or #")
-    return [LinkTarget(**t) for t in notebook.search_targets(db, sid, q, sign, limit)]
+    return [NoteLinkTarget(**t) for t in notebook.search_targets(db, sid, q, sign, limit)]
 
 
 @router.get("/about/{kind}/{key}")
-def page_about(kind: str, key: int, user: CurrentUser, acl: Acl, db: Db) -> Page | PageDraft:
+def page_about(kind: str, key: int, user: CurrentUser, acl: Acl, db: Db) -> NotePage | NotePageDraft:
     """The page of a recording, entity, collection or speaker: its page, or a draft while nobody has written one."""
     thing = f"{kind}:{key}"
     with domain_errors():
@@ -100,7 +109,7 @@ def page_about(kind: str, key: int, user: CurrentUser, acl: Acl, db: Db) -> Page
     if p:
         return _out(acl, db, p, user)
     name = notebook.labels(db, [thing]).get(thing, {}).get("name") or thing
-    return PageDraft(
+    return NotePageDraft(
         namespace=store.space_names(db).get(sid, ""),
         about=thing,
         title=str(name).rsplit("/", 1)[-1],
@@ -110,13 +119,13 @@ def page_about(kind: str, key: int, user: CurrentUser, acl: Acl, db: Db) -> Page
 
 
 @router.get("/{pid}")
-def get_page(pid: int, user: CurrentUser, acl: Acl, db: Db) -> Page:
+def get_page(pid: int, user: CurrentUser, acl: Acl, db: Db) -> NotePage:
     """A page with its body, its links (with their targets' current names) and the pages linking to it."""
     return _out(acl, db, _page(acl, db, pid), user)
 
 
 @router.patch("/{pid}")
-def update_page(pid: int, body: PageUpdate, user: Writer, acl: Acl, db: Db) -> Page:
+def update_page(pid: int, body: NotePageUpdate, user: Writer, acl: Acl, db: Db) -> NotePage:
     """Change what's given. A new body without `doc` drops the editor's state, so it's rebuilt from the Markdown."""
     _page(acl, db, pid, "editor")
     given = body.model_fields_set
@@ -129,7 +138,7 @@ def update_page(pid: int, body: PageUpdate, user: Writer, acl: Acl, db: Db) -> P
 
 
 @router.post("/{pid}/move")
-def move_page(pid: int, body: PageMove, user: Writer, acl: Acl, db: Db) -> Page:
+def move_page(pid: int, body: NotePageMove, user: Writer, acl: Acl, db: Db) -> NotePage:
     """Move a free note in the tree: inside `parent` (null: the top), before `before` (null: at the end)."""
     _page(acl, db, pid, "editor")
     with domain_errors():
