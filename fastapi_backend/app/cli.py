@@ -210,7 +210,7 @@ def platform_main(argv, config):
     import threading
     import time
 
-    from .domain import auth, bridge, jobs, notify, passkeys, routines, sensors, settings, sources, telemetry
+    from .domain import auth, bridge, jobs, notify, passkeys, routines, sensors, settings, sources, telemetry, tunnel
 
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -301,6 +301,7 @@ def platform_main(argv, config):
                     routines.start(db, C, stop, log=print)
                     sensors.start(db, C, stop, log=print, name=wk.name)  # and the sensor hub, while sensors are on
                     bridge.start(db, C, stop, lambda: cfg, name=wk.name, log_fn=print)  # and the chat-room bridge, while it's on
+                    tunnel.start(db, C, stop, name=wk.name, log=print)  # and the Cloudflare tunnel, while it's on
                 _stop_on_term()
                 try:
                     wk.loop(stop)

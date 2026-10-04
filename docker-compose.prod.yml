@@ -23,6 +23,8 @@ x-backend: &backend
     SURREAL_PASS: ${SURREAL_PASS:?set SURREAL_PASS}
     RUN_BACKGROUND: "false"
     FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    # where the Cloudflare tunnel (Settings › Remote access) sends visitors: the web app inside this stack
+    LENS_TUNNEL_ORIGIN: http://frontend:3000
     # Fedora (docs/fedora.md): empty keeps it off; with the fedora profile, http://fedora:8080/fcrepo/rest
     LENS_FEDORA_URL: ${LENS_FEDORA_URL:-}
     LENS_FEDORA_USER: ${LENS_FEDORA_USER:-}
@@ -99,7 +101,7 @@ services:
       API_BASE_URL: http://backend:8000
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
       AUTH_TRUST_HOST: "true"
-      AUTH_URL: ${FRONTEND_URL:-http://localhost:3000}
+      # no AUTH_URL: sign-in follows the address the browser is on (its LAN name, https:// address or Cloudflare tunnel)
     ports:
       # this machine only by default; LENS_BIND=0.0.0.0 to reach it from the network (install.sh does on a server)
       - "${LENS_BIND:-127.0.0.1}:${LENS_PORT:-3000}:3000"

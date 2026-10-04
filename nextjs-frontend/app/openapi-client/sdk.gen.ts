@@ -988,6 +988,8 @@ import type {
   TryWorkflowData,
   TryWorkflowErrors,
   TryWorkflowResponses,
+  TunnelStatusData,
+  TunnelStatusResponses,
   UndoEntityMergeData,
   UndoEntityMergeErrors,
   UndoEntityMergeResponses,
@@ -2077,6 +2079,21 @@ export class Admin {
   ): RequestResult<BridgeStatusResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<BridgeStatusResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/bridge",
+      ...options,
+    });
+  }
+
+  /**
+   * Tunnel Status
+   *
+   * How the Cloudflare tunnel (Settings › Remote access) is doing: its address, whether it's connected, and
+   * cloudflared's last lines.
+   */
+  public static tunnelStatus<ThrowOnError extends boolean = false>(
+    options?: Options<TunnelStatusData, ThrowOnError>,
+  ): RequestResult<TunnelStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<TunnelStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/tunnel/status",
       ...options,
     });
   }

@@ -32,6 +32,8 @@ x-backend: &backend
     MAIL_STARTTLS: "False"
     USE_CREDENTIALS: "False"
     FRONTEND_URL: http://localhost:3000
+    # where the Cloudflare tunnel (Settings › Remote access) sends visitors: the web app inside this stack
+    LENS_TUNNEL_ORIGIN: http://frontend:3000
     CORS_ORIGINS: '["http://localhost:3000"]'
     OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
   volumes:
@@ -92,7 +94,7 @@ services:
       API_BASE_URL: http://backend:8000
       AUTH_SECRET: ${AUTH_SECRET:-dev-only-auth-secret-change-me}
       AUTH_TRUST_HOST: "true"
-      AUTH_URL: http://localhost:3000
+      # no AUTH_URL: sign-in follows the address the browser is on (its LAN name, https:// address or Cloudflare tunnel)
       OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
     volumes:
       - ./nextjs-frontend:/app

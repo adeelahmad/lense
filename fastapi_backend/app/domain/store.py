@@ -334,6 +334,11 @@ DEFAULTS = {
         "from_name": "Lens",
         "security": "starttls",
     },
+    # reaching Lens from the internet through a Cloudflare Tunnel run by Lens (domain/tunnel.py): mode off, quick (a
+    # random trycloudflare.com address), token (a tunnel made in the Cloudflare dashboard) or managed (Lens makes the
+    # tunnel and DNS record for hostname with api_token). origin: the web app as this server reaches it (default
+    # LENS_TUNNEL_ORIGIN, else FRONTEND_URL). token and api_token are secrets.
+    "tunnel": {"mode": "off", "hostname": "", "token": None, "api_token": None, "origin": ""},
     "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
     # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
     # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the
@@ -674,6 +679,8 @@ SCHEMA = [
     # Note: on 2.x, CONTAINS against an indexed field also returns nothing; use string::contains() there.
     # settings, people and access
     "DEFINE TABLE IF NOT EXISTS app_setting SCHEMALESS",
+    # the Cloudflare tunnel: which process runs cloudflared, and what it's doing (app/domain/tunnel.py)
+    "DEFINE TABLE IF NOT EXISTS app_service SCHEMALESS",
     # each namespace's data key, wrapped by the keys that can open it (app/domain/keyring.py)
     "DEFINE TABLE IF NOT EXISTS data_key SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS account SCHEMALESS",

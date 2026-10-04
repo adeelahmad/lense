@@ -4,6 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Reach Lens from anywhere through a Cloudflare Tunnel.** Settings › Remote access turns on a tunnel Lens runs
+  itself, with nothing to open on the router: a quick random trycloudflare.com address, a hostname on your own
+  Cloudflare domain (Lens makes the tunnel and DNS record with an API token), or a tunnel made in the Cloudflare
+  dashboard. The page shows the address, whether it's connected and cloudflared's last lines; Lens fetches cloudflared
+  when it isn't installed. Passkeys and email links use the tunnel's https:// address. See docs/remote-access.md.
+- **Signing out keeps you at the address you're on.** Opened at another address than the one Lens was installed with
+  (its LAN name, an https:// address, the tunnel), signing out sent you to http://localhost:3000. Sign-in now follows
+  the browser's address; the Docker Compose files no longer pin AUTH_URL.
 - **Sign in with Google, GitHub, Microsoft or your own OpenID Connect provider.** Admins add them in Settings ›
   Sign-in (client id, secret, and the redirect URI to register, which the dialog shows), and the sign-in page gets a
   "Continue with ..." button for each. People are matched to their Lens account by an email the provider confirms, or

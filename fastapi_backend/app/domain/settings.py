@@ -44,6 +44,7 @@ EDITABLE = {
     "telemetry": None,
     "encryption": None,
     "fedora": None,
+    "tunnel": None,
     # bind is a startup setting only
     "sensors": (
         "enabled",
@@ -94,6 +95,7 @@ SECRETS = {
     "bridge": ("token",),
     "telemetry": ("headers",),
     "fedora": ("password",),
+    "tunnel": ("token", "api_token"),
 }
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"},
@@ -111,6 +113,7 @@ ENUMS = {
     ("voice", "input"): {"auto", "server", "browser"},
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
+    ("tunnel", "mode"): {"off", "quick", "token", "managed"},
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
 # break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
@@ -748,6 +751,11 @@ def save(db, base, section, changes, user=None):
             "SELECT VALUE id FROM passkey WHERE account IN (SELECT VALUE record::id(id) FROM account WHERE admin = true AND disabled != true) LIMIT 1"
         ):
             raise ValueError("add a passkey for an admin before turning passwords off, or nobody could administer Lens")
+    if section == "tunnel":
+        from . import tunnel
+
+        merged = {**(base.get("tunnel") or {}), **data, **{k: "set" for k in sealed}}
+        tunnel.check({"tunnel": merged})
     if (
         section == "server"
         and "allowed_hosts" in data

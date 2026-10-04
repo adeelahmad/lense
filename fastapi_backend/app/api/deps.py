@@ -324,6 +324,19 @@ def _web_hosts(cfg: Config) -> set[str]:
     return hosts - {""}
 
 
+def _tunnel_hosts(request: Request, cfg: Config) -> set[str]:
+    """The Cloudflare tunnel's public host names (Settings › Remote access): the fixed one, and the one it serves now."""
+    from app.domain import tunnel
+
+    hosts = {tunnel.hostname(cfg)}
+    if (cfg.get("tunnel") or {}).get("mode", "off") != "off":
+        try:
+            hosts.add(tunnel.public_host(request.app.state.db))
+        except Exception:  # noqa: BLE001 - the database is unreachable; the fixed name still counts
+            pass
+    return hosts - {""}
+
+
 def web_origin(request: Request) -> str:
     """The web app's address the browser is on (for passkeys and sign-in redirects). Through the web app that's what
     it says in X-Forwarded-Host, when the host is one Lens is served at (or the web app is a trusted proxy); otherwise
@@ -345,6 +358,8 @@ def web_origin(request: Request) -> str:
     except ValueError:
         trusted = False
     shaped = re.fullmatch(r"[A-Za-z0-9.\-]+(:\d+)?|\[[0-9A-Fa-f:.]+\](:\d+)?", host)
+    if shaped and host.lower() in _tunnel_hosts(request, cfg):
+        return f"https://{host.lower()}"  # Cloudflare serves it over https; cloudflared reaches the web app over http
     if shaped and proto in ("http", "https") and (trusted or host_name(host) in _web_hosts(cfg)):
         return f"{proto}://{host}"
     return env.FRONTEND_URL.rstrip("/")

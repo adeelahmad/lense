@@ -13,7 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 from app import email
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
-from app.domain import auth, bridge, jobs, llm, semantic, settings, sources, store, telemetry
+from app.domain import auth, bridge, jobs, llm, semantic, settings, sources, store, telemetry, tunnel
 from app.schemas.admin import (
     AuditEntry,
     BridgeStatus,
@@ -27,6 +27,7 @@ from app.schemas.admin import (
     Started,
     TelemetryStatus,
     TelemetryTestResult,
+    TunnelStatus,
 )
 from app.schemas.auth import AccountToken
 from app.schemas.common import Ok
@@ -91,6 +92,13 @@ async def test_mail(user: AdminWriter, cfg: Cfg) -> MailTestResult:
 def bridge_status(user: AdminReader, cfg: Cfg, db: Db) -> BridgeStatus:
     """How the assistant's chat-room bridge (Matterbridge) is doing."""
     return BridgeStatus(**bridge.status(db, cfg))
+
+
+@router.get("/settings/tunnel/status")
+def tunnel_status(user: AdminReader, cfg: Cfg, db: Db) -> TunnelStatus:
+    """How the Cloudflare tunnel (Settings › Remote access) is doing: its address, whether it's connected, and
+    cloudflared's last lines."""
+    return TunnelStatus(**tunnel.status(db, cfg))
 
 
 @router.post("/settings/bridge/test")
