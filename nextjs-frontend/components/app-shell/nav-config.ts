@@ -5,7 +5,6 @@ import {
   HardDriveDownload,
   House,
   LibraryBig,
-  type LucideIcon,
   MessagesSquare,
   NotebookPen,
   RadioTower,
@@ -13,6 +12,8 @@ import {
   Settings,
   Shapes,
   Shield,
+  Tags,
+  type LucideIcon,
   Waypoints,
   Workflow,
 } from "lucide-react";
@@ -44,6 +45,7 @@ export const NAV: NavItem[] = [
   { label: "Chat", href: "/chat", icon: MessagesSquare },
   { label: "Notes", href: "/notes", icon: NotebookPen },
   { label: "Entities", href: "/entities", icon: Shapes },
+  { label: "Topics", href: "/topics", icon: Tags },
   { label: "Graph", href: "/graph", icon: Waypoints },
   {
     label: "Reports",

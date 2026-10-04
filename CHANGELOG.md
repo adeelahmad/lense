@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A Topics page.** Topics in the navigation shows a namespace's vocabulary as a tree of broader and narrower topics,
+  with search, and a drawer to edit, merge or delete a topic and see the recordings about it. A recording's Entities
+  tab lists its topics for editors to add, remove or accept; a Term entity can be made a topic from its drawer; topics
+  show on the graph canvas as green tags. Entities of type TERM are now shown as Terms.
+
 - **Topics, apart from entities.** Each namespace has a controlled vocabulary of topics (SKOS): a label, other
   labels, a definition, and broader, narrower and related topics. Recordings are about topics, said by a person or
   brought over when a topic-like entity (type TERM) becomes a topic; the entity is hidden until the topic is deleted.

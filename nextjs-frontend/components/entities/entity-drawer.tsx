@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, NotebookPen, Waypoints } from "lucide-react";
+import { Eye, EyeOff, NotebookPen, Tags, Waypoints } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { Entities } from "@/app/openapi-client";
+import { Entities, Topics } from "@/app/openapi-client";
 import type { EntityType } from "@/app/openapi-client/types.gen";
 import { recordingHref } from "@/components/search/links";
 import { Banner } from "@/components/ui/banner";
@@ -106,6 +107,21 @@ export function EntityDrawer({
       onClose();
     },
     onError: fail("Couldn’t delete it"),
+  });
+  const router = useRouter();
+  const toTopic = useMutation({
+    mutationFn: () => data(Topics.entityToTopic({ client, path: { eid: id } })),
+    onSuccess: (t) => {
+      refresh();
+      qc.invalidateQueries({ queryKey: ["topics"] });
+      toast({
+        title: `${t.label} is a topic now`,
+        body: "The entity is hidden while the topic exists.",
+        tone: "green",
+      });
+      router.push(`/topics/${t.id}`);
+    },
+    onError: fail("Couldn’t make it a topic"),
   });
   const hide = useMutation({
     mutationFn: (hidden: boolean) => data(Entities.hideEntity({ client, path: { eid: id }, body: { hidden } })),
@@ -249,6 +265,19 @@ export function EntityDrawer({
                 >
                   {d.hidden ? "Show again" : "Hide"}
                 </Button>
+                {d.type === "TERM" && !builtin && !d.hidden && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    icon={<Tags />}
+                    disabled={!canEdit || toTopic.isPending}
+                    disabledReason={!canEdit ? needRole("editor", ns) : undefined}
+                    onClick={() => toTopic.mutate()}
+                  >
+                    Make a topic
+                  </Button>
+                )}
                 {d.defined && !d.mentions && (
                   <Button
                     type="button"

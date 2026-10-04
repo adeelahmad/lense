@@ -180,7 +180,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
                 Custom vocabulary <span className="font-normal text-fg-muted">· one per line, Name | TYPE</span>
               </>
             }
-            hint="Types: PERSON, ORG, PRODUCT, PLACE, EVENT, WORK, TERM. A line without a type is a topic."
+            hint="Types: PERSON, ORG, PRODUCT, PLACE, EVENT, WORK, TERM. A line without a type is a term."
           />
         </>
       );
