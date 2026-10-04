@@ -292,6 +292,45 @@ def apply_changes(db, items, c, origin=None, propose_only=False, say=print):
     return stats
 
 
+def propose(db, kind, a, b, reason=None, origin=None, apply=False, user=None):
+    """One change someone or an agent asked for (a merge inside a namespace, a link across namespaces): proposed for
+    a person to accept, or made at once when `apply` (callers check the rights). Returns (change id, status)."""
+    if kind not in KINDS:
+        raise ValueError(f"kind is one of {', '.join(KINDS)}")
+    x, y = (entities._entity(db, int(e)) for e in (a, b))
+    if x["id"] == y["id"]:
+        raise ValueError("pick two different entities")
+    if kind == "merge" and x["space"] != y["space"]:
+        raise ValueError("these are in different namespaces: link them instead")
+    if kind == "link" and x["space"] == y["space"]:
+        raise ValueError("these are in the same namespace: merge them instead")
+    pk = _pair_key(kind, x["id"], y["id"])
+    held = db.one("SELECT record::id(id) AS id FROM graph_change WHERE pair = $p AND status = 'proposed' LIMIT 1", p=pk)
+    if held and not apply:
+        return held["id"], "proposed"
+    names, counts = store.space_names(db), Counter(db.values("SELECT VALUE entity FROM mentions WHERE entity IN $e", e=[x["id"], y["id"]]))
+    item = {
+        "kind": kind,
+        "pair": pk,
+        "a": _side(db, x, counts[x["id"]], names),
+        "b": _side(db, y, counts[y["id"]], names),
+        "reason": (str(reason)[:300] if reason else None) or "asked for",
+        "confidence": None,
+    }
+    if not apply:
+        return _record(db, item, "proposed", origin), "proposed"
+    done = _make(db, {**item, "keep": x["id"] if kind == "merge" else None}, user)
+    if held:
+        db.q("UPDATE $r SET status = 'dismissed', decided_at = $t, decided_by = $u", r=R("graph_change", held["id"]), t=store.now(), u=user)
+    return _record(
+        db,
+        {**item},
+        "applied",
+        origin,
+        {**(done or {}), "keep": x["id"] if kind == "merge" else None, "decided_at": store.now(), "decided_by": user},
+    ), "applied"
+
+
 def get_change(db, cid):
     ch = db.one("SELECT *, record::id(id) AS id FROM $r", r=R("graph_change", int(cid)))
     if not ch:

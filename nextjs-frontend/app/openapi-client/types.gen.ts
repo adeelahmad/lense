@@ -922,6 +922,38 @@ export type BrowseEntry = {
 };
 
 /**
+ * ChangeAsk
+ */
+export type ChangeAsk = {
+  /**
+   * Kind
+   *
+   * merge: two entities of one namespace are one; link: entities of two namespaces are the same thing
+   */
+  kind: "merge" | "link";
+  /**
+   * A
+   *
+   * an entity node id, e<id> (for a merge, the one kept)
+   */
+  a: string;
+  /**
+   * B
+   */
+  b: string;
+  /**
+   * Reason
+   */
+  reason?: string | null;
+  /**
+   * Apply
+   *
+   * make it now (editors) instead of proposing it for someone to accept
+   */
+  apply?: boolean;
+};
+
+/**
  * Chat
  */
 export type Chat = {
@@ -4336,6 +4368,36 @@ export type GraphChangeAccept = {
    * for a merge: the entity to keep (default: the one proposed)
    */
   keep?: number | null;
+};
+
+/**
+ * GraphQuery
+ */
+export type GraphQuery = {
+  /**
+   * Query
+   *
+   * read-only Cypher, e.g. MATCH (e:Person)<-[:MENTIONS]-(r:Recording) RETURN e.name, count(r)
+   */
+  query: string;
+  /**
+   * Params
+   *
+   * values for $parameters in the query
+   */
+  params?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Scope
+   */
+  scope?: string;
+  /**
+   * Limit
+   *
+   * rows at most
+   */
+  limit?: number;
 };
 
 /**
@@ -20230,6 +20292,224 @@ export type FindGraphPathResponses = {
 };
 
 export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
+
+export type GraphSchemaData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Scope
+     *
+     * "global" (every shared namespace you can read) or "ns:<namespace>"
+     */
+    scope?: string;
+  };
+  url: "/api/v1/graph/schema";
+};
+
+export type GraphSchemaErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphSchemaError = GraphSchemaErrors[keyof GraphSchemaErrors];
+
+export type GraphSchemaResponses = {
+  /**
+   * Response Graph-Graph Schema
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphSchemaResponse = GraphSchemaResponses[keyof GraphSchemaResponses];
+
+export type GraphRelatedData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Node
+     *
+     * a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>
+     */
+    node: string;
+    /**
+     * Relation
+     */
+    relation?: "children" | "parents" | "ancestors" | "descendants" | "neighbours";
+    /**
+     * Depth
+     */
+    depth?: number;
+    /**
+     * Types
+     *
+     * relationship types to follow, comma separated (default: the hierarchy, or any for neighbours)
+     */
+    types?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Scope
+     *
+     * "global" (every shared namespace you can read) or "ns:<namespace>"
+     */
+    scope?: string;
+  };
+  url: "/api/v1/graph/related";
+};
+
+export type GraphRelatedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphRelatedError = GraphRelatedErrors[keyof GraphRelatedErrors];
+
+export type GraphRelatedResponses = {
+  /**
+   * Response Graph-Graph Related
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphRelatedResponse = GraphRelatedResponses[keyof GraphRelatedResponses];
+
+export type GraphPathsData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * A
+     */
+    a: string;
+    /**
+     * B
+     */
+    b: string;
+    /**
+     * Max Depth
+     */
+    max_depth?: number;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Types
+     */
+    types?: string | null;
+    /**
+     * Directed
+     */
+    directed?: boolean;
+    /**
+     * Shortest
+     */
+    shortest?: boolean;
+    /**
+     * Scope
+     *
+     * "global" (every shared namespace you can read) or "ns:<namespace>"
+     */
+    scope?: string;
+  };
+  url: "/api/v1/graph/paths";
+};
+
+export type GraphPathsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphPathsError = GraphPathsErrors[keyof GraphPathsErrors];
+
+export type GraphPathsResponses = {
+  /**
+   * Response Graph-Graph Paths
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphPathsResponse = GraphPathsResponses[keyof GraphPathsResponses];
+
+export type GraphQueryData = {
+  body: GraphQuery;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/query";
+};
+
+export type GraphQueryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphQueryError = GraphQueryErrors[keyof GraphQueryErrors];
+
+export type GraphQueryResponses = {
+  /**
+   * Response Graph-Graph Query
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphQueryResponse = GraphQueryResponses[keyof GraphQueryResponses];
+
+export type ProposeGraphChangeData = {
+  body: ChangeAsk;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/changes";
+};
+
+export type ProposeGraphChangeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ProposeGraphChangeError = ProposeGraphChangeErrors[keyof ProposeGraphChangeErrors];
+
+export type ProposeGraphChangeResponses = {
+  /**
+   * Response Graph-Propose Graph Change
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type ProposeGraphChangeResponse = ProposeGraphChangeResponses[keyof ProposeGraphChangeResponses];
 
 export type GetEntitySetupData = {
   body?: never;
