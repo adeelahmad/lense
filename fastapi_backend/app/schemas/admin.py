@@ -64,6 +64,13 @@ class EmbedTestResult(ResponseModel):
     model: str | None = None
 
 
+class SpeechTestResult(ResponseModel):
+    ok: bool
+    error: str | None = None
+    detail: str | None = Field(None, description="what the provider answered, when it did")
+    ms: int | None = None
+
+
 class SemanticStatus(ResponseModel):
     """Search by meaning: whether it's on, which model it uses, and how much of the archive it covers."""
 

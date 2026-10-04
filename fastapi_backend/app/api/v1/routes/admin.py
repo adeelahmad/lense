@@ -13,7 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 from app import email
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
-from app.domain import auth, bridge, jobs, llm, semantic, settings, sources, store, telemetry, tunnel
+from app.domain import auth, bridge, jobs, llm, semantic, settings, sources, speech, store, telemetry, tunnel
 from app.schemas.admin import (
     AuditEntry,
     BridgeStatus,
@@ -24,6 +24,7 @@ from app.schemas.admin import (
     LlmTestResult,
     MailTestResult,
     SemanticStatus,
+    SpeechTestResult,
     Started,
     TelemetryStatus,
     TelemetryTestResult,
@@ -120,6 +121,16 @@ def test_embeddings(user: AdminWriter, cfg: Cfg, db: Db) -> EmbedTestResult:
         return EmbedTestResult(ok=False, error=str(e))
     semantic.recovered(db)
     return EmbedTestResult(ok=True, dimension=len(vec), ms=int((time.time() - t0) * 1000), model=semantic.endpoint(cfg)[2])
+
+
+@router.post("/settings/speech/test")
+def test_speech(
+    user: AdminWriter, cfg: Cfg, provider: str = Query(..., pattern="^(openai|elevenlabs|assemblyai|deepgram)$")
+) -> SpeechTestResult:
+    """Check a speech provider's address and key with the saved settings (lists its models; nothing is billed)."""
+    t0 = time.time()
+    ok, detail = speech.check(cfg, provider)
+    return SpeechTestResult(ok=ok, error=None if ok else detail, detail=detail if ok else None, ms=int((time.time() - t0) * 1000))
 
 
 @router.get("/admin/semantic")

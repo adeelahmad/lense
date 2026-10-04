@@ -2,6 +2,40 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-04 · Cloud speech providers and local GGUF models
+
+Goal (Adeel): transcription, speaker separation and emotion stay local by default (SenseVoice and friends, unchanged),
+but each voice task can be sent to a provider instead: an OpenAI-compatible Whisper endpoint, ElevenLabs (speech to
+text and text to speech), AssemblyAI and Deepgram (every capability that fits). Every service takes a custom base URL,
+for proxies and compatible servers. Also: run a local LLM with llama.cpp from a list of GGUF models this machine can run,
+downloaded from Hugging Face.
+
+Model:
+
+- Settings → Speech providers (`speech` section): per service a base URL, a model and an API key (sealed like every
+  other key). The defaults point at each vendor; change the URL for a proxy or a compatible server.
+- `transcribe.engine` gains openai, elevenlabs, assemblyai, deepgram. Their transcripts carry the provider's speaker
+  labels, language, audio events and sentiment (as emotion); `diarize.engine` gains provider, and auto uses those
+  labels when a transcript has them. Voice IDs across recordings still come from the local voiceprints.
+- Voice chat: `voice.stt` picks its own engine (default: the transcription engine); `voice.tts_provider` adds
+  ElevenLabs and Deepgram Aura next to the OpenAI-compatible speech server.
+- Provider calls go through the activity ledger once it lands (seconds of audio per call).
+- Local LLM: a catalog of GGUF chat models with the memory each needs; the ones this machine can run are offered,
+  downloaded from Hugging Face into data_dir/models/gguf, and served by llama.cpp's server, which becomes the LLM
+  provider.
+
+Todo:
+
+- [x] Speech providers: settings, OpenAI-compatible, ElevenLabs, AssemblyAI and Deepgram transcription with speakers,
+      language, events and sentiment; provider speaker labels in speaker separation
+- [x] Voice chat: own speech-to-text engine; ElevenLabs and Deepgram text to speech
+- [x] Settings → Speech providers in the web app; new engines in Transcription and Speaker separation
+- [ ] Local LLM: GGUF catalog filtered by this machine, download from Hugging Face, llama.cpp server as the provider
+
+Refine later: per-minute prices for provider calls in the ledger; AssemblyAI and Deepgram summaries, chapters and
+entities as optional imports next to Lens's own analysis; several endpoints per service; speaker labels kept across
+chunks of long OpenAI-compatible transcriptions.
+
 ## 2026-10-04 · The graph, end to end
 
 Goal (Adeel): make the graph the one focus and nail it: a human explorer canvas, agent queries with rights, questions

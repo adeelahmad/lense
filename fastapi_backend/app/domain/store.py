@@ -249,7 +249,35 @@ DEFAULTS = {
     },
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
-    "voice": {"input": "auto", "tts_base_url": None, "tts_model": None, "tts_voice": None, "tts_api_key": None},
+    # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
+    # (openai: the OpenAI-compatible speech server below; elevenlabs, deepgram: the keys in speech)
+    "voice": {
+        "input": "auto",
+        "stt": "same",
+        "tts_provider": "openai",
+        "tts_base_url": None,
+        "tts_model": None,
+        "tts_voice": None,
+        "tts_api_key": None,
+    },
+    # speech providers (domain/speech.py): transcription, speakers and text to speech by a service instead of this
+    # server, picked in transcribe.engine, diarize.engine and voice. A base URL can be a proxy or a compatible server.
+    "speech": {
+        "openai_base_url": "https://api.openai.com/v1",
+        "openai_model": "whisper-1",
+        "openai_api_key": None,
+        "elevenlabs_base_url": "https://api.elevenlabs.io",
+        "elevenlabs_model": "scribe_v1",
+        "elevenlabs_api_key": None,
+        "assemblyai_base_url": "https://api.assemblyai.com",
+        "assemblyai_model": "universal",
+        "assemblyai_api_key": None,
+        "deepgram_base_url": "https://api.deepgram.com",
+        "deepgram_model": "nova-3",
+        "deepgram_api_key": None,
+        "sentiment": True,
+        "timeout": 1800,
+    },
     # the assistant in chat rooms through Matterbridge (bridge.py): url is its API (http://matterbridge:4242), token its
     # API token; it answers as `account` (an email), when a message names it (answer "mention") or to every message
     # ("all"), from anyone or only the chat usernames in `users`, in every gateway or only `gateway`
