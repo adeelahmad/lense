@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import { useState } from "react";
 
 import { Auth, Tokens } from "@/app/openapi-client";
+import { ConnectedAccountsPanel } from "@/components/account/connected-accounts";
 import { PasskeysPanel } from "@/components/account/passkeys";
 import { confirmMismatch, passwordBlocked } from "@/components/account/profile-model";
 import { Badge, RoleChip, type Role } from "@/components/ui/badge";
@@ -81,6 +82,7 @@ export function ProfilePage() {
         </div>
       </Panel>
       <PasskeysPanel />
+      <ConnectedAccountsPanel />
       {status.data?.passwords && (
         <Panel title="Password">
           <div className="flex flex-col gap-5">

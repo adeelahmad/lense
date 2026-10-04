@@ -14,7 +14,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from app.api.deps import AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors, visitor_address, web_origin
 from app.config import settings
 from app.core.security import create_access_token
-from app.domain import auth, passkeys
+from app.domain import auth, external_login, passkeys
 from app.email import app_url, send_signin_link_email
 from app.schemas.auth import (
     ForgotPasswordRequest,
@@ -45,7 +45,7 @@ def _visitor(request: Request) -> str:
 
 def _throttle(request: Request, what: str, shared: bool = False) -> str | None:
     """The throttle key for this visitor, or None when the server can't tell visitors apart (the web app isn't in
-    server.trusted_proxies, so everyone arrives from its address): one bucket for everyone would let anybody lock
+    server.trusted_proxies or LENS_TRUSTED_PROXY_HOSTS, so everyone arrives from its address): one bucket for everyone would let anybody lock
     everyone out. Passkey signatures and 256-bit links can't be guessed anyway; `shared` keeps one bucket for the
     setup code, which is shorter."""
     addr = visitor_address(request)
@@ -126,10 +126,14 @@ def passkey_options(request: Request, db: Db) -> PasskeyOptions:
 
 @router.post("/passkey")
 def passkey_login(body: PasskeyAnswer, request: Request, db: Db) -> LoginTicket:
-    """Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session."""
+    """Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session; 404 for a passkey
+    this server doesn't know (removed, or from before Lens was set up again)."""
     key = _throttle(request, "passkey")
     try:
         u = passkeys.login_finish(db, body.flow, body.credential)
+    except passkeys.UnknownPasskey as e:
+        # 404: the web app tells the browser to stop offering it (WebAuthn's signalUnknownCredential)
+        raise HTTPException(404, str(e)) from None
     except ValueError as e:
         _hit(key)
         raise HTTPException(401, str(e)) from None
@@ -265,7 +269,7 @@ def remove_passkey(pid: str, user: Writer, request: Request, db: Db, cfg: Cfg) -
             here = passkeys.site(web_origin(request))[1]
         except ValueError:
             here = None
-        if not passkeys.remove(db, user.id, pid, auth.passwords_on(cfg), here):
+        if not passkeys.remove(db, user.id, pid, auth.passwords_on(cfg), here, external_login.count(db, user.id)):
             raise HTTPException(404, "not found")
     auth.audit(db, user.as_audit(), "passkey.remove", f"account:{user.id}")
     return Ok()

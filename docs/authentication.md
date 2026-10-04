@@ -39,6 +39,32 @@ in). With passwords off, password sign-in, changes and resets answer 403. Passwo
 least 10 characters. Failed sign-ins are throttled per email and address (8 per 15 minutes). Unknown emails take as
 long to reject as wrong passwords; an account without a password matches none.
 
+## Signing in with another account: Google, GitHub, Microsoft, OpenID Connect
+
+Admins add providers in **Settings › Sign-in › Sign in with another account**: Google, GitHub, Microsoft, or any
+OpenID Connect provider (Authentik, Keycloak, Okta, ...; give its issuer address, Lens reads
+`/.well-known/openid-configuration` there). Each needs a client id and secret from the provider, and the redirect URI
+the dialog shows: `<the web app's address>/api/v1/auth/external/<name>/callback`, registered for every address people
+open Lens at. The secret is kept encrypted (like other settings secrets) and never shown again. The sign-in page then
+has a "Continue with ..." button for each provider that's turned on.
+
+* **Who it signs in.** An outside account that's connected signs in its Lens account. One that isn't yet is connected
+  to the account with the same email, when the provider vouches for the email: Google and OpenID Connect providers say
+  so (`email_verified`), GitHub lists verified addresses, and Microsoft only with an organization's own directory
+  (tenant) id: with `common` anyone can make a Microsoft account claiming any email, so there people connect it from
+  their profile first.
+* **Sign-up** (off by default): people without a Lens account get one, optionally only for some email domains. New
+  accounts have no password and no roles until someone adds them.
+* **Profile and sign-in › Connected accounts** connects one while signed in and disconnects one (not your only way in:
+  with no passkey and no password it stays). With a connected account, your last passkey can go.
+* **How it's checked.** The code flow with PKCE, a `state` used once within ten minutes, and a cookie set on the
+  browser that started it, so a sign-in someone else started can't be finished in your browser. The code is swapped
+  for the profile at the provider's token and userinfo endpoints (server to server). The callback ends on the web
+  app's `/external-signin` page with a one-time ticket in the URL fragment, swapped for a session like a passkey's.
+
+Removing a provider disconnects the accounts connected through it. Audited as `login_provider.add`, `.change`,
+`.remove`, `external.connect` and `external.disconnect`; sign-ins as `login` with `external:<name>`.
+
 ## The web app: NextAuth with API tokens
 
 ```
@@ -76,6 +102,11 @@ Sign out ──► POST /api/v1/auth/logout (ends the session on the API too)
 | `POST /api/v1/auth/signin-link/lost` | email a sign-in link; answers the same for unknown addresses |
 | `GET` · `POST /api/v1/auth/passkeys` (and `/options`) · `PATCH` · `DELETE /api/v1/auth/passkeys/{id}` | your passkeys: list, add, rename, remove (not the last); audited as `passkey.add` and `passkey.remove` |
 | `POST /api/v1/users/{id}/signin-link` · `DELETE /api/v1/users/{id}/passkeys` | admins: a sign-in link for someone; remove all their passkeys |
+| `GET /api/v1/auth/external` | the outside accounts people can sign in with (for the sign-in page) |
+| `POST /api/v1/auth/external/{name}/start` · `/connect` | the provider's sign-in page to open (connect: signed in, adds it to your account) |
+| `GET /api/v1/auth/external/{name}/callback` | where the provider comes back; ends on the web app's `/external-signin` |
+| `GET` · `DELETE /api/v1/auth/identities/{id}` | your connected accounts; disconnect one (not your only way in) |
+| `GET` · `POST /api/v1/auth/providers` · `PATCH` · `DELETE /api/v1/auth/providers/{name}` | admins: sign-in providers (the secret is never returned) |
 | `POST /api/v1/auth/login` · `/refresh` · `/logout` | token pairs (login only where passwords are on) |
 | `GET /api/v1/auth/me` | the account, roles by namespace, and how the caller authenticated (`via`: `access`, `token` or `oauth`) |
 | `PATCH /api/v1/auth/me` | change your own name |

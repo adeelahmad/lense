@@ -48,10 +48,19 @@ LINK_HOURS = 72
 MAX_PER_ACCOUNT = 20
 NAME_MAX = 60
 TRANSPORTS = {t.value for t in AuthenticatorTransport}
+UNKNOWN = (
+    "this passkey isn't one Lens knows: it was removed, or made before Lens was set up again here. "
+    "Pick another passkey, or get a sign-in link"
+)
 
 
 class PasskeyError(ValueError):
     """The browser's answer didn't check out, or the flow it answers is gone."""
+
+
+class UnknownPasskey(PasskeyError):
+    """A passkey this server doesn't know: removed, or made for an earlier install at the same address (it stays in the
+    password manager when Lens is set up again, and clearing the site's data doesn't remove it)."""
 
 
 def _later(seconds):
@@ -316,11 +325,11 @@ def verified(db, row, credential):
     cred_id = credential.get("id") if isinstance(credential, dict) else None
     pk = db.one("SELECT * FROM $r", r=R("passkey", auth.sha(cred_id))) if isinstance(cred_id, str) and cred_id else None
     if not pk or pk.get("rp_id") != row["rp_id"]:
-        raise PasskeyError("this passkey isn't known here; sign in with another, or ask an admin for a sign-in link")
+        raise UnknownPasskey(UNKNOWN)
     handle = ((credential.get("response") or {}).get("userHandle")) or None
     acct = db.one("SELECT webauthn_user FROM $r", r=R("account", pk["account"])) or {}
     if handle and acct.get("webauthn_user") and handle != acct["webauthn_user"]:
-        raise PasskeyError("this passkey isn't known here")
+        raise UnknownPasskey(UNKNOWN)
     try:
         v = verify_authentication_response(
             credential=credential,
@@ -394,9 +403,10 @@ def rename(db, uid, pid, name):
     return True
 
 
-def remove(db, uid, pid, passwords_on=False, here=None):
-    """Remove one of the account's passkeys. Refused for the last way in (no other passkey, and no password that works),
-    and for the last one that works on the site you're on (`here`, an RP ID): others for another site don't help here."""
+def remove(db, uid, pid, passwords_on=False, here=None, others=0):
+    """Remove one of the account's passkeys. Refused for the last way in (no other passkey, no password that works and
+    no outside account, `others`), and for the last one that works on the site you're on (`here`, an RP ID): others
+    for another site don't help here."""
     r = _find(db, uid, pid)
     if not r:
         return False
@@ -408,7 +418,7 @@ def remove(db, uid, pid, passwords_on=False, here=None):
             f"this passkey is the only one that opens {', '.join(names.get(s, str(s)) for s in only)}: add another passkey to "
             "the vault first, or its files are lost"
         )
-    if not (passwords_on and has_password(db, uid)):
+    if not (passwords_on and has_password(db, uid)) and not others:
         if count(db, uid) <= 1:
             raise ValueError("this is your last passkey: add another one first, or you couldn't sign in")
         rp = (db.one("SELECT rp_id FROM $r", r=r) or {}).get("rp_id")

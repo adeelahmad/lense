@@ -63,12 +63,14 @@ export type SectionId =
   | "workers"
   | "components"
   | "access"
+  | "remote-access"
   | "sign-in"
   | "notifications"
   | "mail"
   | "bridge"
   | "telemetry"
   | "fedora"
+  | "sensors"
   | "uploads"
   | "documents"
   | "tokens"
@@ -177,6 +179,13 @@ export const SECTIONS: SectionSpec[] = [
       "Who can reach the server, how it tells visitors’ addresses, which sites may embed the player, and how long sessions last.",
   },
   {
+    id: "remote-access",
+    label: "Remote access",
+    backend: ["tunnel"],
+    description:
+      "Off unless you turn it on. Reach Lens from anywhere at an https:// address through a Cloudflare Tunnel that Lens runs itself: nothing to open on your router.",
+  },
+  {
     id: "mail",
     label: "Email",
     backend: ["mail"],
@@ -209,6 +218,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["fedora"],
     description:
       "Off unless you set an address. Keeps a copy of the archive in a Fedora 6 repository: every namespace, collection, recording (with its file), entity and speaker, described in RDF with Dublin Core.",
+  },
+  {
+    id: "sensors",
+    label: "Sensors",
+    backend: ["sensors"],
+    description:
+      "Off unless you turn it on. An MQTT hub and a syslog listener in Lens’s workers, so routers, DNS servers and devices can send to it; and how long what they send is kept.",
   },
   {
     id: "uploads",
@@ -680,6 +696,51 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "lens@example.org",
   },
   { section: "mail", key: "from_name", label: "From name", kind: "text" },
+  // Remote access (Cloudflare Tunnel)
+  {
+    section: "tunnel",
+    key: "mode",
+    label: "Tunnel",
+    kind: "cards",
+    options: [
+      { value: "off", label: "Off", hint: "Only reachable where it runs" },
+      {
+        value: "quick",
+        label: "Quick address",
+        hint: "A random https://….trycloudflare.com address, no account needed. It changes when the tunnel restarts",
+      },
+      {
+        value: "managed",
+        label: "Your domain",
+        hint: "Lens makes the tunnel and its DNS record on your Cloudflare domain, with an API token",
+      },
+      {
+        value: "token",
+        label: "Tunnel token",
+        hint: "A tunnel you made in the Cloudflare dashboard (Zero Trust › Networks › Tunnels)",
+      },
+    ],
+  },
+  {
+    section: "tunnel",
+    key: "hostname",
+    label: "Public hostname",
+    kind: "text",
+    mono: true,
+    placeholder: "lens.example.com",
+    hint: "Any name on your Cloudflare domain, like lens.example.com or archive.lens.example.com.",
+  },
+  { section: "tunnel", key: "token", label: "Tunnel token", kind: "secret" },
+  { section: "tunnel", key: "api_token", label: "Cloudflare API token", kind: "secret" },
+  {
+    section: "tunnel",
+    key: "origin",
+    label: "Web app address for the tunnel",
+    kind: "text",
+    mono: true,
+    placeholder: "as installed",
+    hint: "Where cloudflared reaches the web app from the server. Leave empty unless you moved it.",
+  },
   // Chat rooms (Matterbridge)
   { section: "bridge", key: "enabled", label: "Answer in chat rooms", kind: "switch" },
   {
@@ -1198,6 +1259,108 @@ export const FIELDS: FieldSpec[] = [
     hint: "Off: everyone signs in with a passkey, and password sign-in, changes and resets stop working. Turning it off needs a passkey on an admin's account first.",
   },
   // API keys
+  // Sensors (opt-in)
+  {
+    section: "sensors",
+    key: "enabled",
+    label: "Run the hub",
+    kind: "switch",
+    hint: "Off: nothing listens for MQTT or syslog. Webhooks and bridges to other brokers work either way",
+  },
+  { section: "sensors", key: "mqtt", label: "MQTT", kind: "switch" },
+  { section: "sensors", key: "mqtt_port", label: "MQTT port", kind: "int", min: 1, max: 65535 },
+  {
+    section: "sensors",
+    key: "mqtt_anonymous",
+    label: "Let devices in without a login",
+    kind: "switch",
+    hint: "Off: devices sign in with a hub login (Sensors → Hub logins)",
+  },
+  { section: "sensors", key: "syslog", label: "Syslog", kind: "switch" },
+  {
+    section: "sensors",
+    key: "syslog_port",
+    label: "Syslog port (UDP and TCP)",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    hint: "Ports below 1024 need extra rights; 5514 avoids that",
+  },
+  {
+    section: "sensors",
+    key: "syslog_networks",
+    label: "Networks syslog is taken from",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like 192.168.1.0/24. Syslog has no login, so anything else is ignored",
+  },
+  {
+    section: "sensors",
+    key: "max_payload_kb",
+    label: "Largest message (KB)",
+    kind: "int",
+    min: 1,
+    max: 16384,
+  },
+  {
+    section: "sensors",
+    key: "store",
+    label: "Keep",
+    kind: "select",
+    options: [
+      { value: "all", label: "Every reading" },
+      { value: "changes", label: "Only changes (and one an hour)" },
+      { value: "summary", label: "Hourly summaries only" },
+      { value: "none", label: "Nothing: count and drop" },
+    ],
+    hint: "For sensors that don’t choose for themselves",
+  },
+  {
+    section: "sensors",
+    key: "raw_days",
+    label: "Keep readings for (days)",
+    kind: "int",
+    min: 1,
+    max: 36500,
+    nullable: true,
+    hint: "Empty keeps them for good",
+  },
+  {
+    section: "sensors",
+    key: "important_days",
+    label: "Keep warnings and errors for (days)",
+    kind: "int",
+    min: 1,
+    max: 36500,
+    nullable: true,
+    hint: "Log lines of warning or worse, when longer than readings",
+  },
+  {
+    section: "sensors",
+    key: "rollup_days",
+    label: "Keep hourly summaries for (days)",
+    kind: "int",
+    min: 1,
+    max: 36500,
+    nullable: true,
+    hint: "Charts use these",
+  },
+  {
+    section: "sensors",
+    key: "max_per_minute",
+    label: "Most readings a minute, per stream",
+    kind: "int",
+    min: 1,
+    max: 100000,
+    hint: "More are counted and dropped",
+  },
+  {
+    section: "sensors",
+    key: "triage",
+    label: "Sort new kinds of log line with the decision model",
+    kind: "switch",
+    hint: "One question per kind of line, never per line: routine, notable or alert",
+  },
   // Fedora (opt-in)
   {
     section: "fedora",
@@ -1681,6 +1844,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
 const HOST_RX = /^(\*|\[[0-9a-f:]+\]|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*)$/i;
 const ENTITY_TYPES = ["PERSON", "ORG", "PRODUCT", "PLACE", "EVENT", "WORK", "TERM"];
 const URL_RX = /^https?:\/\/[^\s]+$/;
+const TUNNEL_HOST_RX = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\.?$/i;
 
 /** "Line 4: missing “|” between name and type" for the custom vocabulary. */
 export function gazetteerErrors(lines: string[]): string | null {
@@ -1756,6 +1920,15 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const nets = values["notifications.networks"] as string[] | undefined;
   const badNet = nets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badNet) e["notifications.networks"] = `“${badNet}” isn’t a network like 192.168.1.0/24`;
+  const sNets = values["sensors.syslog_networks"] as string[] | undefined;
+  const badSNet = sNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
+  if (badSNet) e["sensors.syslog_networks"] = `“${badSNet}” isn’t a network like 192.168.1.0/24`;
+  const mode = values["tunnel.mode"] as string | undefined;
+  const tHost = values["tunnel.hostname"] as string | undefined;
+  if ((mode === "token" || mode === "managed") && "tunnel.hostname" in values && !TUNNEL_HOST_RX.test(tHost ?? ""))
+    e["tunnel.hostname"] = "Enter the public hostname, like lens.example.com";
+  const tOrigin = values["tunnel.origin"] as string | undefined;
+  if (tOrigin && !URL_RX.test(tOrigin)) e["tunnel.origin"] = "Use an http(s) address, such as http://frontend:3000";
   const otlp = values["telemetry.endpoint"] as string | null | undefined;
   if (otlp && !URL_RX.test(otlp)) e["telemetry.endpoint"] = "Use an http(s) address, such as http://localhost:4318";
   else if (otlp && /\/v1\/(traces|metrics)\/?$/.test(otlp))

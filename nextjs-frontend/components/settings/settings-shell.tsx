@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   LockKeyhole,
+  Cloud,
   Activity,
   Archive,
   AudioLines,
@@ -28,6 +29,7 @@ import {
   Mail,
   MessagesSquare,
   PackageCheck,
+  RadioTower,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -65,12 +67,14 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   workers: Cpu,
   components: PackageCheck,
   access: ShieldCheck,
+  "remote-access": Cloud,
   "sign-in": LockKeyhole,
   notifications: Bell,
   mail: Mail,
   bridge: MessagesSquare,
   telemetry: Activity,
   fedora: Archive,
+  sensors: RadioTower,
   uploads: Upload,
   documents: FileType,
   tokens: KeyRound,

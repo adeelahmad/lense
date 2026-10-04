@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Blocks, MessagesSquare, Mic, Plus } from "lucide-react";
+import { Blocks, MessagesSquare, Mic, Plus, Workflow } from "lucide-react";
 import Link from "next/link";
 
 import { Extensions } from "@/app/openapi-client";
@@ -17,6 +17,8 @@ import { data, useApiClient } from "@/lib/api/browser";
 import { relative } from "@/lib/format";
 
 export const KIND_LABEL: Record<string, string> = { tool: "Tool", skill: "Skill", hook: "Hook", plugin: "Plugin" };
+// the starters on a new extension: one per kind, and a Python tool (admins only)
+export const STARTER_LABEL: Record<string, string> = { ...KIND_LABEL, python: "Python tool" };
 export const ORIGIN_LABEL: Record<string, string> = { code: "code", canvas: "the canvas", chat: "chat" };
 
 /** What a tool's body is, in a word. */
@@ -25,7 +27,7 @@ export function bodyLabel(e: Pick<Extension, "kind" | "spec">): string | null {
   if (e.kind === "hook") return `on ${String(e.spec.event ?? "")}`.replace("_", " ");
   if (e.kind !== "tool") return null;
   const run = (e.spec.run ?? {}) as { type?: string };
-  return { prompt: "prompt", http: "web request", graph: "canvas graph" }[run.type ?? ""] ?? null;
+  return { prompt: "prompt", http: "web request", graph: "canvas graph", python: "Python" }[run.type ?? ""] ?? null;
 }
 
 export function useExtensions() {
@@ -63,6 +65,12 @@ export function ExtensionsPage() {
               <Link href={`/chat?q=${ask}`}>
                 <MessagesSquare aria-hidden />
                 Ask the assistant
+              </Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/extensions/new/canvas">
+                <Workflow aria-hidden />
+                Draw a tool
               </Link>
             </Button>
             <Button asChild variant="primary">

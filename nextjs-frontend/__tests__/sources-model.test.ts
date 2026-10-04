@@ -4,6 +4,7 @@ import {
   emptyForm,
   fileKind,
   healthOf,
+  imapHost,
   nextScan,
   parseRcloneToken,
   pickupText,
@@ -218,5 +219,16 @@ describe("watched folders", () => {
     expect(nextScan("2026-09-30T14:04:00Z", true, now)).toBe("in 4 min");
     expect(nextScan("2026-09-30T13:59:00Z", true, now)).toBe("due now");
     expect(nextScan("2026-09-30T14:04:00Z", false, now)).toBe("paused");
+  });
+});
+
+describe("imapHost", () => {
+  it("knows the big providers and guesses imap.<domain> otherwise", () => {
+    expect(imapHost("me@gmail.com")).toBe("imap.gmail.com");
+    expect(imapHost(" Me@Outlook.com ")).toBe("outlook.office365.com");
+    expect(imapHost("calls@acme.co.uk")).toBe("imap.acme.co.uk");
+    expect(imapHost("calls@")).toBe("");
+    expect(imapHost("calls@acme")).toBe("");
+    expect(imapHost("")).toBe("");
   });
 });

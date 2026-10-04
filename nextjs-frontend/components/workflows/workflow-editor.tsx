@@ -69,8 +69,8 @@ export function WorkflowEditor({ id }: { id?: number }) {
   const customOf = (cid: number) => customDefs.find((d) => d.id === cid);
 
   const base: Workflow | undefined = q.data;
-  const [newScope, setNewScope] = useState<Scope>("recording");
-  const scope: Scope = creating ? newScope : base?.scope === "graph" ? "graph" : "recording";
+  const [newScope, setNewScope] = useState<Exclude<Scope, "tool">>("recording");
+  const scope: Exclude<Scope, "tool"> = creating ? newScope : base?.scope === "graph" ? "graph" : "recording";
   const [graph, setGraph] = useState<WfGraph>(() => (creating ? starter() : { nodes: [], edges: [] }));
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
@@ -222,7 +222,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
             label="What it runs on"
             value={scope}
             onChange={(v) => {
-              setNewScope(v as Scope);
+              setNewScope(v as Exclude<Scope, "tool">);
               setGraph(starter(v as Scope));
             }}
             items={[

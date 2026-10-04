@@ -4,6 +4,40 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Hardening.** Sign-in throttles count each visitor behind the web app (Docker) instead of one bucket for everyone,
+  so one person's wrong tries can't lock others out and nobody gets unlimited tries. The web app's pages send
+  nosniff, referrer, permissions and frame policies, and HSTS when reached through Cloudflare. The containers run with
+  `no-new-privileges`, and the development API port listens on this machine only. See docs/deployment.md.
+- **Reach Lens from anywhere through a Cloudflare Tunnel.** Settings › Remote access turns on a tunnel Lens runs
+  itself, with nothing to open on the router: a quick random trycloudflare.com address, a hostname on your own
+  Cloudflare domain (Lens makes the tunnel and DNS record with an API token), or a tunnel made in the Cloudflare
+  dashboard. The page shows the address, whether it's connected and cloudflared's last lines; Lens fetches cloudflared
+  when it isn't installed. Passkeys and email links use the tunnel's https:// address. See docs/remote-access.md.
+- **Signing out keeps you at the address you're on.** Opened at another address than the one Lens was installed with
+  (its LAN name, an https:// address, the tunnel), signing out sent you to http://localhost:3000. Sign-in now follows
+  the browser's address; the Docker Compose files no longer pin AUTH_URL.
+- **Sign in with Google, GitHub, Microsoft or your own OpenID Connect provider.** Admins add them in Settings ›
+  Sign-in (client id, secret, and the redirect URI to register, which the dialog shows), and the sign-in page gets a
+  "Continue with ..." button for each. People are matched to their Lens account by an email the provider confirms, or
+  connect an account in Profile and sign-in › Connected accounts. Sign-up for people without an account is optional,
+  and can be limited to some email domains. See docs/authentication.md.
+- **An old passkey no longer blocks signing in.** After Lens is set up again at the same address, the browser still
+  offered the passkey from before (clearing the site's data doesn't remove passkeys from the password manager), and
+  signing in with it failed. Lens now says the passkey is from before, and tells Chrome and Safari to stop offering it,
+  so the next try shows the new one.
+- **A watched folder says which pipeline it runs.** "Namespace pipeline" names the namespace's default pipeline (or
+  the standard steps) right there, instead of pointing you to the Pipelines page to find out.
+- **Sensors in the web app.** Admins get **Sensors** in place of Sources: the hub's state, new devices with a
+  suggested handling to apply or ignore, each sensor's streams with charts of hourly averages and its latest
+  readings, its kinds of log line to label or drop, and what it keeps and for how long. Webhooks (token shown once),
+  bridges, hub logins and Settings → Sensors are all there; storage, email and calendars stay a tab away.
+- **An email connection fills in its server.** Type the address first and the IMAP server follows from it (Gmail,
+  Outlook, iCloud, Yahoo and other big providers by name, otherwise imap.<domain>) until you change it by hand.
+- **Fewer confirms, fewer dead ends.** Import sends the files that are ready and keeps the ones that still need a
+  field mapped in the list, instead of blocking everything. Disabling an account and deleting your own saved view
+  happen at once with Undo instead of a confirm. Adding a member to a namespace suggests the people who aren't in it
+  yet. Add file on a recording opens the file picker first (or take a file dropped on the tab) and guesses its role
+  and language from the name (talk.en.vtt is English).
 - **Sign in with a passkey, no passwords.** People sign in with their fingerprint, face or device PIN (or a phone
   nearby). The first admin makes a passkey on the setup page; everyone else gets a one-time sign-in link from People
   (or `lens users link`), and "Lost your passkey?" emails one. Profile and sign-in lists your passkeys, adds more and
