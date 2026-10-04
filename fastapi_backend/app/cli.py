@@ -96,6 +96,8 @@ def _main_base(argv=None):
     p.add_argument("--host")
     p.add_argument("--port", type=int)
     sub.add_parser("status")
+    p = sub.add_parser("migrations", help="list the database upgrades: run, pending or failed (docs/database.md)")
+    p.add_argument("--run", action="store_true", help="run the pending ones now (Lens also runs them when it starts)")
     sub.add_parser("reindex", help="rebuild the search index (after changing search.tokenizer)")
     p = sub.add_parser("encrypt", help="encrypt the files Lens keeps, and keep encrypting new ones (docs/encryption.md)")
     p.add_argument("--off", action="store_true", help="decrypt them again and stop encrypting new ones")
@@ -122,7 +124,7 @@ def _main_base(argv=None):
             os.environ["ARCHIVE_CONFIG"] = a.config
         uvicorn.run("app.main:app", host=a.host or cfg["server"]["host"], port=a.port or cfg["server"]["port"], proxy_headers=True)
         return
-    conn = store.connect(cfg)
+    conn = store.connect(cfg, upgrade=a.cmd != "migrations")  # so a failed upgrade can still be looked at
     try:
         if a.cmd in ("scan", "transcribe", "diarize", "analyze", "embed", "summarize", "run", "report"):
             which = ["scan", "transcribe", "diarize", "analyze", "embed", "summarize", "report"] if a.cmd == "run" else [a.cmd]
@@ -184,6 +186,20 @@ def _main_base(argv=None):
                 print(f"  {n:<16} {st:<12} {c:>5}  {ms / 3.6e6:6.1f} h")
             for r in conn.rows("SELECT title, error FROM recording WHERE error != NONE LIMIT 10"):
                 print(f"  error: {r['title']}: {r['error']}")
+        elif a.cmd == "migrations":
+            from .domain import migrations
+
+            if a.run:
+                ran = migrations.run(conn)
+                print(f"ran {len(ran)} upgrade(s): {', '.join(ran)}" if ran else "nothing to run")
+            for m in migrations.status(conn):
+                when = {"done": m["done_at"], "failed": m["failed_at"]}.get(m["state"]) or ""
+                took = f" ({m['took_ms']} ms)" if m["state"] == "done" and m.get("took_ms") else ""
+                print(f"  {m['state']:<8} {m['name']:<28} {when}{took}")
+                if m["state"] == "failed":
+                    print(f"           {m['error']}")
+                elif m["state"] == "unknown":
+                    print("           run by a newer Lens than this one")
         elif a.cmd == "reindex":
             store.reindex(conn, cfg)
             print("search index rebuilt")

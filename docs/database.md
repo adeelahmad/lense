@@ -33,7 +33,8 @@ engine and with SurrealDB 2.3 and 3.2 servers.
 ## Schema
 
 The schema is defined idempotently in `app/domain/store.py` (`SCHEMA`) and applied on every start
-(`DEFINE ... IF NOT EXISTS`), so there are no migration files. Tables are `SCHEMALESS` with indexes on the fields
+(`DEFINE ... IF NOT EXISTS`), so new tables, fields and indexes need no migration (see [Upgrades](#upgrades) for the
+rest). Tables are `SCHEMALESS` with indexes on the fields
 that are queried. Graph edges are real relations: `mentions` (segment → entity) and `same_as` (speaker → speaker).
 
 ```sql
@@ -48,8 +49,31 @@ cosine; servers only) defined when the first vector is stored, since its `DIMENS
 which model and dimension that is. A server searches it with `embedding <|k,ef|> $vec AND …filters`, which 3.2.4
 applies inside the index scan (a filtered search still returns k rows).
 
-When a change needs data rewritten (not just a new index), add an idempotent step to `store.connect()` guarded by a
-version stored in the `seq` table, so it runs once per database.
+## Upgrades
+
+Installs keep their data across updates (running `install.sh` again, a new image, `git pull`). New tables, fields and
+indexes arrive through `SCHEMA` on the next start. Anything else, such as rewriting stored values, moving data between
+tables, or changing or removing an index that already exists, is a named step in `app/domain/migrations.py`:
+
+* Every process that opens the database (the API, workers, `lens watch`, `lens` commands) runs the steps the database
+  hasn't had yet when it starts, in order. One process takes a lock (`migration_lock:run`) and runs them; the others
+  wait, so no code reads data in a shape it doesn't expect. A holder that dies loses the lock after five minutes.
+* Each step run is recorded in `migration:⟨name⟩` with when and how long it took. A step that fails records its error
+  and stops the start; once the cause is fixed, the next start runs it again.
+* `lens migrations` lists every step (done, pending, failed, or unknown when a newer Lens ran it) without running
+  anything, so it works while an upgrade is failing; `lens migrations --run` runs the pending ones.
+
+To add a step:
+
+1. Write a function `fn(db)` next to the code it serves. It must be safe to run twice, since a start that stops half
+   way runs it again; prefer `UPDATE ... WHERE <old shape>` over rewriting every row.
+2. Append `("short-name", module.fn)` to `steps()` in `migrations.py`, and the name to `SHIPPED` in
+   `tests/domain/test_migrations.py`. Never rename, reorder or remove a shipped step: databases remember steps by
+   name, so a renamed one runs again and a removed one never runs.
+3. Keep reads tolerant of the old shape until the step has run (it runs before requests are served, but a worker on
+   another machine may still be on the old version).
+4. Test it on data in the old shape, against a SurrealDB server too (`LENS_TEST_SURREAL_URL`);
+   `test_every_step_is_safe_to_repeat` checks that a second run changes nothing.
 
 ## Concurrency
 

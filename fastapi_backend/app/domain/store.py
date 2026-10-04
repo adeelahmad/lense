@@ -616,10 +616,13 @@ class DB:
 
 
 SCHEMA = [
-    # counters (next_id), the migration marker and the settings version. Defined up front: SurrealDB 3 refuses to
+    # counters (next_id), the old migration counter and the settings version. Defined up front: SurrealDB 3 refuses to
     # SELECT from a table nobody has written to yet ("table 'seq' does not exist"), which a fresh database with no
     # namespaces in archive.yaml would otherwise hit in migrate() before anything had created it.
     "DEFINE TABLE IF NOT EXISTS seq SCHEMALESS",
+    # data upgrades (domain/migrations.py): migration:⟨name⟩ for each step run or failed, and the lock while one runs
+    "DEFINE TABLE IF NOT EXISTS migration SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS migration_lock SCHEMALESS",
     # first-run setup (domain/setup.py): setup:wizard while the web wizard is still to be finished
     "DEFINE TABLE IF NOT EXISTS setup SCHEMALESS",
     # No composite indexes: on SurrealDB 2.x a (space, x) index makes "space = $s" lookups return nothing, so
@@ -952,7 +955,9 @@ def _text_index(db):
     return found
 
 
-def connect(cfg):
+def connect(cfg, upgrade=True):
+    """Open the database, apply the schema and, unless upgrade=False (for `lens migrations`), bring its data up to
+    date (domain/migrations.py)."""
     db = DB(cfg)
     db.q(_analyzer(cfg))
     for s in SCHEMA:
@@ -961,24 +966,16 @@ def connect(cfg):
     for name, spec in cfg["namespaces"].items():
         sid = ns_id(db, name)
         db.q("UPDATE $r SET graph = $g", r=R("space", sid), g=spec["graph"])
-    migrate(db)
+    if upgrade:
+        migrate(db)
     return db
 
 
-def _migrations():
-    from . import access, hierarchy  # each step lives with the code it serves
-
-    return [access.migrate_legacy, hierarchy.migrate_homes]
-
-
 def migrate(db):
-    """Data rewrites that run once per database, in order. The last one done is kept in seq:migrations; each step is
-    safe to repeat, so two processes starting together, or a start that stops half way, do no harm."""
-    done = int((db.one("SELECT n FROM $r", r=R("seq", "migrations")) or {}).get("n") or 0)
-    for n, step in enumerate(_migrations(), 1):
-        if n > done:
-            step(db)
-            db.q("UPSERT $r SET n = $n", r=R("seq", "migrations"), n=n)
+    """Run the data upgrades this database hasn't had yet (domain/migrations.py)."""
+    from . import migrations
+
+    return migrations.run(db)
 
 
 def reindex(db, cfg):

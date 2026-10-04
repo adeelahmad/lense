@@ -105,6 +105,7 @@ lens search "capsid" --ns podcasts
 lens search "money worries" --mode semantic   # by meaning (with an embedding model; see configuration.md)
 lens embed                                 # index what isn't yet searchable by meaning
 lens reindex                               # after changing search.stemming
+lens migrations                            # database upgrades: run, pending or failed
 ```
 
 Docker on macOS can't use the Apple GPU. Keep the database and API in Docker and run a native worker against the same
