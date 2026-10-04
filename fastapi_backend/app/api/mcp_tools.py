@@ -32,6 +32,7 @@ from app.domain import speakers as spk
 from app.domain import topics as topicmod
 from app.domain.store import DB
 from app.schemas.entities import EntityList
+from app.schemas.notebook import NotePage
 from app.schemas.search import SearchResults
 
 R = store.R
@@ -1207,9 +1208,10 @@ def read_note(ctx: Context, note_id: int | None, about: str | None) -> dict[str,
         kind, _, key = str(about).partition(":")
         if not key.isdigit():
             raise ToolError('about is a thing like "recording:12"')
-        p = note_routes.page_about(kind, int(key), ctx.user, ctx.acl, ctx.db)
-        if p.id is None:
-            return {"page_of": about, "note": None, "title": p.title, "linked_from": [b.title for b in p.backlinks] or None}
+        page = note_routes.page_about(kind, int(key), ctx.user, ctx.acl, ctx.db)
+        if not isinstance(page, NotePage):  # a draft: nobody has written on it yet
+            return {"page_of": about, "note": None, "title": page.title, "linked_from": [b.title for b in page.backlinks] or None}
+        p = page
     return store.clean(
         {
             "note_id": p.id,
