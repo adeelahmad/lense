@@ -15,7 +15,11 @@ The editor may also keep its own document state (`doc`, opaque: a BlockSuite/Yjs
 holds what Markdown can't, like drawings on the edgeless canvas. A change to the Markdown alone (the assistant's, say)
 keeps that state but marks it stale, and the editor brings its text in line with the Markdown.
 
-Refine later: pages for partial collection members, page history and undo, attachments, real-time co-editing.
+Every change to a page's title, summary or text keeps what it was before as a version (`note_version`), so a page's
+history can be read and any version restored, the assistant's changes included. Edits by one person in one sitting
+make one version.
+
+Refine later: pages for partial collection members, attachments, real-time co-editing, diffs between versions.
 """
 
 from __future__ import annotations
@@ -255,11 +259,95 @@ def _doc(doc):
 
 
 UNSET = object()
+VERSION_SITTING = 600  # seconds: one person's edits this close together make one version
+VERSIONS_MAX = 100  # versions kept per page; the oldest go first
+VERSION_FIELDS = "record::id(id) AS id, page, at, by, author, title, summary, place, size, why"
 
 
-def update(db, pid, account, title=None, body=None, summary=UNSET, date=UNSET, place=UNSET, author="person", doc=UNSET, view=UNSET):
-    """Change what's given. A new body without `doc` marks the editor's state stale; the summary records who wrote it."""
+def snapshot(db, p, account, author, why=None):
+    """Keep page p (a row with its body) as it is, before a change by account (None: the model) as author. Changes by
+    the same person in one sitting share one version, the one from before they started; anyone else's change, or the
+    assistant's, starts a new one."""
+    last = db.one(
+        "SELECT at, by, author FROM note_version WHERE page = $p ORDER BY at DESC LIMIT 1",
+        p=int(p["id"]),
+    )
+    now = dt.datetime.now(dt.timezone.utc)
+    if last and why is None and author == "person" and last.get("author") == "person" and last.get("by") == account:
+        at = dt.datetime.fromisoformat(str(last["at"]).replace("Z", "+00:00"))
+        if (now - at).total_seconds() < VERSION_SITTING and str(p.get("updated_by") or "") == str(account or ""):
+            return None
+    body = p.get("body") or ""
+    vid = db.next_id("note_version")
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("note_version", vid),
+        d=store.clean(
+            {
+                "page": int(p["id"]),
+                "space": p["space"],
+                "at": now.isoformat(timespec="milliseconds"),
+                "by": account,
+                "author": author,
+                "title": p.get("title"),
+                "summary": p.get("summary"),
+                "place": p.get("place"),
+                "body": body,
+                "doc": p.get("doc"),
+                "size": len(body),
+                "why": why,
+            }
+        ),
+    )
+    old = db.rows(
+        "SELECT record::id(id) AS id, at FROM note_version WHERE page = $p ORDER BY at DESC START $n", p=int(p["id"]), n=VERSIONS_MAX
+    )
+    if old:
+        db.q("DELETE note_version WHERE id IN $ids", ids=[R("note_version", v["id"]) for v in old])
+    return vid
+
+
+def history(db, pid, limit=50):
+    """The page's earlier versions, newest first, without their bodies."""
+    return db.rows(f"SELECT {VERSION_FIELDS} FROM note_version WHERE page = $p ORDER BY at DESC LIMIT $n", p=int(pid), n=int(limit))
+
+
+def version(db, pid, vid):
+    """One earlier version with its body, or KeyError."""
+    v = db.one(f"SELECT {VERSION_FIELDS}, body, doc FROM $r", r=R("note_version", int(vid)))
+    if not v or v.get("page") != int(pid):
+        raise KeyError(vid)
+    return v
+
+
+def restore(db, pid, vid, account):
+    """Put an earlier version back: its title, summary and text (and the editor's state with them). What the page was
+    becomes a version too, so a restore can be undone."""
+    v = version(db, pid, vid)
+    update(
+        db,
+        pid,
+        account,
+        title=v.get("title"),
+        body=v.get("body") or "",
+        summary=v.get("summary"),
+        doc=v.get("doc"),
+        why=f"restored the version of {str(v['at'])[:16].replace('T', ' ')}",
+    )
+
+
+def update(
+    db, pid, account, title=None, body=None, summary=UNSET, date=UNSET, place=UNSET, author="person", doc=UNSET, view=UNSET, why=None
+):
+    """Change what's given. A new body without `doc` marks the editor's state stale; the summary records who wrote it.
+    A change to the title, summary or text keeps what the page was as a version first (snapshot)."""
     p = get(db, pid)
+    if (
+        (title is not None and _title(title) != p.get("title"))
+        or (body is not None and _body(body) != (p.get("body") or ""))
+        or (summary is not UNSET and _summary(summary) != p.get("summary"))
+    ):
+        snapshot(db, p, account, author, why)
     sets, args = ["updated_at = $t", "updated_by = $a"], {"t": store.now(), "a": account}
     if title is not None:
         sets.append("title = $title")
@@ -328,6 +416,7 @@ def delete(db, pid):
     for child in db.values("SELECT VALUE record::id(id) FROM note_page WHERE parent = $p", p=int(pid)):
         db.q("UPDATE $r SET parent = $up", r=R("note_page", child), up=p.get("parent"))
     db.q("DELETE note_link WHERE page = $p", p=int(pid))
+    db.q("DELETE note_version WHERE page = $p", p=int(pid))
     db.q("DELETE $r", r=R("note_page", int(pid)))
 
 
@@ -496,6 +585,8 @@ def refine(db, cfg, pid):
         return {}  # changed while the model was thinking: it's still pending, so a later pass looks again
     changed = {k: v for k, v in (("title", title), ("summary", summary)) if v and v != p.get(k)}
     sets = ["refine_pending = false", "refine_claim = NONE", "refined_at = $t"] + [f"{k} = ${k}" for k in changed]
+    if changed:
+        snapshot(db, get(db, p["id"]), None, "assistant", "the model refined the title and summary")
     if "summary" in changed:
         sets.append("summary_by = 'assistant'")
     db.q(f"UPDATE $r SET {', '.join(sets)}", r=R("note_page", p["id"]), t=store.now(), **changed)

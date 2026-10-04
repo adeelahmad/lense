@@ -7190,6 +7190,17 @@ export type NoteCreate = {
 };
 
 /**
+ * NoteHistory
+ */
+export type NoteHistory = {
+  /**
+   * Versions
+   */
+  versions: Array<NoteVersionItem>;
+  [key: string]: unknown;
+};
+
+/**
  * NoteLink
  */
 export type NoteLink = {
@@ -7631,6 +7642,104 @@ export type NoteUpdate = {
    * share or unshare it (sharing needs editor access)
    */
   shared?: boolean | null;
+};
+
+/**
+ * NoteVersion
+ */
+export type NoteVersion = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * At
+   *
+   * when the page changed from this
+   */
+  at: string;
+  /**
+   * By
+   *
+   * who changed it (an email); none for the model
+   */
+  by?: string | null;
+  /**
+   * Author
+   *
+   * a person, or the assistant or model
+   */
+  author?: "person" | "assistant";
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Size
+   *
+   * characters of text
+   */
+  size?: number;
+  /**
+   * Why
+   */
+  why?: string | null;
+  /**
+   * Body
+   */
+  body?: string;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteVersionItem
+ */
+export type NoteVersionItem = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * At
+   *
+   * when the page changed from this
+   */
+  at: string;
+  /**
+   * By
+   *
+   * who changed it (an email); none for the model
+   */
+  by?: string | null;
+  /**
+   * Author
+   *
+   * a person, or the assistant or model
+   */
+  author?: "person" | "assistant";
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Size
+   *
+   * characters of text
+   */
+  size?: number;
+  /**
+   * Why
+   */
+  why?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -20012,6 +20121,109 @@ export type UpdatePageResponses = {
 };
 
 export type UpdatePageResponse = UpdatePageResponses[keyof UpdatePageResponses];
+
+export type PageHistoryData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/notes/{pid}/history";
+};
+
+export type PageHistoryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PageHistoryError = PageHistoryErrors[keyof PageHistoryErrors];
+
+export type PageHistoryResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteHistory;
+};
+
+export type PageHistoryResponse = PageHistoryResponses[keyof PageHistoryResponses];
+
+export type PageVersionData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Vid
+     */
+    vid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/history/{vid}";
+};
+
+export type PageVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PageVersionError = PageVersionErrors[keyof PageVersionErrors];
+
+export type PageVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteVersion;
+};
+
+export type PageVersionResponse = PageVersionResponses[keyof PageVersionResponses];
+
+export type RestoreVersionData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Vid
+     */
+    vid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/history/{vid}/restore";
+};
+
+export type RestoreVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreVersionError = RestoreVersionErrors[keyof RestoreVersionErrors];
+
+export type RestoreVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type RestoreVersionResponse = RestoreVersionResponses[keyof RestoreVersionResponses];
 
 export type MovePageData = {
   body: NotePageMove;

@@ -15,6 +15,7 @@ from app.domain import auth, notebook, store
 from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.notebook import (
+    NoteHistory,
     NoteLinkTarget,
     NotePage,
     NotePageCreate,
@@ -23,6 +24,8 @@ from app.schemas.notebook import (
     NotePageMove,
     NotePageUpdate,
     NoteTree,
+    NoteVersion,
+    NoteVersionItem,
 )
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -148,6 +151,40 @@ def update_page(pid: int, body: NotePageUpdate, user: Writer, acl: Acl, db: Db) 
         kw["place"] = body.place or None
     with domain_errors():
         notebook.update(db, pid, user.id, title=body.title, body=body.body, **kw)
+    return _out(acl, db, notebook.get(db, pid), user)
+
+
+def _version_out(db: DB, v: dict[str, Any], cls: type[NoteVersionItem] = NoteVersionItem) -> NoteVersionItem:
+    who = db.one("SELECT email FROM $r", r=store.R("account", v["by"])) if v.get("by") else None
+    return cls(**{**{k: x for k, x in v.items() if k not in ("by", "page", "doc")}, "by": (who or {}).get("email")})
+
+
+@router.get("/{pid}/history")
+def page_history(pid: int, user: CurrentUser, acl: Acl, db: Db, limit: int = Query(50, ge=1, le=100)) -> NoteHistory:
+    """What the page was before each change to its title, summary or text, newest first."""
+    _page(acl, db, pid)
+    return NoteHistory(versions=[_version_out(db, v) for v in notebook.history(db, pid, limit)])
+
+
+@router.get("/{pid}/history/{vid}")
+def page_version(pid: int, vid: int, user: CurrentUser, acl: Acl, db: Db) -> NoteVersion:
+    """One earlier version, with its text."""
+    _page(acl, db, pid)
+    try:
+        v = notebook.version(db, pid, vid)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    return _version_out(db, v, NoteVersion)  # type: ignore[return-value]
+
+
+@router.post("/{pid}/history/{vid}/restore")
+def restore_version(pid: int, vid: int, user: Writer, acl: Acl, db: Db) -> NotePage:
+    """Put an earlier version back. What the page was becomes a version too, so this can be undone. Needs editor access."""
+    _page(acl, db, pid, "editor")
+    try:
+        notebook.restore(db, pid, vid, user.id)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
     return _out(acl, db, notebook.get(db, pid), user)
 
 

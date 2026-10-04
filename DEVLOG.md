@@ -202,7 +202,7 @@ Todo:
 - [x] Costs of refinement and filing to the activity ledger (`note_page:id` and its namespace; shown on the page)
 - [x] Assistant tools: find, read, write and update notes (at once, no approval: notes are its notebook)
 - [x] MCP tools to find, read and write notes (find_notes, read_note, write_note)
-- [ ] Page history so the assistant's changes can be undone
+- [x] Page history (note_version): a version before each change, one per sitting, restore that is itself undoable
 - [x] Self-organising, first step: notes nobody filed are filed in PARA by a decision model (or the LLM), with a
       suggestion when it isn't sure (ai.organise_notes)
 - [ ] Self-organising, next: link notes to entities and topics, nest them under their project or area

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, FileText, Link2, Shapes, Sparkles, Trash2 } from "lucide-react";
+import { ArrowUpRight, FileText, History, Link2, Shapes, Sparkles, Trash2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ import { Notes } from "@/app/openapi-client";
 import type { NotePage as Page, NotePageDraft as PageDraft } from "@/app/openapi-client/types.gen";
 import { ActivityPanel } from "@/components/costs/costs";
 import type { EditorChange, LinkTarget } from "@/components/notes/block-editor";
+import { NoteHistory } from "@/components/notes/note-history";
 import { PLACES, hrefFor } from "@/components/notes/links";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
@@ -58,6 +59,8 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
   const [summary, setSummary] = useState("");
   const [date, setDate] = useState("");
   const [place, setPlace] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
+  const [restored, setRestored] = useState(0); // a restore brings the editor back with the old text
   const [view, setView] = useState<View>("page");
   const loadedFor = useRef<string | null>(null);
   useEffect(() => {
@@ -212,6 +215,11 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
             {state === "saving" ? "Saving…" : state === "error" ? "Not saved" : saved ? "Saved" : "Draft"}
           </span>
         )}
+        {saved && (
+          <Button variant="ghost" size="xs" icon={<History />} onClick={() => setShowHistory(true)}>
+            History
+          </Button>
+        )}
         {canEdit && saved && (
           <Button variant="danger-ghost" size="xs" icon={<Trash2 />} onClick={remove}>
             Delete
@@ -317,7 +325,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
         </div>
       </div>
       <BlockEditor
-        key={page.about ?? `page:${page.id}`}
+        key={`${page.about ?? `page:${page.id}`}:${restored}`}
         markdown={page.body ?? ""}
         doc={saved?.doc ?? null}
         readOnly={!canEdit}
@@ -328,6 +336,23 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
         onOpenLink={openLink}
       />
       <Backlinks items={page.backlinks ?? []} />
+      {showHistory && saved && (
+        <NoteHistory
+          pid={saved.id}
+          canEdit={Boolean(canEdit)}
+          onClose={() => setShowHistory(false)}
+          onRestored={(p) => {
+            clearTimeout(timer.current);
+            pending.current = {};
+            qc.setQueryData(key, p);
+            qc.invalidateQueries({ queryKey: ["note-history", p.id] });
+            qc.invalidateQueries({ queryKey: ["notes-tree"] });
+            loadedFor.current = null;
+            setRestored((n) => n + 1);
+            setShowHistory(false);
+          }}
+        />
+      )}
       {saved && <ActivityPanel resource={`note_page:${saved.id}`} title="Costs and activity" />}
     </article>
   );

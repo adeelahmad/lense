@@ -6,8 +6,8 @@ assistant write. The assistant is the main writer and organiser; people can do e
 Status: **built**: pages (free notes in a tree, a page per recording, entity, topic, collection or speaker), @ and #
 links with backlinks (# links topics), the tree in the left navigation, the page view with the BlockSuite editor, the
 model keeping titles and summaries up to date, assistant tools to find, read, write and update notes, and MCP tools to
-find, read and write them ([MCP](mcp.md)).
-**Planned**: page history, linking notes to entities and topics and nesting them under their project or
+find, read and write them ([MCP](mcp.md)), and page history with restore.
+**Planned**: linking notes to entities and topics and nesting them under their project or
 area on their own, attachments on encrypted object storage, pages in the graph.
 
 ## A page
@@ -68,6 +68,14 @@ Assistant lists them). It looks there first, and writes or updates a note when i
 filed in PARA and linked with @ and #. Writing needs editor access to the namespace and takes effect at once, with no
 approval: notes it writes say so. It never deletes a note.
 
+## History
+
+Before each change to a page's title, summary or text, Lens keeps what the page was as a version (`note_version`, up to
+100 per page). A person's edits in one sitting (ten minutes) make one version; a change by the assistant, the model
+refining it, or someone else always starts a new one. **History** on a page lists them, newest first, with who changed
+it; pick one to read it, and editors can restore it. Restoring keeps the page as it was too, so it can be undone.
+`GET /api/v1/notes/{id}/history`, `GET .../history/{version}` and `POST .../history/{version}/restore`.
+
 ## Access
 
 Pages belong to a namespace: anyone with a role there reads them, editors write, move and delete them. The pages of
@@ -84,5 +92,5 @@ co-editing rather than inside Lens.
 
 ## Refine later
 
-Pages for people who see only some collections of a namespace; page history and undo; attachments; live co-editing
+Pages for people who see only some collections of a namespace; differences between versions; attachments; live co-editing
 through OctoBase; pages and their links as nodes and relationships in the graph.
