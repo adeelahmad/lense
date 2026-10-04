@@ -157,7 +157,22 @@ what's in them lately, the file names and your message. You're asked only when i
 A **decision model** answers these: Jev, typesafe.ai's System One, which takes a few hundred milliseconds and costs a
 fraction of an LLM call. Set its key in **Settings → AI assistant → Routine choices**, or `TYPESAFE_API_KEY` in `.env`.
 Without a key, or if it can't be reached, the LLM provider decides. `decisions.engine` is `auto` (the default), `jev`,
-`llm`, or `off` to always be asked.
+`laya`, `llm`, or `off` to always be asked.
+
+**Laya** (`laya`) is a decision model that runs on your own machine, free and offline: the Laya typed decision models
+on MLX ([laya-mlx](https://github.com/mizorewww/laya-mlx)), which answer the same questions as Jev in tens of
+milliseconds. Pick it in Routine choices with one of three models (`decisions.laya_model`): `aac6fef/laya-mlx`
+(English, the default), `aac6fef/laya-multilingual-mlx` (many languages, faster) or `aac6fef/laya-typed-decisions-mlx`.
+MLX needs a Mac with Apple Silicon. Run natively on one, Lens fetches laya-mlx and the model itself (Settings →
+Components) and answers in its own process. Lens in Docker on a Mac runs in a Linux VM that can't reach the Apple GPU,
+so run a Laya server on the Mac, which fetches what it needs on first start:
+
+```bash
+uv run lens decide-server          # http://127.0.0.1:8790/v1; --model and --port to change them
+```
+
+and set **Laya server** (`decisions.laya_url`) to `http://host.docker.internal:8790/v1`. Elsewhere the setting says
+Laya isn't available, and the LLM provider takes the choices. **Test** takes one made-up choice and says who answered.
 
 ## Collections, batch runs and collection reports
 
