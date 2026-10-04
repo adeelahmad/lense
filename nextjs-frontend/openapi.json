@@ -7361,6 +7361,53 @@
         }
       }
     },
+    "/api/v1/notes/{pid}/homes": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Home Suggestions",
+        "description": "The project or area pages a free note at the top of the tree could go inside, best first, from the links and\nwords they share; moving it there is one click (POST /{pid}/move). No model is asked.",
+        "operationId": "home_suggestions",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NoteHomeSuggestion"
+                  },
+                  "title": "Response Notes-Home Suggestions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notes/{pid}/history": {
       "get": {
         "tags": [
@@ -34541,6 +34588,49 @@
           "versions"
         ],
         "title": "NoteHistory"
+      },
+      "NoteHomeSuggestion": {
+        "properties": {
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "the project or area page it could go inside"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "place": {
+            "type": "string",
+            "enum": [
+              "project",
+              "area"
+            ],
+            "title": "Place"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "why": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Why",
+            "description": "what ties them: links between them, links they share, words of its title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "page",
+          "title",
+          "place",
+          "score",
+          "why"
+        ],
+        "title": "NoteHomeSuggestion"
       },
       "NoteLink": {
         "properties": {

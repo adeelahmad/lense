@@ -11,6 +11,7 @@ import { Notes } from "@/app/openapi-client";
 import type { NotePage as Page, NotePageDraft as PageDraft } from "@/app/openapi-client/types.gen";
 import { ActivityPanel } from "@/components/costs/costs";
 import type { EditorChange, LinkTarget } from "@/components/notes/block-editor";
+import { HomeSuggestion } from "@/components/notes/home-suggestions";
 import { LinkSuggestions } from "@/components/notes/link-suggestions";
 import { NoteHistory } from "@/components/notes/note-history";
 import { PLACES, hrefFor } from "@/components/notes/links";
@@ -297,6 +298,30 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
             <Sparkles className="size-3.5" />
             File under {PLACES.find((x) => x.value === saved.place_suggestion!.place)?.label}
           </button>
+        )}
+        {canEdit && saved && !saved.about && saved.parent == null && (
+          <HomeSuggestion
+            pid={saved.id}
+            version={saved.updated_at}
+            busy={linking}
+            onMove={async (s) => {
+              setLinking(true);
+              try {
+                await flush();
+                const out = await data(Notes.movePage({ client, path: { pid: saved.id }, body: { parent: s.page } }));
+                qc.setQueryData(key, out);
+                qc.invalidateQueries({ queryKey: ["notes-tree"] });
+              } catch (err) {
+                toast({
+                  title: "Couldn’t move it",
+                  body: err instanceof ApiError ? err.message : "Please try again.",
+                  tone: "red",
+                });
+              } finally {
+                setLinking(false);
+              }
+            }}
+          />
         )}
         {saved?.updated_at && <span>Changed {shortDate(saved.updated_at)}</span>}
         <span className="flex-1" />

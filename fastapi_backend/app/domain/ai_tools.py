@@ -148,7 +148,7 @@ TOOLS = [
     (
         "update_note",
         "Change a note: its title, summary, place, or its text (body replaces it; append adds to the end). Move a free "
-        "note in the tree with parent_id (0: the top).",
+        "note in the tree with parent_id (0: the top); read_note lists could_go_in, the projects and areas it fits under.",
         {
             "note_id": _I,
             "title": _S,
@@ -848,6 +848,11 @@ class Toolbox(ops_tools.OpsTools):
                 "links": notebook.links(self.db, p["id"]),
                 "linked_from": [b for b in notebook.backlinks(self.db, p["space"], targets) if b["page"] != p["id"]],
                 "could_link": [f"{x['sign']}[{x['label']}]({x['target']})" for x in notebook.suggest_links(self.db, p)] or None,
+                "could_go_in": [
+                    {"parent_id": x["page"], "title": x["title"], "place": x["place"], "why": x["why"]}
+                    for x in notebook.suggest_homes(self.db, p)
+                ]
+                or None,
             }
         )
         return out, f"Read the note {p['title']}"

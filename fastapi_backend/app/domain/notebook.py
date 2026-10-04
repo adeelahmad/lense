@@ -481,6 +481,67 @@ def suggest_links(db, p, limit=SUGGEST_MAX):
     return out
 
 
+HOMES = ("project", "area")  # where a note can be nested: under a page filed as a project or an area
+HOMES_MAX = 3
+_WORD = re.compile(r"[^\W\d_]{4,}")
+_GENERIC = {"note", "notes", "page", "pages", "project", "projects", "area", "areas", "plan", "plans", "idea", "ideas"}
+
+
+def _words(text):
+    from .analyze import STOP
+
+    return {w for w in (x.lower() for x in _WORD.findall(text or "")) if w not in STOP and w not in _GENERIC}
+
+
+def suggest_homes(db, p, limit=HOMES_MAX):
+    """The project or area pages a free note at the top of the tree could go inside, best first: the ones it links to,
+    that link to it, that link the same topics and things, or whose title it names. No model is asked, and nothing
+    moves until someone (or the assistant) moves it. Only unnested notes that aren't projects, areas or archived.
+    [{page, title, place, score, why}]"""
+    if p.get("about") or p.get("parent") is not None or p.get("place") in (*HOMES, "archive"):
+        return []
+    sid, pid = p["space"], int(p["id"])
+    pages = db.rows("SELECT record::id(id) AS id, title, place, parent FROM note_page WHERE space = $s AND about = NONE", s=sid)
+    up = {x["id"]: x.get("parent") for x in pages}
+
+    def inside(x):  # x is p or somewhere under it
+        seen = set()
+        while x is not None and x not in seen:
+            if x == pid:
+                return True
+            seen.add(x)
+            x = up.get(x)
+        return False
+
+    homes = {x["id"]: x for x in pages if x.get("place") in HOMES and not inside(x["id"])}
+    if not homes:
+        return []
+    mine = {f"{k}:{i}" for _, k, i, _ in mentions(p.get("body"))}
+    theirs = {}
+    for r in db.rows("SELECT page, target, label FROM note_link WHERE space = $s AND page IN $h", s=sid, h=list(homes)):
+        theirs.setdefault(r["page"], {})[r["target"]] = r["label"]
+    text = _words(f"{p.get('title') or ''} {plain(MENTION.sub(' ', p.get('body') or ''))[:SUGGEST_CHARS]}")  # links count once, as links
+    out = []
+    for hid, h in homes.items():
+        links, score, why = theirs.get(hid, {}), 0, []
+        if f"page:{hid}" in mine:
+            score, why = score + 3, why + ["it links to this page"]
+        if f"page:{pid}" in links:
+            score, why = score + 2, why + ["this page links to it"]
+        shared = sorted(t for t in mine & set(links) if not t.startswith("page:"))
+        if shared:
+            score += len(shared)
+            why.append("both link " + ", ".join(links[t] for t in shared[:3]))
+        named = _words(h["title"]) & text
+        if named:
+            score += min(len(named), 2)
+            why.append("it names " + ", ".join(sorted(named)[:3]))
+        if score >= 2:
+            out.append({"page": hid, "title": h["title"], "place": h["place"], "score": score, "why": why})
+    out.sort(key=lambda x: (-x["score"], HOMES.index(x["place"]), x["page"]))
+    return out[:limit]
+
+
 def backlinks(db, sid, targets):
     """The pages of namespace `sid` that link to any of these targets ("page:3", "recording:12"): [{page, title}]."""
     rows = db.rows(

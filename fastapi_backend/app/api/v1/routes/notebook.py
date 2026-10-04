@@ -16,6 +16,7 @@ from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.notebook import (
     NoteHistory,
+    NoteHomeSuggestion,
     NoteLinkSuggestion,
     NoteLinkTarget,
     NotePage,
@@ -160,6 +161,13 @@ def link_suggestions(pid: int, user: CurrentUser, acl: Acl, db: Db) -> list[Note
     """What the page names but doesn't link yet: the namespace's topics and named things found in its text, to link
     with one click. Matched against the namespace's own vocabulary; no model is asked."""
     return [NoteLinkSuggestion(**x) for x in notebook.suggest_links(db, _page(acl, db, pid))]
+
+
+@router.get("/{pid}/homes")
+def home_suggestions(pid: int, user: CurrentUser, acl: Acl, db: Db) -> list[NoteHomeSuggestion]:
+    """The project or area pages a free note at the top of the tree could go inside, best first, from the links and
+    words they share; moving it there is one click (POST /{pid}/move). No model is asked."""
+    return [NoteHomeSuggestion(**x) for x in notebook.suggest_homes(db, _page(acl, db, pid))]
 
 
 def _version_out(db: DB, v: dict[str, Any], cls: type[NoteVersionItem] = NoteVersionItem) -> NoteVersionItem:

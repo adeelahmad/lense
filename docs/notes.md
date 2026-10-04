@@ -6,8 +6,8 @@ assistant write. The assistant is the main writer and organiser; people can do e
 Status: **built**: pages (free notes in a tree, a page per recording, entity, topic, collection or speaker), @ and #
 links with backlinks (# links topics), the tree in the left navigation, the page view with the BlockSuite editor, the
 model keeping titles and summaries up to date, assistant tools to find, read, write and update notes, and MCP tools to
-find, read and write them ([MCP](mcp.md)), page history with restore, and suggested links to what a note names.
-**Planned**: nesting notes under their project or area on their own, attachments on encrypted object storage, pages in the graph.
+find, read and write them ([MCP](mcp.md)), page history with restore, suggested links to what a note names, and the project or area a note fits under.
+**Planned**: nesting notes under their project or area without a click, attachments on encrypted object storage, pages in the graph.
 
 ## A page
 
@@ -65,6 +65,11 @@ default), free notes nobody filed are filed once their summary is written. It's 
 takes it when one is set up (Settings → Assistant), else the language model. When it's sure (`decisions.act_above`) the
 note is filed (`place_by: assistant`); otherwise its best guess waits on the note as a suggestion to accept with one
 click. What a person files is never refiled.
+
+A note at the top of the tree that isn't a project, an area or archived also shows the project or area page it fits
+under, with one click to put it inside: the one it links to, that links to it, that links the same topics and things,
+or whose title words it uses (`GET /api/v1/notes/{id}/homes`, best first, with why). No model is asked and nothing
+moves on its own; the assistant sees the same as `could_go_in` when it reads the note, and moves it with `update_note`.
 
 ## The assistant
 
