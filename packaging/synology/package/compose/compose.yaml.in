@@ -3,6 +3,7 @@
 name: lens
 
 x-backend: &backend
+  security_opt: ["no-new-privileges:true"]  # nothing in Lens needs setuid programs
   image: lens-backend:@VERSION@
   pull_policy: never
   env_file: [lens.env]  # MAIL_* and LENS_* from lens.conf
@@ -16,6 +17,8 @@ x-backend: &backend
     LENS_SETUP_CODE: "@SETUP_CODE@"
     FRONTEND_URL: "@URL@"
     LENS_TUNNEL_ORIGIN: http://frontend:3000  # where the Cloudflare tunnel (Settings › Remote access) sends visitors
+    # the web app's container (and the one running the tunnel): their X-Forwarded-For names the visitor, for throttles
+    LENS_TRUSTED_PROXY_HOSTS: frontend,backend,worker
     CORS_ORIGINS: '["@URL@"]'
     ARCHIVE_ALLOWED_HOSTS: "backend,localhost,127.0.0.1,@HOST@"
   volumes:
@@ -82,6 +85,7 @@ services:
     networks: [lens]
 
   frontend:
+    security_opt: ["no-new-privileges:true"]
     image: lens-frontend:@VERSION@
     pull_policy: never
     environment:
