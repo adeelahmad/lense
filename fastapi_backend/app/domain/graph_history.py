@@ -349,6 +349,11 @@ def diff(db, a, b, spaces=None):
             k = (o["t"], _key(o["t"], o["k"]))
             first.setdefault(k, o.get("b"))
             last[k] = o.get("a")
+    return {"from": a, "to": b, "events": events, **_describe(db, first, last, spaces)}
+
+
+def _describe(db, first, last, spaces):
+    """{entities, aliases, links, distinct} that differ between rows `first` and `last` ({(table, key): row})."""
     sp = set(spaces) if spaces is not None else None
     ent_space = {}
     for (t, k), row in {**first, **last}.items():
@@ -373,9 +378,6 @@ def diff(db, a, b, spaces=None):
         return ent_space.get(row.get("a")) in sp and ent_space.get(row.get("b")) in sp
 
     out = {
-        "from": a,
-        "to": b,
-        "events": events,
         "entities": {"added": [], "removed": [], "changed": []},
         "aliases": {"added": [], "removed": []},
         "links": {"added": [], "removed": []},
@@ -397,7 +399,8 @@ def diff(db, a, b, spaces=None):
                     for f in sorted(set(before) | set(after))
                     if f != "ekey" and before.get(f) != after.get(f)
                 }
-                out["entities"]["changed"].append({"id": k, "name": after.get("name"), "fields": fields})
+                if fields:
+                    out["entities"]["changed"].append({"id": k, "name": after.get("name"), "fields": fields})
         elif t == "entity_alias":
             for row, kind in ((before, "removed"), (after, "added")):
                 if row:
@@ -477,3 +480,143 @@ def resolve(db, ref):
     if not got:
         raise KeyError(ref)
     return int(got["version"])
+
+
+# ---------- rolling back ----------
+MERGES = ("entity.merge", "merge.apply", "merge.accept")
+APPLIED = ("merge.apply", "link.apply", "merge.accept", "link.accept")
+KEPT = ("analysis",)  # what analysis found stays: it comes from the transcripts, and mentions point at it
+
+
+def _plan(db, to, spaces):
+    """The events a rollback to `to` in namespaces `spaces` takes back, oldest first, and the ones it leaves."""
+    to = int(to)
+    top = head(db)
+    if not 0 <= to <= top:
+        raise ValueError(f"the graph has versions 0 to {top}")
+    rows = db.rows("SELECT *, record::id(id) AS version FROM graph_event WHERE id > $v ORDER BY version", v=R("graph_event", to))
+    sp = set(spaces) if spaces is not None else None
+    mine = [ev for ev in rows if sp is None or set(ev.get("spaces") or []) & sp]
+    return [ev for ev in mine if ev["op"] not in KEPT], [ev for ev in mine if ev["op"] in KEPT]
+
+
+def rollback(db, to, spaces=None, editable=None, dry_run=True, by=None):
+    """Take back every change made after version `to` in these namespaces (None: all), newest first, as one new event
+    (so a rollback can be rolled back too). What analysis found stays. `dry_run` only says what would change.
+
+    Merges are undone with their mentions, graph changes are marked undone, moved mentions go back; then every record
+    is set to how it was at `to`. An entity made since that is mentioned now is kept (hide it instead)."""
+    events, kept = _plan(db, to, spaces)
+    if editable is not None:
+        blocked = sorted({s for ev in events for s in ev.get("spaces") or []} - set(editable))
+        if blocked:
+            raise PermissionError("changes since then also touched namespaces you can't edit")
+    target = {}
+    for ev in events:
+        for o in ev["ops"]:
+            target.setdefault((o["t"], _key(o["t"], o["k"])), o.get("b"))
+    now = _snap(db, (), list(target))
+    out = {
+        "to": int(to),
+        "head": head(db),
+        "undo": [{k: ev.get(k) for k in ("version", "op", "actor", "via", "at")} for ev in reversed(events)],
+        "kept": len(kept),
+        **_describe(db, now, target, None),
+    }
+    if dry_run or not events:
+        return {**out, "done": False}
+    with acting(actor=by, why=f"rolled back to version {int(to)}"), change(db, "graph.rollback", rollback_to=int(to)) as ch:
+        ch.touch(keys=list(target))
+        skipped = _take_back(db, events, by)
+        skipped += _restore(db, target)
+    return {**out, "done": True, "version": ch.version, "skipped": skipped}
+
+
+def _take_back(db, events, by):
+    """What has more to it than rows: merges (mentions), graph changes (their status) and moved mentions."""
+    from . import entities, organize
+
+    skipped = []
+    merged = {ev["origin"]["merge"] for ev in events if ev["op"] in MERGES and (ev.get("origin") or {}).get("merge")}
+    unmerged = {ev["origin"]["merge"] for ev in events if ev["op"] == "entity.unmerge" and (ev.get("origin") or {}).get("merge")}
+    for ev in reversed(events):
+        o = ev.get("origin") or {}
+        try:
+            if ev["op"] in APPLIED and o.get("graph_change"):
+                ch = db.one("SELECT status FROM $r", r=R("graph_change", int(o["graph_change"])))
+                if ch and ch["status"] == "applied":
+                    organize.undo(db, o["graph_change"], by)
+                    continue
+            if ev["op"] in MERGES and o.get("merge") and o["merge"] not in unmerged:
+                m = db.one("SELECT undone FROM $r", r=R("entity_merge", int(o["merge"])))
+                if m and not m.get("undone"):
+                    entities.undo_merge(db, o["merge"])
+            elif ev["op"] == "entity.unmerge" and o.get("merge") and o["merge"] not in merged:
+                m = db.one("SELECT keep, snapshots FROM $r", r=R("entity_merge", int(o["merge"])))
+                others = [sn["entity"]["id"] for sn in (m or {}).get("snapshots") or []]
+                if m and others:
+                    entities.merge(db, m["keep"], others, by)
+            elif ev["op"] in ("mention.move", "mention.remove") and o.get("mention"):
+                _mention_back(db, o["mention"])
+        except (ValueError, KeyError) as e:
+            skipped.append({"version": ev["version"], "op": ev["op"], "why": str(e)[:200]})
+    return skipped
+
+
+def _mention_back(db, mn):
+    """Point a moved mention back at the entity it was on (or say it again, when it was removed)."""
+    from . import analyze, entities
+
+    src = mn.get("from")
+    if not src or not db.one("SELECT id FROM $r", r=R("entity", int(src))):
+        raise ValueError("the entity the mention was on is gone")
+    seg = R("segment", mn["segment"])
+    if mn.get("to"):
+        row = db.one(
+            "SELECT record::id(id) AS id FROM mentions WHERE in = $s AND text = $t AND entity = $e LIMIT 1", s=seg, t=mn["text"], e=mn["to"]
+        )
+        if row:
+            entities.move_mention(db, row["id"], target=int(src))
+        return
+    rec = db.one("SELECT recording, space, speaker FROM $r", r=seg)
+    if not rec:
+        raise ValueError("the line the mention was on is gone")
+    db.q(
+        "RELATE $a->mentions->$b CONTENT $d",
+        a=seg,
+        b=R("entity", int(src)),
+        d=store.clean(
+            {"recording": rec["recording"], "space": rec["space"], "entity": int(src), "speaker": rec.get("speaker"), "text": mn["text"]}
+        ),
+    )
+    db.q("DELETE $r", r=R("entity_override", f"{mn['segment']}:{analyze.ent_key(mn['text'])}"))
+
+
+def _alive(db, eid):
+    return bool(db.one("SELECT id FROM $r", r=R("entity", int(eid))))
+
+
+def _restore(db, target):
+    """Set every record to its row in `target`: deletions first (an entity a name moves back to may need its key)."""
+    skipped = []
+    now = _snap(db, (), list(target))
+    gone = [(t, k) for (t, k), row in target.items() if row is None and now.get((t, k)) is not None]
+    back = [(t, k) for (t, k), row in target.items() if row is not None and now.get((t, k)) != row]
+    order = {t: n for n, t in enumerate(("entity_link", "entity_distinct", "entity_alias", "entity"))}
+    for t, k in sorted(gone, key=lambda x: order[x[0]]):
+        if t == "entity" and db.rows("SELECT id FROM mentions WHERE entity = $e LIMIT 1", e=int(k)):
+            row = now[(t, k)]
+            into = (target.get(("entity_alias", f"{row['space']}:{row['key']}")) or {}).get("entity")
+            stays = target[("entity", int(into))] is not None if ("entity", int(into or 0)) in target else bool(into and _alive(db, into))
+            if into and into != int(k) and stays:
+                from . import entities  # its name was another entity's other name then: it was merged into that one
+
+                entities.merge(db, int(into), [int(k)])
+            else:
+                skipped.append({"entity": int(k), "why": "it is mentioned now: hide it instead"})
+            continue
+        if db.one("SELECT id FROM $r", r=R(t, k)):
+            db.q("DELETE $r", r=R(t, k))
+    for t, k in sorted(back, key=lambda x: -order[x[0]]):
+        db.q("UPSERT $r CONTENT $d", r=R(t, k), d=target[(t, k)])
+    return skipped

@@ -4,7 +4,7 @@ Every change to the entity graph is kept, in order, as an event that is never ch
 graph's version. So the graph can be seen as it was at any version, two versions compared, and one entity's history
 read: who renamed it, who merged what into it, which routine linked it, and why.
 
-Built: the event log, versions, as-of, diffs, entity history, named versions. Planned: rollback to a version,
+Built: the event log, versions, as-of, diffs, entity history, named versions, rollback to a version. Planned:
 checkpoints with replay and verify, the explorer and Cypher as of a version, a history timeline in the web app
 (DEVLOG.md).
 
@@ -54,6 +54,21 @@ name, or `head`.
 | `GET /api/v1/graph/tags` | Named versions. |
 | `POST /api/v1/graph/tags` `{name, version, note}` | Name a version (default: the current one), such as "before the cleanup". Editors and admins. |
 | `DELETE /api/v1/graph/tags/{name}` | Drop a name; the version stays. |
+| `POST /api/v1/graph/rollback` `{to, namespace, dry_run}` | Take the graph back to a version. A preview by default: the changes it would undo, newest first, and the entities, names, links and pairs that would change. `dry_run: false` does it. |
+
+## Rolling back
+
+A rollback undoes every change made since a version, in one namespace or in all the namespaces you can edit, newest
+first, and records the whole of it as one new version (`graph.rollback`, with `rollback_to`). It is a change like
+any other: rolling back to the version just before it brings everything back, merges included.
+
+- Merges come undone with their mentions; a merge undone since is merged again. Graph changes it takes back are
+  marked undone. Moved mentions go back to the entity they were on, and removed ones are said again.
+- Then every record is set to how it was at that version.
+- What analysis found since stays: it comes from the transcripts, and mentions point at it. Changes people made to
+  those entities are still taken back.
+- An entity made since that is mentioned now stays (hide it instead); the reply lists it under `skipped`.
+- It needs editor access to every namespace the changes touched: a link to a namespace you can't edit stops it.
 
 ## How it works
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from app.api.deps import Acl, CurrentUser, Db, Writer, domain_errors
@@ -114,3 +114,33 @@ def graph_untag(name: str, user: Writer, acl: Acl, db: Db) -> dict[str, Any]:
         raise HTTPException(404, "not found") from None
     auth.audit(db, user.as_audit(), "graph.untag", f"graph_tag:{name}")
     return {"ok": True}
+
+
+class RollbackAsk(BaseModel):
+    to: str = Field(description="the version to go back to: a number, a version's name")
+    namespace: str | None = Field(None, description="only this namespace (default: every namespace you can edit)")
+    dry_run: bool = Field(True, description="only say what would change (the default); false to roll back")
+
+
+@router.post("/graph/rollback")
+def graph_rollback(request: Request, body: RollbackAsk, user: Writer, acl: Acl, db: Db) -> dict[str, Any]:
+    """Take the graph back to a version: every change since then in these namespaces is undone, newest first, as one
+    new version (so it can be rolled back too). Merges come undone with their mentions and moved mentions go back;
+    what analysis found since stays. Preview first (`dry_run`, the default). Needs editor access to every namespace the
+    changes touched."""
+    editable = None if user.admin else set(acl.editable())
+    if editable is not None and not editable:
+        raise HTTPException(403, "rolling back needs editor access to a namespace")
+    if body.namespace:
+        spaces: set[int] | None = {acl.namespace(body.namespace, "editor")}
+    else:
+        spaces = editable
+    try:
+        with domain_errors():
+            out = graph_history.rollback(db, _version(db, body.to), spaces, editable, body.dry_run, user.email)
+    except PermissionError as e:
+        raise HTTPException(403, str(e)) from None
+    if out["done"]:
+        auth.audit(db, user.as_audit(), "graph.rollback", f"graph_event:{out['version']}", {"to": out["to"], "namespace": body.namespace})
+        request.app.state.graph_cache.clear()
+    return out

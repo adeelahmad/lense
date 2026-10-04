@@ -9608,6 +9608,30 @@ export type Reviewed = {
 };
 
 /**
+ * RollbackAsk
+ */
+export type RollbackAsk = {
+  /**
+   * To
+   *
+   * the version to go back to: a number, a version's name
+   */
+  to: string;
+  /**
+   * Namespace
+   *
+   * only this namespace (default: every namespace you can edit)
+   */
+  namespace?: string | null;
+  /**
+   * Dry Run
+   *
+   * only say what would change (the default); false to roll back
+   */
+  dry_run?: boolean;
+};
+
+/**
  * Routine
  */
 export type Routine = {
@@ -20788,6 +20812,35 @@ export type GraphUntagResponses = {
 };
 
 export type GraphUntagResponse = GraphUntagResponses[keyof GraphUntagResponses];
+
+export type GraphRollbackData = {
+  body: RollbackAsk;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/rollback";
+};
+
+export type GraphRollbackErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphRollbackError = GraphRollbackErrors[keyof GraphRollbackErrors];
+
+export type GraphRollbackResponses = {
+  /**
+   * Response Graph-Graph Rollback
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphRollbackResponse = GraphRollbackResponses[keyof GraphRollbackResponses];
 
 export type GetEntitySetupData = {
   body?: never;

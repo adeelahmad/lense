@@ -25,10 +25,10 @@ Model (fastapi_backend/app/domain/graph_history.py, docs/graph-history.md):
 
 Todo:
 
-- [ ] Event log with who, through what and why; every curation path records (entity page, assistant, MCP, routines
+- [x] Event log with who, through what and why; every curation path records (entity page, assistant, MCP, routines
       and graph changes, analysis, the entity map)
-- [ ] Versions API: list, the graph as of a version, diff, an entity's history, named versions
-- [ ] Rollback to a version, with a preview
+- [x] Versions API: list, the graph as of a version, diff, an entity's history, named versions
+- [x] Rollback to a version, with a preview
 - [ ] Checkpoints, replay and verify (`lens graph verify`, nightly checkpoint)
 - [ ] The explorer and Cypher as of a version (with the graph explorer thread)
 - [ ] Web app: a history timeline with diffs and rollback

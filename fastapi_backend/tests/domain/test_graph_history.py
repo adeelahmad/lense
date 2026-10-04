@@ -154,3 +154,72 @@ def test_named_versions(db, cfg, spaces):
     gh.untag(db, "before the cleanup")
     with pytest.raises(KeyError):
         gh.resolve(db, "before the cleanup")
+
+
+def test_rollback_takes_everything_back_and_can_itself_be_rolled_back(db, cfg, spaces):
+    pods = store.ns_id(db, "pods")
+    v0 = gh.head(db)
+    start = now(db)
+    counts = {e["id"]: e["mentions"] for e in entities.list_entities(db, spaces)["items"]}
+    dyno, aws = eid(db, spaces, "Dyno Therapeutics"), eid(db, spaces, "AWS")
+    keep, other = eid(db, spaces, "Northwind Labs"), eid(db, spaces, "North Wind Labs")
+    entities.rename(db, dyno, "Dyno")
+    entities.hide(db, aws, True, "noise")
+    entities.merge(db, keep, [other], "ed@x.io")
+    cid, _ = organize.propose(db, "merge", aws, eid(db, spaces, "Amazon Web Services"), "acronym", apply=True, user="ed@x.io")
+    mention = entities.mentions(db, dyno, spaces)["items"][0]["mention"]
+    moved_to = entities.move_mention(db, mention, new_name="Dyno Labs")
+    entity_map.define(db, pods, "Lens", "PRODUCT", "Our archive")
+    after = now(db)
+    top = gh.head(db)
+
+    pv = gh.rollback(db, v0, {pods})
+    assert pv["done"] is False and gh.head(db) == top  # a preview changes nothing
+    assert [u["op"] for u in pv["undo"]][:2] == ["entity.define", "mention.move"]
+    assert {e["name"] for e in pv["entities"]["added"]} >= {"North Wind Labs", "Amazon Web Services"}
+    assert {e["name"] for e in pv["entities"]["removed"]} >= {"Lens", "Dyno Labs"}
+    assert any(c["fields"].get("name") == ["Dyno", "Dyno Therapeutics"] for c in pv["entities"]["changed"])
+
+    done = gh.rollback(db, v0, {pods}, dry_run=False, by="ed@x.io")
+    assert done["done"] and done["skipped"] == [] and gh.head(db) == done["version"]
+    assert now(db) == start
+    assert {e["id"]: e["mentions"] for e in entities.list_entities(db, spaces)["items"]} == counts  # mentions are back too
+    assert organize.get_change(db, cid)["status"] == "undone"
+    assert not db.one("SELECT id FROM $r", r=store.R("entity", moved_to))
+    ev = gh.versions(db, limit=1)[0]
+    assert (ev["op"], ev["actor"], ev["why"], ev["origin"]["rollback_to"]) == (
+        "graph.rollback",
+        "ed@x.io",
+        f"rolled back to version {v0}",
+        v0,
+    )
+
+    # the rollback is a change like any other: rolling back to just before it brings the later state back
+    again = gh.rollback(db, top, {pods})
+    assert again["done"] is False
+    redo = gh.rollback(db, top, {pods}, dry_run=False)
+    assert redo["skipped"] == []
+    assert now(db) == after  # merges it undid are merged again
+
+
+def test_rollback_needs_editor_rights_on_every_namespace_touched(db, cfg, spaces):
+    pods, calls = store.ns_id(db, "pods"), store.ns_id(db, "calls")
+    v0 = gh.head(db)
+    entities.link(db, eid(db, spaces, "Dyno Therapeutics"), eid(db, spaces, "Dyno Therapeutics", "calls"))
+    with pytest.raises(PermissionError):
+        gh.rollback(db, v0, {pods}, editable=[pods])
+    assert gh.rollback(db, v0, {pods}, editable=[pods, calls], dry_run=False)["done"]
+    assert db.rows("SELECT * FROM entity_link") == []
+
+
+def test_rollback_keeps_what_analysis_found(db, cfg, spaces, folder):
+    v0 = gh.head(db)
+    p = folder / "more.txt"
+    p.write_text("Alice|N|Zebra Robotics called again about Zebra Robotics.")
+    ingest.import_transcript(db, cfg, "pods", p, log=quiet)
+    analyze.analyze_pending(db, cfg, log=quiet)
+    zebra = eid(db, spaces, "Zebra Robotics")
+    entities.rename(db, zebra, "Zebra")
+    out = gh.rollback(db, v0, dry_run=False)
+    assert out["kept"] == 1
+    assert entities.detail(db, zebra, spaces)["name"] == "Zebra Robotics"  # found since: kept, its rename taken back

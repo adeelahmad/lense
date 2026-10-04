@@ -510,6 +510,9 @@ import type {
   GraphRelatedData,
   GraphRelatedErrors,
   GraphRelatedResponses,
+  GraphRollbackData,
+  GraphRollbackErrors,
+  GraphRollbackResponses,
   GraphSchemaData,
   GraphSchemaErrors,
   GraphSchemaResponses,
@@ -4926,6 +4929,27 @@ export class Graph {
     return (options.client ?? client).delete<GraphUntagResponses, GraphUntagErrors, ThrowOnError>({
       url: "/api/v1/graph/tags/{name}",
       ...options,
+    });
+  }
+
+  /**
+   * Graph Rollback
+   *
+   * Take the graph back to a version: every change since then in these namespaces is undone, newest first, as one
+   * new version (so it can be rolled back too). Merges come undone with their mentions and moved mentions go back;
+   * what analysis found since stays. Preview first (`dry_run`, the default). Needs editor access to every namespace the
+   * changes touched.
+   */
+  public static graphRollback<ThrowOnError extends boolean = false>(
+    options: Options<GraphRollbackData, ThrowOnError>,
+  ): RequestResult<GraphRollbackResponses, GraphRollbackErrors, ThrowOnError> {
+    return (options.client ?? client).post<GraphRollbackResponses, GraphRollbackErrors, ThrowOnError>({
+      url: "/api/v1/graph/rollback",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

@@ -44,14 +44,14 @@ def _bkey(kind):
 def builtins(db, sid):
     """The namespace's Unknown and Unlabeled entities, made when missing: {kind: id}."""
     out = {}
-    for kind, name in BUILTIN_NAMES.items():
-        key = _bkey(kind)
-        row = db.one("SELECT record::id(id) AS id FROM entity WHERE ekey = $k", k=f"{sid}:{key}")
-        if row:
-            out[kind] = row["id"]
-            continue
-        eid = db.next_id("entity")
-        with graph_history.change(db, "entity.builtin") as ch:
+    with graph_history.change(db, "entity.builtin") as ch:
+        for kind, name in BUILTIN_NAMES.items():
+            key = _bkey(kind)
+            row = db.one("SELECT record::id(id) AS id FROM entity WHERE ekey = $k", k=f"{sid}:{key}")
+            if row:
+                out[kind] = row["id"]
+                continue
+            eid = db.next_id("entity")
             ch.created(eid)
             db.q(
                 "CREATE $r CONTENT $d",
@@ -66,7 +66,7 @@ def builtins(db, sid):
                     "description": BUILTIN_HELP[kind],
                 },
             )
-        out[kind] = eid
+            out[kind] = eid
     return out
 
 
@@ -193,7 +193,7 @@ def define(db, sid, name, typ, description=None, aliases=(), collection=None, us
         raise ValueError("A description can have up to 2000 characters.")
     with graph_history.change(db, "entity.define", entities=[row["id"]] if row else [], aliases=[(int(sid), k) for k in plan[0]]) as ch:
         eid = _define(db, sid, row, key, name, typ, description, collection, user, plan, ch)
-    builtins(db, sid)
+        builtins(db, sid)
     return eid
 
 

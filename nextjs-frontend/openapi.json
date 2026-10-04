@@ -11180,6 +11180,50 @@
         }
       }
     },
+    "/api/v1/graph/rollback": {
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Rollback",
+        "description": "Take the graph back to a version: every change since then in these namespaces is undone, newest first, as one\nnew version (so it can be rolled back too). Merges come undone with their mentions and moved mentions go back;\nwhat analysis found since stays. Preview first (`dry_run`, the default). Needs editor access to every namespace the\nchanges touched.",
+        "operationId": "graph_rollback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackAsk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Rollback"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/entity-setup": {
       "get": {
         "tags": [
@@ -36495,6 +36539,38 @@
           "applied"
         ],
         "title": "Reviewed"
+      },
+      "RollbackAsk": {
+        "properties": {
+          "to": {
+            "type": "string",
+            "title": "To",
+            "description": "the version to go back to: a number, a version's name"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "only this namespace (default: every namespace you can edit)"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "description": "only say what would change (the default); false to roll back",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "to"
+        ],
+        "title": "RollbackAsk"
       },
       "Routine": {
         "properties": {

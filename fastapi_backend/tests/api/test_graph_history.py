@@ -54,3 +54,26 @@ def test_named_versions(env):
     assert (d["from"], d["to"], d["events"]) == (v, v + 1, 1)
     assert c.delete("/api/v1/graph/tags/before", headers=ed).status_code == 200
     assert c.get("/api/v1/graph/diff", headers=vi, params={"from": "before"}).status_code == 404
+
+
+def test_rollback_previews_then_takes_back(env):
+    c, ed, vi = env.c, env.h["editor"], env.h["viewer"]
+    start = c.get("/api/v1/graph/history", headers=vi).json()["head"]
+    dyno = env.eid("Dyno Therapeutics")
+    keep, other = env.eid("Northwind Labs"), env.eid("North Wind Labs")
+    c.post(f"/api/v1/entities/{dyno}/rename", headers=ed, json={"name": "Dyno"})
+    c.post("/api/v1/entities/merge", headers=ed, json={"keep": keep, "others": [other]})
+    assert c.post("/api/v1/graph/rollback", headers=vi, json={"to": str(start)}).status_code == 403
+    pv = c.post("/api/v1/graph/rollback", headers=ed, json={"to": str(start)}).json()
+    assert pv["done"] is False and [u["op"] for u in pv["undo"]] == ["entity.merge", "entity.rename"]
+    assert c.get("/api/v1/graph/history", headers=vi).json()["head"] == start + 2  # nothing changed yet
+    done = c.post("/api/v1/graph/rollback", headers=ed, json={"to": str(start), "dry_run": False}).json()
+    assert done["done"] and done["version"] == start + 3
+    assert c.get(f"/api/v1/entities/{dyno}", headers=vi).json()["name"] == "Dyno Therapeutics"
+    assert c.get(f"/api/v1/entities/{other}", headers=vi).status_code == 200  # the merge came undone
+    top = c.get("/api/v1/graph/history", headers=vi).json()["versions"][0]
+    assert (top["op"], top["actor"], top["via"]) == ("graph.rollback", "ed@x.io", "web")
+    # a link to a namespace the editor can't edit blocks a rollback past it
+    c.post(f"/api/v1/entities/{dyno}/link", headers=env.h["admin"], json={"with": env.eid("Dyno Therapeutics", "calls")})
+    assert c.post("/api/v1/graph/rollback", headers=ed, json={"to": str(start)}).status_code == 403
+    assert c.post("/api/v1/graph/rollback", headers=env.h["admin"], json={"to": str(start), "dry_run": False}).json()["done"]
