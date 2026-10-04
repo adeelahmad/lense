@@ -109,7 +109,8 @@ jobs:
       - name: Start SurrealDB
         run: |
           # surrealkv, not memory: the memory engine loses concurrent writes (SurrealDB 3.2.4)
-          docker run -d --name "$SURREAL_CONTAINER" -p 127.0.0.1::8000 surrealdb/surrealdb:v3.2.4 start --user root --pass root surrealkv:/tmp/lens.db
+          # on a tmpfs: the data is thrown away, and syncing every write to the runner's disk made each test's schema take seconds
+          docker run -d --name "$SURREAL_CONTAINER" --tmpfs /data:mode=1777 -p 127.0.0.1::8000 surrealdb/surrealdb:v3.2.4 start --user root --pass root surrealkv:/data/lens.db
           port=$(docker port "$SURREAL_CONTAINER" 8000/tcp | head -n1 | sed 's/.*://')
           echo "LENS_TEST_SURREAL_URL=ws://127.0.0.1:$port" >> "$GITHUB_ENV"
           for _ in $(seq 1 30); do curl -sf "http://127.0.0.1:$port/health" && break; sleep 1; done
