@@ -2,6 +2,28 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-04 · Local decision models: Laya on MLX
+
+Goal (Adeel): routine decisions can run on the machine itself with the Laya typed decision models on MLX
+(github.com/mizorewww/laya-mlx; aac6fef/laya-mlx, aac6fef/laya-multilingual-mlx, aac6fef/laya-typed-decisions-mlx),
+beside Jev. Jev stays the default: with nothing configured, decisions behave exactly as before.
+
+Laya takes the same questions as Jev's System One (choice, score, noul) and answers in the same shape, so it is a
+third engine behind decide.choose, falling back to the language model the way Jev does. MLX runs only on Apple
+Silicon, so Lens in Docker on a Mac (a Linux VM) can't run it in the container: there it reaches a Laya server on the
+Mac (`lens decide-server`), which speaks System One's API.
+
+Todo:
+
+- [ ] Engine "laya" in decide.py: in this process on Apple Silicon, or a Laya server's address; Jev and auto unchanged
+- [ ] Settings decisions.laya_model (the three models) and decisions.laya_url; "not available here" instead of failing
+- [ ] Lens installs laya-mlx (extra `laya`) and downloads the chosen model itself (Settings → Components)
+- [ ] `lens decide-server`: System One's API over Laya on a Mac, for Lens in Docker
+- [ ] Status and test endpoints; Settings → AI assistant shows the engine, model, availability and a Test button
+- [ ] Log decision calls in the cost ledger once "Activity history and budgets" lands
+- Refine later: install.sh starts the decide server on a Mac host by itself; score and noul questions for callers;
+  Laya's router (language detection picks the multilingual model); shortlisting for large option sets
+
 ## 2026-10-04 · The graph, end to end
 
 Goal (Adeel): make the graph the one focus and nail it: a human explorer canvas, agent queries with rights, questions
