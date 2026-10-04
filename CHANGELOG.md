@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Lock a namespace to your passkeys.** An owner turns a namespace into a vault (Admin › Namespaces › Vault): its
+  files open only after one of its passkeys unlocks it, for an hour by default (`encryption.vault_minutes`), and its
+  queued work waits while it's locked. The passkey's WebAuthn PRF secret makes the key; the server keeps nothing that
+  opens it, and there is no recovery code, so add a second passkey. Owners add and remove passkeys while it's open
+  (never the last one) and can make it ordinary again. See docs/encryption.md#vaults.
 - **Hardening.** Sign-in throttles count each visitor behind the web app (Docker) instead of one bucket for everyone,
   so one person's wrong tries can't lock others out and nobody gets unlimited tries. The web app's pages send
   nosniff, referrer, permissions and frame policies, and HSTS when reached through Cloudflare. The containers run with

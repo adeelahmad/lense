@@ -18,6 +18,8 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
+import threading
 
 from webauthn import generate_authentication_options, options_to_json
 from webauthn.helpers import base64url_to_bytes
@@ -26,6 +28,7 @@ from webauthn.helpers.structs import AuthenticatorTransport, PublicKeyCredential
 from . import keyring, passkeys, store
 
 R = store.R
+log = logging.getLogger(__name__)
 PREFIX = "passkey:"
 KINDS = ("seal", "unlock", "add")
 
@@ -130,14 +133,22 @@ def _answer(db, uid, sid, kind, flow, credential, prf):
 
 
 def seal(db, cfg, uid, sid, flow, credential, prf):
-    """Make the namespace a vault opened by this passkey. It stays open here for encryption.vault_minutes."""
+    """Make the namespace a vault opened by this passkey. It stays open here for encryption.vault_minutes, and its
+    files not encrypted yet (encryption.files was off) are encrypted in the background."""
     if keyring.status(db, sid)["vault"]:
         raise VaultError("this namespace is a vault already")
     pk, kek = _answer(db, uid, sid, "seal", flow, credential, prf)
     keyring.add_wrapper(db, cfg, sid, wrapper_of(pk), kek)
     keyring.remove_wrapper(db, sid, keyring.SERVER)
     keyring.keep_open(db, sid, _minutes(cfg))
+    encrypting[int(sid)] = th = threading.Thread(
+        target=keyring.encrypt_all, args=(db, cfg), kwargs={"space": sid, "log": log.info}, daemon=True, name=f"vault-{sid}"
+    )
+    th.start()  # its files stored plain so far (encryption.files was off): new ones are encrypted as they're stored
     return status(db, sid)
+
+
+encrypting: dict[int, threading.Thread] = {}
 
 
 def unlock(db, cfg, uid, sid, flow, credential, prf):

@@ -531,10 +531,10 @@ def owned(cfg, path) -> bool:
 
 
 def protect(db, cfg, sid, path) -> bool:
-    """Encrypt a file Lens has just stored (so it is plain, whatever its first bytes), when encryption.files is on; its
-    modification time is kept. Returns whether it was encrypted. A vault nobody has unlocked here raises Locked: its
-    files are never stored plain."""
-    if not (enabled(cfg) and owned(cfg, path)):
+    """Encrypt a file Lens has just stored (so it is plain, whatever its first bytes), when encryption.files is on or
+    the namespace is a vault; its modification time is kept. Returns whether it was encrypted. A vault nobody has
+    unlocked here raises Locked: its files are never stored plain."""
+    if not owned(cfg, path) or not (enabled(cfg) or status(db, sid)["vault"]):
         return False
     st = os.stat(path)
     encrypt_file(db, cfg, sid, path, force=True)
@@ -704,11 +704,13 @@ def stored_files(db, cfg):
             yield f["space"], str(p)
 
 
-def encrypt_all(db, cfg, decrypt=False, log=print):
-    """Encrypt (or, with decrypt, turn back) every file Lens keeps; files already that way are skipped, so it can run
-    again after stopping half way. Returns how many changed."""
+def encrypt_all(db, cfg, decrypt=False, log=print, space=None):
+    """Encrypt (or, with decrypt, turn back) every file Lens keeps, or one namespace's (`space`); files already that
+    way are skipped, so it can run again after stopping half way. Returns how many changed."""
     changed = 0
     for sid, p in stored_files(db, cfg):
+        if space is not None and sid != int(space):
+            continue
         try:
             st = os.stat(p)
             done = decrypt_file(db, cfg, p) if decrypt else encrypt_file(db, cfg, sid, p)

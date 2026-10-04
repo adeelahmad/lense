@@ -131,3 +131,24 @@ def test_a_passkey_without_prf_or_the_wrong_answer_is_refused(app, client, db):
     raw = client.post("/api/v1/tokens", json={"name": "t", "scope": "write"}, headers=h).json()["token"]
     t = {"Authorization": f"Bearer {raw}"}
     assert client.post("/api/v1/namespaces/pods/vault/options", json={"kind": "unlock"}, headers={**t, **WEB}).status_code == 403
+
+
+def test_a_vault_encrypts_its_files_even_with_encryption_off(app, client, db, cfg, folder):
+    from app.domain import settings, vaults
+
+    settings.save(db, cfg, "encryption", {"files": False})
+    laptop = Authenticator()
+    h = _session(client, _setup(app, client, laptop))
+    wav = folder / "talk.wav"
+    write_wav(wav, seconds=1.0)
+    data = wav.read_bytes()
+    rid = _upload(client, h, data).json()["recording"]
+    old = db.one("SELECT path FROM $r", r=R("recording", rid))["path"]
+    assert not keyring.is_encrypted(old)
+    assert _ask(client, h, laptop, "seal", "/api/v1/namespaces/pods/vault").status_code == 200
+    vaults.encrypting[store.ns_id(db, "pods")].join(10)
+    assert keyring.is_encrypted(old)  # what it held already
+    write_wav(wav, seconds=2.0)
+    new = _upload(client, h, wav.read_bytes(), "new.wav").json()["recording"]
+    assert keyring.is_encrypted(db.one("SELECT path FROM $r", r=R("recording", new))["path"])  # and what comes in
+    assert client.get(f"/api/v1/recordings/{rid}/audio", headers=h).content == data

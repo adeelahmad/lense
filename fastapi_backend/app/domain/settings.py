@@ -342,6 +342,10 @@ def _check(section, key, value, default):
         if not (isinstance(value, int) and not isinstance(value, bool) and 5 <= value <= 1440):
             raise ValueError("encryption.work_minutes is a whole number of minutes from 5 to 1440")
         return value
+    if (section, key) == ("encryption", "vault_minutes"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1440):
+            raise ValueError("encryption.vault_minutes is a whole number of minutes from 1 to 1440")
+        return value
     if section == "embeddings":
         return _embed_setting(key, value)
     if section == "uploads":

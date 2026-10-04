@@ -18772,6 +18772,395 @@
           }
         }
       }
+    },
+    "/api/v1/namespaces/{name}/vault": {
+      "get": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "Get Vault",
+        "description": "Whether the namespace is a vault, whether it's open now, and which passkeys open it.",
+        "operationId": "get_vault",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "Seal Vault",
+        "description": "Make the namespace a vault opened by the passkey that answered. From then on only its passkeys open its files;\nlose every one and they're gone. Audited as `vault.seal`.",
+        "operationId": "seal_vault",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultAnswer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "Unseal Vault",
+        "description": "Make the vault an ordinary namespace again, which the server can open (it must be unlocked). Audited as\n`vault.unseal`.",
+        "operationId": "unseal_vault",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/vault/options": {
+      "post": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "Vault Options",
+        "description": "Start making the namespace a vault (owners), unlocking it, or adding a passkey to it (owners): options for the\nbrowser, which ask the passkey for this vault's PRF secret.",
+        "operationId": "vault_options",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOptions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/vault/unlock": {
+      "post": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "Unlock Vault",
+        "description": "Open the vault on this server for encryption.vault_minutes; its waiting work runs. Audited as `vault.unlock`.",
+        "operationId": "unlock_vault",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultAnswer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/vault/passkeys": {
+      "post": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "Add Vault Passkey",
+        "description": "Let the passkey that answered open the vault too (it must be open). Audited as `vault.add`.",
+        "operationId": "add_vault_passkey",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultAnswer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/vault/passkeys/{pid}": {
+      "delete": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "Remove Vault Passkey",
+        "description": "Stop a passkey opening the vault; never the last one. Audited as `vault.remove`.",
+        "operationId": "remove_vault_passkey",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/vault/lock": {
+      "post": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "Lock Vault",
+        "description": "Close the vault on this server now. Audited as `vault.lock`.",
+        "operationId": "lock_vault",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -41116,6 +41505,140 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VaultAnswer": {
+        "properties": {
+          "flow": {
+            "type": "string",
+            "title": "Flow"
+          },
+          "credential": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Credential",
+            "description": "the browser's PublicKeyCredential, as JSON, without its PRF results"
+          },
+          "prf": {
+            "type": "string",
+            "title": "Prf",
+            "description": "the PRF extension's first result for the salt in the options, base64url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "flow",
+          "credential",
+          "prf"
+        ],
+        "title": "VaultAnswer"
+      },
+      "VaultPasskey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "VaultPasskey",
+        "description": "A passkey that opens a vault."
+      },
+      "VaultStart": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "seal",
+              "unlock",
+              "add"
+            ],
+            "title": "Kind",
+            "description": "seal: make it a vault; unlock: open it; add: let another passkey open it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "VaultStart"
+      },
+      "VaultStatus": {
+        "properties": {
+          "vault": {
+            "type": "boolean",
+            "title": "Vault"
+          },
+          "unlocked": {
+            "type": "boolean",
+            "title": "Unlocked"
+          },
+          "unlocked_until": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unlocked Until"
+          },
+          "passkeys": {
+            "items": {
+              "$ref": "#/components/schemas/VaultPasskey"
+            },
+            "type": "array",
+            "title": "Passkeys",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "vault",
+          "unlocked"
+        ],
+        "title": "VaultStatus",
+        "description": "Whether a namespace is a vault, whether it's open on this server (until when, a Unix time), and the passkeys that\nopen it."
       },
       "VersionSaved": {
         "properties": {
