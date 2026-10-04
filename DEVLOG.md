@@ -23,6 +23,112 @@ Todo:
 - [ ] Log decision calls in the cost ledger once "Activity history and budgets" lands
 - Refine later: install.sh starts the decide server on a Mac host by itself; score and noul questions for callers;
   Laya's router (language detection picks the multilingual model); shortlisting for large option sets
+## 2026-10-04 · Cloud speech providers and local GGUF models
+
+Goal (Adeel): transcription, speaker separation and emotion stay local by default (SenseVoice and friends, unchanged),
+but each voice task can be sent to a provider instead: an OpenAI-compatible Whisper endpoint, ElevenLabs (speech to
+text and text to speech), AssemblyAI and Deepgram (every capability that fits). Every service takes a custom base URL,
+for proxies and compatible servers. Also: run a local LLM with llama.cpp from a list of GGUF models this machine can run,
+downloaded from Hugging Face.
+
+Model:
+
+- Settings → Speech providers (`speech` section): per service a base URL, a model and an API key (sealed like every
+  other key). The defaults point at each vendor; change the URL for a proxy or a compatible server.
+- `transcribe.engine` gains openai, elevenlabs, assemblyai, deepgram. Their transcripts carry the provider's speaker
+  labels, language, audio events and sentiment (as emotion); `diarize.engine` gains provider, and auto uses those
+  labels when a transcript has them. Voice IDs across recordings still come from the local voiceprints.
+- Voice chat: `voice.stt` picks its own engine (default: the transcription engine); `voice.tts_provider` adds
+  ElevenLabs and Deepgram Aura next to the OpenAI-compatible speech server.
+- Provider calls go through the activity ledger once it lands (seconds of audio per call).
+- Local LLM: a catalog of GGUF chat models with the memory each needs; the ones this machine can run are offered,
+  downloaded from Hugging Face into data_dir/models/gguf, and served by llama.cpp's server, which becomes the LLM
+  provider.
+
+Todo:
+
+- [x] Speech providers: settings, OpenAI-compatible, ElevenLabs, AssemblyAI and Deepgram transcription with speakers,
+      language, events and sentiment; provider speaker labels in speaker separation
+- [x] Voice chat: own speech-to-text engine; ElevenLabs and Deepgram text to speech
+- [x] Settings → Speech providers in the web app; new engines in Transcription and Speaker separation
+- [ ] Local LLM: GGUF catalog filtered by this machine, download from Hugging Face, llama.cpp server as the provider
+
+Refine later: per-minute prices for provider calls in the ledger; AssemblyAI and Deepgram summaries, chapters and
+entities as optional imports next to Lens's own analysis; several endpoints per service; speaker labels kept across
+chunks of long OpenAI-compatible transcriptions.
+## 2026-10-04 · Topics: a controlled vocabulary apart from entities
+
+Goal (Adeel): entities and topics are mixed (a topic is an entity of type TERM, which is also the fallback type for
+anything unclassified). Separate them: topics become a SKOS controlled vocabulary per namespace (preferred and
+alternative labels, a definition, broader, narrower and related topics), and recordings are about topics. Entities
+stay the named things (people, organisations, places...) and later become authority records. Decided: after the graph
+PRs (done, #111 #121).
+
+Todo:
+
+- [x] Vocabulary in the backend: topics with labels, definition, broader/narrower/related; recordings about topics;
+      create, edit, merge, delete; turn a TERM entity into a topic (and back, by deleting the topic); API with viewer
+      reads and editor changes; topics in the property graph (Topic, ABOUT, NARROWER, RELATED) and in RDF as SKOS
+- [ ] Topics page: the tree of broader and narrower topics, a topic's recordings, edit and merge; a recording's topics
+- [ ] Analysis suggests topics (summary topics and keywords matched to the vocabulary; new ones as suggestions to
+      accept); a namespace can keep its vocabulary fixed or open, as entities do
+- [ ] # links in notes point at topics; assistant and MCP tools for topics
+
+Refine later: shared vocabularies across namespaces and imported schemes (LCSH, Wikidata) with exactMatch; entities as
+authority records (variant names, external identifiers); topic history and undo for merges.
+
+## 2026-10-04 · anytopdf as the conversion engine (not started: wait for Adeel's go)
+
+Goal (Adeel): use the sister project [anytopdf-rs](https://github.com/adeelahmad/anytopdf-rs) (README on its sprint2
+branch) to turn any source into one searchable, cited PDF: OCR, captions, transcripts, keyframes and metadata as an
+invisible text layer, with an embedded manifest, chunks, source anchors and provenance. Do not start until Adeel says go.
+
+Why it fits: one static Rust binary (Linux x86_64 and arm64 musl, so a Raspberry Pi) that Lens can download as a
+component, instead of LibreOffice and Chromium in the full image; provenance per fact matches "trusted, cited memory".
+
+Todo (when started):
+
+- [ ] Wait for anytopdf's JSON output (`--json`, schemas, exit codes) and `extract --json` manifest to land
+- [ ] anytopdf as a component Lens installs itself (settings: auto, on, off), with its version recorded
+- [ ] A pipeline / workflow node "Make evidence PDF": inputs a recording or resource, outputs the PDF as a rendition
+      and its manifest chunks and anchors as Lens chunks (citations jump to time span, box or byte range)
+- [ ] Use it where Lens has no converter first (images, captions, mixed folders); keep LibreOffice and Chromium as
+      the default for Office, HTML and email until anytopdf reads them (its roadmap: PDF, HTML, EML, Office)
+- [ ] Reuse Lens's own OCR and transcripts as sidecars rather than running them twice
+- [ ] Run it with no network, size and time caps, plugins off unless an admin allows them (its plugins run with full
+      user rights until its sandbox lands)
+
+Refine later: anytopdf's intake channels (IMAP, webhooks, watched folders) and printing overlap Lens's sources and
+sensors; decide which side owns them. MCP server mode could be an extension.
+## 2026-10-04 · Notes: a page for everything
+
+Goal (Adeel): every resource, entity and topic has its own page (its note), next to free notes written by people or
+the assistant. The assistant is the main writer and organiser; people can do everything it can. Notes link to anything
+with @ (resources, people, entities) and # (topics). Free notes sit in a tree in the left navigation, like Notion;
+pages of resources are opened from those resources. docs/notes.md.
+
+Model: a `page` has a title, a one-line summary (the context the assistant reads; refined by the AI when switched
+on), a date, a place (PARA: project, area, resource, archive), a parent for the tree, the thing it's about (if any), a
+body and who wrote it (a person or the assistant). Links found in the body are kept as edges, with backlinks, and show
+in the graph.
+
+Todo:
+
+- [x] Pages: create, read, change, move in the tree, delete; a page per resource made on first open
+- [x] @ and # mentions: links and backlinks, a search to pick what to link
+- [x] Web app: tree explorer in the left navigation, page view with title, summary, date, place and backlinks; the
+      page of a recording or entity reached from its detail view
+- [x] Editor: BlockSuite (AFFiNE's block editor on Yjs documents, what OctoBase stores) behind one component; plain
+      text kept for search and the assistant
+- [x] AI title and summary refinement (ai.refine_notes, on by default, can be switched off)
+- [ ] Costs of refinement to the activity ledger (once "Activity history and budgets" lands)
+- [ ] Assistant and MCP tools: find, read, write, link and file notes; changes by the assistant are undoable
+- [ ] Self-organising: a routine files notes into PARA and links them to entities and topics, proposing what it isn't
+      sure of
+- [ ] # topics move to the SKOS topics once the graph thread splits them from entities
+- [ ] Attachments on a page, encrypted through the keyring
+- [ ] Object storage (S3, or an rclone remote served as S3) in the setup wizard, no local storage; a downloadable
+      256-bit storage key. Design proposal waiting on Adeel (changes existing installs)
 
 ## 2026-10-04 · The graph, end to end
 
@@ -38,12 +144,12 @@ Todo:
 - [x] Property graph: namespaces, collections, recordings, speakers, entities; hierarchy and association relationships
 - [x] Walk it: parents, children, ancestors, descendants, neighbours, every path / shortest paths
 - [x] Read-only Cypher engine with a step and time budget; API with read (any token) and change (write + editor) rights
-- [ ] Explorer canvas: drag nodes, pan and zoom, pinch and long-press on touch; one-click layouts (force, BFS tree,
+- [x] Explorer canvas: drag nodes, pan and zoom, pinch and long-press on touch; one-click layouts (force, BFS tree,
       DFS tree, radial) and reset; a custom route through picked nodes; right-click menu for parents, children,
       ancestors, descendants, neighbours and paths
-- [ ] Questions in plain language: the question becomes Cypher (shown, editable), the answer lights up on the canvas
-- [ ] Assistant and MCP tools: graph schema, query, related, paths; proposing changes behind an approval
-- [ ] Topics as a controlled vocabulary (SKOS), apart from entities (authority records); asked Adeel when
+- [x] Questions in plain language: the question becomes Cypher (shown, editable), the answer lights up on the canvas
+- [x] Assistant and MCP tools: graph schema, query, related, paths; proposing changes behind an approval
+- [ ] Topics as a controlled vocabulary (SKOS), apart from entities (authority records): started, see "Topics" above
 
 ## 2026-10-03 · Assistant extensions: tools, skills, hooks, plugins
 

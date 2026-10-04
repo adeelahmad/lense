@@ -11,9 +11,12 @@ import logging
 
 from . import (
     batches,
+    cypher,
     entities,
     extensions,
     entity_map,
+    graph_ask,
+    graph_model,
     entity_setup,
     ops_tools,
     recsets,
@@ -80,6 +83,42 @@ TOOLS = [
         False,
     ),
     ("speaker_stats", "Speakers in a namespace with talk time and recordings.", {"namespace": _S}, ["namespace"], False),
+    (
+        "graph_schema",
+        "What the graph holds (namespaces, collections, recordings, speakers, entities and how they link), with example "
+        "Cypher. Read it before graph_query.",
+        {"namespace": _S},
+        [],
+        False,
+    ),
+    (
+        "graph_query",
+        "Ask the graph in read-only Cypher, e.g. MATCH (s:Speaker)-[x:SAID]->(e:Organisation) RETURN s.name, e.name, "
+        "x.count ORDER BY x.count DESC LIMIT 10. Errors say what to fix. Without a namespace it covers the conversation's.",
+        {"query": _S, "namespace": _S, "limit": _I},
+        ["query"],
+        False,
+    ),
+    (
+        "graph_related",
+        "A node's parents, children, ancestors, descendants (recording, collection, namespace...) or neighbours. Nodes "
+        "are n<id> namespaces, c<id> collections, r<id> recordings, s<id> speakers, e<id> entities.",
+        {
+            "node": _S,
+            "relation": {"type": "string", "enum": ["parents", "children", "ancestors", "descendants", "neighbours"]},
+            "depth": _I,
+            "namespace": _S,
+        },
+        ["node", "relation"],
+        False,
+    ),
+    (
+        "graph_paths",
+        "How two nodes connect: the paths between them, shortest first.",
+        {"from_node": _S, "to_node": _S, "max_depth": _I, "namespace": _S},
+        ["from_node", "to_node"],
+        False,
+    ),
     (
         "run_template",
         "Run a template (such as meeting notes) on recordings. Needs the person's approval.",
@@ -519,6 +558,59 @@ class Toolbox(ops_tools.OpsTools):
             for s in spk.list_speakers(self.db, sid)[:30]
         ]
         return {"speakers": out}, f"Read speaker stats for {namespace}"
+
+    # ---- the graph as a property graph, in Cypher (graph_model.py, cypher.py) ----
+    def _graph(self, namespace=None):
+        """The conversation's graph: one namespace, or the shared ones in scope (only its recordings, when it has some)."""
+        if namespace:
+            sid = store.space_names(self.db)
+            if namespace not in {sid[s] for s in self.readable if s in sid}:
+                raise ValueError(f"no namespace called {namespace} in scope")
+            scope = f"ns:{namespace}"
+        else:
+            names = store.space_names(self.db)
+            mine = sorted(names[s] for s in self.readable if s in names)
+            scope = f"ns:{mine[0]}" if len(mine) == 1 else "global"
+        key = (scope, None if self.allowed is None else len(self.allowed))
+        cache = getattr(self, "_graphs", None)
+        if cache is None:
+            cache = self._graphs = {}
+        if key not in cache:
+            cache[key] = graph_model.build(self.db, scope, self.readable, self.allowed)
+        return cache[key]
+
+    def t_graph_schema(self, namespace=None):
+        g = self._graph(namespace)
+        return {"graph": graph_ask.describe(g), "namespaces": g.namespaces, "examples": graph_ask.EXAMPLES}, "Read what the graph holds"
+
+    def t_graph_query(self, query, namespace=None, limit=50):
+        g = self._graph(namespace)
+        try:
+            out = cypher.run(g, query, max_rows=max(1, min(int(limit or 50), 200)))
+        except cypher.CypherError as e:
+            raise ValueError(f"query error: {e}") from None
+        return {"columns": out["columns"], "rows": out["rows"], "truncated": out["truncated"]}, (
+            f"Queried the graph ({len(out['rows'])} row(s))"
+        )
+
+    def t_graph_related(self, node, relation, depth=1, namespace=None):
+        g = self._graph(namespace)
+        try:
+            out = graph_model.related(g, node, relation, max(1, min(int(depth or 1), 6)), limit=80)
+        except KeyError:
+            raise ValueError(f"{node} isn't in this graph") from None
+        nodes = [{k: v for k, v in n.items() if k in ("id", "labels", "name", "namespace", "depth", "type")} for n in out["nodes"]]
+        return {"start": out["start"], "nodes": nodes, "truncated": out["truncated"]}, f"Found the {relation} of {node}"
+
+    def t_graph_paths(self, from_node, to_node, max_depth=4, namespace=None):
+        g = self._graph(namespace)
+        try:
+            out = graph_model.paths(g, from_node, to_node, max(1, min(int(max_depth or 4), 6)), limit=5)
+        except KeyError:
+            raise ValueError("one of those nodes isn't in this graph") from None
+        names = {n["id"]: n.get("name") for n in out["nodes"]}
+        chains = [[names.get(x, x) for x in p["nodes"]] for p in out["paths"]]
+        return {"paths": chains, "found": bool(chains)}, f"Looked for paths from {from_node} to {to_node}"
 
     # ---- tools that need approval ----
     def _approval(self, tool, args, summary, estimate=None):

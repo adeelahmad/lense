@@ -4466,6 +4466,26 @@ export type GraphQuery = {
 };
 
 /**
+ * GraphQuestion
+ */
+export type GraphQuestion = {
+  /**
+   * Question
+   *
+   * a question in plain language
+   */
+  question: string;
+  /**
+   * Scope
+   */
+  scope?: string;
+  /**
+   * Limit
+   */
+  limit?: number;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -6687,6 +6707,29 @@ export type Note = {
 };
 
 /**
+ * NoteBacklink
+ */
+export type NoteBacklink = {
+  /**
+   * Page
+   */
+  page: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * About
+   */
+  about?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * NoteCreate
  */
 export type NoteCreate = {
@@ -6718,6 +6761,386 @@ export type NoteCreate = {
    * share it with everyone who can read the recording (needs editor access)
    */
   shared?: boolean;
+};
+
+/**
+ * NoteLink
+ */
+export type NoteLink = {
+  /**
+   * Sign
+   */
+  sign: "@" | "#";
+  /**
+   * Target
+   *
+   * what it links to, like "recording:12" or "page:3"
+   */
+  target: string;
+  /**
+   * Label
+   *
+   * the text the link shows
+   */
+  label: string;
+  /**
+   * Name
+   *
+   * the target's current name; null when it's gone or you can't see it
+   */
+  name?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteLinkTarget
+ */
+export type NoteLinkTarget = {
+  /**
+   * Target
+   */
+  target: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Kind
+   */
+  kind: "page" | "recording" | "entity" | "topic" | "collection" | "speaker";
+  [key: string]: unknown;
+};
+
+/**
+ * NotePage
+ */
+export type NotePage = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Summary
+   *
+   * one line on what the page holds: the context the assistant reads first
+   */
+  summary?: string | null;
+  /**
+   * Summary By
+   *
+   * who wrote the summary
+   */
+  summary_by?: "person" | "assistant" | null;
+  /**
+   * Date
+   */
+  date?: string | null;
+  /**
+   * Place
+   *
+   * where it's filed (PARA): project, area, resource or archive
+   */
+  place?: "project" | "area" | "resource" | "archive" | null;
+  /**
+   * Parent
+   *
+   * the page it's inside, in the tree
+   */
+  parent?: number | null;
+  /**
+   * Position
+   *
+   * its order among its siblings
+   */
+  position?: number | null;
+  /**
+   * About
+   *
+   * what this is the page of, like "recording:12"; null for a free note
+   */
+  about?: string | null;
+  /**
+   * Author
+   *
+   * who wrote it
+   */
+  author?: "person" | "assistant";
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Body
+   *
+   * Markdown, with mentions written @[label](kind:id) and #[label](entity:id)
+   */
+  body?: string;
+  /**
+   * Doc
+   *
+   * the editor's own document state, if it kept one
+   */
+  doc?: string | null;
+  /**
+   * Created By
+   *
+   * its writer's email
+   */
+  created_by?: string | null;
+  /**
+   * Links
+   */
+  links?: Array<NoteLink>;
+  /**
+   * Backlinks
+   */
+  backlinks?: Array<NoteBacklink>;
+  /**
+   * Can Edit
+   */
+  can_edit?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * NotePageCreate
+ */
+export type NotePageCreate = {
+  /**
+   * Ns
+   *
+   * the namespace it goes in
+   */
+  ns: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Body
+   */
+  body?: string;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Date
+   *
+   * YYYY-MM-DD (default: today)
+   */
+  date?: string | null;
+  /**
+   * Place
+   */
+  place?: "project" | "area" | "resource" | "archive" | null;
+  /**
+   * Parent
+   *
+   * put it inside this page
+   */
+  parent?: number | null;
+  /**
+   * About
+   *
+   * make the page of this thing, like "recording:12" or "entity:5"
+   */
+  about?: string | null;
+  /**
+   * Doc
+   */
+  doc?: string | null;
+};
+
+/**
+ * NotePageDraft
+ *
+ * A thing's page before anyone has written on it.
+ */
+export type NotePageDraft = {
+  /**
+   * Id
+   */
+  id?: null;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * About
+   */
+  about: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Body
+   */
+  body?: string;
+  /**
+   * Backlinks
+   */
+  backlinks?: Array<NoteBacklink>;
+  /**
+   * Can Edit
+   */
+  can_edit?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * NotePageItem
+ */
+export type NotePageItem = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Summary
+   *
+   * one line on what the page holds: the context the assistant reads first
+   */
+  summary?: string | null;
+  /**
+   * Summary By
+   *
+   * who wrote the summary
+   */
+  summary_by?: "person" | "assistant" | null;
+  /**
+   * Date
+   */
+  date?: string | null;
+  /**
+   * Place
+   *
+   * where it's filed (PARA): project, area, resource or archive
+   */
+  place?: "project" | "area" | "resource" | "archive" | null;
+  /**
+   * Parent
+   *
+   * the page it's inside, in the tree
+   */
+  parent?: number | null;
+  /**
+   * Position
+   *
+   * its order among its siblings
+   */
+  position?: number | null;
+  /**
+   * About
+   *
+   * what this is the page of, like "recording:12"; null for a free note
+   */
+  about?: string | null;
+  /**
+   * Author
+   *
+   * who wrote it
+   */
+  author?: "person" | "assistant";
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NotePageMove
+ */
+export type NotePageMove = {
+  /**
+   * Parent
+   *
+   * the page to put it inside; null for the top
+   */
+  parent?: number | null;
+  /**
+   * Before
+   *
+   * put it before this sibling; null for the end
+   */
+  before?: number | null;
+};
+
+/**
+ * NotePageUpdate
+ */
+export type NotePageUpdate = {
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Body
+   */
+  body?: string | null;
+  /**
+   * Summary
+   *
+   * empty to clear it
+   */
+  summary?: string | null;
+  /**
+   * Date
+   */
+  date?: string | null;
+  /**
+   * Place
+   *
+   * "" to unfile it
+   */
+  place?: "project" | "area" | "resource" | "archive" | "" | null;
+  /**
+   * Doc
+   *
+   * the editor's document state; a new body without it drops the old one
+   */
+  doc?: string | null;
+};
+
+/**
+ * NoteTree
+ */
+export type NoteTree = {
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Pages
+   */
+  pages: Array<NotePageItem>;
+  [key: string]: unknown;
 };
 
 /**
@@ -9466,6 +9889,33 @@ export type RecordingSummary = {
 };
 
 /**
+ * RecordingTopic
+ */
+export type RecordingTopic = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Source
+   */
+  source?: string | null;
+  /**
+   * Weight
+   */
+  weight?: number | null;
+  /**
+   * Status
+   */
+  status?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * RecordingUpdate
  *
  * The fields to change; the others stay as they are.
@@ -12030,6 +12480,31 @@ export type SpeakerSuggestion = {
 };
 
 /**
+ * SpeechTestResult
+ */
+export type SpeechTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Detail
+   *
+   * what the provider answered, when it did
+   */
+  detail?: string | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * Started
  *
  * Work that carries on after the response (202 Accepted).
@@ -12692,6 +13167,263 @@ export type ToolStep = {
    */
   summary?: string;
   [key: string]: unknown;
+};
+
+/**
+ * TopicAbout
+ */
+export type TopicAbout = {
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Source
+   *
+   * how it got there: person, entity or analysis
+   */
+  source?: string | null;
+  /**
+   * Weight
+   */
+  weight?: number | null;
+  /**
+   * Status
+   */
+  status?: "accepted" | "suggested" | null;
+  [key: string]: unknown;
+};
+
+/**
+ * TopicCreate
+ */
+export type TopicCreate = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Alt
+   */
+  alt?: Array<string>;
+  /**
+   * Definition
+   */
+  definition?: string | null;
+  /**
+   * Broader
+   */
+  broader?: Array<number>;
+  /**
+   * Related
+   */
+  related?: Array<number>;
+};
+
+/**
+ * TopicDetail
+ */
+export type TopicDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Alt
+   */
+  alt?: Array<string>;
+  /**
+   * Definition
+   */
+  definition?: string | null;
+  /**
+   * Broader
+   */
+  broader?: Array<TopicRef>;
+  /**
+   * Narrower
+   */
+  narrower?: Array<TopicRef>;
+  /**
+   * Related
+   */
+  related?: Array<TopicRef>;
+  /**
+   * Recordings
+   */
+  recordings?: number;
+  /**
+   * From Entity
+   */
+  from_entity?: number | null;
+  /**
+   * Updated
+   */
+  updated?: string | null;
+  /**
+   * About
+   */
+  about?: Array<TopicAbout>;
+  [key: string]: unknown;
+};
+
+/**
+ * TopicItem
+ */
+export type TopicItem = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Alt
+   *
+   * other labels it goes by (skos:altLabel)
+   */
+  alt?: Array<string>;
+  /**
+   * Definition
+   */
+  definition?: string | null;
+  /**
+   * Broader
+   */
+  broader?: Array<number>;
+  /**
+   * Related
+   */
+  related?: Array<number>;
+  /**
+   * Recordings
+   *
+   * recordings about it (accepted)
+   */
+  recordings?: number;
+  /**
+   * Narrower
+   *
+   * topics that have it as broader
+   */
+  narrower?: number;
+  /**
+   * From Entity
+   *
+   * the entity it was made from, hidden while the topic exists
+   */
+  from_entity?: number | null;
+  /**
+   * Updated
+   */
+  updated?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * TopicList
+ */
+export type TopicList = {
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<TopicItem>;
+  [key: string]: unknown;
+};
+
+/**
+ * TopicMerge
+ */
+export type TopicMerge = {
+  /**
+   * Keep
+   */
+  keep: number;
+  /**
+   * Others
+   */
+  others: Array<number>;
+};
+
+/**
+ * TopicRecordings
+ */
+export type TopicRecordings = {
+  /**
+   * Recordings
+   */
+  recordings: Array<number>;
+  /**
+   * Remove
+   *
+   * say they aren't about it
+   */
+  remove?: boolean;
+};
+
+/**
+ * TopicRef
+ */
+export type TopicRef = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Label
+   */
+  label: string;
+  [key: string]: unknown;
+};
+
+/**
+ * TopicUpdate
+ */
+export type TopicUpdate = {
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Alt
+   */
+  alt?: Array<string> | null;
+  /**
+   * Definition
+   *
+   * an empty string clears it
+   */
+  definition?: string | null;
+  /**
+   * Broader
+   */
+  broader?: Array<number> | null;
+  /**
+   * Related
+   */
+  related?: Array<number> | null;
 };
 
 /**
@@ -15621,6 +16353,36 @@ export type TestEmbeddingsResponses = {
 
 export type TestEmbeddingsResponse = TestEmbeddingsResponses[keyof TestEmbeddingsResponses];
 
+export type TestSpeechData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Provider
+     */
+    provider: string;
+  };
+  url: "/api/v1/settings/speech/test";
+};
+
+export type TestSpeechErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestSpeechError = TestSpeechErrors[keyof TestSpeechErrors];
+
+export type TestSpeechResponses = {
+  /**
+   * Successful Response
+   */
+  200: SpeechTestResult;
+};
+
+export type TestSpeechResponse = TestSpeechResponses[keyof TestSpeechResponses];
+
 export type SemanticStatusData = {
   body?: never;
   path?: never;
@@ -18013,6 +18775,265 @@ export type UpdateNoteResponses = {
 };
 
 export type UpdateNoteResponse = UpdateNoteResponses[keyof UpdateNoteResponses];
+
+export type ListPagesData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+    /**
+     * All
+     */
+    all?: boolean;
+  };
+  url: "/api/v1/notes";
+};
+
+export type ListPagesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListPagesError = ListPagesErrors[keyof ListPagesErrors];
+
+export type ListPagesResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteTree;
+};
+
+export type ListPagesResponse = ListPagesResponses[keyof ListPagesResponses];
+
+export type CreatePageData = {
+  body: NotePageCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/notes";
+};
+
+export type CreatePageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreatePageError = CreatePageErrors[keyof CreatePageErrors];
+
+export type CreatePageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type CreatePageResponse = CreatePageResponses[keyof CreatePageResponses];
+
+export type LinkTargetsData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+    /**
+     * Q
+     */
+    q?: string;
+    /**
+     * Sign
+     */
+    sign?: string;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/notes/targets";
+};
+
+export type LinkTargetsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LinkTargetsError = LinkTargetsErrors[keyof LinkTargetsErrors];
+
+export type LinkTargetsResponses = {
+  /**
+   * Response Notes-Link Targets
+   *
+   * Successful Response
+   */
+  200: Array<NoteLinkTarget>;
+};
+
+export type LinkTargetsResponse = LinkTargetsResponses[keyof LinkTargetsResponses];
+
+export type PageAboutData = {
+  body?: never;
+  path: {
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Key
+     */
+    key: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/about/{kind}/{key}";
+};
+
+export type PageAboutErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PageAboutError = PageAboutErrors[keyof PageAboutErrors];
+
+export type PageAboutResponses = {
+  /**
+   * Response Notes-Page About
+   *
+   * Successful Response
+   */
+  200: NotePage | NotePageDraft;
+};
+
+export type PageAboutResponse = PageAboutResponses[keyof PageAboutResponses];
+
+export type DeletePageData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}";
+};
+
+export type DeletePageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeletePageError = DeletePageErrors[keyof DeletePageErrors];
+
+export type DeletePageResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeletePageResponse = DeletePageResponses[keyof DeletePageResponses];
+
+export type GetPageData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}";
+};
+
+export type GetPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetPageError = GetPageErrors[keyof GetPageErrors];
+
+export type GetPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type GetPageResponse = GetPageResponses[keyof GetPageResponses];
+
+export type UpdatePageData = {
+  body: NotePageUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}";
+};
+
+export type UpdatePageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdatePageError = UpdatePageErrors[keyof UpdatePageErrors];
+
+export type UpdatePageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type UpdatePageResponse = UpdatePageResponses[keyof UpdatePageResponses];
+
+export type MovePageData = {
+  body: NotePageMove;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/move";
+};
+
+export type MovePageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MovePageError = MovePageErrors[keyof MovePageErrors];
+
+export type MovePageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type MovePageResponse = MovePageResponses[keyof MovePageResponses];
 
 export type ListCommentsData = {
   body?: never;
@@ -20434,6 +21455,293 @@ export type FindGraphPathResponses = {
 
 export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
 
+export type ListTopicsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Q
+     */
+    q?: string;
+    /**
+     * Ns
+     */
+    ns?: string;
+    /**
+     * Top
+     */
+    top?: boolean;
+    /**
+     * Broader
+     */
+    broader?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/topics";
+};
+
+export type ListTopicsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListTopicsError = ListTopicsErrors[keyof ListTopicsErrors];
+
+export type ListTopicsResponses = {
+  /**
+   * Successful Response
+   */
+  200: TopicList;
+};
+
+export type ListTopicsResponse = ListTopicsResponses[keyof ListTopicsResponses];
+
+export type DeleteTopicData = {
+  body?: never;
+  path: {
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/topics/{tid}";
+};
+
+export type DeleteTopicErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteTopicError = DeleteTopicErrors[keyof DeleteTopicErrors];
+
+export type DeleteTopicResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteTopicResponse = DeleteTopicResponses[keyof DeleteTopicResponses];
+
+export type GetTopicData = {
+  body?: never;
+  path: {
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/topics/{tid}";
+};
+
+export type GetTopicErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetTopicError = GetTopicErrors[keyof GetTopicErrors];
+
+export type GetTopicResponses = {
+  /**
+   * Successful Response
+   */
+  200: TopicDetail;
+};
+
+export type GetTopicResponse = GetTopicResponses[keyof GetTopicResponses];
+
+export type UpdateTopicData = {
+  body: TopicUpdate;
+  path: {
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/topics/{tid}";
+};
+
+export type UpdateTopicErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateTopicError = UpdateTopicErrors[keyof UpdateTopicErrors];
+
+export type UpdateTopicResponses = {
+  /**
+   * Successful Response
+   */
+  200: TopicDetail;
+};
+
+export type UpdateTopicResponse = UpdateTopicResponses[keyof UpdateTopicResponses];
+
+export type CreateTopicData = {
+  body: TopicCreate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/topics";
+};
+
+export type CreateTopicErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateTopicError = CreateTopicErrors[keyof CreateTopicErrors];
+
+export type CreateTopicResponses = {
+  /**
+   * Successful Response
+   */
+  201: TopicDetail;
+};
+
+export type CreateTopicResponse = CreateTopicResponses[keyof CreateTopicResponses];
+
+export type MergeTopicsData = {
+  body: TopicMerge;
+  path?: never;
+  query?: never;
+  url: "/api/v1/topics/merge";
+};
+
+export type MergeTopicsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MergeTopicsError = MergeTopicsErrors[keyof MergeTopicsErrors];
+
+export type MergeTopicsResponses = {
+  /**
+   * Successful Response
+   */
+  200: TopicDetail;
+};
+
+export type MergeTopicsResponse = MergeTopicsResponses[keyof MergeTopicsResponses];
+
+export type TagRecordingsData = {
+  body: TopicRecordings;
+  path: {
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/topics/{tid}/recordings";
+};
+
+export type TagRecordingsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TagRecordingsError = TagRecordingsErrors[keyof TagRecordingsErrors];
+
+export type TagRecordingsResponses = {
+  /**
+   * Successful Response
+   */
+  200: TopicDetail;
+};
+
+export type TagRecordingsResponse = TagRecordingsResponses[keyof TagRecordingsResponses];
+
+export type RecordingTopicsData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/topics";
+};
+
+export type RecordingTopicsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RecordingTopicsError = RecordingTopicsErrors[keyof RecordingTopicsErrors];
+
+export type RecordingTopicsResponses = {
+  /**
+   * Response Topics-Recording Topics
+   *
+   * Successful Response
+   */
+  200: Array<RecordingTopic>;
+};
+
+export type RecordingTopicsResponse = RecordingTopicsResponses[keyof RecordingTopicsResponses];
+
+export type EntityToTopicData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/entities/{eid}/topic";
+};
+
+export type EntityToTopicErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type EntityToTopicError = EntityToTopicErrors[keyof EntityToTopicErrors];
+
+export type EntityToTopicResponses = {
+  /**
+   * Successful Response
+   */
+  201: TopicDetail;
+};
+
+export type EntityToTopicResponse = EntityToTopicResponses[keyof EntityToTopicResponses];
+
 export type GraphSchemaData = {
   body?: never;
   path?: never;
@@ -20622,6 +21930,35 @@ export type GraphQueryResponses = {
 };
 
 export type GraphQueryResponse = GraphQueryResponses[keyof GraphQueryResponses];
+
+export type AskGraphData = {
+  body: GraphQuestion;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/ask";
+};
+
+export type AskGraphErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AskGraphError = AskGraphErrors[keyof AskGraphErrors];
+
+export type AskGraphResponses = {
+  /**
+   * Response Graph-Ask Graph
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type AskGraphResponse = AskGraphResponses[keyof AskGraphResponses];
 
 export type ProposeGraphChangeData = {
   body: ChangeAsk;
