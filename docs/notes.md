@@ -71,10 +71,12 @@ recordings also need access to the recording.
 
 ## Editor
 
-The page view uses AFFiNE's BlockSuite editor, whose documents are Yjs CRDTs, the format OctoBase stores and syncs.
-The editor saves its document state in `doc` next to the Markdown; a change to the Markdown alone (the assistant's)
-drops `doc`, so the editor rebuilds it from the Markdown. OctoBase is AGPL-3.0, so it would run as a separate service
-for live co-editing rather than inside Lens.
+The page view uses AFFiNE's BlockSuite editor, whose documents are Yjs CRDTs, the format OctoBase stores and syncs. A
+page can be shown as a document or on the edgeless canvas (`view`), with BlockSuite's shapes, connectors, mind maps,
+frames and free drawing. The editor saves its document state in `doc` next to the Markdown; the drawings live only
+there. A change to the Markdown alone (the assistant's) keeps `doc` and sets `doc_stale`: the editor then replaces its
+text with the Markdown and keeps the drawings. OctoBase is AGPL-3.0, so it would run as a separate service for live
+co-editing rather than inside Lens.
 
 ## Refine later
 

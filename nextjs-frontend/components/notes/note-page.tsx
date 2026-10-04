@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, FileText, Link2, Sparkles, Trash2 } from "lucide-react";
+import { ArrowUpRight, FileText, Link2, Shapes, Sparkles, Trash2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,7 +23,16 @@ const BlockEditor = dynamic(() => import("@/components/notes/block-editor"), {
   loading: () => <Skeleton className="h-[240px] w-full" />,
 });
 
-type Changes = { title?: string; summary?: string; date?: string; place?: string; body?: string; doc?: string };
+type View = "page" | "edgeless";
+type Changes = {
+  title?: string;
+  summary?: string;
+  date?: string;
+  place?: string;
+  body?: string;
+  doc?: string;
+  view?: View;
+};
 
 /** A note: a free note (`id`), or the page of a thing (`about`, like "entity:5"), which is a draft until someone writes
  * on it. Everything saves as you type. */
@@ -48,6 +57,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
   const [summary, setSummary] = useState("");
   const [date, setDate] = useState("");
   const [place, setPlace] = useState("");
+  const [view, setView] = useState<View>("page");
   const loadedFor = useRef<string | null>(null);
   useEffect(() => {
     if (!page) return;
@@ -58,6 +68,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
     setSummary(saved?.summary ?? "");
     setDate(saved?.date ?? "");
     setPlace(saved?.place ?? "");
+    setView((saved?.view as View | null) ?? "page");
   }, [page, saved]);
 
   // Saving: changes gather for a moment, then go in one request. A thing's draft becomes its page on the first one.
@@ -91,6 +102,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
               summary: c.summary || null,
               date: c.date || null,
               place: (c.place || null) as Page["place"],
+              view: c.view ?? null,
             },
           }),
         );
@@ -101,6 +113,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
         if (c.summary !== undefined) body.summary = c.summary;
         if (c.date !== undefined && c.date) body.date = c.date;
         if (c.place !== undefined) body.place = c.place;
+        if (c.view !== undefined) body.view = c.view;
         if (c.body !== undefined) {
           body.body = c.body;
           body.doc = c.doc ?? null;
@@ -275,12 +288,40 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
           </button>
         )}
         {saved?.updated_at && <span>Changed {shortDate(saved.updated_at)}</span>}
+        <span className="flex-1" />
+        <div role="radiogroup" aria-label="Show as" className="inline-flex rounded-pill border border-border p-0.5">
+          {(
+            [
+              ["page", "Page", FileText],
+              ["edgeless", "Canvas", Shapes],
+            ] as const
+          ).map(([v, label, Icon]) => (
+            <button
+              key={v}
+              type="button"
+              role="radio"
+              aria-checked={view === v}
+              onClick={() => {
+                setView(v);
+                if (canEdit) change({ view: v });
+              }}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-pill px-2.5 py-0.5",
+                view === v ? "bg-blue-surface font-bold text-fg-accent" : "text-fg-secondary hover:text-fg",
+              )}
+            >
+              <Icon className="size-3.5" /> {label}
+            </button>
+          ))}
+        </div>
       </div>
       <BlockEditor
         key={page.about ?? `page:${page.id}`}
         markdown={page.body ?? ""}
         doc={saved?.doc ?? null}
         readOnly={!canEdit}
+        view={view}
+        stale={Boolean(saved?.doc_stale)}
         onChange={(c: EditorChange) => change({ body: c.markdown, doc: c.doc })}
         search={search}
         onOpenLink={openLink}

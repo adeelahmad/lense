@@ -31,6 +31,7 @@ class NotePageItem(ResponseModel):
     position: float | None = Field(None, description="its order among its siblings")
     about: str | None = Field(None, description='what this is the page of, like "recording:12"; null for a free note')
     author: Literal["person", "assistant"] = Field("person", description="who wrote it")
+    view: Literal["page", "edgeless"] | None = Field(None, description="how the editor shows it (default: page)")
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -54,6 +55,7 @@ class NotePage(NotePageItem):
     namespace: str
     body: str = Field("", description="Markdown, with mentions written @[label](kind:id) and #[label](entity:id)")
     doc: str | None = Field(None, description="the editor's own document state, if it kept one")
+    doc_stale: bool | None = Field(None, description="the body changed without the editor: its text follows the body")
     created_by: str | None = Field(None, description="its writer's email")
     links: list[NoteLink] = []
     backlinks: list[NoteBacklink] = []
@@ -87,6 +89,7 @@ class NotePageCreate(RequestModel):
     parent: int | None = Field(None, description="put it inside this page")
     about: str | None = Field(None, description='make the page of this thing, like "recording:12" or "entity:5"')
     doc: str | None = None
+    view: Literal["page", "edgeless"] | None = None
 
 
 class NotePageUpdate(RequestModel):
@@ -95,7 +98,8 @@ class NotePageUpdate(RequestModel):
     summary: str | None = Field(None, max_length=300, description="empty to clear it")
     date: str | None = None
     place: Place | Literal[""] | None = Field(None, description='"" to unfile it')
-    doc: str | None = Field(None, description="the editor's document state; a new body without it drops the old one")
+    doc: str | None = Field(None, description="the editor's document state; a new body without it marks the old one stale")
+    view: Literal["page", "edgeless"] | None = Field(None, description="show it as a page or on the edgeless canvas")
 
 
 class NotePageMove(RequestModel):

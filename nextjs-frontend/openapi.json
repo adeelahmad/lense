@@ -7226,7 +7226,7 @@
           "notes"
         ],
         "summary": "Update Page",
-        "description": "Change what's given. A new body without `doc` drops the editor's state, so it's rebuilt from the Markdown.",
+        "description": "Change what's given. A new body without `doc` keeps the editor's state (drawings on the canvas live there) but\nmarks it stale (`doc_stale`), so the editor brings its text in line with the body.",
         "operationId": "update_page",
         "parameters": [
           {
@@ -33908,6 +33908,22 @@
             "description": "who wrote it",
             "default": "person"
           },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "edgeless"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View",
+            "description": "how the editor shows it (default: page)"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -33951,6 +33967,18 @@
             ],
             "title": "Doc",
             "description": "the editor's own document state, if it kept one"
+          },
+          "doc_stale": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Stale",
+            "description": "the body changed without the editor: its text follows the body"
           },
           "created_by": {
             "anyOf": [
@@ -34089,6 +34117,21 @@
               }
             ],
             "title": "Doc"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "edgeless"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View"
           }
         },
         "additionalProperties": false,
@@ -34286,6 +34329,22 @@
             "description": "who wrote it",
             "default": "person"
           },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "edgeless"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View",
+            "description": "how the editor shows it (default: page)"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -34431,7 +34490,23 @@
               }
             ],
             "title": "Doc",
-            "description": "the editor's document state; a new body without it drops the old one"
+            "description": "the editor's document state; a new body without it marks the old one stale"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "edgeless"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View",
+            "description": "show it as a page or on the edgeless canvas"
           }
         },
         "additionalProperties": false,

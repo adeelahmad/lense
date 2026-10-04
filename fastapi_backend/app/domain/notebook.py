@@ -12,8 +12,9 @@ The body links to anything with mention tokens, which the editor and the assista
 @ is for resources, people and other pages; # is for topics (entities of type TERM until topics become a SKOS
 vocabulary of their own). Links are kept as note_link rows, so a page shows its backlinks and the graph sees them.
 
-The editor may also keep its own document state (`doc`, opaque: a BlockSuite/Yjs snapshot) next to the Markdown. A
-change to the Markdown alone (the assistant's, say) drops that state so the editor rebuilds it from the Markdown.
+The editor may also keep its own document state (`doc`, opaque: a BlockSuite/Yjs snapshot) next to the Markdown, which
+holds what Markdown can't, like drawings on the edgeless canvas. A change to the Markdown alone (the assistant's, say)
+keeps that state but marks it stale, and the editor brings its text in line with the Markdown.
 
 Refine later: pages for partial collection members, page history and undo, attachments, real-time co-editing.
 """
@@ -28,6 +29,7 @@ from . import store
 R = store.R
 PLACES = ("project", "area", "resource", "archive")
 AUTHORS = ("person", "assistant")
+VIEWS = ("page", "edgeless")  # how the editor shows it: a document, or the endless canvas (drawings, diagrams)
 KINDS = ("recording", "entity", "collection", "speaker", "page")  # what a page can link to
 ABOUT = ("recording", "entity", "collection", "speaker")  # what can have a page of its own
 TITLE_MAX = 200
@@ -39,7 +41,7 @@ DEPTH_MAX = 12
 MENTION = re.compile(r"([@#])\[([^\]\n]{1,200})\]\(([a-z]+):(\d{1,18})\)")
 FIELDS = (
     "record::id(id) AS id, space, title, summary, summary_by, date, place, place_by, place_suggestion, parent, position, "
-    "about, author, created_by, updated_by, created_at, updated_at"
+    "about, author, view, doc_stale, created_by, updated_by, created_at, updated_at"
 )
 
 
@@ -181,10 +183,26 @@ def _links(db, pid, sid, body):
         )
 
 
-def create(db, sid, account, title, body="", summary=None, date=None, place=None, parent=None, about_thing=None, author="person", doc=None):
+def create(
+    db,
+    sid,
+    account,
+    title,
+    body="",
+    summary=None,
+    date=None,
+    place=None,
+    parent=None,
+    about_thing=None,
+    author="person",
+    doc=None,
+    view=None,
+):
     """A new page; its id. ValueError for bad input, a page that already exists about that thing, or too many."""
     if author not in AUTHORS:
         raise ValueError("A page is written by a person or the assistant.")
+    if view is not None and view not in VIEWS:
+        raise ValueError("A page is seen as a page or on the edgeless canvas.")
     title, body, summary = _title(title), _body(body), _summary(summary)
     key = None
     if about_thing:
@@ -216,6 +234,7 @@ def create(db, sid, account, title, body="", summary=None, date=None, place=None
         "body": body,
         "text": plain(body),
         "doc": _doc(doc),
+        "view": view,
         "author": author,
         "refine_pending": True,
         "created_by": account,
@@ -239,8 +258,8 @@ def _doc(doc):
 UNSET = object()
 
 
-def update(db, pid, account, title=None, body=None, summary=UNSET, date=UNSET, place=UNSET, author="person", doc=UNSET):
-    """Change what's given. A new body without `doc` drops the editor's state; the summary records who wrote it."""
+def update(db, pid, account, title=None, body=None, summary=UNSET, date=UNSET, place=UNSET, author="person", doc=UNSET, view=UNSET):
+    """Change what's given. A new body without `doc` marks the editor's state stale; the summary records who wrote it."""
     p = get(db, pid)
     sets, args = ["updated_at = $t", "updated_by = $a"], {"t": store.now(), "a": account}
     if title is not None:
@@ -264,11 +283,18 @@ def update(db, pid, account, title=None, body=None, summary=UNSET, date=UNSET, p
         sets += ["body = $body", "text = $text"]
         args["body"] = _body(body)
         args["text"] = plain(args["body"])
-        if doc is UNSET:
-            doc = None
+        # a new body without the editor's state (the assistant's): the state is kept, for what Markdown can't hold
+        # (drawings on the edgeless canvas), and marked stale so the editor brings the text in line with the body
+        sets.append("doc_stale = $stale")
+        args["stale"] = doc is UNSET
     if doc is not UNSET:
         sets.append("doc = $doc")
         args["doc"] = _doc(doc)
+    if view is not UNSET:
+        if view not in VIEWS:
+            raise ValueError("A page is seen as a page or on the edgeless canvas.")
+        sets.append("view = $view")
+        args["view"] = view
     db.q(f"UPDATE $r SET {', '.join(sets)}", r=R("note_page", int(pid)), **args)
     if body is not None:
         _links(db, int(pid), p["space"], args["body"])

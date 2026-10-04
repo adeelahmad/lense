@@ -131,9 +131,12 @@ def test_pages_of_things(client, env, db, cfg):
     assert client.get("/api/v1/notes?ns=pods", headers=hv).json()["pages"] == []
     assert [x["id"] for x in client.get("/api/v1/notes?ns=pods&all=true", headers=hv).json()["pages"]] == [p["id"]]
     assert client.post(f"/api/v1/notes/{p['id']}/move", headers=he, json={}).status_code == 400
-    # a new body without the editor's state drops it
-    r = client.patch(f"/api/v1/notes/{p['id']}", headers=he, json={"body": "Changed by the assistant"})
-    assert r.json()["doc"] is None
+    # a new body without the editor's state keeps it (drawings live there) but marks it stale; the editor's save clears it
+    r = client.patch(f"/api/v1/notes/{p['id']}", headers=he, json={"body": "Changed by the assistant", "view": "edgeless"})
+    assert (r.json()["doc"], r.json()["doc_stale"], r.json()["view"]) == ("opaque-editor-state", True, "edgeless")
+    r = client.patch(f"/api/v1/notes/{p['id']}", headers=he, json={"body": "Changed by the assistant", "doc": "state-2"})
+    assert (r.json()["doc"], r.json()["doc_stale"]) == ("state-2", False)
+    assert client.patch(f"/api/v1/notes/{p['id']}", headers=he, json={"view": "canvas"}).status_code == 422
     # an entity's page; the entity merged away leaves its page as a free note
     e1, e2 = _entity(db, "Ada Lovelace", "PERSON")["id"], _entity(db, "A. Lovelace", "PERSON")["id"]
     ep = _new(client, he, title="Who", about=f"entity:{e2}")
