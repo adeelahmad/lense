@@ -80,6 +80,13 @@ def entity(eid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, format: str |
     return rdf_response(rdf.entity_graph(db, base, eid), fmt) if fmt else _see(f"{base}/entities/{eid}")
 
 
+@router.get("/id/topic/{tid}")
+def topic(tid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, format: str | None = FORMAT) -> Response:
+    _member_of(acl, (db.one("SELECT space FROM $r", r=R("topic", tid)) or {}).get("space"))
+    base, fmt = base_url(request, cfg), wanted(request, format)
+    return rdf_response(rdf.topic_graph(db, base, tid), fmt) if fmt else _see(f"{base}/topics/{tid}")
+
+
 @router.get("/id/speaker/{sid}")
 def speaker(sid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, format: str | None = FORMAT) -> Response:
     space = (db.one("SELECT space FROM $r", r=R("speaker", sid)) or {}).get("space")

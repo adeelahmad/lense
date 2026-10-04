@@ -4,12 +4,30 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Topics, apart from entities.** Each namespace has a controlled vocabulary of topics (SKOS): a label, other
+  labels, a definition, and broader, narrower and related topics. Recordings are about topics, said by a person or
+  brought over when a topic-like entity (type TERM) becomes a topic; the entity is hidden until the topic is deleted.
+  Editors create, edit, merge and delete topics through `/api/v1/topics`. Topics are in the graph (`Topic`, with
+  `ABOUT`, `NARROWER` and `RELATED`; TERM entities are now labelled `Term` there) and in RDF (`/id/topic/<id>`). See
+  docs/topics.md.
+
 - **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
   recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
   GQL) over the namespaces you can read; `/graph/related` gives a node's parents, children, ancestors, descendants or
   neighbours, `/graph/paths` the paths between two nodes, and `/graph/schema` what a query can ask about. Agents with
   a write-scope token and editor access ask for merges and links with `POST /api/v1/graph/changes`; they wait in
   Proposed changes unless asked to apply. See docs/graph.md.
+
+- **Explore the graph on a canvas.** Drag nodes, pan and zoom with a mouse or by touch (pinch, long-press), switch
+  between force, BFS tree, DFS tree and radial layouts in one click, and reset. Right-click a node (or long-press it)
+  for its parents, children, ancestors, descendants, neighbours and paths, or to route through it; what is found
+  joins the canvas. Recordings, collections and namespaces show on the canvas alongside speakers and entities.
+- **Ask the graph.** The bar under the canvas takes a question in plain words or Cypher. A language model writes the
+  Cypher for a question (`POST /api/v1/graph/ask`); the answer shows the query, to edit and run again, and lights up
+  what it found.
+- **The assistant and MCP clients can query the graph.** Chat's assistant has graph schema, query, related and paths
+  tools over the chat's namespaces; the MCP server has the same, read-only, and `propose_graph_change` for
+  write-scope tokens.
 
 - **Lock a namespace to your passkeys.** An owner turns a namespace into a vault (Admin › Namespaces › Vault): its
   files open only after one of its passkeys unlocks it, for an hour by default (`encryption.vault_minutes`), and its

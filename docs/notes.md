@@ -3,9 +3,9 @@
 Every resource, entity and topic in Lens has a page of its own, and next to them sit free notes that people and the
 assistant write. The assistant is the main writer and organiser; people can do everything it can.
 
-Status: **built**: pages over the API (free notes in a tree, a page per recording, entity, collection or speaker),
-@ and # links with backlinks. **In progress**: the tree in the left navigation, the page view and its editor, AI
-refinement of titles and summaries. **Planned**: assistant and MCP tools, a routine that files notes (PARA and the
+Status: **built**: pages (free notes in a tree, a page per recording, entity, collection or speaker), @ and # links
+with backlinks, the tree in the left navigation, the page view with the BlockSuite editor, and the model keeping
+titles and summaries up to date. **Planned**: assistant and MCP tools, a routine that files notes (PARA and the
 ontology), attachments on encrypted object storage, pages in the graph, # links to SKOS topics.
 
 ## A page
@@ -39,6 +39,15 @@ The body links with mention tokens, which the editor and the assistant both writ
 vocabulary of their own; see [the graph](graph.md)). `GET /api/v1/notes/targets?ns=&sign=&q=` offers what to link.
 Links are kept as rows (`note_link`), so every page lists its backlinks; links to things that are gone or that the
 reader can't see show without a name.
+
+## Titles and summaries
+
+With **Settings → Assistant → Keep note titles and summaries up to date** (`ai.refine_notes`, on by default), a note
+whose title or text changed is sent to the model once nobody has touched it for two minutes. The model rewrites the
+one-line summary to fit the whole note, and the title only when it is empty, "Untitled" or no longer fits. A note being
+typed is never sent on each keystroke, empty notes are never sent, and nothing is sent without a model configured. The
+API and `lens worker` processes run this pass with the routines. Model calls are measured by telemetry; their costs go
+to the activity ledger once it exists.
 
 ## Access
 

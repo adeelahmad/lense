@@ -661,6 +661,13 @@ export const FIELDS: FieldSpec[] = [
   { section: "ai", key: "disabled_tools", label: "Tools", kind: "checks" },
   {
     section: "ai",
+    key: "refine_notes",
+    label: "Keep note titles and summaries up to date",
+    kind: "switch",
+    hint: "A couple of minutes after a note changes, the model rewrites its one-line summary, and its title when that no longer fits.",
+  },
+  {
+    section: "ai",
     key: "max_steps",
     label: "Tool steps per answer",
     kind: "int",

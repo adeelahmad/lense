@@ -4401,6 +4401,26 @@ export type GraphQuery = {
 };
 
 /**
+ * GraphQuestion
+ */
+export type GraphQuestion = {
+  /**
+   * Question
+   *
+   * a question in plain language
+   */
+  question: string;
+  /**
+   * Scope
+   */
+  scope?: string;
+  /**
+   * Limit
+   */
+  limit?: number;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -9760,6 +9780,33 @@ export type RecordingSummary = {
 };
 
 /**
+ * RecordingTopic
+ */
+export type RecordingTopic = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Source
+   */
+  source?: string | null;
+  /**
+   * Weight
+   */
+  weight?: number | null;
+  /**
+   * Status
+   */
+  status?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * RecordingUpdate
  *
  * The fields to change; the others stay as they are.
@@ -13011,6 +13058,263 @@ export type ToolStep = {
    */
   summary?: string;
   [key: string]: unknown;
+};
+
+/**
+ * TopicAbout
+ */
+export type TopicAbout = {
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Source
+   *
+   * how it got there: person, entity or analysis
+   */
+  source?: string | null;
+  /**
+   * Weight
+   */
+  weight?: number | null;
+  /**
+   * Status
+   */
+  status?: "accepted" | "suggested" | null;
+  [key: string]: unknown;
+};
+
+/**
+ * TopicCreate
+ */
+export type TopicCreate = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Alt
+   */
+  alt?: Array<string>;
+  /**
+   * Definition
+   */
+  definition?: string | null;
+  /**
+   * Broader
+   */
+  broader?: Array<number>;
+  /**
+   * Related
+   */
+  related?: Array<number>;
+};
+
+/**
+ * TopicDetail
+ */
+export type TopicDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Alt
+   */
+  alt?: Array<string>;
+  /**
+   * Definition
+   */
+  definition?: string | null;
+  /**
+   * Broader
+   */
+  broader?: Array<TopicRef>;
+  /**
+   * Narrower
+   */
+  narrower?: Array<TopicRef>;
+  /**
+   * Related
+   */
+  related?: Array<TopicRef>;
+  /**
+   * Recordings
+   */
+  recordings?: number;
+  /**
+   * From Entity
+   */
+  from_entity?: number | null;
+  /**
+   * Updated
+   */
+  updated?: string | null;
+  /**
+   * About
+   */
+  about?: Array<TopicAbout>;
+  [key: string]: unknown;
+};
+
+/**
+ * TopicItem
+ */
+export type TopicItem = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Alt
+   *
+   * other labels it goes by (skos:altLabel)
+   */
+  alt?: Array<string>;
+  /**
+   * Definition
+   */
+  definition?: string | null;
+  /**
+   * Broader
+   */
+  broader?: Array<number>;
+  /**
+   * Related
+   */
+  related?: Array<number>;
+  /**
+   * Recordings
+   *
+   * recordings about it (accepted)
+   */
+  recordings?: number;
+  /**
+   * Narrower
+   *
+   * topics that have it as broader
+   */
+  narrower?: number;
+  /**
+   * From Entity
+   *
+   * the entity it was made from, hidden while the topic exists
+   */
+  from_entity?: number | null;
+  /**
+   * Updated
+   */
+  updated?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * TopicList
+ */
+export type TopicList = {
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<TopicItem>;
+  [key: string]: unknown;
+};
+
+/**
+ * TopicMerge
+ */
+export type TopicMerge = {
+  /**
+   * Keep
+   */
+  keep: number;
+  /**
+   * Others
+   */
+  others: Array<number>;
+};
+
+/**
+ * TopicRecordings
+ */
+export type TopicRecordings = {
+  /**
+   * Recordings
+   */
+  recordings: Array<number>;
+  /**
+   * Remove
+   *
+   * say they aren't about it
+   */
+  remove?: boolean;
+};
+
+/**
+ * TopicRef
+ */
+export type TopicRef = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Label
+   */
+  label: string;
+  [key: string]: unknown;
+};
+
+/**
+ * TopicUpdate
+ */
+export type TopicUpdate = {
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Alt
+   */
+  alt?: Array<string> | null;
+  /**
+   * Definition
+   *
+   * an empty string clears it
+   */
+  definition?: string | null;
+  /**
+   * Broader
+   */
+  broader?: Array<number> | null;
+  /**
+   * Related
+   */
+  related?: Array<number> | null;
 };
 
 /**
@@ -21010,6 +21314,293 @@ export type FindGraphPathResponses = {
 
 export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
 
+export type ListTopicsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Q
+     */
+    q?: string;
+    /**
+     * Ns
+     */
+    ns?: string;
+    /**
+     * Top
+     */
+    top?: boolean;
+    /**
+     * Broader
+     */
+    broader?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/topics";
+};
+
+export type ListTopicsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListTopicsError = ListTopicsErrors[keyof ListTopicsErrors];
+
+export type ListTopicsResponses = {
+  /**
+   * Successful Response
+   */
+  200: TopicList;
+};
+
+export type ListTopicsResponse = ListTopicsResponses[keyof ListTopicsResponses];
+
+export type DeleteTopicData = {
+  body?: never;
+  path: {
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/topics/{tid}";
+};
+
+export type DeleteTopicErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteTopicError = DeleteTopicErrors[keyof DeleteTopicErrors];
+
+export type DeleteTopicResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteTopicResponse = DeleteTopicResponses[keyof DeleteTopicResponses];
+
+export type GetTopicData = {
+  body?: never;
+  path: {
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/topics/{tid}";
+};
+
+export type GetTopicErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetTopicError = GetTopicErrors[keyof GetTopicErrors];
+
+export type GetTopicResponses = {
+  /**
+   * Successful Response
+   */
+  200: TopicDetail;
+};
+
+export type GetTopicResponse = GetTopicResponses[keyof GetTopicResponses];
+
+export type UpdateTopicData = {
+  body: TopicUpdate;
+  path: {
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/topics/{tid}";
+};
+
+export type UpdateTopicErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateTopicError = UpdateTopicErrors[keyof UpdateTopicErrors];
+
+export type UpdateTopicResponses = {
+  /**
+   * Successful Response
+   */
+  200: TopicDetail;
+};
+
+export type UpdateTopicResponse = UpdateTopicResponses[keyof UpdateTopicResponses];
+
+export type CreateTopicData = {
+  body: TopicCreate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/topics";
+};
+
+export type CreateTopicErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateTopicError = CreateTopicErrors[keyof CreateTopicErrors];
+
+export type CreateTopicResponses = {
+  /**
+   * Successful Response
+   */
+  201: TopicDetail;
+};
+
+export type CreateTopicResponse = CreateTopicResponses[keyof CreateTopicResponses];
+
+export type MergeTopicsData = {
+  body: TopicMerge;
+  path?: never;
+  query?: never;
+  url: "/api/v1/topics/merge";
+};
+
+export type MergeTopicsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MergeTopicsError = MergeTopicsErrors[keyof MergeTopicsErrors];
+
+export type MergeTopicsResponses = {
+  /**
+   * Successful Response
+   */
+  200: TopicDetail;
+};
+
+export type MergeTopicsResponse = MergeTopicsResponses[keyof MergeTopicsResponses];
+
+export type TagRecordingsData = {
+  body: TopicRecordings;
+  path: {
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/topics/{tid}/recordings";
+};
+
+export type TagRecordingsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TagRecordingsError = TagRecordingsErrors[keyof TagRecordingsErrors];
+
+export type TagRecordingsResponses = {
+  /**
+   * Successful Response
+   */
+  200: TopicDetail;
+};
+
+export type TagRecordingsResponse = TagRecordingsResponses[keyof TagRecordingsResponses];
+
+export type RecordingTopicsData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/topics";
+};
+
+export type RecordingTopicsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RecordingTopicsError = RecordingTopicsErrors[keyof RecordingTopicsErrors];
+
+export type RecordingTopicsResponses = {
+  /**
+   * Response Topics-Recording Topics
+   *
+   * Successful Response
+   */
+  200: Array<RecordingTopic>;
+};
+
+export type RecordingTopicsResponse = RecordingTopicsResponses[keyof RecordingTopicsResponses];
+
+export type EntityToTopicData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/entities/{eid}/topic";
+};
+
+export type EntityToTopicErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type EntityToTopicError = EntityToTopicErrors[keyof EntityToTopicErrors];
+
+export type EntityToTopicResponses = {
+  /**
+   * Successful Response
+   */
+  201: TopicDetail;
+};
+
+export type EntityToTopicResponse = EntityToTopicResponses[keyof EntityToTopicResponses];
+
 export type GraphSchemaData = {
   body?: never;
   path?: never;
@@ -21198,6 +21789,35 @@ export type GraphQueryResponses = {
 };
 
 export type GraphQueryResponse = GraphQueryResponses[keyof GraphQueryResponses];
+
+export type AskGraphData = {
+  body: GraphQuestion;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/ask";
+};
+
+export type AskGraphErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AskGraphError = AskGraphErrors[keyof AskGraphErrors];
+
+export type AskGraphResponses = {
+  /**
+   * Response Graph-Ask Graph
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type AskGraphResponse = AskGraphResponses[keyof AskGraphResponses];
 
 export type ProposeGraphChangeData = {
   body: ChangeAsk;

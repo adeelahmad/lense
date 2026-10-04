@@ -26,6 +26,7 @@ R = store.R
 OWN = (
     "mentions",
     "term",
+    "topic_about",
     "section",
     "appearance",
     "segment",
