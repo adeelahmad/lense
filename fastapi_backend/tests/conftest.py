@@ -18,6 +18,9 @@ from app.domain import auth, store  # noqa: E402
 # (each test gets its own database there).
 TEST_URL = os.environ.get("LENS_TEST_SURREAL_URL", "mem://")
 
+# a cheap password hash: production's costs 32 MB and up to seconds on a busy CI runner, and nearly every test signs in
+auth.SCRYPT_N = 2**10
+
 
 def make_cfg(folder: pathlib.Path, url: str = TEST_URL, **overrides):
     base = {

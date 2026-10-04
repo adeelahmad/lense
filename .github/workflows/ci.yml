@@ -81,10 +81,11 @@ jobs:
           diff -u ../nextjs-frontend/openapi.json /tmp/openapi.json
 
       - name: Tests
-        timeout-minutes: 30
+        # the suite took 28 min on the self-hosted runner at 544 tests (3 min on a laptop); it keeps growing
+        timeout-minutes: 60
         run: |
           set -o pipefail
-          uv run pytest -n auto -p no:cacheprovider --cov=app --cov-report=xml:coverage.xml --cov-report=term | tee pytest.txt
+          uv run pytest -n auto -p no:cacheprovider --durations=20 --cov=app --cov-report=xml:coverage.xml --cov-report=term | tee pytest.txt
           { echo "### Backend coverage"; echo '```'; grep -E '^(Name|TOTAL)' pytest.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
@@ -108,7 +109,8 @@ jobs:
       - name: Start SurrealDB
         run: |
           # surrealkv, not memory: the memory engine loses concurrent writes (SurrealDB 3.2.4)
-          docker run -d --name "$SURREAL_CONTAINER" -p 127.0.0.1::8000 surrealdb/surrealdb:v3.2.4 start --user root --pass root surrealkv:/tmp/lens.db
+          # on a tmpfs: the data is thrown away, and syncing every write to the runner's disk made each test's schema take seconds
+          docker run -d --name "$SURREAL_CONTAINER" --tmpfs /data:mode=1777 -p 127.0.0.1::8000 surrealdb/surrealdb:v3.2.4 start --user root --pass root surrealkv:/data/lens.db
           port=$(docker port "$SURREAL_CONTAINER" 8000/tcp | head -n1 | sed 's/.*://')
           echo "LENS_TEST_SURREAL_URL=ws://127.0.0.1:$port" >> "$GITHUB_ENV"
           for _ in $(seq 1 30); do curl -sf "http://127.0.0.1:$port/health" && break; sleep 1; done
@@ -152,8 +154,9 @@ jobs:
           python-version: "3.12"
       - run: uv sync --frozen
       - name: Tests against the server
-        timeout-minutes: 30
-        run: uv run pytest -n 4
+        # slower than the embedded run: 30 min covered two thirds of it on the self-hosted runner
+        timeout-minutes: 75
+        run: uv run pytest -n 4 --durations=20
       - name: Remove SurrealDB
         if: always()
         run: docker rm -f "$SURREAL_CONTAINER" || true

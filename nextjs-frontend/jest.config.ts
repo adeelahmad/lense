@@ -11,6 +11,7 @@ const config: Config = {
   testEnvironment: "jsdom",
   // the longer UI tests take over 5 s on a busy self-hosted runner
   testTimeout: 20000,
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
