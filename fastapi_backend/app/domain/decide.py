@@ -20,7 +20,7 @@ import threading
 import urllib.error
 import urllib.request
 
-from . import llm, machine
+from . import activity, llm, machine
 
 log = logging.getLogger(__name__)
 # Jev reads up to about 32k tokens; a state is cut well below that
@@ -74,7 +74,11 @@ def _system_one(base_url, body, api_key=None, timeout=10):
 def _jev(cfg, questions, state):
     d = cfg.get("decisions") or {}
     body = {"state": _state(state), "model": d.get("model") or "jev-latest", "questions": questions}
-    return _system_one(d.get("base_url") or "https://api.typesafe.ai/v1", body, d.get("api_key"), d.get("timeout") or 10)
+    with activity.call("decision", cfg, body["model"], detail={"questions": len(questions)}) as ledger:
+        answers = _system_one(d.get("base_url") or "https://api.typesafe.ai/v1", body, d.get("api_key"), d.get("timeout") or 10)
+        if d.get("price_per_call") is not None:
+            ledger.usage(cost_usd=float(d["price_per_call"]))
+        return answers
 
 
 # ---------- Laya on MLX ----------

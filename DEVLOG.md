@@ -2,6 +2,45 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-04 · Activity history and budgets
+
+Goal (Adeel): every change and every call coming in or going out is tracked, with its cost, down to the resource, so
+each resource has an activity history. Pipelines, workflows and routines can be capped at a budget, and before a run
+(or something larger) the assistant looks at where the budget stands and whether the run should go ahead.
+
+Model:
+
+- One ledger, `activity`: a row per call in (API requests that change something), call out (model, embeddings,
+  decision model, webhooks, web tools) and run (a job, a routine run). Each row names every resource it touched
+  (`routine:3`, `routine_run:12`, `job:40`, `recording:7`, `pipeline:2`, `workflow:4`, `chat:9`, `space:1`,
+  `account:1`), with tokens, estimated cost (the prices in Settings), duration and outcome; never prompt or reply text.
+  Who a call is for comes from the work it runs in (a scope), so a model call inside a job counts for the job, its
+  recording, pipeline, namespace and the routine that queued it.
+- A resource's history is its ledger rows plus its audit log entries. On by default, nothing to set up; kept
+  `activity.keep_days` (365). Reads (GET) aren't logged unless `activity.reads` is on.
+- Budgets are off unless set: a budget on a routine, pipeline, workflow or namespace caps cost (USD) and/or tokens per
+  run, day, week or month. Before a routine run or a job, Lens estimates the run from past runs and checks what is
+  left. Over budget, it asks you (the default: the run waits for your pick), skips, or lets the assistant weigh it (the
+  decision model; unsure means ask). Doing nothing changes nothing: a waiting run stays waiting.
+
+Todo:
+
+- [x] Activity ledger: scopes, model/embedding/decision/webhook/web-tool calls, changing API requests, job and routine
+      run totals, per-resource history and cost summary API, retention sweep
+- [ ] Activity in the web app: a history panel on routines, pipelines, workflows and recordings; Settings → Activity
+      and costs with totals by resource
+- [ ] Cost in every view (Adeel): every resource, entity and view shows what it cost and its budget; a figure that
+      isn't exact (no price for a model, tokens the server didn't report, a run's forecast) is marked as an estimate
+      (`≈`, with why on hover). The API says `exact` / `estimate` per figure
+- [x] Budgets: set per routine, pipeline, workflow or namespace; spent and estimate; checked before routine runs and
+      jobs; over budget waits for your pick (run once, skip), or the assistant decides
+- [ ] Budgets in the web app: set a budget, see where it stands, approve or skip a waiting run
+- [x] Periodic check: warn at 80% and 100% of a budget, once per period (on the budget and in its history)
+- [x] Local model costs (Adeel): price per model by tokens, by time (per hour) or off; off by default
+- [ ] Budget warnings through notifications, and the assistant answering where budgets stand
+
+Refine later: compute time as a cost (CPU seconds × a rate for local models), per-person budgets, forecasting from
+schedules (a routine's next runs this period), budget alerts in the weekly digest.
 ## 2026-10-04 · Local decision models: Laya on MLX
 
 Goal (Adeel): routine decisions can run on the machine itself with the Laya typed decision models on MLX

@@ -8,7 +8,7 @@ import pathlib
 import shutil
 import sys
 
-from .domain import analyze, components, decide, graph, ingest, render, store
+from .domain import activity, analyze, components, decide, graph, ingest, render, store
 from .domain import search as searchmod
 from .domain import speakers as spk
 
@@ -284,6 +284,7 @@ def platform_main(argv, config):
             raise SystemExit(str(e)) from None
         return
     db = store.connect(cfg)
+    activity.bind(db)  # calls made here reach the activity ledger (docs/activity.md)
     C = settings.Settings(db, cfg).current
 
     def password():

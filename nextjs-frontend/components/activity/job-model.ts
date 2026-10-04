@@ -11,7 +11,7 @@ import { STEP_LABEL } from "@/components/ui/loop";
 /** A run as the API sends it. */
 export type JobRecord = Job;
 
-export const ACTIVE = ["queued", "running", "paused"];
+export const ACTIVE = ["queued", "running", "paused", "held"];
 export const isActive = (status: string | null | undefined) => ACTIVE.includes(status ?? "");
 export const canRetry = (status: string | null | undefined) => status === "failed" || status === "cancelled";
 
@@ -146,6 +146,8 @@ export function jobPhase(job: JobRecord, opts: { waitingFor?: string | null; now
       return i > 0 ? `${label} · waiting for a worker` : `Queued · ${label} first`;
     case "paused":
       return `Paused with its batch · ${label} next`;
+    case "held":
+      return `Waiting for you: over budget · ${label} first`;
     case "failed": {
       const e = plainError(job.error);
       return `${label} failed${e ? `: ${e}` : ""}`;

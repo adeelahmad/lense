@@ -14,15 +14,15 @@ import socket
 import threading
 import time
 
-from . import analyze, ingest, keyring, pipelines, render, speakers as spk, store, telemetry
+from . import activity, analyze, ingest, keyring, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
 PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
 AFTER_IMPORT = ["analyze", "embed", "summarize", "report"]
-ACTIVE = ["queued", "running"]
+ACTIVE = ["queued", "running", "held"]  # held: over budget, waiting for someone to pick (budgets.py)
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
-    "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total"
+    "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total, cost_usd, tokens, cost_estimate, hold"
 )
 MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe"}  # they take longer the longer the recording
 FILED = ("audio", "document", "image")  # sources with a file of their own for the steps to work on
@@ -116,7 +116,8 @@ def _export(db, cfg, rid, say, spec=None):
 def _workflow(db, cfg, rid, say, spec=None):
     from . import workflows
 
-    done = workflows.run(db, cfg, rid, int(spec["workflow"]), spec.get("version"), say)
+    with activity.scope(db, f"workflow:{int(spec['workflow'])}"):
+        done = workflows.run(db, cfg, rid, int(spec["workflow"]), spec.get("version"), say)
     ran = sum(1 for v in done.values() if v == "done") - 1  # not counting the input
     say(f"workflow ran {ran} of {len(done) - 1} nodes")
 
@@ -421,7 +422,97 @@ def eta(job, est, now=None):
     return round(left + sum(est[i + 1 :]), 1)
 
 
+FINAL = ("succeeded", "failed", "cancelled")
+
+
+def job_refs(job):
+    """The resources a job's calls count for: it, its recording, namespace and pipeline, and the routine that queued it."""
+    pipe = job.get("pipeline") if isinstance(job.get("pipeline"), dict) else {}
+    by = job.get("created_by")
+    return [
+        f"job:{job['id']}",
+        f"recording:{job['recording']}",
+        f"space:{job['space']}" if job.get("space") is not None else None,
+        f"pipeline:{pipe['id']}" if pipe.get("id") is not None else None,
+        by if isinstance(by, str) and by.startswith("routine:") else None,
+    ]
+
+
 def run_job(db, cfg_fn, job, worker, can, log=None):
+    """Run a job's steps from where it is, with its calls counted for it (activity.py); when it ends, a run row with
+    what it cost in all, kept on the job too (cost_usd, tokens)."""
+    refs = job_refs(job)
+    if not job.get("budget_ok") and (held := _budget(db, cfg_fn, job, refs)):
+        return held
+    with activity.scope(db, *refs):
+        outcome = _run_job(db, cfg_fn, job, worker, can, log)
+    if outcome in FINAL:
+        usd, tokens, rough = activity.run_total(db, refs[0])
+        try:
+            db.q("UPDATE $j SET cost_usd = $u, tokens = $n, cost_estimate = $e", j=R("job", job["id"]), u=usd, n=tokens, e=rough or None)
+        except Exception:  # noqa: BLE001 - the ledger never breaks the work
+            pass
+        activity.record(
+            "run",
+            f"job.{outcome}",
+            refs,
+            cfg_fn(),
+            db,
+            cost_usd=usd,
+            tokens_in=tokens,
+            ok=outcome != "failed",
+            detail={"estimate": rough} if rough else None,
+        )
+    return outcome
+
+
+def _budget(db, cfg_fn, job, refs):
+    """Before a job's first step: its budgets (budgets.py). Over one, the job is held for someone to pick ("held"), or
+    skipped ("cancelled", saying why); else None, and it isn't checked again for this job."""
+    from . import budgets
+
+    jr, t = R("job", job["id"]), store.now()
+    try:
+        verdict = budgets.check(db, cfg_fn(), refs)
+    except Exception as e:  # noqa: BLE001 - a budget that can't be read doesn't stop the work
+        verdict = {"go": True}
+        db.q("UPDATE $j SET budget_note = $n", j=jr, n=f"budget check failed: {type(e).__name__}: {e}"[:300])
+    if verdict["go"]:
+        db.q("UPDATE $j SET budget_ok = true", j=jr)
+        return None
+    hold = {"why": verdict["why"], "resource": verdict["resource"], "action": verdict["action"], "at": t}
+    if verdict["action"] == "skip":
+        db.q(
+            "UPDATE $j SET status = 'cancelled', worker = NONE, hold = $h, error = $e, finished_at = $t, updated_at = $t",
+            j=jr,
+            h=hold,
+            e="skipped, over budget: " + verdict["why"],
+            t=t,
+        )
+        activity.record("run", "job.skipped", refs, cfg_fn(), db, ok=False, error="OverBudget", detail={"budget": verdict["resource"]})
+        return "cancelled"
+    db.q("UPDATE $j SET status = 'held', worker = NONE, hold = $h, updated_at = $t", j=jr, h=hold, t=t)
+    activity.record("run", "job.held", refs, cfg_fn(), db, detail={"budget": verdict["resource"]})
+    return "held"
+
+
+def release(db, jid, run=True, by=None):
+    """Someone's pick for a job held over budget: run it (once, whatever its budgets say) or skip it."""
+    j = get(db, jid)
+    if not j:
+        raise KeyError(jid)
+    if j["status"] != "held":
+        raise ValueError(f"the job isn't waiting on a budget (it's {j['status']})")
+    t = store.now()
+    picked = {"run": run, "by": by, "at": t}
+    if run:
+        sets = "status = 'queued', budget_ok = true"
+    else:
+        sets = "status = 'cancelled', error = 'skipped, over budget', finished_at = $t"
+    db.q(f"UPDATE $j SET {sets}, hold.decided = $d, updated_at = $t WHERE status = 'held'", j=R("job", jid), d=picked, t=t)
+
+
+def _run_job(db, cfg_fn, job, worker, can, log=None):
     jid, rid, jr, wr = job["id"], job["recording"], R("job", job["id"]), R("worker", worker)
     steps, i = job["steps"], job.get("step_index") or 0
     out = RunLog(db, jid, job.get("space"), job.get("log"), job.get("log_total"))
@@ -573,7 +664,7 @@ def cancel(db, jid):
     if not j:
         raise KeyError(jid)
     t = store.now()
-    if j["status"] == "queued":
+    if j["status"] in ("queued", "held"):
         db.q("UPDATE $j SET status = 'cancelled', finished_at = $t, updated_at = $t", j=R("job", jid), t=t)
     elif j["status"] == "running":
         db.q("UPDATE $j SET cancel_requested = true, updated_at = $t", j=R("job", jid), t=t)

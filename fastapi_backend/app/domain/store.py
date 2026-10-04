@@ -305,6 +305,7 @@ DEFAULTS = {
         "api_key": None,
         "act_above": 0.8,
         "timeout": 10,
+        "price_per_call": None,  # USD per decision, for the activity ledger's cost (none: not counted)
         "laya_model": "aac6fef/laya-mlx",
         "laya_url": None,
     },
@@ -378,6 +379,9 @@ DEFAULTS = {
     # encryption at rest (docs/encryption.md): files Lens keeps under data_dir, encrypted with their namespace's key;
     # work_minutes: how long a plain working copy for ffmpeg and the other tools is kept after its last use
     "encryption": {"files": False, "work_minutes": 30, "vault_minutes": 60},
+    # the activity ledger (docs/activity.md): every change and call in or out, with its cost, per resource. On by
+    # default; reads: log API reads (GET) too; keep_days: how long rows are kept
+    "activity": {"enabled": True, "reads": False, "keep_days": 365},
     "telemetry": {
         "enabled": False,
         "endpoint": None,
@@ -808,6 +812,13 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS share_embed_share ON share_embed FIELDS share",
     "DEFINE TABLE IF NOT EXISTS audit_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS audit_at ON audit_log FIELDS at",
+    "DEFINE INDEX IF NOT EXISTS audit_target ON audit_log FIELDS target",
+    # what happened to each resource and what it cost (domain/activity.py): a row per call in, call out and run
+    "DEFINE TABLE IF NOT EXISTS activity SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS activity_at ON activity FIELDS at",
+    "DEFINE INDEX IF NOT EXISTS activity_resources ON activity FIELDS resources",
+    # caps on what a routine, pipeline, workflow or namespace may cost (domain/budgets.py): budget:<table>_<id>
+    "DEFINE TABLE IF NOT EXISTS budget SCHEMALESS",
     # background work
     "DEFINE TABLE IF NOT EXISTS job SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_status ON job FIELDS status",

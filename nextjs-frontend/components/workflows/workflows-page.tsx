@@ -3,6 +3,7 @@
 import { Workflow } from "lucide-react";
 import Link from "next/link";
 
+import { CostCell, useBudgets, useCosts } from "@/components/costs/costs";
 import { CatalogHeader, useWorkflowCatalog } from "@/components/pipelines/catalog-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,8 @@ import { relative } from "@/lib/format";
 export function WorkflowsPage() {
   const catalog = useWorkflowCatalog();
   const list = catalog.data?.workflows ?? [];
+  const costs = useCosts(list.map((w) => `workflow:${w.id}`));
+  const budgets = useBudgets();
   return (
     <div className="flex flex-col gap-4 px-4 pb-10 pt-[18px] md:px-6">
       <CatalogHeader tab="workflows" />
@@ -36,6 +39,7 @@ export function WorkflowsPage() {
                 <Th>Name</Th>
                 <Th>Version</Th>
                 <Th>Run by</Th>
+                <Th className="text-right">This month</Th>
                 <Th>Updated</Th>
               </tr>
             </THead>
@@ -61,6 +65,9 @@ export function WorkflowsPage() {
                   </Td>
                   <Td className="text-fg-secondary">
                     {w.scope === "graph" ? "Routines" : w.pipelines?.length ? w.pipelines.join(", ") : "—"}
+                  </Td>
+                  <Td className="whitespace-nowrap text-right text-[13px] text-fg-secondary">
+                    <CostCell resource={`workflow:${w.id}`} costs={costs.data?.costs} budgets={budgets} />
                   </Td>
                   <Td className="tabular whitespace-nowrap text-fg-muted">{relative(w.updated_at)}</Td>
                 </Tr>

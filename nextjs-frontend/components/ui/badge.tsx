@@ -77,6 +77,7 @@ const STATUS_TONE: Record<string, Tone> = {
   failed: "red",
   cancelled: "neutral",
   review: "gate",
+  held: "gate",
 };
 
 export function statusTone(status: string | null | undefined): Tone {
