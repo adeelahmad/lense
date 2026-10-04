@@ -2502,7 +2502,8 @@ export class Activity {
    * Resource History
    *
    * A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the
-   * decision model, webhooks, web tools) with tokens and cost, runs that ended, and its audit log entries.
+   * decision model, webhooks, web tools) with tokens and cost, runs that ended, its audit log entries, and its graph
+   * changes (an entity's, a namespace's, or what analysing a recording changed; docs/graph-history.md).
    */
   public static resourceHistory<ThrowOnError extends boolean = false>(
     options: Options<ResourceHistoryData, ThrowOnError>,

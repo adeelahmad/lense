@@ -14,7 +14,7 @@ class ActivityEntry(ResponseModel):
     at: str
     kind: Literal["in", "out", "run", "change"] = Field(
         description="in: an API request; out: a call Lens made (a model, embeddings, the decision model, a webhook, a "
-        "web tool); run: a job or routine run ended; change: an audit log entry"
+        "web tool); run: a job or routine run ended; change: an audit log entry, or a change to the entity graph (action `graph.<op>`)"
     )
     action: str = Field(description="what it was: `POST /api/v1/routines/{rid}/run`, `model.chat`, `job.succeeded`, `routine.update`")
     resources: list[str] = Field(default_factory=list, description="every resource it counts for, as table:id")

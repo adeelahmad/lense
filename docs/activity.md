@@ -48,7 +48,9 @@ A run row (a job or a routine run ending) repeats what its calls cost in all, an
 
 ## Reading it
 
-A resource's history merges its ledger rows with its audit log entries (kind `change`), newest first:
+A resource's history merges its ledger rows with its audit log entries and its changes to the entity graph (both kind
+`change`; a graph change's action is `graph.<op>`, with its version, how it was made and why in `detail`; see
+graph-history.md), newest first:
 
 ```http
 GET /api/v1/activity?resource=routine:3&limit=100

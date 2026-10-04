@@ -34,6 +34,12 @@ def _may_see(db: Db, user: CurrentUser, acl: Acl, resource: str) -> None:
         if table == "space":
             acl.need(int(key))
             return
+        if table == "entity":
+            e = db.one("SELECT space FROM $r", r=activity.R("entity", int(key)))
+            if not e:
+                raise HTTPException(404, "not found")
+            acl.need(e["space"])
+            return
         if table == "chat" and db.one("SELECT id FROM $r WHERE account = $a", r=activity.R("chat", int(key)), a=user.id):
             return
     raise HTTPException(403, "only admins see this resource's activity")
@@ -50,7 +56,8 @@ def resource_history(
     limit: int = Query(100, ge=1, le=1000),
 ) -> list[ActivityEntry]:
     """A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the
-    decision model, webhooks, web tools) with tokens and cost, runs that ended, and its audit log entries."""
+    decision model, webhooks, web tools) with tokens and cost, runs that ended, its audit log entries, and its graph
+    changes (an entity's, a namespace's, or what analysing a recording changed; docs/graph-history.md)."""
     _may_see(db, user, acl, resource)
     return activity.history(db, resource, limit, before, kind)
 

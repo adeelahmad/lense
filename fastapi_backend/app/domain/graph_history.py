@@ -272,6 +272,38 @@ def versions(db, spaces=None, entity=None, before=None, limit=50):
     return rows
 
 
+def activity(db, resource, before=None, limit=100):
+    """The graph changes in a resource's activity history (activity.history), newest first: an entity's
+    (`entity:<id>`), a namespace's other than what analysis found (`space:<id>`), and what analysing a recording
+    changed (`recording:<id>`). None for other resources."""
+    table, _, key = str(resource).partition(":")
+    if not key.isdigit():
+        return []
+    where, args = (
+        {"entity": "$k INSIDE entities", "space": "$k INSIDE spaces AND op != 'analysis'", "recording": "origin.recording = $k"}.get(table),
+        {"k": int(key), "n": int(limit)},
+    )
+    if where is None:
+        return []
+    if before:
+        where += " AND at < $b"
+        args["b"] = str(before)
+    rows = db.rows(f"SELECT {SUMMARY} FROM graph_event WHERE {where} ORDER BY version DESC LIMIT $n", **args)
+    return [
+        {
+            "id": None,
+            "at": r["at"],
+            "kind": "change",
+            "action": f"graph.{r['op']}",
+            "resources": [resource],
+            "email": r.get("actor"),
+            "ok": True,
+            "detail": store.clean({"version": r["version"], "via": r.get("via"), "why": r.get("why"), "changes": r.get("changes")}),
+        }
+        for r in rows
+    ]
+
+
 def event(db, version, spaces=None):
     ev = db.one("SELECT *, record::id(id) AS version FROM $r", r=R("graph_event", int(version)))
     if not ev or not _visible(ev, spaces):

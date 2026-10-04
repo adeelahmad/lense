@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Graph changes in activity history.** An entity's, a namespace's and a recording's activity history now list
+  the graph changes that touched them, with who, how and why, and the version to find in Routines › History.
 - **The entity graph keeps its history.** Every change to entities, their other names, links across namespaces and
   "not the same" pairs is recorded as a numbered version: what changed, who (a person, a routine, the assistant,
   analysis), through what (the web app, a token, an app, MCP) and why. `GET /api/v1/graph/history` lists versions

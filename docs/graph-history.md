@@ -107,6 +107,10 @@ version or a version's name: entities and their cross-namespace links are as the
 speakers are today's, so an entity merged away since shows only if it is still mentioned. The explorer's graph is
 cached per graph version, so any recorded change shows at once.
 
+Graph changes also show in each resource's activity history (docs/activity.md, `GET /api/v1/activity`): an entity's
+changes under `entity:<id>` (anyone who can read its namespace), a namespace's curation under `space:<id>` (what
+analysis found is left out there), and what analysing a recording changed under `recording:<id>`.
+
 ## Refine later
 
 - Speakers (same-person links, names) in the history.
