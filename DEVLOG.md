@@ -50,7 +50,7 @@ Todo:
       ancestors, descendants, neighbours and paths
 - [x] Questions in plain language: the question becomes Cypher (shown, editable), the answer lights up on the canvas
 - [x] Assistant and MCP tools: graph schema, query, related, paths; proposing changes behind an approval
-- [ ] Topics as a controlled vocabulary (SKOS), apart from entities (authority records); asked Adeel when
+- [ ] Topics as a controlled vocabulary (SKOS), apart from entities (authority records); next, after the graph PRs (Adeel)
 
 ## 2026-10-03 · Assistant extensions: tools, skills, hooks, plugins
 
