@@ -100,7 +100,11 @@ function SaveViewDialog({
               setName(e.target.value);
               setError(null);
             }}
-            onKeyDown={(e) => e.key === "Enter" && go()}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              go();
+            }}
           />
         )}
       </Field>
@@ -161,11 +165,26 @@ function ViewRow({
     },
     onError: fail("Couldn’t change the view"),
   });
+  // your own view is deleted at once, with Undo (it's put back as it was); someone else's is confirmed first
+  const restore = useMutation({
+    mutationFn: () =>
+      data(
+        Views.createView({
+          client,
+          body: { name: v.name, namespace: v.namespace ?? null, shared: Boolean(v.shared), state: v.state },
+        }),
+      ),
+    onSuccess: done,
+    onError: fail("Couldn’t put the view back"),
+  });
   const remove = useMutation({
     mutationFn: () => data(Views.deleteView({ client, path: { vid: v.id } })),
     onSuccess: () => {
       done();
-      toast({ title: `“${v.name}” deleted` });
+      toast({
+        title: `“${v.name}” deleted`,
+        ...(v.mine ? { action: { label: "Undo", onClick: () => restore.mutate() } } : {}),
+      });
     },
     onError: fail("Couldn’t delete the view"),
   });
@@ -244,9 +263,9 @@ function ViewRow({
             variant="danger-ghost"
             disabled={!v.can_delete}
             disabledReason={`Only ${v.created_by ?? "its maker"} or an owner of ${v.namespace} can delete it`}
-            onClick={() => setConfirm(true)}
+            onClick={() => (v.mine ? remove.mutate() : setConfirm(true))}
           >
-            Delete…
+            {v.mine ? "Delete" : "Delete…"}
           </Button>
         </div>
       )}

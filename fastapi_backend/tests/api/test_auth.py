@@ -8,7 +8,7 @@ from tests.helpers import login, make_user
 
 def test_first_run_setup(app, client):
     r = client.get("/api/v1/auth/status")
-    assert r.json() == {"setup_required": True, "wizard_pending": True}
+    assert r.json() == {"setup_required": True, "wizard_pending": True, "passwords": True}
     assert client.get("/api/v1/auth/me").status_code == 401
     bad = {"code": "nope", "email": "ada@x.io", "password": "admin password 1"}
     assert client.post("/api/v1/auth/setup", json=bad).status_code == 403
@@ -20,7 +20,7 @@ def test_first_run_setup(app, client):
     me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {pair['access_token']}"}).json()
     assert me["user"]["email"] == "ada@x.io" and me["via"] == "access" and set(me["roles"]) == {"pods", "calls"}
     assert client.post("/api/v1/auth/setup", json={"code": code, "email": "b@x.io", "password": "another password"}).status_code == 403
-    assert client.get("/api/v1/auth/status").json() == {"setup_required": False, "wizard_pending": True}
+    assert client.get("/api/v1/auth/status").json() == {"setup_required": False, "wizard_pending": True, "passwords": True}
 
 
 def test_login_refresh_logout(client, db):

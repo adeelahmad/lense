@@ -43,6 +43,11 @@ SELECT ->mentions->entity.name FROM segment WHERE recording = 12;
 Full-text indexes use 3.x's `FULLTEXT` syntax and fall back to 2.x's `SEARCH`, with a `snowball(english)` analyser
 unless `search.stemming: none` (then run `lens reindex`).
 
+Passages for search by meaning (`passage`) carry their vector in `embedding`, under an HNSW index (`passage_vec`,
+cosine; servers only) defined when the first vector is stored, since its `DIMENSION` is the model's; `embedding_state:current` says
+which model and dimension that is. A server searches it with `embedding <|k,ef|> $vec AND …filters`, which 3.2.4
+applies inside the index scan (a filtered search still returns k rows).
+
 When a change needs data rewritten (not just a new index), add an idempotent step to `store.connect()` guarded by a
 version stored in the `seq` table, so it runs once per database.
 
@@ -66,6 +71,11 @@ single statements and for `run()` transactions (which roll back as a whole, so r
 * **The embedded full-text index loses postings on reopen** (the `SEARCH` index of the 2.x embedded engine): after a
   restart, searches silently missed most segments. `DB.ready_fulltext()` rebuilds it once per process before the
   first full-text query; `tests/domain/test_search_index.py` covers it. Servers (3.x `FULLTEXT`) are unaffected.
+* **The embedded engine's vector index drops filtered rows**: with a KNN operator plus a parenthesised or OR
+  filter, or sometimes just two filters, 2.x returned nothing. On the embedded engine, search by meaning compares the
+  query with every passage that passes the filter (`vector::similarity::cosine`) instead, which is exact and takes
+  about a second per 5k passages searched; servers use the index. The embedded engine gets no HNSW index at all,
+  since inserting into one there is slow (minutes for 20k passages) and nothing would read it.
 * **`NONE` drops fields.** Settings saved in the app are stored as JSON text, so "cleared" survives.
 * **`count()` with an `OR … = NONE` filter (embedded 2.x)** counts rows twice (`status IN $s OR status = NONE` gave
   10 for 4 rows), although the rows themselves come back right. Totals count the selected ids instead:

@@ -6,10 +6,11 @@ import logging
 import os
 import secrets
 import threading
+import urllib.parse
 from typing import Any
 
 from app.config import settings as env
-from app.domain import auth, content_types, jobs, notify, routines, settings, setup, store, templates
+from app.domain import auth, bridge, components, content_types, jobs, notify, routines, sensors, settings, setup, store, templates, tunnel
 
 log = logging.getLogger("lens")
 
@@ -19,6 +20,7 @@ class Archive:
 
     def __init__(self, cfg: dict[str, Any] | None = None, db: store.DB | None = None):
         self.base = cfg or store.load_config(env.ARCHIVE_CONFIG)
+        components.activate(self.base)  # packages and models fetched into the data folder
         self.db = db or store.connect(self.base)
         self.owns_db = db is None
         self.settings = settings.Settings(self.db, self.base)
@@ -35,20 +37,31 @@ class Archive:
         # Pay for the embedded engine's full-text repair at startup rather than in someone's first search.
         self.db.ready_fulltext()
         if auth.account_count(self.db) == 0:
-            setup.mark_fresh(self.db)  # a fresh install: the web app walks the first admin through setup
+            setup.mark_fresh(self.db, self.base)  # a fresh install: the web app walks the first admin through setup
         setup.apply_env(self.db)
+        if settings.keep_passwords(self.db, self.base):
+            log.info("People here sign in with passwords, so passwords stay on; an admin can turn them off in Settings > Sign-in")
         if auth.account_count(self.db) == 0:
             self.setup_code = os.environ.get("LENS_SETUP_CODE") or secrets.token_urlsafe(9)
-            log.warning("No accounts yet. Create the first admin in the web app with setup code: %s", self.setup_code)
+            link = f"{env.FRONTEND_URL.rstrip('/')}/setup?{urllib.parse.urlencode({'code': self.setup_code})}"
+            log.warning(
+                "No accounts yet. Create the first admin in the web app with setup code: %s (or open %s, which fills it in)",
+                self.setup_code,
+                link,
+            )
 
     def start_background(self) -> None:
-        """Inline workers, the watched-folder poller, the notifier and the routine scheduler. Production runs these as separate processes (`lens worker`)."""
+        """Inline workers, the watched-folder poller, the notifier, the routine scheduler, the sensor hub (idle while
+        sensors are off) and the chat-room bridge (idle while it's off). Production runs these as separate processes (`lens worker`)."""
         for i in range(max(0, int(self.current()["workers"]["inline"]))):
             w = jobs.Worker(self.db, self.current, name=f"api-{os.getpid()}-{i}", log=log.info)
             threading.Thread(target=w.loop, args=(self.stop,), daemon=True, name=f"worker-{i}").start()
 
         notify.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.warning)
         routines.start(self.db, self.current, self.stop, log=log.info)
+        sensors.start(self.db, self.current, self.stop, log=log.info, name=f"api-{os.getpid()}")
+        bridge.start(self.db, self.current, self.stop, lambda: self.base, name=f"api-{os.getpid()}", log_fn=log.warning)
+        tunnel.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
 
     def close(self) -> None:
         self.stop.set()

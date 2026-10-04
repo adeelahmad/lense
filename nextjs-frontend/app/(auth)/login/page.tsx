@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { LoginForm } from "@/components/auth/login-form";
-import { isSetupRequired } from "@/lib/auth/status";
+import { externalProviders, isSetupRequired, passwordsOn } from "@/lib/auth/status";
 import { safeCallbackUrl } from "@/lib/definitions";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -26,6 +26,8 @@ export default async function LoginPage({
     <>
       <LoginForm
         callbackUrl={destination}
+        passwords={await passwordsOn()}
+        providers={await externalProviders()}
         notice={reset ? "Your password was changed. Sign in with the new one." : undefined}
       />
       {/* recordings made public need no account (docs/access.md) */}

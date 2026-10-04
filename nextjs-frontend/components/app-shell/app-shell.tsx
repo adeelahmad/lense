@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Bell, Menu as MenuIcon, Upload } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 
 import { Speakers } from "@/app/openapi-client";
 import { AccountMenu } from "@/components/app-shell/account-menu";
@@ -13,6 +13,7 @@ import { CommandPalette } from "@/components/app-shell/command-palette";
 import { NamespaceSwitcher } from "@/components/app-shell/namespace-switcher";
 import { Nav } from "@/components/app-shell/nav";
 import { Shortcuts } from "@/components/app-shell/shortcuts";
+import { PageChat } from "@/components/page-chat/page-chat";
 import { Button, IconButton } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -47,7 +48,8 @@ function PartialNamespace({ ns, onAll }: { ns: string; onAll: () => void }) {
   );
 }
 
-/** The signed-in frame: nav rail, top bar (namespace, ⌘K, activity, import, alerts, account) and the page. */
+/** The signed-in frame: nav rail, top bar (namespace, ⌘K, activity, import, alerts, account), the page and the page
+ * chat beside it. */
 export function AppShell({ user, children }: { user: SessionUser; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -186,6 +188,9 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
           )}
         </main>
       </div>
+      <Suspense fallback={null}>
+        <PageChat />
+      </Suspense>
       <Shortcuts />
     </div>
   );

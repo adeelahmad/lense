@@ -7,17 +7,18 @@ Workers heartbeat while they run; a job whose worker goes quiet is requeued, up 
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import os
 import socket
 import threading
 import time
 
-from . import analyze, ingest, pipelines, render, speakers as spk, store, telemetry
+from . import analyze, ingest, keyring, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
-PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "summarize", "report"]
-AFTER_IMPORT = ["analyze", "summarize", "report"]
+PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
+AFTER_IMPORT = ["analyze", "embed", "summarize", "report"]
 ACTIVE = ["queued", "running"]
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
@@ -68,6 +69,20 @@ def _diarize(db, cfg, rid, say, spec=None):
 def _analyze(db, cfg, rid, say, spec=None):
     analyze.analyze_recording(db, cfg, rid)
     say("analysed")
+
+
+def _embed(db, cfg, rid, say, spec=None):
+    from . import semantic
+
+    if not semantic.configured(cfg):
+        raise Skip("search by meaning is off, or has no embeddings server (Settings → Search)")
+    try:
+        made, kept = semantic.index_recording(db, cfg, rid, say)
+    except semantic.EmbedError as e:  # the server is down or lacks the model: the routine indexes it later
+        raise Skip(f"couldn't index it for search by meaning: {e}") from None
+    if not made and not kept:
+        return say("no text to index for search by meaning")
+    say(f"indexed for search by meaning: {made} passage(s) embedded" + (f", {kept} unchanged" if kept else ""))
 
 
 def _summarize(db, cfg, rid, say, spec=None):
@@ -146,6 +161,7 @@ STEPS = {
     "objects": _objects,
     "describe": _describe,
     "analyze": _analyze,
+    "embed": _embed,
     "summarize": _summarize,
     "report": _report,
     "llm": _llm,
@@ -237,10 +253,12 @@ def enqueue_pending(db, space=None, by=None):
 
 
 def claim(db, worker, can):
+    locked = keyring.locked_vaults(db)  # a vault's work waits until someone unlocks it here
     for r in db.rows(
-        "SELECT record::id(id) AS id, priority, created_at, started_at FROM job WHERE status = 'queued' AND next_step IN $can "
-        "ORDER BY priority DESC, created_at ASC LIMIT 10",
+        "SELECT record::id(id) AS id, space, priority, created_at, started_at FROM job WHERE status = 'queued' AND next_step IN $can "
+        "AND space NOTINSIDE $locked ORDER BY priority DESC, created_at ASC LIMIT 10",
         can=sorted(can),
+        locked=sorted(locked),
     ):
         t = store.now()
         try:
@@ -539,6 +557,9 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
         return "failed"
     finally:
         stop.set()
+        keyring.release()  # the plain working copies this job read may go once unused
+        with contextlib.suppress(Exception):
+            keyring.sweep(cfg_fn())
 
 
 def get(db, jid):
@@ -671,7 +692,9 @@ def machine_load():
 
 
 WORKER_BEAT = 15  # seconds between a busy worker's heartbeats
-WORKER_FIELDS = "record::id(id) AS name, steps, host, heartbeat_at, current, paused, drain, paused_by, paused_at, load, cpus"
+WORKER_FIELDS = (
+    "record::id(id) AS name, steps, host, heartbeat_at, current, paused, drain, paused_by, paused_at, load, cpus, components, machine"
+)
 
 
 def workers(db, now=None):
@@ -715,9 +738,12 @@ class Worker:
             # a workers.steps list written before the video steps existed (archive.yaml copied from an older example):
             # without them every import would wait for a worker that can run shots
             self.can |= VIDEO_STEPS
+        if self.can & {"analyze", "summarize"}:  # embedding needs what they need; lists written before it existed run it too
+            self.can.add("embed")
         if not steps and log and (missing := sorted(set(STEPS) - self.can)):
             log(f"worker {self.name}: workers.steps leaves out {', '.join(missing)}; jobs with those steps wait for another worker")
         self.was_paused = False
+        self.keeper = None  # fetches what this machine needs (components.py), once the loop starts
 
     def register(self, current=None):
         # SET, not CONTENT: being paused (from the app) outlasts restarts
@@ -745,7 +771,9 @@ class Worker:
     def run_once(self):
         if self.paused():
             return False
-        job = claim(self.db, self.name, self.can)
+        # steps whose engine or model is still being fetched wait for it
+        can = self.can - self.keeper.blocked() if self.keeper else self.can
+        job = claim(self.db, self.name, can) if can else None
         if not job:
             return False
         self.register(job["id"])
@@ -771,6 +799,11 @@ class Worker:
         return n
 
     def loop(self, stop):
+        from . import components
+
+        self.keeper = components.Keeper(self.db, self.cfg_fn, self.name, self.can, self.log)
+        self.register()
+        self.keeper.start(stop)
         last = 0.0
         while not stop.is_set():
             try:

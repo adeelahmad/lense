@@ -144,3 +144,20 @@ def test_namespace_stats_for_a_range(client, new_client, db, cfg, folder):
     long = library.namespace_stats(db, store.ns_id(db, "pods"), "1900-01-01", "2026-09-30")
     assert len(long["months"]) == library.MONTHS_MAX and long["months"][-1]["month"] == "2026-09"
     assert long["months"][0]["month"] == "2006-10" and long["recordings"] == 3  # "2026" sorts like the year's start
+
+
+def test_ns_id_when_another_process_creates_it_first(db, monkeypatch):
+    """The API and a worker starting together on a fresh database both look up a namespace, find none, and create it:
+    the one that loses the race takes the winner's (it used to crash the API on startup)."""
+    db.q("CREATE $r CONTENT $d", r=store.R("space", 990), d={"name": "racing", "graph": "shared"})
+    real_one, first = db.one, [True]
+
+    def one(sql, **kw):
+        if first[0] and "FROM space WHERE name" in sql:
+            first[0] = False
+            return None  # the lookup ran before the other process's CREATE landed
+        return real_one(sql, **kw)
+
+    monkeypatch.setattr(db, "one", one)
+    assert store.ns_id(db, "racing") == 990
+    assert len(db.values("SELECT VALUE id FROM space WHERE name = 'racing'")) == 1

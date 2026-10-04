@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Pause, Play } from "lucide-react";
+import { Loader2, Pause, Play, Sparkle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { forwardRef, type KeyboardEvent } from "react";
@@ -182,10 +182,19 @@ function HitRow({
           </>
         )}
       </span>
-      <Snippet
-        html={hit.snippet}
-        className="col-span-3 font-serif text-[15.5px] leading-[1.5] text-fg [text-wrap:pretty] md:col-span-1"
-      />
+      <span className="col-span-3 font-serif text-[15.5px] leading-[1.5] text-fg [text-wrap:pretty] md:col-span-1">
+        {hit.match === "meaning" && (
+          <Tooltip
+            content={`Found by meaning${hit.similarity != null ? ` (${Math.round(hit.similarity * 100)}% alike)` : ""}: it's about what you searched for, in other words`}
+          >
+            <span className="mr-1.5 inline-flex translate-y-[-1px] items-center gap-1 rounded-pill bg-blue-surface px-1.5 align-middle font-sans text-[10.5px] font-bold uppercase tracking-[.04em] text-blue-dark">
+              <Sparkle aria-hidden className="size-2.5" />
+              Related
+            </span>
+          </Tooltip>
+        )}
+        <Snippet html={hit.snippet} />
+      </span>
     </div>
   );
 }

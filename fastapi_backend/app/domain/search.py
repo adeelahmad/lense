@@ -7,12 +7,19 @@ Words are ANDed and matched after English stemming (exploit finds exploits and e
 from __future__ import annotations
 
 import html
+import logging
 import re
 from collections import Counter
 
-from . import store
+from . import semantic, store
+
+log = logging.getLogger(__name__)
 
 M0, M1 = "\x02", "\x03"
+# words not worth marking in a passage found by meaning
+STOP = set(
+    "a an and are as at be but by for from has have i in is it its of on or our so that the their they this to was we were what with you your about".split()
+)
 FACET_CAP = 20000  # moments counted for facets; more than this and the counts say they're partial
 FACET_VALUES = 50  # values listed per facet
 
@@ -80,6 +87,8 @@ def search(
     objects=False,
     obj=None,
     described=False,
+    cfg=None,
+    mode="keyword",
 ):
     """Transcript lines (and, unless screen is false, text on screen in videos; with files, the lines of supplementary
     transcripts, captions, translations and indexes; with objects, the kinds of object seen in videos, documents and
@@ -87,9 +96,16 @@ def search(
     read beyond those (in collections they were given a role on); recordings limits it to a set of recordings (such as
     the transcripts a visitor may read), and obj to those a kind of object is seen in. With facets, also how many of
     all the matching moments (up to FACET_CAP) are in each namespace, speaker, emotion and recording, and which kinds
-    of object the recordings they're in have."""
+    of object the recordings they're in have.
+
+    `mode` is how the query is matched: "keyword" (its words, through the BM25 index), "semantic" (by meaning: the
+    passages an embedding model finds most alike, semantic.py), "hybrid" (both, fused by reciprocal rank) or "auto"
+    (hybrid when search by meaning is available and the query has no "phrases" or OR, else keyword). Search by
+    meaning needs `cfg`; when it can't be used the search is by keyword, and `meaning` says why."""
     groups = parse_query(q)
-    empty = {"q": q, "query": "", "total": 0, "capped": False, "hits": []}
+    can = cfg is not None and semantic.available(db, cfg)
+    used, note = _mode(cfg, mode, groups, can)
+    empty = {"q": q, "query": "", "total": 0, "capped": False, "hits": [], "mode": used, "meaning": note, "semantic": can}
     if obj:
         having = set(db.values("SELECT VALUE record::id(id) FROM recording WHERE objects CONTAINS $o", o=" ".join(obj.split()).casefold()))
         recordings = having if recordings is None else set(recordings) & having
@@ -119,7 +135,9 @@ def search(
     cap = min(1000, (offset + limit) * 3 + 50)
     fields = "record::id(id) AS id, recording, idx, t0, t1, emotion, speaker, space, text, page, box"
     rows = None
-    if db.ready_fulltext():
+    if used == "semantic":
+        rows = []
+    elif db.ready_fulltext():
         conds, sel = [], []
         for k, g in enumerate(groups, 1):
             params[f"q{k}"] = " ".join(g["words"] + g["phrases"])
@@ -151,15 +169,31 @@ def search(
         hits.append(r)
     for h in hits:  # a document's or an image's text is on its pages
         h["source"] = "said" if h.get("page") is None else "page"
-    if screen and not speaker and not emotion:  # text shown on screen in videos has no speaker or emotion
-        hits += _screen(db, groups, space_filter(ns, spaces, recording, params), cap, params)
-    if files and not speaker and not emotion:  # nor do the lines of files (a speaker there is just a label)
-        hits += _file_lines(db, groups, space_filter(ns, spaces, recording, params), cap, params)
-    if objects and not speaker and not emotion:  # nor do the objects seen
-        hits += _objects(db, groups, space_filter(ns, spaces, recording, params), cap, params)
-    if described and not speaker and not emotion:  # nor what pages and shots show
-        hits += _described(db, groups, space_filter(ns, spaces, recording, params), cap, params)
+    alone = not speaker and not emotion
+    if used != "semantic":
+        if screen and alone:  # text shown on screen in videos has no speaker or emotion
+            hits += _screen(db, groups, space_filter(ns, spaces, recording, params), cap, params)
+        if files and alone:  # nor do the lines of files (a speaker there is just a label)
+            hits += _file_lines(db, groups, space_filter(ns, spaces, recording, params), cap, params)
+        if objects and alone:  # nor do the objects seen
+            hits += _objects(db, groups, space_filter(ns, spaces, recording, params), cap, params)
+        if described and alone:  # nor what pages and shots show
+            hits += _described(db, groups, space_filter(ns, spaces, recording, params), cap, params)
     hits.sort(key=lambda r: (-r["_score"], r["recording"], r.get("idx") or 0))
+    meant = []
+    if used != "keyword":
+        kinds = {"said", "page"} | ({"described"} if described and alone else set())
+        try:
+            meant = _meaning(db, cfg, q, groups, kinds, offset + limit, base_params, ns, spaces, recording, speaker, emotion)
+        except semantic.EmbedError as e:
+            log.warning("search by meaning is unavailable: %s", e)
+            note = "search by meaning is unavailable right now, so these match the words"
+            if used == "semantic":  # it was to be by meaning alone: by the words instead
+                args = dict(ns=ns, speaker=speaker, emotion=emotion, recording=recording, limit=limit, offset=offset, spaces=spaces)
+                more = dict(recordings=recordings, screen=screen, facets=facets, also=also, files=files, objects=objects, obj=obj)
+                return search(db, q, **args, **more, described=described) | {"meaning": note}
+            used = "keyword"
+        hits, meant = _fuse(hits, meant, used)
     page = hits[offset : offset + limit]
     recs = (
         {
@@ -218,12 +252,22 @@ def search(
             **({"t0": None, "t1": None, "page": h["t0"]} if h["source"] in ("object", "described") and h.get("paged") else {}),
             **({"page": h["page"], "box": h.get("box")} if h["source"] == "page" else {}),
             **(_in_file(in_files.get(h["file"]) or {"id": h["file"]}, h.get("line")) if h["source"] == "file" else {}),
+            "match": h.get("match") or "words",
+            "similarity": round(h["similarity"], 3) if h.get("similarity") is not None else None,
         }
         for h in page
     ]
-    res = {"q": q, "query": describe(groups), "total": len(hits), "capped": len(rows) >= cap, "hits": out}
+    res = {
+        "q": q,
+        "query": describe(groups),
+        "total": len(hits),
+        "capped": len(rows) >= cap,
+        "hits": out,
+        "mode": used,
+        "meaning": note,
+        "semantic": can,
+    }
     if facets:
-        alone = not speaker and not emotion
         res["facets"] = _facets(
             db,
             groups,
@@ -236,8 +280,150 @@ def search(
             files and alone,
             objects and alone,
             described and alone,
+            meant,
+            words=used != "semantic",
         )
     return res
+
+
+def _mode(cfg, mode, groups, can):
+    """(how a search is matched, why not by meaning when it was asked to be)."""
+    if mode not in ("keyword", "semantic", "hybrid", "auto"):
+        raise ValueError("mode is keyword, semantic, hybrid or auto")
+    if mode == "keyword":
+        return "keyword", None
+    if mode == "auto" and (len(groups) > 1 or any(g["phrases"] for g in groups)):
+        return "keyword", None  # "phrases" and OR ask for exactly those words
+    if cfg is None or not semantic.configured(cfg):
+        return "keyword", (None if mode == "auto" else "search by meaning is off, or has no embeddings server")
+    if not can:
+        return "keyword", (None if mode == "auto" else "nothing is indexed for search by meaning with this model yet")
+    return ("hybrid" if mode == "auto" else mode), None
+
+
+def _meaning(db, cfg, q, groups, kinds, need, base, ns, spaces, recording, speaker, emotion):
+    """The passages most like the query, as hits shaped like the keyword ones (best first), each at the line of its
+    passage that best matches: the speaker or emotion asked for, else the one with most of the query's words."""
+    params = {k: v for k, v in base.items() if k in ("sp", "allowed", "also", "rec", "recs", "spk", "emo")}
+    where = space_filter(ns, spaces, recording, params)
+    if "recs" in params:
+        where += " AND recording IN $recs"
+    if "spk" in params:
+        where += " AND $spk IN speakers"
+    if "emo" in params:
+        where += " AND $emo IN emotions"
+    k = min(500, max(int(semantic._section(cfg).get("neighbours") or 40), need))
+    found = semantic.nearest(db, cfg, q, where, params, kinds, k)
+    words = [w for g in groups for w in g["words"] + g["phrases"] if w.lower() not in STOP]  # marked where they're said
+    lined = [p for p in found if p["kind"] != "described"]
+    segs = (
+        {
+            (r["recording"], r["idx"]): r
+            for r in db.rows(
+                "SELECT record::id(id) AS id, recording, idx, t0, t1, emotion, speaker, space, text, page, box FROM segment WHERE id IN $ids",
+                ids=[store.R("segment", p["recording"] * store.SEG + i) for p in lined for i in range(p["idx0"], p["idx1"] + 1)],
+            )
+        }
+        if lined
+        else {}
+    )
+    rx = re.compile("|".join(r"\b" + re.escape(w.lower()) for w in words)) if words else None
+    out = []
+    for p in found:
+        if p["kind"] == "described":
+            out.append(
+                {
+                    **{k: p.get(k) for k in ("id", "recording", "t0", "t1", "space", "frame", "paged", "text")},
+                    "source": "described",
+                    "similarity": p["similarity"],
+                    "_snip": snippet(_mark_plain(p["text"], words) if words else p["text"], SNIPPET),
+                }
+            )
+            continue
+        lines = [segs[(p["recording"], i)] for i in range(p["idx0"], p["idx1"] + 1) if (p["recording"], i) in segs]
+        if not lines:  # the transcript changed since it was indexed
+            continue
+        fits = [
+            s
+            for s in lines
+            if (speaker in (None, "") or s.get("speaker") == int(speaker)) and (emotion in (None, "") or s.get("emotion") == emotion)
+        ]
+        if not fits:  # none of its lines is by that speaker or in that mood (any more)
+            continue
+        best = max(fits, key=lambda s: len(rx.findall(s["text"].lower())) if rx else 0)
+        out.append(
+            {
+                **best,
+                "source": "said" if best.get("page") is None else "page",
+                "similarity": p["similarity"],
+                "_span": (p["idx0"], p["idx1"]),
+                "_snip": _context(lines, best, words),
+            }
+        )
+    return out
+
+
+SNIPPET = 260  # characters around the line a passage found by meaning is shown at
+
+
+def _context(lines, best, words):
+    """The line a passage is shown at, with as much of the lines around it as fits, the query's words marked."""
+    k = lines.index(best)
+    a, b, size = k, k + 1, len(best["text"])
+    while size < SNIPPET and (a > 0 or b < len(lines)):
+        if b < len(lines):
+            size += len(lines[b]["text"]) + 1
+            b += 1
+        if a > 0 and size < SNIPPET:
+            a -= 1
+            size += len(lines[a]["text"]) + 1
+    text = " ".join(" ".join(s["text"].split()) for s in lines[a:b])
+    marked = _mark_plain(text, words) if words else text
+    return snippet(marked, SNIPPET) if M0 in marked else _clip(marked, a > 0, b < len(lines))
+
+
+def _clip(text, before, after):
+    cut = text[: SNIPPET + 40]
+    more = len(cut) < len(text)
+    if more:
+        cut = cut[: cut.rfind(" ")] if " " in cut[SNIPPET // 2 :] else cut
+    return ("…" if before else "") + html.escape(cut) + ("…" if more or after else "")
+
+
+RRF = 60  # reciprocal rank fusion: a hit's score is the sum of 1 / (RRF + its rank) in each list it's in
+
+
+def _fuse(hits, meant, used):
+    """One list from the keyword hits and those found by meaning, best first. A passage that holds a keyword hit adds
+    its rank to that hit (the first of them) instead of standing on its own. Also the hits found by meaning alone."""
+    if used == "semantic":
+        for h in meant:
+            h["match"], h["_score"] = "meaning", h["similarity"]
+        return meant, meant
+    for i, h in enumerate(hits):
+        h["_score"], h["match"] = 1 / (RRF + i + 1), "words"
+    lines, shown = {}, {}
+    for h in hits:
+        if h["source"] in ("said", "page"):
+            lines.setdefault(h["recording"], []).append(h)
+        elif h["source"] == "described":
+            shown.setdefault((h["recording"], h.get("t0")), h)
+    alone = []
+    for j, m in enumerate(meant):
+        if m["source"] == "described":
+            same = shown.get((m["recording"], m.get("t0")))
+        else:
+            a, b = m["_span"]
+            same = next((h for h in lines.get(m["recording"], []) if a <= (h.get("idx") or 0) <= b and h["match"] == "words"), None)
+        if same:
+            same["_score"] += 1 / (RRF + j + 1)
+            same["match"], same["similarity"] = "both", m["similarity"]
+        else:
+            m["_score"], m["match"] = 1 / (RRF + j + 1), "meaning"
+            alone.append(m)
+    out = hits + alone
+    out.sort(key=lambda r: (-r["_score"], r["recording"], r.get("idx") or 0))
+    return out, alone
 
 
 def _in_file(f, line):
@@ -276,15 +462,27 @@ def _matches(db, groups, table, fields, where_f, base):
     return rows
 
 
-def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=False, objects=False, described=False):
+def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=False, objects=False, described=False, meant=(), words=True):
     """How many matching moments are in each namespace, speaker, emotion and recording, most first; and the kinds of
-    object seen in the recordings they're in, with how many of those recordings each is in."""
-    said = _matches(db, groups, "segment", "recording, space, speaker, emotion", where_f, base)
-    seen = _matches(db, groups, "ocr_span", "recording, space", space_filter(ns, spaces, recording, base), base) if screen else []
-    filed = _matches(db, groups, "file_line", "recording, space", space_filter(ns, spaces, recording, base), base) if files else []
-    spotted = _matches(db, groups, "object_track", "recording, space", space_filter(ns, spaces, recording, base), base) if objects else []
-    shown = _matches(db, groups, "description", "recording, space", space_filter(ns, spaces, recording, base), base) if described else []
-    spotted += shown
+    object seen in the recordings they're in, with how many of those recordings each is in. `meant`: the moments found
+    by meaning alone, counted too; without `words`, only they are."""
+    said = _matches(db, groups, "segment", "recording, space, speaker, emotion", where_f, base) if words else []
+    said += [m for m in meant if m["source"] != "described"]
+    seen = _matches(db, groups, "ocr_span", "recording, space", space_filter(ns, spaces, recording, base), base) if screen and words else []
+    filed = (
+        _matches(db, groups, "file_line", "recording, space", space_filter(ns, spaces, recording, base), base) if files and words else []
+    )
+    spotted = (
+        _matches(db, groups, "object_track", "recording, space", space_filter(ns, spaces, recording, base), base)
+        if objects and words
+        else []
+    )
+    shown = (
+        _matches(db, groups, "description", "recording, space", space_filter(ns, spaces, recording, base), base)
+        if described and words
+        else []
+    )
+    spotted += shown + [m for m in meant if m["source"] == "described"]
     rows = (said + seen + filed + spotted)[:FACET_CAP]
     partial = len(said) + len(seen) + len(filed) + len(spotted) > FACET_CAP
     by_space, by_rec = Counter(r["space"] for r in rows), Counter(r["recording"] for r in rows)

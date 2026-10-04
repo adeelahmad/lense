@@ -60,6 +60,7 @@ def _later(hours):
 
 # ---------- accounts ----------
 def create_account(db, email, password, name=None, admin=False):
+    """A new account. Without a password it signs in with a passkey (or an outside account) only."""
     email = (email or "").strip().lower()
     if not EMAIL.match(email):
         raise ValueError("enter a valid email address")
@@ -72,13 +73,19 @@ def create_account(db, email, password, name=None, admin=False):
         d={
             "email": email,
             "name": (name or email.split("@")[0])[:80],
-            "pw": hash_password(password),
+            **({"pw": hash_password(password)} if password is not None else {}),
             "admin": bool(admin),
             "disabled": False,
             "created_at": store.now(),
         },
     )
     return uid
+
+
+def passwords_on(cfg):
+    """Whether passwords sign in at all (auth.passwords). Fresh installs use passkeys only; installs that already had
+    passwords keep them until an admin turns them off (domain/settings.keep_passwords)."""
+    return bool((cfg.get("auth") or {}).get("passwords"))
 
 
 def account_count(db):
@@ -117,7 +124,8 @@ def login(db, email, password, key=""):
     u = find_account(db, email)
     if not _DUMMY:
         _DUMMY.append(hash_password("x" * 16))
-    ok = verify_password(password, u["pw"] if u else _DUMMY[0])
+    stored = (u or {}).get("pw")
+    ok = verify_password(password, stored or _DUMMY[0]) and bool(stored)  # no password: nothing can match
     if not u or not ok or u.get("disabled"):
         with _FL:
             _FAILS.setdefault(key, []).append(time.time())
@@ -132,13 +140,15 @@ def update_account(db, uid, name=None, admin=None, disabled=None, password=None)
         db.q("UPDATE $r MERGE $p", r=R("account", uid), p=patch)
     if disabled or password:
         db.q("DELETE login_session WHERE account = $a", a=uid)
+    if disabled:
+        db.q("DELETE signin_link WHERE account = $a", a=uid)
 
 
 def change_password(db, uid, current, new, keep_sid=None, key=""):
     """Someone changes their own password: the current one first. Their other sessions end (this one, keep_sid, stays)
     and so do reset links they asked for. Wrong current passwords count towards the sign-in throttle (key)."""
     u = get_account(db, uid)
-    if not u or not verify_password(current, u.get("pw") or ""):
+    if not u or not u.get("pw") or not verify_password(current, u["pw"]):
         with _FL:
             _FAILS.setdefault(key, []).append(time.time())
         raise ValueError("Your current password is wrong.")

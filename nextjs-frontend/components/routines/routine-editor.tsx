@@ -13,6 +13,7 @@ import {
   ACTION_LABEL,
   PICK_LABEL,
   PRESETS,
+  suggestedName,
   actionProblem,
   cleanActions,
   newAction,
@@ -208,6 +209,14 @@ function ActionSettings({
     );
   }
 
+  if (a.type === "sensors")
+    return (
+      <p className="text-[12.5px] text-fg-muted">
+        Removes sensor readings and hourly summaries older than each sensor keeps them, labels new log patterns where
+        triage is on, and writes the daily digests of sensors that keep them, whatever the routine’s namespaces.
+      </p>
+    );
+
   if (a.type === "pipeline")
     return (
       <div className="flex flex-col gap-3">
@@ -311,9 +320,9 @@ export function RoutineEditor({ routine, onSaved }: { routine?: Routine; onSaved
 
   const schedule = scheduleFor(preset, custom);
   const graphWorkflow = (id: number) => workflows.data?.workflows.find((w) => w.id === id)?.scope === "graph";
-  const problem = !name.trim()
-    ? "Give the routine a name."
-    : preset === "custom" && !schedule
+  const named = name.trim() || suggestedName(preset, actions);
+  const problem =
+    preset === "custom" && !schedule
       ? "Type a cron schedule, or pick another."
       : spaces != null && !spaces.length
         ? "Pick at least one namespace, or run it over all of them."
@@ -322,7 +331,7 @@ export function RoutineEditor({ routine, onSaved }: { routine?: Routine; onSaved
   const save = useMutation({
     mutationFn: async () => {
       const body = {
-        name: name.trim(),
+        name: named,
         description: description.trim() || null,
         enabled,
         schedule,
@@ -338,7 +347,7 @@ export function RoutineEditor({ routine, onSaved }: { routine?: Routine; onSaved
     onSuccess: (id) => {
       void qc.invalidateQueries({ queryKey: ["routines"] });
       void qc.invalidateQueries({ queryKey: ["routine", id] });
-      toast({ tone: "green", title: creating ? "Routine created" : "Routine saved", body: name.trim() });
+      toast({ tone: "green", title: creating ? "Routine created" : "Routine saved", body: named });
       if (creating) router.push(`/routines/${id}`);
       onSaved?.();
     },
@@ -369,7 +378,7 @@ export function RoutineEditor({ routine, onSaved }: { routine?: Routine; onSaved
               <Input
                 id={id}
                 value={name}
-                placeholder="e.g. Nightly sync and analysis"
+                placeholder={suggestedName(preset, actions)}
                 maxLength={80}
                 onChange={(e) => setName(e.target.value)}
                 autoFocus={creating}
@@ -502,8 +511,8 @@ export function RoutineEditor({ routine, onSaved }: { routine?: Routine; onSaved
         ))}
         {!actions.length && (
           <p className="rounded-md border border-dashed border-border px-4 py-5 text-[13.5px] text-fg-secondary">
-            Add an action: sync sources, run a pipeline, or run a workflow. Each runs even when the one before it
-            failed.
+            Add an action: sync sources, run a pipeline, run a workflow, or tidy sensor data. Each runs even when the
+            one before it failed.
           </p>
         )}
       </section>
