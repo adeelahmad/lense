@@ -38,6 +38,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `ABOUT`, `NARROWER` and `RELATED`; TERM entities are now labelled `Term` there) and in RDF (`/id/topic/<id>`). See
   docs/topics.md.
 
+- **Topic suggestions.** Analysis suggests the vocabulary's topics for recordings whose summary or transcript says
+  one of their labels, for people to accept or dismiss (a dismissed one isn't suggested again). The Topics page lists
+  what summaries say recordings are about that no topic covers yet, to add as a topic or skip. No model is called.
+
 - **A Topics page.** Topics in the navigation shows a namespace's vocabulary as a tree of broader and narrower topics,
   with search, and a drawer to edit, merge or delete a topic and see the recordings about it. A recording's Entities
   tab lists its topics for editors to add, remove or accept; a Term entity can be made a topic from its drawer; topics

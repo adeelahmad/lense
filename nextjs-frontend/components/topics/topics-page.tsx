@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Topics } from "@/app/openapi-client";
 import { findTopics, topicTree, type TopicItem } from "@/components/topics/model";
+import { TopicCandidates } from "@/components/topics/topic-candidates";
 import { NewTopicDialog, TopicDrawer } from "@/components/topics/topic-drawer";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -196,6 +197,15 @@ export function TopicsPage() {
         What this namespace’s recordings are about, as a controlled vocabulary: each topic can sit under broader ones.
         Entities are the people, organisations and things that are named; topics are kept apart from them.
       </p>
+      {ns && editor && (
+        <TopicCandidates
+          ns={ns}
+          onAdded={(id) => {
+            list.refetch();
+            set({ topic: String(id) });
+          }}
+        />
+      )}
       <SearchInput
         className="w-full sm:w-[280px]"
         placeholder="Find by label"

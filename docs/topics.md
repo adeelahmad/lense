@@ -6,8 +6,8 @@ subject someone chose for the vocabulary, like "Gene therapy" or "Funding".
 
 Status: **built**: the vocabulary (labels, definitions, broader, narrower and related topics), recordings about
 topics, topics made from topic-like entities, the API, the Topics page, a recording's topics, topics in the graph
-(and on its canvas) and in RDF. **Planned**: topic suggestions from analysis, `#` links in notes pointing at topics,
-and assistant and MCP tools for topics.
+(and on its canvas) and in RDF, and topic suggestions from analysis. **Planned**: `#` links in notes pointing at
+topics, and assistant and MCP tools for topics.
 
 ## In the web app
 
@@ -36,8 +36,24 @@ A topic follows SKOS, the W3C standard for vocabularies:
 | related | `skos:related` | Topics that are related but not broader or narrower. Kept on both sides. |
 
 Recordings are **about** topics. A person says so, a topic made from an entity brings the recordings that mention
-it, and (planned) analysis suggests topics for someone to accept. Each link records where it came from (`person`,
-`entity`, `analysis`) and whether it holds (`accepted`) or waits (`suggested`).
+it, and analysis suggests topics for someone to accept. Each link records where it came from (`person`,
+`entity`, `analysis`) and whether it holds (`accepted`), waits (`suggested`) or was turned down (`dismissed`).
+
+## Suggestions from analysis
+
+Analysis never changes the vocabulary or what a recording is about on its own; it suggests, and people decide. No
+language model is called for it: it reuses what analysis already found.
+
+- **Topics for recordings.** A recording gets a topic as a suggestion when its summary names one of the topic's
+  labels, or its transcript says one of them (a label of one or two words) at least twice. Labels match whatever
+  their case or plural. This runs after each analysis and summary, and over the whole namespace when a topic is
+  added, renamed, given other labels or merged. Accepting keeps where it came from; dismissing is remembered, so
+  analysis doesn't suggest that topic for that recording again. Suggestions that no longer match go.
+- **New topics.** The Topics page lists, under **Suggested by summaries**, what summaries say recordings are about
+  that no topic covers yet, with how many recordings say it (`GET /api/v1/namespaces/{name}/topics/candidates`).
+  Adding one creates the topic, and its recordings get it as a suggestion. Skipping one
+  (`POST /api/v1/namespaces/{name}/topics/candidates/skip`) stops it being offered. A namespace's vocabulary is
+  fixed until someone adds to it.
 
 ## Topics and entities
 
