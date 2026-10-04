@@ -168,7 +168,11 @@ def test_set_up_in_settings(env):
         body = {"url": url + "/", "user": "fedoraAdmin", "password": "secret", "root": "archive"}
         assert c.put("/api/v1/settings/fedora", headers=h, json=body).status_code == 200
         view = c.get("/api/v1/settings", headers=h).json()["fedora"]
-        assert view["values"]["url"] == url and view["values"]["password"]["set"] is True and "secret" not in str(view["values"]["password"].get("value"))  # the secret isn't shown
+        assert (
+            view["values"]["url"] == url
+            and view["values"]["password"]["set"] is True
+            and "secret" not in str(view["values"]["password"].get("value"))
+        )  # the secret isn't shown
         assert c.put("/api/v1/settings/fedora", headers=h, json={"url": "ftp://x"}).status_code == 400
         out = c.post("/api/v1/admin/fedora/sync", headers=h).json()
         assert out["sent"] > 0 and "/rest/archive/pods" in F.store
