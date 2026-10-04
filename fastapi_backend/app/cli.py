@@ -98,6 +98,7 @@ def _main_base(argv=None):
     sub.add_parser("status")
     p = sub.add_parser("migrations", help="list the database upgrades: run, pending or failed (docs/database.md)")
     p.add_argument("--run", action="store_true", help="run the pending ones now (Lens also runs them when it starts)")
+    sub.add_parser("backup", help="back the database up into <data_dir>/backups (docs/database.md, Backups)")
     sub.add_parser("reindex", help="rebuild the search index (after changing search.tokenizer)")
     p = sub.add_parser("encrypt", help="encrypt the files Lens keeps, and keep encrypting new ones (docs/encryption.md)")
     p.add_argument("--off", action="store_true", help="decrypt them again and stop encrypting new ones")
@@ -200,6 +201,11 @@ def _main_base(argv=None):
                     print(f"           {m['error']}")
                 elif m["state"] == "unknown":
                     print("           run by a newer Lens than this one")
+        elif a.cmd == "backup":
+            from .domain import migrations
+
+            dst = migrations.backup(conn)
+            print(f"backed up to {dst}" if dst else "nothing to back up: the database is in memory")
         elif a.cmd == "reindex":
             store.reindex(conn, cfg)
             print("search index rebuilt")

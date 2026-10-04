@@ -106,6 +106,7 @@ lens search "money worries" --mode semantic   # by meaning (with an embedding mo
 lens embed                                 # index what isn't yet searchable by meaning
 lens reindex                               # after changing search.stemming
 lens migrations                            # database upgrades: run, pending or failed
+lens backup                                # back the database up into <data_dir>/backups
 ```
 
 Docker on macOS can't use the Apple GPU. Keep the database and API in Docker and run a native worker against the same

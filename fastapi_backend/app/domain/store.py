@@ -476,6 +476,7 @@ class DB:
         d = cfg["database"]
         url = os.environ.get("SURREAL_URL") or d.get("url") or "surrealkv://" + str(pathlib.Path(cfg["data_dir"]) / "surrealdb")
         self.url = url
+        self.data_dir = cfg.get("data_dir")
         scheme = url.split(":", 1)[0]
         self.embedded = scheme in ("mem", "memory", "surrealkv", "file")
         if scheme in ("surrealkv", "file"):
@@ -522,6 +523,23 @@ class DB:
                     raise
                 _backoff(attempt)
                 attempt += 1
+
+    @contextlib.contextmanager
+    def closed(self):
+        """Every connection closed meanwhile (once the queries in flight finish), then opened again: for copying an
+        embedded database's files."""
+        held = [self._pool.get() for _ in self._all]
+        for c in held:
+            with contextlib.suppress(Exception):
+                c.close()
+        try:
+            yield
+        finally:
+            self._all = []
+            for _ in held:
+                c = self._open()
+                self._all.append(c)
+                self._pool.put(c)
 
     @contextlib.contextmanager
     def conn(self):

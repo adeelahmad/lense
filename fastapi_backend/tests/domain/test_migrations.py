@@ -141,3 +141,92 @@ def test_lens_migrations_lists_and_runs(tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "ran 2 upgrade(s): access-levels, collection-homes" in out
     assert "done     access-levels" in out
+
+
+# ---------- the backup taken before upgrading ----------
+@pytest.fixture
+def kept(folder, db):
+    """A database whose data survives a restart: the test server when there is one, else an embedded surrealkv one."""
+    if not db.embedded:
+        yield db
+        return
+    from tests.conftest import make_cfg
+
+    conn = store.connect(make_cfg(folder, url="surrealkv://" + str(folder / "data" / "surrealdb")))
+    yield conn
+    conn.close()
+
+
+def _restored(path, folder, target):
+    """The rows of `recording` in a backup of the database `target` (namespace, database)."""
+    from tests.conftest import TEST_URL, make_cfg
+
+    if path.is_dir():
+        conn = store.DB(make_cfg(folder, url="surrealkv://" + str(path), database={"namespace": target[0], "database": target[1]}))
+    else:
+        import gzip
+
+        sql = gzip.open(path).read().decode()
+        assert sql.startswith("-- ")  # SurrealQL that `surreal import` takes
+        conn = store.DB(make_cfg(folder, url=TEST_URL))  # a new, empty database on the test server
+        conn.q(sql)
+    try:
+        return conn.rows("SELECT title, meta_json FROM recording")
+    finally:
+        conn.close()
+
+
+def test_a_database_with_data_is_backed_up_before_it_is_upgraded(kept, folder):
+    rid = _old_shape(kept)
+    kept.q("UPDATE $r SET title = 'before'", r=R("recording", rid))
+    registered = [("retitle", lambda d: d.q("UPDATE recording SET title = 'after'"))]
+    assert migrations.run(kept, registered) == ["retitle"]
+    backups = sorted((folder / "data" / "backups").glob("before-upgrade-*"))
+    assert len(backups) == 1
+    assert [r["title"] for r in _restored(backups[0], folder, kept._target)] == ["before"]
+    assert kept.values("SELECT VALUE title FROM recording") == ["after"]  # and the open database still works
+
+
+def test_only_the_newest_backups_are_kept(kept, folder):
+    _old_shape(kept)
+    old = folder / "data" / "backups"
+    old.mkdir(parents=True, exist_ok=True)
+    for n in range(5):
+        (old / f"before-upgrade-2020010{n}-000000.surql.gz").write_bytes(b"")
+    (old / "manual-20200101-000000.surql.gz").write_bytes(b"")
+    migrations.run(kept, [("x", lambda d: None)])
+    left = sorted(p.name for p in old.iterdir())
+    assert len([n for n in left if n.startswith("before-upgrade-")]) == migrations.KEEP
+    assert "before-upgrade-20200104-000000.surql.gz" in left and "manual-20200101-000000.surql.gz" in left
+
+
+def test_no_backup_for_a_database_without_data_or_in_memory(folder, kept, db):
+    migrations.run(kept, [("x", lambda d: None)])  # no recordings or accounts yet
+    if db.embedded:
+        migrations.run(db, [("y", lambda d: None)])  # mem://
+    assert not (folder / "data" / "backups").exists()
+
+
+def test_a_failed_backup_stops_the_upgrade(kept, monkeypatch):
+    _old_shape(kept)
+    calls = []
+
+    def fail(*_a, **_k):
+        raise OSError("No space left on device")
+
+    monkeypatch.setattr(migrations, "backup", fail)
+    with pytest.raises(RuntimeError, match="backing it up first failed: No space left on device"):
+        migrations.run(kept, [("x", lambda d: calls.append(1))])
+    assert calls == [] and migrations.pending(kept, [("x", None)]) == ["x"]
+    assert kept.rows("SELECT * FROM migration_lock") == []
+    monkeypatch.setenv("LENS_UPGRADE_BACKUP", "off")
+    assert migrations.run(kept, [("x", lambda d: calls.append(1))]) == ["x"]
+
+
+def test_lens_backup(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("SURREAL_URL", raising=False)
+    cfg_path = tmp_path / "archive.yaml"
+    cfg_path.write_text("data_dir: ./data\nnamespaces:\n  pods:\n    paths: []\n")
+    cli.main(["--config", str(cfg_path), "backup"])
+    assert "backed up to " in capsys.readouterr().out
+    assert len(list((tmp_path / "data" / "backups").glob("manual-*.surrealkv"))) == 1

@@ -58,6 +58,10 @@ tables, or changing or removing an index that already exists, is a named step in
 * Every process that opens the database (the API, workers, `lens watch`, `lens` commands) runs the steps the database
   hasn't had yet when it starts, in order. One process takes a lock (`migration_lock:run`) and runs them; the others
   wait, so no code reads data in a shape it doesn't expect. A holder that dies loses the lock after five minutes.
+* Before a database that holds data (any recording or account) runs pending steps, the process holding the lock backs
+  it up into `<data_dir>/backups/before-upgrade-<time>` (see [Backups](#backups)); the newest three are kept. If the
+  backup fails, for example because the disk is full, the upgrade doesn't start and Lens says why; set
+  `LENS_UPGRADE_BACKUP=off` to upgrade without one.
 * Each step run is recorded in `migration:⟨name⟩` with when and how long it took. A step that fails records its error
   and stops the start; once the cause is fixed, the next start runs it again.
 * `lens migrations` lists every step (done, pending, failed, or unknown when a newer Lens ran it) without running
@@ -107,6 +111,14 @@ single statements and for `run()` transactions (which roll back as a whole, so r
 
 ## Backups
 
-With a server: `surreal export --conn http://host:8000 --user root --pass … --ns archive --db main backup.surql`, and
-`surreal import` to restore. Also back up `data_dir` (reports, frames, caches, and `secret.key` unless
-`ARCHIVE_SECRET_KEY` is set; without that key, stored credentials can't be decrypted).
+`lens backup` writes one into `<data_dir>/backups` (Lens also takes one before upgrading the database):
+
+* With a server, `manual-<time>.surql.gz`: SurrealDB's export of the database, gzipped. Restore it into an empty
+  database with `gunzip -k` and `surreal import --conn http://host:8000 --user root --pass … --ns archive --db main
+  <file>.surql`. Taking one by hand: `surreal export --conn http://host:8000 --user root --pass … --ns archive --db main
+  backup.surql`.
+* Embedded, `manual-<time>.surrealkv`: a copy of the database folder, taken with it closed. Restore it by stopping Lens
+  and putting the copy in place of `<data_dir>/surrealdb`.
+
+Also back up `data_dir` (reports, frames, caches, and `secret.key` unless `ARCHIVE_SECRET_KEY` is set; without that
+key, stored credentials can't be decrypted).

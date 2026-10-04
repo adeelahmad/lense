@@ -12,12 +12,22 @@ Every process that opens the database (the API, workers, `lens watch`, `lens` co
 starts. One of them takes the lock and runs them; the others wait until it is done, so nothing reads data in a shape
 its code doesn't expect. A dead holder's lock lapses after LEASE seconds. What ran, when, how long it took and why a
 step failed are kept in `migration:⟨name⟩`; `lens migrations` lists them.
+
+Before a database that already holds data runs pending steps, it is backed up into <data_dir>/backups (the newest KEEP
+are kept): a SurrealDB server's export, or a copy of an embedded database's folder. If that fails, the upgrade doesn't
+start, unless LENS_UPGRADE_BACKUP=off.
 """
 
 from __future__ import annotations
 
+import base64
+import contextlib
+import datetime as dt
+import gzip
 import logging
 import os
+import pathlib
+import shutil
 import socket
 import threading
 import time
@@ -29,6 +39,7 @@ log = logging.getLogger("lens")
 
 LEASE = 300  # seconds a lock holder may go quiet before another process takes over
 WAIT_LOG = 30  # how often a waiting process says what it is waiting for
+KEEP = 3  # backups taken before upgrades that are kept
 
 # The steps that came before named steps, tracked then by a counter (seq:migrations = how many had run): a database
 # whose counter reached n has done the first n of these, under these names.
@@ -93,6 +104,79 @@ def status(db, registered=None):
     return out
 
 
+# ---------- backups ----------
+def _has_data(db):
+    return any(db.rows(f"SELECT id FROM {t} LIMIT 1") for t in ("recording", "account"))
+
+
+def _export(db, dst):
+    """A SurrealDB server's export of this database (SurrealQL that `surreal import` restores), gzipped."""
+    import urllib.request
+
+    base = db.url.split("://", 1)
+    scheme = {"ws": "http", "wss": "https"}.get(base[0], base[0])
+    host = base[1].split("/", 1)[0]
+    ns, name = db._target
+    auth = base64.b64encode(f"{db._creds['username']}:{db._creds['password']}".encode()).decode()
+    req = urllib.request.Request(
+        f"{scheme}://{host}/export",
+        headers={"Surreal-NS": ns, "Surreal-DB": name, "Authorization": f"Basic {auth}", "Accept": "application/octet-stream"},
+    )
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # the database is never behind a web proxy
+    with opener.open(req, timeout=600) as r, gzip.open(dst, "wb") as out:
+        shutil.copyfileobj(r, out, 1 << 20)
+
+
+def backup(db, label="manual"):
+    """Back the database up into <data_dir>/backups; returns the file or folder, or None for an in-memory database."""
+    scheme, _, rest = db.url.partition("://")
+    if scheme in ("mem", "memory"):
+        return None
+    folder = pathlib.Path(db.data_dir or ".") / "backups"
+    folder.mkdir(parents=True, exist_ok=True)
+    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d-%H%M%S")
+    dst = folder / f"{label}-{stamp}.{'surrealkv' if db.embedded else 'surql.gz'}"
+    n = 1
+    while dst.exists():  # two in the same second
+        n += 1
+        dst = dst.with_name(f"{label}-{stamp}-{n}.{'surrealkv' if db.embedded else 'surql.gz'}")
+    part = dst.with_name(dst.name + ".part")
+    try:
+        if db.embedded:
+            with db.closed():
+                shutil.copytree(rest, part)
+        else:
+            _export(db, part)
+    except BaseException:
+        shutil.rmtree(part, ignore_errors=True) if part.is_dir() else part.unlink(missing_ok=True)
+        raise
+    part.rename(dst)
+    return dst
+
+
+def _prune(folder, label):
+    for old in sorted(folder.glob(f"{label}-*"), reverse=True)[KEEP:]:
+        with contextlib.suppress(OSError):
+            shutil.rmtree(old) if old.is_dir() else old.unlink()
+
+
+def _backup_before(db, steps_):
+    if os.environ.get("LENS_UPGRADE_BACKUP", "").lower() in ("off", "0", "false", "no") or not _has_data(db):
+        return
+    t = time.time()
+    try:
+        dst = backup(db, "before-upgrade")
+    except Exception as e:  # noqa: BLE001
+        raise RuntimeError(
+            f"the database wasn't upgraded ({', '.join(steps_)}) because backing it up first failed: {e}. Free some "
+            "space in the data folder (or fix the cause) and start Lens again, or set LENS_UPGRADE_BACKUP=off to "
+            "upgrade without a backup."
+        ) from e
+    if dst:
+        _prune(dst.parent, "before-upgrade")
+        log.info("backed the database up to %s before upgrading it (%.1fs)", dst, time.time() - t)
+
+
 # ---------- the lock ----------
 def _take(db, holder):
     db.q("DELETE $r WHERE until < $t", r=R("migration_lock", "run"), t=time.time())
@@ -117,7 +201,7 @@ def _holder(db):
     return (db.one("SELECT holder FROM $r", r=R("migration_lock", "run")) or {}).get("holder")
 
 
-def run(db, registered=None, poll=1.0):
+def run(db, registered=None, poll=1.0, backup_first=True):
     """Run the pending steps, or wait while another process runs them. Returns the names this process ran."""
     registered = registered if registered is not None else steps()
     if not pending(db, registered):
@@ -145,7 +229,10 @@ def run(db, registered=None, poll=1.0):
     ran = []
     try:
         fns = dict(registered)
-        for name in pending(db, registered):  # again: another process may have run some before this one got the lock
+        todo = pending(db, registered)  # again: another process may have run some before this one got the lock
+        if todo and backup_first:
+            _backup_before(db, todo)
+        for name in todo:
             log.info("upgrading the database: %s", name)
             t = time.time()
             try:

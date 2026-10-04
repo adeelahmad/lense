@@ -6,7 +6,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 - **Safer upgrades of existing installs.** Data upgrades are now named steps that run once per database, under a lock
   so only one process runs them while the others wait, with a record of when each ran and why one failed.
-  `lens migrations` lists them. See docs/database.md, Upgrades.
+  `lens migrations` lists them. A database with data is backed up into `<data_dir>/backups` before it is upgraded
+  (the newest three are kept), and `lens backup` takes one on demand. See docs/database.md, Upgrades.
 
 - **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
   recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
