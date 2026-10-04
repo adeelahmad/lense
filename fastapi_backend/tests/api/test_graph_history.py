@@ -89,3 +89,24 @@ def test_verify_and_checkpoints_are_for_admins(env):
     assert c.get("/api/v1/graph/verify", headers=ad).json()["differences"] == 1
     assert c.post("/api/v1/graph/verify", headers=ad).json()["version"] == v + 1
     assert c.get("/api/v1/graph/verify", headers=ad).json()["same"] is True
+
+
+def test_the_explorer_and_cypher_as_of_a_version(env):
+    c, ed, vi = env.c, env.h["editor"], env.h["viewer"]
+    c.post("/api/v1/graph/tags", headers=ed, json={"name": "before"})
+    q = {"query": "MATCH (e:Entity) RETURN e.name AS name"}
+
+    def names(**extra):
+        r = c.post("/api/v1/graph/query", headers=vi, json={**q, **extra})
+        assert r.status_code == 200, r.text
+        return {row[0] for row in r.json()["rows"]}
+
+    assert "Dyno Therapeutics" in names()
+    c.post(f"/api/v1/entities/{env.eid('Dyno Therapeutics')}/rename", headers=ed, json={"name": "Dyno"})
+    now, then = names(), names(as_of="before")
+    assert "Dyno" in now and "Dyno Therapeutics" not in now
+    assert "Dyno Therapeutics" in then and "Dyno" not in then
+    schema = c.get("/api/v1/graph/schema", headers=vi, params={"as_of": "before"})
+    assert schema.status_code == 200
+    assert c.get("/api/v1/graph/schema", headers=vi, params={"as_of": "nope"}).status_code == 404
+    assert c.get("/api/v1/graph/schema", headers=vi, params={"as_of": 10**6}).status_code == 400

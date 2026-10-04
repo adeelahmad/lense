@@ -3,9 +3,11 @@
  * server's layout, and typed, weighted edges. Filtering, sizing, keyboard movement and the text summary live here.
  */
 
+export type NodeKind = "speaker" | "entity" | "recording" | "collection" | "namespace";
+
 export type GraphNode = {
   id: string;
-  kind: "speaker" | "entity";
+  kind: NodeKind;
   label: string;
   type?: string;
   ns: string[];
@@ -35,9 +37,16 @@ export const NODE_GROUPS: { key: string; label: string; shape: Shape }[] = [
   { key: "TERM", label: "Topics", shape: "pill" },
   { key: "EVENT", label: "Events", shape: "hexagon" },
   { key: "WORK", label: "Works", shape: "rounded" },
+  { key: "recording", label: "Recordings", shape: "doc" },
+  { key: "collection", label: "Collections", shape: "folder" },
+  { key: "namespace", label: "Namespaces", shape: "octagon" },
 ];
 
-export type Shape = "circle" | "ring" | "square" | "diamond" | "triangle" | "pill" | "hexagon" | "rounded";
+export type Shape =
+  "circle" | "ring" | "square" | "diamond" | "triangle" | "pill" | "hexagon" | "rounded" | "doc" | "folder" | "octagon";
+
+/** Node kinds that only appear once you explore (a node's parents, ancestors…), never in the overview. */
+export const STRUCTURE_KINDS = new Set<NodeKind>(["recording", "collection", "namespace"]);
 
 /** Edge kinds: each has its own dash pattern, so they differ by more than colour. */
 export const EDGE_KINDS: {
@@ -65,6 +74,9 @@ export const EDGE_KINDS: {
     gold: true,
     width: 1.6,
   },
+  { key: "contains", label: "Contains", width: 1.2 },
+  { key: "speaks in", label: "Speaks in", dash: "4 2", width: 1.1 },
+  { key: "mentioned in", label: "Mentioned in", dash: "2 2", width: 1 },
 ];
 
 export function edgeStyle(kind: string) {
@@ -78,7 +90,8 @@ export function edgeStyle(kind: string) {
 }
 
 export function nodeGroup(n: Pick<GraphNode, "kind" | "type">): string {
-  return n.kind === "speaker" ? "speaker" : (n.type ?? "TERM");
+  if (n.kind === "entity") return n.type ?? "TERM";
+  return n.kind;
 }
 
 export function nodeShape(n: Pick<GraphNode, "kind" | "type">): Shape {
@@ -89,7 +102,7 @@ export function nodeShape(n: Pick<GraphNode, "kind" | "type">): Shape {
 export function typeLabel(n: Pick<GraphNode, "kind" | "type">): string {
   const g = NODE_GROUPS.find((x) => x.key === nodeGroup(n));
   if (!g) return "Entity";
-  return g.key === "speaker" ? "Speaker" : g.key === "TERM" ? "Topic" : g.label.replace(/s$/, "");
+  return g.key === "TERM" ? "Topic" : g.label.replace(/s$/, "");
 }
 
 /** Identity links are shown whatever their weight. */
@@ -111,7 +124,7 @@ export function filterGraph(
     (e) => inGroup.has(e.a) && inGroup.has(e.b) && f.kinds.has(e.kind) && (ALWAYS.has(e.kind) || e.w >= f.minWeight),
   );
   const linked = new Set(edges.flatMap((e) => [e.a, e.b]));
-  const nodes = g.nodes.filter((n) => inGroup.has(n.id) && (n.kind === "speaker" || linked.has(n.id)));
+  const nodes = g.nodes.filter((n) => inGroup.has(n.id) && (n.kind !== "entity" || linked.has(n.id)));
   return { nodes, edges };
 }
 
@@ -165,6 +178,9 @@ export function nodeRadius(
   n: Pick<GraphNode, "kind" | "weight">,
   maxWeight: { speaker: number; entity: number },
 ): number {
+  if (n.kind === "namespace") return 14;
+  if (n.kind === "collection") return 11;
+  if (n.kind === "recording") return 9;
   const max = n.kind === "speaker" ? maxWeight.speaker : maxWeight.entity;
   const t = max > 0 ? Math.sqrt(Math.max(0, n.weight) / max) : 0;
   return n.kind === "speaker" ? 9 + 13 * t : 6 + 9 * t;
@@ -175,7 +191,7 @@ export function maxWeights(nodes: Pick<GraphNode, "kind" | "weight">[]): {
   entity: number;
 } {
   const m = { speaker: 0, entity: 0 };
-  for (const n of nodes) m[n.kind] = Math.max(m[n.kind], n.weight);
+  for (const n of nodes) if (n.kind === "speaker" || n.kind === "entity") m[n.kind] = Math.max(m[n.kind], n.weight);
   return m;
 }
 
@@ -218,4 +234,98 @@ export function findNodes(nodes: GraphNode[], text: string): GraphNode[] {
         Number(b.label.toLowerCase().startsWith(t)) - Number(a.label.toLowerCase().startsWith(t)) ||
         b.weight - a.weight,
     );
+}
+
+/** A node or relationship as the graph API returns it (/graph/related, /graph/paths, /graph/query). */
+export type ApiNode = {
+  id: string;
+  labels: string[];
+  name?: string;
+  type?: string;
+  namespace?: string | null;
+  namespaces?: string[];
+  mentions?: number;
+  seconds?: number;
+  ids?: number[];
+  depth?: number;
+  [key: string]: unknown;
+};
+export type ApiEdge = {
+  id: string;
+  type: string;
+  kind: string;
+  a: string;
+  b: string;
+  count?: number;
+  [key: string]: unknown;
+};
+
+/** An API node as the canvas draws it. */
+export function fromApiNode(n: ApiNode): GraphNode {
+  const label = n.labels[0]?.toLowerCase();
+  const kind: NodeKind =
+    label === "speaker" || label === "recording" || label === "collection" || label === "namespace" ? label : "entity";
+  const num = Number(n.id.replace(/^[a-z]/, ""));
+  return {
+    id: n.id,
+    kind,
+    label: String(n.name ?? n.id),
+    type: kind === "entity" ? n.type : undefined,
+    ns: n.namespaces ?? (n.namespace ? [n.namespace] : []),
+    weight: kind === "entity" ? (n.mentions ?? 1) : kind === "speaker" ? (n.seconds ?? 0) / 60 : 1,
+    refs: n.ids ?? (Number.isFinite(num) ? [num] : []),
+    x: 0,
+    y: 0,
+  };
+}
+
+export function fromApiEdge(e: ApiEdge): GraphEdge {
+  return { a: e.a, b: e.b, w: Number(e.count ?? e.recordings ?? 1) || 1, kind: e.kind };
+}
+
+/** The overview plus nodes and links found by exploring; an overview node wins over the same node found later. */
+export function mergeGraph(
+  base: Pick<GraphData, "nodes" | "edges">,
+  extra: { nodes: GraphNode[]; edges: GraphEdge[] },
+): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const ids = new Set(base.nodes.map((n) => n.id));
+  const nodes = [...base.nodes, ...extra.nodes.filter((n) => !ids.has(n.id))];
+  const key = (e: GraphEdge) => (e.a < e.b ? `${e.a}|${e.b}|${e.kind}` : `${e.b}|${e.a}|${e.kind}`);
+  const seen = new Set(base.edges.map(key));
+  const edges = [...base.edges];
+  for (const e of extra.edges) {
+    if (seen.has(key(e))) continue;
+    seen.add(key(e));
+    edges.push(e);
+  }
+  return { nodes, edges };
+}
+
+/** Where a node's own page is, when it has one. */
+export function nodeHref(n: Pick<GraphNode, "kind" | "refs" | "id">): string | null {
+  const id = n.refs[0];
+  if (n.kind === "speaker") return `/speakers/${id}`;
+  if (n.kind === "recording") return `/recordings/${id}`;
+  if (n.kind === "collection") return `/collections/${id}`;
+  if (n.kind === "entity" && n.refs.length === 1) return `/entities/${id}`;
+  return null;
+}
+
+/** Text that reads as Cypher rather than a question: it starts with a clause. */
+export function looksLikeCypher(text: string): boolean {
+  return /^\s*(MATCH|OPTIONAL\s+MATCH|RETURN|WITH|UNWIND|CALL)\b/i.test(text);
+}
+
+/** A cell of the answer as text: a node by its name, a list or path joined up. */
+export function cellText(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (Array.isArray(v)) return v.map(cellText).join(", ");
+  if (typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    if (typeof o.name === "string") return o.name;
+    if (Array.isArray(o.nodes) && typeof o.length === "number") return `path of ${o.length}`;
+    if (typeof o.type === "string" && typeof o.a === "string") return `${o.a} ${o.type} ${o.b}`;
+    return JSON.stringify(o);
+  }
+  return String(v);
 }

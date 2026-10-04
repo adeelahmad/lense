@@ -5,7 +5,8 @@ graph's version. So the graph can be seen as it was at any version, two versions
 read: who renamed it, who merged what into it, which routine linked it, and why.
 
 Built: the event log, versions, as-of, diffs, entity history, named versions, rollback to a version, checkpoints with
-replay and verify, the History tab. Planned: the explorer and Cypher as of a version (DEVLOG.md).
+replay and verify, the History tab, the graph API and Cypher as of a version. Planned: an as-of picker in the
+explorer (DEVLOG.md).
 
 In the web app, Routines › History lists every version; open one to see what changed, name it, or roll back to it
 (with a preview). An entity's History button shows only its changes.
@@ -100,6 +101,11 @@ routines, workflows and analysis set their own.
 
 The graph as of a version is today's rows with every later event walked back, newest first. A diff composes the
 events between two versions: for each record, how it was before the first and after the last.
+
+The graph API (`/graph/schema`, `/graph/related`, `/graph/paths`) and Cypher (`POST /graph/query`) take `as_of`, a
+version or a version's name: entities and their cross-namespace links are as they were then; mentions, recordings and
+speakers are today's, so an entity merged away since shows only if it is still mentioned. The explorer's graph is
+cached per graph version, so any recorded change shows at once.
 
 ## Refine later
 

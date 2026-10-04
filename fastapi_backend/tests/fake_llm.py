@@ -14,6 +14,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     blind = False  # behave like a server whose model can't see images
     names = None  # namespace names suggested for a question (auto_scope.py)
     decision = None  # the answer to a decision (decide.py) when no decision model is set up; else the first option
+    cypher_script = []  # Cypher to answer graph questions with (graph_ask.py), in order
     usage = None  # token counts to report with each answer (and as a streamed answer's last chunk), like OpenAI
 
     def _json(self, obj):
@@ -84,6 +85,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "importance": 9,
                 }
             )
+        elif "cypher" in schema.get("properties", {}):
+            # graph questions: the scripted queries in order, else one that finds organisations
+            q = Handler.cypher_script.pop(0) if Handler.cypher_script else "MATCH (e:Organisation) RETURN e, e.name LIMIT 50"
+            content = json.dumps({"cypher": q, "explanation": "Looks for organisations."})
         elif "judgements" in schema.get("properties", {}):
             # graph tidying: sure that the first pair is one thing, less sure of the rest, and the last isn't
             pairs = re.findall(r"^(\d+)\. a:", body["messages"][-1]["content"], re.M)

@@ -8,7 +8,7 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   "not the same" pairs is recorded as a numbered version: what changed, who (a person, a routine, the assistant,
   analysis), through what (the web app, a token, an app, MCP) and why. `GET /api/v1/graph/history` lists versions
   (one entity's with `entity`), `/graph/as-of/{version}` shows the graph as it was, `/graph/diff` what changed
-  between two versions, and `/graph/tags` names versions to come back to. `POST /graph/rollback` takes the graph back to a version, after a
+  between two versions, and `/graph/tags` names versions to come back to; the graph API and Cypher take `as_of` to read the graph at a version. `POST /graph/rollback` takes the graph back to a version, after a
   preview, undoing merges with their mentions; a rollback can be rolled back too. Checkpoints let the graph be replayed
   from its history, and `lens history verify` (or `/graph/verify`) checks the replay matches today's graph. See
   docs/graph-history.md.
@@ -20,6 +20,17 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   neighbours, `/graph/paths` the paths between two nodes, and `/graph/schema` what a query can ask about. Agents with
   a write-scope token and editor access ask for merges and links with `POST /api/v1/graph/changes`; they wait in
   Proposed changes unless asked to apply. See docs/graph.md.
+
+- **Explore the graph on a canvas.** Drag nodes, pan and zoom with a mouse or by touch (pinch, long-press), switch
+  between force, BFS tree, DFS tree and radial layouts in one click, and reset. Right-click a node (or long-press it)
+  for its parents, children, ancestors, descendants, neighbours and paths, or to route through it; what is found
+  joins the canvas. Recordings, collections and namespaces show on the canvas alongside speakers and entities.
+- **Ask the graph.** The bar under the canvas takes a question in plain words or Cypher. A language model writes the
+  Cypher for a question (`POST /api/v1/graph/ask`); the answer shows the query, to edit and run again, and lights up
+  what it found.
+- **The assistant and MCP clients can query the graph.** Chat's assistant has graph schema, query, related and paths
+  tools over the chat's namespaces; the MCP server has the same, read-only, and `propose_graph_change` for
+  write-scope tokens.
 
 - **Lock a namespace to your passkeys.** An owner turns a namespace into a vault (Admin › Namespaces › Vault): its
   files open only after one of its passkeys unlocks it, for an hour by default (`encryption.vault_minutes`), and its

@@ -13,7 +13,7 @@ import math
 import re
 from collections import Counter, defaultdict, deque
 
-from . import analyze, entity_setup, graph_history, render, store
+from . import analyze, entity_setup, graph_history, notebook, render, store
 
 R = store.R
 TYPES = {
@@ -810,6 +810,7 @@ def _merge(db, k, snaps, user):
         ]
         stmts = ["DELETE mentions WHERE entity = $o"] + (["INSERT RELATION INTO mentions $rows"] if rows else []) + ["DELETE $oref"]
         db.run(stmts, o=o["id"], oref=R("entity", o["id"]), rows=rows)
+        notebook.release(db, f"entity:{o['id']}")
         for key in [o["key"]] + sn["aliases"]:
             _add_alias(db, k["space"], key, k["id"])
         db.q("UPDATE entity_override SET target = $k WHERE target = $o", k=k["id"], o=o["id"])
@@ -968,6 +969,7 @@ def remove(db, eid):
         raise ValueError(f"{e['name']} is mentioned: merge it into another entity, or hide it.")
     with graph_history.change(db, "entity.delete", entities=[e["id"]]):
         db.run(["DELETE entity_alias WHERE entity = $e", "DELETE $r"], e=e["id"], r=R("entity", e["id"]))
+    notebook.release(db, f"entity:{e['id']}")
 
 
 def link(db, a, b, check_spaces=True):

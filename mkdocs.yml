@@ -78,6 +78,7 @@ nav:
   - IIIF: iiif.md
   - Graph and Cypher: graph.md
   - Graph history: graph-history.md
+  - Notes: notes.md
   - Linked data (RDF): rdf.md
   - Fedora repository: fedora.md
   - API: api.md
