@@ -295,20 +295,19 @@ def _print(argv, env, url, seconds, settle_ms):
     said = tempfile.TemporaryFile()
     err = _high(os.dup(said.fileno()))
     deadline, buf, n = time.monotonic() + seconds, b"", 0
+    file_actions = [
+        (os.POSIX_SPAWN_OPEN, 0, os.devnull, os.O_RDONLY, 0),
+        (os.POSIX_SPAWN_OPEN, 1, os.devnull, os.O_WRONLY, 0),
+        (os.POSIX_SPAWN_DUP2, err, 2),
+        (os.POSIX_SPAWN_DUP2, to_read, 3),
+        (os.POSIX_SPAWN_DUP2, from_write, 4),
+    ]
     try:
-        pid = os.posix_spawn(
-            argv[0],
-            [*argv, "--remote-debugging-pipe", "about:blank"],
-            env,
-            file_actions=[
-                (os.POSIX_SPAWN_OPEN, 0, os.devnull, os.O_RDONLY, 0),
-                (os.POSIX_SPAWN_OPEN, 1, os.devnull, os.O_WRONLY, 0),
-                (os.POSIX_SPAWN_DUP2, err, 2),
-                (os.POSIX_SPAWN_DUP2, to_read, 3),
-                (os.POSIX_SPAWN_DUP2, from_write, 4),
-            ],
-            setsid=True,  # its own process group, so that it goes with all its helpers
-        )
+        # its own process group, so that it goes with all its helpers
+        try:
+            pid = os.posix_spawn(argv[0], [*argv, "--remote-debugging-pipe", "about:blank"], env, file_actions=file_actions, setsid=True)
+        except NotImplementedError:  # Pythons built against an old glibc (uv's own builds) have no setsid here
+            pid = os.posix_spawn(argv[0], [*argv, "--remote-debugging-pipe", "about:blank"], env, file_actions=file_actions, setpgroup=0)
     finally:
         for fd in (to_read, from_write, err):
             os.close(fd)
