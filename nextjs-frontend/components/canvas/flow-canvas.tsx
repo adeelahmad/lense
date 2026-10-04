@@ -348,6 +348,7 @@ function Inner({
         fitView
         fitViewOptions={FIT}
         minZoom={0.1}
+        maxZoom={8}
         onMoveStart={(e) => {
           if (e) moved.current = true; // a pan or zoom by the person (fitting the view has no event)
         }}
