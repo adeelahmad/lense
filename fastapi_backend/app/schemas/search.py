@@ -33,6 +33,12 @@ class SearchHit(ResponseModel):
     file_role: str | None = Field(None, description="file hits: its role (transcript, captions, translation or index)")
     file_label: str | None = Field(None, description="file hits: its label, or its name")
     line: int | None = Field(None, description="file hits: which of its lines (from 0)")
+    match: Literal["words", "meaning", "both"] = Field(
+        "words",
+        description='how it was found: by the query\'s "words" (BM25), by "meaning" (a passage an embedding model finds '
+        'alike; shown at its line that fits best), or "both"',
+    )
+    similarity: float | None = Field(None, description="found by meaning: how alike the passage is to the query (cosine, up to 1)")
 
 
 class FacetCount(ResponseModel):
@@ -78,6 +84,11 @@ class SearchResults(ResponseModel):
     capped: bool
     hits: list[SearchHit]
     facets: SearchFacets | None = Field(None, description="with `facets=true`: counts over all the matching moments")
+    mode: Literal["keyword", "semantic", "hybrid"] = Field(
+        "keyword", description="how the query was matched: by its words, by meaning, or both (fused by rank)"
+    )
+    meaning: str | None = Field(None, description="why the search wasn't by meaning when that was asked for")
+    semantic: bool = Field(False, description="search by meaning is set up, so `mode` may be semantic or hybrid")
 
 
 class TermSuggestion(ResponseModel):

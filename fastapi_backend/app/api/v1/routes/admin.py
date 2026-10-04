@@ -10,10 +10,25 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 
+from app import email
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
-from app.domain import auth, jobs, llm, settings, sources, store, telemetry
-from app.schemas.admin import AuditEntry, Health, LlmTestResult, Started, TelemetryStatus, TelemetryTestResult
+from app.domain import auth, bridge, jobs, llm, semantic, settings, sources, store, telemetry, tunnel
+from app.schemas.admin import (
+    AuditEntry,
+    BridgeStatus,
+    BridgeTestResult,
+    EmbedTestResult,
+    Health,
+    IndexQueued,
+    LlmTestResult,
+    MailTestResult,
+    SemanticStatus,
+    Started,
+    TelemetryStatus,
+    TelemetryTestResult,
+    TunnelStatus,
+)
 from app.schemas.auth import AccountToken
 from app.schemas.common import Ok
 
@@ -35,6 +50,13 @@ def update_settings(section: str, body: dict[str, Any], user: AdminWriter, reque
         hosts = [str(h).lower() for h in body["allowed_hosts"] or []]
         if "*" not in hosts and here not in hosts:
             raise HTTPException(400, f"that list leaves out {here}, the address you're using, and would lock you out")
+    if (
+        section == "bridge"
+        and body.get("enabled")
+        and "account" not in body
+        and not request.app.state.archive.current()["bridge"].get("account")
+    ):
+        body = {**body, "account": user.email}  # turned on without saying who it answers as: the admin who turned it on
     with domain_errors():
         settings.save(db, request.app.state.archive.base, section, body, user.email)
     auth.audit(db, user.as_audit(), "settings.save", section, sorted(body))
@@ -52,6 +74,72 @@ def test_llm(user: AdminWriter, cfg: Cfg) -> LlmTestResult:
     except llm.LLMError as e:
         return LlmTestResult(ok=False, error=str(e))
     return LlmTestResult(ok=True, reply=reply.strip()[:40], ms=int((time.time() - t0) * 1000), model=cfg["llm"]["model"])
+
+
+@router.post("/settings/mail/test")
+async def test_mail(user: AdminWriter, cfg: Cfg) -> MailTestResult:
+    """Send a short message to your own address through the email settings, to check them."""
+    if not email.mail_enabled(cfg):
+        return MailTestResult(ok=False, error="set the SMTP server and the From address first")
+    try:
+        await email.send_test_email(cfg, user.email)
+    except Exception as e:  # noqa: BLE001 - the server's answer is what's useful here
+        return MailTestResult(ok=False, to=user.email, error=f"{type(e).__name__}: {e}"[:400])
+    return MailTestResult(ok=True, to=user.email)
+
+
+@router.get("/settings/bridge")
+def bridge_status(user: AdminReader, cfg: Cfg, db: Db) -> BridgeStatus:
+    """How the assistant's chat-room bridge (Matterbridge) is doing."""
+    return BridgeStatus(**bridge.status(db, cfg))
+
+
+@router.get("/settings/tunnel/status")
+def tunnel_status(user: AdminReader, cfg: Cfg, db: Db) -> TunnelStatus:
+    """How the Cloudflare tunnel (Settings › Remote access) is doing: its address, whether it's connected, and
+    cloudflared's last lines."""
+    return TunnelStatus(**tunnel.status(db, cfg))
+
+
+@router.post("/settings/bridge/test")
+def test_bridge(user: AdminWriter, cfg: Cfg, db: Db) -> BridgeTestResult:
+    """Check that Matterbridge answers at its address with its token, and that the account to answer as exists."""
+    error = bridge.check(db, cfg)
+    return BridgeTestResult(ok=error is None, error=error)
+
+
+@router.post("/settings/embeddings/test")
+def test_embeddings(user: AdminWriter, cfg: Cfg, db: Db) -> EmbedTestResult:
+    """Embed one sentence with the configured model, to check the address, key and model name."""
+    if not semantic.configured(cfg):
+        return EmbedTestResult(ok=False, error="turn search by meaning on, with a base URL (or the LLM provider's) and a model")
+    t0 = time.time()
+    try:
+        vec = semantic.embed(cfg, ["Lens checks that it can search by meaning."], timeout=30)[0]
+    except semantic.EmbedError as e:
+        return EmbedTestResult(ok=False, error=str(e))
+    semantic.recovered(db)
+    return EmbedTestResult(ok=True, dimension=len(vec), ms=int((time.time() - t0) * 1000), model=semantic.endpoint(cfg)[2])
+
+
+@router.get("/admin/semantic")
+def semantic_status(user: AdminReader, cfg: Cfg, db: Db) -> SemanticStatus:
+    """Search by meaning: whether it's set up, its model, and how many recordings are indexed with it."""
+    return SemanticStatus(**semantic.status(db, cfg))
+
+
+@router.post("/admin/semantic/index")
+def index_semantic(user: AdminWriter, cfg: Cfg, db: Db, limit: int = Query(500, ge=1, le=5000)) -> IndexQueued:
+    """Queue the embed step for up to `limit` recordings not yet indexed with the configured model, oldest first (a
+    recording with a job waiting or running is left for the next time)."""
+    if not semantic.configured(cfg):
+        raise HTTPException(400, "turn search by meaning on, with an embeddings server and a model, first")
+    semantic.recovered(db)
+    rids = semantic.unindexed(db, cfg, sorted(store.space_names(db)), limit + 1)
+    for rid in rids[:limit]:
+        jobs.enqueue(db, rid, ["embed"], by=user.email)
+    auth.audit(db, user.as_audit(), "search.index_meaning", None, {"recordings": len(rids[:limit])})
+    return IndexQueued(recordings=len(rids[:limit]), remaining=len(rids) > limit)
 
 
 @router.get("/settings/telemetry/status")

@@ -142,7 +142,7 @@ export function buildAttention(input: {
       meta: `${pending.length} voice ${pending.length === 1 ? "match" : "matches"} to review in ${r.namespace}`,
       action: {
         label: "Review",
-        do: { type: "link", href: "/speakers", namespace: r.namespace },
+        do: { type: "link", href: "/settings/speakers", namespace: r.namespace },
       },
     });
   }

@@ -104,6 +104,26 @@ describe("routine actions", () => {
   });
 });
 
+describe("sensor retention actions", () => {
+  it("read, save and sum up", () => {
+    const all: RoutineAction = { type: "sensors" };
+    const some: RoutineAction = { type: "sensors", sensors: [4, 5] };
+    expect(actionText(all, names)).toBe("Tidy every sensor’s data");
+    expect(actionText(some, names)).toBe("Tidy the data of 2 sensors");
+    expect(cleanActions([all, some], () => false)).toEqual([{ type: "sensors" }, { type: "sensors", sensors: [4, 5] }]);
+    expect(resultText({ type: "sensors", status: "done", result: { sensors: 3, readings: 120, rollups: 4 } })).toBe(
+      "3 sensors · 120 readings and 4 summaries removed",
+    );
+    expect(
+      resultText({
+        type: "sensors",
+        status: "done",
+        result: { sensors: 1, readings: 0, rollups: 0, triaged: 2, digests: 1 },
+      }),
+    ).toBe("1 sensor · 0 readings and 0 summaries removed · 2 log patterns labelled · 1 daily digest");
+  });
+});
+
 describe("graph workflows", () => {
   it("start valid, and use only graph nodes", () => {
     const g = starter("graph");

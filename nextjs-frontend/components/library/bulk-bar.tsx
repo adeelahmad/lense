@@ -164,6 +164,11 @@ const STEP_CHOICES = [
     hint: "Emotions, entities and chapters.",
   },
   {
+    value: "embed",
+    label: "Index for search by meaning",
+    hint: "Needs an embedding model in Settings → Search.",
+  },
+  {
     value: "summarize",
     label: "Summarize",
     hint: "Needs a language model in Settings.",

@@ -95,6 +95,31 @@ export const IMAP_SECURITY = [
   { value: "none", label: "None (not encrypted)" },
 ];
 
+const IMAP_HOSTS: Record<string, string> = {
+  "gmail.com": "imap.gmail.com",
+  "googlemail.com": "imap.gmail.com",
+  "outlook.com": "outlook.office365.com",
+  "hotmail.com": "outlook.office365.com",
+  "live.com": "outlook.office365.com",
+  "msn.com": "outlook.office365.com",
+  "icloud.com": "imap.mail.me.com",
+  "me.com": "imap.mail.me.com",
+  "mac.com": "imap.mail.me.com",
+  "yahoo.com": "imap.mail.yahoo.com",
+  "aol.com": "imap.aol.com",
+  "fastmail.com": "imap.fastmail.com",
+  "zoho.com": "imap.zoho.com",
+  "gmx.com": "imap.gmx.com",
+  "gmx.net": "imap.gmx.net",
+};
+
+/** The IMAP server an address most likely uses: a known provider's, else imap.<domain> ("" without a domain). */
+export function imapHost(email: string): string {
+  const domain = email.trim().toLowerCase().split("@")[1] ?? "";
+  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domain)) return "";
+  return IMAP_HOSTS[domain] ?? `imap.${domain}`;
+}
+
 const str = (v: unknown) => (v == null ? "" : String(v)).trim();
 
 /** "S3 · AWS eu-central-1", "SFTP · recorder@calls-gw:22", "Drive · read only"... */

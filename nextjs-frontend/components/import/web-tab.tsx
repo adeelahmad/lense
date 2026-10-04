@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 
 import { Imports } from "@/app/openapi-client";
-import { webAddressProblem } from "@/components/import/files";
+import { webAddress, webAddressProblem } from "@/components/import/files";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
@@ -47,11 +47,11 @@ export function WebTab({
       data(
         Imports.importWebPage({
           client,
-          body: { url: url.trim(), namespace: namespace ?? "", title: title.trim() || null, pipeline, collection },
+          body: { url: webAddress(url), namespace: namespace ?? "", title: title.trim() || null, pipeline, collection },
         }),
       ),
     onSuccess: (r) => {
-      setCaptured((c) => [{ url: url.trim(), id: r.id }, ...c].slice(0, 10));
+      setCaptured((c) => [{ url: webAddress(url), id: r.id }, ...c].slice(0, 10));
       toast({ title: "Capturing the page", body: "It’s kept as a PDF and read like any document.", tone: "green" });
       setUrl("");
       setTitle("");
@@ -85,7 +85,8 @@ export function WebTab({
               type="url"
               inputMode="url"
               autoComplete="off"
-              placeholder="https://example.org/news/harbour-reopens"
+              autoFocus
+              placeholder="example.org/news/harbour-reopens"
               value={url}
               onChange={(e) => {
                 setUrl(e.target.value);

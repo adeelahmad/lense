@@ -10,11 +10,13 @@ from app.schemas.common import RequestModel, ResponseModel, Role
 
 class UserWithRoles(UserPublic):
     roles: dict[str, Role] = Field(default_factory=dict, description="namespace name -> role")
+    passkeys: int = Field(0, description="how many passkeys they have")
+    password: bool = Field(False, description="whether they have a password")
 
 
 class UserCreate(RequestModel):
     email: str
-    password: str
+    password: str | None = Field(default=None, description="only where passwords are on; without one, send them a sign-in link")
     name: str | None = None
     admin: bool = False
 

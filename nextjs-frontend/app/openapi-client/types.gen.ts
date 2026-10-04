@@ -293,6 +293,33 @@ export type AttachedTo = {
 };
 
 /**
+ * Attachment
+ */
+export type Attachment = {
+  /**
+   * Id
+   *
+   * the upload
+   */
+  id: string;
+  /**
+   * Filename
+   */
+  filename: string;
+  /**
+   * Size
+   */
+  size: number;
+  /**
+   * Recording
+   *
+   * the recording it became, once imported
+   */
+  recording?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * AuditEntry
  */
 export type AuditEntry = {
@@ -331,6 +358,10 @@ export type AuthStatus = {
    * Wizard Pending
    */
   wizard_pending?: boolean;
+  /**
+   * Passwords
+   */
+  passwords?: boolean;
   [key: string]: unknown;
 };
 
@@ -792,6 +823,56 @@ export type BodyOauthToken = {
 };
 
 /**
+ * BridgeStatus
+ */
+export type BridgeStatus = {
+  /**
+   * State
+   *
+   * off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at Matterbridge failed, `error` says why)
+   */
+  state: "off" | "incomplete" | "starting" | "running" | "error";
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Holder
+   *
+   * the server process reading Matterbridge
+   */
+  holder?: string | null;
+  /**
+   * At
+   *
+   * when it last looked
+   */
+  at?: string | null;
+  /**
+   * Answered
+   *
+   * messages it answered since it started
+   */
+  answered?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * BridgeTestResult
+ */
+export type BridgeTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * BrowseEntry
  */
 export type BrowseEntry = {
@@ -841,6 +922,38 @@ export type BrowseEntry = {
 };
 
 /**
+ * ChangeAsk
+ */
+export type ChangeAsk = {
+  /**
+   * Kind
+   *
+   * merge: two entities of one namespace are one; link: entities of two namespaces are the same thing
+   */
+  kind: "merge" | "link";
+  /**
+   * A
+   *
+   * an entity node id, e<id> (for a merge, the one kept)
+   */
+  a: string;
+  /**
+   * B
+   */
+  b: string;
+  /**
+   * Reason
+   */
+  reason?: string | null;
+  /**
+   * Apply
+   *
+   * make it now (editors) instead of proposing it for someone to accept
+   */
+  apply?: boolean;
+};
+
+/**
  * Chat
  */
 export type Chat = {
@@ -852,6 +965,12 @@ export type Chat = {
    * Title
    */
   title: string;
+  /**
+   * Kind
+   *
+   * bridge: a conversation in a chat room, through Matterbridge
+   */
+  kind?: "chat" | "setup" | "bridge";
   /**
    * Scope
    */
@@ -934,6 +1053,12 @@ export type ChatCreate = {
    * Title
    */
   title?: string | null;
+  /**
+   * Kind
+   *
+   * setup (admins): the assistant sets the server up with you, and makes the changes it proposes without asking (telemetry still asks)
+   */
+  kind?: "chat" | "setup";
   scope?: ChatScope | null;
   /**
    * Model
@@ -959,6 +1084,16 @@ export type ChatMessage = {
    * Content
    */
   content: string;
+  /**
+   * a question asked from a page: the page, and any highlighted text
+   */
+  context?: SharedContext | null;
+  /**
+   * Attachments
+   *
+   * files sent with it (POST /uploads with hold)
+   */
+  attachments?: Array<Attachment>;
   /**
    * Passages
    */
@@ -1054,6 +1189,12 @@ export type ChatSummary = {
    * Title
    */
   title: string;
+  /**
+   * Kind
+   *
+   * bridge: a conversation in a chat room, through Matterbridge
+   */
+  kind?: "chat" | "setup" | "bridge";
   /**
    * Scope
    */
@@ -1757,6 +1898,127 @@ export type CommentUpdate = {
 };
 
 /**
+ * Component
+ */
+export type Component = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Purpose
+   */
+  purpose: string;
+  /**
+   * Kind
+   *
+   * program: the image provides it (only checked); package and model: fetched into the data folder; server-model: pulled on the Ollama server
+   */
+  kind: "program" | "package" | "model" | "server-model";
+  /**
+   * Steps
+   *
+   * the job steps that wait for it
+   */
+  steps?: Array<string>;
+  /**
+   * Size Mb
+   *
+   * about how much it downloads
+   */
+  size_mb?: number | null;
+  /**
+   * Optional
+   *
+   * fetched only when listed in components.also
+   */
+  optional?: boolean;
+  /**
+   * License
+   */
+  license?: string | null;
+  /**
+   * Needed
+   *
+   * this server's settings ask for it
+   */
+  needed: boolean;
+  /**
+   * Hint
+   *
+   * for a program: how to get it
+   */
+  hint?: string | null;
+  /**
+   * Here
+   *
+   * for a program: whether the API's machine has it
+   */
+  here?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ComponentState
+ */
+export type ComponentState = {
+  /**
+   * State
+   *
+   * waiting/fetching: being fetched, and the steps that need it wait; missing: needed but fetching is off
+   */
+  state: "ready" | "waiting" | "fetching" | "failed" | "missing";
+  /**
+   * Detail
+   *
+   * what it's doing, e.g. pulling nomic-embed-text: 40%
+   */
+  detail?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Components
+ */
+export type Components = {
+  /**
+   * Auto
+   *
+   * components.auto: fetch what's needed without asking
+   */
+  auto: boolean;
+  /**
+   * the API's machine
+   */
+  machine: Machine;
+  /**
+   * Recommended
+   *
+   * the transcription settings that suit the API's machine
+   */
+  recommended: {
+    [key: string]: unknown;
+  };
+  /**
+   * Components
+   */
+  components: Array<Component>;
+  /**
+   * Workers
+   */
+  workers: Array<WorkerComponents>;
+  [key: string]: unknown;
+};
+
+/**
  * Consent
  *
  * What the consent page shows.
@@ -2091,6 +2353,188 @@ export type Created = {
 };
 
 /**
+ * CustomNode
+ */
+export type CustomNode = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Icon
+   *
+   * a lucide icon name, e.g. sparkles
+   */
+  icon?: string | null;
+  /**
+   * Color
+   *
+   * blue, green, gold, red, purple or neutral
+   */
+  color?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   *
+   * who sees it, when shared with namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null;
+  /**
+   * Editable
+   */
+  editable?: boolean;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Version
+   */
+  version: number;
+  graph: WorkflowGraph;
+  /**
+   * Params
+   */
+  params?: Array<NodeParam>;
+  /**
+   * Inputs
+   *
+   * its input ports: the names of the arg nodes in its body
+   */
+  inputs: Array<string>;
+  /**
+   * Outputs
+   *
+   * its output ports: the names of the return nodes in its body
+   */
+  outputs: Array<string>;
+  /**
+   * Scopes
+   *
+   * the workflows it can be used in: recording, graph or both
+   */
+  scopes: Array<string>;
+  /**
+   * Keeps
+   *
+   * whether it saves something itself
+   */
+  keeps?: boolean;
+  /**
+   * Deleted At
+   */
+  deleted_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * History
+   */
+  history?: Array<WorkflowVersionInfo>;
+  [key: string]: unknown;
+};
+
+/**
+ * CustomNodeCreate
+ */
+export type CustomNodeCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  graph: WorkflowGraph;
+  /**
+   * Params
+   */
+  params?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Icon
+   */
+  icon?: string | null;
+  /**
+   * Color
+   */
+  color?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<string>;
+};
+
+/**
+ * CustomNodeUpdate
+ */
+export type CustomNodeUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Icon
+   */
+  icon?: string | null;
+  /**
+   * Color
+   */
+  color?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone" | null;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<string> | null;
+};
+
+/**
+ * CustomNodeVersionCreate
+ */
+export type CustomNodeVersionCreate = {
+  graph: WorkflowGraph;
+  /**
+   * Params
+   */
+  params?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+};
+
+/**
  * Description
  *
  * What a model that can see images said a page or a shot shows.
@@ -2188,6 +2632,65 @@ export type EmbedLink = {
 };
 
 /**
+ * EmbedTestResult
+ */
+export type EmbedTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Dimension
+   *
+   * how many numbers the model's vectors have
+   */
+  dimension?: number | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * EntityDefine
+ */
+export type EntityDefine = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Type
+   */
+  type?: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Aliases
+   *
+   * other ways it's said
+   */
+  aliases?: Array<string>;
+  /**
+   * Collection
+   *
+   * for this collection (and those inside it) only; default: the namespace
+   */
+  collection?: number | null;
+};
+
+/**
  * EntityDetail
  */
 export type EntityDetail = {
@@ -2211,6 +2714,10 @@ export type EntityDetail = {
    * Type Label
    */
   type_label: string;
+  /**
+   * Description
+   */
+  description?: string | null;
   /**
    * Namespace
    */
@@ -2253,6 +2760,24 @@ export type EntityDetail = {
    * Hidden
    */
   hidden?: boolean;
+  /**
+   * Defined
+   *
+   * on the fixed list people defined
+   */
+  defined?: boolean;
+  /**
+   * Builtin
+   *
+   * unknown or unlabeled: one of the two entities that are always there
+   */
+  builtin?: string | null;
+  /**
+   * Collection
+   *
+   * a defined entity of one collection (and those inside it)
+   */
+  collection?: number | null;
   [key: string]: unknown;
 };
 
@@ -2412,6 +2937,143 @@ export type EntityRetype = {
 };
 
 /**
+ * EntitySetup
+ */
+export type EntitySetup = {
+  /**
+   * Mode
+   *
+   * self: every name found becomes an entity, and people curate them; fixed: names found are mapped onto the entities people defined, or onto Unlabeled (it belongs here) or Unknown; hybrid: the defined entities first, then names of the types kept become entities of their own and others go to Unknown
+   */
+  mode: string;
+  /**
+   * Types
+   *
+   * the types kept; empty: all of them
+   */
+  types?: Array<string>;
+  /**
+   * Description
+   *
+   * what this place is about
+   */
+  description?: string | null;
+  /**
+   * Matching
+   */
+  matching?: string;
+  /**
+   * Collection
+   *
+   * the collection this setup is saved on; null: the namespace
+   */
+  collection?: number | null;
+  /**
+   * Collection Path
+   */
+  collection_path?: Array<string>;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  /**
+   * Can Change
+   */
+  can_change?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * EntitySetupApplied
+ */
+export type EntitySetupApplied = {
+  /**
+   * Recordings
+   *
+   * how many recordings are analysed again
+   */
+  recordings: number;
+  [key: string]: unknown;
+};
+
+/**
+ * EntitySetupApply
+ */
+export type EntitySetupApply = {
+  /**
+   * Collection
+   *
+   * only this collection's recordings (and those inside it)
+   */
+  collection?: number | null;
+};
+
+/**
+ * EntitySetupSave
+ */
+export type EntitySetupSave = {
+  /**
+   * Collection
+   *
+   * save it on this collection (default: the namespace)
+   */
+  collection?: number | null;
+  /**
+   * Mode
+   */
+  mode?: "self" | "fixed" | "hybrid";
+  /**
+   * Types
+   */
+  types?: Array<string>;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Matching
+   */
+  matching?: "rules" | "model";
+};
+
+/**
+ * EntitySetupView
+ */
+export type EntitySetupView = {
+  /**
+   * the namespace's setup (the default when none is saved)
+   */
+  namespace: EntitySetup;
+  /**
+   * Saved
+   *
+   * whether the namespace has a setup of its own
+   */
+  saved: boolean;
+  /**
+   * Collections
+   *
+   * collections with a setup of their own
+   */
+  collections?: Array<EntitySetup>;
+  /**
+   * Types
+   */
+  types?: Array<EntityTypeInfo>;
+  /**
+   * Can Change
+   *
+   * you may change the namespace's setup and types: its editors
+   */
+  can_change: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * EntityType
  */
 export type EntityType = {
@@ -2429,7 +3091,104 @@ export type EntityType = {
    * extracted but hidden unless a filter asks for it (dates, numbers)
    */
   quiet: boolean;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Builtin
+   *
+   * one of Lens's types; false: the namespace's own
+   */
+  builtin?: boolean;
   [key: string]: unknown;
+};
+
+/**
+ * EntityTypeCreate
+ */
+export type EntityTypeCreate = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+};
+
+/**
+ * EntityTypeInfo
+ */
+export type EntityTypeInfo = {
+  /**
+   * Type
+   *
+   * the code extractors and models use, e.g. ORG or CLIENT_TEAM
+   */
+  type: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Quiet
+   *
+   * extracted but hidden unless a filter asks for it (dates, numbers)
+   */
+  quiet?: boolean;
+  /**
+   * Builtin
+   *
+   * one of Lens's types; false: the namespace's own
+   */
+  builtin?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * EntityTypeUpdate
+ */
+export type EntityTypeUpdate = {
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Description
+   *
+   * empty clears it
+   */
+  description?: string | null;
+};
+
+/**
+ * EntityUpdate
+ */
+export type EntityUpdate = {
+  /**
+   * Description
+   *
+   * what the entity is; empty clears it
+   */
+  description?: string | null;
+  /**
+   * Aliases
+   *
+   * the other ways it's said (these replace the ones it has)
+   */
+  aliases?: Array<string> | null;
+  /**
+   * Defined
+   *
+   * on the fixed list of entities (namespaces in the fixed mode map names onto it)
+   */
+  defined?: boolean | null;
 };
 
 /**
@@ -2485,6 +3244,508 @@ export type EventInfo = {
    */
   label: string;
   [key: string]: unknown;
+};
+
+/**
+ * Extension
+ */
+export type Extension = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   *
+   * what the assistant calls it: its tool or skill name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: "tool" | "skill" | "hook" | "plugin";
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   *
+   * who sees it, when shared with namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Enabled
+   *
+   * whether it's switched on in conversations
+   */
+  enabled: boolean;
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null;
+  /**
+   * Editable
+   */
+  editable?: boolean;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Spec
+   *
+   * the tool, skill, hook or plugin itself, as its manifest has it
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Origin
+   *
+   * how this version was made: code, canvas or chat
+   */
+  origin?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionCreate
+ */
+export type ExtensionCreate = {
+  /**
+   * Manifest
+   *
+   * {name, kind, description, ...settings}
+   */
+  manifest?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Text
+   *
+   * the manifest as code: YAML, JSON, or Markdown with frontmatter
+   */
+  text?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+  /**
+   * Origin
+   */
+  origin?: "code" | "canvas" | "chat";
+};
+
+/**
+ * ExtensionDetail
+ */
+export type ExtensionDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   *
+   * what the assistant calls it: its tool or skill name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: "tool" | "skill" | "hook" | "plugin";
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone";
+  /**
+   * Namespaces
+   *
+   * who sees it, when shared with namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Enabled
+   *
+   * whether it's switched on in conversations
+   */
+  enabled: boolean;
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null;
+  /**
+   * Editable
+   */
+  editable?: boolean;
+  /**
+   * Current
+   */
+  current: number;
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Spec
+   *
+   * the tool, skill, hook or plugin itself, as its manifest has it
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Origin
+   *
+   * how this version was made: code, canvas or chat
+   */
+  origin?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Manifest
+   *
+   * the extension as a manifest to read, change and import again
+   */
+  manifest: string;
+  /**
+   * History
+   */
+  history?: Array<ExtensionVersionInfo>;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionTest
+ */
+export type ExtensionTest = {
+  /**
+   * Tool
+   *
+   * which of a plugin's tools (a tool extension: itself)
+   */
+  tool?: string | null;
+  /**
+   * Args
+   */
+  args?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Confirm
+   *
+   * needed to try a tool that changes something: it really runs
+   */
+  confirm?: boolean;
+};
+
+/**
+ * ExtensionTestResult
+ */
+export type ExtensionTestResult = {
+  /**
+   * Output
+   */
+  output?: unknown;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionUpdate
+ */
+export type ExtensionUpdate = {
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+  /**
+   * Visibility
+   */
+  visibility?: "private" | "namespace" | "everyone" | null;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<string> | null;
+};
+
+/**
+ * ExtensionVersionCreate
+ */
+export type ExtensionVersionCreate = {
+  /**
+   * Manifest
+   */
+  manifest?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Text
+   */
+  text?: string | null;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Origin
+   */
+  origin?: "code" | "canvas" | "chat";
+};
+
+/**
+ * ExtensionVersionInfo
+ */
+export type ExtensionVersionInfo = {
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Notes
+   */
+  notes?: string | null;
+  /**
+   * Origin
+   */
+  origin?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalIdentity
+ */
+export type ExternalIdentity = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Provider
+   */
+  provider: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Kind
+   */
+  kind: "google" | "github" | "microsoft" | "oidc";
+  /**
+   * Email
+   */
+  email?: string | null;
+  /**
+   * Created At
+   */
+  created_at: string;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalProvider
+ */
+export type ExternalProvider = {
+  /**
+   * Key
+   */
+  key: string;
+  /**
+   * Kind
+   */
+  kind: "google" | "github" | "microsoft" | "oidc";
+  /**
+   * Label
+   */
+  label: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalProviderAdmin
+ */
+export type ExternalProviderAdmin = {
+  /**
+   * Key
+   */
+  key: string;
+  /**
+   * Kind
+   */
+  kind: "google" | "github" | "microsoft" | "oidc";
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Client Id
+   */
+  client_id: string;
+  /**
+   * Secret Set
+   *
+   * a client secret is kept (never shown)
+   */
+  secret_set: boolean;
+  /**
+   * Issuer
+   *
+   * OpenID Connect: the provider's address
+   */
+  issuer?: string;
+  /**
+   * Tenant
+   *
+   * Microsoft: the directory (tenant) id, or common
+   */
+  tenant?: string;
+  /**
+   * Signup
+   *
+   * people without a Lens account get one when they sign in
+   */
+  signup: boolean;
+  /**
+   * Domains
+   *
+   * sign-up only for these email domains; empty means any
+   */
+  domains: Array<string>;
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * People
+   *
+   * Lens accounts connected through it
+   */
+  people: number;
+  /**
+   * Callback Path
+   *
+   * add this path on the web app's address as the redirect URI at the provider
+   */
+  callback_path: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalProviderSave
+ */
+export type ExternalProviderSave = {
+  /**
+   * Kind
+   *
+   * when adding one
+   */
+  kind?: "google" | "github" | "microsoft" | "oidc" | null;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Client Id
+   */
+  client_id?: string | null;
+  /**
+   * Client Secret
+   *
+   * leave out to keep the one kept
+   */
+  client_secret?: string | null;
+  /**
+   * Issuer
+   */
+  issuer?: string | null;
+  /**
+   * Tenant
+   */
+  tenant?: string | null;
+  /**
+   * Signup
+   */
+  signup?: boolean | null;
+  /**
+   * Domains
+   */
+  domains?: Array<string> | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+};
+
+/**
+ * ExternalRedirect
+ */
+export type ExternalRedirect = {
+  /**
+   * Url
+   *
+   * the provider's sign-in page; open it in this browser
+   */
+  url: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalStart
+ */
+export type ExternalStart = {
+  /**
+   * Next
+   *
+   * the page to open after signing in
+   */
+  next?: string;
 };
 
 /**
@@ -2605,6 +3866,86 @@ export type FacetCount = {
    * matching moments
    */
   count: number;
+  [key: string]: unknown;
+};
+
+/**
+ * FedoraStatus
+ */
+export type FedoraStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Url
+   */
+  url?: string | null;
+  /**
+   * Root
+   */
+  root: string;
+  /**
+   * Pending
+   */
+  pending: number;
+  /**
+   * Resources
+   */
+  resources: number;
+  /**
+   * Last Sync
+   */
+  last_sync?: string | null;
+  /**
+   * Last Full
+   */
+  last_full?: string | null;
+  /**
+   * Last Counts
+   */
+  last_counts?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  /**
+   * Full Requested
+   */
+  full_requested: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * FedoraSyncResult
+ */
+export type FedoraSyncResult = {
+  /**
+   * Sent
+   */
+  sent: number;
+  /**
+   * Files
+   */
+  files: number;
+  /**
+   * Unchanged
+   */
+  unchanged: number;
+  /**
+   * Deleted
+   */
+  deleted: number;
+  /**
+   * Failed
+   */
+  failed: number;
+  /**
+   * Errors
+   */
+  errors: Array<string>;
   [key: string]: unknown;
 };
 
@@ -2899,6 +4240,21 @@ export type ForgotPasswordRequest = {
 };
 
 /**
+ * Gpu
+ */
+export type Gpu = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Memory Gb
+   */
+  memory_gb?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * Graph
  */
 export type Graph = {
@@ -3015,6 +4371,36 @@ export type GraphChangeAccept = {
 };
 
 /**
+ * GraphQuery
+ */
+export type GraphQuery = {
+  /**
+   * Query
+   *
+   * read-only Cypher, e.g. MATCH (e:Person)<-[:MENTIONS]-(r:Recording) RETURN e.name, count(r)
+   */
+  query: string;
+  /**
+   * Params
+   *
+   * values for $parameters in the query
+   */
+  params?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Scope
+   */
+  scope?: string;
+  /**
+   * Limit
+   *
+   * rows at most
+   */
+  limit?: number;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -3022,6 +4408,91 @@ export type HttpValidationError = {
    * Detail
    */
   detail?: Array<ValidationError>;
+};
+
+/**
+ * Handling
+ */
+export type Handling = {
+  /**
+   * Store
+   *
+   * all readings, only changes, hourly summaries only, or none (counted and dropped)
+   */
+  store?: "all" | "changes" | "summary" | "none";
+  /**
+   * Raw Days
+   *
+   * days readings are kept; none: for good
+   */
+  raw_days?: number | null;
+  /**
+   * Rollup Days
+   *
+   * days hourly summaries are kept; none: for good
+   */
+  rollup_days?: number | null;
+  /**
+   * Important Days
+   *
+   * days log lines of warning or worse are kept, when longer than raw_days
+   */
+  important_days?: number | null;
+  /**
+   * Max Per Minute
+   *
+   * readings a stream may send a minute; more are dropped
+   */
+  max_per_minute?: number | null;
+  /**
+   * Triage
+   *
+   * the decision model labels new log patterns routine, notable or alert
+   */
+  triage?: boolean;
+  /**
+   * Digest
+   *
+   * a daily digest becomes a document in the sensor's namespace
+   */
+  digest?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * HandlingChange
+ *
+ * A setting left out stays as it is; null goes back to the settings' default; 0 days keeps them for good.
+ */
+export type HandlingChange = {
+  /**
+   * Store
+   */
+  store?: "all" | "changes" | "summary" | "none" | null;
+  /**
+   * Raw Days
+   */
+  raw_days?: number | null;
+  /**
+   * Rollup Days
+   */
+  rollup_days?: number | null;
+  /**
+   * Important Days
+   */
+  important_days?: number | null;
+  /**
+   * Max Per Minute
+   */
+  max_per_minute?: number | null;
+  /**
+   * Triage
+   */
+  triage?: boolean | null;
+  /**
+   * Digest
+   */
+  digest?: boolean | null;
 };
 
 /**
@@ -3137,6 +4608,31 @@ export type HealthSource = {
   health?: {
     [key: string]: unknown;
   } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Heard
+ */
+export type Heard = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Language
+   */
+  language?: string | null;
+  /**
+   * Engine
+   */
+  engine?: string | null;
+  /**
+   * Seconds
+   *
+   * how long the clip was
+   */
+  seconds?: number;
   [key: string]: unknown;
 };
 
@@ -3261,6 +4757,102 @@ export type HighlightUpdate = {
    * a new label; empty clears it
    */
   label?: string | null;
+};
+
+/**
+ * HubLogin
+ */
+export type HubLogin = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Username
+   */
+  username: string;
+  /**
+   * Space
+   */
+  space?: number | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Last Seen At
+   */
+  last_seen_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * HubLoginCreate
+ */
+export type HubLoginCreate = {
+  /**
+   * Username
+   */
+  username: string;
+  /**
+   * Password
+   */
+  password: string;
+  /**
+   * Space
+   *
+   * the namespace new devices that sign in with it go to
+   */
+  space?: number | null;
+};
+
+/**
+ * HubStatus
+ */
+export type HubStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Mqtt
+   */
+  mqtt: boolean;
+  /**
+   * Mqtt Port
+   */
+  mqtt_port?: number | null;
+  /**
+   * Syslog
+   */
+  syslog: boolean;
+  /**
+   * Syslog Port
+   */
+  syslog_port?: number | null;
+  /**
+   * Processes
+   *
+   * the processes running the hub now, and what they listen on
+   */
+  processes: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * New
+   *
+   * sensors found that nobody has looked at yet
+   */
+  new: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -3535,6 +5127,25 @@ export type ImportedAs = {
    * Namespace
    */
   namespace: string;
+  [key: string]: unknown;
+};
+
+/**
+ * IndexQueued
+ */
+export type IndexQueued = {
+  /**
+   * Recordings
+   *
+   * recordings queued to be indexed
+   */
+  recordings: number;
+  /**
+   * Remaining
+   *
+   * more are waiting than were queued; run it again, or let the hourly routine
+   */
+  remaining: boolean;
   [key: string]: unknown;
 };
 
@@ -4030,6 +5641,29 @@ export type LlmTestResult = {
 };
 
 /**
+ * LocalModelServer
+ */
+export type LocalModelServer = {
+  /**
+   * Kind
+   */
+  kind: string;
+  /**
+   * Base Url
+   */
+  base_url: string;
+  /**
+   * Models
+   */
+  models: Array<string>;
+  /**
+   * Suggested
+   */
+  suggested: string;
+  [key: string]: unknown;
+};
+
+/**
  * LoginRequest
  */
 export type LoginRequest = {
@@ -4041,6 +5675,114 @@ export type LoginRequest = {
    * Password
    */
   password: string;
+};
+
+/**
+ * LoginTicket
+ */
+export type LoginTicket = {
+  /**
+   * Ticket
+   *
+   * swap it for a session at POST /auth/ticket within two minutes; it works once
+   */
+  ticket: string;
+  [key: string]: unknown;
+};
+
+/**
+ * Machine
+ */
+export type Machine = {
+  /**
+   * Os
+   */
+  os: string;
+  /**
+   * Arch
+   */
+  arch: string;
+  /**
+   * Cpus
+   */
+  cpus: number;
+  /**
+   * Memory Gb
+   */
+  memory_gb?: number | null;
+  /**
+   * Gpus
+   */
+  gpus?: Array<Gpu>;
+  /**
+   * Cuda
+   */
+  cuda?: boolean;
+  /**
+   * Apple Silicon
+   */
+  apple_silicon?: boolean;
+  /**
+   * Container
+   */
+  container?: boolean;
+  /**
+   * Python
+   */
+  python?: string | null;
+  /**
+   * Disk Free Gb
+   *
+   * free space in the data folder, where models go
+   */
+  disk_free_gb?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MailTestResult
+ */
+export type MailTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * To
+   *
+   * where the test message went: your own address
+   */
+  to?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ManifestCheck
+ */
+export type ManifestCheck = {
+  /**
+   * Text
+   */
+  text: string;
+};
+
+/**
+ * ManifestChecked
+ */
+export type ManifestChecked = {
+  /**
+   * Manifest
+   *
+   * the manifest, read and checked
+   */
+  manifest: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
 };
 
 /**
@@ -4230,15 +5972,31 @@ export type MessageCreate = {
   /**
    * Content
    *
-   * the question (up to 4000 characters)
+   * the question (up to 4000 characters); may be empty when files are attached
    */
-  content: string;
+  content?: string;
+  /**
+   * asked from a page: the page, its text and any highlighted part
+   */
+  context?: PageContext | null;
+  /**
+   * Attachments
+   *
+   * your uploads started with `hold` and finished: the assistant can import them into a namespace
+   */
+  attachments?: Array<string>;
   /**
    * Model
    *
    * answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry
    */
   model?: string | null;
+  /**
+   * Edit
+   *
+   * edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer
+   */
+  edit?: number | null;
 };
 
 /**
@@ -4620,6 +6378,68 @@ export type NamespaceUpdate = {
 };
 
 /**
+ * NodeParam
+ */
+export type NodeParam = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Kind
+   */
+  kind?: "text" | "number" | "bool" | "json" | "choice";
+  /**
+   * Default
+   */
+  default?: unknown;
+  /**
+   * Options
+   */
+  options?: Array<unknown> | null;
+  /**
+   * Help
+   */
+  help?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NodeTrace
+ */
+export type NodeTrace = {
+  /**
+   * Status
+   */
+  status: "done" | "skipped" | "failed";
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  /**
+   * Ports
+   *
+   * the output ports it passed something on along
+   */
+  ports?: Array<string>;
+  /**
+   * Value
+   *
+   * what it passed on (or took in, if it passes nothing on), as JSON, cut short
+   */
+  value?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * NodeType
  */
 export type NodeType = {
@@ -4649,6 +6469,30 @@ export type NodeType = {
    * its outgoing ports: [] for none, ['out'], or a condition's ['yes', 'no']
    */
   outputs: Array<string>;
+  /**
+   * Input Ports
+   *
+   * its input ports, by name
+   */
+  input_ports?: Array<string>;
+  /**
+   * Dynamic
+   *
+   * which ports its settings make: inputs, outputs or both
+   */
+  dynamic?: string | null;
+  /**
+   * Primitive
+   *
+   * a building block every workflow has
+   */
+  primitive?: boolean;
+  /**
+   * Keeps
+   *
+   * it saves something
+   */
+  keeps?: boolean;
   [key: string]: unknown;
 };
 
@@ -5368,6 +7212,36 @@ export type Page = {
 };
 
 /**
+ * PageContext
+ *
+ * The page a question was asked from (chat on any page): where it is, and what of it the person shared.
+ */
+export type PageContext = {
+  /**
+   * Url
+   *
+   * the page's path in Lens, e.g. /resources/12?t=30
+   */
+  url: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Text
+   *
+   * the page's visible text, when the person shares the page (only the first 12,000 characters are used)
+   */
+  text?: string | null;
+  /**
+   * Selection
+   *
+   * text the person highlighted on it (only the first 4,000 characters are used)
+   */
+  selection?: string | null;
+};
+
+/**
  * Passage
  */
 export type Passage = {
@@ -5425,6 +7299,112 @@ export type Passage = {
 };
 
 /**
+ * Passkey
+ */
+export type Passkey = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Rp Id
+   *
+   * the site it works on (a passkey only works there)
+   */
+  rp_id: string;
+  /**
+   * Backed Up
+   *
+   * synced by a password manager or the device's cloud account
+   */
+  backed_up?: boolean;
+  /**
+   * Created At
+   */
+  created_at: string;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PasskeyAnswer
+ */
+export type PasskeyAnswer = {
+  /**
+   * Flow
+   */
+  flow: string;
+  /**
+   * Credential
+   *
+   * the browser's PublicKeyCredential, as JSON (toJSON())
+   */
+  credential: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name
+   *
+   * what to call a new passkey, like 'MacBook'
+   */
+  name?: string | null;
+};
+
+/**
+ * PasskeyOptions
+ *
+ * What to pass to the browser (navigator.credentials.create or .get, as JSON), and the flow to answer.
+ */
+export type PasskeyOptions = {
+  /**
+   * Flow
+   */
+  flow: string;
+  /**
+   * Options
+   */
+  options: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * PasskeyRename
+ */
+export type PasskeyRename = {
+  /**
+   * Name
+   */
+  name: string;
+};
+
+/**
+ * PasskeySetupStart
+ */
+export type PasskeySetupStart = {
+  /**
+   * Code
+   */
+  code: string;
+  /**
+   * Email
+   */
+  email: string;
+  /**
+   * Name
+   */
+  name?: string | null;
+};
+
+/**
  * PasswordChange
  */
 export type PasswordChange = {
@@ -5438,6 +7418,87 @@ export type PasswordChange = {
    * at least 10 characters
    */
   new_password: string;
+};
+
+/**
+ * Pattern
+ */
+export type Pattern = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Stream
+   */
+  stream: string;
+  /**
+   * Stream Name
+   */
+  stream_name?: string | null;
+  /**
+   * Template
+   *
+   * the line with what changes taken out: <ip>, <name>, <n>...
+   */
+  template: string;
+  /**
+   * Example
+   */
+  example?: string | null;
+  /**
+   * Count
+   */
+  count?: number;
+  /**
+   * First At
+   */
+  first_at?: string | null;
+  /**
+   * Last At
+   */
+  last_at?: string | null;
+  /**
+   * Label
+   */
+  label?: "routine" | "notable" | "alert" | null;
+  /**
+   * Label By
+   *
+   * jev, llm, or who set it
+   */
+  label_by?: string | null;
+  /**
+   * Confidence
+   */
+  confidence?: number | null;
+  /**
+   * Sure
+   *
+   * false: the model wasn't sure; a person should look
+   */
+  sure?: boolean | null;
+  /**
+   * Action
+   */
+  action?: "keep" | "drop";
+  [key: string]: unknown;
+};
+
+/**
+ * PatternUpdate
+ */
+export type PatternUpdate = {
+  /**
+   * Label
+   *
+   * null clears it
+   */
+  label?: "routine" | "notable" | "alert" | null;
+  /**
+   * Action
+   */
+  action?: "keep" | "drop" | null;
 };
 
 /**
@@ -6609,6 +8670,161 @@ export type PublicTranscript = {
 };
 
 /**
+ * Pushed
+ */
+export type Pushed = {
+  /**
+   * Kept
+   */
+  kept: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RdfImport
+ */
+export type RdfImport = {
+  /**
+   * Data
+   *
+   * the RDF: Turtle, N-Triples or JSON-LD (with its @context inline)
+   */
+  data: string;
+  /**
+   * Format
+   *
+   * turtle, nt or json-ld; guessed from the data when left out
+   */
+  format?: string | null;
+  /**
+   * Dry Run
+   *
+   * report what would change without changing it
+   */
+  dry_run?: boolean;
+};
+
+/**
+ * RdfImportItem
+ */
+export type RdfImportItem = {
+  /**
+   * Subject
+   */
+  subject: string;
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Fields
+   *
+   * the metadata fields it changes (or would)
+   */
+  fields: Array<string>;
+  /**
+   * Notes
+   */
+  notes: Array<string>;
+  /**
+   * Statements
+   *
+   * other statements kept with the recording
+   */
+  statements: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RdfImportResult
+ */
+export type RdfImportResult = {
+  /**
+   * Dry Run
+   */
+  dry_run: boolean;
+  /**
+   * Triples
+   */
+  triples: number;
+  /**
+   * Matched
+   */
+  matched: number;
+  /**
+   * Changed
+   */
+  changed: number;
+  /**
+   * Items
+   */
+  items: Array<RdfImportItem>;
+  /**
+   * Unmatched
+   */
+  unmatched: Array<RdfUnmatched>;
+  [key: string]: unknown;
+};
+
+/**
+ * RdfUnmatched
+ */
+export type RdfUnmatched = {
+  /**
+   * Subject
+   */
+  subject: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Reading
+ */
+export type Reading = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Stream
+   */
+  stream: string;
+  /**
+   * Stream Name
+   */
+  stream_name?: string | null;
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Value
+   */
+  value?: number | null;
+  /**
+   * Text
+   */
+  text?: string | null;
+  /**
+   * Fields
+   */
+  fields?: {
+    [key: string]: number;
+  } | null;
+  /**
+   * Level
+   *
+   * syslog severity: 0 emergency to 7 debug
+   */
+  level?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * Recording
  *
  * The recording row (less its envelope) plus what the recording page needs.
@@ -7381,6 +9597,17 @@ export type ResourceFiles = {
 };
 
 /**
+ * Reviewed
+ */
+export type Reviewed = {
+  /**
+   * Applied
+   */
+  applied: number;
+  [key: string]: unknown;
+};
+
+/**
  * Routine
  */
 export type Routine = {
@@ -7472,13 +9699,13 @@ export type RoutineCatalog = {
   /**
    * Actions
    *
-   * what a routine can do: sync, pipeline, workflow
+   * what a routine can do: sync, pipeline, workflow, sensors (tidy sensor data)
    */
   actions: Array<string>;
   /**
    * Recordings
    *
-   * which recordings a pipeline or workflow action takes: new, unprocessed, all
+   * which recordings a pipeline or workflow action takes: new, unprocessed, all, unindexed (not yet searchable by meaning)
    */
   recordings: Array<string>;
   [key: string]: unknown;
@@ -7495,7 +9722,7 @@ export type RoutineCreate = {
   /**
    * Actions
    *
-   * in order: {type: sync, watches?}, {type: pipeline, pipeline?, steps?, recordings?, limit?}, {type: workflow, workflow, version?, recordings?, limit?, propose_only?}
+   * in order: {type: sync, watches?}, {type: pipeline, pipeline?, steps?, recordings?, limit?}, {type: workflow, workflow, version?, recordings?, limit?, propose_only?}, {type: sensors, sensors?}
    */
   actions: Array<{
     [key: string]: unknown;
@@ -7983,6 +10210,18 @@ export type SearchHit = {
    * file hits: which of its lines (from 0)
    */
   line?: number | null;
+  /**
+   * Match
+   *
+   * how it was found: by the query's "words" (BM25), by "meaning" (a passage an embedding model finds alike; shown at its line that fits best), or "both"
+   */
+  match?: "words" | "meaning" | "both";
+  /**
+   * Similarity
+   *
+   * found by meaning: how alike the passage is to the query (cosine, up to 1)
+   */
+  similarity?: number | null;
   [key: string]: unknown;
 };
 
@@ -8016,6 +10255,24 @@ export type SearchResults = {
    * with `facets=true`: counts over all the matching moments
    */
   facets?: SearchFacets | null;
+  /**
+   * Mode
+   *
+   * how the query was matched: by its words, by meaning, or both (fused by rank)
+   */
+  mode?: "keyword" | "semantic" | "hybrid";
+  /**
+   * Meaning
+   *
+   * why the search wasn't by meaning when that was asked for
+   */
+  meaning?: string | null;
+  /**
+   * Semantic
+   *
+   * search by meaning is set up, so `mode` may be semantic or hybrid
+   */
+  semantic?: boolean;
   [key: string]: unknown;
 };
 
@@ -8129,6 +10386,477 @@ export type SegmentUpdate = {
    * Speaker
    */
   speaker?: number | null;
+};
+
+/**
+ * SemanticStatus
+ *
+ * Search by meaning: whether it's on, which model it uses, and how much of the archive it covers.
+ */
+export type SemanticStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Configured
+   *
+   * on, with an embeddings server and a model
+   */
+  configured: boolean;
+  /**
+   * Base Url
+   *
+   * the embeddings server: its own, else the LLM provider's
+   */
+  base_url?: string | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Indexed Model
+   *
+   * the model the stored vectors are from
+   */
+  indexed_model?: string | null;
+  /**
+   * Current
+   *
+   * the stored vectors are the configured model's, so searches can use them
+   */
+  current: boolean;
+  /**
+   * Dimension
+   */
+  dimension?: number | null;
+  /**
+   * Passages
+   *
+   * passages embedded
+   */
+  passages: number;
+  /**
+   * Recordings
+   *
+   * recordings in the archive
+   */
+  recordings: number;
+  /**
+   * Indexed
+   *
+   * recordings indexed with the configured model
+   */
+  indexed: number;
+  /**
+   * Min Similarity
+   *
+   * how alike a passage must be to a query to be a hit
+   */
+  min_similarity: number;
+  [key: string]: unknown;
+};
+
+/**
+ * Sensor
+ */
+export type Sensor = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Type
+   */
+  type: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Family
+   */
+  family: "files" | "stream";
+  /**
+   * Params
+   */
+  params?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Status
+   */
+  status?: "new" | "active" | "paused" | "ignored";
+  /**
+   * Space
+   *
+   * the namespace a stream sensor's data belongs to
+   */
+  space?: number | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Device
+   */
+  device?: string | null;
+  handling?: Handling | null;
+  /**
+   * Own Handling
+   *
+   * what this sensor sets itself; the rest comes from the settings
+   */
+  own_handling?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * for a new stream sensor: how it might be handled
+   */
+  suggested?: Suggestion | null;
+  /**
+   * Channels
+   *
+   * watched folders of a file sensor, streams of a stream sensor
+   */
+  channels?: number;
+  /**
+   * Readings
+   */
+  readings?: number;
+  /**
+   * Has Token
+   */
+  has_token?: boolean;
+  /**
+   * Secrets
+   *
+   * which secrets are set (a bridge's password)
+   */
+  secrets?: {
+    [key: string]: {
+      [key: string]: boolean;
+    };
+  } | null;
+  /**
+   * Health
+   */
+  health?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Last Seen At
+   */
+  last_seen_at?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SensorCatalog
+ */
+export type SensorCatalog = {
+  /**
+   * Sensors
+   */
+  sensors: Array<Sensor>;
+  /**
+   * Types
+   */
+  types: {
+    [key: string]: SensorType;
+  };
+  hub: HubStatus;
+  [key: string]: unknown;
+};
+
+/**
+ * SensorCreate
+ */
+export type SensorCreate = {
+  /**
+   * Type
+   */
+  type: "mqtt" | "syslog" | "webhook" | "bridge";
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Params
+   *
+   * mqtt: {prefix}; syslog: {address}; webhook: none; bridge: {host, port, tls, topics, user}
+   */
+  params?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Secrets
+   *
+   * bridge: {pass}
+   */
+  secrets?: {
+    [key: string]: string;
+  } | null;
+  /**
+   * Space
+   */
+  space?: number | null;
+  handling?: HandlingChange | null;
+};
+
+/**
+ * SensorCreated
+ */
+export type SensorCreated = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Token
+   *
+   * a webhook's token, shown this once
+   */
+  token?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SensorDetail
+ */
+export type SensorDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Type
+   */
+  type: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Family
+   */
+  family: "files" | "stream";
+  /**
+   * Params
+   */
+  params?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Status
+   */
+  status?: "new" | "active" | "paused" | "ignored";
+  /**
+   * Space
+   *
+   * the namespace a stream sensor's data belongs to
+   */
+  space?: number | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Device
+   */
+  device?: string | null;
+  handling?: Handling | null;
+  /**
+   * Own Handling
+   *
+   * what this sensor sets itself; the rest comes from the settings
+   */
+  own_handling?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * for a new stream sensor: how it might be handled
+   */
+  suggested?: Suggestion | null;
+  /**
+   * Channels
+   *
+   * watched folders of a file sensor, streams of a stream sensor
+   */
+  channels?: number;
+  /**
+   * Readings
+   */
+  readings?: number;
+  /**
+   * Has Token
+   */
+  has_token?: boolean;
+  /**
+   * Secrets
+   *
+   * which secrets are set (a bridge's password)
+   */
+  secrets?: {
+    [key: string]: {
+      [key: string]: boolean;
+    };
+  } | null;
+  /**
+   * Health
+   */
+  health?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Last Seen At
+   */
+  last_seen_at?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * Streams
+   */
+  streams?: Array<Stream>;
+  /**
+   * Watches
+   */
+  watches?: Array<{
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+};
+
+/**
+ * SensorToken
+ */
+export type SensorToken = {
+  /**
+   * Token
+   */
+  token: string;
+  [key: string]: unknown;
+};
+
+/**
+ * SensorType
+ */
+export type SensorType = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Family
+   */
+  family: "files" | "stream";
+  /**
+   * Fields
+   *
+   * parameters and their defaults
+   */
+  fields: {
+    [key: string]: string;
+  };
+  /**
+   * Secrets
+   */
+  secrets: Array<string>;
+  /**
+   * Help
+   */
+  help?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SensorUpdate
+ */
+export type SensorUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Status
+   */
+  status?: "new" | "active" | "paused" | "ignored" | null;
+  /**
+   * Space
+   *
+   * the namespace; null takes it out of any
+   */
+  space?: number | null;
+  handling?: HandlingChange | null;
+  /**
+   * Params
+   *
+   * a bridge's connection
+   */
+  params?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Secrets
+   *
+   * a bridge's password; empty or null removes it
+   */
+  secrets?: {
+    [key: string]: string | null;
+  } | null;
+};
+
+/**
+ * SeriesPoint
+ */
+export type SeriesPoint = {
+  /**
+   * Hour
+   */
+  hour: string;
+  /**
+   * N
+   */
+  n: number;
+  /**
+   * Min
+   */
+  min?: number | null;
+  /**
+   * Max
+   */
+  max?: number | null;
+  /**
+   * Avg
+   */
+  avg?: number | null;
+  /**
+   * Last
+   */
+  last?: number | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -8485,6 +11213,103 @@ export type ShareSite = {
 };
 
 /**
+ * SharedContext
+ *
+ * What a question shared from the page it was asked on. The page's text itself isn't kept.
+ */
+export type SharedContext = {
+  /**
+   * Url
+   */
+  url: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Selection
+   */
+  selection?: string | null;
+  /**
+   * Page
+   *
+   * the page's text was shared
+   */
+  page?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * SigninLink
+ */
+export type SigninLink = {
+  /**
+   * Url
+   *
+   * open it on the device to sign in with; it works once
+   */
+  url: string;
+  /**
+   * Expires At
+   */
+  expires_at: string;
+  [key: string]: unknown;
+};
+
+/**
+ * SigninLinkAnswer
+ */
+export type SigninLinkAnswer = {
+  /**
+   * Flow
+   */
+  flow: string;
+  /**
+   * Credential
+   *
+   * the browser's PublicKeyCredential, as JSON (toJSON())
+   */
+  credential: {
+    [key: string]: unknown;
+  };
+  /**
+   * Name
+   *
+   * what to call a new passkey, like 'MacBook'
+   */
+  name?: string | null;
+  /**
+   * Token
+   */
+  token: string;
+};
+
+/**
+ * SigninLinkInfo
+ */
+export type SigninLinkInfo = {
+  /**
+   * Email
+   */
+  email: string;
+  /**
+   * Name
+   */
+  name?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SigninLinkToken
+ */
+export type SigninLinkToken = {
+  /**
+   * Token
+   */
+  token: string;
+};
+
+/**
  * Source
  */
 export type Source = {
@@ -8705,6 +11530,28 @@ export type SourceUpdated = {
   ok?: boolean;
   health: SourceHealth;
   [key: string]: unknown;
+};
+
+/**
+ * SparqlQuery
+ */
+export type SparqlQuery = {
+  /**
+   * Query
+   *
+   * a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query
+   */
+  query: string;
+};
+
+/**
+ * SpeakRequest
+ */
+export type SpeakRequest = {
+  /**
+   * Text
+   */
+  text: string;
 };
 
 /**
@@ -9205,6 +12052,78 @@ export type StopResult = {
 };
 
 /**
+ * Stream
+ */
+export type Stream = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Kind
+   *
+   * number, boolean, json, text or log
+   */
+  kind?: string | null;
+  /**
+   * Fields
+   *
+   * the numbers a JSON stream carries
+   */
+  fields?: Array<string> | null;
+  /**
+   * Last Value
+   */
+  last_value?: number | null;
+  /**
+   * Last Text
+   */
+  last_text?: string | null;
+  /**
+   * Last At
+   */
+  last_at?: string | null;
+  /**
+   * Count
+   */
+  count?: number;
+  /**
+   * Stored
+   */
+  stored?: number;
+  /**
+   * Dropped
+   */
+  dropped?: number;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Suggestion
+ */
+export type Suggestion = {
+  /**
+   * Handling
+   */
+  handling: {
+    [key: string]: unknown;
+  };
+  /**
+   * Reason
+   */
+  reason: string;
+  [key: string]: unknown;
+};
+
+/**
  * TagCount
  */
 export type TagCount = {
@@ -9587,6 +12506,16 @@ export type TermSuggestion = {
 };
 
 /**
+ * TicketRequest
+ */
+export type TicketRequest = {
+  /**
+   * Ticket
+   */
+  ticket: string;
+};
+
+/**
  * TokenLimits
  *
  * How long API keys may last, set by admins (the tokens settings).
@@ -9657,6 +12586,59 @@ export type ToolStep = {
 };
 
 /**
+ * TunnelStatus
+ */
+export type TunnelStatus = {
+  /**
+   * Mode
+   */
+  mode: "off" | "quick" | "token" | "managed";
+  /**
+   * Running
+   *
+   * cloudflared is running in a server process
+   */
+  running: boolean;
+  /**
+   * Connected
+   *
+   * Cloudflare has the tunnel's connection: the address works
+   */
+  connected: boolean;
+  /**
+   * Url
+   *
+   * the address people open Lens at through the tunnel
+   */
+  url?: string | null;
+  /**
+   * Error
+   *
+   * why the tunnel isn't up, when it isn't
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * cloudflared's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Origin
+   *
+   * where cloudflared sends visitors: the web app, as the server reaches it
+   */
+  origin: string;
+  /**
+   * Process
+   *
+   * the server process running cloudflared
+   */
+  process?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Undone
  */
 export type Undone = {
@@ -9707,8 +12689,10 @@ export type Upload = {
   offset: number;
   /**
    * State
+   *
+   * held: all here, waiting to be put in a namespace
    */
-  state: "receiving" | "done";
+  state: "receiving" | "held" | "done";
   /**
    * Attach
    *
@@ -9834,6 +12818,12 @@ export type UploadStart = {
    * the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't
    */
   modified?: number | null;
+  /**
+   * Hold
+   *
+   * keep it out of the archive once it's here (state `held`), to attach to a chat message: the assistant puts it in a namespace (no `namespace` needed)
+   */
+  hold?: boolean;
 };
 
 /**
@@ -9846,8 +12836,10 @@ export type UserCreate = {
   email: string;
   /**
    * Password
+   *
+   * only where passwords are on; without one, send them a sign-in link
    */
-  password: string;
+  password?: string | null;
   /**
    * Name
    */
@@ -9957,6 +12949,18 @@ export type UserWithRoles = {
   roles?: {
     [key: string]: "viewer" | "editor" | "owner";
   };
+  /**
+   * Passkeys
+   *
+   * how many passkeys they have
+   */
+  passkeys?: number;
+  /**
+   * Password
+   *
+   * whether they have a password
+   */
+  password?: boolean;
   [key: string]: unknown;
 };
 
@@ -9976,6 +12980,103 @@ export type ValidationError = {
    * Error Type
    */
   type: string;
+  /**
+   * Input
+   */
+  input?: unknown;
+  /**
+   * Context
+   */
+  ctx?: {
+    [key: string]: unknown;
+  };
+};
+
+/**
+ * VaultAnswer
+ */
+export type VaultAnswer = {
+  /**
+   * Flow
+   */
+  flow: string;
+  /**
+   * Credential
+   *
+   * the browser's PublicKeyCredential, as JSON, without its PRF results
+   */
+  credential: {
+    [key: string]: unknown;
+  };
+  /**
+   * Prf
+   *
+   * the PRF extension's first result for the salt in the options, base64url
+   */
+  prf: string;
+};
+
+/**
+ * VaultPasskey
+ *
+ * A passkey that opens a vault.
+ */
+export type VaultPasskey = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Account
+   */
+  account?: number | null;
+  /**
+   * Email
+   */
+  email?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * VaultStart
+ */
+export type VaultStart = {
+  /**
+   * Kind
+   *
+   * seal: make it a vault; unlock: open it; add: let another passkey open it
+   */
+  kind: "seal" | "unlock" | "add";
+};
+
+/**
+ * VaultStatus
+ *
+ * Whether a namespace is a vault, whether it's open on this server (until when, a Unix time), and the passkeys that
+ * open it.
+ */
+export type VaultStatus = {
+  /**
+   * Vault
+   */
+  vault: boolean;
+  /**
+   * Unlocked
+   */
+  unlocked: boolean;
+  /**
+   * Unlocked Until
+   */
+  unlocked_until?: number | null;
+  /**
+   * Passkeys
+   */
+  passkeys?: Array<VaultPasskey>;
+  [key: string]: unknown;
 };
 
 /**
@@ -10150,6 +13251,31 @@ export type ViewerLink = {
    * Url
    */
   url: string;
+  [key: string]: unknown;
+};
+
+/**
+ * VoiceInfo
+ */
+export type VoiceInfo = {
+  /**
+   * Transcribe
+   *
+   * the server turns speech into text itself (POST /voice/transcribe)
+   */
+  transcribe: boolean;
+  /**
+   * Engine
+   *
+   * the speech-to-text engine it uses
+   */
+  engine?: string | null;
+  /**
+   * Speak
+   *
+   * the server reads answers aloud (POST /voice/speak); else the browser does
+   */
+  speak: boolean;
   [key: string]: unknown;
 };
 
@@ -10465,6 +13591,32 @@ export type WebPage = {
 };
 
 /**
+ * WorkerComponents
+ */
+export type WorkerComponents = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Host
+   */
+  host?: string | null;
+  /**
+   * Heartbeat At
+   */
+  heartbeat_at?: string | null;
+  machine?: Machine | null;
+  /**
+   * Components
+   */
+  components?: {
+    [key: string]: ComponentState;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * WorkerInfo
  */
 export type WorkerInfo = {
@@ -10528,6 +13680,18 @@ export type WorkerInfo = {
    * steps it finished (done or skipped) in the last hour
    */
   steps_last_hour?: number;
+  /**
+   * Components
+   *
+   * what it needs, by component id (GET /components), and where each is
+   */
+  components?: {
+    [key: string]: ComponentState;
+  };
+  /**
+   * its processors, memory, GPUs and free disk
+   */
+  machine?: Machine | null;
   [key: string]: unknown;
 };
 
@@ -10609,6 +13773,14 @@ export type WorkflowCatalog = {
    * Workflows
    */
   workflows: Array<WorkflowSummary>;
+  /**
+   * Custom Nodes
+   *
+   * the custom nodes you can use
+   */
+  custom_nodes?: Array<{
+    [key: string]: unknown;
+  }>;
   [key: string]: unknown;
 };
 
@@ -10646,7 +13818,7 @@ export type WorkflowGraph = {
   /**
    * Edges
    *
-   * {source, target, branch (a condition's yes or no)}
+   * {source, target, port (the source's output, default out), input (the target's input, default in)}
    */
   edges?: Array<{
     [key: string]: unknown;
@@ -10704,6 +13876,56 @@ export type WorkflowSummary = {
    */
   pipelines?: Array<string>;
   [key: string]: unknown;
+};
+
+/**
+ * WorkflowTry
+ */
+export type WorkflowTry = {
+  /**
+   * Trace
+   *
+   * by node id; nodes in a body as body node id/node id (first item)
+   */
+  trace: {
+    [key: string]: NodeTrace;
+  };
+  /**
+   * Log
+   */
+  log: Array<string>;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Steps
+   */
+  steps: number;
+  [key: string]: unknown;
+};
+
+/**
+ * WorkflowTryRequest
+ */
+export type WorkflowTryRequest = {
+  graph: WorkflowGraph;
+  /**
+   * Scope
+   */
+  scope?: "recording" | "graph";
+  /**
+   * Recording
+   *
+   * the recording to try a recording workflow on
+   */
+  recording?: number | null;
+  /**
+   * Namespaces
+   *
+   * the namespaces to try a graph workflow over (default: all)
+   */
+  namespaces?: Array<string>;
 };
 
 /**
@@ -11078,6 +14300,685 @@ export type RevokeTokenResponses = {
 };
 
 export type RevokeTokenResponse = RevokeTokenResponses[keyof RevokeTokenResponses];
+
+export type PasskeySetupOptionsData = {
+  body: PasskeySetupStart;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkey/setup/options";
+};
+
+export type PasskeySetupOptionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PasskeySetupOptionsError = PasskeySetupOptionsErrors[keyof PasskeySetupOptionsErrors];
+
+export type PasskeySetupOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasskeyOptions;
+};
+
+export type PasskeySetupOptionsResponse = PasskeySetupOptionsResponses[keyof PasskeySetupOptionsResponses];
+
+export type PasskeySetupData = {
+  body: PasskeyAnswer;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkey/setup";
+};
+
+export type PasskeySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PasskeySetupError = PasskeySetupErrors[keyof PasskeySetupErrors];
+
+export type PasskeySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: LoginTicket;
+};
+
+export type PasskeySetupResponse = PasskeySetupResponses[keyof PasskeySetupResponses];
+
+export type SetupWithoutPasskeyData = {
+  body: PasskeySetupStart;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/setup/no-passkey";
+};
+
+export type SetupWithoutPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetupWithoutPasskeyError = SetupWithoutPasskeyErrors[keyof SetupWithoutPasskeyErrors];
+
+export type SetupWithoutPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: LoginTicket;
+};
+
+export type SetupWithoutPasskeyResponse = SetupWithoutPasskeyResponses[keyof SetupWithoutPasskeyResponses];
+
+export type PasskeyOptionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkey/options";
+};
+
+export type PasskeyOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasskeyOptions;
+};
+
+export type PasskeyOptionsResponse = PasskeyOptionsResponses[keyof PasskeyOptionsResponses];
+
+export type PasskeyLoginData = {
+  body: PasskeyAnswer;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkey";
+};
+
+export type PasskeyLoginErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PasskeyLoginError = PasskeyLoginErrors[keyof PasskeyLoginErrors];
+
+export type PasskeyLoginResponses = {
+  /**
+   * Successful Response
+   */
+  200: LoginTicket;
+};
+
+export type PasskeyLoginResponse = PasskeyLoginResponses[keyof PasskeyLoginResponses];
+
+export type RedeemTicketData = {
+  body: TicketRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/ticket";
+};
+
+export type RedeemTicketErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RedeemTicketError = RedeemTicketErrors[keyof RedeemTicketErrors];
+
+export type RedeemTicketResponses = {
+  /**
+   * Successful Response
+   */
+  200: TokenPair;
+};
+
+export type RedeemTicketResponse = RedeemTicketResponses[keyof RedeemTicketResponses];
+
+export type SigninLinkInfoData = {
+  body: SigninLinkToken;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/signin-link/info";
+};
+
+export type SigninLinkInfoErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SigninLinkInfoError = SigninLinkInfoErrors[keyof SigninLinkInfoErrors];
+
+export type SigninLinkInfoResponses = {
+  /**
+   * Successful Response
+   */
+  200: SigninLinkInfo;
+};
+
+export type SigninLinkInfoResponse = SigninLinkInfoResponses[keyof SigninLinkInfoResponses];
+
+export type SigninLinkOptionsData = {
+  body: SigninLinkToken;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/signin-link/options";
+};
+
+export type SigninLinkOptionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SigninLinkOptionsError = SigninLinkOptionsErrors[keyof SigninLinkOptionsErrors];
+
+export type SigninLinkOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasskeyOptions;
+};
+
+export type SigninLinkOptionsResponse = SigninLinkOptionsResponses[keyof SigninLinkOptionsResponses];
+
+export type SigninLinkData = {
+  body: SigninLinkAnswer;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/signin-link";
+};
+
+export type SigninLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SigninLinkError = SigninLinkErrors[keyof SigninLinkErrors];
+
+export type SigninLinkResponses = {
+  /**
+   * Successful Response
+   */
+  200: LoginTicket;
+};
+
+export type SigninLinkResponse = SigninLinkResponses[keyof SigninLinkResponses];
+
+export type SigninLinkUseData = {
+  body: SigninLinkToken;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/signin-link/use";
+};
+
+export type SigninLinkUseErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SigninLinkUseError = SigninLinkUseErrors[keyof SigninLinkUseErrors];
+
+export type SigninLinkUseResponses = {
+  /**
+   * Successful Response
+   */
+  200: LoginTicket;
+};
+
+export type SigninLinkUseResponse = SigninLinkUseResponses[keyof SigninLinkUseResponses];
+
+export type LostPasskeyData = {
+  body: ForgotPasswordRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/signin-link/lost";
+};
+
+export type LostPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LostPasskeyError = LostPasskeyErrors[keyof LostPasskeyErrors];
+
+export type LostPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type LostPasskeyResponse = LostPasskeyResponses[keyof LostPasskeyResponses];
+
+export type ListPasskeysData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkeys";
+};
+
+export type ListPasskeysResponses = {
+  /**
+   * Response Auth-List Passkeys
+   *
+   * Successful Response
+   */
+  200: Array<Passkey>;
+};
+
+export type ListPasskeysResponse = ListPasskeysResponses[keyof ListPasskeysResponses];
+
+export type AddPasskeyData = {
+  body: PasskeyAnswer;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkeys";
+};
+
+export type AddPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddPasskeyError = AddPasskeyErrors[keyof AddPasskeyErrors];
+
+export type AddPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Passkey;
+};
+
+export type AddPasskeyResponse = AddPasskeyResponses[keyof AddPasskeyResponses];
+
+export type AddPasskeyOptionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkeys/options";
+};
+
+export type AddPasskeyOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasskeyOptions;
+};
+
+export type AddPasskeyOptionsResponse = AddPasskeyOptionsResponses[keyof AddPasskeyOptionsResponses];
+
+export type RemovePasskeyData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/passkeys/{pid}";
+};
+
+export type RemovePasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemovePasskeyError = RemovePasskeyErrors[keyof RemovePasskeyErrors];
+
+export type RemovePasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemovePasskeyResponse = RemovePasskeyResponses[keyof RemovePasskeyResponses];
+
+export type RenamePasskeyData = {
+  body: PasskeyRename;
+  path: {
+    /**
+     * Pid
+     */
+    pid: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/passkeys/{pid}";
+};
+
+export type RenamePasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RenamePasskeyError = RenamePasskeyErrors[keyof RenamePasskeyErrors];
+
+export type RenamePasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RenamePasskeyResponse = RenamePasskeyResponses[keyof RenamePasskeyResponses];
+
+export type ExternalProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/external";
+};
+
+export type ExternalProvidersResponses = {
+  /**
+   * Response Auth-External Providers
+   *
+   * Successful Response
+   */
+  200: Array<ExternalProvider>;
+};
+
+export type ExternalProvidersResponse = ExternalProvidersResponses[keyof ExternalProvidersResponses];
+
+export type ExternalStartData = {
+  body: ExternalStart;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/external/{key}/start";
+};
+
+export type ExternalStartErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExternalStartError = ExternalStartErrors[keyof ExternalStartErrors];
+
+export type ExternalStartResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalRedirect;
+};
+
+export type ExternalStartResponse = ExternalStartResponses[keyof ExternalStartResponses];
+
+export type ExternalConnectData = {
+  body?: never;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/external/{key}/connect";
+};
+
+export type ExternalConnectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExternalConnectError = ExternalConnectErrors[keyof ExternalConnectErrors];
+
+export type ExternalConnectResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalRedirect;
+};
+
+export type ExternalConnectResponse = ExternalConnectResponses[keyof ExternalConnectResponses];
+
+export type ListIdentitiesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/identities";
+};
+
+export type ListIdentitiesResponses = {
+  /**
+   * Response Auth-List Identities
+   *
+   * Successful Response
+   */
+  200: Array<ExternalIdentity>;
+};
+
+export type ListIdentitiesResponse = ListIdentitiesResponses[keyof ListIdentitiesResponses];
+
+export type DisconnectIdentityData = {
+  body?: never;
+  path: {
+    /**
+     * Iid
+     */
+    iid: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/identities/{iid}";
+};
+
+export type DisconnectIdentityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DisconnectIdentityError = DisconnectIdentityErrors[keyof DisconnectIdentityErrors];
+
+export type DisconnectIdentityResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DisconnectIdentityResponse = DisconnectIdentityResponses[keyof DisconnectIdentityResponses];
+
+export type ListLoginProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/providers";
+};
+
+export type ListLoginProvidersResponses = {
+  /**
+   * Response Auth-List Login Providers
+   *
+   * Successful Response
+   */
+  200: Array<ExternalProviderAdmin>;
+};
+
+export type ListLoginProvidersResponse = ListLoginProvidersResponses[keyof ListLoginProvidersResponses];
+
+export type AddLoginProviderData = {
+  body: ExternalProviderSave;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/providers";
+};
+
+export type AddLoginProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddLoginProviderError = AddLoginProviderErrors[keyof AddLoginProviderErrors];
+
+export type AddLoginProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalProviderAdmin;
+};
+
+export type AddLoginProviderResponse = AddLoginProviderResponses[keyof AddLoginProviderResponses];
+
+export type RemoveLoginProviderData = {
+  body?: never;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/providers/{key}";
+};
+
+export type RemoveLoginProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveLoginProviderError = RemoveLoginProviderErrors[keyof RemoveLoginProviderErrors];
+
+export type RemoveLoginProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveLoginProviderResponse = RemoveLoginProviderResponses[keyof RemoveLoginProviderResponses];
+
+export type ChangeLoginProviderData = {
+  body: ExternalProviderSave;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/providers/{key}";
+};
+
+export type ChangeLoginProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangeLoginProviderError = ChangeLoginProviderErrors[keyof ChangeLoginProviderErrors];
+
+export type ChangeLoginProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalProviderAdmin;
+};
+
+export type ChangeLoginProviderResponse = ChangeLoginProviderResponses[keyof ChangeLoginProviderResponses];
+
+export type MakeSigninLinkData = {
+  body?: never;
+  path: {
+    /**
+     * Uid
+     */
+    uid: number;
+  };
+  query?: never;
+  url: "/api/v1/users/{uid}/signin-link";
+};
+
+export type MakeSigninLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MakeSigninLinkError = MakeSigninLinkErrors[keyof MakeSigninLinkErrors];
+
+export type MakeSigninLinkResponses = {
+  /**
+   * Successful Response
+   */
+  200: SigninLink;
+};
+
+export type MakeSigninLinkResponse = MakeSigninLinkResponses[keyof MakeSigninLinkResponses];
+
+export type DropPasskeysData = {
+  body?: never;
+  path: {
+    /**
+     * Uid
+     */
+    uid: number;
+  };
+  query?: {
+    /**
+     * Lose Vaults
+     */
+    lose_vaults?: boolean;
+  };
+  url: "/api/v1/users/{uid}/passkeys";
+};
+
+export type DropPasskeysErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DropPasskeysError = DropPasskeysErrors[keyof DropPasskeysErrors];
+
+export type DropPasskeysResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DropPasskeysResponse = DropPasskeysResponses[keyof DropPasskeysResponses];
 
 export type RegisterData = {
   body: ClientRegistration;
@@ -11499,6 +15400,132 @@ export type TestLlmResponses = {
 
 export type TestLlmResponse = TestLlmResponses[keyof TestLlmResponses];
 
+export type TestMailData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/mail/test";
+};
+
+export type TestMailResponses = {
+  /**
+   * Successful Response
+   */
+  200: MailTestResult;
+};
+
+export type TestMailResponse = TestMailResponses[keyof TestMailResponses];
+
+export type BridgeStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/bridge";
+};
+
+export type BridgeStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeStatus;
+};
+
+export type BridgeStatusResponse = BridgeStatusResponses[keyof BridgeStatusResponses];
+
+export type TunnelStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/tunnel/status";
+};
+
+export type TunnelStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: TunnelStatus;
+};
+
+export type TunnelStatusResponse = TunnelStatusResponses[keyof TunnelStatusResponses];
+
+export type TestBridgeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/bridge/test";
+};
+
+export type TestBridgeResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeTestResult;
+};
+
+export type TestBridgeResponse = TestBridgeResponses[keyof TestBridgeResponses];
+
+export type TestEmbeddingsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/embeddings/test";
+};
+
+export type TestEmbeddingsResponses = {
+  /**
+   * Successful Response
+   */
+  200: EmbedTestResult;
+};
+
+export type TestEmbeddingsResponse = TestEmbeddingsResponses[keyof TestEmbeddingsResponses];
+
+export type SemanticStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/semantic";
+};
+
+export type SemanticStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: SemanticStatus;
+};
+
+export type SemanticStatusResponse = SemanticStatusResponses[keyof SemanticStatusResponses];
+
+export type IndexSemanticData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/admin/semantic/index";
+};
+
+export type IndexSemanticErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type IndexSemanticError = IndexSemanticErrors[keyof IndexSemanticErrors];
+
+export type IndexSemanticResponses = {
+  /**
+   * Successful Response
+   */
+  200: IndexQueued;
+};
+
+export type IndexSemanticResponse = IndexSemanticResponses[keyof IndexSemanticResponses];
+
 export type TelemetryStatusData = {
   body?: never;
   path?: never;
@@ -11643,6 +15670,38 @@ export type ReindexSearchResponses = {
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
 
+export type GetFedoraStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/fedora";
+};
+
+export type GetFedoraStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: FedoraStatus;
+};
+
+export type GetFedoraStatusResponse = GetFedoraStatusResponses[keyof GetFedoraStatusResponses];
+
+export type SyncFedoraData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/fedora/sync";
+};
+
+export type SyncFedoraResponses = {
+  /**
+   * Successful Response
+   */
+  200: FedoraSyncResult;
+};
+
+export type SyncFedoraResponse = SyncFedoraResponses[keyof SyncFedoraResponses];
+
 export type GetSetupData = {
   body?: never;
   path?: never;
@@ -11708,6 +15767,24 @@ export type SaveLlmResponses = {
 };
 
 export type SaveLlmResponse = SaveLlmResponses[keyof SaveLlmResponses];
+
+export type DetectLlmData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/llm/detect";
+};
+
+export type DetectLlmResponses = {
+  /**
+   * Response Setup-Detect Llm
+   *
+   * Successful Response
+   */
+  200: Array<LocalModelServer>;
+};
+
+export type DetectLlmResponse = DetectLlmResponses[keyof DetectLlmResponses];
 
 export type SaveStorageData = {
   body: SetupStorage;
@@ -14946,6 +19023,12 @@ export type SearchTranscriptsData = {
      * also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object
      */
     facets?: boolean;
+    /**
+     * Mode
+     *
+     * "keyword": the words (BM25); "semantic": by meaning (needs an embedding model, Settings → Search); "hybrid": both, fused by rank; "auto": hybrid when search by meaning is set up and the query has no "phrases" or OR, else keyword
+     */
+    mode?: "auto" | "keyword" | "semantic" | "hybrid";
   };
   url: "/api/v1/search";
 };
@@ -15477,6 +19560,10 @@ export type ListEntitiesData = {
      * Group
      */
     group?: boolean;
+    /**
+     * Collection
+     */
+    collection?: number | null;
   };
   url: "/api/v1/entities";
 };
@@ -15502,9 +19589,23 @@ export type ListEntitiesResponse = ListEntitiesResponses[keyof ListEntitiesRespo
 export type ListEntityTypesData = {
   body?: never;
   path?: never;
-  query?: never;
+  query?: {
+    /**
+     * Ns
+     */
+    ns?: string;
+  };
   url: "/api/v1/entities/types";
 };
+
+export type ListEntityTypesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListEntityTypesError = ListEntityTypesErrors[keyof ListEntityTypesErrors];
 
 export type ListEntityTypesResponses = {
   /**
@@ -15718,6 +19819,36 @@ export type MarkEntitiesNotSameResponses = {
 
 export type MarkEntitiesNotSameResponse = MarkEntitiesNotSameResponses[keyof MarkEntitiesNotSameResponses];
 
+export type DeleteEntityData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/entities/{eid}";
+};
+
+export type DeleteEntityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteEntityError = DeleteEntityErrors[keyof DeleteEntityErrors];
+
+export type DeleteEntityResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteEntityResponse = DeleteEntityResponses[keyof DeleteEntityResponses];
+
 export type GetEntityData = {
   body?: never;
   path: {
@@ -15747,6 +19878,36 @@ export type GetEntityResponses = {
 };
 
 export type GetEntityResponse = GetEntityResponses[keyof GetEntityResponses];
+
+export type UpdateEntityData = {
+  body: EntityUpdate;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/entities/{eid}";
+};
+
+export type UpdateEntityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateEntityError = UpdateEntityErrors[keyof UpdateEntityErrors];
+
+export type UpdateEntityResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntityDetail;
+};
+
+export type UpdateEntityResponse = UpdateEntityResponses[keyof UpdateEntityResponses];
 
 export type ListEntityMentionsData = {
   body?: never;
@@ -15874,6 +20035,36 @@ export type RenameEntityResponses = {
 };
 
 export type RenameEntityResponse = RenameEntityResponses[keyof RenameEntityResponses];
+
+export type DefineEntityData = {
+  body: EntityDefine;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entities";
+};
+
+export type DefineEntityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DefineEntityError = DefineEntityErrors[keyof DefineEntityErrors];
+
+export type DefineEntityResponses = {
+  /**
+   * Successful Response
+   */
+  201: EntityDetail;
+};
+
+export type DefineEntityResponse = DefineEntityResponses[keyof DefineEntityResponses];
 
 export type HideEntityData = {
   /**
@@ -16102,6 +20293,446 @@ export type FindGraphPathResponses = {
 
 export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
 
+export type GraphSchemaData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Scope
+     *
+     * "global" (every shared namespace you can read) or "ns:<namespace>"
+     */
+    scope?: string;
+  };
+  url: "/api/v1/graph/schema";
+};
+
+export type GraphSchemaErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphSchemaError = GraphSchemaErrors[keyof GraphSchemaErrors];
+
+export type GraphSchemaResponses = {
+  /**
+   * Response Graph-Graph Schema
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphSchemaResponse = GraphSchemaResponses[keyof GraphSchemaResponses];
+
+export type GraphRelatedData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Node
+     *
+     * a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>
+     */
+    node: string;
+    /**
+     * Relation
+     */
+    relation?: "children" | "parents" | "ancestors" | "descendants" | "neighbours";
+    /**
+     * Depth
+     */
+    depth?: number;
+    /**
+     * Types
+     *
+     * relationship types to follow, comma separated (default: the hierarchy, or any for neighbours)
+     */
+    types?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Scope
+     *
+     * "global" (every shared namespace you can read) or "ns:<namespace>"
+     */
+    scope?: string;
+  };
+  url: "/api/v1/graph/related";
+};
+
+export type GraphRelatedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphRelatedError = GraphRelatedErrors[keyof GraphRelatedErrors];
+
+export type GraphRelatedResponses = {
+  /**
+   * Response Graph-Graph Related
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphRelatedResponse = GraphRelatedResponses[keyof GraphRelatedResponses];
+
+export type GraphPathsData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * A
+     */
+    a: string;
+    /**
+     * B
+     */
+    b: string;
+    /**
+     * Max Depth
+     */
+    max_depth?: number;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Types
+     */
+    types?: string | null;
+    /**
+     * Directed
+     */
+    directed?: boolean;
+    /**
+     * Shortest
+     */
+    shortest?: boolean;
+    /**
+     * Scope
+     *
+     * "global" (every shared namespace you can read) or "ns:<namespace>"
+     */
+    scope?: string;
+  };
+  url: "/api/v1/graph/paths";
+};
+
+export type GraphPathsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphPathsError = GraphPathsErrors[keyof GraphPathsErrors];
+
+export type GraphPathsResponses = {
+  /**
+   * Response Graph-Graph Paths
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphPathsResponse = GraphPathsResponses[keyof GraphPathsResponses];
+
+export type GraphQueryData = {
+  body: GraphQuery;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/query";
+};
+
+export type GraphQueryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphQueryError = GraphQueryErrors[keyof GraphQueryErrors];
+
+export type GraphQueryResponses = {
+  /**
+   * Response Graph-Graph Query
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphQueryResponse = GraphQueryResponses[keyof GraphQueryResponses];
+
+export type ProposeGraphChangeData = {
+  body: ChangeAsk;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/changes";
+};
+
+export type ProposeGraphChangeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ProposeGraphChangeError = ProposeGraphChangeErrors[keyof ProposeGraphChangeErrors];
+
+export type ProposeGraphChangeResponses = {
+  /**
+   * Response Graph-Propose Graph Change
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type ProposeGraphChangeResponse = ProposeGraphChangeResponses[keyof ProposeGraphChangeResponses];
+
+export type GetEntitySetupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-setup";
+};
+
+export type GetEntitySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetEntitySetupError = GetEntitySetupErrors[keyof GetEntitySetupErrors];
+
+export type GetEntitySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntitySetupView;
+};
+
+export type GetEntitySetupResponse = GetEntitySetupResponses[keyof GetEntitySetupResponses];
+
+export type SaveEntitySetupData = {
+  body: EntitySetupSave;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-setup";
+};
+
+export type SaveEntitySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveEntitySetupError = SaveEntitySetupErrors[keyof SaveEntitySetupErrors];
+
+export type SaveEntitySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntitySetup;
+};
+
+export type SaveEntitySetupResponse = SaveEntitySetupResponses[keyof SaveEntitySetupResponses];
+
+export type ClearEntitySetupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-setup/collections/{cid}";
+};
+
+export type ClearEntitySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ClearEntitySetupError = ClearEntitySetupErrors[keyof ClearEntitySetupErrors];
+
+export type ClearEntitySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type ClearEntitySetupResponse = ClearEntitySetupResponses[keyof ClearEntitySetupResponses];
+
+export type ApplyEntitySetupData = {
+  body: EntitySetupApply;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-setup/apply";
+};
+
+export type ApplyEntitySetupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ApplyEntitySetupError = ApplyEntitySetupErrors[keyof ApplyEntitySetupErrors];
+
+export type ApplyEntitySetupResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntitySetupApplied;
+};
+
+export type ApplyEntitySetupResponse = ApplyEntitySetupResponses[keyof ApplyEntitySetupResponses];
+
+export type CreateEntityTypeData = {
+  body: EntityTypeCreate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-types";
+};
+
+export type CreateEntityTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateEntityTypeError = CreateEntityTypeErrors[keyof CreateEntityTypeErrors];
+
+export type CreateEntityTypeResponses = {
+  /**
+   * Successful Response
+   */
+  201: EntityTypeInfo;
+};
+
+export type CreateEntityTypeResponse = CreateEntityTypeResponses[keyof CreateEntityTypeResponses];
+
+export type DeleteEntityTypeData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Code
+     */
+    code: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-types/{code}";
+};
+
+export type DeleteEntityTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteEntityTypeError = DeleteEntityTypeErrors[keyof DeleteEntityTypeErrors];
+
+export type DeleteEntityTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteEntityTypeResponse = DeleteEntityTypeResponses[keyof DeleteEntityTypeResponses];
+
+export type UpdateEntityTypeData = {
+  body: EntityTypeUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Code
+     */
+    code: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/entity-types/{code}";
+};
+
+export type UpdateEntityTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateEntityTypeError = UpdateEntityTypeErrors[keyof UpdateEntityTypeErrors];
+
+export type UpdateEntityTypeResponses = {
+  /**
+   * Successful Response
+   */
+  200: EntityTypeInfo;
+};
+
+export type UpdateEntityTypeResponse = UpdateEntityTypeResponses[keyof UpdateEntityTypeResponses];
+
 export type GetRecordingMetadataData = {
   body?: never;
   path: {
@@ -16310,6 +20941,200 @@ export type BulkUpdateMetadataResponses = {
 };
 
 export type BulkUpdateMetadataResponse = BulkUpdateMetadataResponses[keyof BulkUpdateMetadataResponses];
+
+export type GetRecordingRdfData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/resources/{rid}/rdf";
+};
+
+export type GetRecordingRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRecordingRdfError = GetRecordingRdfErrors[keyof GetRecordingRdfErrors];
+
+export type GetRecordingRdfResponses = {
+  /**
+   * RDF
+   */
+  200: string;
+};
+
+export type GetRecordingRdfResponse = GetRecordingRdfResponses[keyof GetRecordingRdfResponses];
+
+export type GetNamespaceRdfData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+    /**
+     * Download
+     *
+     * as a file to save
+     */
+    download?: boolean;
+  };
+  url: "/api/v1/namespaces/{name}/rdf";
+};
+
+export type GetNamespaceRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceRdfError = GetNamespaceRdfErrors[keyof GetNamespaceRdfErrors];
+
+export type GetNamespaceRdfResponses = {
+  /**
+   * RDF
+   */
+  200: string;
+};
+
+export type GetNamespaceRdfResponse = GetNamespaceRdfResponses[keyof GetNamespaceRdfResponses];
+
+export type ImportNamespaceRdfData = {
+  body: RdfImport;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/rdf/import";
+};
+
+export type ImportNamespaceRdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportNamespaceRdfError = ImportNamespaceRdfErrors[keyof ImportNamespaceRdfErrors];
+
+export type ImportNamespaceRdfResponses = {
+  /**
+   * Successful Response
+   */
+  200: RdfImportResult;
+};
+
+export type ImportNamespaceRdfResponse = ImportNamespaceRdfResponses[keyof ImportNamespaceRdfResponses];
+
+export type QueryNamespaceSparqlData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query: {
+    /**
+     * Query
+     *
+     * a SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query
+     */
+    query: string;
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/namespaces/{name}/sparql";
+};
+
+export type QueryNamespaceSparqlErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type QueryNamespaceSparqlError = QueryNamespaceSparqlErrors[keyof QueryNamespaceSparqlErrors];
+
+export type QueryNamespaceSparqlResponses = {
+  /**
+   * SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type QueryNamespaceSparqlResponse = QueryNamespaceSparqlResponses[keyof QueryNamespaceSparqlResponses];
+
+export type PostNamespaceSparqlData = {
+  body: SparqlQuery;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Format
+     *
+     * turtle, json-ld, nt or xml; else the Accept header decides (Turtle when it doesn't)
+     */
+    format?: string | null;
+  };
+  url: "/api/v1/namespaces/{name}/sparql";
+};
+
+export type PostNamespaceSparqlErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PostNamespaceSparqlError = PostNamespaceSparqlErrors[keyof PostNamespaceSparqlErrors];
+
+export type PostNamespaceSparqlResponses = {
+  /**
+   * SPARQL results (SELECT, ASK) or RDF (CONSTRUCT, DESCRIBE)
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type PostNamespaceSparqlResponse = PostNamespaceSparqlResponses[keyof PostNamespaceSparqlResponses];
 
 export type GetMediaData = {
   body?: never;
@@ -17213,6 +22038,38 @@ export type StreamEventsResponses = {
   200: unknown;
 };
 
+export type ListComponentsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/components";
+};
+
+export type ListComponentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Components;
+};
+
+export type ListComponentsResponse = ListComponentsResponses[keyof ListComponentsResponses];
+
+export type CheckComponentsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/components/check";
+};
+
+export type CheckComponentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type CheckComponentsResponse = CheckComponentsResponses[keyof CheckComponentsResponses];
+
 export type ListBackendsData = {
   body?: never;
   path?: never;
@@ -18071,6 +22928,31 @@ export type CreateWorkflowResponses = {
 
 export type CreateWorkflowResponse = CreateWorkflowResponses[keyof CreateWorkflowResponses];
 
+export type TryWorkflowData = {
+  body: WorkflowTryRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/workflows/test";
+};
+
+export type TryWorkflowErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TryWorkflowError = TryWorkflowErrors[keyof TryWorkflowErrors];
+
+export type TryWorkflowResponses = {
+  /**
+   * Successful Response
+   */
+  200: WorkflowTry;
+};
+
+export type TryWorkflowResponse = TryWorkflowResponses[keyof TryWorkflowResponses];
+
 export type GetWorkflowData = {
   body?: never;
   path: {
@@ -18195,6 +23077,425 @@ export type RunWorkflowResponses = {
 };
 
 export type RunWorkflowResponse = RunWorkflowResponses[keyof RunWorkflowResponses];
+
+export type ListCustomNodesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Scope
+     */
+    scope?: string | null;
+  };
+  url: "/api/v1/custom-nodes";
+};
+
+export type ListCustomNodesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListCustomNodesError = ListCustomNodesErrors[keyof ListCustomNodesErrors];
+
+export type ListCustomNodesResponses = {
+  /**
+   * Response Workflows-List Custom Nodes
+   *
+   * Successful Response
+   */
+  200: Array<CustomNode>;
+};
+
+export type ListCustomNodesResponse = ListCustomNodesResponses[keyof ListCustomNodesResponses];
+
+export type CreateCustomNodeData = {
+  body: CustomNodeCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/custom-nodes";
+};
+
+export type CreateCustomNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateCustomNodeError = CreateCustomNodeErrors[keyof CreateCustomNodeErrors];
+
+export type CreateCustomNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type CreateCustomNodeResponse = CreateCustomNodeResponses[keyof CreateCustomNodeResponses];
+
+export type DeleteCustomNodeData = {
+  body?: never;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/custom-nodes/{nid}";
+};
+
+export type DeleteCustomNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteCustomNodeError = DeleteCustomNodeErrors[keyof DeleteCustomNodeErrors];
+
+export type DeleteCustomNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteCustomNodeResponse = DeleteCustomNodeResponses[keyof DeleteCustomNodeResponses];
+
+export type GetCustomNodeData = {
+  body?: never;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: {
+    /**
+     * Version
+     */
+    version?: number | null;
+  };
+  url: "/api/v1/custom-nodes/{nid}";
+};
+
+export type GetCustomNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetCustomNodeError = GetCustomNodeErrors[keyof GetCustomNodeErrors];
+
+export type GetCustomNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: CustomNode;
+};
+
+export type GetCustomNodeResponse = GetCustomNodeResponses[keyof GetCustomNodeResponses];
+
+export type UpdateCustomNodeData = {
+  body: CustomNodeUpdate;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/custom-nodes/{nid}";
+};
+
+export type UpdateCustomNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateCustomNodeError = UpdateCustomNodeErrors[keyof UpdateCustomNodeErrors];
+
+export type UpdateCustomNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateCustomNodeResponse = UpdateCustomNodeResponses[keyof UpdateCustomNodeResponses];
+
+export type CreateCustomNodeVersionData = {
+  body: CustomNodeVersionCreate;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/custom-nodes/{nid}/versions";
+};
+
+export type CreateCustomNodeVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateCustomNodeVersionError = CreateCustomNodeVersionErrors[keyof CreateCustomNodeVersionErrors];
+
+export type CreateCustomNodeVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: VersionSaved;
+};
+
+export type CreateCustomNodeVersionResponse = CreateCustomNodeVersionResponses[keyof CreateCustomNodeVersionResponses];
+
+export type ListExtensionsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Kind
+     */
+    kind?: "tool" | "skill" | "hook" | "plugin" | null;
+  };
+  url: "/api/v1/extensions";
+};
+
+export type ListExtensionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListExtensionsError = ListExtensionsErrors[keyof ListExtensionsErrors];
+
+export type ListExtensionsResponses = {
+  /**
+   * Response Extensions-List Extensions
+   *
+   * Successful Response
+   */
+  200: Array<Extension>;
+};
+
+export type ListExtensionsResponse = ListExtensionsResponses[keyof ListExtensionsResponses];
+
+export type CreateExtensionData = {
+  body: ExtensionCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions";
+};
+
+export type CreateExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateExtensionError = CreateExtensionErrors[keyof CreateExtensionErrors];
+
+export type CreateExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type CreateExtensionResponse = CreateExtensionResponses[keyof CreateExtensionResponses];
+
+export type CheckManifestData = {
+  body: ManifestCheck;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/check";
+};
+
+export type CheckManifestErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CheckManifestError = CheckManifestErrors[keyof CheckManifestErrors];
+
+export type CheckManifestResponses = {
+  /**
+   * Successful Response
+   */
+  200: ManifestChecked;
+};
+
+export type CheckManifestResponse = CheckManifestResponses[keyof CheckManifestResponses];
+
+export type DeleteExtensionData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}";
+};
+
+export type DeleteExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteExtensionError = DeleteExtensionErrors[keyof DeleteExtensionErrors];
+
+export type DeleteExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteExtensionResponse = DeleteExtensionResponses[keyof DeleteExtensionResponses];
+
+export type GetExtensionData = {
+  body?: never;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: {
+    /**
+     * Version
+     */
+    version?: number | null;
+  };
+  url: "/api/v1/extensions/{eid}";
+};
+
+export type GetExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetExtensionError = GetExtensionErrors[keyof GetExtensionErrors];
+
+export type GetExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionDetail;
+};
+
+export type GetExtensionResponse = GetExtensionResponses[keyof GetExtensionResponses];
+
+export type UpdateExtensionData = {
+  body: ExtensionUpdate;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}";
+};
+
+export type UpdateExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateExtensionError = UpdateExtensionErrors[keyof UpdateExtensionErrors];
+
+export type UpdateExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateExtensionResponse = UpdateExtensionResponses[keyof UpdateExtensionResponses];
+
+export type CreateExtensionVersionData = {
+  body: ExtensionVersionCreate;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}/versions";
+};
+
+export type CreateExtensionVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateExtensionVersionError = CreateExtensionVersionErrors[keyof CreateExtensionVersionErrors];
+
+export type CreateExtensionVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: VersionSaved;
+};
+
+export type CreateExtensionVersionResponse = CreateExtensionVersionResponses[keyof CreateExtensionVersionResponses];
+
+export type TestExtensionData = {
+  body: ExtensionTest;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}/test";
+};
+
+export type TestExtensionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestExtensionError = TestExtensionErrors[keyof TestExtensionErrors];
+
+export type TestExtensionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionTestResult;
+};
+
+export type TestExtensionResponse = TestExtensionResponses[keyof TestExtensionResponses];
 
 export type ListChatsData = {
   body?: never;
@@ -19806,3 +25107,845 @@ export type UndoGraphChangeResponses = {
 };
 
 export type UndoGraphChangeResponse = UndoGraphChangeResponses[keyof UndoGraphChangeResponses];
+
+export type ListSensorsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/sensors";
+};
+
+export type ListSensorsResponses = {
+  /**
+   * Successful Response
+   */
+  200: SensorCatalog;
+};
+
+export type ListSensorsResponse = ListSensorsResponses[keyof ListSensorsResponses];
+
+export type CreateSensorData = {
+  body: SensorCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/sensors";
+};
+
+export type CreateSensorErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateSensorError = CreateSensorErrors[keyof CreateSensorErrors];
+
+export type CreateSensorResponses = {
+  /**
+   * Successful Response
+   */
+  200: SensorCreated;
+};
+
+export type CreateSensorResponse = CreateSensorResponses[keyof CreateSensorResponses];
+
+export type ReviewNewData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/sensors/review";
+};
+
+export type ReviewNewResponses = {
+  /**
+   * Successful Response
+   */
+  200: Reviewed;
+};
+
+export type ReviewNewResponse = ReviewNewResponses[keyof ReviewNewResponses];
+
+export type DeleteSensorData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/sensors/{sid}";
+};
+
+export type DeleteSensorErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteSensorError = DeleteSensorErrors[keyof DeleteSensorErrors];
+
+export type DeleteSensorResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteSensorResponse = DeleteSensorResponses[keyof DeleteSensorResponses];
+
+export type GetSensorData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/sensors/{sid}";
+};
+
+export type GetSensorErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetSensorError = GetSensorErrors[keyof GetSensorErrors];
+
+export type GetSensorResponses = {
+  /**
+   * Successful Response
+   */
+  200: SensorDetail;
+};
+
+export type GetSensorResponse = GetSensorResponses[keyof GetSensorResponses];
+
+export type UpdateSensorData = {
+  body: SensorUpdate;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/sensors/{sid}";
+};
+
+export type UpdateSensorErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateSensorError = UpdateSensorErrors[keyof UpdateSensorErrors];
+
+export type UpdateSensorResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateSensorResponse = UpdateSensorResponses[keyof UpdateSensorResponses];
+
+export type ApplySuggestionData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/sensors/{sid}/suggestion";
+};
+
+export type ApplySuggestionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ApplySuggestionError = ApplySuggestionErrors[keyof ApplySuggestionErrors];
+
+export type ApplySuggestionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Suggestion;
+};
+
+export type ApplySuggestionResponse = ApplySuggestionResponses[keyof ApplySuggestionResponses];
+
+export type NewTokenData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/sensors/{sid}/token";
+};
+
+export type NewTokenErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NewTokenError = NewTokenErrors[keyof NewTokenErrors];
+
+export type NewTokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: SensorToken;
+};
+
+export type NewTokenResponse = NewTokenResponses[keyof NewTokenResponses];
+
+export type ListReadingsData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: {
+    /**
+     * Stream
+     *
+     * a stream's id
+     */
+    stream?: string | null;
+    /**
+     * Before
+     *
+     * readings before this time, to page back
+     */
+    before?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/sensors/{sid}/readings";
+};
+
+export type ListReadingsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListReadingsError = ListReadingsErrors[keyof ListReadingsErrors];
+
+export type ListReadingsResponses = {
+  /**
+   * Response Sensors-List Readings
+   *
+   * Successful Response
+   */
+  200: Array<Reading>;
+};
+
+export type ListReadingsResponse = ListReadingsResponses[keyof ListReadingsResponses];
+
+export type GetSeriesData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query: {
+    /**
+     * Stream
+     *
+     * a stream's id
+     */
+    stream: string;
+    /**
+     * Field
+     *
+     * one of a JSON stream's numbers
+     */
+    field?: string | null;
+    /**
+     * Hours
+     */
+    hours?: number;
+  };
+  url: "/api/v1/sensors/{sid}/series";
+};
+
+export type GetSeriesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetSeriesError = GetSeriesErrors[keyof GetSeriesErrors];
+
+export type GetSeriesResponses = {
+  /**
+   * Response Sensors-Get Series
+   *
+   * Successful Response
+   */
+  200: Array<SeriesPoint>;
+};
+
+export type GetSeriesResponse = GetSeriesResponses[keyof GetSeriesResponses];
+
+export type ListPatternsData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: {
+    /**
+     * Stream
+     *
+     * a stream's id
+     */
+    stream?: string | null;
+    /**
+     * Label
+     *
+     * routine, notable, alert, or none for those without one
+     */
+    label?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/sensors/{sid}/patterns";
+};
+
+export type ListPatternsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListPatternsError = ListPatternsErrors[keyof ListPatternsErrors];
+
+export type ListPatternsResponses = {
+  /**
+   * Response Sensors-List Patterns
+   *
+   * Successful Response
+   */
+  200: Array<Pattern>;
+};
+
+export type ListPatternsResponse = ListPatternsResponses[keyof ListPatternsResponses];
+
+export type UpdatePatternData = {
+  body: PatternUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: string;
+  };
+  query?: never;
+  url: "/api/v1/sensor-patterns/{pid}";
+};
+
+export type UpdatePatternErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdatePatternError = UpdatePatternErrors[keyof UpdatePatternErrors];
+
+export type UpdatePatternResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdatePatternResponse = UpdatePatternResponses[keyof UpdatePatternResponses];
+
+export type ListLoginsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/sensor-logins";
+};
+
+export type ListLoginsResponses = {
+  /**
+   * Response Sensors-List Logins
+   *
+   * Successful Response
+   */
+  200: Array<HubLogin>;
+};
+
+export type ListLoginsResponse = ListLoginsResponses[keyof ListLoginsResponses];
+
+export type CreateLoginData = {
+  body: HubLoginCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/sensor-logins";
+};
+
+export type CreateLoginErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateLoginError = CreateLoginErrors[keyof CreateLoginErrors];
+
+export type CreateLoginResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type CreateLoginResponse = CreateLoginResponses[keyof CreateLoginResponses];
+
+export type DeleteLoginData = {
+  body?: never;
+  path: {
+    /**
+     * Lid
+     */
+    lid: number;
+  };
+  query?: never;
+  url: "/api/v1/sensor-logins/{lid}";
+};
+
+export type DeleteLoginErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteLoginError = DeleteLoginErrors[keyof DeleteLoginErrors];
+
+export type DeleteLoginResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteLoginResponse = DeleteLoginResponses[keyof DeleteLoginResponses];
+
+export type PushData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/sensors/push";
+};
+
+export type PushResponses = {
+  /**
+   * Successful Response
+   */
+  202: Pushed;
+};
+
+export type PushResponse = PushResponses[keyof PushResponses];
+
+export type PushTokenData = {
+  body?: never;
+  path: {
+    /**
+     * Token
+     */
+    token: string;
+  };
+  query?: never;
+  url: "/api/v1/sensors/push/{token}";
+};
+
+export type PushTokenErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PushTokenError = PushTokenErrors[keyof PushTokenErrors];
+
+export type PushTokenResponses = {
+  /**
+   * Successful Response
+   */
+  202: Pushed;
+};
+
+export type PushTokenResponse = PushTokenResponses[keyof PushTokenResponses];
+
+export type PushStreamData = {
+  body?: never;
+  path: {
+    /**
+     * Token
+     */
+    token: string;
+    /**
+     * Stream
+     */
+    stream: string;
+  };
+  query?: never;
+  url: "/api/v1/sensors/push/{token}/{stream}";
+};
+
+export type PushStreamErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PushStreamError = PushStreamErrors[keyof PushStreamErrors];
+
+export type PushStreamResponses = {
+  /**
+   * Successful Response
+   */
+  202: Pushed;
+};
+
+export type PushStreamResponse = PushStreamResponses[keyof PushStreamResponses];
+
+export type VoiceInfoData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/voice";
+};
+
+export type VoiceInfoResponses = {
+  /**
+   * Successful Response
+   */
+  200: VoiceInfo;
+};
+
+export type VoiceInfoResponse = VoiceInfoResponses[keyof VoiceInfoResponses];
+
+export type TranscribeClipData = {
+  body: Blob | File;
+  path?: never;
+  query?: never;
+  url: "/api/v1/voice/transcribe";
+};
+
+export type TranscribeClipResponses = {
+  /**
+   * Successful Response
+   */
+  200: Heard;
+};
+
+export type TranscribeClipResponse = TranscribeClipResponses[keyof TranscribeClipResponses];
+
+export type SpeakTextData = {
+  body: SpeakRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/voice/speak";
+};
+
+export type SpeakTextErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SpeakTextError = SpeakTextErrors[keyof SpeakTextErrors];
+
+export type SpeakTextResponses = {
+  /**
+   * the text read aloud
+   */
+  200: Blob | File;
+  /**
+   * the browser reads it
+   */
+  204: void;
+};
+
+export type SpeakTextResponse = SpeakTextResponses[keyof SpeakTextResponses];
+
+export type UnsealVaultData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault";
+};
+
+export type UnsealVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UnsealVaultError = UnsealVaultErrors[keyof UnsealVaultErrors];
+
+export type UnsealVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type UnsealVaultResponse = UnsealVaultResponses[keyof UnsealVaultResponses];
+
+export type GetVaultData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault";
+};
+
+export type GetVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetVaultError = GetVaultErrors[keyof GetVaultErrors];
+
+export type GetVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type GetVaultResponse = GetVaultResponses[keyof GetVaultResponses];
+
+export type SealVaultData = {
+  body: VaultAnswer;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault";
+};
+
+export type SealVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SealVaultError = SealVaultErrors[keyof SealVaultErrors];
+
+export type SealVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type SealVaultResponse = SealVaultResponses[keyof SealVaultResponses];
+
+export type VaultOptionsData = {
+  body: VaultStart;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/options";
+};
+
+export type VaultOptionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type VaultOptionsError = VaultOptionsErrors[keyof VaultOptionsErrors];
+
+export type VaultOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasskeyOptions;
+};
+
+export type VaultOptionsResponse = VaultOptionsResponses[keyof VaultOptionsResponses];
+
+export type UnlockVaultData = {
+  body: VaultAnswer;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/unlock";
+};
+
+export type UnlockVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UnlockVaultError = UnlockVaultErrors[keyof UnlockVaultErrors];
+
+export type UnlockVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type UnlockVaultResponse = UnlockVaultResponses[keyof UnlockVaultResponses];
+
+export type AddVaultPasskeyData = {
+  body: VaultAnswer;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/passkeys";
+};
+
+export type AddVaultPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddVaultPasskeyError = AddVaultPasskeyErrors[keyof AddVaultPasskeyErrors];
+
+export type AddVaultPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type AddVaultPasskeyResponse = AddVaultPasskeyResponses[keyof AddVaultPasskeyResponses];
+
+export type RemoveVaultPasskeyData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Pid
+     */
+    pid: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/passkeys/{pid}";
+};
+
+export type RemoveVaultPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveVaultPasskeyError = RemoveVaultPasskeyErrors[keyof RemoveVaultPasskeyErrors];
+
+export type RemoveVaultPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type RemoveVaultPasskeyResponse = RemoveVaultPasskeyResponses[keyof RemoveVaultPasskeyResponses];
+
+export type LockVaultData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/lock";
+};
+
+export type LockVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LockVaultError = LockVaultErrors[keyof LockVaultErrors];
+
+export type LockVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type LockVaultResponse = LockVaultResponses[keyof LockVaultResponses];

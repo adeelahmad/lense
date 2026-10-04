@@ -24,6 +24,7 @@ const WATCH_STEPS = [
   "objects",
   "describe",
   "analyze",
+  "embed",
   "summarize",
   "report",
 ];
@@ -105,6 +106,8 @@ export function WatchEditor({
     enabled: open,
     staleTime: 60_000,
   });
+  // what "Namespace pipeline" means here, named in place
+  const nsDefault = (pipelines.data?.pipelines ?? []).find((x) => (x.namespaces ?? []).includes(f.namespace));
   const filter = useDebounced(
     useMemo(
       () => ({
@@ -316,7 +319,9 @@ export function WatchEditor({
         />
         {f.run === "default" && (
           <p className="text-[12.5px] text-fg-muted">
-            Whatever {f.namespace || "the namespace"} runs by default (Pipelines → namespace defaults).
+            {pipelines.isLoading
+              ? "Loading…"
+              : `Runs ${nsDefault ? `${nsDefault.name} · v${nsDefault.current}` : "the standard steps"}, what ${f.namespace || "the namespace"} runs by default.`}
           </p>
         )}
         {f.run === "pipeline" && (
