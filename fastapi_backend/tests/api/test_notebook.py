@@ -319,3 +319,32 @@ def test_page_history(client, env, db, cfg, llm):
     # deleting the page drops its history
     client.delete(f"/api/v1/notes/{p['id']}", headers=he)
     assert not db.rows("SELECT id FROM note_version WHERE page = $p", p=p["id"])
+
+
+def test_link_suggestions(client, env, db, cfg):
+    from app.domain import ai_tools, topics
+
+    he, hv = env["he"], env["hv"]
+    pods = store.ns_id(db, "pods")
+    caps = topics.create(db, pods, "Capsid design", ["capsids"])
+    ada, acme = _entity(db, "Ada Lovelace", "PERSON"), _entity(db, "Acme", "ORG")
+    _entity(db, "Friday", "DATE")
+    body = (
+        f"Met Ada Lovelace about capsids on Friday; @[Acme](entity:{acme['id']}) ships them.\n\n"
+        "acme is lowercase here, and Ada Lovelace again."
+    )
+    p = _new(client, he, title="Meeting", body=body)
+    got = client.get(f"/api/v1/notes/{p['id']}/suggestions", headers=hv).json()
+    # in the order the text names them, each once; what's linked already, dates, and lowercase single words are left out
+    assert [(x["sign"], x["target"], x["label"]) for x in got] == [
+        ("@", f"entity:{ada['id']}", "Ada Lovelace"),
+        ("#", f"topic:{caps}", "Capsid design"),
+    ]
+    # the assistant sees them when it reads the note
+    uid = db.one("SELECT record::id(id) AS id FROM account WHERE email = 'ed@x.io'")["id"]
+    box = ai_tools.Toolbox(db, cfg, {"id": uid, "email": "ed@x.io"}, {pods}, {pods}, {}, None)
+    import json
+
+    out = json.loads(box.call("read_note", {"note_id": p["id"]})[0])
+    assert out["could_link"] == [f"@[Ada Lovelace](entity:{ada['id']})", f"#[Capsid design](topic:{caps})"]
+    assert client.get(f"/api/v1/notes/{_new(client, he, title='Empty')['id']}/suggestions", headers=he).json() == []

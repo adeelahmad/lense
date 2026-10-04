@@ -594,6 +594,9 @@ import type {
   LinkSpeakerData,
   LinkSpeakerErrors,
   LinkSpeakerResponses,
+  LinkSuggestionsData,
+  LinkSuggestionsErrors,
+  LinkSuggestionsResponses,
   LinkTargetsData,
   LinkTargetsErrors,
   LinkTargetsResponses,
@@ -3832,6 +3835,21 @@ export class Notes {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Link Suggestions
+   *
+   * What the page names but doesn't link yet: the namespace's topics and named things found in its text, to link
+   * with one click. Matched against the namespace's own vocabulary; no model is asked.
+   */
+  public static linkSuggestions<ThrowOnError extends boolean = false>(
+    options: Options<LinkSuggestionsData, ThrowOnError>,
+  ): RequestResult<LinkSuggestionsResponses, LinkSuggestionsErrors, ThrowOnError> {
+    return (options.client ?? client).get<LinkSuggestionsResponses, LinkSuggestionsErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/suggestions",
+      ...options,
     });
   }
 

@@ -847,6 +847,7 @@ class Toolbox(ops_tools.OpsTools):
                 "body": (p.get("body") or "")[:20_000],
                 "links": notebook.links(self.db, p["id"]),
                 "linked_from": [b for b in notebook.backlinks(self.db, p["space"], targets) if b["page"] != p["id"]],
+                "could_link": [f"{x['sign']}[{x['label']}]({x['target']})" for x in notebook.suggest_links(self.db, p)] or None,
             }
         )
         return out, f"Read the note {p['title']}"

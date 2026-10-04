@@ -7234,6 +7234,31 @@ export type NoteLink = {
 };
 
 /**
+ * NoteLinkSuggestion
+ */
+export type NoteLinkSuggestion = {
+  /**
+   * Target
+   */
+  target: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Kind
+   */
+  kind: "page" | "recording" | "entity" | "topic" | "collection" | "speaker";
+  /**
+   * Sign
+   *
+   * # for a topic, @ for anything else
+   */
+  sign: "@" | "#";
+  [key: string]: unknown;
+};
+
+/**
  * NoteLinkTarget
  */
 export type NoteLinkTarget = {
@@ -20121,6 +20146,38 @@ export type UpdatePageResponses = {
 };
 
 export type UpdatePageResponse = UpdatePageResponses[keyof UpdatePageResponses];
+
+export type LinkSuggestionsData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/suggestions";
+};
+
+export type LinkSuggestionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LinkSuggestionsError = LinkSuggestionsErrors[keyof LinkSuggestionsErrors];
+
+export type LinkSuggestionsResponses = {
+  /**
+   * Response Notes-Link Suggestions
+   *
+   * Successful Response
+   */
+  200: Array<NoteLinkSuggestion>;
+};
+
+export type LinkSuggestionsResponse = LinkSuggestionsResponses[keyof LinkSuggestionsResponses];
 
 export type PageHistoryData = {
   body?: never;

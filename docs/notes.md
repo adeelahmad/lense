@@ -6,9 +6,8 @@ assistant write. The assistant is the main writer and organiser; people can do e
 Status: **built**: pages (free notes in a tree, a page per recording, entity, topic, collection or speaker), @ and #
 links with backlinks (# links topics), the tree in the left navigation, the page view with the BlockSuite editor, the
 model keeping titles and summaries up to date, assistant tools to find, read, write and update notes, and MCP tools to
-find, read and write them ([MCP](mcp.md)), and page history with restore.
-**Planned**: linking notes to entities and topics and nesting them under their project or
-area on their own, attachments on encrypted object storage, pages in the graph.
+find, read and write them ([MCP](mcp.md)), page history with restore, and suggested links to what a note names.
+**Planned**: nesting notes under their project or area on their own, attachments on encrypted object storage, pages in the graph.
 
 ## A page
 
@@ -42,6 +41,12 @@ found by any of their labels. Links written to terms (`#[Capsids](entity:9)`) be
 `GET /api/v1/notes/targets?ns=&sign=&q=` offers what to link.
 Links are kept as rows (`note_link`), so every page lists its backlinks; links to things that are gone or that the
 reader can't see show without a name.
+
+A note also suggests links to what its text names but doesn't link yet: the namespace's topics (by any of their
+labels) and its people, organisations, places and other named things (by name or alias; a single word only when it is
+written with a capital). One click adds the link on a line of its own. The assistant sees the same list as
+`could_link` when it reads a note. No model is asked: it is the namespace's own vocabulary matched against the words.
+`GET /api/v1/notes/{id}/suggestions`.
 
 ## Titles and summaries
 

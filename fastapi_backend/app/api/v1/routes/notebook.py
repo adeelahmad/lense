@@ -16,6 +16,7 @@ from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.notebook import (
     NoteHistory,
+    NoteLinkSuggestion,
     NoteLinkTarget,
     NotePage,
     NotePageCreate,
@@ -152,6 +153,13 @@ def update_page(pid: int, body: NotePageUpdate, user: Writer, acl: Acl, db: Db) 
     with domain_errors():
         notebook.update(db, pid, user.id, title=body.title, body=body.body, **kw)
     return _out(acl, db, notebook.get(db, pid), user)
+
+
+@router.get("/{pid}/suggestions")
+def link_suggestions(pid: int, user: CurrentUser, acl: Acl, db: Db) -> list[NoteLinkSuggestion]:
+    """What the page names but doesn't link yet: the namespace's topics and named things found in its text, to link
+    with one click. Matched against the namespace's own vocabulary; no model is asked."""
+    return [NoteLinkSuggestion(**x) for x in notebook.suggest_links(db, _page(acl, db, pid))]
 
 
 def _version_out(db: DB, v: dict[str, Any], cls: type[NoteVersionItem] = NoteVersionItem) -> NoteVersionItem:

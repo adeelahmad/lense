@@ -426,6 +426,61 @@ def links(db, pid):
     return [{"sign": s, "target": f"{k}:{i}", "label": label} for s, k, i, label in mentions(p.get("body"))]
 
 
+SUGGEST_CHARS = 20_000  # of a page's text looked through for things to link
+SUGGEST_MAX = 8
+_TOKEN = re.compile(r"[\w][\w'’.-]*")
+_NOT_LINKED = ("TERM", "DATE", "NUMBER", "TIME", "MONEY", "PERCENT", "QUANTITY", "ORDINAL", "CARDINAL")
+
+
+def suggest_links(db, p, limit=SUGGEST_MAX):
+    """What page p's text names but doesn't link yet: the namespace's topics (by any of their labels) and its people,
+    organisations, places and other named things (by name or alias), in the order the text names them. No model is
+    asked: it's the namespace's own vocabulary matched against the words. [{target, label, kind, sign}]"""
+    from . import analyze, topics
+
+    text = (p.get("text") or plain(p.get("body") or ""))[:SUGGEST_CHARS]
+    if not text.strip():
+        return []
+    sid = p["space"]
+    have = {t for _, k, i, _ in mentions(p.get("body")) for t in [f"{k}:{i}"]} | ({p["about"]} if p.get("about") else set())
+    by_key, by_term = topics._vocab(db, sid)
+    tlabel = {t["id"]: t["label"] for t in db.rows("SELECT record::id(id) AS id, label FROM topic WHERE space = $s", s=sid)}
+    ents = {}
+    for e in db.rows(
+        "SELECT record::id(id) AS id, name, type FROM entity WHERE space = $s AND type NOT IN $no AND hidden != true",
+        s=sid,
+        no=list(_NOT_LINKED),
+    ):
+        ents.setdefault(analyze.ent_key(e["name"]), (e["id"], e["name"]))
+    names = {i: n for i, n in ents.values()}
+    for a in db.rows("SELECT entity, key FROM entity_alias WHERE space = $s", s=sid):
+        eid = int(str(a["entity"]).split(":")[-1]) if a.get("entity") is not None else None
+        if eid in names and a.get("key"):
+            ents.setdefault(a["key"], (eid, names[eid]))
+    words = _TOKEN.findall(text)
+    out, seen = [], set(have)
+    for i in range(len(words)):
+        for n in (4, 3, 2, 1):
+            gram = " ".join(words[i : i + n]).strip(".-'’")
+            if len(words[i : i + n]) < n or len(gram) < 3:
+                continue
+            hit = None
+            tid = topics._named(by_key, by_term, gram)
+            if tid and tid in tlabel:
+                hit = {"target": f"topic:{tid}", "label": tlabel[tid], "kind": "topic", "sign": "#"}
+            elif n > 1 or gram[:1].isupper():  # a single word names a thing only when written with a capital
+                e = ents.get(analyze.ent_key(gram))
+                if e:
+                    hit = {"target": f"entity:{e[0]}", "label": e[1], "kind": "entity", "sign": "@"}
+            if hit and hit["target"] not in seen:
+                seen.add(hit["target"])
+                out.append(hit)
+                break
+        if len(out) >= limit:
+            break
+    return out
+
+
 def backlinks(db, sid, targets):
     """The pages of namespace `sid` that link to any of these targets ("page:3", "recording:12"): [{page, title}]."""
     rows = db.rows(
