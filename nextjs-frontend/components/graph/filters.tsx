@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { EDGE_KINDS, findNodes, NODE_GROUPS, type GraphNode } from "@/components/graph/model";
+import { EDGE_KINDS, findNodes, NODE_GROUPS, nodeGroup, type GraphNode } from "@/components/graph/model";
 import { EdgeIcon, NodeIcon, ShapeIcon } from "@/components/graph/shape";
 import { Checkbox, SearchInput, Select } from "@/components/ui/field";
 import { Segmented } from "@/components/ui/tabs";
@@ -113,7 +113,7 @@ export function GraphFilters({
   onPick: (id: string) => void;
   isolated: string[];
 }) {
-  const present = new Set(nodes.map((n) => (n.kind === "speaker" ? "speaker" : (n.type ?? "TERM"))));
+  const present = new Set(nodes.map(nodeGroup));
   const toggle = (set: Set<string>, v: string) => {
     const s = new Set(set);
     if (s.has(v)) s.delete(v);
@@ -172,7 +172,12 @@ export function GraphFilters({
       </fieldset>
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
         <legend className="mb-2 label-caps">Edges</legend>
-        {EDGE_KINDS.filter((k) => k.key !== "same thing").map((k) => (
+        {EDGE_KINDS.filter(
+          (k) =>
+            k.key !== "same thing" &&
+            (!["contains", "speaks in", "mentioned in"].includes(k.key) ||
+              ["recording", "collection", "namespace"].some((g) => present.has(g))),
+        ).map((k) => (
           <Checkbox
             key={k.key}
             checked={kinds.has(k.key)}

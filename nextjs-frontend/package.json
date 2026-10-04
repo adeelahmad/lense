@@ -15,6 +15,10 @@
     "tsc": "tsc"
   },
   "dependencies": {
+    "@blocksuite/block-std": "0.19.5",
+    "@blocksuite/blocks": "0.19.5",
+    "@blocksuite/presets": "0.19.5",
+    "@blocksuite/store": "0.19.5",
     "@radix-ui/react-avatar": "^1.2.6",
     "@radix-ui/react-checkbox": "^1.3.11",
     "@radix-ui/react-dialog": "^1.1.23",
@@ -28,6 +32,7 @@
     "@radix-ui/react-tabs": "^1.1.21",
     "@radix-ui/react-tooltip": "^1.2.16",
     "@tanstack/react-query": "^5",
+    "@toeverything/theme": "1.1.23",
     "@xyflow/react": "^12",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -40,6 +45,7 @@
     "react-hook-form": "^7.89.0",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
+    "yjs": "13.6.33",
     "zod": "^4.6.5"
   },
   "devDependencies": {

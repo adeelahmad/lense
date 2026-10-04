@@ -239,6 +239,7 @@ DEFAULTS = {
     "ai": {
         "tools": True,
         "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
+        "refine_notes": True,  # the model keeps notes' titles and one-line summaries true to the whole note (notebook.py)
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
@@ -249,7 +250,35 @@ DEFAULTS = {
     },
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
-    "voice": {"input": "auto", "tts_base_url": None, "tts_model": None, "tts_voice": None, "tts_api_key": None},
+    # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
+    # (openai: the OpenAI-compatible speech server below; elevenlabs, deepgram: the keys in speech)
+    "voice": {
+        "input": "auto",
+        "stt": "same",
+        "tts_provider": "openai",
+        "tts_base_url": None,
+        "tts_model": None,
+        "tts_voice": None,
+        "tts_api_key": None,
+    },
+    # speech providers (domain/speech.py): transcription, speakers and text to speech by a service instead of this
+    # server, picked in transcribe.engine, diarize.engine and voice. A base URL can be a proxy or a compatible server.
+    "speech": {
+        "openai_base_url": "https://api.openai.com/v1",
+        "openai_model": "whisper-1",
+        "openai_api_key": None,
+        "elevenlabs_base_url": "https://api.elevenlabs.io",
+        "elevenlabs_model": "scribe_v1",
+        "elevenlabs_api_key": None,
+        "assemblyai_base_url": "https://api.assemblyai.com",
+        "assemblyai_model": "universal",
+        "assemblyai_api_key": None,
+        "deepgram_base_url": "https://api.deepgram.com",
+        "deepgram_model": "nova-3",
+        "deepgram_api_key": None,
+        "sentiment": True,
+        "timeout": 1800,
+    },
     # the assistant in chat rooms through Matterbridge (bridge.py): url is its API (http://matterbridge:4242), token its
     # API token; it answers as `account` (an email), when a message names it (answer "mention") or to every message
     # ("all"), from anyone or only the chat usernames in `users`, in every gateway or only `gateway`
@@ -267,7 +296,8 @@ DEFAULTS = {
     # what Lens fetches for itself (components.py): auto fetches what the settings need; also names optional ones
     "components": {"auto": True, "also": []},
     # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
-    # has a key, else the language model. act_above: the confidence it acts on; below it, it asks.
+    # has a key, else the language model. act_above: the confidence it acts on; below it, it asks. Engine laya runs a
+    # Laya model (laya_model) on this Mac, or asks a Laya server (laya_url, `lens decide-server`).
     "decisions": {
         "engine": "auto",
         "base_url": "https://api.typesafe.ai/v1",
@@ -275,6 +305,8 @@ DEFAULTS = {
         "api_key": None,
         "act_above": 0.8,
         "timeout": 10,
+        "laya_model": "aac6fef/laya-mlx",
+        "laya_url": None,
     },
     "video": {
         "sample_seconds": 5,
@@ -697,6 +729,14 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS term_rec ON term FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS term_space ON term FIELDS space",
     "DEFINE INDEX IF NOT EXISTS term_term ON term FIELDS term",
+    # each namespace's controlled vocabulary of topics, and which recordings are about which topic (app/domain/topics.py)
+    "DEFINE TABLE IF NOT EXISTS topic SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS topic_space ON topic FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS topic_key ON topic FIELDS tkey UNIQUE",
+    "DEFINE TABLE IF NOT EXISTS topic_about SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS topic_about_rec ON topic_about FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS topic_about_topic ON topic_about FIELDS topic",
+    "DEFINE INDEX IF NOT EXISTS topic_about_space ON topic_about FIELDS space",
     # Note: on 2.x, CONTAINS against an indexed field also returns nothing; use string::contains() there.
     # settings, people and access
     "DEFINE TABLE IF NOT EXISTS app_setting SCHEMALESS",
@@ -914,6 +954,17 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS note SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_rec ON note FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS note_account ON note FIELDS account",
+    # notes as pages: free notes in a tree and a page per resource, entity or topic (app/domain/notebook.py);
+    # about_key is "<space>:<kind>:<id>" for a thing's own page
+    "DEFINE TABLE IF NOT EXISTS note_page SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS note_page_space ON note_page FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS note_page_parent ON note_page FIELDS parent",
+    "DEFINE INDEX IF NOT EXISTS note_page_about ON note_page FIELDS about_key UNIQUE",
+    "DEFINE INDEX IF NOT EXISTS note_page_refine ON note_page FIELDS refine_pending",
+    # the links in a page's body (@ and # mentions), for backlinks and the graph
+    "DEFINE TABLE IF NOT EXISTS note_link SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS note_link_page ON note_link FIELDS page",
+    "DEFINE INDEX IF NOT EXISTS note_link_target ON note_link FIELDS target",
     # comments on resources, threaded, by everyone who can read them (app/domain/comments.py)
     "DEFINE TABLE IF NOT EXISTS comment SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS comment_rec ON comment FIELDS recording",

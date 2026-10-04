@@ -8,7 +8,7 @@ import pathlib
 import shutil
 import sys
 
-from .domain import analyze, components, graph, ingest, render, store
+from .domain import analyze, components, decide, graph, ingest, render, store
 from .domain import search as searchmod
 from .domain import speakers as spk
 
@@ -267,9 +267,22 @@ def platform_main(argv, config):
     )
     x = sub.add_parser("watch", help="scan watched folders on storage sources and run the routines that are due")
     x.add_argument("--once", action="store_true")
+    x = sub.add_parser(
+        "decide-server",
+        help="answer routine decisions with a local Laya model on a Mac with Apple Silicon (for Lens in Docker)",
+    )
+    x.add_argument("--host", default="127.0.0.1")
+    x.add_argument("--port", type=int, default=8790)
+    x.add_argument("--model", default=decide.LAYA_DEFAULT, choices=sorted(decide.LAYA_MODELS))
     a = ap.parse_args(argv)
     cfg = store.load_config(config)
     components.activate(cfg)  # packages and models fetched into the data folder
+    if a.cmd == "decide-server":  # needs no database
+        try:
+            decide.serve(cfg, a.host, a.port, a.model)
+        except decide.Undecided as e:
+            raise SystemExit(str(e)) from None
+        return
     db = store.connect(cfg)
     C = settings.Settings(db, cfg).current
 

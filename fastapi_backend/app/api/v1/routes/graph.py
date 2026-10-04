@@ -11,8 +11,8 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from app.api.deps import Acl, CurrentUser, Db, Writer
-from app.domain import auth, cypher, graph_model, organize
+from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer
+from app.domain import auth, cypher, graph_ask, graph_model, llm, organize
 from app.domain.store import DB
 
 router = APIRouter(tags=["graph"])
@@ -60,7 +60,7 @@ def graph_schema(request: Request, user: CurrentUser, acl: Acl, db: Db, scope: s
     """What the graph holds in this scope: labels, relationship types (and what they join), properties and counts, with
     example queries. Agents read this before writing Cypher."""
     g = projection(request, db, acl, scope)
-    return {**graph_model.schema(g), "examples": EXAMPLES, "query_language": "cypher (read-only subset; see docs/graph.md)"}
+    return {**graph_model.schema(g), "examples": graph_ask.EXAMPLES, "query_language": "cypher (read-only subset; see docs/graph.md)"}
 
 
 @router.get("/graph/related")
@@ -132,6 +132,30 @@ def graph_query(request: Request, body: GraphQuery, user: CurrentUser, acl: Acl,
     return run_query(request, db, acl, body)
 
 
+class GraphQuestion(BaseModel):
+    question: str = Field(min_length=1, max_length=1000, description="a question in plain language")
+    scope: str = "global"
+    limit: int = Field(200, ge=1, le=2000)
+
+
+@router.post("/graph/ask")
+def ask_graph(request: Request, body: GraphQuestion, user: CurrentUser, acl: Acl, db: Db, cfg: Cfg) -> dict[str, Any]:
+    """A question in plain language: the language model writes read-only Cypher, Lens runs it over the graph you can
+    read, and you get the answer with the query that found it ({question, cypher, explanation, result})."""
+    if not llm.configured(cfg):
+        raise HTTPException(409, "no language model is set up; ask in Cypher instead, or set one up in Settings")
+    g = projection(request, db, acl, body.scope)
+    try:
+        out = graph_ask.ask(cfg, g, body.question, graph_ask.EXAMPLES, max_rows=body.limit)
+    except cypher.CypherError as e:
+        raise HTTPException(422, f"couldn't answer that: {e}") from None
+    except llm.LLMError as e:
+        raise HTTPException(502, f"the language model failed: {e}") from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return {"scope": g.scope, "namespaces": g.namespaces, **out}
+
+
 class ChangeAsk(BaseModel):
     kind: Literal["merge", "link"] = Field(
         description="merge: two entities of one namespace are one; link: entities of two namespaces are the same thing"
@@ -177,28 +201,3 @@ def propose_graph_change(request: Request, body: ChangeAsk, user: Writer, acl: A
     )
     request.app.state.graph_cache.clear()
     return {"id": cid, "status": status}
-
-
-EXAMPLES = [
-    {"ask": "Who is mentioned most?", "cypher": "MATCH (e:Person) RETURN e.name, e.mentions ORDER BY e.mentions DESC LIMIT 10"},
-    {
-        "ask": "Which recordings mention Acme?",
-        "cypher": "MATCH (r:Recording)-[m:MENTIONS]->(e:Entity) WHERE toLower(e.name) = 'acme' RETURN r.name, r.date, m.count ORDER BY r.date",
-    },
-    {
-        "ask": "Who talks about Acme, and how often?",
-        "cypher": "MATCH (s:Speaker)-[x:SAID]->(e:Entity {name: 'Acme'}) RETURN s.name, x.count ORDER BY x.count DESC",
-    },
-    {
-        "ask": "What is discussed together with Acme?",
-        "cypher": "MATCH (e:Entity {name: 'Acme'})-[w:MENTIONED_WITH]-(o:Entity) RETURN o.name, o.type, w.count ORDER BY w.count DESC LIMIT 20",
-    },
-    {
-        "ask": "How is Alice connected to Acme?",
-        "cypher": "MATCH p = shortestPath((s:Speaker {name: 'Alice'})-[*..6]-(e:Entity {name: 'Acme'})) RETURN [n IN nodes(p) | n.name] AS chain",
-    },
-    {
-        "ask": "Everything in the Interviews collection",
-        "cypher": "MATCH (c:Collection {name: 'Interviews'})-[:CONTAINS*1..8]->(r:Recording) RETURN r.name, r.date ORDER BY r.date DESC",
-    },
-]

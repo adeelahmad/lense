@@ -533,3 +533,26 @@ def test_a_model_that_skips_the_tools_still_answers_from_the_archive(app, db, cf
     llm.tool_script = [{"content": "Hello!"}]  # nothing in the archive matches: the model's own answer stands
     ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "zzqx"}).text)
     assert "".join(e["text"] for e in ev["token"]) == "Hello!"
+
+
+def test_the_assistant_queries_the_graph(app, db, cfg, folder, new_client, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    pods = {s.pods}
+    box = ai_tools.Toolbox(db, cfg, {"id": 1, "email": "e"}, pods, set(), {}, None)
+    names = {sp["function"]["name"] for sp in box.specs()}
+    assert {"graph_schema", "graph_query", "graph_related", "graph_paths"} <= names  # read tools, for viewers too
+    schema = json.loads(box.call("graph_schema", {})[0])
+    assert "[:SAID" in schema["graph"] and schema["namespaces"] == ["pods"]
+    out = json.loads(box.call("graph_query", {"query": "MATCH (s:Speaker) RETURN s.name ORDER BY s.name"})[0])
+    assert out["rows"] == [["Alice"], ["Bob"], ["Carol"]]
+    assert "read-only" in box.call("graph_query", {"query": "MATCH (n) DELETE n"})[1]
+    dyno = json.loads(box.call("graph_query", {"query": "MATCH (e:Entity {name: 'Dyno Therapeutics'}) RETURN id(e)"})[0])["rows"][0][0]
+    up = json.loads(box.call("graph_related", {"node": dyno, "relation": "parents"})[0])
+    assert {n["labels"][0] for n in up["nodes"]} >= {"Recording", "Speaker"}
+    paths = json.loads(box.call("graph_paths", {"from_node": "n" + str(s.pods), "to_node": dyno})[0])
+    assert paths["found"] and paths["paths"][0][0] == "pods"
+    assert "no namespace called calls" in box.call("graph_schema", {"namespace": "calls"})[1]
+    # a conversation about one recording sees only what was said in it
+    one = ai_tools.Toolbox(db, cfg, {"id": 1, "email": "e"}, pods, set(), {"recordings": [s.b]}, None)
+    recs = json.loads(one.call("graph_query", {"query": "MATCH (r:Recording) RETURN id(r)"})[0])["rows"]
+    assert recs == [[f"r{s.b}"]]

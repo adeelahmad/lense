@@ -18,6 +18,7 @@ URIs use the address Lens publishes (`iiif.base_url`, or the address a request a
 | `/id/collection/<id>` | a collection (`dcmitype:Collection`), `dcterms:isPartOf` its parent or its namespace |
 | `/id/namespace/<name>` | a namespace: a `dcmitype:Collection` and the `skos:ConceptScheme` of its entities |
 | `/id/entity/<id>` | a `skos:Concept`, also `foaf:Person`, `foaf:Organization`, `dcterms:Location` or `dcmitype:Event` depending on its type |
+| `/id/topic/<id>` | a topic: a `skos:Concept` in `/id/namespace/<name>#topics` (the namespace's `skos:ConceptScheme` of topics), with `skos:broader`, `skos:narrower` and `skos:related`; recordings about it name it as `dcterms:subject` ([Topics](topics.md)) |
 | `/id/speaker/<id>` | a `foaf:Person`, `owl:sameAs` the speakers declared to be the same person |
 | `/id/field/<id>` | a custom field, used as the property its values are given with |
 | `/ns` | the Lens vocabulary (`lens:`), in Turtle |

@@ -87,3 +87,40 @@ def test_changes_need_write_and_editor(env, db):
     assert c.post(f"/api/v1/graph-changes/{done['id']}/undo", headers=env.h["editor"]).status_code == 200
     bad = c.post("/api/v1/graph/changes", json={**ask, "kind": "link"}, headers=env.h["editor"])
     assert bad.status_code == 400 and "merge them instead" in bad.json()["detail"]
+
+
+@pytest.fixture
+def llm(cfg):
+    from tests import fake_llm
+    from tests.api._assist import start_llm
+
+    srv = start_llm(cfg)
+    fake_llm.Handler.seen.clear()
+    yield fake_llm.Handler
+    srv.shutdown()
+
+
+def test_ask_needs_a_model(env):
+    r = env.c.post("/api/v1/graph/ask", json={"question": "who talks about Dyno?"}, headers=env.h["viewer"])
+    assert r.status_code == 409
+
+
+def test_ask_in_plain_language(llm, env):
+    c, h = env.c, env.h["viewer"]
+    r = c.post("/api/v1/graph/ask", json={"question": "Which organisations come up?", "scope": "ns:pods"}, headers=h)
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert out["cypher"].startswith("MATCH (e:Organisation)") and out["attempts"] == 1
+    assert "Dyno Therapeutics" in [row[1] for row in out["result"]["rows"]] and out["result"]["nodes"]
+    sent = llm.seen[-1]["messages"]
+    assert "[:MENTIONS" in sent[0]["content"] and "Organisation" in sent[0]["content"]  # the schema went along
+    # a query that fails goes back with its error once; a write is never run
+    llm.cypher_script = ["MATCH (n) DETACH DELETE n", "MATCH (s:Speaker) RETURN s.name ORDER BY s.name"]
+    out = c.post("/api/v1/graph/ask", json={"question": "Who speaks about Dyno Therapeutics?", "scope": "ns:pods"}, headers=h).json()
+    assert out["attempts"] == 2 and out["result"]["rows"] == [["Alice"], ["Bob"], ["Carol"]]
+    retry = llm.seen[-1]["messages"][-1]["content"]
+    assert "read-only" in retry and "Names in the question: Dyno Therapeutics" in retry
+    llm.cypher_script = ["MATCH (n) DELETE n", "MATCH (n) DELETE n"]
+    bad = c.post("/api/v1/graph/ask", json={"question": "delete everything"}, headers=h)
+    assert bad.status_code == 422
+    assert c.post("/api/v1/graph/query", json={"query": "MATCH (n:Namespace) RETURN count(*)"}, headers=h).json()["rows"] == [[1]]
