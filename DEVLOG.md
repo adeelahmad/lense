@@ -200,9 +200,11 @@ Todo:
       text kept for search and the assistant
 - [x] AI title and summary refinement (ai.refine_notes, on by default, can be switched off)
 - [ ] Costs of refinement to the activity ledger (once "Activity history and budgets" lands)
-- [ ] Assistant and MCP tools: find, read, write, link and file notes; changes by the assistant are undoable
-- [ ] Self-organising: a routine files notes into PARA and links them to entities and topics, proposing what it isn't
-      sure of
+- [x] Assistant tools: find, read, write and update notes (at once, no approval: notes are its notebook)
+- [ ] MCP tools to read notes; page history so the assistant's changes can be undone
+- [x] Self-organising, first step: notes nobody filed are filed in PARA by a decision model (or the LLM), with a
+      suggestion when it isn't sure (ai.organise_notes)
+- [ ] Self-organising, next: link notes to entities and topics, nest them under their project or area
 - [ ] # topics move to the SKOS topics once the graph thread splits them from entities
 - [ ] Attachments on a page, encrypted through the keyring
 - [ ] Object storage (S3, or an rclone remote served as S3) in the setup wizard, no local storage; a downloadable

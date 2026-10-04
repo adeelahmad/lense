@@ -974,6 +974,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       </p>
       <F ctx={ctx} id="ai.tools" />
       <F ctx={ctx} id="ai.refine_notes" />
+      <F ctx={ctx} id="ai.organise_notes" />
       <div className="flex flex-col gap-2">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Tools</span>
         <ul className="flex flex-col gap-2">

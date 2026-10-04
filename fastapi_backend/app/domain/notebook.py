@@ -12,8 +12,9 @@ The body links to anything with mention tokens, which the editor and the assista
 @ is for resources, people and other pages; # is for topics (entities of type TERM until topics become a SKOS
 vocabulary of their own). Links are kept as note_link rows, so a page shows its backlinks and the graph sees them.
 
-The editor may also keep its own document state (`doc`, opaque: a BlockSuite/Yjs snapshot) next to the Markdown. A
-change to the Markdown alone (the assistant's, say) drops that state so the editor rebuilds it from the Markdown.
+The editor may also keep its own document state (`doc`, opaque: a BlockSuite/Yjs snapshot) next to the Markdown, which
+holds what Markdown can't, like drawings on the edgeless canvas. A change to the Markdown alone (the assistant's, say)
+keeps that state but marks it stale, and the editor brings its text in line with the Markdown.
 
 Refine later: pages for partial collection members, page history and undo, attachments, real-time co-editing.
 """
@@ -28,6 +29,7 @@ from . import store
 R = store.R
 PLACES = ("project", "area", "resource", "archive")
 AUTHORS = ("person", "assistant")
+VIEWS = ("page", "edgeless")  # how the editor shows it: a document, or the endless canvas (drawings, diagrams)
 KINDS = ("recording", "entity", "collection", "speaker", "page")  # what a page can link to
 ABOUT = ("recording", "entity", "collection", "speaker")  # what can have a page of its own
 TITLE_MAX = 200
@@ -38,8 +40,8 @@ PAGES_MAX = 20_000  # per namespace
 DEPTH_MAX = 12
 MENTION = re.compile(r"([@#])\[([^\]\n]{1,200})\]\(([a-z]+):(\d{1,18})\)")
 FIELDS = (
-    "record::id(id) AS id, space, title, summary, summary_by, date, place, parent, position, about, author, "
-    "created_by, updated_by, created_at, updated_at"
+    "record::id(id) AS id, space, title, summary, summary_by, date, place, place_by, place_suggestion, parent, position, "
+    "about, author, view, doc_stale, created_by, updated_by, created_at, updated_at"
 )
 
 
@@ -181,10 +183,26 @@ def _links(db, pid, sid, body):
         )
 
 
-def create(db, sid, account, title, body="", summary=None, date=None, place=None, parent=None, about_thing=None, author="person", doc=None):
+def create(
+    db,
+    sid,
+    account,
+    title,
+    body="",
+    summary=None,
+    date=None,
+    place=None,
+    parent=None,
+    about_thing=None,
+    author="person",
+    doc=None,
+    view=None,
+):
     """A new page; its id. ValueError for bad input, a page that already exists about that thing, or too many."""
     if author not in AUTHORS:
         raise ValueError("A page is written by a person or the assistant.")
+    if view is not None and view not in VIEWS:
+        raise ValueError("A page is seen as a page or on the edgeless canvas.")
     title, body, summary = _title(title), _body(body), _summary(summary)
     key = None
     if about_thing:
@@ -207,6 +225,8 @@ def create(db, sid, account, title, body="", summary=None, date=None, place=None
         "summary_by": author if summary else None,
         "date": _date(date) or t[:10],
         "place": _place(place),
+        "place_by": author if place else None,
+        "filed": bool(place),
         "parent": parent,
         "position": None if about_thing else _last_position(db, sid, parent),
         "about": about_thing,
@@ -214,6 +234,7 @@ def create(db, sid, account, title, body="", summary=None, date=None, place=None
         "body": body,
         "text": plain(body),
         "doc": _doc(doc),
+        "view": view,
         "author": author,
         "refine_pending": True,
         "created_by": account,
@@ -237,8 +258,8 @@ def _doc(doc):
 UNSET = object()
 
 
-def update(db, pid, account, title=None, body=None, summary=UNSET, date=UNSET, place=UNSET, author="person", doc=UNSET):
-    """Change what's given. A new body without `doc` drops the editor's state; the summary records who wrote it."""
+def update(db, pid, account, title=None, body=None, summary=UNSET, date=UNSET, place=UNSET, author="person", doc=UNSET, view=UNSET):
+    """Change what's given. A new body without `doc` marks the editor's state stale; the summary records who wrote it."""
     p = get(db, pid)
     sets, args = ["updated_at = $t", "updated_by = $a"], {"t": store.now(), "a": account}
     if title is not None:
@@ -252,19 +273,28 @@ def update(db, pid, account, title=None, body=None, summary=UNSET, date=UNSET, p
         sets.append("date = $date")
         args["date"] = _date(date)
     if place is not UNSET:
-        sets.append("place = $place")
+        # whoever files it decides: the assistant doesn't file it again, and its suggestion is done with
+        sets += ["place = $place", "place_by = $place_by", "place_suggestion = NONE", "filed = true"]
         args["place"] = _place(place)
+        args["place_by"] = author if args["place"] else None
     if title is not None or body is not None:
         sets.append("refine_pending = true")
     if body is not None:
         sets += ["body = $body", "text = $text"]
         args["body"] = _body(body)
         args["text"] = plain(args["body"])
-        if doc is UNSET:
-            doc = None
+        # a new body without the editor's state (the assistant's): the state is kept, for what Markdown can't hold
+        # (drawings on the edgeless canvas), and marked stale so the editor brings the text in line with the body
+        sets.append("doc_stale = $stale")
+        args["stale"] = doc is UNSET
     if doc is not UNSET:
         sets.append("doc = $doc")
         args["doc"] = _doc(doc)
+    if view is not UNSET:
+        if view not in VIEWS:
+            raise ValueError("A page is seen as a page or on the edgeless canvas.")
+        sets.append("view = $view")
+        args["view"] = view
     db.q(f"UPDATE $r SET {', '.join(sets)}", r=R("note_page", int(pid)), **args)
     if body is not None:
         _links(db, int(pid), p["space"], args["body"])
@@ -478,3 +508,59 @@ def refine_due(db, cfg, log=None):
             db.q("UPDATE $r SET refine_pending = false, refine_claim = NONE", r=R("note_page", p["id"]))
         done += 1
     return done
+
+
+# ---------- filing notes in PARA (ai.organise_notes) ----------
+PARA = {
+    "project": "Work toward an outcome with an end: a goal, a deliverable, something with a deadline.",
+    "area": "A responsibility kept up over time with no end date: health, a team, a home, finances.",
+    "resource": "A topic or interest kept for reference: research, how-tos, ideas, people, things to know.",
+    "archive": "Done, cancelled or no longer active: kept only for the record.",
+}
+FILE_BATCH = 10
+
+
+def file_due(db, cfg, log=None):
+    """File free notes nobody has filed yet in PARA, once their summary is written: a routine decision (a decision
+    model when one is set up, else the language model). Sure enough (decisions.act_above), it's filed; otherwise the
+    best guess waits on the page as a suggestion. Off with ai.organise_notes."""
+    from . import decide
+
+    if not cfg["ai"].get("organise_notes", True) or not decide.engine(cfg):
+        return 0
+    rows = db.rows(
+        "SELECT record::id(id) AS id, title, summary, text, updated_at FROM note_page "
+        "WHERE about = NONE AND filed != true AND refine_pending != true LIMIT $n",
+        n=FILE_BATCH,
+    )
+    done = 0
+    for p in rows:
+        state = {"title": p["title"], "summary": p.get("summary"), "text": (p.get("text") or "")[:4000]}
+        try:
+            d = decide.choose(cfg, "Where does this note belong in PARA (projects, areas, resources, archives)?", PARA, state)
+        except decide.Undecided as e:
+            if log:
+                log(f"notes: couldn't file page {p['id']}: {e}")
+            return done
+        now = db.one("SELECT updated_at, filed FROM $r", r=R("note_page", p["id"]))
+        if not now or now.get("filed") or now.get("updated_at") != p.get("updated_at"):
+            continue  # someone filed or changed it meanwhile
+        if decide.sure(cfg, d):
+            db.q(
+                "UPDATE $r SET place = $c, place_by = 'assistant', place_suggestion = NONE, filed = true",
+                r=R("note_page", p["id"]),
+                c=d["choice"],
+            )
+        else:
+            db.q(
+                "UPDATE $r SET place_suggestion = $s, filed = true",
+                r=R("note_page", p["id"]),
+                s={"place": d["choice"], "confidence": round(d["confidence"], 2), "by": d["by"]},
+            )
+        done += 1
+    return done
+
+
+def organise_due(db, cfg, log=None):
+    """The notes pass the scheduler runs: titles and summaries first, then filing."""
+    return refine_due(db, cfg, log) + file_due(db, cfg, log)

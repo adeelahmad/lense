@@ -7226,7 +7226,7 @@
           "notes"
         ],
         "summary": "Update Page",
-        "description": "Change what's given. A new body without `doc` drops the editor's state, so it's rebuilt from the Markdown.",
+        "description": "Change what's given. A new body without `doc` keeps the editor's state (drawings on the canvas live there) but\nmarks it stale (`doc_stale`), so the editor brings its text in line with the body.",
         "operationId": "update_page",
         "parameters": [
           {
@@ -34441,6 +34441,33 @@
             "title": "Place",
             "description": "where it's filed (PARA): project, area, resource or archive"
           },
+          "place_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "person",
+                  "assistant"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place By",
+            "description": "who filed it"
+          },
+          "place_suggestion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaceSuggestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the assistant would file it, when it wasn't sure"
+          },
           "parent": {
             "anyOf": [
               {
@@ -34487,6 +34514,22 @@
             "description": "who wrote it",
             "default": "person"
           },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "edgeless"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View",
+            "description": "how the editor shows it (default: page)"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -34530,6 +34573,18 @@
             ],
             "title": "Doc",
             "description": "the editor's own document state, if it kept one"
+          },
+          "doc_stale": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Stale",
+            "description": "the body changed without the editor: its text follows the body"
           },
           "created_by": {
             "anyOf": [
@@ -34668,6 +34723,21 @@
               }
             ],
             "title": "Doc"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "edgeless"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View"
           }
         },
         "additionalProperties": false,
@@ -34792,6 +34862,33 @@
             "title": "Place",
             "description": "where it's filed (PARA): project, area, resource or archive"
           },
+          "place_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "person",
+                  "assistant"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place By",
+            "description": "who filed it"
+          },
+          "place_suggestion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaceSuggestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the assistant would file it, when it wasn't sure"
+          },
           "parent": {
             "anyOf": [
               {
@@ -34837,6 +34934,22 @@
             "title": "Author",
             "description": "who wrote it",
             "default": "person"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "edgeless"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View",
+            "description": "how the editor shows it (default: page)"
           },
           "created_at": {
             "anyOf": [
@@ -34983,7 +35096,23 @@
               }
             ],
             "title": "Doc",
-            "description": "the editor's document state; a new body without it drops the old one"
+            "description": "the editor's document state; a new body without it marks the old one stale"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "edgeless"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View",
+            "description": "show it as a page or on the edgeless canvas"
           }
         },
         "additionalProperties": false,
@@ -37058,6 +37187,37 @@
           "version"
         ],
         "title": "PipelineVersionInfo"
+      },
+      "PlaceSuggestion": {
+        "properties": {
+          "place": {
+            "type": "string",
+            "enum": [
+              "project",
+              "area",
+              "resource",
+              "archive"
+            ],
+            "title": "Place"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "by": {
+            "type": "string",
+            "title": "By",
+            "description": "what decided: jev (a decision model) or llm"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "place",
+          "confidence",
+          "by"
+        ],
+        "title": "PlaceSuggestion"
       },
       "Placed": {
         "properties": {
