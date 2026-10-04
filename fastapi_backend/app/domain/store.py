@@ -239,6 +239,7 @@ DEFAULTS = {
     "ai": {
         "tools": True,
         "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
+        "refine_notes": True,  # the model keeps notes' titles and one-line summaries true to the whole note (notebook.py)
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
@@ -899,6 +900,7 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS note_page_space ON note_page FIELDS space",
     "DEFINE INDEX IF NOT EXISTS note_page_parent ON note_page FIELDS parent",
     "DEFINE INDEX IF NOT EXISTS note_page_about ON note_page FIELDS about_key UNIQUE",
+    "DEFINE INDEX IF NOT EXISTS note_page_refine ON note_page FIELDS refine_pending",
     # the links in a page's body (@ and # mentions), for backlinks and the graph
     "DEFINE TABLE IF NOT EXISTS note_link SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_link_page ON note_link FIELDS page",

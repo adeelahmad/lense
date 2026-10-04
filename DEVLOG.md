@@ -41,11 +41,12 @@ Todo:
 
 - [x] Pages: create, read, change, move in the tree, delete; a page per resource made on first open
 - [x] @ and # mentions: links and backlinks, a search to pick what to link
-- [ ] Web app: tree explorer in the left navigation, page view with title, summary, date, place and backlinks; the
+- [x] Web app: tree explorer in the left navigation, page view with title, summary, date, place and backlinks; the
       page of a recording or entity reached from its detail view
-- [ ] Editor: BlockSuite (AFFiNE's block editor, OctoBase/Yjs documents) behind one component; plain text kept for
-      search and the assistant. Waits on Adeel's link for the exact editor
-- [ ] AI title and summary refinement (notes.refine, on by default, can be switched off); costs to the activity ledger
+- [x] Editor: BlockSuite (AFFiNE's block editor on Yjs documents, what OctoBase stores) behind one component; plain
+      text kept for search and the assistant
+- [x] AI title and summary refinement (ai.refine_notes, on by default, can be switched off)
+- [ ] Costs of refinement to the activity ledger (once "Activity history and budgets" lands)
 - [ ] Assistant and MCP tools: find, read, write, link and file notes; changes by the assistant are undoable
 - [ ] Self-organising: a routine files notes into PARA and links them to entities and topics, proposing what it isn't
       sure of
