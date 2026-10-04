@@ -85,12 +85,12 @@ def test_a_passkey_from_another_site_or_a_wrong_signature_is_refused(app, client
     o = client.post("/api/v1/auth/passkey/options", headers=WEB).json()
     cred = device.get(o["options"], "https://evil.example")
     assert client.post("/api/v1/auth/passkey", json={"flow": o["flow"], "credential": cred}, headers=WEB).status_code == 401
-    # a stranger's key
+    # a stranger's key, or one made before Lens was set up again here: 404, so the web app has the browser forget it
     stranger = Authenticator()
     o = client.post("/api/v1/auth/passkey/options", headers=WEB).json()
     stranger.create({"rp": {"id": "localhost"}, "user": {"id": "eA"}, "challenge": "eA"}, ORIGIN)
     r = client.post("/api/v1/auth/passkey", json={"flow": o["flow"], "credential": stranger.get(o["options"], ORIGIN)}, headers=WEB)
-    assert r.status_code == 401 and "isn't known" in r.json()["detail"]
+    assert r.status_code == 404 and "isn't one Lens knows" in r.json()["detail"]
     # without user verification (no fingerprint, face or PIN)
     o = client.post("/api/v1/auth/passkey/options", headers=WEB).json()
     r = client.post("/api/v1/auth/passkey", json={"flow": o["flow"], "credential": device.get(o["options"], ORIGIN, uv=False)}, headers=WEB)
@@ -135,7 +135,7 @@ def test_adding_renaming_and_removing_passkeys(app, client, db):
     # not the last one: there'd be no way in
     last = client.delete(f"/api/v1/auth/passkeys/{keys[1]['id']}", headers=h)
     assert last.status_code == 400 and "last passkey" in last.json()["detail"]
-    assert _signin(client, laptop).status_code == 401
+    assert _signin(client, laptop).status_code == 404
     log = db.values("SELECT VALUE action FROM audit_log")
     assert "passkey.add" in log and "passkey.remove" in log
 
@@ -193,7 +193,7 @@ def test_a_lost_device(app, client, db):
     h = _session(client, t.json()["ticket"])
     assert client.delete(f"/api/v1/users/{uid}/passkeys", headers=admin).status_code == 200
     assert client.get("/api/v1/auth/me", headers=h).status_code == 401
-    assert _signin(client, device).status_code == 401
+    assert _signin(client, device).status_code == 404
     # disabling someone voids their link
     token3 = client.post(f"/api/v1/users/{uid}/signin-link", headers=admin).json()["url"].split("#")[1]
     client.patch(f"/api/v1/users/{uid}", json={"disabled": True}, headers=admin)

@@ -34,7 +34,24 @@ export async function passkeyTicket(signal?: AbortSignal): Promise<string> {
   const client = anonymousClient();
   const start = must(await Auth.passkeyOptions({ client }));
   const credential = await signWithPasskey(start.options, signal);
-  return must(await Auth.passkeyLogin({ client, body: { flow: start.flow, credential } })).ticket;
+  const answer = await Auth.passkeyLogin({ client, body: { flow: start.flow, credential } });
+  // A passkey Lens doesn't know (removed, or from before Lens was set up again): clearing the site's data doesn't
+  // remove it from the password manager, so ask the browser to stop offering it.
+  if (answer.response?.status === 404) await forgetPasskey(String(credential.id ?? ""));
+  return must(answer).ticket;
+}
+
+type Signals = { signalUnknownCredential?: (o: { rpId: string; credentialId: string }) => Promise<void> };
+
+/** Tells the browser (Chrome, Safari) that this site doesn't know a passkey, so its password manager drops it. */
+export async function forgetPasskey(credentialId: string): Promise<void> {
+  const P = (typeof window === "undefined" ? undefined : window.PublicKeyCredential) as Signals | undefined;
+  if (!credentialId || !P?.signalUnknownCredential) return;
+  try {
+    await P.signalUnknownCredential({ rpId: window.location.hostname, credentialId });
+  } catch {
+    // only a hint to the browser
+  }
 }
 
 /** Make the first admin with a passkey (setup code from the server log): a one-time ticket. */

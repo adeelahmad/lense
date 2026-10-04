@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **An old passkey no longer blocks signing in.** After Lens is set up again at the same address, the browser still
+  offered the passkey from before (clearing the site's data doesn't remove passkeys from the password manager), and
+  signing in with it failed. Lens now says the passkey is from before, and tells Chrome and Safari to stop offering it,
+  so the next try shows the new one.
 - **A watched folder says which pipeline it runs.** "Namespace pipeline" names the namespace's default pipeline (or
   the standard steps) right there, instead of pointing you to the Pipelines page to find out.
 - **Sensors in the web app.** Admins get **Sensors** in place of Sources: the hub's state, new devices with a
