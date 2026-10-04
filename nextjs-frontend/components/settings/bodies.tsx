@@ -339,6 +339,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="tokens.max_days" />
           </div>
           <F ctx={ctx} id="tokens.never_expire" />
+          <F ctx={ctx} id="tokens.oauth_enabled" />
           <div className="grid gap-3 sm:grid-cols-2">
             <F ctx={ctx} id="tokens.oauth_access_minutes" />
             <F ctx={ctx} id="tokens.oauth_refresh_days" />

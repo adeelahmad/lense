@@ -123,6 +123,11 @@ def view(db, cfg):
             "endpoint": shown["telemetry"].get("endpoint"),
             "locked": [k for k in settings.locked("telemetry") if k in ("enabled", "endpoint")],
         },
+        "oauth": {
+            "enabled": bool(shown["tokens"].get("oauth_enabled", True)),
+            "access_minutes": int(shown["tokens"]["oauth_access_minutes"]),
+            "refresh_days": int(shown["tokens"]["oauth_refresh_days"]),
+        },
     }
 
 
@@ -156,6 +161,17 @@ def save_telemetry(db, cfg, enabled, endpoint, user=None):
     if keep:
         settings.save(db, cfg, "telemetry", keep, user)
     return sorted(keep)
+
+
+def save_oauth(db, cfg, enabled, access_minutes=None, refresh_days=None, user=None):
+    """Whether apps and MCP clients may sign people in through OAuth, and how long their tokens last."""
+    values = {"oauth_enabled": bool(enabled)}
+    if access_minutes is not None:
+        values["oauth_access_minutes"] = access_minutes
+    if refresh_days is not None:
+        values["oauth_refresh_days"] = refresh_days
+    settings.save(db, cfg, "tokens", values, user)
+    return sorted(values)
 
 
 def save_storage(db, cfg, max_upload_mb=None, folder=None, namespace=None, user=None):

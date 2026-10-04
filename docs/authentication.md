@@ -160,6 +160,9 @@ app ──► POST /api/v1/oauth/token   grant_type=refresh_token      before th
   what they can't see, the app can't. An admin's app has the admin's roles in every namespace but not the
   administration (people, settings, the audit log, everyone's keys): that stays with admins signed in or with their
   own API key.
+* **On unless turned off**: admins switch it in Settings → API keys or the setup wizard's Apps and AI step
+  (`tokens.oauth_enabled`). Off, `/.well-known/…` answers 404, apps can't register, ask or renew, and their tokens
+  stop working; the access people gave comes back when it is turned on again.
 * **Lifetimes** are the admins' ([Configuration](configuration.md#api-keys)): the access token lasts
   `tokens.oauth_access_minutes` (60), and the app stays signed in for `tokens.oauth_refresh_days` (30) after it last
   renewed, at most `tokens.max_days`.

@@ -405,6 +405,10 @@ def _check(section, key, value, default):
         if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
             raise ValueError(f"tokens.oauth_access_minutes is a whole number of minutes from {lo} to {hi}")
         return value
+    if (section, key) == ("tokens", "oauth_enabled"):
+        if not isinstance(value, bool):
+            raise ValueError("tokens.oauth_enabled is true or false")
+        return value
     if section == "tokens" and key != "never_expire":
         lo, hi = TOKEN_DAYS
         if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):

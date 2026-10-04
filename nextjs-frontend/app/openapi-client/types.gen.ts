@@ -12000,6 +12000,43 @@ export type SetupNamespaceView = {
 };
 
 /**
+ * SetupOAuth
+ */
+export type SetupOAuth = {
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+  /**
+   * Access Minutes
+   */
+  access_minutes?: number | null;
+  /**
+   * Refresh Days
+   */
+  refresh_days?: number | null;
+};
+
+/**
+ * SetupOAuthView
+ */
+export type SetupOAuthView = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Access Minutes
+   */
+  access_minutes: number;
+  /**
+   * Refresh Days
+   */
+  refresh_days: number;
+  [key: string]: unknown;
+};
+
+/**
  * SetupRequest
  */
 export type SetupRequest = {
@@ -12135,6 +12172,7 @@ export type SetupView = {
   llm: SetupLlmView;
   storage: SetupStorageView;
   telemetry: SetupTelemetryView;
+  oauth: SetupOAuthView;
   [key: string]: unknown;
 };
 
@@ -17529,6 +17567,31 @@ export type SaveTelemetryResponses = {
 };
 
 export type SaveTelemetryResponse = SaveTelemetryResponses[keyof SaveTelemetryResponses];
+
+export type SaveOauthData = {
+  body: SetupOAuth;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/oauth";
+};
+
+export type SaveOauthErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveOauthError = SaveOauthErrors[keyof SaveOauthErrors];
+
+export type SaveOauthResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveOauthResponse = SaveOauthResponses[keyof SaveOauthResponses];
 
 export type FinishData = {
   body: SetupFinish;

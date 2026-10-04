@@ -193,9 +193,16 @@ DEFAULTS = {
     # without passwords; an install that already had them keeps them until an admin turns them off.
     "auth": {"passwords": False},
     # how long API keys last (docs/configuration.md): what a new key gets, the most it may get, and whether keys may
-    # never expire; and how long the tokens of apps given access through OAuth last (domain/oauth.py): the access token,
-    # and the grant after the app last renewed it
-    "tokens": {"default_days": 90, "max_days": 365, "never_expire": False, "oauth_access_minutes": 60, "oauth_refresh_days": 30},
+    # never expire; and whether apps and MCP clients may sign people in through OAuth (domain/oauth.py), and how long
+    # their tokens last: the access token, and the grant after the app last renewed it
+    "tokens": {
+        "default_days": 90,
+        "max_days": 365,
+        "never_expire": False,
+        "oauth_enabled": True,
+        "oauth_access_minutes": 60,
+        "oauth_refresh_days": 30,
+    },
     # audio, video, documents and images uploaded in the web app, in pieces (docs/configuration.md); transcript files use
     # server.max_upload_mb
     "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT + DOCUMENT_EXT + IMAGE_EXT), "chunk_mb": 8, "expire_hours": 24},

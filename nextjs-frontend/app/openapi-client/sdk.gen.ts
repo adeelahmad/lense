@@ -976,6 +976,9 @@ import type {
   SaveNamespaceData,
   SaveNamespaceErrors,
   SaveNamespaceResponses,
+  SaveOauthData,
+  SaveOauthErrors,
+  SaveOauthResponses,
   SaveResourceFieldsData,
   SaveResourceFieldsErrors,
   SaveResourceFieldsResponses,
@@ -2037,7 +2040,8 @@ export class Oauth {
    * Consent
    *
    * What the consent page shows for an app's request: the app, where it takes you back to and what it asks for.
-   * 400 when the request can't be answered (an unknown app, an address it didn't register, no PKCE challenge).
+   * 400 when the request can't be answered (an unknown app, an address it didn't register, no PKCE challenge); 403
+   * when apps can't sign in to this server.
    */
   public static consent<ThrowOnError extends boolean = false>(
     options: Options<ConsentData, ThrowOnError>,
@@ -2696,6 +2700,25 @@ export class Setup {
   ): RequestResult<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError> {
     return (options.client ?? client).put<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError>({
       url: "/api/v1/setup/telemetry",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Save Oauth
+   *
+   * Let apps and AI assistants (MCP clients such as Claude or Cursor) sign people in with their Lens account, or
+   * not, and how long their tokens last (docs/authentication.md#oauth). On unless turned off.
+   */
+  public static saveOauth<ThrowOnError extends boolean = false>(
+    options: Options<SaveOauthData, ThrowOnError>,
+  ): RequestResult<SaveOauthResponses, SaveOauthErrors, ThrowOnError> {
+    return (options.client ?? client).put<SaveOauthResponses, SaveOauthErrors, ThrowOnError>({
+      url: "/api/v1/setup/oauth",
       ...options,
       headers: {
         "Content-Type": "application/json",

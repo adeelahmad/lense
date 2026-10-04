@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Apps and AI assistants in the setup wizard.** A new optional step, Apps and AI, asks whether apps and AI
+  assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in with their Lens account, how long
+  their tokens last, and shows the MCP server's address to add to an assistant. Skipping it keeps OAuth on, as
+  before. Admins can also turn it off in Settings → API keys (`tokens.oauth_enabled`): discovery and registration go
+  away and apps' tokens stop working until it is back on. API: `PUT /api/v1/setup/oauth`.
 - **Budgets for routines, pipelines, workflows and namespaces.** An admin caps what a resource may cost, in USD,
   tokens or both, per run, day, week or month. Before a routine runs or a job starts, Lens estimates the run from past
   ones; one that would go over is held until someone picks run or skip (or is skipped, or the decision model weighs
