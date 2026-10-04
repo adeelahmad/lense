@@ -53,7 +53,7 @@ class NoteBacklink(ResponseModel):
 
 class NotePage(NotePageItem):
     namespace: str
-    body: str = Field("", description="Markdown, with mentions written @[label](kind:id) and #[label](entity:id)")
+    body: str = Field("", description="Markdown, with mentions written @[label](kind:id) and #[label](topic:id)")
     doc: str | None = Field(None, description="the editor's own document state, if it kept one")
     doc_stale: bool | None = Field(None, description="the body changed without the editor: its text follows the body")
     created_by: str | None = Field(None, description="its writer's email")

@@ -17,7 +17,7 @@ class TopicRef(ResponseModel):
 class TopicAbout(ResponseModel):
     recording: int
     title: str | None = None
-    source: str | None = Field(None, description="how it got there: person, entity or analysis")
+    source: str | None = Field(None, description="how it got there: person, entity, analysis or assistant")
     weight: float | None = None
     status: Literal["accepted", "suggested", "dismissed"] | None = None
 

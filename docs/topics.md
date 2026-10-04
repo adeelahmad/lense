@@ -6,8 +6,8 @@ subject someone chose for the vocabulary, like "Gene therapy" or "Funding".
 
 Status: **built**: the vocabulary (labels, definitions, broader, narrower and related topics), recordings about
 topics, topics made from topic-like entities, the API, the Topics page, a recording's topics, topics in the graph
-(and on its canvas) and in RDF, and topic suggestions from analysis. **Planned**: `#` links in notes pointing at
-topics, and assistant and MCP tools for topics.
+(and on its canvas) and in RDF, topic suggestions from analysis, `#` links in notes, a page per topic, and
+assistant and MCP tools for topics.
 
 ## In the web app
 
@@ -109,3 +109,14 @@ In RDF ([Linked data](rdf.md)) a topic is `/id/topic/<id>`, a `skos:Concept` in 
 - Vocabularies shared by several namespaces, and imported schemes (LCSH, Wikidata) linked with `skos:exactMatch`.
 - Entities as authority records: variant names and external identifiers.
 - History and undo for topic merges and deletes.
+
+## Notes, the assistant and agents
+
+In notes, `#` links a topic (`#[Capsid design](topic:9)`), found by any of its labels, and every topic has a page of
+its own (**Page** in its drawer) that lists the notes linking to it. Deleting or merging a topic keeps its page, as a
+free note.
+
+The assistant in Chat finds topics (`find_topics`), reads one with its recordings (`topic_recordings`) and, for
+editors, suggests a topic for recordings (`suggest_topic`). The MCP server has the same as `list_topics`, `get_topic`
+and `suggest_topic` (with a write-scope token). Suggestions from either wait for someone to accept them, with
+`assistant` as their source; what people accepted or dismissed stays as it is.

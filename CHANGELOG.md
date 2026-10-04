@@ -48,6 +48,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `ABOUT`, `NARROWER` and `RELATED`; TERM entities are now labelled `Term` there) and in RDF (`/id/topic/<id>`). See
   docs/topics.md.
 
+- **Topics in notes and for agents.** `#` in a note links a topic, found by any of its labels, and every topic has
+  a page of its own. The assistant can find topics, read one with its recordings and suggest a topic for recordings;
+  the MCP server has `list_topics`, `get_topic` and `suggest_topic`. Their suggestions wait for someone to accept.
+
 - **Topic suggestions.** Analysis suggests the vocabulary's topics for recordings whose summary or transcript says
   one of their labels, for people to accept or dismiss (a dismissed one isn't suggested again). The Topics page lists
   what summaries say recordings are about that no topic covers yet, to add as a topic or skip. No model is called.

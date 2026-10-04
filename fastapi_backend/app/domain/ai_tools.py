@@ -27,6 +27,7 @@ from . import (
     speakers as spk,
     store,
     templates,
+    topics,
 )
 
 R = store.R
@@ -64,7 +65,7 @@ TOOLS = [
     ),
     (
         "find_entities",
-        "Find people, organisations, products, places and topics mentioned in scope.",
+        "Find people, organisations, products, places and terms mentioned in scope (for subjects, use find_topics).",
         {"query": _S, "type": _S, "namespace": _S, "limit": _I},
         [],
         False,
@@ -77,6 +78,29 @@ TOOLS = [
         False,
     ),
     ("entity_timeline", "How often an entity was mentioned per month.", {"entity_id": _I}, ["entity_id"], False),
+    (
+        "find_topics",
+        "Find topics: each namespace's controlled vocabulary of what recordings are about, with other labels, a "
+        "definition, broader topics and how many recordings are about each.",
+        {"query": _S, "namespace": _S, "limit": _I},
+        [],
+        False,
+    ),
+    (
+        "topic_recordings",
+        "One topic: its broader, narrower and related topics and the recordings about it (accepted, and suggested).",
+        {"topic_id": _I},
+        ["topic_id"],
+        False,
+    ),
+    (
+        "suggest_topic",
+        "Suggest that recordings are about a topic. It waits on the recording and the topic for someone to accept; "
+        "nothing they accepted or dismissed changes.",
+        {"topic_id": _I, "recording_ids": {"type": "array", "items": _I}},
+        ["topic_id", "recording_ids"],
+        True,
+    ),
     (
         "graph_neighbours",
         "Who and what is connected to an entity or speaker in the knowledge graph.",
@@ -107,8 +131,8 @@ TOOLS = [
         'Write a new note, or the page of a thing (about, like "entity:5"; one each). You keep notes as you learn: '
         "a specific title, a one-line summary of what it holds, Markdown text, and where it's filed: project (an "
         "outcome with an end), area (a responsibility kept up), resource (a topic of interest) or archive (done). Link "
-        "with @[label](recording:12), @[label](entity:5), @[label](page:3), and topics with #[label](entity:9) (ids "
-        "from find_entities, find_notes and list_recordings). Put it inside another note with parent_id.",
+        "with @[label](recording:12), @[label](entity:5), @[label](page:3), and topics with #[label](topic:9) (ids "
+        "from find_entities, find_topics, find_notes and list_recordings). Put it inside another note with parent_id.",
         {
             "namespace": _S,
             "title": _S,
@@ -139,7 +163,7 @@ TOOLS = [
     ),
     (
         "graph_schema",
-        "What the graph holds (namespaces, collections, recordings, speakers, entities and how they link), with example "
+        "What the graph holds (namespaces, collections, recordings, speakers, entities, topics and how they link), with example "
         "Cypher. Read it before graph_query.",
         {"namespace": _S},
         [],
@@ -156,7 +180,7 @@ TOOLS = [
     (
         "graph_related",
         "A node's parents, children, ancestors, descendants (recording, collection, namespace...) or neighbours. Nodes "
-        "are n<id> namespaces, c<id> collections, r<id> recordings, s<id> speakers, e<id> entities.",
+        "are n<id> namespaces, c<id> collections, r<id> recordings, s<id> speakers, e<id> entities, t<id> topics.",
         {
             "node": _S,
             "relation": {"type": "string", "enum": ["parents", "children", "ancestors", "descendants", "neighbours"]},
@@ -586,6 +610,65 @@ class Toolbox(ops_tools.OpsTools):
 
     def t_entity_timeline(self, entity_id):
         return entities.timeline(self.db, [int(entity_id)], self.readable), "Counted mentions by month"
+
+    def t_find_topics(self, query=None, namespace=None, limit=20):
+        spaces = self.readable
+        if namespace:
+            sid = {v: k for k, v in store.space_names(self.db).items()}.get(namespace)
+            if sid not in self.readable:
+                raise ValueError(f"no namespace called {namespace} in scope")
+            spaces = {sid}
+        res = topics.list_topics(self.db, spaces, query or "", limit=max(1, min(int(limit or 20), 50)))
+        up = sorted({b for t in res["items"] for b in t["broader"]})
+        label = {
+            t["id"]: t["label"]
+            for t in (
+                self.db.rows("SELECT record::id(id) AS id, label FROM topic WHERE id IN $ids", ids=[R("topic", b) for b in up])
+                if up
+                else []
+            )
+        }
+        out = [
+            store.clean(
+                {
+                    "id": t["id"],
+                    "label": t["label"],
+                    "namespace": t.get("namespace"),
+                    "also": t["alt"] or None,
+                    "definition": t.get("definition"),
+                    "broader": [label.get(b, b) for b in t["broader"]] or None,
+                    "recordings": t["recordings"],
+                }
+            )
+            for t in res["items"]
+        ]
+        return {"total": res["total"], "topics": out}, f"Found {res['total']} topic(s)"
+
+    def t_topic_recordings(self, topic_id):
+        t = topics.detail(self.db, int(topic_id), self.readable)
+        about = [a for a in t["about"] if self.allowed is None or a["recording"] in self.allowed]
+        out = {
+            "id": t["id"],
+            "label": t["label"],
+            "namespace": t.get("namespace"),
+            "definition": t.get("definition"),
+            "broader": t["broader"],
+            "narrower": t["narrower"],
+            "related": t["related"],
+            "recordings": [{"recording_id": a["recording"], "title": a["title"], "status": a["status"]} for a in about],
+        }
+        return out, f"Read the topic {t['label']}"
+
+    def t_suggest_topic(self, topic_id, recording_ids):
+        row = self.db.one("SELECT space, label FROM $r", r=R("topic", int(topic_id)))
+        if not row or row["space"] not in self.readable:
+            raise ValueError(f"no topic {topic_id} in scope")
+        if row["space"] not in self.editable:
+            raise ValueError("suggesting topics needs editor access to the namespace")
+        for rid in recording_ids or []:
+            self._ok(rid)
+        made = topics.propose(self.db, int(topic_id), recording_ids, "assistant", self.user.get("email"))
+        return {"suggested_for": made, "note": "waiting for someone to accept"}, f"Suggested {row['label']} for {len(made)} recording(s)"
 
     def t_graph_neighbours(self, entity_id=None, speaker_id=None, limit=15):
         if not entity_id and not speaker_id:

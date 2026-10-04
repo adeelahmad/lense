@@ -3,10 +3,11 @@
 Every resource, entity and topic in Lens has a page of its own, and next to them sit free notes that people and the
 assistant write. The assistant is the main writer and organiser; people can do everything it can.
 
-Status: **built**: pages (free notes in a tree, a page per recording, entity, collection or speaker), @ and # links
-with backlinks, the tree in the left navigation, the page view with the BlockSuite editor, the model keeping titles
-and summaries up to date, and assistant tools to find, read, write and update notes. **Planned**: MCP tools, page
-history, linking notes to entities and topics and nesting them under their project or area on their own, attachments on encrypted object storage, pages in the graph, # links to SKOS topics.
+Status: **built**: pages (free notes in a tree, a page per recording, entity, topic, collection or speaker), @ and #
+links with backlinks (# links topics), the tree in the left navigation, the page view with the BlockSuite editor, the
+model keeping titles and summaries up to date, and assistant tools to find, read, write and update notes.
+**Planned**: MCP tools, page history, linking notes to entities and topics and nesting them under their project or
+area on their own, attachments on encrypted object storage, pages in the graph.
 
 ## A page
 
@@ -32,11 +33,12 @@ nothing written on it is lost.
 The body links with mention tokens, which the editor and the assistant both write:
 
 ```text
-@[Weekly call](recording:12)   @[Ada Lovelace](entity:5)   @[Plans](page:3)   #[Capsids](entity:9)
+@[Weekly call](recording:12)   @[Ada Lovelace](entity:5)   @[Plans](page:3)   #[Capsid design](topic:9)
 ```
 
-`@` links resources, people and other pages; `#` links topics (entities of type Topic, until topics become a SKOS
-vocabulary of their own; see [the graph](graph.md)). `GET /api/v1/notes/targets?ns=&sign=&q=` offers what to link.
+`@` links resources, people and other pages; `#` links topics, the namespace's vocabulary ([Topics](topics.md)),
+found by any of their labels. Links written to terms (`#[Capsids](entity:9)`) before topics existed still work.
+`GET /api/v1/notes/targets?ns=&sign=&q=` offers what to link.
 Links are kept as rows (`note_link`), so every page lists its backlinks; links to things that are gone or that the
 reader can't see show without a name.
 

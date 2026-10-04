@@ -107,7 +107,7 @@ def link_targets(
 
 @router.get("/about/{kind}/{key}")
 def page_about(kind: str, key: int, user: CurrentUser, acl: Acl, db: Db) -> NotePage | NotePageDraft:
-    """The page of a recording, entity, collection or speaker: its page, or a draft while nobody has written one."""
+    """The page of a recording, entity, topic, collection or speaker: its page, or a draft while nobody has written one."""
     thing = f"{kind}:{key}"
     with domain_errors():
         notebook._about(thing)

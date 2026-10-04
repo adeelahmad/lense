@@ -7,10 +7,9 @@ page: there is at most one per thing, made the first time someone writes on it; 
 
 The body links to anything with mention tokens, which the editor and the assistant both write:
 
-    @[Weekly call](recording:12)   @[Ada Lovelace](entity:5)   @[Plans](page:3)   #[Capsids](entity:9)
+    @[Weekly call](recording:12)   @[Ada Lovelace](entity:5)   @[Plans](page:3)   #[Capsid design](topic:9)
 
-@ is for resources, people and other pages; # is for topics (entities of type TERM until topics become a SKOS
-vocabulary of their own). Links are kept as note_link rows, so a page shows its backlinks and the graph sees them.
+@ is for resources, people and other pages; # is for topics, the namespace's vocabulary (topics.py). Links are kept as note_link rows, so a page shows its backlinks and the graph sees them.
 
 The editor may also keep its own document state (`doc`, opaque: a BlockSuite/Yjs snapshot) next to the Markdown, which
 holds what Markdown can't, like drawings on the edgeless canvas. A change to the Markdown alone (the assistant's, say)
@@ -30,8 +29,8 @@ R = store.R
 PLACES = ("project", "area", "resource", "archive")
 AUTHORS = ("person", "assistant")
 VIEWS = ("page", "edgeless")  # how the editor shows it: a document, or the endless canvas (drawings, diagrams)
-KINDS = ("recording", "entity", "collection", "speaker", "page")  # what a page can link to
-ABOUT = ("recording", "entity", "collection", "speaker")  # what can have a page of its own
+KINDS = ("recording", "entity", "topic", "collection", "speaker", "page")  # what a page can link to
+ABOUT = ("recording", "entity", "topic", "collection", "speaker")  # what can have a page of its own
 TITLE_MAX = 200
 SUMMARY_MAX = 300
 BODY_MAX = 200_000
@@ -374,7 +373,7 @@ def labels(db, targets):
     out = {}
     for kind, keys in by_kind.items():
         table = "note_page" if kind == "page" else kind
-        name = {"recording": "title ?? path", "page": "title", "speaker": "name ?? label"}.get(kind, "name")
+        name = {"recording": "title ?? path", "page": "title", "speaker": "name ?? label", "topic": "label"}.get(kind, "name")
         for r in db.rows(
             f"SELECT record::id(id) AS id, space, {name} AS name FROM {table} WHERE id IN $ids", ids=[R(table, k) for k in keys]
         ):
@@ -383,15 +382,15 @@ def labels(db, targets):
 
 
 def search_targets(db, sid, q="", sign="@", limit=20):
-    """What a mention can link to in namespace sid, best matches first: for #, topics; for @, pages, recordings,
-    people and other entities, collections and speakers."""
+    """What a mention can link to in namespace sid, best matches first: for #, topics (by any of their labels); for @,
+    pages, recordings, people and other entities, collections and speakers."""
     q = " ".join(str(q or "").split()).casefold()
     hit = (lambda s: q in str(s or "").casefold()) if q else (lambda s: True)
     out = []
-    if sign == "#":
-        for e in db.rows("SELECT record::id(id) AS id, name FROM entity WHERE space = $s AND type = 'TERM' AND hidden != true", s=sid):
-            if hit(e["name"]):
-                out.append({"target": f"entity:{e['id']}", "label": e["name"], "kind": "topic"})
+    if sign == "#":  # the namespace's vocabulary, found by any of a topic's labels
+        for t in db.rows("SELECT record::id(id) AS id, label, alt FROM topic WHERE space = $s", s=sid):
+            if any(hit(x) for x in [t["label"], *(t.get("alt") or [])]):
+                out.append({"target": f"topic:{t['id']}", "label": t["label"], "kind": "topic"})
         return sorted(out, key=lambda x: (not x["label"].casefold().startswith(q), x["label"].casefold()))[:limit]
     for p in db.rows("SELECT record::id(id) AS id, title FROM note_page WHERE space = $s AND about = NONE", s=sid):
         if hit(p["title"]):

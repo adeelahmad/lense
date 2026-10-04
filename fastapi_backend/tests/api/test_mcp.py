@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api import mcp, mcp_tools
+from app.domain import store, topics
 from tests.api.test_oauth import O, _bearer, _grant
 from tests.helpers import login, make_user, seed
 
@@ -69,8 +70,8 @@ def test_clients_are_sent_to_sign_in(client, app, env):
     tools = rpc(client, env["h"], "tools/list")["result"]["tools"]
     assert [t["name"] for t in tools] == list(mcp_tools.TOOLS)
     assert all(t["inputSchema"]["type"] == "object" for t in tools)
-    # every tool only reads, except asking for a graph change (which needs the write scope)
-    assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == ["propose_graph_change"]
+    # every tool only reads, except suggesting a topic and asking for a graph change (which need the write scope)
+    assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == ["suggest_topic", "propose_graph_change"]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too
     assert rpc(client, env["hv"], "ping")["result"] == {}
@@ -361,3 +362,30 @@ def test_graph_tools(client, db, env):
     assert tool(client, h, "graph_paths", from_node=alice, to_node=f"e{dyno}", namespace="pods")["paths"]
     assert tool_error(client, h, "graph_schema", namespace="calls")  # not theirs
     assert "read-only" in tool_error(client, h, "propose_graph_change", kind="merge", a=f"e{dyno}", b="e1")
+
+
+def test_topic_tools(client, db, env):
+    h = env["h"]  # a read-only app token for a pods viewer
+    a, b, _ = env["ids"]
+    pods = store.ns_id(db, "pods")
+    bio = topics.create(db, pods, "Biology")
+    gene = topics.create(db, pods, "Gene therapy", alt=["GT"], broader=[bio])
+    topics.tag(db, gene, [a])
+    found = tool(client, h, "list_topics", query="gt")
+    assert [(t["topic_id"], t["label"], t["broader_ids"], t["recordings"]) for t in found["topics"]] == [(gene, "Gene therapy", [bio], 1)]
+    assert [t["label"] for t in tool(client, h, "list_topics", top=True)["topics"]] == ["Biology"]
+    t = tool(client, h, "get_topic", topic_id=gene)
+    assert t["broader"] == [{"topic_id": bio, "label": "Biology"}]
+    assert [(r["recording_id"], r["status"]) for r in t["recordings"]] == [(a, "accepted")] and t["recordings"][0]["url"].endswith(
+        f"/resources/{a}"
+    )
+    assert "read-only" in tool_error(client, h, "suggest_topic", topic_id=gene, recording_ids=[b])
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    he = login(client, "ed@x.io", "editor password 1")
+    assert tool(client, he, "suggest_topic", topic_id=gene, recording_ids=[a, b])["suggested_for"] == [b]  # a already holds
+    assert [(r["recording_id"], r["status"]) for r in tool(client, h, "get_topic", topic_id=gene)["recordings"]] == [
+        (a, "accepted"),
+        (b, "suggested"),
+    ]
+    assert "list of whole numbers" in tool_error(client, he, "suggest_topic", topic_id=gene, recording_ids=["x"])
+    assert tool_error(client, he, "suggest_topic", topic_id=gene, recording_ids=[env["ids"][2]])  # calls isn't theirs
