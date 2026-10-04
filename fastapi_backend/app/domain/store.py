@@ -459,6 +459,23 @@ def _retryable(err):
     return "can be retried" in m or "Transaction conflict" in m or "Write conflict" in m
 
 
+def _lost(err):
+    """The connection dropped: the statement may not have been sent (or answered), and the connection is unusable."""
+    import websockets
+
+    from surrealdb.errors import ConnectionUnavailableError
+
+    return isinstance(err, (websockets.exceptions.ConnectionClosed, ConnectionUnavailableError, ConnectionError))
+
+
+def _closed(c):
+    """A server connection whose websocket has closed (embedded and HTTP connections have none)."""
+    from websockets.protocol import State
+
+    sock = getattr(c, "socket", None)
+    return sock is not None and sock.protocol.state in (State.CLOSING, State.CLOSED)
+
+
 def _backoff(attempt):
     time.sleep(min(0.5, 0.005 * 2**attempt) * (0.5 + random.random()))
 
@@ -525,11 +542,34 @@ class DB:
 
     @contextlib.contextmanager
     def conn(self):
+        """A connection from the pool. A server connection that has dropped (the server restarted, or a keepalive
+        ping went unanswered while the machine slept) is replaced: without that, every query sent on it fails until
+        the process restarts."""
         c = self._pool.get()
         try:
+            if _closed(c):
+                c = self._replace(c)
             yield c
+        except Exception as e:
+            if not self.embedded and _lost(e):
+                c = self._replace(c)
+            raise
         finally:
             self._pool.put(c)
+
+    def _replace(self, old):
+        """A fresh connection in place of a dropped one; the dropped one when the server can't be reached (the next
+        query tries again)."""
+        try:
+            new = self._open()
+        except Exception:  # noqa: BLE001
+            logging.getLogger("lens").warning("SurrealDB at %s is unreachable; will retry on the next query", self.url, exc_info=True)
+            return old
+        with contextlib.suppress(Exception):
+            old.close()
+        self._all = [new if x is old else x for x in self._all]
+        logging.getLogger("lens").warning("SurrealDB connection dropped; reconnected to %s", self.url)
+        return new
 
     def q(self, sql, **v):
         for attempt in range(RETRIES + 1):
