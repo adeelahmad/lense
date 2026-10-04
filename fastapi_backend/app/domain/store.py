@@ -261,6 +261,19 @@ DEFAULTS = {
         "tts_voice": None,
         "tts_api_key": None,
     },
+    # a chat model Lens runs itself with llama.cpp (domain/local_llm.py): model is a catalog id or
+    # "hf:<owner>/<repo>/<file>.gguf"; server is llama-server's path (a startup setting; else PATH, else fetched)
+    "local_llm": {
+        "enabled": False,
+        "model": None,
+        "use_as_provider": True,
+        "context": 4096,
+        "threads": None,
+        "gpu_layers": 999,
+        "port": 8091,
+        "host": None,
+        "server": None,
+    },
     # speech providers (domain/speech.py): transcription, speakers and text to speech by a service instead of this
     # server, picked in transcribe.engine, diarize.engine and voice. A base URL can be a proxy or a compatible server.
     "speech": {

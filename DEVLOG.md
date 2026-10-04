@@ -30,11 +30,12 @@ Todo:
       language, events and sentiment; provider speaker labels in speaker separation
 - [x] Voice chat: own speech-to-text engine; ElevenLabs and Deepgram text to speech
 - [x] Settings → Speech providers in the web app; new engines in Transcription and Speaker separation
-- [ ] Local LLM: GGUF catalog filtered by this machine, download from Hugging Face, llama.cpp server as the provider
+- [x] Local LLM: GGUF catalog filtered by this machine, download from Hugging Face, llama.cpp server as the provider
 
 Refine later: per-minute prices for provider calls in the ledger; AssemblyAI and Deepgram summaries, chapters and
 entities as optional imports next to Lens's own analysis; several endpoints per service; speaker labels kept across
-chunks of long OpenAI-compatible transcriptions.
+chunks of long OpenAI-compatible transcriptions; CUDA and Vulkan builds of llama.cpp; local embedding models.
+
 ## 2026-10-04 · Topics: a controlled vocabulary apart from entities
 
 Goal (Adeel): entities and topics are mixed (a topic is an entity of type TERM, which is also the fallback type for

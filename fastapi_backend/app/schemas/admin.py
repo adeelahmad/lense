@@ -43,6 +43,50 @@ class TunnelStatus(ResponseModel):
     process: str | None = Field(None, description="the server process running cloudflared")
 
 
+class LocalModel(ResponseModel):
+    id: str
+    label: str
+    repo: str
+    file: str
+    license: str | None = None
+    about: str
+    tools: bool = Field(description="good at the assistant's tool calls")
+    size_gb: float
+    memory_gb: float = Field(description="memory it needs to run, with room for Lens")
+    downloaded: bool
+    fits: bool = Field(description="this machine has the memory (or GPU memory) for it")
+    room: bool = Field(description="there's disk for it, or it's downloaded")
+
+
+class LocalModelFile(ResponseModel):
+    path: str
+    size_gb: float
+
+
+class LocalLlmProgress(ResponseModel):
+    done: int
+    total: int | None = None
+
+
+class LocalLlmStatus(ResponseModel):
+    enabled: bool
+    model: str | None = None
+    phase: Literal["off", "fetching-server", "downloading", "starting", "running", "error"]
+    progress: LocalLlmProgress | None = None
+    url: str | None = Field(None, description="the OpenAI-compatible address it answers at, while running")
+    error: str | None = None
+    log: list[str] = Field(default_factory=list, description="llama-server's last lines")
+    process: str | None = Field(None, description="the server process running it")
+    server: str | None = Field(None, description="llama-server's path, when it's here")
+    catalog: list[LocalModel]
+    files: list[LocalModelFile]
+    machine: dict[str, Any]
+
+
+class Removed(ResponseModel):
+    removed: bool
+
+
 class BridgeTestResult(ResponseModel):
     ok: bool
     error: str | None = None

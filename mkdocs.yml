@@ -71,6 +71,7 @@ nav:
   - Components: components.md
   - Video: video.md
   - Speech providers: speech-providers.md
+  - Local models: local-models.md
   - Chat and batch runs: assistant.md
   - Notifications: notifications.md
   - Chat rooms: chat-rooms.md

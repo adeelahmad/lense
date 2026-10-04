@@ -5661,6 +5661,161 @@ export type LlmTestResult = {
 };
 
 /**
+ * LocalLlmProgress
+ */
+export type LocalLlmProgress = {
+  /**
+   * Done
+   */
+  done: number;
+  /**
+   * Total
+   */
+  total?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * LocalLlmStatus
+ */
+export type LocalLlmStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Phase
+   */
+  phase: "off" | "fetching-server" | "downloading" | "starting" | "running" | "error";
+  progress?: LocalLlmProgress | null;
+  /**
+   * Url
+   *
+   * the OpenAI-compatible address it answers at, while running
+   */
+  url?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * llama-server's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Process
+   *
+   * the server process running it
+   */
+  process?: string | null;
+  /**
+   * Server
+   *
+   * llama-server's path, when it's here
+   */
+  server?: string | null;
+  /**
+   * Catalog
+   */
+  catalog: Array<LocalModel>;
+  /**
+   * Files
+   */
+  files: Array<LocalModelFile>;
+  /**
+   * Machine
+   */
+  machine: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * LocalModel
+ */
+export type LocalModel = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Repo
+   */
+  repo: string;
+  /**
+   * File
+   */
+  file: string;
+  /**
+   * License
+   */
+  license?: string | null;
+  /**
+   * About
+   */
+  about: string;
+  /**
+   * Tools
+   *
+   * good at the assistant's tool calls
+   */
+  tools: boolean;
+  /**
+   * Size Gb
+   */
+  size_gb: number;
+  /**
+   * Memory Gb
+   *
+   * memory it needs to run, with room for Lens
+   */
+  memory_gb: number;
+  /**
+   * Downloaded
+   */
+  downloaded: boolean;
+  /**
+   * Fits
+   *
+   * this machine has the memory (or GPU memory) for it
+   */
+  fits: boolean;
+  /**
+   * Room
+   *
+   * there's disk for it, or it's downloaded
+   */
+  room: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * LocalModelFile
+ */
+export type LocalModelFile = {
+  /**
+   * Path
+   */
+  path: string;
+  /**
+   * Size Gb
+   */
+  size_gb: number;
+  [key: string]: unknown;
+};
+
+/**
  * LocalModelServer
  */
 export type LocalModelServer = {
@@ -9868,6 +10023,17 @@ export type RefreshRequest = {
    * Refresh Token
    */
   refresh_token: string;
+};
+
+/**
+ * Removed
+ */
+export type Removed = {
+  /**
+   * Removed
+   */
+  removed: boolean;
+  [key: string]: unknown;
 };
 
 /**
@@ -16163,6 +16329,52 @@ export type BridgeStatusResponses = {
 };
 
 export type BridgeStatusResponse = BridgeStatusResponses[keyof BridgeStatusResponses];
+
+export type LocalLlmStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/local-llm/status";
+};
+
+export type LocalLlmStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: LocalLlmStatus;
+};
+
+export type LocalLlmStatusResponse = LocalLlmStatusResponses[keyof LocalLlmStatusResponses];
+
+export type RemoveLocalModelData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Model
+     */
+    model: string;
+  };
+  url: "/api/v1/settings/local-llm/models";
+};
+
+export type RemoveLocalModelErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveLocalModelError = RemoveLocalModelErrors[keyof RemoveLocalModelErrors];
+
+export type RemoveLocalModelResponses = {
+  /**
+   * Successful Response
+   */
+  200: Removed;
+};
+
+export type RemoveLocalModelResponse = RemoveLocalModelResponses[keyof RemoveLocalModelResponses];
 
 export type TunnelStatusData = {
   body?: never;

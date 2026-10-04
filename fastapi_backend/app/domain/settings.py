@@ -39,6 +39,8 @@ EDITABLE = {
     "components": None,
     "voice": None,
     "speech": None,
+    # llama-server's path is a startup setting only (the web app can't choose what the server runs)
+    "local_llm": ("enabled", "model", "use_as_provider", "context", "threads", "gpu_layers", "port", "host"),
     "mail": None,
     "bridge": None,
     "notifications": None,
@@ -382,6 +384,8 @@ def _check(section, key, value, default):
         return value.strip()
     if section == "speech":
         return _speech_setting(key, value)
+    if section == "local_llm":
+        return _local_llm_setting(key, value)
     if section == "decisions" and key != "engine":
         return _decision_setting(key, value)
     if (section, key) == ("documents", "attachment_resources"):
@@ -426,6 +430,40 @@ def _check(section, key, value, default):
         ok = True
     if not ok:
         raise ValueError(f"{section}.{key} should be {type(default).__name__}")
+    return value
+
+
+LOCAL_LLM_RANGES = {"context": (512, 262144), "threads": (1, 512), "gpu_layers": (0, 999), "port": (1024, 65535)}
+
+
+def _local_llm_setting(key, value):
+    from . import local_llm
+
+    if key in ("enabled", "use_as_provider"):
+        if not isinstance(value, bool):
+            raise ValueError(f"local_llm.{key} is true or false")
+        return value
+    if key == "model":
+        if value in (None, ""):
+            return None
+        if not isinstance(value, str):
+            raise ValueError("local_llm.model is a model from the list, or hf:<owner>/<repo>/<file>.gguf")
+        try:
+            local_llm.resolve(value.strip())
+        except local_llm.LocalModelError as e:
+            raise ValueError(f"local_llm.model: {e}") from None
+        return value.strip()
+    if key == "host":
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9.:\[\]-]{1,253}", value.strip())):
+            raise ValueError("local_llm.host is a host name or address other processes reach this server at")
+        return value.strip()
+    if key == "threads" and value is None:
+        return None
+    lo, hi = LOCAL_LLM_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"local_llm.{key} is a whole number from {lo} to {hi}")
     return value
 
 
