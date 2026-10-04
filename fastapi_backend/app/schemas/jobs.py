@@ -113,8 +113,9 @@ class StepQueued(Ok):
 
 
 class ComponentState(ResponseModel):
-    state: Literal["ready", "waiting", "fetching", "failed", "missing"] = Field(
-        description="waiting/fetching: being fetched, and the steps that need it wait; missing: needed but fetching is off"
+    state: Literal["ready", "waiting", "fetching", "later", "failed", "missing"] = Field(
+        description="waiting/fetching: being fetched, and the steps that need it wait; later: fetched on first use, when "
+        "a job needs it; missing: needed but fetching is off"
     )
     detail: str | None = Field(None, description="what it's doing, e.g. pulling nomic-embed-text: 40%")
     error: str | None = None

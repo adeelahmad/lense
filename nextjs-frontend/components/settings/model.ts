@@ -878,6 +878,13 @@ export const FIELDS: FieldSpec[] = [
     kind: "switch",
     hint: "Off: only report what’s missing",
   },
+  {
+    section: "components",
+    key: "ahead",
+    label: "Fetch everything now",
+    kind: "switch",
+    hint: "Off: engines and models are fetched the first time a recording needs them",
+  },
   { section: "components", key: "also", label: "Also fetch", kind: "checks" },
   // Voice
   {

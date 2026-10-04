@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Engines and models are fetched on first use.** A fresh install no longer downloads PyTorch, SenseVoice, voice IDs
+  and the face and object models before anything is imported (2.7 GB, and 2.6 GB of memory held by an idle worker).
+  Each one is fetched the first time a recording needs it; Settings › Components shows it as *On first use* until then.
+  An empty stack now idles at about 270 MB of memory, small enough for a Raspberry Pi with cloud models. **Fetch
+  everything now** (`components.ahead`) brings back fetching ahead.
+
 - **Smaller images.** The API and worker image no longer carries uv's package cache, and the web app's image no
   longer carries Next.js's build cache: about 0.9 GB and 1.2 GB less on disk, and less to pull and build on small
   machines.
