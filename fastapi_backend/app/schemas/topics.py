@@ -19,7 +19,7 @@ class TopicAbout(ResponseModel):
     title: str | None = None
     source: str | None = Field(None, description="how it got there: person, entity or analysis")
     weight: float | None = None
-    status: Literal["accepted", "suggested"] | None = None
+    status: Literal["accepted", "suggested", "dismissed"] | None = None
 
 
 class TopicItem(ResponseModel):
@@ -88,3 +88,12 @@ class RecordingTopic(ResponseModel):
     source: str | None = None
     weight: float | None = None
     status: str | None = None
+
+
+class TopicCandidate(ResponseModel):
+    label: str = Field(description="what summaries say recordings are about, which no topic covers yet")
+    recordings: int = Field(description="how many recordings' summaries say it")
+
+
+class TopicSkip(RequestModel):
+    label: str = Field(min_length=1, max_length=200)

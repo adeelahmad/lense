@@ -13749,7 +13749,26 @@ export type TopicAbout = {
   /**
    * Status
    */
-  status?: "accepted" | "suggested" | null;
+  status?: "accepted" | "suggested" | "dismissed" | null;
+  [key: string]: unknown;
+};
+
+/**
+ * TopicCandidate
+ */
+export type TopicCandidate = {
+  /**
+   * Label
+   *
+   * what summaries say recordings are about, which no topic covers yet
+   */
+  label: string;
+  /**
+   * Recordings
+   *
+   * how many recordings' summaries say it
+   */
+  recordings: number;
   [key: string]: unknown;
 };
 
@@ -13951,6 +13970,16 @@ export type TopicRef = {
    */
   label: string;
   [key: string]: unknown;
+};
+
+/**
+ * TopicSkip
+ */
+export type TopicSkip = {
+  /**
+   * Label
+   */
+  label: string;
 };
 
 /**
@@ -22478,6 +22507,73 @@ export type CreateTopicResponses = {
 };
 
 export type CreateTopicResponse = CreateTopicResponses[keyof CreateTopicResponses];
+
+export type TopicCandidatesData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/namespaces/{name}/topics/candidates";
+};
+
+export type TopicCandidatesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TopicCandidatesError = TopicCandidatesErrors[keyof TopicCandidatesErrors];
+
+export type TopicCandidatesResponses = {
+  /**
+   * Response Topics-Topic Candidates
+   *
+   * Successful Response
+   */
+  200: Array<TopicCandidate>;
+};
+
+export type TopicCandidatesResponse = TopicCandidatesResponses[keyof TopicCandidatesResponses];
+
+export type SkipTopicCandidateData = {
+  body: TopicSkip;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/topics/candidates/skip";
+};
+
+export type SkipTopicCandidateErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SkipTopicCandidateError = SkipTopicCandidateErrors[keyof SkipTopicCandidateErrors];
+
+export type SkipTopicCandidateResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type SkipTopicCandidateResponse = SkipTopicCandidateResponses[keyof SkipTopicCandidateResponses];
 
 export type MergeTopicsData = {
   body: TopicMerge;
