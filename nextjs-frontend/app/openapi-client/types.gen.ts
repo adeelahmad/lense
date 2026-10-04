@@ -12524,6 +12524,59 @@ export type ToolStep = {
 };
 
 /**
+ * TunnelStatus
+ */
+export type TunnelStatus = {
+  /**
+   * Mode
+   */
+  mode: "off" | "quick" | "token" | "managed";
+  /**
+   * Running
+   *
+   * cloudflared is running in a server process
+   */
+  running: boolean;
+  /**
+   * Connected
+   *
+   * Cloudflare has the tunnel's connection: the address works
+   */
+  connected: boolean;
+  /**
+   * Url
+   *
+   * the address people open Lens at through the tunnel
+   */
+  url?: string | null;
+  /**
+   * Error
+   *
+   * why the tunnel isn't up, when it isn't
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * cloudflared's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Origin
+   *
+   * where cloudflared sends visitors: the web app, as the server reaches it
+   */
+  origin: string;
+  /**
+   * Process
+   *
+   * the server process running cloudflared
+   */
+  process?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Undone
  */
 export type Undone = {
@@ -15224,6 +15277,22 @@ export type BridgeStatusResponses = {
 };
 
 export type BridgeStatusResponse = BridgeStatusResponses[keyof BridgeStatusResponses];
+
+export type TunnelStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/tunnel/status";
+};
+
+export type TunnelStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: TunnelStatus;
+};
+
+export type TunnelStatusResponse = TunnelStatusResponses[keyof TunnelStatusResponses];
 
 export type TestBridgeData = {
   body?: never;

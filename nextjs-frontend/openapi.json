@@ -2275,6 +2275,28 @@
         }
       }
     },
+    "/api/v1/settings/tunnel/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Tunnel Status",
+        "description": "How the Cloudflare tunnel (Settings \u203a Remote access) is doing: its address, whether it's connected, and\ncloudflared's last lines.",
+        "operationId": "tunnel_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TunnelStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/bridge/test": {
       "post": {
         "tags": [
@@ -40437,6 +40459,88 @@
           "tool"
         ],
         "title": "ToolStep"
+      },
+      "TunnelStatus": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "quick",
+              "token",
+              "managed"
+            ],
+            "title": "Mode"
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "description": "cloudflared is running in a server process"
+          },
+          "connected": {
+            "type": "boolean",
+            "title": "Connected",
+            "description": "Cloudflare has the tunnel's connection: the address works"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "the address people open Lens at through the tunnel"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the tunnel isn't up, when it isn't"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "cloudflared's last lines"
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin",
+            "description": "where cloudflared sends visitors: the web app, as the server reaches it"
+          },
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process",
+            "description": "the server process running cloudflared"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "mode",
+          "running",
+          "connected",
+          "origin"
+        ],
+        "title": "TunnelStatus"
       },
       "Undone": {
         "properties": {

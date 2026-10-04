@@ -32,6 +32,17 @@ class BridgeStatus(ResponseModel):
     answered: int | None = Field(None, description="messages it answered since it started")
 
 
+class TunnelStatus(ResponseModel):
+    mode: Literal["off", "quick", "token", "managed"]
+    running: bool = Field(description="cloudflared is running in a server process")
+    connected: bool = Field(description="Cloudflare has the tunnel's connection: the address works")
+    url: str | None = Field(None, description="the address people open Lens at through the tunnel")
+    error: str | None = Field(None, description="why the tunnel isn't up, when it isn't")
+    log: list[str] = Field(default_factory=list, description="cloudflared's last lines")
+    origin: str = Field(description="where cloudflared sends visitors: the web app, as the server reaches it")
+    process: str | None = Field(None, description="the server process running cloudflared")
+
+
 class BridgeTestResult(ResponseModel):
     ok: bool
     error: str | None = None

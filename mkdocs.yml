@@ -82,6 +82,7 @@ nav:
   - MCP server: mcp.md
   - API work the design needs: backend-gaps.md
   - Encryption: encryption.md
+  - Remote access: remote-access.md
   - Deployment: deployment.md
   - Technology: technology-selection.md
   - Contributing: contributing.md

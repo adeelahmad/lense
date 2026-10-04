@@ -15,6 +15,7 @@ x-backend: &backend
     RUN_BACKGROUND: "false"
     LENS_SETUP_CODE: "@SETUP_CODE@"
     FRONTEND_URL: "@URL@"
+    LENS_TUNNEL_ORIGIN: http://frontend:3000  # where the Cloudflare tunnel (Settings › Remote access) sends visitors
     CORS_ORIGINS: '["@URL@"]'
     ARCHIVE_ALLOWED_HOSTS: "backend,localhost,127.0.0.1,@HOST@"
   volumes:
@@ -87,7 +88,7 @@ services:
       API_BASE_URL: http://backend:8000
       AUTH_SECRET: "@AUTH_SECRET@"
       AUTH_TRUST_HOST: "true"
-      AUTH_URL: "@URL@"
+      # no AUTH_URL: sign-in follows the address the browser is on (its LAN name, https:// address or Cloudflare tunnel)
     ports:
       - "@PORT@:3000"
     depends_on: [backend]

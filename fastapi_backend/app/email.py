@@ -20,8 +20,12 @@ def mail_enabled(cfg: dict[str, Any]) -> bool:
 
 
 def app_url(cfg: dict[str, Any]) -> str:
-    """Where people open the web app, for links in emails: notifications.app_url when set, else FRONTEND_URL."""
-    return str((cfg.get("notifications") or {}).get("app_url") or settings.FRONTEND_URL).rstrip("/")
+    """Where people open the web app, for links in emails: notifications.app_url when set, else the Cloudflare tunnel's
+    fixed hostname (Settings › Remote access), else FRONTEND_URL."""
+    from app.domain import tunnel
+
+    host = tunnel.hostname(cfg)
+    return str((cfg.get("notifications") or {}).get("app_url") or (f"https://{host}" if host else settings.FRONTEND_URL)).rstrip("/")
 
 
 def _mailer(cfg: dict[str, Any]) -> Any:

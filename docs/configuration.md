@@ -64,7 +64,7 @@ show locked. Installs that already had accounts never see the wizard. The API si
 |---|---|
 | `API_BASE_URL` | where the Next.js server reaches the API (`http://localhost:8000`, `http://backend:8000` in Docker) |
 | `AUTH_SECRET` | encrypts the NextAuth session cookie (`npx auth secret`) |
-| `AUTH_URL` | the public URL of the web app, when it can't be inferred |
+| `AUTH_URL` | pins sign-in to one public URL of the web app. Leave it unset (the Docker Compose files do) so sign-in follows the address the browser is on: its LAN name, https:// address or Cloudflare tunnel |
 | `AUTH_TRUST_HOST` | `true` behind a proxy or in Docker |
 | `TRUST_PROXY_HEADERS` | `true` when a reverse proxy in front of the web app sets `X-Forwarded-Host` and `-Proto`: they're passed on to the API, which names that address in OAuth discovery. Off, the web app reports the `Host` the browser sent |
 
