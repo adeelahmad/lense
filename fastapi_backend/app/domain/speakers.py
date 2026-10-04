@@ -280,12 +280,15 @@ def assign_labels(db, nid, rid, mapping):
 
 def diarize_one(db, cfg, rid, log=print):
     r = db.one("SELECT record::id(id) AS id, space, path, source, channels, title, remote FROM $r", r=R("recording", rid))
-    segs = db.rows("SELECT record::id(id) AS id, idx, t0, t1 FROM segment WHERE recording = $r ORDER BY idx", r=rid)
+    segs = db.rows("SELECT record::id(id) AS id, idx, t0, t1, provider_speaker FROM segment WHERE recording = $r ORDER BY idx", r=rid)
     engine = cfg["diarize"]["engine"]
     path = ingest.audio_path(db, cfg, r) if r.get("source") == "audio" and engine != "none" and segs else None
     labels, how, mono, stereo = [None] * len(segs), "none", None, None
     if segs and r.get("source") == "audio" and engine != "none":
-        if engine in ("auto", "channels") and (r.get("channels") or 1) >= 2:
+        if engine in ("auto", "provider") and any(s.get("provider_speaker") for s in segs):
+            # the speech provider that transcribed it told speakers apart (domain/speech.py)
+            labels, how = [s.get("provider_speaker") for s in segs], "provider"
+        if how == "none" and engine in ("auto", "channels") and (r.get("channels") or 1) >= 2:
             stereo = ingest.decode(path, channels=2)
             if engine == "channels" or looks_dual_channel(stereo):
                 labels, how = channel_labels(stereo, segs), "channels"

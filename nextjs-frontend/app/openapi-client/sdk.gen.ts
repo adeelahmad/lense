@@ -1054,6 +1054,9 @@ import type {
   TestSourceData,
   TestSourceErrors,
   TestSourceResponses,
+  TestSpeechData,
+  TestSpeechErrors,
+  TestSpeechResponses,
   TestTelemetryData,
   TestTelemetryResponses,
   TokenData,
@@ -2216,6 +2219,20 @@ export class Admin {
   ): RequestResult<TestEmbeddingsResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestEmbeddingsResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/embeddings/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Speech
+   *
+   * Check a speech provider's address and key with the saved settings (lists its models; nothing is billed).
+   */
+  public static testSpeech<ThrowOnError extends boolean = false>(
+    options: Options<TestSpeechData, ThrowOnError>,
+  ): RequestResult<TestSpeechResponses, TestSpeechErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestSpeechResponses, TestSpeechErrors, ThrowOnError>({
+      url: "/api/v1/settings/speech/test",
       ...options,
     });
   }

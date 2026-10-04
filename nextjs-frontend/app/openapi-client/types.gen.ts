@@ -12371,6 +12371,31 @@ export type SpeakerSuggestion = {
 };
 
 /**
+ * SpeechTestResult
+ */
+export type SpeechTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Detail
+   *
+   * what the provider answered, when it did
+   */
+  detail?: string | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * Started
  *
  * Work that carries on after the response (202 Accepted).
@@ -16186,6 +16211,36 @@ export type TestEmbeddingsResponses = {
 };
 
 export type TestEmbeddingsResponse = TestEmbeddingsResponses[keyof TestEmbeddingsResponses];
+
+export type TestSpeechData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Provider
+     */
+    provider: string;
+  };
+  url: "/api/v1/settings/speech/test";
+};
+
+export type TestSpeechErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestSpeechError = TestSpeechErrors[keyof TestSpeechErrors];
+
+export type TestSpeechResponses = {
+  /**
+   * Successful Response
+   */
+  200: SpeechTestResult;
+};
+
+export type TestSpeechResponse = TestSpeechResponses[keyof TestSpeechResponses];
 
 export type SemanticStatusData = {
   body?: never;
