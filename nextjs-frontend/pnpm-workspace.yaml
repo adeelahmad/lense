@@ -26,3 +26,5 @@ overrides:
   postcss-selector-parser@^6: ^6.1.4
   ws@^8: ^8.22.0
   yaml@^2: ^2.9.1
+  # BlockSuite 0.19.5 (the notes editor) was built against these; later icon releases dropped names it imports.
+  "@blocksuite/icons": 2.1.75

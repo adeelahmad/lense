@@ -18,6 +18,7 @@ import {
   Keyboard,
   Link2,
   ListChecks,
+  NotebookPen,
   Paperclip,
   Pencil,
   RefreshCw,
@@ -190,9 +191,14 @@ function Meta({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 export function HeaderActions({ compact }: { compact?: boolean }) {
   const r = useRec();
   const api = usePlayerApi();
-  const { canEdit, ns, openShare, paged } = r;
+  const { canEdit, ns, openShare, paged, id } = r;
   return (
     <div className="flex items-center gap-2">
+      {!compact && (
+        <Button asChild variant="secondary" size="sm" icon={<NotebookPen />}>
+          <Link href={`/notes/about/recording/${id}`}>Page</Link>
+        </Button>
+      )}
       {!compact && !paged && (
         <Button
           variant="secondary"
