@@ -54,7 +54,7 @@ TABLES = {  # the API's path segments, and the table a number after one names
     "watches": "watch_path",
     "sensors": "sensor",
     "templates": "template",
-    "notes": "note",
+    "notes": "note",  # a recording's notes; /api/v1/notes/{id} are note pages (_table)
     "comments": "comment",
     "entities": "entity",
     "speakers": "speaker",
@@ -120,13 +120,20 @@ def current():
     return list(dict.fromkeys(r for r in out if REF.match(r)))
 
 
+def _table(parts, i):
+    """The table a key after path segment i names: /api/v1/notes/{id} are note pages, a recording's notes/{id} its notes."""
+    if parts[i] == "notes" and i and parts[i - 1] == "v1":
+        return "note_page"
+    return TABLES.get(parts[i])
+
+
 def request_refs(asgi):
     """An API request's resources: each number (or path parameter) after a known path segment, and who called."""
     out = []
     params = {str(v) for v in (asgi.get("path_params") or {}).values()}
     parts = [p for p in (asgi.get("path") or "").split("/") if p]
-    for a, b in zip(parts, parts[1:]):
-        table = TABLES.get(a)
+    for i, b in enumerate(parts[1:]):
+        table = _table(parts, i)
         if table and (b.isdigit() or b in params) and b not in TABLES:
             out.append(ref(table, b))
     p = (asgi.get("state") or {}).get("principal")
@@ -322,7 +329,8 @@ class Middleware:
 
 def created(path, head):
     """What a POST to a collection made, from its reply ({"id": n}): `routine:7` for POST /api/v1/routines."""
-    table = TABLES.get(path.rstrip("/").rsplit("/", 1)[-1])
+    parts = [p for p in path.split("/") if p]
+    table = _table(parts, len(parts) - 1) if parts else None
     if not table or not head:
         return None
     try:

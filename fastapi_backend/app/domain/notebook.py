@@ -23,7 +23,7 @@ from __future__ import annotations
 import datetime as dt
 import re
 
-from . import store
+from . import activity, store
 
 R = store.R
 PLACES = ("project", "area", "resource", "archive")
@@ -450,19 +450,25 @@ REFINE_SYSTEM = (
 )
 
 
+def _refs(p):
+    """What the model calls made for a page count for in the activity ledger: the page and its namespace."""
+    return (f"note_page:{p['id']}", f"space:{p['space']}")
+
+
 def refine(db, cfg, pid):
     """Ask the model for the page's title and summary; saved unless someone changed the page meanwhile. Returns what
     changed: {"title"?, "summary"?}."""
     from . import llm
 
-    p = db.one("SELECT record::id(id) AS id, title, summary, text, updated_at FROM $r", r=R("note_page", int(pid)))
+    p = db.one("SELECT record::id(id) AS id, space, title, summary, text, updated_at FROM $r", r=R("note_page", int(pid)))
     if not p:
         raise KeyError(pid)
     if not (p.get("text") or "").strip():
         db.q("UPDATE $r SET refine_pending = false, refine_claim = NONE", r=R("note_page", p["id"]))
         return {}
     user = f"Title: {p['title']}\nSummary: {p.get('summary') or '(none)'}\n\nNote:\n{p['text'][:REFINE_CHARS]}"
-    out = llm.json_out(cfg, REFINE_SYSTEM, user, REFINE_SCHEMA)
+    with activity.scope(db, *_refs(p), cfg=cfg):
+        out = llm.json_out(cfg, REFINE_SYSTEM, user, REFINE_SCHEMA)
     title = " ".join(str(out.get("title") or "").split())[:TITLE_MAX] or p["title"]
     summary = " ".join(str(out.get("summary") or "").split())[:SUMMARY_MAX] or p.get("summary")
     now = db.one("SELECT updated_at FROM $r", r=R("note_page", p["id"]))
@@ -528,7 +534,7 @@ def file_due(db, cfg, log=None):
     if not cfg["ai"].get("organise_notes", True) or not decide.engine(cfg):
         return 0
     rows = db.rows(
-        "SELECT record::id(id) AS id, title, summary, text, updated_at FROM note_page "
+        "SELECT record::id(id) AS id, space, title, summary, text, updated_at FROM note_page "
         "WHERE about = NONE AND filed != true AND refine_pending != true LIMIT $n",
         n=FILE_BATCH,
     )
@@ -536,7 +542,8 @@ def file_due(db, cfg, log=None):
     for p in rows:
         state = {"title": p["title"], "summary": p.get("summary"), "text": (p.get("text") or "")[:4000]}
         try:
-            d = decide.choose(cfg, "Where does this note belong in PARA (projects, areas, resources, archives)?", PARA, state)
+            with activity.scope(db, *_refs(p), cfg=cfg):
+                d = decide.choose(cfg, "Where does this note belong in PARA (projects, areas, resources, archives)?", PARA, state)
         except decide.Undecided as e:
             if log:
                 log(f"notes: couldn't file page {p['id']}: {e}")

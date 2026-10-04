@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Notes } from "@/app/openapi-client";
 import type { NotePage as Page, NotePageDraft as PageDraft } from "@/app/openapi-client/types.gen";
+import { ActivityPanel } from "@/components/costs/costs";
 import type { EditorChange, LinkTarget } from "@/components/notes/block-editor";
 import { PLACES, hrefFor } from "@/components/notes/links";
 import { Button } from "@/components/ui/button";
@@ -327,6 +328,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
         onOpenLink={openLink}
       />
       <Backlinks items={page.backlinks ?? []} />
+      {saved && <ActivityPanel resource={`note_page:${saved.id}`} title="Costs and activity" />}
     </article>
   );
 }

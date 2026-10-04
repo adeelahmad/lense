@@ -199,7 +199,7 @@ Todo:
 - [x] Editor: BlockSuite (AFFiNE's block editor on Yjs documents, what OctoBase stores) behind one component; plain
       text kept for search and the assistant
 - [x] AI title and summary refinement (ai.refine_notes, on by default, can be switched off)
-- [ ] Costs of refinement to the activity ledger (once "Activity history and budgets" lands)
+- [x] Costs of refinement and filing to the activity ledger (`note_page:id` and its namespace; shown on the page)
 - [x] Assistant tools: find, read, write and update notes (at once, no approval: notes are its notebook)
 - [ ] MCP tools to read notes; page history so the assistant's changes can be undone
 - [x] Self-organising, first step: notes nobody filed are filed in PARA by a decision model (or the LLM), with a

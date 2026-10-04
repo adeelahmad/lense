@@ -48,8 +48,9 @@ With **Settings → Assistant → Keep note titles and summaries up to date** (`
 whose title or text changed is sent to the model once nobody has touched it for two minutes. The model rewrites the
 one-line summary to fit the whole note, and the title only when it is empty, "Untitled" or no longer fits. A note being
 typed is never sent on each keystroke, empty notes are never sent, and nothing is sent without a model configured. The
-API and `lens worker` processes run this pass with the routines. Model calls are measured by telemetry; their costs go
-to the activity ledger once it exists.
+API and `lens worker` processes run this pass with the routines. Each model call, and each filing decision, counts in
+the [activity ledger](activity.md) for the note (`note_page:5`) and its namespace; a note's page shows its costs and
+activity at the bottom.
 
 ## Filing (PARA)
 
