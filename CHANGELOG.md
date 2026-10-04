@@ -4,6 +4,35 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
+  recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
+  GQL) over the namespaces you can read; `/graph/related` gives a node's parents, children, ancestors, descendants or
+  neighbours, `/graph/paths` the paths between two nodes, and `/graph/schema` what a query can ask about. Agents with
+  a write-scope token and editor access ask for merges and links with `POST /api/v1/graph/changes`; they wait in
+  Proposed changes unless asked to apply. See docs/graph.md.
+
+- **Lock a namespace to your passkeys.** An owner turns a namespace into a vault (Admin › Namespaces › Vault): its
+  files open only after one of its passkeys unlocks it, for an hour by default (`encryption.vault_minutes`), and its
+  queued work waits while it's locked. The passkey's WebAuthn PRF secret makes the key; the server keeps nothing that
+  opens it, and there is no recovery code, so add a second passkey. Owners add and remove passkeys while it's open
+  (never the last one) and can make it ordinary again. See docs/encryption.md#vaults.
+- **Hardening.** Sign-in throttles count each visitor behind the web app (Docker) instead of one bucket for everyone,
+  so one person's wrong tries can't lock others out and nobody gets unlimited tries. The web app's pages send
+  nosniff, referrer, permissions and frame policies, and HSTS when reached through Cloudflare. The containers run with
+  `no-new-privileges`, and the development API port listens on this machine only. See docs/deployment.md.
+- **Reach Lens from anywhere through a Cloudflare Tunnel.** Settings › Remote access turns on a tunnel Lens runs
+  itself, with nothing to open on the router: a quick random trycloudflare.com address, a hostname on your own
+  Cloudflare domain (Lens makes the tunnel and DNS record with an API token), or a tunnel made in the Cloudflare
+  dashboard. The page shows the address, whether it's connected and cloudflared's last lines; Lens fetches cloudflared
+  when it isn't installed. Passkeys and email links use the tunnel's https:// address. See docs/remote-access.md.
+- **Signing out keeps you at the address you're on.** Opened at another address than the one Lens was installed with
+  (its LAN name, an https:// address, the tunnel), signing out sent you to http://localhost:3000. Sign-in now follows
+  the browser's address; the Docker Compose files no longer pin AUTH_URL.
+- **Sign in with Google, GitHub, Microsoft or your own OpenID Connect provider.** Admins add them in Settings ›
+  Sign-in (client id, secret, and the redirect URI to register, which the dialog shows), and the sign-in page gets a
+  "Continue with ..." button for each. People are matched to their Lens account by an email the provider confirms, or
+  connect an account in Profile and sign-in › Connected accounts. Sign-up for people without an account is optional,
+  and can be limited to some email domains. See docs/authentication.md.
 - **An old passkey no longer blocks signing in.** After Lens is set up again at the same address, the browser still
   offered the passkey from before (clearing the site's data doesn't remove passkeys from the password manager), and
   signing in with it failed. Lens now says the passkey is from before, and tells Chrome and Safari to stop offering it,

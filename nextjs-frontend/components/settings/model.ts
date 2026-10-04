@@ -63,6 +63,7 @@ export type SectionId =
   | "workers"
   | "components"
   | "access"
+  | "remote-access"
   | "sign-in"
   | "notifications"
   | "mail"
@@ -176,6 +177,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["server"],
     description:
       "Who can reach the server, how it tells visitors’ addresses, which sites may embed the player, and how long sessions last.",
+  },
+  {
+    id: "remote-access",
+    label: "Remote access",
+    backend: ["tunnel"],
+    description:
+      "Off unless you turn it on. Reach Lens from anywhere at an https:// address through a Cloudflare Tunnel that Lens runs itself: nothing to open on your router.",
   },
   {
     id: "mail",
@@ -688,6 +696,51 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "lens@example.org",
   },
   { section: "mail", key: "from_name", label: "From name", kind: "text" },
+  // Remote access (Cloudflare Tunnel)
+  {
+    section: "tunnel",
+    key: "mode",
+    label: "Tunnel",
+    kind: "cards",
+    options: [
+      { value: "off", label: "Off", hint: "Only reachable where it runs" },
+      {
+        value: "quick",
+        label: "Quick address",
+        hint: "A random https://….trycloudflare.com address, no account needed. It changes when the tunnel restarts",
+      },
+      {
+        value: "managed",
+        label: "Your domain",
+        hint: "Lens makes the tunnel and its DNS record on your Cloudflare domain, with an API token",
+      },
+      {
+        value: "token",
+        label: "Tunnel token",
+        hint: "A tunnel you made in the Cloudflare dashboard (Zero Trust › Networks › Tunnels)",
+      },
+    ],
+  },
+  {
+    section: "tunnel",
+    key: "hostname",
+    label: "Public hostname",
+    kind: "text",
+    mono: true,
+    placeholder: "lens.example.com",
+    hint: "Any name on your Cloudflare domain, like lens.example.com or archive.lens.example.com.",
+  },
+  { section: "tunnel", key: "token", label: "Tunnel token", kind: "secret" },
+  { section: "tunnel", key: "api_token", label: "Cloudflare API token", kind: "secret" },
+  {
+    section: "tunnel",
+    key: "origin",
+    label: "Web app address for the tunnel",
+    kind: "text",
+    mono: true,
+    placeholder: "as installed",
+    hint: "Where cloudflared reaches the web app from the server. Leave empty unless you moved it.",
+  },
   // Chat rooms (Matterbridge)
   { section: "bridge", key: "enabled", label: "Answer in chat rooms", kind: "switch" },
   {
@@ -1791,6 +1844,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
 const HOST_RX = /^(\*|\[[0-9a-f:]+\]|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*)$/i;
 const ENTITY_TYPES = ["PERSON", "ORG", "PRODUCT", "PLACE", "EVENT", "WORK", "TERM"];
 const URL_RX = /^https?:\/\/[^\s]+$/;
+const TUNNEL_HOST_RX = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\.?$/i;
 
 /** "Line 4: missing “|” between name and type" for the custom vocabulary. */
 export function gazetteerErrors(lines: string[]): string | null {
@@ -1869,6 +1923,12 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const sNets = values["sensors.syslog_networks"] as string[] | undefined;
   const badSNet = sNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badSNet) e["sensors.syslog_networks"] = `“${badSNet}” isn’t a network like 192.168.1.0/24`;
+  const mode = values["tunnel.mode"] as string | undefined;
+  const tHost = values["tunnel.hostname"] as string | undefined;
+  if ((mode === "token" || mode === "managed") && "tunnel.hostname" in values && !TUNNEL_HOST_RX.test(tHost ?? ""))
+    e["tunnel.hostname"] = "Enter the public hostname, like lens.example.com";
+  const tOrigin = values["tunnel.origin"] as string | undefined;
+  if (tOrigin && !URL_RX.test(tOrigin)) e["tunnel.origin"] = "Use an http(s) address, such as http://frontend:3000";
   const otlp = values["telemetry.endpoint"] as string | null | undefined;
   if (otlp && !URL_RX.test(otlp)) e["telemetry.endpoint"] = "Use an http(s) address, such as http://localhost:4318";
   else if (otlp && /\/v1\/(traces|metrics)\/?$/.test(otlp))

@@ -14,7 +14,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from app.api.deps import AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors, visitor_address, web_origin
 from app.config import settings
 from app.core.security import create_access_token
-from app.domain import auth, passkeys
+from app.domain import auth, external_login, passkeys
 from app.email import app_url, send_signin_link_email
 from app.schemas.auth import (
     ForgotPasswordRequest,
@@ -45,7 +45,7 @@ def _visitor(request: Request) -> str:
 
 def _throttle(request: Request, what: str, shared: bool = False) -> str | None:
     """The throttle key for this visitor, or None when the server can't tell visitors apart (the web app isn't in
-    server.trusted_proxies, so everyone arrives from its address): one bucket for everyone would let anybody lock
+    server.trusted_proxies or LENS_TRUSTED_PROXY_HOSTS, so everyone arrives from its address): one bucket for everyone would let anybody lock
     everyone out. Passkey signatures and 256-bit links can't be guessed anyway; `shared` keeps one bucket for the
     setup code, which is shorter."""
     addr = visitor_address(request)
@@ -269,7 +269,7 @@ def remove_passkey(pid: str, user: Writer, request: Request, db: Db, cfg: Cfg) -
             here = passkeys.site(web_origin(request))[1]
         except ValueError:
             here = None
-        if not passkeys.remove(db, user.id, pid, auth.passwords_on(cfg), here):
+        if not passkeys.remove(db, user.id, pid, auth.passwords_on(cfg), here, external_login.count(db, user.id)):
             raise HTTPException(404, "not found")
     auth.audit(db, user.as_audit(), "passkey.remove", f"account:{user.id}")
     return Ok()
@@ -292,13 +292,17 @@ def make_signin_link(uid: int, user: AdminWriter, request: Request, db: Db) -> S
 
 
 @people.delete("/users/{uid}/passkeys")
-def drop_passkeys(uid: int, user: AdminWriter, db: Db) -> Ok:
+def drop_passkeys(uid: int, user: AdminWriter, db: Db, lose_vaults: bool = False) -> Ok:
     """Remove all of this person's passkeys and end their sessions (a lost or stolen device). Send them a sign-in link
-    to add a new one. Audited as `user.passkeys_remove`."""
+    to add a new one. Refused (409) when they are the only way into a vault, unless lose_vaults=true. Audited as
+    `user.passkeys_remove`."""
     if uid == user.id:
         raise HTTPException(400, "remove your own passkeys one by one in your account")
     if not auth.get_account(db, uid):
         raise HTTPException(404, "not found")
-    n = passkeys.remove_all(db, uid)
+    try:
+        n = passkeys.remove_all(db, uid, lose_vaults)
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from None
     auth.audit(db, user.as_audit(), "user.passkeys_remove", f"account:{uid}", [str(n)])
     return Ok()

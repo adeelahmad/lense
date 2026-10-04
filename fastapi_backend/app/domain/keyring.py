@@ -30,6 +30,7 @@ import secrets
 import struct
 import tempfile
 import threading
+import time
 
 from . import settings, store
 
@@ -111,10 +112,11 @@ def _save(db, sid, row, keys, current=None):
     """Write the keys back only if nobody changed them since row was read (another process rotating, say)."""
     cur = row["current"] if current is None else current
     done = db.values(
-        "UPDATE $r SET keys = $k, current = $n, rev = $rev + 1 WHERE (rev ?? 0) = $rev RETURN VALUE rev",
+        "UPDATE $r SET keys = $k, current = $n, vault = $v, rev = $rev + 1 WHERE (rev ?? 0) = $rev RETURN VALUE rev",
         r=R("data_key", int(sid)),
         k=keys,
         n=cur,
+        v=SERVER not in keys[str(cur)]["wrapped"],
         rev=int(row.get("rev") or 0),
     )
     if not done:
@@ -141,6 +143,7 @@ def status(db, sid):
 def data_key(db, cfg, sid, version=None, create=True):
     """The namespace's data key (the current version unless one is named), as (version, key)."""
     sid = int(sid)
+    _expire(db, sid)
     cache = _cache(db)
     if version is not None and (sid, int(version)) in cache:
         return int(version), cache[(sid, int(version))]
@@ -193,8 +196,42 @@ def remove_wrapper(db, sid, name):
         _save(db, sid, row, keys)
 
 
-def unlock(db, sid, name, kek):
-    """Open a namespace with one of its wrappers for this process; raises if that key doesn't open it."""
+def _until(db):
+    u = getattr(db, "_vault_until", None)
+    if u is None:
+        u = db._vault_until = {}
+    return u
+
+
+def _expire(db, sid):
+    """A vault opened for a while closes again once that time is up."""
+    with _LOCK:  # checked under the lock, so an unlock just now isn't undone
+        t = _until(db).get(sid)
+        if t is None or t >= time.time():
+            return
+        _forget(db, sid)
+    _purge(db, sid)
+
+
+def unlocked_until(db, sid):
+    """When a vault opened in this process closes again (a Unix time), or None."""
+    _expire(db, int(sid))
+    return _until(db).get(int(sid))
+
+
+def locked_vaults(db):
+    """The vault namespaces nobody has unlocked in this process: their work waits."""
+    out = set()
+    for sid in db.values("SELECT VALUE space FROM data_key WHERE vault = true"):
+        _expire(db, int(sid))
+        if not any(k[0] == int(sid) for k in _cache(db)):
+            out.add(int(sid))
+    return out
+
+
+def unlock(db, sid, name, kek, minutes=None):
+    """Open a namespace with one of its wrappers for this process (for `minutes`, else until locked); raises Locked if
+    that key doesn't open it."""
     sid = int(sid)
     row = _row(db, sid)
     if not row:
@@ -207,13 +244,42 @@ def unlock(db, sid, name, kek):
             opened[(sid, int(v))] = unwrap(kek, entry["wrapped"][name], sid, int(v), name)
         except Exception:  # noqa: BLE001 - wrong key
             raise Locked(sid) from None
-    _cache(db).update(opened)
+    with _LOCK:
+        _cache(db).update(opened)
+        keep_open(db, sid, minutes)
+    _PURGE.discard(sid)
+
+
+def keep_open(db, sid, minutes):
+    """An open vault stays open for `minutes` more (None: until locked)."""
+    if minutes:
+        _until(db)[int(sid)] = time.time() + 60 * minutes
+    else:
+        _until(db).pop(int(sid), None)
 
 
 def lock(db, sid):
-    """Forget a namespace's keys in this process (a vault then needs unlocking again)."""
+    """Forget a namespace's keys in this process (a vault then needs unlocking again). Its plain working copies go
+    too: now those nobody holds, the rest when the work holding them ends."""
+    with _LOCK:
+        _forget(db, sid)
+    _purge(db, sid)
+
+
+def _forget(db, sid):
     for k in [k for k in _cache(db) if k[0] == int(sid)]:
         del _cache(db)[k]
+    _until(db).pop(int(sid), None)
+
+
+def _purge(db, sid):
+    """A locked vault's working copies go now if nobody holds them, else when the work holding them ends. It doesn't
+    wait for _WORK: making a copy holds that while it takes _LOCK, which a caller here may hold."""
+    if status(db, sid)["vault"]:
+        _PURGE.add(int(sid))
+        for d in list(_WORK_DIRS):
+            with contextlib.suppress(OSError):
+                _sweep(d, 0, {int(sid)}, wait=False)
 
 
 def rotate(db, cfg, sid, keks=None):
@@ -419,11 +485,13 @@ class Reader(io.RawIOBase):
 def encrypt_file(db, cfg, sid, path, chunk=CHUNK, force=False):
     """Encrypt a file in place (atomically); a file already encrypted is left alone, unless `force` says it's known to
     be plain (one that has just arrived and only happens to start like one). Returns whether it changed."""
-    if not force and is_encrypted(path):
-        return False
-    with Writer(db, cfg, sid, path, chunk=chunk) as w, open(path, "rb") as src:
-        while part := src.read(1024 * 1024):
-            w.write(part)
+    with open(path, "rb") as src:  # checked on the file read, so one swapped in meanwhile isn't encrypted twice
+        if not force and src.read(len(MAGIC)) == MAGIC:
+            return False
+        src.seek(0)
+        with Writer(db, cfg, sid, path, chunk=chunk) as w:
+            while part := src.read(1024 * 1024):
+                w.write(part)
     return True
 
 
@@ -487,10 +555,10 @@ def owned(cfg, path) -> bool:
 
 
 def protect(db, cfg, sid, path) -> bool:
-    """Encrypt a file Lens has just stored (so it is plain, whatever its first bytes), when encryption.files is on; its
-    modification time is kept. Returns whether it was encrypted. A vault nobody has unlocked here raises Locked: its
-    files are never stored plain."""
-    if not (enabled(cfg) and owned(cfg, path)):
+    """Encrypt a file Lens has just stored (so it is plain, whatever its first bytes), when encryption.files is on or
+    the namespace is a vault; its modification time is kept. Returns whether it was encrypted. A vault nobody has
+    unlocked here raises Locked: its files are never stored plain."""
+    if not owned(cfg, path) or not (enabled(cfg) or status(db, sid)["vault"]):
         return False
     st = os.stat(path)
     encrypt_file(db, cfg, sid, path, force=True)
@@ -508,12 +576,21 @@ def plain_size(db, cfg, path) -> int:
 
 _HELD = threading.local()
 _WORK = threading.Lock()
+_WORK_DIRS: set[pathlib.Path] = set()  # where this process has made working copies
+_PURGE: set[int] = set()  # vaults locked since: their working copies go as soon as nobody holds them
 
 
 def _work_dir(cfg):
     d = pathlib.Path(cfg["data_dir"]) / "tmp" / "work"
     d.mkdir(parents=True, exist_ok=True, mode=0o700)
+    _WORK_DIRS.add(d)
     return d
+
+
+def _space_of(path):
+    with open(path, "rb") as f:
+        head = f.read(HEADER.size)
+    return HEADER.unpack(head)[1] if len(head) == HEADER.size else 0
 
 
 def _hold(path):
@@ -554,6 +631,8 @@ def work(cfg):
         release()
         with contextlib.suppress(Exception):
             sweep(cfg)
+            if _PURGE:
+                _sweep(_work_dir(cfg), 0, set(_PURGE))
 
 
 def _claim(folder):
@@ -586,7 +665,7 @@ def working_copy(db, cfg, path):
 
     st = os.stat(path)
     key = hashlib.sha256(f"{os.path.abspath(path)}:{st.st_size}:{st.st_mtime_ns}".encode()).hexdigest()[:32]
-    folder = _work_dir(cfg) / key
+    folder = _work_dir(cfg) / f"{_space_of(path)}-{key}"  # by namespace, so locking a vault removes its copies
     out = folder / pathlib.Path(path).name  # its own name: readers go by the extension, and some show the name
     with _WORK:
         _make(db, cfg, path, folder, out)
@@ -619,17 +698,25 @@ def _make(db, cfg, path, folder, out):
 def sweep(cfg, minutes=None):
     """Remove plain working copies nobody holds that have gone unused for encryption.work_minutes. Returns how many
     went."""
-    import shutil
-    import time
-
     d = pathlib.Path(cfg["data_dir"]) / "tmp" / "work"
     if not d.is_dir():
         return 0
-    limit = time.time() - 60 * (minutes if minutes is not None else (cfg.get("encryption") or {}).get("work_minutes") or 30)
+    return _sweep(d, minutes if minutes is not None else (cfg.get("encryption") or {}).get("work_minutes") or 30)
+
+
+def _sweep(d, minutes, spaces=None, wait=True):
+    """Remove the working copies in `d` nobody holds, unused for `minutes` (of namespaces `spaces` only, if given)."""
+    import shutil
+
+    limit = time.time() - 60 * minutes
     gone = 0
-    with _WORK:  # not while this process is making or taking one
+    if not _WORK.acquire(blocking=wait):  # not while this process is making or taking one
+        return 0
+    try:
         for p in d.iterdir():
             with contextlib.suppress(OSError):
+                if spaces is not None and p.name.split("-", 1)[0] not in {str(s) for s in spaces}:
+                    continue
                 if p.stat().st_mtime >= limit:
                     continue
                 locks = _claim(p)
@@ -641,6 +728,8 @@ def sweep(cfg, minutes=None):
                 finally:
                     for fd in locks:
                         os.close(fd)
+    finally:
+        _WORK.release()
     return gone
 
 
@@ -660,11 +749,13 @@ def stored_files(db, cfg):
             yield f["space"], str(p)
 
 
-def encrypt_all(db, cfg, decrypt=False, log=print):
-    """Encrypt (or, with decrypt, turn back) every file Lens keeps; files already that way are skipped, so it can run
-    again after stopping half way. Returns how many changed."""
+def encrypt_all(db, cfg, decrypt=False, log=print, space=None):
+    """Encrypt (or, with decrypt, turn back) every file Lens keeps, or one namespace's (`space`); files already that
+    way are skipped, so it can run again after stopping half way. Returns how many changed."""
     changed = 0
     for sid, p in stored_files(db, cfg):
+        if space is not None and sid != int(space):
+            continue
         try:
             st = os.stat(p)
             done = decrypt_file(db, cfg, p) if decrypt else encrypt_file(db, cfg, sid, p)

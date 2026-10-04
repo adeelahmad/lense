@@ -175,3 +175,55 @@ class Passkey(ResponseModel):
 
 class PasskeyRename(RequestModel):
     name: str = Field(min_length=1, max_length=60)
+
+
+# ---------- outside accounts (app/domain/external_login.py) ----------
+ExternalKind = Literal["google", "github", "microsoft", "oidc"]
+
+
+class ExternalProvider(ResponseModel):
+    key: str
+    kind: ExternalKind
+    label: str
+
+
+class ExternalProviderAdmin(ExternalProvider):
+    client_id: str
+    secret_set: bool = Field(description="a client secret is kept (never shown)")
+    issuer: str = Field("", description="OpenID Connect: the provider's address")
+    tenant: str = Field("", description="Microsoft: the directory (tenant) id, or common")
+    signup: bool = Field(description="people without a Lens account get one when they sign in")
+    domains: list[str] = Field(description="sign-up only for these email domains; empty means any")
+    enabled: bool
+    people: int = Field(description="Lens accounts connected through it")
+    callback_path: str = Field(description="add this path on the web app's address as the redirect URI at the provider")
+
+
+class ExternalProviderSave(RequestModel):
+    kind: ExternalKind | None = Field(None, description="when adding one")
+    label: str | None = Field(None, max_length=60)
+    client_id: str | None = Field(None, max_length=500)
+    client_secret: str | None = Field(None, max_length=2000, description="leave out to keep the one kept")
+    issuer: str | None = Field(None, max_length=500)
+    tenant: str | None = Field(None, max_length=100)
+    signup: bool | None = None
+    domains: list[str] | None = Field(None, max_length=50)
+    enabled: bool | None = None
+
+
+class ExternalStart(RequestModel):
+    next: str = Field("/", max_length=500, description="the page to open after signing in")
+
+
+class ExternalRedirect(ResponseModel):
+    url: str = Field(description="the provider's sign-in page; open it in this browser")
+
+
+class ExternalIdentity(ResponseModel):
+    id: str
+    provider: str
+    label: str
+    kind: ExternalKind
+    email: str | None = None
+    created_at: str
+    last_used_at: str | None = None

@@ -12,6 +12,7 @@ import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
 import { hubText } from "@/components/sensors/sensor-model";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
+import { SignInProviders } from "@/components/settings/sign-in-providers";
 import { AI_TOOLS, type FieldSpec, type SectionId, type SettingsView } from "@/components/settings/model";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -271,6 +272,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <MailBody ctx={ctx} />;
     case "bridge":
       return <BridgeBody ctx={ctx} />;
+    case "remote-access":
+      return <TunnelBody ctx={ctx} />;
     case "components":
       return (
         <>
@@ -301,6 +304,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             People add passkeys in their profile. Someone new, or who lost their passkey, gets a sign-in link from
             People (or <code className="font-mono text-[12px]">lens users link their@email</code> on the server).
           </p>
+          <SignInProviders />
         </>
       );
     case "tokens":
@@ -750,6 +754,110 @@ function MailBody({ ctx }: { ctx: BodyCtx }) {
           </Banner>
         ))}
       {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+/** Settings › Remote access: the Cloudflare tunnel Lens runs, and how it's doing right now. */
+function TunnelBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const t = ctx.view.tunnel;
+  const mode = (ctx.state("tunnel.mode").value as string | undefined) ?? "off";
+  const token = ctx.state("tunnel.token");
+  const apiToken = ctx.state("tunnel.api_token");
+  const status = useQuery({
+    queryKey: ["tunnel-status", t?.updated_at ?? null],
+    queryFn: () => data(Admin.tunnelStatus({ client })),
+    refetchInterval: (q) => (q.state.data?.mode === "off" ? false : q.state.data?.connected ? 15_000 : 3_000),
+  });
+  const s = status.data;
+  const secret = (k: string) => Boolean(((t?.values?.[k] ?? {}) as { set?: boolean }).set);
+  return (
+    <>
+      {!s || s.mode === "off" ? (
+        <Banner title="Off.">
+          Lens is reached only where it runs. Pick a way below to reach it from anywhere at an https:// address, where
+          passkeys work too.
+        </Banner>
+      ) : s.connected && s.url ? (
+        <Banner tone="success" title="Reachable from anywhere.">
+          <a href={s.url} target="_blank" rel="noreferrer" className="font-mono font-semibold hover:underline">
+            {s.url}
+          </a>
+          {s.mode === "quick" && " · this address changes when the tunnel restarts."}
+        </Banner>
+      ) : s.error ? (
+        <Banner
+          tone="error"
+          title={s.running ? "Not connected yet: cloudflared keeps trying." : "The tunnel isn’t up."}
+        >
+          {s.running && s.url ? s.error.replace(/\.?$/, ".") : s.error}
+          {s.running && s.url && (
+            <>
+              {" "}
+              It will answer at <span className="font-mono">{s.url}</span>.
+            </>
+          )}
+        </Banner>
+      ) : (
+        <Banner title="Starting.">A server process starts cloudflared within a few seconds.</Banner>
+      )}
+      <F ctx={ctx} id="tunnel.mode" />
+      {(mode === "managed" || mode === "token") && <F ctx={ctx} id="tunnel.hostname" />}
+      {mode === "managed" && (
+        <>
+          <SecretSetting
+            key={`api-${t?.updated_at ?? "none"}`}
+            label="Cloudflare API token"
+            placeholder="Paste a Cloudflare API token"
+            isSet={secret("api_token")}
+            updatedBy={t?.updated_by}
+            updatedAt={t?.updated_at}
+            value={apiToken.value as string | undefined}
+            onChange={(x) => apiToken.onChange(x)}
+          />
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            Make one at Cloudflare › My Profile › API Tokens with Account › Cloudflare Tunnel › Edit, Zone › DNS › Edit
+            and Zone › Zone › Read, for the domain the hostname is on. Lens makes the tunnel, points it at the web app
+            and adds the hostname’s DNS record.
+          </p>
+        </>
+      )}
+      {mode === "token" && (
+        <>
+          <SecretSetting
+            key={`token-${t?.updated_at ?? "none"}`}
+            label="Tunnel token"
+            placeholder="Paste the tunnel’s token"
+            isSet={secret("token")}
+            updatedBy={t?.updated_by}
+            updatedAt={t?.updated_at}
+            value={token.value as string | undefined}
+            onChange={(x) => token.onChange(x)}
+          />
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            In the Cloudflare dashboard, add a public hostname to the tunnel that points at{" "}
+            <code className="font-mono">{s?.origin ?? "the web app"}</code>, and give that hostname above.
+          </p>
+        </>
+      )}
+      {mode !== "off" && (
+        <F
+          ctx={ctx}
+          id="tunnel.origin"
+          hint={`Where cloudflared reaches the web app from the server${s ? ` (now ${s.origin})` : ""}. Leave empty unless you moved it.`}
+        />
+      )}
+      {s && s.mode !== "off" && (s.log ?? []).length > 0 && (
+        <details className="text-[12.5px]">
+          <summary className="cursor-pointer font-semibold text-fg-secondary">
+            What cloudflared said{s.process ? ` (in ${s.process})` : ""}
+          </summary>
+          <pre className="mt-2 max-h-64 overflow-auto rounded-sm bg-surface-neutral p-2.5 font-mono text-[11.5px] leading-snug">
+            {(s.log ?? []).join("\n")}
+          </pre>
+        </details>
+      )}
     </>
   );
 }

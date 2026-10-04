@@ -131,6 +131,40 @@ export async function signWithPasskey(options: Json, signal?: AbortSignal): Prom
   return credentialJson(cred);
 }
 
+/** The options for signing with a passkey that also ask it for a PRF secret (the salt arrives base64url). */
+export function prfRequestOptions(o: Json): PublicKeyCredentialRequestOptions {
+  const out = requestOptions(o);
+  const first = ((o.extensions as Json | undefined)?.prf as { eval?: { first?: string } } | undefined)?.eval?.first;
+  if (first) {
+    out.extensions = {
+      ...(out.extensions ?? {}),
+      prf: { eval: { first: fromB64url(first) } },
+    } as AuthenticationExtensionsClientInputs;
+  }
+  return out;
+}
+
+type PrfResults = { prf?: { enabled?: boolean; results?: { first?: ArrayBuffer | ArrayBufferView | string } } };
+
+/**
+ * Sign with a passkey and get the PRF secret it makes for the options' salt (vaults: docs/encryption.md#vaults). The
+ * secret travels beside the answer, never inside it: `prf` is base64url, or "" when the passkey can't make one.
+ */
+export async function signWithPasskeyPrf(
+  options: Json,
+  signal?: AbortSignal,
+): Promise<{ credential: Json; prf: string }> {
+  const publicKey = prfRequestOptions(options);
+  const cred = (await navigator.credentials.get({ publicKey, signal })) as PublicKeyCredential | null;
+  if (!cred) throw new DOMException("No passkey was chosen.", "NotAllowedError");
+  const first = (cred.getClientExtensionResults?.() as PrfResults | undefined)?.prf?.results?.first;
+  const prf = typeof first === "string" ? first : (toB64url(first) ?? "");
+  const credential = credentialJson(cred);
+  const ext = { ...((credential.clientExtensionResults as Json | undefined) ?? {}) };
+  delete ext.prf;
+  return { credential: { ...credential, clientExtensionResults: ext }, prf };
+}
+
 /** What to tell someone when the browser's passkey prompt fails. */
 export function passkeyErrorMessage(err: unknown, making = false): string {
   const name = err instanceof DOMException || err instanceof Error ? err.name : "";

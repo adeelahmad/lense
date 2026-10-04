@@ -922,6 +922,38 @@ export type BrowseEntry = {
 };
 
 /**
+ * ChangeAsk
+ */
+export type ChangeAsk = {
+  /**
+   * Kind
+   *
+   * merge: two entities of one namespace are one; link: entities of two namespaces are the same thing
+   */
+  kind: "merge" | "link";
+  /**
+   * A
+   *
+   * an entity node id, e<id> (for a merge, the one kept)
+   */
+  a: string;
+  /**
+   * B
+   */
+  b: string;
+  /**
+   * Reason
+   */
+  reason?: string | null;
+  /**
+   * Apply
+   *
+   * make it now (editors) instead of proposing it for someone to accept
+   */
+  apply?: boolean;
+};
+
+/**
  * Chat
  */
 export type Chat = {
@@ -3523,6 +3555,200 @@ export type ExtensionVersionInfo = {
 };
 
 /**
+ * ExternalIdentity
+ */
+export type ExternalIdentity = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Provider
+   */
+  provider: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Kind
+   */
+  kind: "google" | "github" | "microsoft" | "oidc";
+  /**
+   * Email
+   */
+  email?: string | null;
+  /**
+   * Created At
+   */
+  created_at: string;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalProvider
+ */
+export type ExternalProvider = {
+  /**
+   * Key
+   */
+  key: string;
+  /**
+   * Kind
+   */
+  kind: "google" | "github" | "microsoft" | "oidc";
+  /**
+   * Label
+   */
+  label: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalProviderAdmin
+ */
+export type ExternalProviderAdmin = {
+  /**
+   * Key
+   */
+  key: string;
+  /**
+   * Kind
+   */
+  kind: "google" | "github" | "microsoft" | "oidc";
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Client Id
+   */
+  client_id: string;
+  /**
+   * Secret Set
+   *
+   * a client secret is kept (never shown)
+   */
+  secret_set: boolean;
+  /**
+   * Issuer
+   *
+   * OpenID Connect: the provider's address
+   */
+  issuer?: string;
+  /**
+   * Tenant
+   *
+   * Microsoft: the directory (tenant) id, or common
+   */
+  tenant?: string;
+  /**
+   * Signup
+   *
+   * people without a Lens account get one when they sign in
+   */
+  signup: boolean;
+  /**
+   * Domains
+   *
+   * sign-up only for these email domains; empty means any
+   */
+  domains: Array<string>;
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * People
+   *
+   * Lens accounts connected through it
+   */
+  people: number;
+  /**
+   * Callback Path
+   *
+   * add this path on the web app's address as the redirect URI at the provider
+   */
+  callback_path: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalProviderSave
+ */
+export type ExternalProviderSave = {
+  /**
+   * Kind
+   *
+   * when adding one
+   */
+  kind?: "google" | "github" | "microsoft" | "oidc" | null;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Client Id
+   */
+  client_id?: string | null;
+  /**
+   * Client Secret
+   *
+   * leave out to keep the one kept
+   */
+  client_secret?: string | null;
+  /**
+   * Issuer
+   */
+  issuer?: string | null;
+  /**
+   * Tenant
+   */
+  tenant?: string | null;
+  /**
+   * Signup
+   */
+  signup?: boolean | null;
+  /**
+   * Domains
+   */
+  domains?: Array<string> | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+};
+
+/**
+ * ExternalRedirect
+ */
+export type ExternalRedirect = {
+  /**
+   * Url
+   *
+   * the provider's sign-in page; open it in this browser
+   */
+  url: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalStart
+ */
+export type ExternalStart = {
+  /**
+   * Next
+   *
+   * the page to open after signing in
+   */
+  next?: string;
+};
+
+/**
  * FaceDismiss
  */
 export type FaceDismiss = {
@@ -4142,6 +4368,36 @@ export type GraphChangeAccept = {
    * for a merge: the entity to keep (default: the one proposed)
    */
   keep?: number | null;
+};
+
+/**
+ * GraphQuery
+ */
+export type GraphQuery = {
+  /**
+   * Query
+   *
+   * read-only Cypher, e.g. MATCH (e:Person)<-[:MENTIONS]-(r:Recording) RETURN e.name, count(r)
+   */
+  query: string;
+  /**
+   * Params
+   *
+   * values for $parameters in the query
+   */
+  params?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Scope
+   */
+  scope?: string;
+  /**
+   * Limit
+   *
+   * rows at most
+   */
+  limit?: number;
 };
 
 /**
@@ -12330,6 +12586,59 @@ export type ToolStep = {
 };
 
 /**
+ * TunnelStatus
+ */
+export type TunnelStatus = {
+  /**
+   * Mode
+   */
+  mode: "off" | "quick" | "token" | "managed";
+  /**
+   * Running
+   *
+   * cloudflared is running in a server process
+   */
+  running: boolean;
+  /**
+   * Connected
+   *
+   * Cloudflare has the tunnel's connection: the address works
+   */
+  connected: boolean;
+  /**
+   * Url
+   *
+   * the address people open Lens at through the tunnel
+   */
+  url?: string | null;
+  /**
+   * Error
+   *
+   * why the tunnel isn't up, when it isn't
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * cloudflared's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Origin
+   *
+   * where cloudflared sends visitors: the web app, as the server reaches it
+   */
+  origin: string;
+  /**
+   * Process
+   *
+   * the server process running cloudflared
+   */
+  process?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Undone
  */
 export type Undone = {
@@ -12681,6 +12990,93 @@ export type ValidationError = {
   ctx?: {
     [key: string]: unknown;
   };
+};
+
+/**
+ * VaultAnswer
+ */
+export type VaultAnswer = {
+  /**
+   * Flow
+   */
+  flow: string;
+  /**
+   * Credential
+   *
+   * the browser's PublicKeyCredential, as JSON, without its PRF results
+   */
+  credential: {
+    [key: string]: unknown;
+  };
+  /**
+   * Prf
+   *
+   * the PRF extension's first result for the salt in the options, base64url
+   */
+  prf: string;
+};
+
+/**
+ * VaultPasskey
+ *
+ * A passkey that opens a vault.
+ */
+export type VaultPasskey = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Account
+   */
+  account?: number | null;
+  /**
+   * Email
+   */
+  email?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * VaultStart
+ */
+export type VaultStart = {
+  /**
+   * Kind
+   *
+   * seal: make it a vault; unlock: open it; add: let another passkey open it
+   */
+  kind: "seal" | "unlock" | "add";
+};
+
+/**
+ * VaultStatus
+ *
+ * Whether a namespace is a vault, whether it's open on this server (until when, a Unix time), and the passkeys that
+ * open it.
+ */
+export type VaultStatus = {
+  /**
+   * Vault
+   */
+  vault: boolean;
+  /**
+   * Unlocked
+   */
+  unlocked: boolean;
+  /**
+   * Unlocked Until
+   */
+  unlocked_until?: number | null;
+  /**
+   * Passkeys
+   */
+  passkeys?: Array<VaultPasskey>;
+  [key: string]: unknown;
 };
 
 /**
@@ -14290,6 +14686,235 @@ export type RenamePasskeyResponses = {
 
 export type RenamePasskeyResponse = RenamePasskeyResponses[keyof RenamePasskeyResponses];
 
+export type ExternalProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/external";
+};
+
+export type ExternalProvidersResponses = {
+  /**
+   * Response Auth-External Providers
+   *
+   * Successful Response
+   */
+  200: Array<ExternalProvider>;
+};
+
+export type ExternalProvidersResponse = ExternalProvidersResponses[keyof ExternalProvidersResponses];
+
+export type ExternalStartData = {
+  body: ExternalStart;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/external/{key}/start";
+};
+
+export type ExternalStartErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExternalStartError = ExternalStartErrors[keyof ExternalStartErrors];
+
+export type ExternalStartResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalRedirect;
+};
+
+export type ExternalStartResponse = ExternalStartResponses[keyof ExternalStartResponses];
+
+export type ExternalConnectData = {
+  body?: never;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/external/{key}/connect";
+};
+
+export type ExternalConnectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExternalConnectError = ExternalConnectErrors[keyof ExternalConnectErrors];
+
+export type ExternalConnectResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalRedirect;
+};
+
+export type ExternalConnectResponse = ExternalConnectResponses[keyof ExternalConnectResponses];
+
+export type ListIdentitiesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/identities";
+};
+
+export type ListIdentitiesResponses = {
+  /**
+   * Response Auth-List Identities
+   *
+   * Successful Response
+   */
+  200: Array<ExternalIdentity>;
+};
+
+export type ListIdentitiesResponse = ListIdentitiesResponses[keyof ListIdentitiesResponses];
+
+export type DisconnectIdentityData = {
+  body?: never;
+  path: {
+    /**
+     * Iid
+     */
+    iid: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/identities/{iid}";
+};
+
+export type DisconnectIdentityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DisconnectIdentityError = DisconnectIdentityErrors[keyof DisconnectIdentityErrors];
+
+export type DisconnectIdentityResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DisconnectIdentityResponse = DisconnectIdentityResponses[keyof DisconnectIdentityResponses];
+
+export type ListLoginProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/providers";
+};
+
+export type ListLoginProvidersResponses = {
+  /**
+   * Response Auth-List Login Providers
+   *
+   * Successful Response
+   */
+  200: Array<ExternalProviderAdmin>;
+};
+
+export type ListLoginProvidersResponse = ListLoginProvidersResponses[keyof ListLoginProvidersResponses];
+
+export type AddLoginProviderData = {
+  body: ExternalProviderSave;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/providers";
+};
+
+export type AddLoginProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddLoginProviderError = AddLoginProviderErrors[keyof AddLoginProviderErrors];
+
+export type AddLoginProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalProviderAdmin;
+};
+
+export type AddLoginProviderResponse = AddLoginProviderResponses[keyof AddLoginProviderResponses];
+
+export type RemoveLoginProviderData = {
+  body?: never;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/providers/{key}";
+};
+
+export type RemoveLoginProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveLoginProviderError = RemoveLoginProviderErrors[keyof RemoveLoginProviderErrors];
+
+export type RemoveLoginProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveLoginProviderResponse = RemoveLoginProviderResponses[keyof RemoveLoginProviderResponses];
+
+export type ChangeLoginProviderData = {
+  body: ExternalProviderSave;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/providers/{key}";
+};
+
+export type ChangeLoginProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangeLoginProviderError = ChangeLoginProviderErrors[keyof ChangeLoginProviderErrors];
+
+export type ChangeLoginProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalProviderAdmin;
+};
+
+export type ChangeLoginProviderResponse = ChangeLoginProviderResponses[keyof ChangeLoginProviderResponses];
+
 export type MakeSigninLinkData = {
   body?: never;
   path: {
@@ -14328,7 +14953,12 @@ export type DropPasskeysData = {
      */
     uid: number;
   };
-  query?: never;
+  query?: {
+    /**
+     * Lose Vaults
+     */
+    lose_vaults?: boolean;
+  };
   url: "/api/v1/users/{uid}/passkeys";
 };
 
@@ -14801,6 +15431,22 @@ export type BridgeStatusResponses = {
 };
 
 export type BridgeStatusResponse = BridgeStatusResponses[keyof BridgeStatusResponses];
+
+export type TunnelStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/tunnel/status";
+};
+
+export type TunnelStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: TunnelStatus;
+};
+
+export type TunnelStatusResponse = TunnelStatusResponses[keyof TunnelStatusResponses];
 
 export type TestBridgeData = {
   body?: never;
@@ -19646,6 +20292,224 @@ export type FindGraphPathResponses = {
 };
 
 export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
+
+export type GraphSchemaData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Scope
+     *
+     * "global" (every shared namespace you can read) or "ns:<namespace>"
+     */
+    scope?: string;
+  };
+  url: "/api/v1/graph/schema";
+};
+
+export type GraphSchemaErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphSchemaError = GraphSchemaErrors[keyof GraphSchemaErrors];
+
+export type GraphSchemaResponses = {
+  /**
+   * Response Graph-Graph Schema
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphSchemaResponse = GraphSchemaResponses[keyof GraphSchemaResponses];
+
+export type GraphRelatedData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Node
+     *
+     * a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>
+     */
+    node: string;
+    /**
+     * Relation
+     */
+    relation?: "children" | "parents" | "ancestors" | "descendants" | "neighbours";
+    /**
+     * Depth
+     */
+    depth?: number;
+    /**
+     * Types
+     *
+     * relationship types to follow, comma separated (default: the hierarchy, or any for neighbours)
+     */
+    types?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Scope
+     *
+     * "global" (every shared namespace you can read) or "ns:<namespace>"
+     */
+    scope?: string;
+  };
+  url: "/api/v1/graph/related";
+};
+
+export type GraphRelatedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphRelatedError = GraphRelatedErrors[keyof GraphRelatedErrors];
+
+export type GraphRelatedResponses = {
+  /**
+   * Response Graph-Graph Related
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphRelatedResponse = GraphRelatedResponses[keyof GraphRelatedResponses];
+
+export type GraphPathsData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * A
+     */
+    a: string;
+    /**
+     * B
+     */
+    b: string;
+    /**
+     * Max Depth
+     */
+    max_depth?: number;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Types
+     */
+    types?: string | null;
+    /**
+     * Directed
+     */
+    directed?: boolean;
+    /**
+     * Shortest
+     */
+    shortest?: boolean;
+    /**
+     * Scope
+     *
+     * "global" (every shared namespace you can read) or "ns:<namespace>"
+     */
+    scope?: string;
+  };
+  url: "/api/v1/graph/paths";
+};
+
+export type GraphPathsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphPathsError = GraphPathsErrors[keyof GraphPathsErrors];
+
+export type GraphPathsResponses = {
+  /**
+   * Response Graph-Graph Paths
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphPathsResponse = GraphPathsResponses[keyof GraphPathsResponses];
+
+export type GraphQueryData = {
+  body: GraphQuery;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/query";
+};
+
+export type GraphQueryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphQueryError = GraphQueryErrors[keyof GraphQueryErrors];
+
+export type GraphQueryResponses = {
+  /**
+   * Response Graph-Graph Query
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphQueryResponse = GraphQueryResponses[keyof GraphQueryResponses];
+
+export type ProposeGraphChangeData = {
+  body: ChangeAsk;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/changes";
+};
+
+export type ProposeGraphChangeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ProposeGraphChangeError = ProposeGraphChangeErrors[keyof ProposeGraphChangeErrors];
+
+export type ProposeGraphChangeResponses = {
+  /**
+   * Response Graph-Propose Graph Change
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type ProposeGraphChangeResponse = ProposeGraphChangeResponses[keyof ProposeGraphChangeResponses];
 
 export type GetEntitySetupData = {
   body?: never;
@@ -24841,3 +25705,247 @@ export type SpeakTextResponses = {
 };
 
 export type SpeakTextResponse = SpeakTextResponses[keyof SpeakTextResponses];
+
+export type UnsealVaultData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault";
+};
+
+export type UnsealVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UnsealVaultError = UnsealVaultErrors[keyof UnsealVaultErrors];
+
+export type UnsealVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type UnsealVaultResponse = UnsealVaultResponses[keyof UnsealVaultResponses];
+
+export type GetVaultData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault";
+};
+
+export type GetVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetVaultError = GetVaultErrors[keyof GetVaultErrors];
+
+export type GetVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type GetVaultResponse = GetVaultResponses[keyof GetVaultResponses];
+
+export type SealVaultData = {
+  body: VaultAnswer;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault";
+};
+
+export type SealVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SealVaultError = SealVaultErrors[keyof SealVaultErrors];
+
+export type SealVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type SealVaultResponse = SealVaultResponses[keyof SealVaultResponses];
+
+export type VaultOptionsData = {
+  body: VaultStart;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/options";
+};
+
+export type VaultOptionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type VaultOptionsError = VaultOptionsErrors[keyof VaultOptionsErrors];
+
+export type VaultOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasskeyOptions;
+};
+
+export type VaultOptionsResponse = VaultOptionsResponses[keyof VaultOptionsResponses];
+
+export type UnlockVaultData = {
+  body: VaultAnswer;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/unlock";
+};
+
+export type UnlockVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UnlockVaultError = UnlockVaultErrors[keyof UnlockVaultErrors];
+
+export type UnlockVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type UnlockVaultResponse = UnlockVaultResponses[keyof UnlockVaultResponses];
+
+export type AddVaultPasskeyData = {
+  body: VaultAnswer;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/passkeys";
+};
+
+export type AddVaultPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddVaultPasskeyError = AddVaultPasskeyErrors[keyof AddVaultPasskeyErrors];
+
+export type AddVaultPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type AddVaultPasskeyResponse = AddVaultPasskeyResponses[keyof AddVaultPasskeyResponses];
+
+export type RemoveVaultPasskeyData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Pid
+     */
+    pid: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/passkeys/{pid}";
+};
+
+export type RemoveVaultPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveVaultPasskeyError = RemoveVaultPasskeyErrors[keyof RemoveVaultPasskeyErrors];
+
+export type RemoveVaultPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type RemoveVaultPasskeyResponse = RemoveVaultPasskeyResponses[keyof RemoveVaultPasskeyResponses];
+
+export type LockVaultData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/lock";
+};
+
+export type LockVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LockVaultError = LockVaultErrors[keyof LockVaultErrors];
+
+export type LockVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type LockVaultResponse = LockVaultResponses[keyof LockVaultResponses];

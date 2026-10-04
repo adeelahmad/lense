@@ -23,6 +23,8 @@ export function PasskeysPanel() {
   const [unavailable, setUnavailable] = useState<string | null>(null);
   useEffect(() => setUnavailable(passkeysUnavailableReason()), []);
   const list = useQuery({ queryKey: ["passkeys"], queryFn: () => data(Auth.listPasskeys({ client })) });
+  // an outside account (Google, GitHub, ...) is another way in, so then the last passkey can go too
+  const identities = useQuery({ queryKey: ["identities"], queryFn: () => data(Auth.listIdentities({ client })) });
   const refresh = () => void qc.invalidateQueries({ queryKey: ["passkeys"] });
 
   const add = useMutation({
@@ -73,7 +75,7 @@ export function PasskeysPanel() {
               <PasskeyRow
                 key={p.id}
                 passkey={p}
-                last={list.data.length === 1}
+                last={list.data.length === 1 && !identities.data?.length}
                 onRemove={() => remove.mutate(p.id)}
                 onRenamed={refresh}
               />

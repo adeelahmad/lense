@@ -15,9 +15,11 @@ from app.api.v1.routes import (
     entities,
     entity_setup,
     extensions,
+    external,
     fedora,
     fields,
     files,
+    graph,
     hierarchy,
     iiif,
     imports,
@@ -43,6 +45,7 @@ from app.api.v1.routes import (
     templates,
     uploads,
     users,
+    vaults,
     video,
     views,
     voice,
@@ -53,6 +56,7 @@ api_router = APIRouter()
 api_router.include_router(auth.router)
 api_router.include_router(auth.tokens)
 api_router.include_router(passkeys.router)
+api_router.include_router(external.router)
 api_router.include_router(passkeys.people)
 api_router.include_router(oauth.router)
 for module in (
@@ -73,6 +77,7 @@ for module in (
     searches,
     speakers,
     entities,
+    graph,
     entity_setup,
     metadata,
     rdf,
@@ -97,5 +102,6 @@ for module in (
     routines,
     sensors,
     voice,
+    vaults,
 ):
     api_router.include_router(module.router)

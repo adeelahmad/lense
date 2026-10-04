@@ -17,6 +17,9 @@ import type {
   AddFileData,
   AddFileErrors,
   AddFileResponses,
+  AddLoginProviderData,
+  AddLoginProviderErrors,
+  AddLoginProviderResponses,
   AddPasskeyData,
   AddPasskeyErrors,
   AddPasskeyOptionsData,
@@ -25,6 +28,9 @@ import type {
   AddRecordingPermissionData,
   AddRecordingPermissionErrors,
   AddRecordingPermissionResponses,
+  AddVaultPasskeyData,
+  AddVaultPasskeyErrors,
+  AddVaultPasskeyResponses,
   AnswerData,
   AnswerErrors,
   AnswerResponses,
@@ -51,6 +57,9 @@ import type {
   CancelUploadData,
   CancelUploadErrors,
   CancelUploadResponses,
+  ChangeLoginProviderData,
+  ChangeLoginProviderErrors,
+  ChangeLoginProviderResponses,
   ChangePasswordData,
   ChangePasswordErrors,
   ChangePasswordResponses,
@@ -276,6 +285,9 @@ import type {
   DiffTemplateVersionsData,
   DiffTemplateVersionsErrors,
   DiffTemplateVersionsResponses,
+  DisconnectIdentityData,
+  DisconnectIdentityErrors,
+  DisconnectIdentityResponses,
   DismissFaceSuggestionData,
   DismissFaceSuggestionErrors,
   DismissFaceSuggestionResponses,
@@ -303,6 +315,14 @@ import type {
   ExportRecordingData,
   ExportRecordingErrors,
   ExportRecordingResponses,
+  ExternalConnectData,
+  ExternalConnectErrors,
+  ExternalConnectResponses,
+  ExternalProvidersData,
+  ExternalProvidersResponses,
+  ExternalStartData,
+  ExternalStartErrors,
+  ExternalStartResponses,
   FindGraphPathData,
   FindGraphPathErrors,
   FindGraphPathResponses,
@@ -463,9 +483,24 @@ import type {
   GetUploadData,
   GetUploadErrors,
   GetUploadResponses,
+  GetVaultData,
+  GetVaultErrors,
+  GetVaultResponses,
   GetWorkflowData,
   GetWorkflowErrors,
   GetWorkflowResponses,
+  GraphPathsData,
+  GraphPathsErrors,
+  GraphPathsResponses,
+  GraphQueryData,
+  GraphQueryErrors,
+  GraphQueryResponses,
+  GraphRelatedData,
+  GraphRelatedErrors,
+  GraphRelatedResponses,
+  GraphSchemaData,
+  GraphSchemaErrors,
+  GraphSchemaResponses,
   HideEntityData,
   HideEntityErrors,
   HideEntityResponses,
@@ -562,6 +597,8 @@ import type {
   ListHighlightsData,
   ListHighlightsErrors,
   ListHighlightsResponses,
+  ListIdentitiesData,
+  ListIdentitiesResponses,
   ListIpGroupsData,
   ListIpGroupsErrors,
   ListIpGroupsResponses,
@@ -571,6 +608,8 @@ import type {
   ListLanguagesData,
   ListLanguagesErrors,
   ListLanguagesResponses,
+  ListLoginProvidersData,
+  ListLoginProvidersResponses,
   ListLoginsData,
   ListLoginsResponses,
   ListMembersData,
@@ -668,6 +707,9 @@ import type {
   ListWorkersResponses,
   ListWorkflowsData,
   ListWorkflowsResponses,
+  LockVaultData,
+  LockVaultErrors,
+  LockVaultResponses,
   LoginData,
   LoginErrors,
   LoginResponses,
@@ -744,6 +786,9 @@ import type {
   PreviewWatchData,
   PreviewWatchErrors,
   PreviewWatchResponses,
+  ProposeGraphChangeData,
+  ProposeGraphChangeErrors,
+  ProposeGraphChangeResponses,
   PushData,
   PushResponses,
   PushStreamData,
@@ -769,12 +814,18 @@ import type {
   RegisterResponses,
   ReindexSearchData,
   ReindexSearchResponses,
+  RemoveLoginProviderData,
+  RemoveLoginProviderErrors,
+  RemoveLoginProviderResponses,
   RemovePasskeyData,
   RemovePasskeyErrors,
   RemovePasskeyResponses,
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionErrors,
   RemoveRecordingPermissionResponses,
+  RemoveVaultPasskeyData,
+  RemoveVaultPasskeyErrors,
+  RemoveVaultPasskeyResponses,
   RenameEntityData,
   RenameEntityErrors,
   RenameEntityResponses,
@@ -867,6 +918,9 @@ import type {
   ScanWatchData,
   ScanWatchErrors,
   ScanWatchResponses,
+  SealVaultData,
+  SealVaultErrors,
+  SealVaultResponses,
   SearchPublicData,
   SearchPublicErrors,
   SearchPublicResponses,
@@ -964,6 +1018,8 @@ import type {
   TryWorkflowData,
   TryWorkflowErrors,
   TryWorkflowResponses,
+  TunnelStatusData,
+  TunnelStatusResponses,
   UndoEntityMergeData,
   UndoEntityMergeErrors,
   UndoEntityMergeResponses,
@@ -985,6 +1041,12 @@ import type {
   UnlinkSpeakerData,
   UnlinkSpeakerErrors,
   UnlinkSpeakerResponses,
+  UnlockVaultData,
+  UnlockVaultErrors,
+  UnlockVaultResponses,
+  UnsealVaultData,
+  UnsealVaultErrors,
+  UnsealVaultResponses,
   UpdateChatData,
   UpdateChatErrors,
   UpdateChatResponses,
@@ -1080,6 +1142,9 @@ import type {
   UpdateWorkflowResponses,
   UploadLimitsData,
   UploadLimitsResponses,
+  VaultOptionsData,
+  VaultOptionsErrors,
+  VaultOptionsResponses,
   VoiceInfoData,
   VoiceInfoResponses,
 } from "./types.gen";
@@ -1343,7 +1408,8 @@ export class Auth {
   /**
    * Passkey Login
    *
-   * Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session.
+   * Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session; 404 for a passkey
+   * this server doesn't know (removed, or from before Lens was set up again).
    */
   public static passkeyLogin<ThrowOnError extends boolean = false>(
     options: Options<PasskeyLoginData, ThrowOnError>,
@@ -1538,6 +1604,144 @@ export class Auth {
       },
     });
   }
+
+  /**
+   * External Providers
+   *
+   * The outside accounts people can sign in with here (for the sign-in page).
+   */
+  public static externalProviders<ThrowOnError extends boolean = false>(
+    options?: Options<ExternalProvidersData, ThrowOnError>,
+  ): RequestResult<ExternalProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ExternalProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/external",
+      ...options,
+    });
+  }
+
+  /**
+   * External Start
+   *
+   * Start signing in with an outside account: open the returned address in this browser.
+   */
+  public static externalStart<ThrowOnError extends boolean = false>(
+    options: Options<ExternalStartData, ThrowOnError>,
+  ): RequestResult<ExternalStartResponses, ExternalStartErrors, ThrowOnError> {
+    return (options.client ?? client).post<ExternalStartResponses, ExternalStartErrors, ThrowOnError>({
+      url: "/api/v1/auth/external/{key}/start",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * External Connect
+   *
+   * Connect an outside account to yours, so you can sign in with it: open the returned address in this browser.
+   */
+  public static externalConnect<ThrowOnError extends boolean = false>(
+    options: Options<ExternalConnectData, ThrowOnError>,
+  ): RequestResult<ExternalConnectResponses, ExternalConnectErrors, ThrowOnError> {
+    return (options.client ?? client).post<ExternalConnectResponses, ExternalConnectErrors, ThrowOnError>({
+      url: "/api/v1/auth/external/{key}/connect",
+      ...options,
+    });
+  }
+
+  /**
+   * List Identities
+   *
+   * The outside accounts you can sign in with.
+   */
+  public static listIdentities<ThrowOnError extends boolean = false>(
+    options?: Options<ListIdentitiesData, ThrowOnError>,
+  ): RequestResult<ListIdentitiesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListIdentitiesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/identities",
+      ...options,
+    });
+  }
+
+  /**
+   * Disconnect Identity
+   *
+   * Disconnect an outside account; not your only way to sign in. Audited as `external.disconnect`.
+   */
+  public static disconnectIdentity<ThrowOnError extends boolean = false>(
+    options: Options<DisconnectIdentityData, ThrowOnError>,
+  ): RequestResult<DisconnectIdentityResponses, DisconnectIdentityErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DisconnectIdentityResponses, DisconnectIdentityErrors, ThrowOnError>({
+      url: "/api/v1/auth/identities/{iid}",
+      ...options,
+    });
+  }
+
+  /**
+   * List Login Providers
+   *
+   * Every sign-in provider and its settings (never the client secret).
+   */
+  public static listLoginProviders<ThrowOnError extends boolean = false>(
+    options?: Options<ListLoginProvidersData, ThrowOnError>,
+  ): RequestResult<ListLoginProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListLoginProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/providers",
+      ...options,
+    });
+  }
+
+  /**
+   * Add Login Provider
+   *
+   * Add a sign-in provider. Audited as `login_provider.add`.
+   */
+  public static addLoginProvider<ThrowOnError extends boolean = false>(
+    options: Options<AddLoginProviderData, ThrowOnError>,
+  ): RequestResult<AddLoginProviderResponses, AddLoginProviderErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddLoginProviderResponses, AddLoginProviderErrors, ThrowOnError>({
+      url: "/api/v1/auth/providers",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Login Provider
+   *
+   * Remove a sign-in provider and the accounts connected through it. Audited as `login_provider.remove`.
+   */
+  public static removeLoginProvider<ThrowOnError extends boolean = false>(
+    options: Options<RemoveLoginProviderData, ThrowOnError>,
+  ): RequestResult<RemoveLoginProviderResponses, RemoveLoginProviderErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveLoginProviderResponses, RemoveLoginProviderErrors, ThrowOnError>({
+      url: "/api/v1/auth/providers/{key}",
+      ...options,
+    });
+  }
+
+  /**
+   * Change Login Provider
+   *
+   * Change a sign-in provider; leave the secret out to keep it. Audited as `login_provider.change`.
+   */
+  public static changeLoginProvider<ThrowOnError extends boolean = false>(
+    options: Options<ChangeLoginProviderData, ThrowOnError>,
+  ): RequestResult<ChangeLoginProviderResponses, ChangeLoginProviderErrors, ThrowOnError> {
+    return (options.client ?? client).patch<ChangeLoginProviderResponses, ChangeLoginProviderErrors, ThrowOnError>({
+      url: "/api/v1/auth/providers/{key}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Tokens {
@@ -1622,7 +1826,8 @@ export class Users {
    * Drop Passkeys
    *
    * Remove all of this person's passkeys and end their sessions (a lost or stolen device). Send them a sign-in link
-   * to add a new one. Audited as `user.passkeys_remove`.
+   * to add a new one. Refused (409) when they are the only way into a vault, unless lose_vaults=true. Audited as
+   * `user.passkeys_remove`.
    */
   public static dropPasskeys<ThrowOnError extends boolean = false>(
     options: Options<DropPasskeysData, ThrowOnError>,
@@ -1914,6 +2119,21 @@ export class Admin {
   ): RequestResult<BridgeStatusResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<BridgeStatusResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/bridge",
+      ...options,
+    });
+  }
+
+  /**
+   * Tunnel Status
+   *
+   * How the Cloudflare tunnel (Settings › Remote access) is doing: its address, whether it's connected, and
+   * cloudflared's last lines.
+   */
+  public static tunnelStatus<ThrowOnError extends boolean = false>(
+    options?: Options<TunnelStatusData, ThrowOnError>,
+  ): RequestResult<TunnelStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<TunnelStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/tunnel/status",
       ...options,
     });
   }
@@ -4493,6 +4713,90 @@ export class Entities {
   ): RequestResult<UpdateEntityTypeResponses, UpdateEntityTypeErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateEntityTypeResponses, UpdateEntityTypeErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/entity-types/{code}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Graph {
+  /**
+   * Graph Schema
+   *
+   * What the graph holds in this scope: labels, relationship types (and what they join), properties and counts, with
+   * example queries. Agents read this before writing Cypher.
+   */
+  public static graphSchema<ThrowOnError extends boolean = false>(
+    options?: Options<GraphSchemaData, ThrowOnError>,
+  ): RequestResult<GraphSchemaResponses, GraphSchemaErrors, ThrowOnError> {
+    return (options?.client ?? client).get<GraphSchemaResponses, GraphSchemaErrors, ThrowOnError>({
+      url: "/api/v1/graph/schema",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Related
+   *
+   * Nodes related to one node, nearest first, with the relationships between them.
+   */
+  public static graphRelated<ThrowOnError extends boolean = false>(
+    options: Options<GraphRelatedData, ThrowOnError>,
+  ): RequestResult<GraphRelatedResponses, GraphRelatedErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphRelatedResponses, GraphRelatedErrors, ThrowOnError>({
+      url: "/api/v1/graph/related",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Paths
+   *
+   * Paths from a to b, shortest first: every simple path up to max_depth hops, or just the shortest ones.
+   */
+  public static graphPaths<ThrowOnError extends boolean = false>(
+    options: Options<GraphPathsData, ThrowOnError>,
+  ): RequestResult<GraphPathsResponses, GraphPathsErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphPathsResponses, GraphPathsErrors, ThrowOnError>({
+      url: "/api/v1/graph/paths",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Query
+   *
+   * Run a read-only Cypher query over the graph you can read: {columns, rows, nodes, edges, truncated}. Nodes and
+   * relationships it returns are also listed in nodes and edges, ready to draw. Read-only tokens may query.
+   */
+  public static graphQuery<ThrowOnError extends boolean = false>(
+    options: Options<GraphQueryData, ThrowOnError>,
+  ): RequestResult<GraphQueryResponses, GraphQueryErrors, ThrowOnError> {
+    return (options.client ?? client).post<GraphQueryResponses, GraphQueryErrors, ThrowOnError>({
+      url: "/api/v1/graph/query",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Propose Graph Change
+   *
+   * Ask for a change to the graph. Proposed by default, for someone with editor access to accept in Proposed
+   * changes; `apply` makes it at once, and it can still be undone. Both need editor access to the two namespaces; read-only
+   * tokens can't ask.
+   */
+  public static proposeGraphChange<ThrowOnError extends boolean = false>(
+    options: Options<ProposeGraphChangeData, ThrowOnError>,
+  ): RequestResult<ProposeGraphChangeResponses, ProposeGraphChangeErrors, ThrowOnError> {
+    return (options.client ?? client).post<ProposeGraphChangeResponses, ProposeGraphChangeErrors, ThrowOnError>({
+      url: "/api/v1/graph/changes",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -7130,6 +7434,139 @@ export class Voice {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class Vaults {
+  /**
+   * Unseal Vault
+   *
+   * Make the vault an ordinary namespace again, which the server can open (it must be unlocked). Audited as
+   * `vault.unseal`.
+   */
+  public static unsealVault<ThrowOnError extends boolean = false>(
+    options: Options<UnsealVaultData, ThrowOnError>,
+  ): RequestResult<UnsealVaultResponses, UnsealVaultErrors, ThrowOnError> {
+    return (options.client ?? client).delete<UnsealVaultResponses, UnsealVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Vault
+   *
+   * Whether the namespace is a vault, whether it's open now, and which passkeys open it (whose, for owners).
+   */
+  public static getVault<ThrowOnError extends boolean = false>(
+    options: Options<GetVaultData, ThrowOnError>,
+  ): RequestResult<GetVaultResponses, GetVaultErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetVaultResponses, GetVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault",
+      ...options,
+    });
+  }
+
+  /**
+   * Seal Vault
+   *
+   * Make the namespace a vault opened by the passkey that answered. From then on only its passkeys open its files;
+   * lose every one and they're gone. Audited as `vault.seal`.
+   */
+  public static sealVault<ThrowOnError extends boolean = false>(
+    options: Options<SealVaultData, ThrowOnError>,
+  ): RequestResult<SealVaultResponses, SealVaultErrors, ThrowOnError> {
+    return (options.client ?? client).post<SealVaultResponses, SealVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Vault Options
+   *
+   * Start making the namespace a vault (owners), unlocking it, or adding a passkey to it (owners): options for the
+   * browser, which ask the passkey for this vault's PRF secret.
+   */
+  public static vaultOptions<ThrowOnError extends boolean = false>(
+    options: Options<VaultOptionsData, ThrowOnError>,
+  ): RequestResult<VaultOptionsResponses, VaultOptionsErrors, ThrowOnError> {
+    return (options.client ?? client).post<VaultOptionsResponses, VaultOptionsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/options",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Unlock Vault
+   *
+   * Open the vault on this server for encryption.vault_minutes; its waiting work runs. Audited as `vault.unlock`.
+   */
+  public static unlockVault<ThrowOnError extends boolean = false>(
+    options: Options<UnlockVaultData, ThrowOnError>,
+  ): RequestResult<UnlockVaultResponses, UnlockVaultErrors, ThrowOnError> {
+    return (options.client ?? client).post<UnlockVaultResponses, UnlockVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/unlock",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Add Vault Passkey
+   *
+   * Let the passkey that answered open the vault too (it must be open). Audited as `vault.add`.
+   */
+  public static addVaultPasskey<ThrowOnError extends boolean = false>(
+    options: Options<AddVaultPasskeyData, ThrowOnError>,
+  ): RequestResult<AddVaultPasskeyResponses, AddVaultPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddVaultPasskeyResponses, AddVaultPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/passkeys",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Vault Passkey
+   *
+   * Stop a passkey opening the vault; never the last one. Audited as `vault.remove`.
+   */
+  public static removeVaultPasskey<ThrowOnError extends boolean = false>(
+    options: Options<RemoveVaultPasskeyData, ThrowOnError>,
+  ): RequestResult<RemoveVaultPasskeyResponses, RemoveVaultPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveVaultPasskeyResponses, RemoveVaultPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/passkeys/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Lock Vault
+   *
+   * Close the vault on this server now (owners). Audited as `vault.lock`.
+   */
+  public static lockVault<ThrowOnError extends boolean = false>(
+    options: Options<LockVaultData, ThrowOnError>,
+  ): RequestResult<LockVaultResponses, LockVaultErrors, ThrowOnError> {
+    return (options.client ?? client).post<LockVaultResponses, LockVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/lock",
+      ...options,
     });
   }
 }

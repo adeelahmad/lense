@@ -13,6 +13,7 @@ import { isUnreachable } from "@/components/errors/error-states";
 import { NotificationsSection } from "@/components/notifications/notifications-section";
 import { runtime } from "@/components/iiif/iiif-model";
 import { ChoiceCards } from "@/components/settings/controls";
+import { VaultSection } from "@/components/vaults/vault-section";
 import { RoleChip } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -466,6 +467,7 @@ export function NamespaceDetail({ ns }: { ns: string }) {
           </section>
           <IpGroupsSection ns={ns} isOwner={isOwner} admin={admin} />
           <NotificationsSection ns={ns} isOwner={isOwner} admin={admin} />
+          {known && <VaultSection ns={ns} isOwner={isOwner} />}
         </div>
 
         <section className="flex flex-col gap-3.5 rounded-md border border-border bg-background px-4 py-5 sm:px-6">
