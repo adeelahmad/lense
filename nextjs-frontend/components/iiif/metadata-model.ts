@@ -29,6 +29,10 @@ export type Provider = {
   logo?: string | null;
 };
 export type Related = { id: string; label?: string | null };
+/** The other DCMI Metadata Terms a recording has (app/domain/metadata.py DC_TERMS): {term: [text or link]}. */
+export type Terms = Record<string, string[]>;
+/** Other RDF statements about the recording, kept as an import brought them (docs/rdf.md). */
+export type Statement = { p: string; o: string; uri?: boolean | null; lang?: string | null; datatype?: string | null };
 
 export type Meta = {
   label?: LangMap | null;
@@ -45,6 +49,8 @@ export type Meta = {
   identifiers?: Identifier[] | null;
   homepage?: string | null;
   related?: Related[] | null;
+  terms?: Terms | null;
+  statements?: Statement[] | null;
   access?: Access | null;
   open?: AccessPart[] | null;
   featured?: boolean | null;
@@ -66,6 +72,8 @@ export const FIELDS: Field[] = [
   "identifiers",
   "homepage",
   "related",
+  "terms",
+  "statements",
   "access",
   "open",
   "featured",
@@ -86,6 +94,8 @@ export const FIELD_LABEL: Record<Field, string> = {
   identifiers: "Identifiers",
   homepage: "Related link (homepage)",
   related: "Related links",
+  terms: "More Dublin Core",
+  statements: "Other RDF statements",
   access: "Access",
   open: "Open to everyone",
   featured: "Featured",
@@ -106,7 +116,50 @@ export const FIELD_MAPS: Partial<Record<Field, string>> = {
   homepage: "homepage",
   metadata: "metadata[]",
   language: "dc:language",
+  terms: "dcterms:*",
 };
+
+/** The DCMI terms a recording can be given in `terms`, with what each says, grouped as the DCMI list does. */
+export const DC_TERMS: { term: string; label: string; hint: string }[] = [
+  { term: "alternative", label: "Alternative title", hint: "Another name it is known by" },
+  { term: "abstract", label: "Abstract", hint: "A summary of its content" },
+  { term: "tableOfContents", label: "Table of contents", hint: "A list of its parts" },
+  { term: "coverage", label: "Coverage", hint: "The place or time it is about" },
+  { term: "spatial", label: "Place", hint: "A place it is about or was made in" },
+  { term: "temporal", label: "Period", hint: "A time it is about" },
+  { term: "audience", label: "Audience", hint: "Who it is meant for" },
+  { term: "educationLevel", label: "Education level", hint: "The level of the audience" },
+  { term: "mediator", label: "Mediator", hint: "Who brings it to its audience" },
+  { term: "instructionalMethod", label: "Instructional method", hint: "How it is meant to be taught with" },
+  { term: "source", label: "Source", hint: "What it was made from: an original tape, a book, …" },
+  { term: "provenance", label: "Provenance", hint: "Its history of ownership and custody" },
+  { term: "rightsHolder", label: "Rights holder", hint: "Who owns the rights" },
+  { term: "accessRights", label: "Access rights", hint: "Who may see it, in words" },
+  { term: "bibliographicCitation", label: "Citation", hint: "How to cite it" },
+  { term: "issued", label: "Issued", hint: "When it was published" },
+  { term: "modified", label: "Modified", hint: "When it was changed" },
+  { term: "available", label: "Available", hint: "When it is (or was) available" },
+  { term: "valid", label: "Valid", hint: "When it is valid" },
+  { term: "dateAccepted", label: "Date accepted", hint: "" },
+  { term: "dateCopyrighted", label: "Date copyrighted", hint: "" },
+  { term: "dateSubmitted", label: "Date submitted", hint: "" },
+  { term: "medium", label: "Medium", hint: "Its physical carrier: cassette, vinyl, …" },
+  { term: "conformsTo", label: "Conforms to", hint: "A standard it follows" },
+  { term: "isVersionOf", label: "Version of", hint: "" },
+  { term: "hasVersion", label: "Has version", hint: "" },
+  { term: "replaces", label: "Replaces", hint: "" },
+  { term: "isReplacedBy", label: "Replaced by", hint: "" },
+  { term: "requires", label: "Requires", hint: "" },
+  { term: "isRequiredBy", label: "Required by", hint: "" },
+  { term: "isFormatOf", label: "Format of", hint: "The same thing in another format" },
+  { term: "hasFormat", label: "Has format", hint: "" },
+  { term: "hasPart", label: "Has part", hint: "" },
+  { term: "isReferencedBy", label: "Referenced by", hint: "" },
+  { term: "accrualMethod", label: "Accrual method", hint: "" },
+  { term: "accrualPeriodicity", label: "Accrual periodicity", hint: "" },
+  { term: "accrualPolicy", label: "Accrual policy", hint: "" },
+];
+export const DC_TERM_LABEL: Record<string, string> = Object.fromEntries(DC_TERMS.map((t) => [t.term, t.label]));
 
 export const LANG_RX = /^(none|[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})*)$/;
 const URI_RX = /^https?:\/\/[^\s<>"]+$/;
@@ -210,6 +263,8 @@ export function validate(meta: Meta): Partial<Record<Field, string>> {
     .map((r) => uriError(r.id, "link") ?? (r.id?.trim() ? null : "Every link needs an address"))
     .find(Boolean);
   if (rel) e.related = rel;
+  if (Object.keys(meta.terms ?? {}).some((t) => !(t in DC_TERM_LABEL)))
+    e.terms = "Pick a Dublin Core term for every row";
   for (const k of Object.keys(e) as Field[]) if (!e[k]) delete e[k];
   return e;
 }
@@ -312,6 +367,12 @@ export function describeChange(field: string, a: unknown, b: unknown): string {
       return listChange("contributor", a, b);
     case "identifiers":
       return listChange("identifier", a, b);
+    case "terms": {
+      const am = (a ?? {}) as Terms;
+      const bm = (b ?? {}) as Terms;
+      const ts = [...new Set([...Object.keys(am), ...Object.keys(bm)])].filter((t) => !same(am[t], bm[t]));
+      return `Dublin Core: ${ts.map((t) => DC_TERM_LABEL[t] ?? t).join(", ") || "edited"}`;
+    }
     case "language":
       return `Languages: ${((a as string[]) ?? []).join(", ") || "none"} → ${((b as string[]) ?? []).join(", ")}`;
     case "label":

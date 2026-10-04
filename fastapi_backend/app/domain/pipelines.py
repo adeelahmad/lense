@@ -1,8 +1,9 @@
 """Pipelines: named, versioned lists of steps a recording goes through. Each namespace can choose its default; without
-one, recordings get the standard pipeline. Steps: transcribe, diarize, analyze, summarize, llm (a prompt template whose
-structured result is saved as a named output), report (built in, or from a report template) and export (a template
-rendered to a file, optionally copied to a storage source) and workflow (a workflow graph, workflows.py, that turns
-what the steps made into metadata). Any step can carry a condition.
+one, recordings get the standard pipeline. Steps: transcribe, diarize, analyze, embed (passages for search by meaning,
+semantic.py), summarize, llm (a prompt template whose structured result is saved as a named output), report (built in,
+or from a report template) and export (a template rendered to a file, optionally copied to a storage source) and
+workflow (a workflow graph, workflows.py, that turns what the steps made into metadata). Any step can carry a
+condition.
 
 Which pipeline a recording gets also depends on its content type (content_types.py): the one chosen for the run, else
 the namespace's override for the recording's subtype, else the subtype's own pipeline, else the namespace's default,
@@ -21,9 +22,10 @@ import re
 from . import llm, render, sources, store, templates
 
 R = store.R
-STANDARD = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "summarize", "report"]
+STANDARD = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
 TYPES = {
-    "transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "summarize", "llm", "report", "export", "workflow",
+    "transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "llm", "report", "export",
+    "workflow",
 }  # fmt: skip
 ASSET_STEPS = ("transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe")  # they make something of the media
 KEYS = {"type", "name", "when", "template", "version", "key", "filename", "destination", "model", "force", "workflow"}

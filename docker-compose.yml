@@ -5,12 +5,16 @@
 # The first-admin setup code is printed in the backend log.
 
 x-backend: &backend
+  security_opt: ["no-new-privileges:true"]  # nothing in Lens needs setuid programs
   build:
     context: fastapi_backend
-    target: ${LENS_TARGET:-lean}  # full: LibreOffice and Chromium, to read Office files, text, web pages and emails
+    target: ${LENS_TARGET:-full}  # LibreOffice and Chromium, to read Office files, text, web pages and emails; lean: without
     args:
       DEV: "true"
       EXTRAS: ${EXTRAS:-}
+  # model servers on this machine (Ollama, LM Studio) as host.docker.internal, on Linux as on a Mac
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   env_file:
     - path: .env                    # ARCHIVE_SECRET_KEY: the one native runs use, so both read stored credentials
       required: false
@@ -29,6 +33,10 @@ x-backend: &backend
     MAIL_STARTTLS: "False"
     USE_CREDENTIALS: "False"
     FRONTEND_URL: http://localhost:3000
+    # where the Cloudflare tunnel (Settings › Remote access) sends visitors: the web app inside this stack
+    LENS_TUNNEL_ORIGIN: http://frontend:3000
+    # the web app's container (and the one running the tunnel): their X-Forwarded-For names the visitor, for throttles
+    LENS_TRUSTED_PROXY_HOSTS: frontend,backend,worker
     CORS_ORIGINS: '["http://localhost:3000"]'
     OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
   volumes:
@@ -64,15 +72,22 @@ services:
     <<: *backend
     command: ./start.sh
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"         # the API, for this machine only (the web app proxies it)
 
   worker:
     <<: *backend
     command: lens worker
+    # the sensor hub (docs/sensors.md): MQTT and syslog, listened on only once sensors are turned on in the app.
+    # Something else on this machine using 1883 or 5514? Set LENS_MQTT_PORT / LENS_SYSLOG_PORT to other ports.
+    ports:
+      - "${LENS_MQTT_PORT:-1883}:1883"
+      - "${LENS_SYSLOG_PORT:-5514}:5514/udp"
+      - "${LENS_SYSLOG_PORT:-5514}:5514/tcp"
     healthcheck:
       disable: true
 
   frontend:
+    security_opt: ["no-new-privileges:true"]
     build:
       context: ./nextjs-frontend
     user: node
@@ -83,7 +98,7 @@ services:
       API_BASE_URL: http://backend:8000
       AUTH_SECRET: ${AUTH_SECRET:-dev-only-auth-secret-change-me}
       AUTH_TRUST_HOST: "true"
-      AUTH_URL: http://localhost:3000
+      # no AUTH_URL: sign-in follows the address the browser is on (its LAN name, https:// address or Cloudflare tunnel)
       OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
     volumes:
       - ./nextjs-frontend:/app
@@ -100,9 +115,25 @@ services:
       - "127.0.0.1:8025:8025" # the mailbox
     networks: [lens]
 
+  # Fedora 6 (docs/fedora.md), the repository Lens can keep a copy of the archive in. Opt-in, and not needed on small
+  # machines: `docker compose --profile fedora up`, with LENS_FEDORA_URL=http://fedora:8080/fcrepo/rest (and
+  # LENS_FEDORA_USER / LENS_FEDORA_PASSWORD) in .env, or set it in Settings → Fedora.
+  fedora:
+    image: fcrepo/fcrepo:${FEDORA_VERSION:-6.5.1-tomcat9}
+    profiles: [fedora]
+    environment:
+      CATALINA_OPTS: >-
+        -Dfcrepo.home=/fcrepo-home -Djava.awt.headless=true -Dfcrepo.autoversioning.enabled=true
+    ports:
+      - "127.0.0.1:8081:8080"       # its web UI and REST API, for this machine only
+    volumes:
+      - fedora-data:/fcrepo-home
+    networks: [lens]
+
 volumes:
   surreal-data:
   archive-data:
+  fedora-data:
 
 networks:
   lens:

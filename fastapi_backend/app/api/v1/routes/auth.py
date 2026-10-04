@@ -42,19 +42,30 @@ def _pair(db: Db, cfg: Cfg, request: Request, user: dict) -> TokenPair:
     return TokenPair(access_token=access, refresh_token=refresh, expires_in=ttl, user=auth.public(user))
 
 
+PASSWORDS_OFF = "passwords are turned off here; sign in with a passkey"
+
+
+def _need_passwords(cfg: Cfg) -> None:
+    if not auth.passwords_on(cfg):
+        raise HTTPException(403, PASSWORDS_OFF)
+
+
 @router.get("/status")
-def status(request: Request, db: Db) -> AuthStatus:
+def status(request: Request, db: Db, cfg: Cfg) -> AuthStatus:
     """Whether the archive still needs its first admin (the sign-in page shows the setup form instead), and whether
     the first-run wizard is still to be finished (the web app takes admins there)."""
     return AuthStatus(
         setup_required=request.app.state.archive.setup_code is not None and auth.account_count(db) == 0,
         wizard_pending=first_run.pending(db),
+        passwords=auth.passwords_on(cfg),
     )
 
 
 @router.post("/setup")
 def setup(body: SetupRequest, request: Request, db: Db, cfg: Cfg) -> TokenPair:
-    """Create the first admin with the one-time code printed in the server log."""
+    """Create the first admin with a password and the one-time code printed in the server log, for scripts. This turns
+    passwords on (auth.passwords). The web app makes the first admin with a passkey (POST /auth/passkey/setup/options),
+    or with the code alone where browsers won't make passkeys (POST /auth/setup/no-passkey)."""
     archive = request.app.state.archive
     code = archive.setup_code
     if not code or auth.account_count(db) or not secrets.compare_digest(body.code, code):
@@ -62,12 +73,18 @@ def setup(body: SetupRequest, request: Request, db: Db, cfg: Cfg) -> TokenPair:
     with domain_errors():
         uid = auth.create_account(db, body.email, body.password, body.name, admin=True)
     archive.setup_code = None
-    auth.audit(db, {"id": uid, "email": body.email}, "setup")
+    if not auth.passwords_on(cfg):
+        from app.domain import settings as app_settings
+
+        app_settings.save(db, archive.base, "auth", {"passwords": True}, body.email)
+    auth.audit(db, {"id": uid, "email": body.email}, "setup", detail=["password"])
     return _pair(db, cfg, request, auth.get_account(db, uid))
 
 
 @router.post("/login")
 def login(body: LoginRequest, request: Request, db: Db, cfg: Cfg) -> TokenPair:
+    """Sign in with a password, where passwords are on (auth.passwords); else 403."""
+    _need_passwords(cfg)
     key = f"{body.email.strip().lower()}|{client_ip(request)}"
     if auth.throttled(key):
         raise HTTPException(429, "too many attempts; try again in a few minutes")
@@ -111,9 +128,10 @@ def update_me(body: MeUpdate, user: Writer, db: Db) -> Me:
 
 
 @router.post("/password")
-def change_password(body: PasswordChange, user: CurrentUser, db: Db) -> Ok:
+def change_password(body: PasswordChange, user: CurrentUser, db: Db, cfg: Cfg) -> Ok:
     """Change your own password, with your current one (signed in; not with an API token). Your other sessions end
     and this one stays; API tokens keep working. Audited as `password.change`."""
+    _need_passwords(cfg)
     if user.via != "access":
         raise HTTPException(403, "sign in to change your password; API tokens can't")
     key = f"password|{user.id}"
@@ -126,16 +144,19 @@ def change_password(body: PasswordChange, user: CurrentUser, db: Db) -> Ok:
 
 
 @router.post("/password/forgot")
-def forgot_password(body: ForgotPasswordRequest, db: Db, tasks: BackgroundTasks) -> Ok:
-    """Email a reset link. Answers the same whether or not the address has an account."""
+def forgot_password(body: ForgotPasswordRequest, db: Db, cfg: Cfg, tasks: BackgroundTasks) -> Ok:
+    """Email a reset link. Answers the same whether or not the address has an account. Where passwords are off, see
+    POST /auth/signin-link/lost."""
+    _need_passwords(cfg)
     raw, user = auth.start_reset(db, body.email, settings.PASSWORD_RESET_EXPIRE_MINUTES)
     if raw and user:
-        tasks.add_task(send_reset_password_email, user["email"], user.get("name"), raw)
+        tasks.add_task(send_reset_password_email, cfg, user["email"], user.get("name"), raw)
     return Ok()
 
 
 @router.post("/password/reset")
-def reset_password(body: ResetPasswordRequest, db: Db) -> Ok:
+def reset_password(body: ResetPasswordRequest, db: Db, cfg: Cfg) -> Ok:
+    _need_passwords(cfg)
     with domain_errors():
         uid = auth.finish_reset(db, body.token, body.password)
     auth.audit(db, {"id": uid}, "password.reset", f"account:{uid}")

@@ -1,8 +1,8 @@
 """Questions answered from the archive, with numbered citations to the exact moments.
 
-Retrieval is keyword-first over the full-text index (English stemming), limited to the namespaces the asker can read
-and to the conversation's scope (namespaces, recordings, collections, speakers, dates). Each hit is widened to its neighbouring
-lines and numbered; the model is told to answer only from those excerpts and cite them as [n]. With no model
+Retrieval is keyword-first over the full-text index (English stemming), joined by passages found by meaning when an
+embedding model is set up (semantic.py), limited to the namespaces the asker can read and to the conversation's scope
+(namespaces, recordings, collections, speakers, dates). Each hit is widened to its neighbouring lines and numbered; the model is told to answer only from those excerpts and cite them as [n]. With no model
 configured, the best passages come back on their own.
 """
 
@@ -13,7 +13,7 @@ import re
 import time
 from collections import Counter, defaultdict
 
-from . import llm, recsets, render, store
+from . import llm, recsets, render, semantic, store
 
 R = store.R
 STOP = set(
@@ -64,9 +64,12 @@ def scope_filter(db, spaces, scope):
     return " AND ".join(where), p
 
 
-def retrieve(db, question, spaces, scope=None, k=8):
+def retrieve(db, question, spaces, scope=None, k=8, cfg=None):
+    """The excerpts that best answer a question: lines with its keywords and, when search by meaning is set up
+    (`cfg`), passages about it in other words, ranked together by reciprocal rank and widened to whole runs of lines."""
     words = keywords(question)
-    if not words or not spaces:
+    meaning = cfg is not None and semantic.available(db, cfg)
+    if not (words or meaning) or not spaces:
         return []
     where, p = scope_filter(db, spaces, scope)
     hits = {}
@@ -92,10 +95,23 @@ def retrieve(db, question, spaces, scope=None, k=8):
             h["score"] += abs(r.get("s") or 1.0)
             h["words"].add(w)
     top = sorted(hits.values(), key=lambda h: (-len(h["words"]), -h["score"]))[:k]
-    wanted, best = defaultdict(set), {}
-    for h in top:
+    # each excerpt ranks by its best line with the words plus its best passage found by meaning, by reciprocal rank
+    wanted, best, meant = defaultdict(set), {}, {}
+    for i, h in enumerate(top):
         wanted[h["recording"]].update({h["idx"] - 1, h["idx"], h["idx"] + 1})
-        best[(h["recording"], h["idx"])] = (len(h["words"]), h["score"])
+        best[(h["recording"], h["idx"])] = 1 / (60 + i + 1)
+    if meaning:
+        try:
+            near = semantic.nearest(
+                db, cfg, question, " AND " + where.replace("speaker IN $spk", "speakers CONTAINSANY $spk"), p, {"said", "page"}, k
+            )
+        except semantic.EmbedError:  # the excerpts with the words still answer
+            near = []
+        for i, x in enumerate(near):
+            span = range(x["idx0"], x["idx1"] + 1)
+            wanted[x["recording"]].update(span)
+            for j in span:
+                meant.setdefault((x["recording"], j), 1 / (60 + i + 1))
     passages = []
     for rid, idxs in wanted.items():
         segs = db.rows(
@@ -109,9 +125,15 @@ def retrieve(db, question, spaces, scope=None, k=8):
                 run.append(s)
                 continue
             if run:
-                passages.append({"recording_id": rid, "segs": run, "rank": max((best.get((rid, x["idx"]), (0, 0)) for x in run))})
+                passages.append(
+                    {
+                        "recording_id": rid,
+                        "segs": run,
+                        "rank": max(best.get((rid, x["idx"]), 0) for x in run) + max(meant.get((rid, x["idx"]), 0) for x in run),
+                    }
+                )
             run = [s] if s else []
-    passages.sort(key=lambda x: (-x["rank"][0], -x["rank"][1]))
+    passages.sort(key=lambda x: -x["rank"])
     names = render.speaker_names(db, [s.get("speaker") for x in passages for s in x["segs"]])
     recs = (
         {
@@ -197,10 +219,58 @@ def retrieve(db, question, spaces, scope=None, k=8):
     return out
 
 
+PAGE_TEXT, PAGE_SELECTION = 12000, 4000
+
+
+def shared_context(ctx):
+    """What a question keeps of the page it was asked from: where, its title, the highlighted text, and whether the
+    page's text was shared (the text itself isn't kept)."""
+    if not ctx or not ctx.get("url"):
+        return None
+    return store.clean(
+        {
+            "url": str(ctx["url"])[:2000],
+            "title": (ctx.get("title") or "").strip()[:300] or None,
+            "selection": (ctx.get("selection") or "").strip()[:PAGE_SELECTION] or None,
+            "page": bool((ctx.get("text") or "").strip()) or None,
+        }
+    )
+
+
+def with_context(question, ctx):
+    """The question as the model reads it when it was asked from a page: the page, the highlighted text and (when
+    shared) the page's text come first, marked as what the person is looking at in Lens rather than archive excerpts."""
+    if not ctx or not ctx.get("url"):
+        return question
+    title = (ctx.get("title") or "").strip()[:300]
+    parts = [f"The person is looking at the Lens page {title + ' ' if title else ''}({str(ctx['url'])[:2000]})."]
+    sel = (ctx.get("selection") or "").strip()[:PAGE_SELECTION]
+    if sel:
+        parts.append(f'They highlighted this part of it:\n"""\n{sel}\n"""')
+    text = (ctx.get("text") or "").strip()
+    if text:
+        cut = text[:PAGE_TEXT]
+        more = " (cut short)" if len(text) > PAGE_TEXT else ""
+        parts.append(f'The page\'s text{more}:\n"""\n{cut}\n"""')
+    parts.append(f"Use the page to understand the question; it is not an archive excerpt, so don't cite it with [n]. Question: {question}")
+    return "\n\n".join(parts)
+
+
+def past_turns(history, n=6):
+    """The conversation's last messages for the model, with the files sent with each; a question asked about
+    highlighted text keeps (the start of) that text, so a follow-up still knows what "it" was."""
+    out = []
+    for m in list(history)[-n:]:
+        sel = ((m.get("context") or {}).get("selection") or "")[:500] if m["role"] == "user" else ""
+        said = f'(About the highlighted text: "{sel}") {m["content"]}' if sel else m["content"]
+        out.append({"role": m["role"], "content": said + attached_note(m.get("attachments"))})
+    return out
+
+
 def messages_for(question, passages, history=()):
     ctx = "\n\n".join(f"[{p['n']}] {p['title']} · {(p.get('recorded_at') or '')[:10]} · {p['time']}\n{p['text']}" for p in passages)
     msgs = [{"role": "system", "content": SYSTEM}]
-    msgs += [{"role": m["role"], "content": m["content"]} for m in list(history)[-6:]]
+    msgs += past_turns(history)
     msgs.append({"role": "user", "content": f"Excerpts:\n\n{ctx or '(nothing in the archive matched)'}\n\nQuestion: {question}"})
     return msgs
 
@@ -218,7 +288,8 @@ def cited(text, passages):
 
 
 # ---------- conversations ----------
-def create(db, account, title=None, scope=None, model=None):
+def create(db, account, title=None, scope=None, model=None, kind="chat"):
+    """A conversation. A `setup` one (admins) is the assistant setting the server up: it acts instead of asking."""
     cid = db.next_id("chat")
     db.q(
         "CREATE $r CONTENT $d",
@@ -226,7 +297,8 @@ def create(db, account, title=None, scope=None, model=None):
         d=store.clean(
             {
                 "account": account,
-                "title": (title or "New conversation")[:120],
+                "title": (title or ("Set up Lens" if kind == "setup" else "New conversation"))[:120],
+                "kind": kind if kind != "chat" else None,
                 "scope": scope or {},
                 "model": model,
                 "created_at": store.now(),
@@ -238,7 +310,10 @@ def create(db, account, title=None, scope=None, model=None):
 
 
 def get(db, cid, account):
-    c = db.one("SELECT record::id(id) AS id, account, title, scope, model, created_at, updated_at FROM $r", r=R("chat", cid))
+    c = db.one(
+        "SELECT record::id(id) AS id, account, title, scope, model, kind ?? 'chat' AS kind, created_at, updated_at FROM $r",
+        r=R("chat", cid),
+    )
     if not c or c["account"] != account:
         raise KeyError(cid)
     return c
@@ -247,13 +322,16 @@ def get(db, cid, account):
 def history(db, cid):
     return db.rows(
         "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped, steps ?? [] AS steps, "
-        "notice, error, check, model FROM chat_message WHERE chat = $c ORDER BY id",
+        "attachments ?? [] AS attachments, notice, error, check, model, context FROM chat_message WHERE chat = $c ORDER BY id",
         c=cid,
     )
 
 
-def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None, model=None):
-    """Save a message; an answer keeps the tool steps it took, any notice (e.g. the model can't use tools) and error."""
+def add(
+    db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None, model=None, attachments=None, context=None
+):
+    """Save a message; an answer keeps the tool steps it took, any notice (e.g. the model can't use tools) and error; a
+    question asked from a page keeps what it shared of it (shared_context)."""
     mid = db.next_id("chat_message")
     db.q(
         "CREATE $r CONTENT $d",
@@ -263,6 +341,7 @@ def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice
                 "chat": cid,
                 "role": role,
                 "content": content,
+                "attachments": attachments or None,
                 "passages": passages,
                 "created_at": store.now(),
                 "stopped": stopped or None,
@@ -270,11 +349,22 @@ def add(db, cid, role, content, passages=None, stopped=False, steps=None, notice
                 "notice": notice,
                 "error": error,
                 "model": model,
+                "context": context,
             }
         ),
     )
     db.q("UPDATE $r SET updated_at = $t", r=R("chat", cid), t=store.now())
     return mid
+
+
+def rewind(db, cid, mid):
+    """Remove a question of yours and everything said after it, to ask it again as edited; returns the old question
+    (its content and the page context it was asked with)."""
+    m = db.one("SELECT chat, role, content, context FROM $r", r=R("chat_message", mid))
+    if not m or m["chat"] != cid or m["role"] != "user":
+        raise KeyError(mid)
+    db.q("DELETE chat_message WHERE chat = $c AND record::id(id) >= $m", c=cid, m=mid)
+    return m
 
 
 def model_choices(cfg):
@@ -331,14 +421,41 @@ TOOL_SYSTEM = (
 )
 
 
-def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None):
-    """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text). Raises llm.ToolsUnsupported."""
-    msgs = [{"role": "system", "content": TOOL_SYSTEM}] + [{"role": m["role"], "content": m["content"]} for m in list(history)[-6:]]
+def attached_note(files):
+    """What the model reads about the files sent with a question."""
+    if not files:
+        return ""
+    lines = [f"- {f['filename']} ({round(f['size'] / 1e6, 1)} MB, attachment id {f['id']})" for f in files]
+    return "\n\nAttached files, not in the archive yet (import_files puts them in a namespace, choosing one when not named):\n" + "\n".join(
+        lines
+    )
+
+
+SETUP_SYSTEM = (
+    "You are setting up this Lens server with its admin, who asked you to do it for them. Lens archives recordings, "
+    "documents and images, transcribes and indexes them, and answers questions about them. Start with server_status and "
+    "work through what's missing, most important first: a model provider (find_model_servers, then change_settings llm "
+    "with the server's address and a chat model), a namespace, then search by meaning (an embedding model). Prefer "
+    "sensible defaults and make the changes yourself; they're made as soon as you call the tool, and the admin can change "
+    "them in Settings. Ask only what you can't decide (one short question at a time), and never for something a tool can "
+    "find out. When files are attached, import them (leave the namespace out unless the admin named one: it's chosen "
+    "for them, and you're told when to ask). Say in a sentence what you changed. Be brief."
+)
+
+
+def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, setup=False):
+    """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text), or ("direct", text) when the model
+    answered without looking anything up (it never saw the archive, so the caller can answer from a search instead).
+    Raises llm.ToolsUnsupported."""
+    system = TOOL_SYSTEM + ("\n\n" + SETUP_SYSTEM if setup else "")
+    note = getattr(toolbox, "system_note", None)  # skills, and context from hooks (extensions.py)
+    system += note() if note else ""
+    msgs = [{"role": "system", "content": system}] + past_turns(history)
     msgs.append({"role": "user", "content": question})
-    for _ in range(max_steps):
+    for step in range(max_steps):
         msg = llm.chat_message(cfg, msgs, tools=toolbox.specs(), model=model)
         if not msg["tool_calls"]:
-            yield "answer", msg["content"]
+            yield ("direct" if step == 0 else "answer"), msg["content"]
             return
         msgs.append({"role": "assistant", "content": msg["content"], "tool_calls": msg["tool_calls"]})
         for c in msg["tool_calls"]:

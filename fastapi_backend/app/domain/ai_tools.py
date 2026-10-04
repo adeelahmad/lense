@@ -9,7 +9,20 @@ from __future__ import annotations
 import json
 import logging
 
-from . import batches, entities, recsets, render, search as searchmod, speakers as spk, store, templates
+from . import (
+    batches,
+    entities,
+    extensions,
+    entity_map,
+    entity_setup,
+    ops_tools,
+    recsets,
+    render,
+    search as searchmod,
+    speakers as spk,
+    store,
+    templates,
+)
 
 R = store.R
 log = logging.getLogger("lens")
@@ -75,24 +88,88 @@ TOOLS = [
         True,
     ),
     (
+        "entity_setup",
+        "How a namespace organises its entities: its mode (self-organising, a fixed list, or hybrid: the list first, then new entities), the types it keeps, what it's "
+        "about, its own entity types, and its defined entities.",
+        {"namespace": _S},
+        ["namespace"],
+        False,
+    ),
+    (
         "propose_entity_change",
-        "Propose merging, renaming or retyping an entity. Needs the person's approval.",
+        "Propose a change to the entities, which needs the person's approval: merge others into an entity, rename or "
+        "retype it, describe it (a description and the other ways it's said), hide it, or define a new entity on a "
+        "namespace's list (define: namespace, new_name, new_type; no entity_id).",
         {
-            "action": {"type": "string", "enum": ["merge", "rename", "retype"]},
+            "action": {"type": "string", "enum": ["merge", "rename", "retype", "describe", "hide", "define"]},
             "entity_id": _I,
             "merge_ids": {"type": "array", "items": _I},
             "new_name": _S,
             "new_type": _S,
+            "description": _S,
+            "also_said_as": {"type": "array", "items": _S},
+            "namespace": _S,
         },
-        ["action", "entity_id"],
+        ["action"],
         True,
     ),
 ]
 
 
-class Toolbox:
-    def __init__(self, db, cfg, user, readable, editable, scope, chat_id):
-        self.db, self.cfg, self.user, self.chat = db, cfg, user, chat_id
+# making the assistant's extensions from chat (or voice, which is chat): read what there is, then save a manifest or
+# switch one on or off, which always waits for the person's yes (it changes what the assistant does)
+AUTHOR_TOOLS = [
+    (
+        "list_extensions",
+        "The tools, skills, hooks and plugins added to this assistant that the person can see: name, kind, whether "
+        "it's on, and whether they can change it.",
+        {"kind": {"type": "string", "enum": list(extensions.KINDS)}},
+        [],
+        False,
+    ),
+    (
+        "read_extension",
+        "One extension as its manifest (Markdown with YAML frontmatter, or YAML), to show or change it.",
+        {"name": _S},
+        ["name"],
+        False,
+    ),
+    (
+        "save_extension",
+        "Add an extension to the assistant, or a new version of one the person can change, from a manifest. Needs the "
+        "person's approval. Manifest: YAML frontmatter between --- lines with name (lowercase_with_underscores), kind "
+        "(tool, skill, hook or plugin) and description, then for a skill `when` (when to use it) with its instructions "
+        "after the frontmatter; for a prompt tool `params` ([{name, kind: text|number|integer|bool|json|list, "
+        "required, options, description}]) and `effect` (read, or change: asks first) with the prompt after the "
+        "frontmatter, using {{param}}; a web tool sets run: {type: http, method, url, headers, body} instead; a hook sets "
+        "event (message, before_tool, after_tool, answer), match {tool, contains} and action {type: context|block|tool, "
+        "text|reason|tool, args}. Errors say what to fix.",
+        {"manifest": _S, "notes": _S},
+        ["manifest"],
+        True,
+    ),
+    (
+        "switch_extension",
+        "Switch an extension the person can change on or off. Needs the person's approval.",
+        {"name": _S, "enabled": {"type": "boolean"}},
+        ["name", "enabled"],
+        True,
+    ),
+]
+
+
+def builtin_names():
+    """The assistant's own tool names, which extensions can't take."""
+    return {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS} | {"use_skill"}
+
+
+class Toolbox(ops_tools.OpsTools):
+    """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
+    makes their changes at once instead of asking for approval."""
+
+    def __init__(self, db, cfg, user, readable, editable, scope, chat_id, base=None, admin=False, act=False, said=""):
+        self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
+        self.base, self.admin, self.act = base or cfg, admin, act
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
         names = store.space_names(db)
@@ -100,17 +177,59 @@ class Toolbox:
             self.readable = {s for s in self.readable if names.get(s) in self.scope["namespaces"]}
         self.allowed = recsets.within(db, self.readable, self.scope.get("recordings"), self.scope.get("collections"))
         self.refs, self.reads, self.approvals = [], 0, []
+        # the extensions this person switched on or was given (extensions.py); hooks don't run inside hooks
+        roles = {s: "editor" if s in self.editable else "viewer" for s in self.readable}
+        self.me = extensions.who(user["id"], user.get("email"), admin, roles)
+        self.ext = extensions.Active(db, self.me) if cfg["ai"].get("extensions", True) else None
+        self.hooking = False
+
+    def system_note(self):
+        """What the model is told besides its usual instructions: the skills it can follow, and context that hooks add
+        for this question."""
+        if not self.ext:
+            return ""
+        out = self.ext.system_note()
+        for h in self.ext.matching("message", text=self.said):
+            out += self._hook(h, {"said": self.said})
+        return out
+
+    def after_answer(self, text):
+        """Run the hooks for an answer that was written."""
+        for h in self.ext.matching("answer", text=text) if self.ext else ():
+            self._hook(h, {"said": self.said, "answer": text})
+
+    def _hook(self, h, values):
+        """Carry out one hook: context it adds (returned), a tool it calls (run like any other, approvals and all)."""
+        a = h["spec"]["action"]
+        if a["type"] == "context":
+            return "\n\n" + extensions.fill(a["text"], values)
+        if a["type"] == "tool" and not self.hooking:
+            self.hooking = True
+            try:
+                self.call(a["tool"], extensions.fill_json(a["args"], values))
+            finally:
+                self.hooking = False
+        return ""
 
     def specs(self):
         off = set(self.cfg["ai"].get("disabled_tools") or [])
         can_act = bool(self.editable)
+        tools = [t for t in TOOLS if can_act or not t[4]]
+        if self.admin:
+            tools += ops_tools.ADMIN_TOOLS
+        if can_act or self.admin:
+            tools += ops_tools.FILE_TOOLS
+        if self.cfg["ai"].get("extensions", True):
+            tools += [t for t in AUTHOR_TOOLS if can_act or self.admin or not t[4]]
+        if self.ext:
+            tools += self.ext.tool_specs(can_act or self.admin)
         return [
             {
                 "type": "function",
                 "function": {"name": n, "description": d, "parameters": {"type": "object", "properties": p, "required": req}},
             }
-            for n, d, p, req, needs in TOOLS
-            if n not in off and (can_act or not needs)
+            for n, d, p, req, _ in tools
+            if n not in off
         ]
 
     def ref(self, rid, t0, text, speaker=None, title=None, source="said", page=None):
@@ -138,15 +257,107 @@ class Toolbox:
         return row
 
     def call(self, name, args):
+        offered = {s["function"]["name"] for s in self.specs()}
         try:
-            fn = getattr(self, "t_" + name)
+            if name not in offered:
+                raise AttributeError(name)
+            fn = getattr(self, "t_" + name, None) or self._ext_tool(name)
         except AttributeError:
             return json.dumps({"error": f"no tool {name}"}), f"unknown tool {name}"
+        hooks, extra = self.ext and not self.hooking, ""
+        if hooks:
+            for h in self.ext.matching("before_tool", name, json.dumps(args or {}, default=str)):
+                if h["spec"]["action"]["type"] == "block":
+                    why = extensions.fill(h["spec"]["action"]["reason"], {"said": self.said, "tool": name})
+                    return json.dumps({"error": f"blocked: {why}"}), f"{name}: blocked ({why})"
+                extra += self._hook(h, {"said": self.said, "tool": name})
+        result, summary = self._run(name, fn, args)
+        if hooks:
+            for h in self.ext.matching("after_tool", name, result):
+                extra += self._hook(h, {"said": self.said, "tool": name, "result": result[:4000]})
+        if extra:  # what hooks add, next to what the tool gave back
+            try:
+                got = json.loads(result)
+            except ValueError:
+                got = result
+            result = json.dumps({"result": got, "note": extra.strip()}, ensure_ascii=False, default=str)
+        return result, summary
+
+    def _ext_tool(self, name):
+        """An extension's tool (or use_skill), called like the built-in ones."""
+        if name == "use_skill":
+            return self.t_use_skill
+        t = (self.ext.tools if self.ext else {}).get(name)
+        if not t:
+            raise AttributeError(name)
+
+        def run(**args):
+            args = extensions.tool_args(t["spec"], args)
+            what = f"{t['name']}(" + ", ".join(f"{k}={json.dumps(v, ensure_ascii=False)[:60]}" for k, v in args.items()) + ")"
+            if t["spec"]["effect"] == "change" and not self.act:
+                return self._approval(
+                    "extension", {"tool": t["name"], "extension": t["ext"], "version": t["version"], "args": args}, f"Run {what}"
+                )
+            out = extensions.run_tool(self.db, self.cfg, t["spec"], args, toolbox=self)
+            return out, f"Ran {what}"
+
+        return run
+
+    def t_use_skill(self, name):
+        s = (self.ext.skills if self.ext else {}).get(name)
+        if not s:
+            raise ValueError(f"no skill {name}")
+        out = {"skill": name, "instructions": s["spec"]["instructions"]}
+        if s["spec"].get("tools"):
+            out["tools"] = s["spec"]["tools"]
+        return out, f"Read the skill {name}"
+
+    # ---- extensions, from chat ----
+    def _ext_named(self, name):
+        for g in extensions.visible(self.db, self.me):
+            if g["name"] == name:
+                return g
+        raise ValueError(f"no extension called {name} that you can see")
+
+    def t_list_extensions(self, kind=None):
+        out = [
+            {"name": g["name"], "kind": g["kind"], "description": g.get("description"), "on": g["enabled"], "version": g["version"],
+             "yours_to_change": g["editable"], "shared": g["visibility"]}
+            for g in extensions.visible(self.db, self.me, kind)
+        ]  # fmt: skip
+        return {"extensions": out}, f"Listed {len(out)} extension(s)"
+
+    def t_read_extension(self, name):
+        g = self._ext_named(name)
+        return {"name": name, "manifest": extensions.to_manifest(g)}, f"Read the extension {name}"
+
+    def t_save_extension(self, manifest, notes=None):
+        m = extensions.check_manifest(extensions.parse_manifest(manifest), self.me, self.db)
+        same = next((g for g in extensions.visible(self.db, self.me) if g["name"] == m["name"]), None)
+        if same:
+            if not same["editable"]:
+                raise ValueError(f"{m['name']} is someone else's: choose another name")
+            if same["kind"] != m["kind"]:
+                raise ValueError(f"{m['name']} is a {same['kind']}: choose another name for a {m['kind']}")
+            what = f"Save version {same['version'] + 1} of the {m['kind']} {m['name']}"
+        else:
+            extensions._check_names(self.db, m["kind"], m["name"], m["spec"])
+            what = f"Add the {m['kind']} {m['name']} to the assistant"
+        return self._approval("save_extension", {"manifest": manifest, "notes": notes, "name": m["name"]}, what)
+
+    def t_switch_extension(self, name, enabled):
+        g = self._ext_named(name)
+        if not g["editable"]:
+            raise ValueError(f"{name} is someone else's; only its owner or an admin switches it")
+        what = f"Switch {g['kind']} {name} {'on' if enabled else 'off'}"
+        return self._approval("switch_extension", {"extension": g["id"], "name": name, "enabled": bool(enabled)}, what)
+
+    def _run(self, name, fn, args):
         try:
             out, summary = fn(**{k: v for k, v in (args or {}).items() if v is not None})
         except KeyError as e:  # an id or name that doesn't exist
             return json.dumps({"error": f"not found: {e.args[0] if e.args else e}"}), f"{name}: not found"
-        except (ValueError, TypeError) as e:
+        except (ValueError, TypeError, PermissionError) as e:
             return json.dumps({"error": str(e)}), f"{name}: {e}"
         except Exception as e:  # noqa: BLE001 - the model hears what went wrong instead of the answer breaking off
             log.exception("assistant tool %s failed", name)
@@ -156,7 +367,9 @@ class Toolbox:
     # ---- read tools ----
     def t_search_transcripts(self, query, namespace=None, limit=8):
         # within the conversation's scope in the search itself, so out-of-scope matches don't crowd out the rest
-        res = searchmod.search(self.db, query, namespace, limit=min(int(limit), 20), spaces=self.readable, recordings=self.allowed)
+        res = searchmod.search(
+            self.db, query, namespace, limit=min(int(limit), 20), spaces=self.readable, recordings=self.allowed, cfg=self.cfg, mode="auto"
+        )
         hits = res["hits"]
         out = []
         for h in hits:
@@ -254,6 +467,10 @@ class Toolbox:
                 "namespace": e["namespace"],
                 "mentions": e["mentions"],
                 "recordings": e["recordings"],
+                **({"description": e["description"]} if e.get("description") else {}),
+                **({"also_said_as": e["aliases"]} if e.get("aliases") else {}),
+                **({"defined": True} if e.get("defined") else {}),
+                **({"always_there": e["builtin"]} if e.get("builtin") else {}),
             }
             for e in res["items"]
         ]
@@ -333,23 +550,83 @@ class Toolbox:
         est = batches.estimate(self.db, self.cfg, ids, steps)
         return self._approval("run_template", {"template_id": t["id"], "recordings": ids}, f"Run {label} on {len(ids)} recording(s)", est)
 
-    def t_propose_entity_change(self, action, entity_id, merge_ids=None, new_name=None, new_type=None):
-        needs = {"merge": ("merge_ids", merge_ids), "rename": ("new_name", new_name), "retype": ("new_type", new_type)}
+    def t_entity_setup(self, namespace):
+        names = {v: k for k, v in store.space_names(self.db).items()}
+        sid = names.get(namespace)
+        if sid not in self.readable:
+            raise ValueError(f"no namespace called {namespace} in scope")
+        setup = entity_setup.effective(self.db, sid)
+        types = entity_setup.types_of(self.db, sid)
+        label = {t["type"]: t["label"] for t in types}
+        out = {
+            "mode": {"self": "self-organising", "fixed": "fixed list", "hybrid": "fixed list, then self-organising"}.get(
+                setup["mode"], setup["mode"]
+            ),
+            "types_kept": [label.get(t, t) for t in setup["types"]] or "all",
+            "about": setup.get("description"),
+            "matching": setup["matching"],
+            "own_types": [{"type": t["type"], "label": t["label"], "description": t.get("description")} for t in types if not t["builtin"]],
+            "defined_entities": [
+                {"id": e["id"], "name": e["name"], "type": label.get(e["type"], e["type"])} for e in entity_map.defined(self.db, sid)
+            ][:100],
+            "collections_with_their_own_setup": len([c for c in entity_setup.scopes(self.db, sid) if c is not None]),
+        }
+        return out, f"Read how {namespace} organises its entities"
+
+    def t_propose_entity_change(
+        self,
+        action,
+        entity_id=None,
+        merge_ids=None,
+        new_name=None,
+        new_type=None,
+        description=None,
+        also_said_as=None,
+        namespace=None,
+    ):
+        needs = {
+            "merge": ("merge_ids", merge_ids),
+            "rename": ("new_name", new_name),
+            "retype": ("new_type", new_type),
+            "describe": ("description or also_said_as", description is not None or also_said_as is not None),
+            "hide": ("entity_id", entity_id),
+            "define": ("namespace and new_name", namespace and new_name),
+        }
         if action not in needs:
-            raise ValueError("action is one of merge, rename, retype")
+            raise ValueError("action is one of " + ", ".join(needs))
         if not needs[action][1]:
             raise ValueError(f"{action} needs {needs[action][0]}")
+        args = {
+            "action": action,
+            "merge_ids": merge_ids,
+            "new_name": new_name,
+            "new_type": new_type,
+            "description": description,
+            "also_said_as": also_said_as,
+        }
+        if action == "define":
+            sid = {v: k for k, v in store.space_names(self.db).items()}.get(namespace)
+            if sid not in self.readable:
+                raise ValueError(f"no namespace called {namespace} in scope")
+            typ = new_type or "TERM"
+            if typ not in entity_setup.type_codes(self.db, sid):
+                raise ValueError(f"unknown type {typ}")
+            return self._approval(
+                "propose_entity_change", {**args, "namespace": namespace, "new_type": typ}, f"Add {new_name} to the entities of {namespace}"
+            )
+        if not entity_id:
+            raise ValueError(f"{action} needs entity_id")
         e = entities.detail(self.db, int(entity_id), self.readable)
         what = {
             "merge": f"Merge {len(merge_ids or [])} entit{'y' if len(merge_ids or []) == 1 else 'ies'} into {e['name']}",
             "rename": f"Rename {e['name']} to {new_name}",
             "retype": f"Change {e['name']} to {new_type}",
+            "describe": f"Describe {e['name']}"
+            + (f" as “{description}”" if description else "")
+            + (f" (also said as {', '.join(also_said_as)})" if also_said_as else ""),
+            "hide": f"Hide {e['name']}",
         }[action]
-        return self._approval(
-            "propose_entity_change",
-            {"action": action, "entity_id": e["id"], "merge_ids": merge_ids, "new_name": new_name, "new_type": new_type},
-            what,
-        )
+        return self._approval("propose_entity_change", {**args, "entity_id": e["id"]}, what)
 
     def cited(self, text):
         import re
@@ -358,8 +635,9 @@ class Toolbox:
         return [{**r, "used": r["n"] in used} for r in self.refs if r["n"] in used]
 
 
-def approve(db, cfg, aid, user, editable, decision="approve"):
-    """Carry out an approved action: a batch run (or a sample of it) or an entity change."""
+def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None):
+    """Carry out an approved action: a batch run (or a sample of it), an entity change, or a change to the server
+    (ops_tools.py: settings, a namespace, importing attached files)."""
     a = db.one("SELECT record::id(id) AS id, chat, account, tool, args, status FROM $r", r=R("approval", int(aid)))
     if not a or a["status"] != "pending":
         raise ValueError("nothing to approve")
@@ -369,7 +647,14 @@ def approve(db, cfg, aid, user, editable, decision="approve"):
         )
         return {"status": "declined"}
     args = a["args"]
-    if a["tool"] == "run_template":
+    if a["tool"] == "extension":
+        box = Toolbox(db, cfg, user, readable if readable is not None else editable, editable, None, a["chat"], base, admin)
+        result = run_extension(db, cfg, args, user, admin, box.readable, box)
+    elif a["tool"] in ("save_extension", "switch_extension"):
+        result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
+    elif a["tool"] in ("change_settings", "create_namespace", "import_files"):
+        result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
+    elif a["tool"] == "run_template":
         steps, label = batches.steps_for(db, {"template": args["template_id"]})
         ids = [i for i in args["recordings"] if (db.one("SELECT space FROM $r", r=R("recording", i)) or {}).get("space") in editable]
         bid = batches.create(
@@ -384,11 +669,28 @@ def approve(db, cfg, aid, user, editable, decision="approve"):
             confirm=f"RUN {len(ids)}",
         )
         result = {"batch": bid}
+    elif args["action"] == "define":
+        sid = {v: k for k, v in store.space_names(db).items()}.get(args["namespace"])
+        if sid not in editable:
+            raise PermissionError("you can't change entities in that namespace")
+        eid = entity_map.define(
+            db, sid, args["new_name"], args["new_type"], args.get("description"), args.get("also_said_as") or [], user=user["email"]
+        )
+        result = {"entity": eid}
     else:
         eid = int(args["entity_id"])
         if (db.one("SELECT space FROM $r", r=R("entity", eid)) or {}).get("space") not in editable:
             raise PermissionError("you can't change entities in that namespace")
-        if args["action"] == "merge":
+        if args["action"] == "describe":
+            if args.get("also_said_as") is not None:
+                entity_map.set_aliases(db, eid, args["also_said_as"], user=user["email"])
+            if args.get("description") is not None:
+                entities.describe(db, eid, args["description"])
+            result = {"entity": eid}
+        elif args["action"] == "hide":
+            entities.hide(db, eid, True, "the assistant, approved")
+            result = {"entity": eid}
+        elif args["action"] == "merge":
             result = {"merge": entities.merge(db, eid, args.get("merge_ids") or [], user["email"])}
         elif args["action"] == "rename":
             result = entities.rename(db, eid, args.get("new_name"))
@@ -403,3 +705,31 @@ def approve(db, cfg, aid, user, editable, decision="approve"):
         res=result,
     )
     return {"status": "done", **result}
+
+
+def run_extension(db, cfg, args, user, admin, readable, toolbox=None):
+    """An approved extension tool: the version that was proposed, if it's still on and still the person's to use."""
+    g = extensions.get(db, int(args["extension"]), args.get("version"))
+    me = extensions.who(user["id"], user.get("email"), admin, {s: "viewer" for s in readable})
+    if g.get("deleted_at") or not g.get("enabled") or not extensions.can_use(g, me):
+        raise ValueError("that extension was switched off or removed")
+    items = g["spec"]["items"] if g["kind"] == "plugin" else [g]
+    t = next((it for it in items if it.get("kind") == "tool" and it["name"] == args["tool"]), None)
+    if not t:
+        raise ValueError(f"the extension has no tool {args['tool']} any more")
+    out = extensions.run_tool(db, cfg, t["spec"], extensions.tool_args(t["spec"], args.get("args") or {}), toolbox=toolbox)
+    return {"output": out}
+
+
+def author_extension(db, tool, args, user, admin, readable, editable):
+    """An approved change to the extensions, made in chat: a manifest saved (new, or a new version), or one switched."""
+    me = extensions.who(user["id"], user.get("email"), admin, {s: "editor" if s in editable else "viewer" for s in readable})
+    if tool == "switch_extension":
+        extensions.update(db, me, int(args["extension"]), enabled=bool(args["enabled"]))
+        return {"extension": int(args["extension"]), "enabled": bool(args["enabled"])}
+    manifest = extensions.parse_manifest(args["manifest"])
+    same = next((g for g in extensions.visible(db, me) if g["name"] == manifest.get("name")), None)
+    if same:
+        n = extensions.save_version(db, me, same["id"], manifest, args.get("notes"), origin="chat")
+        return {"extension": same["id"], "version": n}
+    return {"extension": extensions.create(db, me, manifest, origin="chat"), "version": 1}

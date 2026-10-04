@@ -1,23 +1,34 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, LibraryBig, Plus } from "lucide-react";
+import { ChevronLeft, Clock, LibraryBig, Plus, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Chats } from "@/app/openapi-client";
-import type { AnswerCheck, Approval, ChatMessage, Estimate, Passage } from "@/app/openapi-client/types.gen";
+import { Chats, Namespaces } from "@/app/openapi-client";
+import type { AnswerCheck, Approval, Chat, ChatMessage, Estimate, Passage } from "@/app/openapi-client/types.gen";
 import { Answer } from "@/components/chat/answer";
+import { AttachmentChips, useAttachments } from "@/components/chat/attachments";
 import { shortTitle } from "@/components/chat/cite";
 import { Composer, ScopeBar } from "@/components/chat/composer";
 import { ConversationList } from "@/components/chat/conversations";
 import { useApprovals, useChat, useChats, useLlmStatus, useStopAnswer } from "@/components/chat/data";
 import { EmptyChat } from "@/components/chat/empty";
+import { NamespaceOffer, spokenPick } from "@/components/chat/namespace-offer";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
-import { applyEvent, newTurn, savedSteps, type ToolStep, type TurnState } from "@/components/chat/stream";
+import {
+  applyEvent,
+  newTurn,
+  savedSteps,
+  type Suggested,
+  type ToolStep,
+  type TurnState,
+} from "@/components/chat/stream";
+import { onlyFiles, UserBubble } from "@/components/chat/user-bubble";
+import { SharedFrom } from "@/components/page-chat/page-chat";
 import { useRecordingIndex, useSpeakerDirectory } from "@/components/search/data";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
@@ -27,8 +38,13 @@ import { data, useApiClient } from "@/lib/api/browser";
 import { SSEError, streamSSE } from "@/lib/api/sse";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
+import { useVoice, VoiceError } from "@/lib/voice";
 
-type Live = { chatId: number; turn: TurnState };
+type Sent = { id: string; filename: string; size: number };
+type Live = { chatId: number; turn: TurnState; files: Sent[] };
+type Queued = { key: number; text: string; files: Sent[] };
+
+/** What a message with only files says (the server says the same when it gets none). */
 type Extra = { steps: ToolStep[]; notice: string | null; error: string | null };
 type Pair = { key: string; q: ChatMessage | null; a: ChatMessage | null };
 
@@ -45,14 +61,6 @@ function pairs(msgs: ChatMessage[]): Pair[] {
     } else out.push({ key: `m${m.id}`, q: null, a: m });
   }
   return out;
-}
-
-function UserBubble({ text }: { text: string }) {
-  return (
-    <div className="max-w-[520px] self-end whitespace-pre-wrap rounded-[16px_16px_4px_16px] bg-surface-neutral px-4 py-3 text-[15px] leading-normal text-fg">
-      {text}
-    </div>
-  );
 }
 
 function streamError(e: unknown): string {
@@ -92,7 +100,14 @@ export function ChatApp() {
   const [draftModel, setDraftModel] = useState<string | null>(null); // for the conversation that isn't started yet
   const [draft, setDraft] = useState(() => search.get("q") ?? "");
   const [composing, setComposing] = useState(() =>
-    Boolean(search.get("q") || search.get("ns") || search.get("recording") || search.get("speaker")),
+    Boolean(
+      search.get("q") ||
+      search.get("ns") ||
+      search.get("recording") ||
+      search.get("speaker") ||
+      search.get("global") ||
+      search.get("voice"),
+    ),
   );
   const [live, setLive] = useState<Live | null>(null);
   const [extras, setExtras] = useState<Record<number, Extra>>({});
@@ -105,6 +120,8 @@ export function ChatApp() {
   const [scopeOpenTick, setScopeOpenTick] = useState(0);
   const [announce, setAnnounce] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const files = useAttachments();
+  const [queue, setQueue] = useState<Queued[]>([]);
   const threadRef = useRef<HTMLDivElement>(null);
 
   // A new conversation starts from the top-bar namespace unless a link says otherwise.
@@ -122,7 +139,6 @@ export function ChatApp() {
   }, [collectionId]);
 
   const scope = activeId != null ? fromApiScope(chat.data?.scope) : draftScope;
-  const streaming = live?.turn.status === "streaming";
 
   const setScope = useCallback(
     async (s: Scope) => {
@@ -148,22 +164,93 @@ export function ChatApp() {
     [activeId, client, qc, toast],
   );
 
+  // A conversation over everything was narrowed to the namespace its question is about: say so, with a way back.
+  const narrowed = useCallback(
+    (cid: number, namespaces: string[]) => {
+      void qc.invalidateQueries({ queryKey: ["chat", cid] });
+      toast({
+        title: `Looking in ${namespaces.join(", ")}`,
+        body: "Picked from your question.",
+        action: {
+          label: "Use everything",
+          onClick: async () => {
+            try {
+              await data(Chats.updateChat({ client, path: { cid }, body: { scope: {} } }));
+              void qc.invalidateQueries({ queryKey: ["chat", cid] });
+              void qc.invalidateQueries({ queryKey: ["chats"] });
+            } catch (e) {
+              toast({
+                title: "Couldn’t change the scope",
+                body: e instanceof Error ? e.message : undefined,
+                tone: "red",
+              });
+            }
+          },
+        },
+      });
+    },
+    [client, qc, toast],
+  );
+
+  // Namespaces offered when it isn't clear which one a conversation over everything is about; nothing changes until
+  // one is tapped (or said, in voice mode).
+  const [offer, setOffer] = useState<{ cid: number; items: Suggested[] } | null>(null);
+  const offerRef = useRef(offer);
+  offerRef.current = offer;
+  const [placing, setPlacing] = useState(false);
+  const pickNamespace = useCallback(
+    async (cid: number, it: Suggested) => {
+      setPlacing(true);
+      try {
+        if (it.new) {
+          await data(Namespaces.createNamespace({ client, body: { name: it.name } }));
+          void qc.invalidateQueries({ queryKey: ["namespaces"] });
+          void qc.invalidateQueries({ queryKey: ["me"] });
+        }
+        await data(Chats.updateChat({ client, path: { cid }, body: { scope: { namespaces: [it.name] } } }));
+        setOffer(null);
+        void qc.invalidateQueries({ queryKey: ["chat", cid] });
+        void qc.invalidateQueries({ queryKey: ["chats"] });
+        toast({ title: it.new ? `Created ${it.name} and using it here` : `Using ${it.name} here`, tone: "green" });
+        return true;
+      } catch (e) {
+        toast({
+          title: it.new ? `Couldn’t create ${it.name}` : "Couldn’t change the scope",
+          body: e instanceof Error ? e.message : undefined,
+          tone: "red",
+        });
+        return false;
+      } finally {
+        setPlacing(false);
+      }
+    },
+    [client, qc, toast],
+  );
+
   const run = useCallback(
-    async (cid: number, question: string, model?: string) => {
+    async (cid: number, question: string, model?: string, attached: Sent[] = [], edit?: number): Promise<TurnState> => {
+      if (edit != null)
+        qc.setQueryData<Chat>(["chat", cid], (c) =>
+          c ? { ...c, messages: (c.messages ?? []).filter((m) => m.id < edit) } : c,
+        );
       const ac = new AbortController();
       abortRef.current = ac;
       let turn = newTurn(question);
-      setLive({ chatId: cid, turn });
+      const show = (t: TurnState) => setLive({ chatId: cid, turn: t, files: attached });
+      show(turn);
       setFocusKey("live");
       try {
         for await (const msg of streamSSE(`/api/v1/chats/${cid}/messages`, {
           method: "POST",
-          body: { content: question, model },
+          body: { content: question, model, attachments: attached.map((f) => f.id), edit },
           accessToken: session?.accessToken,
           signal: ac.signal,
         })) {
+          const was = turn.scoped;
           turn = applyEvent(turn, msg);
-          setLive({ chatId: cid, turn });
+          show(turn);
+          if (turn.scoped && !was) narrowed(cid, turn.scoped);
+          if (msg.event === "suggested" && turn.suggested?.length) setOffer({ cid, items: turn.suggested });
         }
         if (turn.status === "streaming")
           turn = {
@@ -174,7 +261,7 @@ export function ChatApp() {
       } catch (e) {
         turn = ac.signal.aborted ? { ...turn, status: "stopped" } : { ...turn, status: "error", error: streamError(e) };
       }
-      setLive({ chatId: cid, turn });
+      show(turn);
       const mid = turn.messageId;
       if (mid != null)
         setExtras((x) => ({
@@ -190,22 +277,27 @@ export function ChatApp() {
       if (mid == null) setPartials((p) => ({ ...p, [`${cid}:${question}`]: turn }));
       setLive(null);
       setFocusKey(mid != null ? `a${mid}` : null);
+      return turn;
     },
-    [qc, session?.accessToken],
+    [qc, session?.accessToken, narrowed],
   );
 
-  const send = useCallback(
-    async (text?: string, model?: string) => {
-      const question = (text ?? draft).trim();
-      if (!question || streaming) return;
-      setDraft("");
-      let cid = activeId;
+  // Sends now, starting the conversation if there isn't one yet.
+  const dispatch = useCallback(
+    async (
+      question: string,
+      model?: string,
+      attached: Sent[] = [],
+      kind: "chat" | "setup" = "chat",
+      edit?: number,
+    ): Promise<TurnState | null> => {
+      let cid = kind === "setup" ? null : activeId;
       if (cid == null) {
         try {
           const created = await data(
             Chats.createChat({
               client,
-              body: { scope: toApiScope(draftScope), model: draftModel ?? undefined },
+              body: kind === "setup" ? { kind } : { scope: toApiScope(draftScope), model: draftModel ?? undefined },
             }),
           );
           cid = created.id;
@@ -219,13 +311,119 @@ export function ChatApp() {
             body: e instanceof Error ? e.message : undefined,
             tone: "red",
           });
-          return;
+          return null;
         }
       }
-      void run(cid, question, model);
+      return run(cid, question, model, attached, edit);
     },
-    [activeId, client, draft, draftScope, draftModel, qc, router, run, streaming, toast],
+    [activeId, client, draftScope, draftModel, qc, router, run, toast],
   );
+
+  // What you send while an answer is being written waits its turn, so you never have to wait to type.
+  const send = useCallback(
+    (text?: string, model?: string) => {
+      const attached: Sent[] =
+        text == null ? files.take().map((x) => ({ id: x.upload!.id, filename: x.file.name, size: x.file.size })) : [];
+      const question = (text ?? draft).trim() || (attached.length ? onlyFiles(attached.length) : "");
+      if (!question) return;
+      if (text == null) setDraft("");
+      if (live) {
+        setQueue((q) => [...q, { key: Date.now() + q.length, text: question, files: attached }]);
+        return;
+      }
+      void dispatch(question, model, attached);
+    },
+    [dispatch, draft, files, live],
+  );
+  useEffect(() => {
+    if (live || !queue.length) return;
+    const [next, ...rest] = queue;
+    setQueue(rest);
+    void dispatch(next.text, undefined, next.files);
+  }, [live, queue, dispatch]);
+
+  // Editing a question asks it again (with the files it had): it and everything after it are replaced.
+  const editQuestion = useCallback(
+    (q: ChatMessage, text: string) => {
+      const attached: Sent[] = (q.attachments ?? []).map(({ id, filename, size }) => ({ id, filename, size }));
+      const question = text.trim() || (attached.length ? onlyFiles(attached.length) : "");
+      if (!question || live) return;
+      void dispatch(question, undefined, attached, "chat", q.id);
+    },
+    [dispatch, live],
+  );
+
+  // Voice mode: hear a question, send it, read the answer aloud, listen again, until the mic is tapped off or
+  // nothing is said twice in a row. /chat?voice=1 (the assistant home's mic) starts it at once.
+  const voice = useVoice();
+  const [voiceOn, setVoiceOn] = useState(() => search.get("voice") === "1");
+  const voiceRef = useRef(voiceOn);
+  const dispatchRef = useRef(dispatch);
+  dispatchRef.current = dispatch;
+  const looping = useRef(false);
+  const { listen, speak, stop: hush } = voice;
+  useEffect(() => {
+    voiceRef.current = voiceOn;
+    if (!voiceOn) {
+      hush();
+      return;
+    }
+    if (looping.current) return;
+    looping.current = true;
+    void (async () => {
+      let quiet = 0;
+      try {
+        while (voiceRef.current) {
+          let said: string;
+          try {
+            said = await listen();
+          } catch (e) {
+            if (voiceRef.current)
+              toast({
+                title: "Couldn’t listen",
+                body: e instanceof VoiceError ? e.message : undefined,
+                tone: "red",
+              });
+            break;
+          }
+          if (!voiceRef.current) break;
+          if (!said) {
+            if (++quiet >= 2) break;
+            continue;
+          }
+          quiet = 0;
+          // naming one of the offered namespaces picks it, rather than asking a question
+          const o = offerRef.current;
+          const named = o ? spokenPick(said, o.items) : null;
+          if (o && named) {
+            const ok = await pickNamespace(o.cid, named);
+            if (voiceRef.current) await speak(ok ? `Okay, using ${named.name}.` : `I couldn't use ${named.name}.`);
+            continue;
+          }
+          const turn = await dispatchRef.current(said);
+          if (!voiceRef.current || !turn) break;
+          if (turn.status === "done" && turn.text) await speak(turn.text);
+        }
+      } finally {
+        looping.current = false;
+        setVoiceOn(false);
+      }
+    })();
+  }, [voiceOn, listen, speak, hush, toast, pickNamespace]);
+  useEffect(
+    () => () => {
+      voiceRef.current = false;
+    },
+    [],
+  );
+
+  // /chat?setup=1 (from the setup wizard): a conversation in which the assistant sets the server up.
+  const setupAsked = useRef(false);
+  useEffect(() => {
+    if (!admin || setupAsked.current || search.get("setup") !== "1") return;
+    setupAsked.current = true;
+    void dispatch("Help me set up Lens.", undefined, [], "setup");
+  }, [admin, search, dispatch]);
 
   const stopAnswer = useStopAnswer();
   const [stopping, setStopping] = useState<number | null>(null); // the conversation whose answer is stopping
@@ -326,6 +524,8 @@ export function ChatApp() {
   };
   const noProvider = llm.known && !llm.configured;
   const showThread = activeId != null || liveHere != null;
+  // setting the server up doesn't look in the archive: no sources column to fill
+  const setupChat = activeId != null && chat.data?.kind === "setup";
   const title = chat.data?.title ?? (activeId == null ? "New conversation" : "Conversation");
   const addScope = (ns: string) =>
     setScope({
@@ -356,7 +556,12 @@ export function ChatApp() {
   );
 
   return (
-    <div className="grid h-[calc(100dvh-4rem)] grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_360px]">
+    <div
+      className={cn(
+        "grid h-[calc(100dvh-4rem)] grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)]",
+        !setupChat && "xl:grid-cols-[260px_minmax(0,1fr)_360px]",
+      )}
+    >
       <h1 className="sr-only">Chat</h1>
       <div aria-live="polite" className="sr-only">
         {announce}
@@ -428,7 +633,16 @@ export function ChatApp() {
               const ex = it.a ? extras[it.a.id] : undefined;
               return (
                 <div key={it.key} className="flex flex-col gap-5">
-                  {it.q && <UserBubble text={it.q.content} />}
+                  {it.q && (
+                    <div className="flex flex-col gap-1.5">
+                      <SharedFrom context={it.q.context} />
+                      <UserBubble
+                        text={it.q.content}
+                        files={it.q.attachments ?? []}
+                        onEdit={activeId != null && !live ? (t) => editQuestion(it.q!, t) : undefined}
+                      />
+                    </div>
+                  )}
                   {it.a ? (
                     <Answer
                       chatId={activeId}
@@ -486,7 +700,7 @@ export function ChatApp() {
             })}
             {liveHere && (
               <div className="flex flex-col gap-5">
-                <UserBubble text={liveHere.question} />
+                <UserBubble text={liveHere.question} files={live?.files ?? []} />
                 <Answer
                   chatId={activeId}
                   messageId={liveHere.messageId}
@@ -523,6 +737,14 @@ export function ChatApp() {
                 )}
               </Banner>
             )}
+            {offer && offer.cid === (activeId ?? live?.chatId) && (
+              <NamespaceOffer
+                items={offer.items}
+                busy={placing}
+                onPick={(it) => void pickNamespace(offer.cid, it)}
+                onDismiss={() => setOffer(null)}
+              />
+            )}
             <ScopeBarWithOpen
               scope={scope}
               onChange={setScope}
@@ -532,13 +754,46 @@ export function ChatApp() {
               onModel={(m) => void pickModel(m)}
               openTick={scopeOpenTick}
             />
+            {queue.length > 0 && (
+              <ul className="flex flex-col gap-1" aria-label="Waiting to send">
+                {queue.map((m) => (
+                  <li key={m.key} className="flex items-center gap-2 text-[12.5px] text-fg-secondary">
+                    <Clock className="size-3.5 shrink-0" aria-hidden />
+                    <span className="min-w-0 flex-1 truncate">
+                      Sends next: {m.text}
+                      {m.files.length ? ` (+${m.files.length} file${m.files.length === 1 ? "" : "s"})` : ""}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Don’t send this"
+                      onClick={() => setQueue((q) => q.filter((x) => x.key !== m.key))}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             <Composer
-              value={draft}
+              value={voice.listening && voice.heard ? voice.heard : draft}
               onChange={setDraft}
               onSend={() => send()}
-              busy={streaming}
+              onFiles={files.add}
+              files={<AttachmentChips items={files.items} onRemove={files.remove} onRetry={files.retry} />}
+              hasFiles={files.ready}
+              uploading={files.sending}
+              busy={Boolean(live)}
               autoFocus={composing}
-              placeholder={msgs.length || liveHere ? "Ask a follow-up…" : "Ask across your archive…"}
+              placeholder={
+                voice.listening
+                  ? "Listening…"
+                  : voice.speaking
+                    ? "Reading the answer aloud…"
+                    : msgs.length || liveHere
+                      ? "Ask a follow-up…"
+                      : "Ask across your archive…"
+              }
+              voice={voice.supported ? { on: voiceOn, onToggle: () => setVoiceOn((v) => !v) } : undefined}
             />
           </div>
         </div>
@@ -546,7 +801,7 @@ export function ChatApp() {
 
       <aside
         aria-label="Sources"
-        className="hidden min-h-0 overflow-y-auto border-l border-border px-[18px] py-4 xl:block"
+        className={cn("hidden min-h-0 overflow-y-auto border-l border-border px-[18px] py-4", !setupChat && "xl:block")}
       >
         <SourcesPanel
           passages={focusPassages}

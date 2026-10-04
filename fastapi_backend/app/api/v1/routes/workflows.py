@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.deps import Acl, AdminWriter, CurrentUser, Db, Writer, domain_errors
-from app.domain import auth, jobs, workflows
+from app.api.deps import Acl, AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors
+from app.api.v1.routes.custom_nodes import me
+from app.domain import auth, custom_nodes, flow, jobs, store, workflows
 from app.schemas.common import Created, Ok
 from app.schemas.pipelines import JobQueued
 from app.schemas.templates import VersionSaved
@@ -15,6 +16,8 @@ from app.schemas.workflows import (
     WorkflowCatalog,
     WorkflowCreate,
     WorkflowRunRequest,
+    WorkflowTry,
+    WorkflowTryRequest,
     WorkflowUpdate,
     WorkflowVersionCreate,
 )
@@ -22,30 +25,51 @@ from app.schemas.workflows import (
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
-def _ports(t):
-    if t in workflows.TERMINAL:
-        return []
-    return ["yes", "no"] if t == "condition" else ["out"]
+DYNAMIC = {"switch": "outputs", "set": "inputs", "group": "both", "custom": "both"}
+
+
+def _node_type(t):
+    kit = next(k for k in workflows.KITS.values() if t in k.all_types)
+    ins, outs, many = flow.ports({"type": t, "config": {}}, kit)
+    return NodeType(
+        type=t,
+        settings=sorted(workflows.CONFIG[t]),
+        scopes=[sc for sc, types in workflows.SCOPES.items() if t in types],
+        inputs=0 if not ins else -1 if many else len(ins),
+        outputs=outs,
+        input_ports=ins,
+        dynamic=DYNAMIC.get(t),
+        primitive=t in flow.PRIMITIVES,
+        keeps=t in workflows.TERMINAL,
+    )
 
 
 @router.get("")
 def list_workflows(user: CurrentUser, db: Db) -> WorkflowCatalog:
-    """Saved workflows, plus the nodes a workflow can be built from."""
+    """Saved workflows, plus the nodes a workflow can be built from: the primitives, each scope's own nodes, and the
+    custom nodes you can use."""
     return WorkflowCatalog(
-        node_types=[
-            NodeType(
-                type=t,
-                settings=sorted(workflows.CONFIG[t]),
-                scopes=[sc for sc, types in workflows.SCOPES.items() if t in types],
-                inputs=0 if t == "input" else -1 if t == "merge" else 1,
-                outputs=_ports(t),
-            )
-            for t in workflows.NODE_TYPES
-        ],
+        node_types=[_node_type(t) for t in workflows.NODE_TYPES],
         operators=list(workflows.OPS),
         entity_types=list(workflows.ENTITY_TYPES),
         workflows=workflows.list_workflows(db),
+        custom_nodes=custom_nodes.visible(db, me(user)),
     )
+
+
+@router.post("/test")
+def try_workflow(body: WorkflowTryRequest, user: AdminWriter, acl: Acl, db: Db, cfg: Cfg) -> WorkflowTry:
+    """Run a graph (saved or not) once without keeping anything: what each node passed on, for the canvas. Nodes
+    that would save something say what they would save; models are still asked."""
+    spaces = None
+    if body.scope == "recording":
+        if body.recording is None:
+            raise HTTPException(400, "choose a recording to try it on")
+        acl.recording(body.recording, "editor")
+    else:
+        spaces = [acl.namespace(n) for n in body.namespaces] if body.namespaces else sorted(store.space_names(db))
+    with domain_errors():
+        return WorkflowTry(**workflows.try_graph(db, cfg, body.graph.model_dump(), body.scope, body.recording, spaces, user.email))
 
 
 @router.post("")

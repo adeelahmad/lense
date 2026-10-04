@@ -13,6 +13,7 @@ uploads.expire_hours are removed with their partial files.
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import errno
 import fcntl
@@ -22,18 +23,18 @@ import secrets
 import shutil
 import unicodedata
 
-from . import convert, deletion, documents, ingest, jobs, render, store
+from . import convert, deletion, documents, ingest, jobs, keyring, render, store
 
 R = store.R
 MB = 1024 * 1024
 ROOM = 512 * MB  # what an upload must leave free on the server's disk
 FIELDS = (
-    "record::id(id) AS id, account, email, namespace, collection, filename, title, size, modified, attach, pipeline, state, "
+    "record::id(id) AS id, account, email, namespace, collection, filename, title, size, modified, attach, pipeline, hold, state, "
     "recording, job, duplicate, created_at, touched_at"
 )
 # What runs once media is attached to a transcript: its waveform (the transcript is kept), speakers by voice unless the
 # transcript named them, shots, text on screen and faces for video, then the analysis and report pages again.
-ATTACH_STEPS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "report"]
+ATTACH_STEPS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "report"]
 TRANSCRIPT_EXT = frozenset({".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf"})  # documents imports read as text too
 
 
@@ -100,6 +101,7 @@ def _ago(hours):
 def view(cfg, row):
     """An upload as the API shows it. `offset` is how many bytes have arrived: the next chunk starts there."""
     done = row.get("state") == "done"
+    held = row.get("state") == "held"
     part = _part(cfg, row["id"])
     touched = dt.datetime.fromisoformat(row.get("touched_at") or row["created_at"])
     return {
@@ -109,7 +111,7 @@ def view(cfg, row):
         "title": row.get("title"),
         "size": row["size"],
         "offset": row["size"] if done else (part.stat().st_size if part.exists() else 0),
-        "state": "done" if done else "receiving",
+        "state": "done" if done else "held" if held else "receiving",
         "attach": row.get("attach"),
         "pipeline": row.get("pipeline"),
         "recording": row.get("recording"),
@@ -140,13 +142,14 @@ def _home(db, sid, collection):
         return store.default_collection(db, sid)
 
 
-def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=None, pipeline=None, collection=None):
+def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=None, pipeline=None, collection=None, hold=False):
     """A new upload into namespace `ns`, by `by` ({id, email}). Its name, type and size are checked, and the disk
     must have room for it; nothing is in the archive until the last byte arrives. `modified` is the file's own time
     (milliseconds since 1970), which dates the recording when its name doesn't. `attach` is a transcript-only
     recording in `ns` the file becomes the audio of, instead of a recording of its own; `pipeline` runs instead of the
     namespace's once a new recording is made; `collection` (one of the namespace's) is where it goes, else the
-    namespace's default."""
+    namespace's default. `hold` keeps it out of the archive once it's all here (state "held", no namespace yet), for
+    the assistant to place with `place` (a file dropped into a conversation)."""
     sweep(db, cfg)
     u = cfg["uploads"]
     name = clean_name(filename)
@@ -186,6 +189,7 @@ def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=Non
                 "attach": attach,
                 "pipeline": pipeline,
                 "collection": collection,
+                "hold": hold or None,
                 "state": "receiving",
                 "created_at": t,
                 "touched_at": t,
@@ -251,7 +255,27 @@ def received(db, cfg, uid, admin=False):
     if not part.exists():
         raise KeyError(uid)  # cancelled, or expired, meanwhile
     db.q("UPDATE $r SET touched_at = $t", r=R("upload", uid), t=store.now())
-    return finish(db, cfg, row, admin) if part.stat().st_size >= row["size"] else get(db, uid)
+    if part.stat().st_size < row["size"]:
+        return get(db, uid)
+    if row.get("hold"):  # all here, and waits to be placed
+        db.q("UPDATE $r SET state = 'held'", r=R("upload", uid))
+        return get(db, uid)
+    return finish(db, cfg, row, admin)
+
+
+def place(db, cfg, uid, ns, account, admin=False, collection=None):
+    """Put a held upload (all of it here) into namespace `ns` (and `collection`, one of its own): it becomes a
+    recording or a resource as if it had been uploaded there. Only its uploader may; `admin` may name a new
+    namespace. The caller checks they may add to `ns`."""
+    row = get(db, uid)
+    if row.get("account") != account:
+        raise KeyError(uid)
+    if row.get("state") != "held":
+        raise ValueError(f"{row['filename']} isn't waiting to be placed")
+    if collection is not None:
+        store.home(db, store.ns_id(db, ns, create=False), collection)
+    db.q("UPDATE $r SET namespace = $n, collection = $c, hold = NONE", r=R("upload", uid), n=ns, c=collection)
+    return finish(db, cfg, {**row, "namespace": ns, "collection": collection}, admin)
 
 
 def finish(db, cfg, row, admin=False):
@@ -280,6 +304,7 @@ def finish(db, cfg, row, admin=False):
             os.utime(dest, (dest.stat().st_atime, modified / 1000))
         st = dest.stat()
         fp = ingest.fingerprint(dest)
+        kind = documents.kind_of(row["filename"])
         deletion.forget(db, sid, fp)  # uploaded on purpose: a recording deleted before comes back
         dup = (
             None
@@ -290,17 +315,19 @@ def finish(db, cfg, row, admin=False):
                 f=fp,
             )
         )
-        kind = documents.kind_of(row["filename"])
         copy = bool(dup and (has_file(db, cfg, dup) if kind else has_media(db, cfg, dup)))  # it's here already, with its file
+        probed = ingest.probe(dest) if not copy and (target or not kind) else None  # read before the file is encrypted
+        if not copy:
+            keyring.protect(db, cfg, sid, dest)
         job = None
         if target:
-            rid, job = target, _attach(db, cfg, target, sid, dest, st, fp, by)
+            rid, job = target, _attach(db, cfg, target, sid, dest, st, fp, by, probed)
         elif copy:
             rid = dup["id"]
         elif kind:
             rid, job = _document(db, dest, st, fp, sid, row, kind, dup, by)
         else:
-            dur, ch = ingest.probe(dest)
+            dur, ch = probed
             media = store.clean(
                 {"path": str(dest), "source": "audio", "size": st.st_size, "mtime": st.st_mtime, "duration_ms": dur, "channels": ch}
             )
@@ -333,6 +360,8 @@ def finish(db, cfg, row, admin=False):
             d=store.clean({"state": "done", "recording": rid, "job": job, "duplicate": bool(dup), "finished_at": store.now()}),
         )
     except BaseException:
+        with contextlib.suppress(Exception):
+            keyring.decrypt_file(db, cfg, dest)  # back as it arrived, so finishing can be tried again
         os.replace(dest, part)
         raise
     if copy:
@@ -367,10 +396,10 @@ def _document(db, dest, st, fp, sid, row, kind, dup, by):
     return rid, jobs.enqueue(db, rid, None, by=by, pipeline=row.get("pipeline"))
 
 
-def _attach(db, cfg, rid, sid, dest, st, fp, by):
+def _attach(db, cfg, rid, sid, dest, st, fp, by, probed):
     """The file becomes the media of a transcript-only recording; it takes the file's fingerprint (so scans and uploads
     know the file) unless another recording in the namespace has it."""
-    dur, ch = ingest.probe(dest)
+    dur, ch = probed
     d = store.clean({"path": str(dest), "source": "audio", "size": st.st_size, "mtime": st.st_mtime, "duration_ms": dur, "channels": ch})
     if not db.values("SELECT VALUE id FROM recording WHERE fp_key = $k", k=f"{sid}:{fp}"):
         d.update(fingerprint=fp, fp_key=f"{sid}:{fp}")

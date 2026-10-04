@@ -58,6 +58,14 @@ class SetupLlm(RequestModel):
     api_key: str | None = Field(default=None, max_length=2000)
 
 
+class LocalModelServer(ResponseModel):
+    kind: str
+    base_url: str
+    # chat models first
+    models: list[str]
+    suggested: str
+
+
 class SetupStorage(RequestModel):
     max_upload_mb: int | None = None
     # a folder inside sources.local_roots to watch into `namespace`

@@ -26,10 +26,14 @@ def test_import_file_and_stdin_then_run(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr("sys.stdin", io.StringIO("cli password 123\n"))
     run("users", "add", "cli@x.io", "--admin", "--password-stdin")
     run("users", "list")
+    run("users", "add", "ed@x.io")  # no password: a sign-in link for adding a passkey
+    run("users", "link", "cli@x.io")
     run("worker", "--once")
 
     text = capsys.readouterr().out
     assert "cli@x.io" in text
+    assert "sign-in link (works once, for 3 days): http://localhost:3000/signin-link#" in text
+    assert "sign-in link for cli@x.io (works once): http://localhost:3000/signin-link#" in text
     assert "job(s)" in text
     assert "match(es)" in text
     assert "Zed" in text

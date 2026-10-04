@@ -13,6 +13,7 @@ import { isUnreachable } from "@/components/errors/error-states";
 import { NotificationsSection } from "@/components/notifications/notifications-section";
 import { runtime } from "@/components/iiif/iiif-model";
 import { ChoiceCards } from "@/components/settings/controls";
+import { VaultSection } from "@/components/vaults/vault-section";
 import { RoleChip } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ import { Table, Td, Th, THead, Tr } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
-import { count } from "@/lib/format";
+import { count, nsSlug } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
@@ -161,7 +162,8 @@ function CreateNamespace({ onClose }: { onClose: () => void }) {
             invalid={f.invalid}
             mono
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => setName(nsSlug(e.target.value))}
+            placeholder="customer-calls"
             autoFocus
           />
         )}
@@ -285,6 +287,9 @@ export function NamespaceDetail({ ns }: { ns: string }) {
     .sort((a, b) => (a.name || a.email || "").localeCompare(b.name || b.email || ""));
   const currentPipeline = (pipelines.data?.pipelines ?? []).find((p) => p.namespaces?.includes(ns));
   const validEmail = /^\S+@\S+\.\S+$/.test(email.trim());
+  // admins see every account: the people not here yet are offered as you type
+  const here = new Set(rows.map((m) => m.email));
+  const addable = (people.data ?? []).filter((p) => !p.disabled && !p.admin && p.email && !here.has(p.email));
 
   return (
     <AdminFrame
@@ -319,16 +324,28 @@ export function NamespaceDetail({ ns }: { ns: string }) {
               >
                 <Field label="Add by email" error={addError}>
                   {(f) => (
-                    <Input
-                      id={f.id}
-                      aria-describedby={f.describedBy}
-                      invalid={f.invalid}
-                      type="email"
-                      value={email}
-                      onChange={(e) => (setEmail(e.target.value), setAddError(null))}
-                    />
+                    <>
+                      <Input
+                        id={f.id}
+                        aria-describedby={f.describedBy}
+                        invalid={f.invalid}
+                        type="email"
+                        list={addable.length ? `${f.id}-people` : undefined}
+                        autoComplete="off"
+                        value={email}
+                        onChange={(e) => (setEmail(e.target.value), setAddError(null))}
+                      />
+                      {addable.length > 0 && (
+                        <datalist id={`${f.id}-people`}>
+                          {addable.map((p) => (
+                            <option key={p.id} value={p.email} label={p.name || undefined} />
+                          ))}
+                        </datalist>
+                      )}
+                    </>
                   )}
                 </Field>
+
                 <Field label="Role">
                   {(f) => (
                     <Select
@@ -450,6 +467,7 @@ export function NamespaceDetail({ ns }: { ns: string }) {
           </section>
           <IpGroupsSection ns={ns} isOwner={isOwner} admin={admin} />
           <NotificationsSection ns={ns} isOwner={isOwner} admin={admin} />
+          {known && <VaultSection ns={ns} isOwner={isOwner} />}
         </div>
 
         <section className="flex flex-col gap-3.5 rounded-md border border-border bg-background px-4 py-5 sm:px-6">

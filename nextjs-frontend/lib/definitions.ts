@@ -12,14 +12,6 @@ export const loginSchema = z.object({
   password: z.string().min(1, { message: "Enter your password." }),
 });
 
-/** First-run setup (Access AC1): the one-time code from the server log and the first admin's account. */
-export const setupSchema = z.object({
-  code: z.string().trim().min(1, { message: "Enter the setup code from the server log." }),
-  name: z.string().trim().max(80).optional(),
-  email,
-  password: newPassword,
-});
-
 /**
  * The password rule as you type: null while it's fine (or still empty), otherwise
  * "9 of 10 characters — add at least 1 more".

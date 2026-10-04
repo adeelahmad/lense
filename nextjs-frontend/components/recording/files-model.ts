@@ -81,6 +81,14 @@ export function guessRole(name: string): FileRole {
   return "attachment";
 }
 
+/** The language tag a file's name carries before its extension ("talk.pt-BR.vtt" → "pt-BR", "notes.en.srt" →
+ * "en"), or "" when it has none. */
+export function guessLanguage(name: string): string {
+  const m = /\.([a-z]{2})(?:[-_]([A-Za-z]{2}|\d{3}))?\.[A-Za-z0-9]+$/.exec(name);
+  if (!m) return "";
+  return m[2] ? `${m[1]}-${m[2].length === 2 ? m[2].toUpperCase() : m[2]}` : m[1];
+}
+
 /** Why a file can't have this role, or null. */
 export function typeProblem(role: FileRole, name: string): string | null {
   const info = ROLES.find((r) => r.value === role);
