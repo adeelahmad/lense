@@ -467,6 +467,9 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
             for m in ments:
                 db.q("RELATE $a->mentions->$b CONTENT $d", a=m["in"], b=m["out"], d={k: v for k, v in m.items() if k not in ("in", "out")})
     db.q("UPDATE $r SET stats = $st, status = 'analyzed', analyzed_at = $t", r=R("recording", rid), st=talk_stats(segs), t=store.now())
+    from . import topics  # imported here: topics builds on this module
+
+    topics.suggest(db, nid, [rid])  # the vocabulary's topics its words name, for someone to accept
 
 
 def analyze_pending(db, cfg, ns=None, limit=0, force=False, log=print):
@@ -701,6 +704,9 @@ def summarize_recording(db, cfg, rid):
         for k in ("key_points", "action_items"):
             out[k] = [store.clean({**x, "page": page_at.get(x.get("t0"))}) for x in out[k]]
     db.q("UPDATE $r SET summary = $s, summarized_at = $t", r=R("recording", rid), s=out, t=store.now())
+    from . import topics  # imported here: topics builds on this module
+
+    topics.suggest(db, rec["space"], [rid])  # the summary's topics that the vocabulary has
     return out
 
 

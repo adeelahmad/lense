@@ -14,7 +14,7 @@ import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import HTTPException, Request
 
@@ -978,7 +978,14 @@ def graph_query(ctx: Context, query: str, namespace: str | None, limit: int) -> 
     Arg("namespace", "string", "one namespace (else every namespace that shares its graph)"),
     Arg("limit", "integer", "nodes at most", default=200, minimum=1, maximum=2000),
 )
-def graph_related(ctx: Context, node: str, relation: str, depth: int, namespace: str | None, limit: int) -> dict[str, Any]:
+def graph_related(
+    ctx: Context,
+    node: str,
+    relation: Literal["children", "parents", "ancestors", "descendants", "neighbours"],
+    depth: int,
+    namespace: str | None,
+    limit: int,
+) -> dict[str, Any]:
     return graph_routes.graph_related(
         ctx.request,
         ctx.user,

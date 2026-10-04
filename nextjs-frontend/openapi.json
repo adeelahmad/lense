@@ -11716,6 +11716,116 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/topics/candidates": {
+      "get": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Topic Candidates",
+        "description": "What the namespace's summaries say recordings are about that no topic covers yet, the most recordings first.\nAdding one as a topic suggests it for those recordings; skipping one stops it being offered.",
+        "operationId": "topic_candidates",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TopicCandidate"
+                  },
+                  "title": "Response Topics-Topic Candidates"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/topics/candidates/skip": {
+      "post": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Skip Topic Candidate",
+        "description": "Stop offering a label as a new topic.",
+        "operationId": "skip_topic_candidate",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopicSkip"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/topics/merge": {
       "post": {
         "tags": [
@@ -45690,7 +45800,8 @@
                 "type": "string",
                 "enum": [
                   "accepted",
-                  "suggested"
+                  "suggested",
+                  "dismissed"
                 ]
               },
               {
@@ -45706,6 +45817,27 @@
           "recording"
         ],
         "title": "TopicAbout"
+      },
+      "TopicCandidate": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "what summaries say recordings are about, which no topic covers yet"
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "description": "how many recordings' summaries say it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "label",
+          "recordings"
+        ],
+        "title": "TopicCandidate"
       },
       "TopicCreate": {
         "properties": {
@@ -46056,6 +46188,22 @@
           "label"
         ],
         "title": "TopicRef"
+      },
+      "TopicSkip": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "TopicSkip"
       },
       "TopicUpdate": {
         "properties": {

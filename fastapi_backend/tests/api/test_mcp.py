@@ -352,7 +352,9 @@ def test_graph_tools(client, db, env):
     assert q["columns"] == ["s.name", "e.name"] and ["Alice", "Dyno Therapeutics"] in q["rows"]
     assert "read-only" in tool_error(client, h, "graph_query", query="MATCH (n) DELETE n")
     assert "query error" in tool_error(client, h, "graph_query", query="MATCH (n RETURN n")
-    dyno = q["rows"][0] and tool(client, h, "graph_query", query="MATCH (e:Entity {name: 'Dyno Therapeutics'}) RETURN e.ids")["rows"][0][0][0]
+    dyno = (
+        q["rows"][0] and tool(client, h, "graph_query", query="MATCH (e:Entity {name: 'Dyno Therapeutics'}) RETURN e.ids")["rows"][0][0][0]
+    )
     up = tool(client, h, "graph_related", node=f"e{dyno}", relation="ancestors", depth=4, namespace="pods")
     assert {"Recording", "Namespace"} <= {n["labels"][0] for n in up["nodes"]}
     alice = tool(client, h, "graph_query", query="MATCH (s:Speaker {name: 'Alice'}) RETURN id(s)", namespace="pods")["rows"][0][0]

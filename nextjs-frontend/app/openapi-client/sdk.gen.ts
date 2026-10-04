@@ -1072,6 +1072,9 @@ import type {
   SigninLinkUseData,
   SigninLinkUseErrors,
   SigninLinkUseResponses,
+  SkipTopicCandidateData,
+  SkipTopicCandidateErrors,
+  SkipTopicCandidateResponses,
   SpeakTextData,
   SpeakTextErrors,
   SpeakTextResponses,
@@ -1128,6 +1131,9 @@ import type {
   TokenLimitsData,
   TokenLimitsResponses,
   TokenResponses,
+  TopicCandidatesData,
+  TopicCandidatesErrors,
+  TopicCandidatesResponses,
   TopResourcesData,
   TopResourcesErrors,
   TopResourcesResponses,
@@ -5225,6 +5231,39 @@ export class Topics {
   ): RequestResult<CreateTopicResponses, CreateTopicErrors, ThrowOnError> {
     return (options.client ?? client).post<CreateTopicResponses, CreateTopicErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/topics",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Topic Candidates
+   *
+   * What the namespace's summaries say recordings are about that no topic covers yet, the most recordings first.
+   * Adding one as a topic suggests it for those recordings; skipping one stops it being offered.
+   */
+  public static topicCandidates<ThrowOnError extends boolean = false>(
+    options: Options<TopicCandidatesData, ThrowOnError>,
+  ): RequestResult<TopicCandidatesResponses, TopicCandidatesErrors, ThrowOnError> {
+    return (options.client ?? client).get<TopicCandidatesResponses, TopicCandidatesErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/topics/candidates",
+      ...options,
+    });
+  }
+
+  /**
+   * Skip Topic Candidate
+   *
+   * Stop offering a label as a new topic.
+   */
+  public static skipTopicCandidate<ThrowOnError extends boolean = false>(
+    options: Options<SkipTopicCandidateData, ThrowOnError>,
+  ): RequestResult<SkipTopicCandidateResponses, SkipTopicCandidateErrors, ThrowOnError> {
+    return (options.client ?? client).post<SkipTopicCandidateResponses, SkipTopicCandidateErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/topics/candidates/skip",
       ...options,
       headers: {
         "Content-Type": "application/json",

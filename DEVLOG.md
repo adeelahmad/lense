@@ -146,12 +146,14 @@ Todo:
       create, edit, merge, delete; turn a TERM entity into a topic (and back, by deleting the topic); API with viewer
       reads and editor changes; topics in the property graph (Topic, ABOUT, NARROWER, RELATED) and in RDF as SKOS
 - [x] Topics page: the tree of broader and narrower topics, a topic's recordings, edit and merge; a recording's topics
-- [ ] Analysis suggests topics (summary topics and keywords matched to the vocabulary; new ones as suggestions to
+- [x] Analysis suggests topics (summary topics and keywords matched to the vocabulary; new ones as suggestions to
       accept); a namespace can keep its vocabulary fixed or open, as entities do
 - [ ] # links in notes point at topics; assistant and MCP tools for topics
 
 Refine later: shared vocabularies across namespaces and imported schemes (LCSH, Wikidata) with exactMatch; entities as
-authority records (variant names, external identifiers); topic history and undo for merges.
+authority records (variant names, external identifiers); topic history and undo for merges; a namespace setting
+to accept analysis suggestions without asking, or to stop offering new topics; matching labels of three or more words
+in transcripts (only summaries match them now).
 
 ## 2026-10-04 · anytopdf as the conversion engine (not started: wait for Adeel's go)
 
