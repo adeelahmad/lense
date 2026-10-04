@@ -348,3 +348,42 @@ def test_link_suggestions(client, env, db, cfg):
     out = json.loads(box.call("read_note", {"note_id": p["id"]})[0])
     assert out["could_link"] == [f"@[Ada Lovelace](entity:{ada['id']})", f"#[Capsid design](topic:{caps})"]
     assert client.get(f"/api/v1/notes/{_new(client, he, title='Empty')['id']}/suggestions", headers=he).json() == []
+
+
+def test_home_suggestions(client, env, db, cfg):
+    from app.domain import ai_tools
+
+    he, hv = env["he"], env["hv"]
+    pods = store.ns_id(db, "pods")
+    ada, acme = _entity(db, "Ada Lovelace", "PERSON"), _entity(db, "Acme", "ORG")
+    launch = _new(client, he, title="Capsid launch", place="project", body=f"@[Acme](entity:{acme['id']}) and @[Ada](entity:{ada['id']})")
+    health = _new(client, he, title="Health", place="area")
+    _new(client, he, title="Reading list", place="resource", body=f"@[Acme](entity:{acme['id']})")  # not a project or area
+    old = _new(client, he, title="Capsid launch retro", place="archive")
+    homes = lambda pid, h=hv: client.get(f"/api/v1/notes/{pid}/homes", headers=h).json()  # noqa: E731
+
+    # it links what the project links, and names the project's title: the project first, with why
+    p = _new(client, he, title="Call with Acme", body=f"About the capsid launch. @[Acme](entity:{acme['id']}) is in.")
+    got = homes(p["id"])
+    assert [(x["page"], x["place"]) for x in got] == [(launch["id"], "project")]
+    assert got[0]["score"] == 3 and got[0]["why"] == ["both link Acme", "it names capsid, launch"]
+    # a link to an area page is enough on its own
+    q = _new(client, he, title="Sleep", body=f"See @[Health](page:{health['id']}).")
+    assert [x["page"] for x in homes(q["id"])] == [health["id"]]
+    # one shared word isn't enough; nothing in common, nothing suggested
+    assert homes(_new(client, he, title="Launch party")["id"]) == []
+    assert homes(_new(client, he, title="Groceries", body="milk")["id"]) == []
+    # nested, filed as a project or area, archived, or a thing's page: none
+    client.post(f"/api/v1/notes/{p['id']}/move", headers=he, json={"parent": launch["id"]})
+    assert homes(p["id"]) == []
+    assert homes(launch["id"]) == [] and homes(old["id"]) == []
+    # a project can't be suggested as a home for a page it sits inside
+    client.post(f"/api/v1/notes/{launch['id']}/move", headers=he, json={"parent": q["id"]})
+    assert [x["page"] for x in homes(q["id"])] == [health["id"]]
+    # the assistant sees them when it reads the note, and moves it with update_note
+    uid = db.one("SELECT record::id(id) AS id FROM account WHERE email = 'ed@x.io'")["id"]
+    box = ai_tools.Toolbox(db, cfg, {"id": uid, "email": "ed@x.io"}, {pods}, {pods}, {}, None)
+    import json
+
+    out = json.loads(box.call("read_note", {"note_id": q["id"]})[0])
+    assert out["could_go_in"] == [{"parent_id": health["id"], "title": "Health", "place": "area", "why": ["it links to this page"]}]

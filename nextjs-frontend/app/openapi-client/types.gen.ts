@@ -7201,6 +7201,37 @@ export type NoteHistory = {
 };
 
 /**
+ * NoteHomeSuggestion
+ */
+export type NoteHomeSuggestion = {
+  /**
+   * Page
+   *
+   * the project or area page it could go inside
+   */
+  page: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Place
+   */
+  place: "project" | "area";
+  /**
+   * Score
+   */
+  score: number;
+  /**
+   * Why
+   *
+   * what ties them: links between them, links they share, words of its title
+   */
+  why: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
  * NoteLink
  */
 export type NoteLink = {
@@ -20178,6 +20209,38 @@ export type LinkSuggestionsResponses = {
 };
 
 export type LinkSuggestionsResponse = LinkSuggestionsResponses[keyof LinkSuggestionsResponses];
+
+export type HomeSuggestionsData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/homes";
+};
+
+export type HomeSuggestionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type HomeSuggestionsError = HomeSuggestionsErrors[keyof HomeSuggestionsErrors];
+
+export type HomeSuggestionsResponses = {
+  /**
+   * Response Notes-Home Suggestions
+   *
+   * Successful Response
+   */
+  200: Array<NoteHomeSuggestion>;
+};
+
+export type HomeSuggestionsResponse = HomeSuggestionsResponses[keyof HomeSuggestionsResponses];
 
 export type PageHistoryData = {
   body?: never;

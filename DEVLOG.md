@@ -207,8 +207,10 @@ Todo:
       suggestion when it isn't sure (ai.organise_notes)
 - [x] Self-organising: suggested links to the topics and named things a note mentions (no model; one click; the
   assistant sees them as could_link)
-- [ ] Self-organising, next: nest notes under their project or area
-- [ ] # topics move to the SKOS topics once the graph thread splits them from entities
+- [x] Self-organising: the project or area a top-level note fits under, from shared links and title words (no model;
+  one click; the assistant sees them as could_go_in)
+- [ ] Self-organising, next: nest notes without a click when the fit is clear (decision model, like PARA filing)
+- [x] # topics move to the SKOS topics once the graph thread splits them from entities (#135)
 - [ ] Attachments on a page, encrypted through the keyring
 - [ ] Object storage (S3, or an rclone remote served as S3) in the setup wizard, no local storage; a downloadable
       256-bit storage key. Design proposal waiting on Adeel (changes existing installs)

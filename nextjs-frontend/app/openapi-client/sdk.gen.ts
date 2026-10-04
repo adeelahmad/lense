@@ -567,6 +567,9 @@ import type {
   HideEntityData,
   HideEntityErrors,
   HideEntityResponses,
+  HomeSuggestionsData,
+  HomeSuggestionsErrors,
+  HomeSuggestionsResponses,
   ImportFromSourceData,
   ImportFromSourceErrors,
   ImportFromSourceResponses,
@@ -3849,6 +3852,21 @@ export class Notes {
   ): RequestResult<LinkSuggestionsResponses, LinkSuggestionsErrors, ThrowOnError> {
     return (options.client ?? client).get<LinkSuggestionsResponses, LinkSuggestionsErrors, ThrowOnError>({
       url: "/api/v1/notes/{pid}/suggestions",
+      ...options,
+    });
+  }
+
+  /**
+   * Home Suggestions
+   *
+   * The project or area pages a free note at the top of the tree could go inside, best first, from the links and
+   * words they share; moving it there is one click (POST /{pid}/move). No model is asked.
+   */
+  public static homeSuggestions<ThrowOnError extends boolean = false>(
+    options: Options<HomeSuggestionsData, ThrowOnError>,
+  ): RequestResult<HomeSuggestionsResponses, HomeSuggestionsErrors, ThrowOnError> {
+    return (options.client ?? client).get<HomeSuggestionsResponses, HomeSuggestionsErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/homes",
       ...options,
     });
   }

@@ -134,3 +134,11 @@ class NoteLinkTarget(ResponseModel):
 
 class NoteLinkSuggestion(NoteLinkTarget):
     sign: Sign = Field(description="# for a topic, @ for anything else")
+
+
+class NoteHomeSuggestion(ResponseModel):
+    page: int = Field(description="the project or area page it could go inside")
+    title: str
+    place: Literal["project", "area"]
+    score: int
+    why: list[str] = Field(description="what ties them: links between them, links they share, words of its title")
