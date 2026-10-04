@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 
-from . import entities, llm, store
+from . import entities, graph_history, llm, store
 
 R = store.R
 GRAPH_NODES = ("input", "pick", "condition", "merge", "candidates", "llm_judge", "filter", "apply_changes")
@@ -276,11 +276,14 @@ def apply_changes(db, items, c, origin=None, propose_only=False, say=print):
             continue
         sure = v.get("confidence", it.get("confidence") or 0)
         if not propose_only and above is not None and sure >= above and stats["applied"] < cap:
-            done = _make(db, {**it, "keep": _keep(it) if it["kind"] == "merge" else None}, user)
+            why = v.get("why") or it.get("reason")
+            with graph_history.change(db, f"{it['kind']}.apply", entities=[it["a"]["id"], it["b"]["id"]], why=why) as ch:
+                done = _make(db, {**it, "keep": _keep(it) if it["kind"] == "merge" else None}, user)
+                if done is not None:
+                    ch.add(graph_change=_record(db, it, "applied", origin, {**done, "decided_at": store.now(), "decided_by": user}))
             if done is None:
                 stats["skipped"] += 1
                 continue
-            _record(db, it, "applied", origin, {**done, "decided_at": store.now(), "decided_by": user})
             stats["applied"] += 1
         else:
             if db.one("SELECT id FROM graph_change WHERE pair = $p AND status = 'proposed' LIMIT 1", p=it["pair"]):
@@ -319,16 +322,24 @@ def propose(db, kind, a, b, reason=None, origin=None, apply=False, user=None):
     }
     if not apply:
         return _record(db, item, "proposed", origin), "proposed"
-    done = _make(db, {**item, "keep": x["id"] if kind == "merge" else None}, user)
-    if held:
-        db.q("UPDATE $r SET status = 'dismissed', decided_at = $t, decided_by = $u", r=R("graph_change", held["id"]), t=store.now(), u=user)
-    return _record(
-        db,
-        {**item},
-        "applied",
-        origin,
-        {**(done or {}), "keep": x["id"] if kind == "merge" else None, "decided_at": store.now(), "decided_by": user},
-    ), "applied"
+    with graph_history.change(db, f"{kind}.apply", entities=[x["id"], y["id"]], why=item["reason"]) as ch:
+        done = _make(db, {**item, "keep": x["id"] if kind == "merge" else None}, user)
+        if held:
+            db.q(
+                "UPDATE $r SET status = 'dismissed', decided_at = $t, decided_by = $u",
+                r=R("graph_change", held["id"]),
+                t=store.now(),
+                u=user,
+            )
+        cid = _record(
+            db,
+            {**item},
+            "applied",
+            origin,
+            {**(done or {}), "keep": x["id"] if kind == "merge" else None, "decided_at": store.now(), "decided_by": user},
+        )
+        ch.add(graph_change=cid)
+    return cid, "applied"
 
 
 def get_change(db, cid):
@@ -347,7 +358,10 @@ def accept(db, cid, user=None, keep=None):
         if int(keep) not in (ch["a"]["id"], ch["b"]["id"]):
             raise ValueError("keep one of the two entities")
         ch["keep"] = int(keep)
-    done = _make(db, ch, user)
+    with graph_history.change(
+        db, f"{ch['kind']}.accept", entities=[ch["a"]["id"], ch["b"]["id"]], why=ch.get("reason"), graph_change=ch["id"]
+    ):
+        done = _make(db, ch, user)
     if done is None:
         db.q(
             "UPDATE $r SET status = 'dismissed', decided_at = $t, decided_by = $u, note = 'an entity is gone'",
@@ -369,7 +383,8 @@ def dismiss(db, cid, user=None):
     if ch["status"] != "proposed":
         raise ValueError(f"this change is {ch['status']}, not proposed")
     if _alive(db, ch["a"]["id"]) and _alive(db, ch["b"]["id"]):
-        entities.not_same(db, ch["a"]["id"], ch["b"]["id"])
+        with graph_history.change(db, f"{ch['kind']}.dismiss", graph_change=ch["id"]):
+            entities.not_same(db, ch["a"]["id"], ch["b"]["id"])
     db.q("UPDATE $r SET status = 'dismissed', decided_at = $t, decided_by = $u", r=R("graph_change", ch["id"]), t=store.now(), u=user)
 
 
@@ -378,12 +393,13 @@ def undo(db, cid, user=None):
     ch = get_change(db, cid)
     if ch["status"] != "applied":
         raise ValueError(f"this change is {ch['status']}, not applied")
-    if ch["kind"] == "merge":
-        m = db.one("SELECT undone FROM $r", r=R("entity_merge", int(ch["merge"])))
-        if m and not m.get("undone"):  # someone may have undone it from the entity page already
-            entities.undo_merge(db, ch["merge"])
-    else:
-        entities.unlink(db, ch["a"]["id"], ch["b"]["id"])
+    with graph_history.change(db, f"{ch['kind']}.undo", graph_change=ch["id"]):
+        if ch["kind"] == "merge":
+            m = db.one("SELECT undone FROM $r", r=R("entity_merge", int(ch["merge"])))
+            if m and not m.get("undone"):  # someone may have undone it from the entity page already
+                entities.undo_merge(db, ch["merge"])
+        else:
+            entities.unlink(db, ch["a"]["id"], ch["b"]["id"])
     db.q("UPDATE $r SET status = 'undone', undone_at = $t, undone_by = $u", r=R("graph_change", ch["id"]), t=store.now(), u=user)
 
 
@@ -433,7 +449,10 @@ def run(db, cfg, wid, spaces, version=None, say=print, origin=None, propose_only
     origin = {**(origin or {}), "workflow": w["id"], "workflow_version": w["version"]}
     r = flow.Run(db, cfg, workflows.KITS["graph"], ctx, say, origin=origin, spaces=set(spaces), propose_only=propose_only)
     r.totals = {"applied": 0, "proposed": 0, "skipped": 0}
-    flow.run_graph(r, w["graph"])
+    routine = origin.get("routine")
+    keep = {k: origin[k] for k in ("routine", "run", "workflow", "workflow_version") if origin.get(k) is not None}
+    with graph_history.acting(actor=f"routine:{routine}" if routine else None, via="routine" if routine else "workflow", **keep):
+        flow.run_graph(r, w["graph"])
     done = {n["id"]: "done" if r.trace.get(n["id"], {}).get("status") == "done" else "skipped" for n in w["graph"]["nodes"]}
     return done, r.totals
 

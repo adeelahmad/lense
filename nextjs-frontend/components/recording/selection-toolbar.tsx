@@ -95,7 +95,7 @@ export function SelectionToolbar({ box }: { box: RefObject<HTMLDivElement | null
       open={moment != null}
       onOpenChange={(o) => !o && setMoment(null)}
       title="Share a moment"
-      description="A IIIF link that opens this time range in Lens Archive and in any viewer that supports content state."
+      description="A IIIF link that opens this time range in Lens and in any viewer that supports content state."
     >
       {moment && <ShareMoment recordingId={id} initial={moment} />}
     </Dialog>

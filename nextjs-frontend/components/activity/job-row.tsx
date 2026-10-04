@@ -28,6 +28,13 @@ const ICON: Record<string, { bg: string; fg: string; glyph: string; square?: boo
     square: true,
     word: "Paused",
   },
+  held: {
+    bg: "bg-gold-surface",
+    fg: "text-gold-dark",
+    glyph: "◆",
+    square: true,
+    word: "Waiting for you: over budget",
+  },
   succeeded: {
     bg: "bg-green",
     fg: "text-white",
@@ -129,6 +136,7 @@ const DOT: Record<string, string> = {
   running: "bg-blue",
   queued: "bg-border",
   paused: "bg-border",
+  held: "bg-gold",
   succeeded: "bg-green",
   failed: "bg-red",
   cancelled: "bg-fg-muted",

@@ -52,10 +52,15 @@ A fresh install (no accounts when the API first starts) walks its first admin th
    with a test.
 4. **Storage**: where data lives (shown; set in archive.yaml and `SURREAL_URL`), the largest upload, and optionally a
    folder inside `sources.local_roots` to watch.
+5. **Apps and AI**: whether apps and AI assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in
+   with their Lens account ([OAuth](authentication.md#oauth)), on unless turned off, how long their tokens last, and
+   the MCP server's address to add to an assistant.
+6. **Telemetry**: off unless chosen ([Telemetry](telemetry.md)).
 
 Every step can be skipped, and the whole wizard too; all of it stays in Settings. Values from the environment win and
 show locked. Installs that already had accounts never see the wizard. The API side is `GET /api/v1/setup`,
-`POST /api/v1/setup/namespace`, `PUT /api/v1/setup/llm`, `PUT /api/v1/setup/storage` and `POST /api/v1/setup/finish`
+`POST /api/v1/setup/namespace`, `PUT /api/v1/setup/llm`, `PUT /api/v1/setup/storage`, `PUT /api/v1/setup/oauth`,
+`PUT /api/v1/setup/telemetry` and `POST /api/v1/setup/finish`
 (admins); `GET /api/v1/auth/status` says whether it is still pending (`wizard_pending`).
 
 ## Frontend environment
@@ -260,6 +265,7 @@ Settings → API keys:
 | `tokens.default_days` | 90 | how long a new key lasts when its maker doesn't say, 1–3650 days (at most `tokens.max_days`) |
 | `tokens.max_days` | 365 | the longest a key may last, 1–3650 days |
 | `tokens.never_expire` | false | whether keys may be made that never expire |
+| `tokens.oauth_enabled` | true | whether apps and AI assistants may sign people in with their Lens account ([OAuth](authentication.md#oauth)); off, discovery and registration are gone and apps' tokens stop working until it is back on, while people can still see and revoke the apps they allowed |
 | `tokens.oauth_access_minutes` | 60 | how long the access token of an app someone signed in to lasts ([OAuth](authentication.md#oauth)), 5–1440 minutes; the app renews it by itself |
 | `tokens.oauth_refresh_days` | 30 | how long such an app stays signed in after it last renewed its access, 1–3650 days (at most `tokens.max_days`) |
 

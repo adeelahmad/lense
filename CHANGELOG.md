@@ -4,12 +4,85 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The graph canvas as of a version.** A clock menu on the canvas toolbar shows the entity graph as of a named
+  version or as it was before one of the latest changes. Exploring, paths and questions use that version too.
+
+- **Graph changes in activity history.** An entity's, a namespace's and a recording's activity history now list
+  the graph changes that touched them, with who, how and why, and the version to find in Routines › History.
+- **The entity graph keeps its history.** Every change to entities, their other names, links across namespaces and
+  "not the same" pairs is recorded as a numbered version: what changed, who (a person, a routine, the assistant,
+  analysis), through what (the web app, a token, an app, MCP) and why. `GET /api/v1/graph/history` lists versions
+  (one entity's with `entity`), `/graph/as-of/{version}` shows the graph as it was, `/graph/diff` what changed
+  between two versions, and `/graph/tags` names versions to come back to; the graph API and Cypher take `as_of` to read the graph at a version. `POST /graph/rollback` takes the graph back to a version, after a
+  preview, undoing merges with their mentions; a rollback can be rolled back too. Checkpoints let the graph be replayed
+  from its history, and `lens history verify` (or `/graph/verify`) checks the replay matches today's graph. See
+  docs/graph-history.md.
+  In the web app, Routines › History shows every change and what it did, and names or rolls back to a version; an
+  entity's History button shows its own.
+- **Apps and AI assistants in the setup wizard.** A new optional step, Apps and AI, asks whether apps and AI
+  assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in with their Lens account, how long
+  their tokens last, and shows the MCP server's address to add to an assistant. Skipping it keeps OAuth on, as
+  before. Admins can also turn it off in Settings → API keys (`tokens.oauth_enabled`): discovery and registration go
+  away and apps' tokens stop working until it is back on. API: `PUT /api/v1/setup/oauth`.
+- **Budgets for routines, pipelines, workflows and namespaces.** An admin caps what a resource may cost, in USD,
+  tokens or both, per run, day, week or month. Before a routine runs or a job starts, Lens estimates the run from past
+  ones; one that would go over is held until someone picks run or skip (or is skipped, or the decision model weighs
+  it when asked to). Budgets near or over their cap are flagged once per period. Off unless set. See docs/budgets.md.
+- **Local models cost nothing unless you price them.** A model's price is by tokens (USD per million), by time (USD
+  per hour, for a model on your own machine) or off, the default for a model without one.
+
+- **Every resource has an activity history, with what it cost.** Lens now keeps a ledger of every request that
+  changes something, every call it makes out (models, embeddings, the decision model, text to speech, webhooks, web
+  tools) and every job and routine run, each counted for the resources it touched: a model call in a job a routine
+  queued counts for the job, its recording, namespace, pipeline, workflow and the routine. Tokens and estimated cost
+  come from the prices in Settings. `GET /api/v1/activity?resource=routine:3` gives a resource's history (with its
+  audit log entries), `/activity/totals` what it cost this day, week or month, `/activity/top` what cost most. On by
+  default; `activity.keep_days` (365) keeps it in bounds. See docs/activity.md.
+- **Safer upgrades of existing installs.** Data upgrades are now named steps that run once per database, under a lock
+  so only one process runs them while the others wait, with a record of when each ran and why one failed.
+  `lens migrations` lists them. A database with data is backed up into `<data_dir>/backups` before it is upgraded
+  (the newest three are kept), and `lens backup` takes one on demand. See docs/database.md, Upgrades.
+- **Routine choices on your own Mac with Laya.** `decisions.engine: laya` takes routine choices with a Laya typed
+  decision model on MLX (English, multilingual or typed-decisions), fetched by Lens itself, free and offline. Lens in
+  Docker on a Mac asks `lens decide-server` on the Mac. Elsewhere it says Laya isn't available and the LLM decides.
+  Jev stays the default. Settings → AI assistant → Routine choices has a Test button. See docs/assistant.md.
+- **Topics, apart from entities.** Each namespace has a controlled vocabulary of topics (SKOS): a label, other
+  labels, a definition, and broader, narrower and related topics. Recordings are about topics, said by a person or
+  brought over when a topic-like entity (type TERM) becomes a topic; the entity is hidden until the topic is deleted.
+  Editors create, edit, merge and delete topics through `/api/v1/topics`. Topics are in the graph (`Topic`, with
+  `ABOUT`, `NARROWER` and `RELATED`; TERM entities are now labelled `Term` there) and in RDF (`/id/topic/<id>`). See
+  docs/topics.md.
+
+- **Topics in notes and for agents.** `#` in a note links a topic, found by any of its labels, and every topic has
+  a page of its own. The assistant can find topics, read one with its recordings and suggest a topic for recordings;
+  the MCP server has `list_topics`, `get_topic` and `suggest_topic`. Their suggestions wait for someone to accept.
+
+- **Topic suggestions.** Analysis suggests the vocabulary's topics for recordings whose summary or transcript says
+  one of their labels, for people to accept or dismiss (a dismissed one isn't suggested again). The Topics page lists
+  what summaries say recordings are about that no topic covers yet, to add as a topic or skip. No model is called.
+
+- **A Topics page.** Topics in the navigation shows a namespace's vocabulary as a tree of broader and narrower topics,
+  with search, and a drawer to edit, merge or delete a topic and see the recordings about it. A recording's Entities
+  tab lists its topics for editors to add, remove or accept; a Term entity can be made a topic from its drawer; topics
+  show on the graph canvas as green tags. Entities of type TERM are now shown as Terms.
+
 - **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
   recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
   GQL) over the namespaces you can read; `/graph/related` gives a node's parents, children, ancestors, descendants or
   neighbours, `/graph/paths` the paths between two nodes, and `/graph/schema` what a query can ask about. Agents with
   a write-scope token and editor access ask for merges and links with `POST /api/v1/graph/changes`; they wait in
   Proposed changes unless asked to apply. See docs/graph.md.
+
+- **Explore the graph on a canvas.** Drag nodes, pan and zoom with a mouse or by touch (pinch, long-press), switch
+  between force, BFS tree, DFS tree and radial layouts in one click, and reset. Right-click a node (or long-press it)
+  for its parents, children, ancestors, descendants, neighbours and paths, or to route through it; what is found
+  joins the canvas. Recordings, collections and namespaces show on the canvas alongside speakers and entities.
+- **Ask the graph.** The bar under the canvas takes a question in plain words or Cypher. A language model writes the
+  Cypher for a question (`POST /api/v1/graph/ask`); the answer shows the query, to edit and run again, and lights up
+  what it found.
+- **The assistant and MCP clients can query the graph.** Chat's assistant has graph schema, query, related and paths
+  tools over the chat's namespaces; the MCP server has the same, read-only, and `propose_graph_change` for
+  write-scope tokens.
 
 - **Lock a namespace to your passkeys.** An owner turns a namespace into a vault (Admin › Namespaces › Vault): its
   files open only after one of its passkeys unlocks it, for an hour by default (`encryption.vault_minutes`), and its

@@ -637,7 +637,7 @@ def tidy(db, cfg, ids=None, now=None, say=None):
         keep = max(x for x in (raw, imp, roll) if x) if any((raw, imp, roll)) else None
         if keep:  # patterns not seen since, unless someone labelled them or chose their action
             db.q(
-                "DELETE sensor_pattern WHERE sensor = $s AND last_at < $c AND action = NONE AND (label = NONE OR label_by IN ['jev', 'llm'])",
+                "DELETE sensor_pattern WHERE sensor = $s AND last_at < $c AND action = NONE AND (label = NONE OR label_by IN ['jev', 'laya', 'llm'])",
                 s=s["id"],
                 c=_ts(now - dt.timedelta(days=keep)),
             )

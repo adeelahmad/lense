@@ -53,6 +53,7 @@ export type FieldSpec = {
 export type SectionId =
   | "transcription"
   | "speaker-separation"
+  | "speech-providers"
   | "voice-ids"
   | "analysis"
   | "llm"
@@ -106,6 +107,13 @@ export const SECTIONS: SectionSpec[] = [
     label: "Speaker separation",
     backend: ["diarize"],
     description: "How a recording is split into speakers before voices are matched.",
+  },
+  {
+    id: "speech-providers",
+    label: "Speech providers",
+    backend: ["speech"],
+    description:
+      "Services that can transcribe, tell speakers apart and read answers aloud instead of this server. Each takes its own address, for a proxy or a compatible server.",
   },
   {
     id: "voice-ids",
@@ -341,6 +349,10 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
     acts: false,
   },
   { name: "speaker_stats", label: "Speakers’ talk time", acts: false },
+  { name: "find_notes", label: "Find notes", acts: false },
+  { name: "read_note", label: "Read a note", acts: false },
+  { name: "write_note", label: "Write notes", acts: false },
+  { name: "update_note", label: "Change notes", acts: false },
   { name: "run_template", label: "Run a template on recordings", acts: true },
   {
     name: "propose_entity_change",
@@ -355,6 +367,39 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "create_namespace", label: "Create namespaces (admins)", acts: true },
 ];
 
+/** The speech providers (the backend's app/domain/speech.py), in the order Settings shows them. */
+export const SPEECH_PROVIDERS = [
+  {
+    id: "openai",
+    label: "OpenAI-compatible",
+    about:
+      "OpenAI’s Whisper and GPT-4o transcription, or any server with the same /audio/transcriptions API (Groq, speaches, LocalAI). A model named …diarize also tells speakers apart.",
+    urlHint: "https://api.openai.com/v1, or your proxy or compatible server",
+    modelHint: "whisper-1, gpt-4o-transcribe, gpt-4o-transcribe-diarize",
+  },
+  {
+    id: "elevenlabs",
+    label: "ElevenLabs",
+    about: "Scribe speech to text with speakers and sounds like laughter, and text to speech for spoken answers.",
+    urlHint: "https://api.elevenlabs.io",
+    modelHint: "scribe_v1",
+  },
+  {
+    id: "assemblyai",
+    label: "AssemblyAI",
+    about: "Transcripts with speakers, language detection and sentiment.",
+    urlHint: "https://api.assemblyai.com, or https://api.eu.assemblyai.com",
+    modelHint: "universal, slam-1",
+  },
+  {
+    id: "deepgram",
+    label: "Deepgram",
+    about: "Nova speech to text with speakers, language and sentiment, and Aura text to speech.",
+    urlHint: "https://api.deepgram.com, or your self-hosted Deepgram",
+    modelHint: "nova-3",
+  },
+] as const;
+
 export const FIELDS: FieldSpec[] = [
   // Transcription
   {
@@ -366,6 +411,10 @@ export const FIELDS: FieldSpec[] = [
       { value: "sensevoice", label: "SenseVoice" },
       { value: "whisper", label: "Whisper" },
       { value: "mlx-whisper", label: "mlx-whisper" },
+      { value: "openai", label: "OpenAI-compatible (provider)" },
+      { value: "elevenlabs", label: "ElevenLabs (provider)" },
+      { value: "assemblyai", label: "AssemblyAI (provider)" },
+      { value: "deepgram", label: "Deepgram (provider)" },
     ],
   },
   {
@@ -419,6 +468,7 @@ export const FIELDS: FieldSpec[] = [
       { value: "channels", label: "By channel" },
       { value: "cluster", label: "Voice clustering" },
       { value: "pyannote", label: "pyannote" },
+      { value: "provider", label: "Speech provider" },
       { value: "none", label: "Off" },
     ],
   },
@@ -613,6 +663,20 @@ export const FIELDS: FieldSpec[] = [
     hint: "Without tools, answers use search results only.",
   },
   { section: "ai", key: "disabled_tools", label: "Tools", kind: "checks" },
+  {
+    section: "ai",
+    key: "organise_notes",
+    label: "File notes in projects, areas, resources and archives",
+    kind: "switch",
+    hint: "Notes nobody filed are filed for you; when the assistant isn't sure, its suggestion waits on the note.",
+  },
+  {
+    section: "ai",
+    key: "refine_notes",
+    label: "Keep note titles and summaries up to date",
+    kind: "switch",
+    hint: "A couple of minutes after a note changes, the model rewrites its one-line summary, and its title when that no longer fits.",
+  },
   {
     section: "ai",
     key: "max_steps",
@@ -821,6 +885,33 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "voice",
+    key: "stt",
+    label: "Engine that hears it",
+    kind: "select",
+    options: [
+      { value: "same", label: "The transcription engine" },
+      { value: "sensevoice", label: "SenseVoice" },
+      { value: "whisper", label: "Whisper" },
+      { value: "mlx-whisper", label: "mlx-whisper" },
+      { value: "openai", label: "OpenAI-compatible (provider)" },
+      { value: "elevenlabs", label: "ElevenLabs (provider)" },
+      { value: "assemblyai", label: "AssemblyAI (provider)" },
+      { value: "deepgram", label: "Deepgram (provider)" },
+    ],
+  },
+  {
+    section: "voice",
+    key: "tts_provider",
+    label: "Spoken answers by",
+    kind: "select",
+    options: [
+      { value: "openai", label: "An OpenAI-compatible speech server" },
+      { value: "elevenlabs", label: "ElevenLabs (provider)" },
+      { value: "deepgram", label: "Deepgram Aura (provider)" },
+    ],
+  },
+  {
+    section: "voice",
     key: "tts_model",
     label: "Speech model for spoken answers",
     kind: "text",
@@ -848,6 +939,42 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "the LLM provider’s",
   },
   { section: "voice", key: "tts_api_key", label: "Speech server API key", kind: "secret" },
+  // Speech providers
+  ...SPEECH_PROVIDERS.flatMap((p): FieldSpec[] => [
+    {
+      section: "speech",
+      key: `${p.id}_base_url`,
+      label: "Address",
+      kind: "text",
+      mono: true,
+      hint: p.urlHint,
+    },
+    {
+      section: "speech",
+      key: `${p.id}_model`,
+      label: "Speech-to-text model",
+      kind: "text",
+      mono: true,
+      hint: p.modelHint,
+    },
+    { section: "speech", key: `${p.id}_api_key`, label: `${p.label} API key`, kind: "secret" },
+  ]),
+  {
+    section: "speech",
+    key: "sentiment",
+    label: "Emotion from the provider’s sentiment",
+    kind: "switch",
+    hint: "AssemblyAI and Deepgram: positive reads as Happy, negative as Sad",
+  },
+  {
+    section: "speech",
+    key: "timeout",
+    label: "Longest wait for a transcript",
+    kind: "int",
+    min: 30,
+    max: 86400,
+    unit: "s",
+  },
   // Decisions
   {
     section: "decisions",
@@ -857,6 +984,7 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "auto", label: "Decision model when it has a key, else the LLM" },
       { value: "jev", label: "Decision model (Jev)" },
+      { value: "laya", label: "Laya, a local decision model (Apple Silicon)" },
       { value: "llm", label: "LLM provider" },
       { value: "off", label: "Nobody: always ask me" },
     ],
@@ -887,6 +1015,26 @@ export const FIELDS: FieldSpec[] = [
     max: 120,
   },
   { section: "decisions", key: "api_key", label: "API key", kind: "secret" },
+  {
+    section: "decisions",
+    key: "laya_model",
+    label: "Laya model",
+    kind: "select",
+    options: [
+      { value: "aac6fef/laya-mlx", label: "Laya (English)" },
+      { value: "aac6fef/laya-multilingual-mlx", label: "Laya multilingual (faster)" },
+      { value: "aac6fef/laya-typed-decisions-mlx", label: "Laya typed decisions (English)" },
+    ],
+  },
+  {
+    section: "decisions",
+    key: "laya_url",
+    label: "Laya server",
+    kind: "text",
+    mono: true,
+    placeholder: "http://host.docker.internal:8790/v1",
+    hint: "Only when Lens runs where MLX can't, such as Docker on a Mac",
+  },
   // Search
   {
     section: "search",
@@ -1547,6 +1695,13 @@ export const FIELDS: FieldSpec[] = [
     mono: true,
     placeholder: "gpt-4o-mini 0.15 0.60",
     hint: "One model per line: its name, then the input and output price in dollars per million tokens. The AI assistant’s prices count for the configured model",
+  },
+  {
+    section: "tokens",
+    key: "oauth_enabled",
+    label: "Let apps and AI assistants sign in",
+    kind: "switch",
+    hint: "Claude, ChatGPT, Cursor and other apps sign in with a person’s Lens account (OAuth) and act with their roles. Off: apps need an API key, and the ones people allowed stop working until it’s back on",
   },
   {
     section: "tokens",

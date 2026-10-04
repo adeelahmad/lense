@@ -121,7 +121,7 @@ def test_convert_the_iiif_levels(db, cfg, folder):
     # before the conversion, reads already understand the old levels
     assert metadata.stored(db, x[1])["access"] == "public" and metadata.stored(db, x[1])["open"] == ["transcript", "index"]
     assert access.of(db, inheriting)["access"] == "restricted"
-    db.q("DELETE $r", r=R("seq", "migrations"))
+    db.q("DELETE $r", r=R("migration", "access-levels"))
     store.migrate(db)
     got = {rid: access.of(db, rid) for rid in x}
     assert [(got[r]["access"], got[r]["open"], got[r]["inherited"]) for r in x[:3]] == [

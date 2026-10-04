@@ -4,15 +4,19 @@ import { useQuery } from "@tanstack/react-query";
 import { SlidersHorizontal, Waypoints } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Admin, Entities, Search } from "@/app/openapi-client";
 import { GraphCanvas } from "@/components/graph/canvas";
+import { usePositions, useExplorer } from "@/components/graph/explorer";
+import { ExplorerBar, NodeMenu } from "@/components/graph/explorer-ui";
+import { GraphAsk } from "@/components/graph/graph-ask";
 import { GraphFilters } from "@/components/graph/filters";
 import {
   EDGE_KINDS,
   filterGraph,
   findFocus,
+  mergeGraph,
   NODE_GROUPS,
   summarize,
   type GraphData,
@@ -20,12 +24,14 @@ import {
 } from "@/components/graph/model";
 import { NodePanel } from "@/components/graph/panel";
 import { GraphTable } from "@/components/graph/table";
+import { VersionPicker } from "@/components/graph/version-picker";
 import { useSpeakerDirectory } from "@/components/search/data";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog, Drawer } from "@/components/ui/dialog";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { Segmented } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useJobs } from "@/lib/hooks/jobs";
 import { plural } from "@/lib/format";
@@ -68,6 +74,7 @@ export function GraphPage() {
       : (topNs ?? namespaces.find((n) => n.graph !== "isolated")?.name ?? nsNames[0] ?? null);
   const scope = scopeMode === "all" || !ns ? "global" : `ns:${ns}`;
   const view = params.get("view") === "table" ? "table" : "graph";
+  const asOf = params.get("as_of");
 
   const [groups, setGroups] = useState<Set<string>>(ALL_GROUPS);
   const [kinds, setKinds] = useState<Set<string>>(DEFAULT_KINDS);
@@ -88,8 +95,9 @@ export function GraphPage() {
   };
 
   const graph = useQuery({
-    queryKey: ["graph", scope],
-    queryFn: async () => (await data(Search.getGraph({ client, query: { scope } }))) as unknown as GraphData,
+    queryKey: ["graph", scope, asOf],
+    queryFn: async () =>
+      (await data(Search.getGraph({ client, query: { scope, as_of: asOf } }))) as unknown as GraphData,
     staleTime: 60_000,
   });
   const settings = useQuery({
@@ -103,8 +111,31 @@ export function GraphPage() {
   const dir = useSpeakerDirectory(Boolean(focusParam?.startsWith("s")));
   const jobs = useJobs({ status: "queued,running", limit: 100 });
 
-  const all = useMemo(() => graph.data ?? { scope, namespaces: [], nodes: [], edges: [] }, [graph.data, scope]);
+  const toast = useToast();
+  const onError = useCallback((m: string) => toast({ title: "Couldn’t explore that", body: m, tone: "red" }), [toast]);
+  const ex = useExplorer(scope, onError, asOf);
+  const [menu, setMenu] = useState<{ id: string; at: { x: number; y: number } } | null>(null);
+  const overview = useMemo(() => graph.data ?? { scope, namespaces: [], nodes: [], edges: [] }, [graph.data, scope]);
+  // the overview plus what was found by exploring, less what was hidden
+  const all = useMemo(() => {
+    const m = mergeGraph(overview, ex.extra);
+    if (!ex.hidden.size) return { ...overview, ...m };
+    return {
+      ...overview,
+      nodes: m.nodes.filter((n) => !ex.hidden.has(n.id)),
+      edges: m.edges.filter((e) => !ex.hidden.has(e.a) && !ex.hidden.has(e.b)),
+    };
+  }, [overview, ex.extra, ex.hidden]);
+  const byId = useMemo(() => new Map(all.nodes.map((n) => [n.id, n])), [all.nodes]);
   const visible = useMemo(() => filterGraph(all, { groups, kinds, minWeight }), [all, groups, kinds, minWeight]);
+  const positions = usePositions(
+    visible.nodes,
+    visible.edges,
+    ex.layout,
+    ex.root ?? selected,
+    ex.routePath?.nodes ?? ex.route,
+    ex.pins,
+  );
   const maxWeight = Math.min(
     50,
     Math.max(
@@ -121,12 +152,14 @@ export function GraphPage() {
   // ?focus=e12 or s4 selects that node; if it lives in another namespace, switch to it once.
   useEffect(() => {
     if (!focusParam || !graph.data) return;
-    const n = findFocus(graph.data.nodes, focusParam);
+    // nodes found by exploring or asking count too
+    const n = findFocus(all.nodes, focusParam);
     if (n) {
       setSelected(n.id);
       setMissing(null);
       return;
     }
+    if (!/^[es]\d+$/.test(focusParam)) return; // a recording, collection or namespace link: nothing to look up
     if (focusParam.startsWith("s") && dir.isLoading) return; // wait for the speakers to know their namespace
     if (tried.current === `${focusParam}|${scope}`) return setMissing(focusParam);
     tried.current = `${focusParam}|${scope}`;
@@ -143,9 +176,16 @@ export function GraphPage() {
       if (home && scope !== `ns:${home}`) set({ ns: home, scope: null });
       else setMissing(focusParam);
     })();
-  }, [focusParam, graph.data, scope, dir.speakers.length, dir.isLoading]);
+  }, [focusParam, graph.data, all.nodes, scope, dir.speakers.length, dir.isLoading]);
 
   const select = (id: string | null) => {
+    // picking a node while a path is being looked for ends the path there
+    const from = ex.pathStart ? byId.get(ex.pathStart) : null;
+    const to = id ? byId.get(id) : null;
+    if (from && to && from.id !== to.id) {
+      void ex.paths(from, to);
+      return;
+    }
     setSelected(id);
     const n = id ? all.nodes.find((x) => x.id === id) : null;
     set({ focus: n ? focusKey(n) : null });
@@ -275,14 +315,43 @@ export function GraphPage() {
           </EmptyState>
         )}
         {graph.data && !empty && view === "graph" && (
-          <GraphCanvas
-            className="flex-1"
-            nodes={visible.nodes}
-            edges={visible.edges}
-            selected={selected}
-            onSelect={select}
-            summary={summary}
-          />
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <GraphCanvas
+              className="flex-1"
+              nodes={visible.nodes}
+              edges={visible.edges}
+              positions={positions}
+              selected={selected}
+              onSelect={select}
+              onMove={ex.pin}
+              onMenu={(id, at) => setMenu({ id, at })}
+              highlight={ex.highlight}
+              route={ex.routePath}
+              summary={summary}
+            />
+            <ExplorerBar
+              ex={ex}
+              byId={byId}
+              asOf={asOf}
+              onNow={() => set({ as_of: null })}
+              version={
+                <VersionPicker
+                  asOf={asOf}
+                  namespace={scope === "global" ? null : ns}
+                  onChange={(v) => set({ as_of: v })}
+                />
+              }
+            />
+            <GraphAsk ex={ex} scope={scope} asOf={asOf} onSelect={(id) => select(id)} />
+            <NodeMenu
+              node={menu ? (byId.get(menu.id) ?? null) : null}
+              at={menu?.at ?? null}
+              ex={ex}
+              byId={byId}
+              onClose={() => setMenu(null)}
+              onSelect={(id) => select(id)}
+            />
+          </div>
         )}
         {graph.data && !empty && view === "table" && (
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-5">

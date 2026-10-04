@@ -426,3 +426,29 @@ def test_redirects_keep_the_apps_own_query():
     assert oauth.scopes("write") == "read write" and oauth.scopes("email profile") == "read" and oauth.scopes(None) == "read"
     assert not oauth.redirect_ok(["https://a.example/cb"], "http://[bad")
     assert oauth.token_account(None, "la_not_oauth") is None and oauth.get_client(None, "nope") is None
+
+
+def test_admins_can_turn_apps_signing_in_off(client, db):
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    hr, h = login(client, "root@x.io", "root password 1"), login(client, "vi@x.io", "viewer password 1")
+    app, t = _grant(client, h)
+    assert client.put("/api/v1/settings/tokens", headers=hr, json={"oauth_enabled": "no"}).status_code == 400
+    assert client.put("/api/v1/settings/tokens", headers=hr, json={"oauth_enabled": False}).status_code == 200
+    # off: no discovery, no new apps, no consent, no renewing, and the tokens apps have stop working
+    assert client.get("/.well-known/oauth-authorization-server").status_code == 404
+    assert client.get("/.well-known/oauth-protected-resource").status_code == 404
+    r = client.post(f"{O}/register", json={"client_name": "New", "redirect_uris": [BACK]})
+    assert (r.status_code, r.json()["error"]) == (403, "access_denied")
+    _, challenge = _pkce()
+    assert client.get(f"{O}/authorize", headers=h, params=_ask(app, challenge)).status_code == 403
+    assert client.post(f"{O}/authorize", headers=h, json={**_ask(app, challenge), "approve": True}).status_code == 403
+    r = client.post(f"{O}/token", data={"grant_type": "refresh_token", "client_id": app["client_id"], "refresh_token": t["refresh_token"]})
+    assert r.status_code == 403
+    r = client.get("/api/v1/auth/me", headers=_bearer(t))
+    assert r.status_code == 401 and r.headers["www-authenticate"] == "Bearer"  # nowhere to sign in, so it names nothing
+    # people still see the apps they allowed and can revoke them
+    assert len(client.get(f"{O}/grants", headers=h).json()) == 1
+    # back on, the access people gave comes back with it
+    assert client.put("/api/v1/settings/tokens", headers=hr, json={"oauth_enabled": True}).status_code == 200
+    assert client.get("/api/v1/auth/me", headers=_bearer(t)).status_code == 200

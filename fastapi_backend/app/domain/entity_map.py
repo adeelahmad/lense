@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 
-from . import analyze, entity_setup, llm, store
+from . import analyze, entity_setup, graph_history, llm, store
 
 R = store.R
 log = logging.getLogger("lens")
@@ -44,27 +44,29 @@ def _bkey(kind):
 def builtins(db, sid):
     """The namespace's Unknown and Unlabeled entities, made when missing: {kind: id}."""
     out = {}
-    for kind, name in BUILTIN_NAMES.items():
-        key = _bkey(kind)
-        row = db.one("SELECT record::id(id) AS id FROM entity WHERE ekey = $k", k=f"{sid}:{key}")
-        if row:
-            out[kind] = row["id"]
-            continue
-        eid = db.next_id("entity")
-        db.q(
-            "CREATE $r CONTENT $d",
-            r=R("entity", eid),
-            d={
-                "space": int(sid),
-                "key": key,
-                "ekey": f"{sid}:{key}",
-                "name": name,
-                "type": "TERM",
-                "builtin": kind,
-                "description": BUILTIN_HELP[kind],
-            },
-        )
-        out[kind] = eid
+    with graph_history.change(db, "entity.builtin") as ch:
+        for kind, name in BUILTIN_NAMES.items():
+            key = _bkey(kind)
+            row = db.one("SELECT record::id(id) AS id FROM entity WHERE ekey = $k", k=f"{sid}:{key}")
+            if row:
+                out[kind] = row["id"]
+                continue
+            eid = db.next_id("entity")
+            ch.created(eid)
+            db.q(
+                "CREATE $r CONTENT $d",
+                r=R("entity", eid),
+                d={
+                    "space": int(sid),
+                    "key": key,
+                    "ekey": f"{sid}:{key}",
+                    "name": name,
+                    "type": "TERM",
+                    "builtin": kind,
+                    "description": BUILTIN_HELP[kind],
+                },
+            )
+            out[kind] = eid
     return out
 
 
@@ -160,11 +162,13 @@ def place(db, cfg, sid, cid, setup, found, seg_texts=()):
             out[key] = special[UNLABELED]
         else:
             out[key] = db.next_id("entity")
-            db.q(
-                "CREATE $r CONTENT $d",
-                r=R("entity", out[key]),
-                d={"space": int(sid), "key": key, "ekey": f"{sid}:{key}", "name": name, "type": typ},
-            )
+            with graph_history.change(db, "entity.found") as ch:
+                ch.created(out[key])
+                db.q(
+                    "CREATE $r CONTENT $d",
+                    r=R("entity", out[key]),
+                    d={"space": int(sid), "key": key, "ekey": f"{sid}:{key}", "name": name, "type": typ},
+                )
     return out
 
 
@@ -187,6 +191,13 @@ def define(db, sid, name, typ, description=None, aliases=(), collection=None, us
     plan = _alias_plan(db, int(sid), key, row["id"] if row else None, aliases)  # check everything before writing
     if description is not None and len(str(description).strip()) > 2000:
         raise ValueError("A description can have up to 2000 characters.")
+    with graph_history.change(db, "entity.define", entities=[row["id"]] if row else [], aliases=[(int(sid), k) for k in plan[0]]) as ch:
+        eid = _define(db, sid, row, key, name, typ, description, collection, user, plan, ch)
+        builtins(db, sid)
+    return eid
+
+
+def _define(db, sid, row, key, name, typ, description, collection, user, plan, ch):
     if row:
         eid = row["id"]
         db.q(
@@ -197,6 +208,7 @@ def define(db, sid, name, typ, description=None, aliases=(), collection=None, us
         )
     else:
         eid = db.next_id("entity")
+        ch.created(eid)
         db.q(
             "CREATE $r CONTENT $d",
             r=R("entity", eid),
@@ -216,8 +228,7 @@ def define(db, sid, name, typ, description=None, aliases=(), collection=None, us
         from . import entities
 
         entities.describe(db, eid, description)
-    set_aliases(db, eid, aliases, user=user, plan=plan)
-    builtins(db, sid)
+    set_aliases(db, eid, None, user=user, plan=plan)
     return eid
 
 
@@ -243,13 +254,14 @@ def set_aliases(db, eid, aliases, user=None, plan=None):
     merged into it (the merge can be undone)."""
     e = db.one("SELECT space, key FROM $r", r=R("entity", int(eid)))
     keys, fold = plan or _alias_plan(db, e["space"], e["key"], int(eid), aliases)
-    if fold:
-        from . import entities
+    with graph_history.change(db, "entity.aliases", entities=[int(eid), *fold], aliases=[(e["space"], k) for k in keys]):
+        if fold:
+            from . import entities
 
-        entities.merge(db, int(eid), fold, user=user)
-    db.q("DELETE entity_alias WHERE entity = $e", e=int(eid))
-    for k in keys:
-        db.q("UPSERT $r CONTENT $d", r=R("entity_alias", f"{e['space']}:{k}"), d={"space": e["space"], "key": k, "entity": int(eid)})
+            entities.merge(db, int(eid), fold, user=user)
+        db.q("DELETE entity_alias WHERE entity = $e", e=int(eid))
+        for k in keys:
+            db.q("UPSERT $r CONTENT $d", r=R("entity_alias", f"{e['space']}:{k}"), d={"space": e["space"], "key": k, "entity": int(eid)})
 
 
 # ---------- matching by description (the model) ----------
@@ -356,5 +368,8 @@ def described(db, sid):
 
 def learn(db, sid, mapped):
     """Names the model placed become those entities' other names ({key: entity id})."""
-    for key, eid in mapped.items():
-        db.q("UPSERT $r CONTENT $d", r=R("entity_alias", f"{int(sid)}:{key}"), d={"space": int(sid), "key": key, "entity": int(eid)})
+    if not mapped:
+        return
+    with graph_history.change(db, "entity.learned", aliases=[(int(sid), k) for k in mapped]):
+        for key, eid in mapped.items():
+            db.q("UPSERT $r CONTENT $d", r=R("entity_alias", f"{int(sid)}:{key}"), d={"space": int(sid), "key": key, "entity": int(eid)})

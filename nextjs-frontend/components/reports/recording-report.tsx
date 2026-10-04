@@ -80,7 +80,7 @@ function Paper({ rec, player }: { rec: Recording; player: Player }) {
   return (
     <article className="report-paper flex min-h-[1123px] w-[794px] max-w-full flex-col gap-[18px] px-[68px] py-16 font-sans shadow-[0_2px_12px_rgba(0,0,0,.14)] max-md:px-6 max-md:py-8">
       <div className="flex justify-between text-[11px] font-medium uppercase leading-none tracking-[.04em] text-fg-secondary">
-        <span>Lens Archive · {rec.namespace}</span>
+        <span>Lens · {rec.namespace}</span>
         <span>Recording report</span>
       </div>
       <h2 className="text-[28px] font-bold leading-[1.2] tracking-[-.015em]">{rec.title || "Untitled"}</h2>
@@ -160,7 +160,7 @@ function Paper({ rec, player }: { rec: Recording; player: Player }) {
       <span className="flex-1" />
       <div className="flex justify-between border-t border-border pt-2 text-[10px] leading-none text-fg-muted">
         <span>Printed {shortDate(new Date().toISOString())} · Recording report (built-in)</span>
-        <span>Lens Archive</span>
+        <span>Lens</span>
       </div>
     </article>
   );

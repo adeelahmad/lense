@@ -49,6 +49,11 @@ def _later(seconds):
     return (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=seconds)).isoformat(timespec="seconds")
 
 
+def enabled(cfg):
+    """Whether apps and MCP clients may sign people in here (tokens.oauth_enabled; Settings → API keys, or setup)."""
+    return bool({**store.DEFAULTS["tokens"], **(cfg.get("tokens") or {})}["oauth_enabled"])
+
+
 def lifetimes(cfg):
     """How long an app's tokens last (tokens settings): {access_minutes, refresh_days}."""
     t = {**store.DEFAULTS["tokens"], **(cfg.get("tokens") or {})}

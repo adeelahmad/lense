@@ -13,7 +13,13 @@ import { RIGHTS } from "@/components/iiif/rights";
 import { hubText } from "@/components/sensors/sensor-model";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
-import { AI_TOOLS, type FieldSpec, type SectionId, type SettingsView } from "@/components/settings/model";
+import {
+  AI_TOOLS,
+  SPEECH_PROVIDERS,
+  type FieldSpec,
+  type SectionId,
+  type SettingsView,
+} from "@/components/settings/model";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Select, Switch } from "@/components/ui/field";
@@ -98,6 +104,21 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
   switch (ctx.section) {
     case "transcription": {
       const engine = String(raw("transcribe.engine") ?? "sensevoice");
+      const provider = SPEECH_PROVIDERS.find((p) => p.id === engine);
+      if (provider)
+        return (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="transcribe.engine" />
+              <F ctx={ctx} id="transcribe.language" options={LANGUAGES.map(([value, label]) => ({ value, label }))} />
+            </div>
+            <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+              Recordings are sent to {provider.label}, which also tells speakers apart. Its address, model and key are
+              in <Link href="/settings/speech-providers">Speech providers</Link>. SenseVoice and Whisper keep their
+              models for when you switch back.
+            </p>
+          </>
+        );
       const [key, name] = ENGINE_KEY[engine] ?? ENGINE_KEY.sensevoice;
       const lang = String(raw("transcribe.language") ?? "auto");
       const langs = LANGUAGES.some(([c]) => c === lang) ? LANGUAGES : [...LANGUAGES, [lang, lang] as [string, string]];
@@ -135,11 +156,14 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             </div>
           )}
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-            By channel suits call recorders that put each side on its own channel. Off keeps one speaker per recording.
+            By channel suits call recorders that put each side on its own channel. Speech provider uses the speakers a
+            provider found while transcribing (Auto does too, when there are some). Off keeps one speaker per recording.
             Leave min and max empty to let it decide.
           </p>
         </>
       );
+    case "speech-providers":
+      return <SpeechProvidersBody ctx={ctx} />;
     case "voice-ids":
       return (
         <>
@@ -180,7 +204,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
                 Custom vocabulary <span className="font-normal text-fg-muted">· one per line, Name | TYPE</span>
               </>
             }
-            hint="Types: PERSON, ORG, PRODUCT, PLACE, EVENT, WORK, TERM. A line without a type is a topic."
+            hint="Types: PERSON, ORG, PRODUCT, PLACE, EVENT, WORK, TERM. A line without a type is a term."
           />
         </>
       );
@@ -315,6 +339,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="tokens.max_days" />
           </div>
           <F ctx={ctx} id="tokens.never_expire" />
+          <F ctx={ctx} id="tokens.oauth_enabled" />
           <div className="grid gap-3 sm:grid-cols-2">
             <F ctx={ctx} id="tokens.oauth_access_minutes" />
             <F ctx={ctx} id="tokens.oauth_refresh_days" />
@@ -938,19 +963,18 @@ function BridgeBody({ ctx }: { ctx: BodyCtx }) {
 }
 
 function AiBody({ ctx }: { ctx: BodyCtx }) {
-  const d = ctx.view.decisions;
-  const secret = (d?.values?.api_key ?? {}) as { set?: boolean };
-  const key = ctx.state("decisions.api_key");
-  const keyFromEnv = (d?.locked ?? []).includes("api_key");
   const tools = ctx.state("ai.disabled_tools");
   const off = (tools.value as string[]) ?? [];
   const enabled = Boolean(ctx.form["ai.tools"]);
+  const tts = String(ctx.form["voice.tts_provider"] ?? "openai");
   return (
     <>
       <p className="text-[13px] leading-normal text-fg-secondary">
         The assistant uses the model set in LLM provider; it needs one that supports tool calls.
       </p>
       <F ctx={ctx} id="ai.tools" />
+      <F ctx={ctx} id="ai.refine_notes" />
+      <F ctx={ctx} id="ai.organise_notes" />
       <div className="flex flex-col gap-2">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Tools</span>
         <ul className="flex flex-col gap-2">
@@ -984,54 +1008,50 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       <div className="flex flex-col gap-3">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Voice</span>
         <p className="text-[13px] leading-normal text-fg-secondary">
-          The mic in chat and on the assistant home. This server turns speech into text with its own transcription
-          engine, so it doesn’t leave the server.
+          The mic in chat and on the assistant home. By default this server turns speech into text with its own
+          transcription engine, so it doesn’t leave the server; a speech provider is faster on small machines.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <F ctx={ctx} id="voice.input" />
-          <F ctx={ctx} id="voice.tts_model" />
-          <F ctx={ctx} id="voice.tts_voice" />
-          <F ctx={ctx} id="voice.tts_base_url" />
-        </div>
-        <SecretSetting
-          key={ctx.view.voice?.updated_at ?? "none"}
-          label="Speech server API key"
-          isSet={Boolean(((ctx.view.voice?.values?.tts_api_key ?? {}) as { set?: boolean }).set)}
-          updatedBy={ctx.view.voice?.updated_by}
-          updatedAt={ctx.view.voice?.updated_at}
-          value={ctx.state("voice.tts_api_key").value as string | undefined}
-          onChange={(x) => ctx.state("voice.tts_api_key").onChange(x)}
-        />
-      </div>
-      <div className="flex flex-col gap-3">
-        <span className="text-[13px] font-bold leading-tight text-fg-strong">Routine choices</span>
-        <p className="text-[13px] leading-normal text-fg-secondary">
-          Choices like which namespace a file goes in are made for you. A decision model answers them faster and for far
-          less than the LLM; get a key at typesafe.ai.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <F ctx={ctx} id="decisions.engine" />
-          <F ctx={ctx} id="decisions.act_above" />
-        </div>
-        {keyFromEnv ? (
-          <p className="text-[13px] text-fg-secondary">The decision model’s key is set by TYPESAFE_API_KEY in .env.</p>
-        ) : (
-          <SecretSetting
-            key={d?.updated_at ?? "none"}
-            label="Decision model API key"
-            isSet={Boolean(secret.set)}
-            updatedBy={d?.updated_by}
-            updatedAt={d?.updated_at}
-            value={key.value as string | undefined}
-            onChange={(x) => key.onChange(x)}
+          <F ctx={ctx} id="voice.stt" />
+          <F ctx={ctx} id="voice.tts_provider" />
+          <F
+            ctx={ctx}
+            id="voice.tts_model"
+            hint={
+              tts === "elevenlabs"
+                ? "Empty: eleven_multilingual_v2"
+                : tts === "deepgram"
+                  ? "The Aura voice, e.g. aura-2-thalia-en (the default)"
+                  : undefined
+            }
           />
-        )}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <F ctx={ctx} id="decisions.base_url" />
-          <F ctx={ctx} id="decisions.model" />
-          <F ctx={ctx} id="decisions.timeout" />
+          {tts !== "deepgram" && (
+            <F
+              ctx={ctx}
+              id="voice.tts_voice"
+              hint={tts === "elevenlabs" ? "An ElevenLabs voice ID; empty: a premade voice" : undefined}
+            />
+          )}
+          {tts === "openai" && <F ctx={ctx} id="voice.tts_base_url" />}
         </div>
+        {tts === "openai" ? (
+          <SecretSetting
+            key={ctx.view.voice?.updated_at ?? "none"}
+            label="Speech server API key"
+            isSet={Boolean(((ctx.view.voice?.values?.tts_api_key ?? {}) as { set?: boolean }).set)}
+            updatedBy={ctx.view.voice?.updated_by}
+            updatedAt={ctx.view.voice?.updated_at}
+            value={ctx.state("voice.tts_api_key").value as string | undefined}
+            onChange={(x) => ctx.state("voice.tts_api_key").onChange(x)}
+          />
+        ) : (
+          <p className="text-[12.5px] text-fg-secondary">
+            Uses the key and address in <Link href="/settings/speech-providers">Speech providers</Link>.
+          </p>
+        )}
       </div>
+      <RoutineChoices ctx={ctx} />
       <div className="flex flex-col gap-1.5">
         <span className="text-[13px] font-bold text-fg-strong">Limits per role</span>
         <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-x-2.5 gap-y-1 text-[13px] leading-[1.4]">
@@ -1046,6 +1066,107 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
     </>
   );
 }
+
+function RoutineChoices({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const d = ctx.view.decisions;
+  const secret = (d?.values?.api_key ?? {}) as { set?: boolean };
+  const key = ctx.state("decisions.api_key");
+  const keyFromEnv = (d?.locked ?? []).includes("api_key");
+  const engine = String(ctx.form["decisions.engine"] ?? "auto");
+  const status = useQuery({
+    queryKey: ["decision-status", d?.updated_at ?? "none"],
+    queryFn: () => data(Admin.decisionStatus({ client })),
+    enabled: engine === "laya",
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testDecisions({ client })) });
+  const laya = status.data?.laya;
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="text-[13px] font-bold leading-tight text-fg-strong">Routine choices</span>
+      <p className="text-[13px] leading-normal text-fg-secondary">
+        Choices like which namespace a file goes in are made for you. A decision model answers them faster and for far
+        less than the LLM: Jev online (get a key at typesafe.ai), or Laya on this machine for free.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="decisions.engine" />
+        <F ctx={ctx} id="decisions.act_above" />
+      </div>
+      {engine === "laya" ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="decisions.laya_model" />
+            <F ctx={ctx} id="decisions.laya_url" />
+          </div>
+          {laya && !ctx.dirty && (
+            <Banner
+              tone={laya.available ? "success" : "warning"}
+              title={
+                laya.available
+                  ? laya.where === "server"
+                    ? "Laya answers from the Laya server."
+                    : "Laya answers on this machine."
+                  : "Laya can’t answer here yet; the LLM takes these choices until it can."
+              }
+            >
+              {laya.available
+                ? `${laya.model}. Lens fetched laya-mlx and the model itself.`
+                : status.data?.apple_silicon
+                  ? `${laya.reason}.`
+                  : "Laya runs on MLX, which needs a Mac with Apple Silicon. On a Mac running Lens in Docker, run lens decide-server on the Mac and put its address in Laya server (http://host.docker.internal:8790/v1)."}
+            </Banner>
+          )}
+        </>
+      ) : (
+        <>
+          {keyFromEnv ? (
+            <p className="text-[13px] text-fg-secondary">
+              The decision model’s key is set by TYPESAFE_API_KEY in .env.
+            </p>
+          ) : (
+            <SecretSetting
+              key={d?.updated_at ?? "none"}
+              label="Decision model API key"
+              isSet={Boolean(secret.set)}
+              updatedBy={d?.updated_by}
+              updatedAt={d?.updated_at}
+              value={key.value as string | undefined}
+              onChange={(x) => key.onChange(x)}
+            />
+          )}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <F ctx={ctx} id="decisions.base_url" />
+            <F ctx={ctx} id="decisions.model" />
+            <F ctx={ctx} id="decisions.timeout" />
+          </div>
+        </>
+      )}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Testing…" : "Test"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty
+            ? "Tests the saved settings, not your unsaved changes"
+            : "Takes one made-up choice and says who answered"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title={`${WHO[test.data.by ?? ""] ?? test.data.by} answered.`}>
+            Chose {test.data.choice}, {Math.round((test.data.confidence ?? 0) * 100)}% sure · {test.data.ms} ms
+          </Banner>
+        ) : (
+          <Banner tone="error" title="The test failed.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </div>
+  );
+}
+
+const WHO: Record<string, string> = { jev: "Jev", laya: "Laya", llm: "The LLM" };
 
 function SearchBody({ ctx }: { ctx: BodyCtx }) {
   const client = useApiClient();
@@ -1402,5 +1523,71 @@ function Startup({ view }: { view: SettingsView }) {
         ))}
       </dl>
     </div>
+  );
+}
+
+function SpeechProvidersBody({ ctx }: { ctx: BodyCtx }) {
+  const view = ctx.view.speech;
+  return (
+    <>
+      <p className="m-0 text-[13px] leading-normal text-fg-secondary">
+        Nothing is sent to these services until you pick one in Transcription, Speaker separation or the AI assistant’s
+        Voice. Keys are stored encrypted. Change an address to use a proxy, an EU region or a compatible server.
+      </p>
+      {SPEECH_PROVIDERS.map((p) => (
+        <div key={p.id} className="flex flex-col gap-3 border-t border-border pt-4">
+          <Sub>{p.label}</Sub>
+          <p className="m-0 text-[12.5px] leading-[1.45] text-fg-secondary">{p.about}</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id={`speech.${p.id}_base_url`} />
+            <F ctx={ctx} id={`speech.${p.id}_model`} />
+          </div>
+          <SecretSetting
+            key={view?.updated_at ?? "none"}
+            label={`${p.label} API key`}
+            isSet={Boolean(((view?.values?.[`${p.id}_api_key`] ?? {}) as { set?: boolean }).set)}
+            updatedBy={view?.updated_by}
+            updatedAt={view?.updated_at}
+            value={ctx.state(`speech.${p.id}_api_key`).value as string | undefined}
+            onChange={(x) => ctx.state(`speech.${p.id}_api_key`).onChange(x)}
+          />
+          <SpeechTest provider={p.id} dirty={ctx.dirty} />
+        </div>
+      ))}
+      <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
+        <F ctx={ctx} id="speech.sentiment" />
+        <F ctx={ctx} id="speech.timeout" />
+      </div>
+    </>
+  );
+}
+
+function SpeechTest({ provider, dirty }: { provider: string; dirty: boolean }) {
+  const client = useApiClient();
+  const test = useMutation({ mutationFn: () => data(Admin.testSpeech({ client, query: { provider } })) });
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Testing…" : "Test"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {dirty
+            ? "Tests the saved settings, not your unsaved changes"
+            : "Checks the address and key; nothing is billed"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="It answered.">
+            {test.data.detail} · {test.data.ms} ms
+          </Banner>
+        ) : (
+          <Banner tone="error" title="The test failed.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
   );
 }

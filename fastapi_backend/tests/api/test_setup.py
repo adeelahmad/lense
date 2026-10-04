@@ -8,7 +8,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from app.domain import auth, store
+from app.domain import auth, migrations, store
 from app.domain import settings as app_settings
 from tests.conftest import TEST_URL
 from tests.helpers import login, make_user
@@ -61,7 +61,7 @@ def fresh(folder):
 def test_fresh_database_without_namespaces_starts(folder):
     db = store.connect(bare_cfg(folder))
     try:
-        assert db.values("SELECT VALUE n FROM $r", r=store.R("seq", "migrations")) == [2]
+        assert migrations.pending(db) == [] and [m["state"] for m in migrations.status(db)] == ["done", "done"]
         assert store.space_names(db) == {}
     finally:
         db.close()
@@ -110,6 +110,16 @@ def test_wizard_after_first_admin(fresh, folder):
         "watches": 1,
     }
 
+    # apps and MCP clients signing in (OAuth): on unless turned off, with the token lifetimes
+    assert client.get("/api/v1/setup", headers=h).json()["oauth"] == {"enabled": True, "access_minutes": 60, "refresh_days": 30}
+    assert client.put("/api/v1/setup/oauth", json={"enabled": True, "access_minutes": 2}, headers=h).status_code == 400
+    r = client.put("/api/v1/setup/oauth", json={"enabled": False, "access_minutes": 30, "refresh_days": 14}, headers=h)
+    assert r.json()["saved"] == ["oauth_access_minutes", "oauth_enabled", "oauth_refresh_days"]
+    assert client.get("/api/v1/setup", headers=h).json()["oauth"] == {"enabled": False, "access_minutes": 30, "refresh_days": 14}
+    assert client.get("/.well-known/oauth-authorization-server").status_code == 404
+    assert client.put("/api/v1/setup/oauth", json={"enabled": True}, headers=h).json()["saved"] == ["oauth_enabled"]
+    assert client.get("/.well-known/oauth-authorization-server").status_code == 200
+
     assert client.post("/api/v1/setup/finish", json={}, headers=h).status_code == 200
     assert client.get("/api/v1/auth/status").json()["wizard_pending"] is False
     assert "setup.finish" in [e["action"] for e in client.get("/api/v1/audit", headers=h).json()]
@@ -123,6 +133,7 @@ def test_only_admins_use_the_wizard(fresh):
     h = login(client, "ed@x.io", "editor password 1")
     assert client.get("/api/v1/setup", headers=h).status_code == 403
     assert client.post("/api/v1/setup/finish", json={}, headers=h).status_code == 403
+    assert client.put("/api/v1/setup/oauth", json={"enabled": False}, headers=h).status_code == 403
 
 
 def test_existing_installs_never_see_the_wizard(app, client):

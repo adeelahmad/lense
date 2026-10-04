@@ -7,8 +7,10 @@ Nodes, each with labels and properties (every node has `id`, `name` and `namespa
 - `r<id>` Recording {title, date, media}
 - `s<id>` Speaker {seconds: talk time}
 - `e<id>` Entity {type, key, mentions}, with its type as a second label (Person, Organisation, Product, Place, Event,
-  Work, Topic, or a namespace's own type). In the global scope, entities with the same name in different namespaces
+  Work, Term, or a namespace's own type). In the global scope, entities with the same name in different namespaces
   are one node, `e:<key>`, as in the overview graph (graph.py); `ids` lists the entities behind it.
+- `t<id>` Topic {alt, definition, recordings}: a topic of the namespace's vocabulary (topics.py). In the global scope,
+  topics with the same label are one node, `t:<key>`, like entities.
 
 Relationships, all directed (a query may ignore the direction):
 
@@ -20,8 +22,12 @@ Relationships, all directed (a query may ignore the direction):
 - SPOKE_WITH: Speaker -> Speaker, in the same recording {recordings}
 - SAME_AS: Speaker -> Speaker (someone said they are the same person)
 - SAME_THING: Entity -> Entity (linked across namespaces)
+- ABOUT: Recording -> Topic, the recording is about it {source, weight}
+- NARROWER: Topic -> Topic, from a broader topic to a narrower one (skos:narrower)
+- RELATED: Topic -> Topic (skos:related)
 
-CONTAINS, HAS_SPEAKER, MENTIONS and SAID make the hierarchy that parents, children, ancestors and descendants follow.
+CONTAINS, HAS_SPEAKER, MENTIONS, SAID, ABOUT and NARROWER make the hierarchy that parents, children, ancestors and
+descendants follow, so a topic's parents are its broader topics and the recordings about it.
 
 A projection covers whole namespaces only: the ones a caller can read, one of them (`ns:<name>`, isolated ones too),
 or every shared one (`global`). Hidden entities and quiet types (dates, numbers) are left out, as in the explorer.
@@ -33,13 +39,25 @@ import re
 import time
 from collections import Counter, defaultdict, deque
 
-from . import store
+from . import graph_history, store
 from .entities import QUIET, TYPES
 
 R = store.R
-REL_TYPES = ("CONTAINS", "HAS_SPEAKER", "MENTIONS", "SAID", "MENTIONED_WITH", "SPOKE_WITH", "SAME_AS", "SAME_THING")
-HIERARCHY = ("CONTAINS", "HAS_SPEAKER", "MENTIONS", "SAID")
-NODE_LABELS = ("Namespace", "Collection", "Recording", "Speaker", "Entity")
+REL_TYPES = (
+    "CONTAINS",
+    "HAS_SPEAKER",
+    "MENTIONS",
+    "SAID",
+    "MENTIONED_WITH",
+    "SPOKE_WITH",
+    "SAME_AS",
+    "SAME_THING",
+    "ABOUT",
+    "NARROWER",
+    "RELATED",
+)
+HIERARCHY = ("CONTAINS", "HAS_SPEAKER", "MENTIONS", "SAID", "ABOUT", "NARROWER")
+NODE_LABELS = ("Namespace", "Collection", "Recording", "Speaker", "Entity", "Topic")
 # the overview graph's edge kinds (graph.py, the web app's legend) for the relationship types that have one
 KIND = {
     "SAID": "mentions",
@@ -50,6 +68,9 @@ KIND = {
     "CONTAINS": "contains",
     "HAS_SPEAKER": "speaks in",
     "MENTIONS": "mentioned in",
+    "ABOUT": "about",
+    "NARROWER": "narrower",
+    "RELATED": "related",
 }
 RELATIONS = ("children", "parents", "ancestors", "descendants", "neighbours")
 MAX_RESULTS = 2000
@@ -79,7 +100,10 @@ class Rel:
 
 
 def type_label(t):
-    """An entity type as a node label: PERSON -> Person, ORG -> Organisation, a namespace's own MY_TYPE -> MyType."""
+    """An entity type as a node label: PERSON -> Person, ORG -> Organisation, a namespace's own MY_TYPE -> MyType. TERM
+    is Term here, so it isn't mistaken for the vocabulary's topics (Topic)."""
+    if t == "TERM":
+        return "Term"
     if t in TYPES:
         return TYPES[t]
     return "".join(w.capitalize() for w in re.split(r"[^A-Za-z0-9]+", str(t)) if w) or "Entity"
@@ -127,15 +151,16 @@ class Graph:
                     yield r, r.start
 
     def resolve(self, ref):
-        """A node id as people and agents write it: e12 (also inside a merged global entity), e:<key>, s4, r9, c2, n1."""
+        """A node id as people and agents write it: e12 or t3 (also inside a merged global entity or topic), e:<key>,
+        t:<key>, s4, r9, c2, n1."""
         ref = str(ref or "").strip()
         if ref in self.nodes:
             return ref
-        m = re.fullmatch(r"e(\d+)", ref)
+        m = re.fullmatch(r"([et])(\d+)", ref)
         if m:
-            eid = int(m.group(1))
-            for nid in self.by_label.get("Entity", ()):
-                if eid in (self.nodes[nid].props.get("ids") or ()):
+            i = int(m.group(2))
+            for nid in self.by_label.get("Entity" if m.group(1) == "e" else "Topic", ()):
+                if i in (self.nodes[nid].props.get("ids") or ()):
                     return nid
         raise KeyError(ref)
 
@@ -163,8 +188,12 @@ def spaces_for(db, scope, readable):
     return [(r["id"], r["name"], r.get("graph") != "isolated") for r in rows]
 
 
-def build(db, scope="global", readable=None):
+def build(db, scope="global", readable=None, recordings=None, as_of=None):
+    """The graph of a scope over the namespaces in `readable` (None: all); `recordings` (a set of ids) keeps only those
+    recordings and what is said in them, for a conversation limited to some recordings. `as_of` (a graph version) takes
+    entities and their links as they were then (docs/graph-history.md); mentions and the rest are today's."""
     nss = spaces_for(db, scope, readable)
+    keep = (lambda rid: rid in recordings) if recordings is not None else (lambda rid: True)
     merged = not (scope or "").startswith("ns:")
     g = Graph(scope or "global", [n for _, n, _ in nss])
     if not nss:
@@ -181,6 +210,8 @@ def build(db, scope="global", readable=None):
         g.link("CONTAINS", f"c{c['parent']}" if c.get("parent") else f"n{c['space']}", f"c{c['id']}")
 
     for r in db.rows("SELECT record::id(id) AS id, space, collection, title, recorded_at, media FROM recording WHERE space IN $s", s=sids):
+        if not keep(r["id"]):
+            continue
         date = r.get("recorded_at")
         g.add(
             f"r{r['id']}",
@@ -197,10 +228,13 @@ def build(db, scope="global", readable=None):
     talk = db.rows(
         "SELECT speaker, recording, math::sum(dur) AS ms FROM segment WHERE space IN $s AND speaker > 0 GROUP BY speaker, recording", s=sids
     )
+    talk = [t for t in talk if keep(t["recording"])]
     total = Counter()
     for t in talk:
         total[t["speaker"]] += t["ms"] or 0
     for s in db.rows("SELECT record::id(id) AS id, space, name, label FROM speaker WHERE space IN $s", s=sids):
+        if recordings is not None and not total[s["id"]]:
+            continue
         g.add(
             f"s{s['id']}",
             ["Speaker"],
@@ -225,7 +259,14 @@ def build(db, scope="global", readable=None):
 
     # entities: one node each, or one per name across namespaces in the global scope
     node_of, agg = {}, {}
-    for e in db.rows(f"SELECT {_ENTITY_FIELDS} FROM entity WHERE space IN $s", s=sids):
+    past = graph_history.state_at(db, as_of, sids) if as_of is not None else None
+    if past is None:
+        ents = db.rows(f"SELECT {_ENTITY_FIELDS} FROM entity WHERE space IN $s", s=sids)
+        links = db.rows("SELECT a, b FROM entity_link")
+    else:
+        ents = [{"id": k, **r} for k, r in sorted(past["entity"].items())]
+        links = list(past["entity_link"].values())
+    for e in ents:
         if e.get("hidden") or e["type"] in QUIET:
             continue
         nid = f"e:{e['key']}" if merged else f"e{e['id']}"
@@ -237,7 +278,7 @@ def build(db, scope="global", readable=None):
     count, rec_m, spk_m, seg_e = Counter(), Counter(), Counter(), defaultdict(set)
     for m in ms:
         nid = node_of.get(m["entity"])
-        if not nid:
+        if not nid or not keep(m["recording"]):
             continue
         count[nid] += 1
         rec_m[(f"r{m['recording']}", nid)] += 1
@@ -271,11 +312,57 @@ def build(db, scope="global", readable=None):
                 co[(a, b)] += 1
     for (a, b), n in co.items():
         g.link("MENTIONED_WITH", a, b, count=n)
-    for ln in db.rows("SELECT a, b FROM entity_link"):
+    for ln in links:
         a, b = node_of.get(ln["a"]), node_of.get(ln["b"])
         if a and b and a != b:
             g.link("SAME_THING", a, b)
+    _topics(g, db, sids, names, merged, keep, only_about=recordings is not None)
     return g
+
+
+def _topics(g, db, sids, names, merged, keep, only_about=False):
+    """The vocabularies' topics, the recordings about them and how they nest. `only_about`: just the topics recordings
+    in the graph are about (a conversation limited to some recordings)."""
+    rows = db.rows("SELECT record::id(id) AS id, space, key, label, alt, definition, broader, related FROM topic WHERE space IN $s", s=sids)
+    about = db.rows("SELECT recording, topic, source, weight FROM topic_about WHERE space IN $s AND status = 'accepted'", s=sids)
+    about = [a for a in about if keep(a["recording"])]
+    if only_about:
+        wanted = {a["topic"] for a in about}
+        rows = [t for t in rows if t["id"] in wanted]
+    node_of = {}
+    for t in rows:
+        nid = f"t:{t['key']}" if merged else f"t{t['id']}"
+        node_of[t["id"]] = nid
+        n = g.nodes.get(nid)
+        if n is None:
+            g.add(
+                nid,
+                ["Topic"],
+                name=t["label"],
+                key=t["key"],
+                namespace=names[t["space"]],
+                namespaces=[names[t["space"]]],
+                alt=t.get("alt") or [],
+                definition=t.get("definition"),
+                recordings=0,
+                ids=[t["id"]],
+            )
+        else:
+            n.props["namespaces"] = sorted({*n.props["namespaces"], names[t["space"]]})
+            n.props["namespace"] = None if len(n.props["namespaces"]) > 1 else n.props["namespace"]
+            n.props["ids"] = sorted({*n.props["ids"], t["id"]})
+            n.props["alt"] = sorted({*n.props["alt"], *(t.get("alt") or [])})
+    for t in rows:
+        for b in t.get("broader") or []:
+            if b in node_of:
+                g.link("NARROWER", node_of[b], node_of[t["id"]])
+        for r in t.get("related") or []:
+            if r in node_of and t["id"] < r:
+                g.link("RELATED", node_of[t["id"]], node_of[r])
+    for a in about:
+        nid = node_of.get(a["topic"])
+        if nid and g.link("ABOUT", f"r{a['recording']}", nid, source=a.get("source"), weight=a.get("weight")):
+            g.nodes[nid].props["recordings"] += 1
 
 
 _ENTITY_FIELDS = "record::id(id) AS id, space, key, name, type, hidden"
