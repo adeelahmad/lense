@@ -24,6 +24,7 @@ import threading
 
 from . import (
     activity,
+    budgets,
     fedora,
     jobs,
     organize,
@@ -241,7 +242,7 @@ def _with_changes(db, rows):
 def runs(db, rid, limit=20):
     rows = db.rows(
         "SELECT record::id(id) AS id, routine, trigger, by, status, started_at, finished_at, results, error, cost_usd, tokens, "
-        "cost_estimate FROM routine_run "
+        "cost_estimate, hold FROM routine_run "
         "WHERE routine = $r ORDER BY id DESC LIMIT $n",
         r=int(rid),
         n=int(limit),
@@ -256,15 +257,16 @@ def get_run(db, run_id):
     return _with_changes(db, [row])[0]
 
 
-def request_run(db, rid, by=None, propose_only=False):
-    """Ask for a run as soon as the scheduler next looks (even when the routine is off)."""
+def request_run(db, rid, by=None, propose_only=False, over_budget=False):
+    """Ask for a run as soon as the scheduler next looks (even when the routine is off). over_budget: someone chose to
+    run it whatever its budgets say (budgets.py)."""
     r = get(db, rid)
     if r["running"]:
         raise ValueError("this routine is running now")
     db.q(
         "UPDATE $r SET run_now = $d",
         r=R("routine", int(rid)),
-        d=store.clean({"by": by, "at": store.now(), "propose_only": propose_only or None}),
+        d=store.clean({"by": by, "at": store.now(), "propose_only": propose_only or None, "over_budget": over_budget or None}),
     )
 
 
@@ -507,12 +509,102 @@ def _idle(db, cfg, r):
     return not semantic.configured(cfg) or bool(semantic.failing(db, cfg)) or not semantic.unindexed(db, cfg, _spaces(db, r), 1)
 
 
+def refs(db, r):
+    """What a routine's runs count for, for its budgets: it, the pipelines and workflows its actions name, and its
+    namespaces."""
+    out = [f"routine:{r['id']}"]
+    for a in r.get("actions") or []:
+        if a.get("type") == "pipeline" and isinstance(a.get("pipeline"), int):
+            out.append(f"pipeline:{a['pipeline']}")
+        if a.get("type") == "workflow" and a.get("workflow") is not None:
+            out.append(f"workflow:{int(a['workflow'])}")
+    out += [f"space:{s}" for s in _spaces(db, r)]
+    return out
+
+
+def _held(db, cfg, r, trigger, by, now):
+    """Whether a routine that's due is over a budget (budgets.py): if so its run is held for someone to pick, or
+    skipped, as a run row that says why, and the routine is free again (its next time stays as claimed)."""
+    try:
+        verdict = budgets.check(db, cfg, refs(db, r), now)
+    except Exception:  # noqa: BLE001 - a budget that can't be read doesn't stop the work
+        return False
+    if verdict["go"]:
+        return False
+    held = verdict["action"] != "skip"
+    status = "held" if held else "skipped"
+    waiting = db.values("SELECT VALUE record::id(id) FROM routine_run WHERE routine = $r AND status = 'held'", r=int(r["id"]))
+    if held and waiting:  # one held run waits for a pick; later times it was due add to it rather than pile up
+        db.q("UPDATE $r SET hold.missed += 1, hold.why = $w", r=R("routine_run", waiting[0]), w=verdict["why"])
+        db.q("UPDATE $r SET running_since = NONE, heartbeat_at = NONE", r=R("routine", r["id"]))
+        return True
+    run_id = db.next_id("routine_run")
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("routine_run", run_id),
+        d=store.clean(
+            {
+                "routine": int(r["id"]),
+                "trigger": trigger,
+                "by": by,
+                "status": status,
+                "started_at": _iso(now),
+                "finished_at": None if held else _iso(now),
+                "results": [],
+                "hold": {"why": verdict["why"], "resource": verdict["resource"], "action": verdict["action"], "missed": 0},
+            }
+        ),
+    )
+    db.q(
+        "UPDATE $r SET running_since = NONE, heartbeat_at = NONE, last_status = $s, last_run = $i",
+        r=R("routine", r["id"]),
+        s=status,
+        i=run_id,
+    )
+    activity.record(
+        "run",
+        f"routine.{status}",
+        [f"routine:{r['id']}", f"routine_run:{run_id}"],
+        cfg,
+        db,
+        ok=held,
+        error=None if held else "OverBudget",
+        detail={"budget": verdict["resource"], "trigger": trigger},
+    )
+    return True
+
+
+def decide_held(db, run_id, run=True, by=None):
+    """Someone's pick for a run held over budget: run it now (once, whatever its budgets say) or skip it."""
+    row = db.one("SELECT routine, status FROM $r", r=R("routine_run", int(run_id)))
+    if not row:
+        raise KeyError(run_id)
+    if row["status"] != "held":
+        raise ValueError(f"this run isn't waiting on a budget (it's {row['status']})")
+    t = store.now()
+    db.q(
+        "UPDATE $r SET status = $s, finished_at = $t, hold.decided = $d WHERE status = 'held'",
+        r=R("routine_run", int(run_id)),
+        s="released" if run else "skipped",
+        t=t,
+        d={"run": run, "by": by, "at": t},
+    )
+    if run:
+        request_run(db, row["routine"], by=by, over_budget=True)
+    return row["routine"]
+
+
 def run_due(db, cfg, log=print, now=None):
     """Run every routine that is due (or asked to run now); how many ran."""
     now = now or dt.datetime.now(dt.timezone.utc)
     stamp = _iso(now)
     sweep(db, now)
     activity.tidy(db, cfg)  # the activity ledger past activity.keep_days, once an hour
+    try:
+        budgets.sweep(db, cfg, every=budgets.SWEEP_SECONDS)  # budgets that crossed warn_at or their cap: warned once
+    except Exception as e:  # noqa: BLE001 - the schedule carries on
+        if log:
+            log(f"budgets: {type(e).__name__}: {e}")
     due = db.rows(
         "SELECT record::id(id) AS id, schedule, timezone, next_run_at, run_now, namespaces, actions FROM routine "
         "WHERE run_now != NONE OR (enabled = true AND next_run_at != NONE AND next_run_at <= $n)",
@@ -527,6 +619,8 @@ def run_due(db, cfg, log=print, now=None):
         if not _claim(db, r, now):
             continue
         req = r.get("run_now") or {}
+        if not req.get("over_budget") and _held(db, cfg, r, "manual" if req else "schedule", req.get("by"), now):
+            continue
         try:
             run(db, cfg, r["id"], "manual" if req else "schedule", req.get("by"), bool(req.get("propose_only")), log)
             done += 1

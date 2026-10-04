@@ -756,6 +756,8 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS activity SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS activity_at ON activity FIELDS at",
     "DEFINE INDEX IF NOT EXISTS activity_resources ON activity FIELDS resources",
+    # caps on what a routine, pipeline, workflow or namespace may cost (domain/budgets.py): budget:<table>_<id>
+    "DEFINE TABLE IF NOT EXISTS budget SCHEMALESS",
     # background work
     "DEFINE TABLE IF NOT EXISTS job SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_status ON job FIELDS status",

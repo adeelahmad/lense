@@ -1108,6 +1108,142 @@ export type BrowseEntry = {
 };
 
 /**
+ * Budget
+ */
+export type Budget = {
+  /**
+   * Resource
+   */
+  resource: string;
+  /**
+   * Usd
+   */
+  usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Period
+   */
+  period: string;
+  /**
+   * On Over
+   */
+  on_over: string;
+  /**
+   * Warn At
+   */
+  warn_at: number;
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Alert
+   *
+   * the last warning: {state near|over, since, at, share}
+   */
+  alert?: {
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * BudgetSet
+ */
+export type BudgetSet = {
+  /**
+   * Usd
+   *
+   * the cap in USD (from the costs in the activity ledger)
+   */
+  usd?: number | null;
+  /**
+   * Tokens
+   *
+   * the cap in tokens (in and out)
+   */
+  tokens?: number | null;
+  /**
+   * Period
+   *
+   * what the cap is for: one run, or a day, week or month (UTC)
+   */
+  period?: "run" | "day" | "week" | "month";
+  /**
+   * On Over
+   *
+   * a run that would go over: ask (hold it until someone picks run or skip), skip, or assistant (the decision model weighs it; it runs only when sure, else asks)
+   */
+  on_over?: "ask" | "skip" | "assistant";
+  /**
+   * Warn At
+   *
+   * the share spent at which it's marked near (and warned about)
+   */
+  warn_at?: number;
+  /**
+   * Note
+   */
+  note?: string | null;
+};
+
+/**
+ * BudgetStatus
+ */
+export type BudgetStatus = {
+  /**
+   * Resource
+   */
+  resource: string;
+  budget?: Budget | null;
+  /**
+   * State
+   */
+  state: "none" | "ok" | "near" | "over";
+  /**
+   * Since
+   *
+   * the start of the period being counted
+   */
+  since?: string | null;
+  spent?: Spent | null;
+  /**
+   * what one more run will likely cost: always an estimate
+   */
+  next: NextRun;
+  /**
+   * Left
+   */
+  left?: {
+    [key: string]: number;
+  } | null;
+  /**
+   * Share
+   *
+   * the largest share of a cap spent (1 is all of it)
+   */
+  share?: number | null;
+  /**
+   * Share After Next
+   *
+   * the share once the next run (estimated) is done
+   */
+  share_after_next?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * ChangeAsk
  */
 export type ChangeAsk = {
@@ -4823,6 +4959,18 @@ export type Heard = {
 };
 
 /**
+ * HeldRunDecision
+ */
+export type HeldRunDecision = {
+  /**
+   * Run
+   *
+   * true: run it now, once, whatever its budgets say; false: skip it
+   */
+  run: boolean;
+};
+
+/**
  * Highlight
  */
 export type Highlight = {
@@ -5551,6 +5699,14 @@ export type Job = {
    * true: some calls had no price or token counts, so cost_usd is a floor
    */
   cost_estimate?: boolean | null;
+  /**
+   * Hold
+   *
+   * held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}
+   */
+  hold?: {
+    [key: string]: unknown;
+  } | null;
   /**
    * Log
    *
@@ -6608,6 +6764,31 @@ export type NamespaceUpdate = {
   pipelines?: {
     [key: string]: number | null;
   } | null;
+};
+
+/**
+ * NextRun
+ */
+export type NextRun = {
+  /**
+   * Usd
+   */
+  usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Runs
+   *
+   * the past runs the estimate is drawn from
+   */
+  runs: number;
+  /**
+   * Basis
+   */
+  basis: string;
+  [key: string]: unknown;
 };
 
 /**
@@ -10102,6 +10283,14 @@ export type RoutineRun = {
    * true: some calls had no price or token counts, so cost_usd is a floor
    */
   cost_estimate?: boolean | null;
+  /**
+   * Hold
+   *
+   * held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}
+   */
+  hold?: {
+    [key: string]: unknown;
+  } | null;
   [key: string]: unknown;
 };
 
@@ -10115,6 +10304,12 @@ export type RoutineRunRequest = {
    * graph workflows propose every change instead of making the sure ones
    */
   propose_only?: boolean;
+  /**
+   * Over Budget
+   *
+   * run it even though it's over a budget (docs/budgets.md); without it, a run over budget is refused (409)
+   */
+  over_budget?: boolean;
 };
 
 /**
@@ -12218,6 +12413,27 @@ export type SpeakerSuggestion = {
    * Score
    */
   score: number;
+  [key: string]: unknown;
+};
+
+/**
+ * Spent
+ */
+export type Spent = {
+  /**
+   * Usd
+   */
+  usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Estimate
+   *
+   * true: some calls had no figure, so usd is a floor
+   */
+  estimate: boolean;
   [key: string]: unknown;
 };
 
@@ -16130,6 +16346,120 @@ export type TopResourcesResponses = {
 };
 
 export type TopResourcesResponse = TopResourcesResponses[keyof TopResourcesResponses];
+
+export type RemoveBudgetData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Resource
+     *
+     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     */
+    resource: string;
+  };
+  url: "/api/v1/budgets";
+};
+
+export type RemoveBudgetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveBudgetError = RemoveBudgetErrors[keyof RemoveBudgetErrors];
+
+export type RemoveBudgetResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveBudgetResponse = RemoveBudgetResponses[keyof RemoveBudgetResponses];
+
+export type ListBudgetsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/budgets";
+};
+
+export type ListBudgetsResponses = {
+  /**
+   * Response Budgets-List Budgets
+   *
+   * Successful Response
+   */
+  200: Array<BudgetStatus>;
+};
+
+export type ListBudgetsResponse = ListBudgetsResponses[keyof ListBudgetsResponses];
+
+export type SetBudgetData = {
+  body: BudgetSet;
+  path?: never;
+  query: {
+    /**
+     * Resource
+     *
+     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     */
+    resource: string;
+  };
+  url: "/api/v1/budgets";
+};
+
+export type SetBudgetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetBudgetError = SetBudgetErrors[keyof SetBudgetErrors];
+
+export type SetBudgetResponses = {
+  /**
+   * Successful Response
+   */
+  200: BudgetStatus;
+};
+
+export type SetBudgetResponse = SetBudgetResponses[keyof SetBudgetResponses];
+
+export type BudgetStatusData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Resource
+     *
+     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     */
+    resource: string;
+  };
+  url: "/api/v1/budgets/status";
+};
+
+export type BudgetStatusErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BudgetStatusError = BudgetStatusErrors[keyof BudgetStatusErrors];
+
+export type BudgetStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: BudgetStatus;
+};
+
+export type BudgetStatusResponse = BudgetStatusResponses[keyof BudgetStatusResponses];
 
 export type GetFedoraStatusData = {
   body?: never;
@@ -22379,6 +22709,36 @@ export type CancelJobResponses = {
 
 export type CancelJobResponse = CancelJobResponses[keyof CancelJobResponses];
 
+export type ReleaseJobData = {
+  body: HeldRunDecision;
+  path: {
+    /**
+     * Jid
+     */
+    jid: number;
+  };
+  query?: never;
+  url: "/api/v1/jobs/{jid}/release";
+};
+
+export type ReleaseJobErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReleaseJobError = ReleaseJobErrors[keyof ReleaseJobErrors];
+
+export type ReleaseJobResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type ReleaseJobResponse = ReleaseJobResponses[keyof ReleaseJobResponses];
+
 export type RetryJobData = {
   body?: never;
   path: {
@@ -25341,6 +25701,36 @@ export type RunRoutineResponses = {
 };
 
 export type RunRoutineResponse = RunRoutineResponses[keyof RunRoutineResponses];
+
+export type DecideHeldRunData = {
+  body: HeldRunDecision;
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: number;
+  };
+  query?: never;
+  url: "/api/v1/routines/runs/{run_id}/decide";
+};
+
+export type DecideHeldRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DecideHeldRunError = DecideHeldRunErrors[keyof DecideHeldRunErrors];
+
+export type DecideHeldRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DecideHeldRunResponse = DecideHeldRunResponses[keyof DecideHeldRunResponses];
 
 export type ListRunsData = {
   body?: never;

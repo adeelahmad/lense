@@ -445,9 +445,9 @@ def top(db, prefix=None, since=None, limit=20):
         inner += " AND at >= $since"
         p["since"] = since
     rows = db.rows(
-        "SELECT res AS resource, math::sum(cost_usd ?? 0) AS cost_usd, math::sum((tokens_in ?? 0) + (tokens_out ?? 0)) AS tokens, "
-        f"count() AS calls FROM (SELECT resources AS res, cost_usd, tokens_in, tokens_out FROM activity WHERE {inner} SPLIT res) "
-        "WHERE string::starts_with(res, $p) GROUP BY res ORDER BY cost_usd DESC, tokens DESC LIMIT $n",
+        "SELECT resources AS resource, math::sum(cost_usd ?? 0) AS cost_usd, math::sum((tokens_in ?? 0) + (tokens_out ?? 0)) AS tokens, "
+        f"count() AS calls FROM (SELECT resources, cost_usd, tokens_in, tokens_out FROM activity WHERE {inner} SPLIT resources) "
+        "WHERE string::starts_with(resources, $p) GROUP BY resource ORDER BY cost_usd DESC, tokens DESC LIMIT $n",
         **p,
     )
     for r in rows:
@@ -475,10 +475,10 @@ def costs(db, resources, since=None):
         inner += " AND at >= $since"
         p["since"] = since
     rows = db.rows(
-        "SELECT res, math::sum(cost_usd ?? 0) AS cost_usd, math::sum((tokens_in ?? 0) + (tokens_out ?? 0)) AS tokens, "
-        "count() AS calls, count(unpriced) AS unpriced FROM "
-        f"(SELECT resources AS res, cost_usd, tokens_in, tokens_out, {_unpriced_sql()} AS unpriced FROM activity WHERE {inner} SPLIT res) "
-        "WHERE res IN $rs GROUP BY res",
+        "SELECT resources AS res, math::sum(cost_usd ?? 0) AS cost_usd, math::sum((tokens_in ?? 0) + (tokens_out ?? 0)) AS tokens, "
+        "count() AS calls, count(unpriced = true) AS unpriced FROM "
+        f"(SELECT resources, cost_usd, tokens_in, tokens_out, unpriced FROM activity WHERE {inner} SPLIT resources) "
+        "WHERE resources IN $rs GROUP BY res",
         **p,
     )
     for r in rows:

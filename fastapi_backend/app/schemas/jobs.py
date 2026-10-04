@@ -56,6 +56,11 @@ class Job(ResponseModel):
     cost_usd: float | None = Field(None, description="what its calls cost, from the activity ledger (docs/activity.md); set when it ends")
     tokens: int | None = None
     cost_estimate: bool | None = Field(None, description="true: some calls had no price or token counts, so cost_usd is a floor")
+    hold: dict[str, Any] | None = Field(
+        None,
+        description="held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), "
+        "decided: {run, by, at} once someone picked}",
+    )
     log: list[str] | None = Field(None, description="the last 200 lines; GET /jobs/{jid}/log has them all")
     log_total: int | None = Field(None, description="how many lines the run has logged")
     step_runs: list[StepRun | None] | None = Field(

@@ -48,6 +48,9 @@ import type {
   BrowseSourceData,
   BrowseSourceErrors,
   BrowseSourceResponses,
+  BudgetStatusData,
+  BudgetStatusErrors,
+  BudgetStatusResponses,
   BulkUpdateMetadataData,
   BulkUpdateMetadataErrors,
   BulkUpdateMetadataResponses,
@@ -196,6 +199,9 @@ import type {
   DecideApprovalData,
   DecideApprovalErrors,
   DecideApprovalResponses,
+  DecideHeldRunData,
+  DecideHeldRunErrors,
+  DecideHeldRunResponses,
   DeclineAccessRequestData,
   DeclineAccessRequestErrors,
   DeclineAccessRequestResponses,
@@ -546,6 +552,8 @@ import type {
   ListBackendsResponses,
   ListBatchesData,
   ListBatchesResponses,
+  ListBudgetsData,
+  ListBudgetsResponses,
   ListChatsData,
   ListChatsResponses,
   ListCollectionMembersData,
@@ -814,6 +822,12 @@ import type {
   RegisterResponses,
   ReindexSearchData,
   ReindexSearchResponses,
+  ReleaseJobData,
+  ReleaseJobErrors,
+  ReleaseJobResponses,
+  RemoveBudgetData,
+  RemoveBudgetErrors,
+  RemoveBudgetResponses,
   RemoveLoginProviderData,
   RemoveLoginProviderErrors,
   RemoveLoginProviderResponses,
@@ -944,6 +958,9 @@ import type {
   SendMessageData,
   SendMessageErrors,
   SendMessageResponses,
+  SetBudgetData,
+  SetBudgetErrors,
+  SetBudgetResponses,
   SetCollectionMemberData,
   SetCollectionMemberErrors,
   SetCollectionMemberResponses,
@@ -2390,6 +2407,64 @@ export class Activity {
   ): RequestResult<TopResourcesResponses, TopResourcesErrors, ThrowOnError> {
     return (options?.client ?? client).get<TopResourcesResponses, TopResourcesErrors, ThrowOnError>({
       url: "/api/v1/activity/top",
+      ...options,
+    });
+  }
+}
+
+export class Budgets {
+  /**
+   * Remove Budget
+   */
+  public static removeBudget<ThrowOnError extends boolean = false>(
+    options: Options<RemoveBudgetData, ThrowOnError>,
+  ): RequestResult<RemoveBudgetResponses, RemoveBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveBudgetResponses, RemoveBudgetErrors, ThrowOnError>({
+      url: "/api/v1/budgets",
+      ...options,
+    });
+  }
+
+  /**
+   * List Budgets
+   *
+   * Every budget, with where it stands now.
+   */
+  public static listBudgets<ThrowOnError extends boolean = false>(
+    options?: Options<ListBudgetsData, ThrowOnError>,
+  ): RequestResult<ListBudgetsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListBudgetsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/budgets",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Budget
+   */
+  public static setBudget<ThrowOnError extends boolean = false>(
+    options: Options<SetBudgetData, ThrowOnError>,
+  ): RequestResult<SetBudgetResponses, SetBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetBudgetResponses, SetBudgetErrors, ThrowOnError>({
+      url: "/api/v1/budgets",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Budget Status
+   *
+   * Where a resource's budget stands, and what its next run will likely cost (also without a budget).
+   */
+  public static budgetStatus<ThrowOnError extends boolean = false>(
+    options: Options<BudgetStatusData, ThrowOnError>,
+  ): RequestResult<BudgetStatusResponses, BudgetStatusErrors, ThrowOnError> {
+    return (options.client ?? client).get<BudgetStatusResponses, BudgetStatusErrors, ThrowOnError>({
+      url: "/api/v1/budgets/status",
       ...options,
     });
   }
@@ -5464,6 +5539,25 @@ export class Jobs {
   }
 
   /**
+   * Release Job
+   *
+   * Pick for a job held over a budget (docs/budgets.md): run it now, once, whatever its budgets say, or skip it
+   * (admins, who set the budgets).
+   */
+  public static releaseJob<ThrowOnError extends boolean = false>(
+    options: Options<ReleaseJobData, ThrowOnError>,
+  ): RequestResult<ReleaseJobResponses, ReleaseJobErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReleaseJobResponses, ReleaseJobErrors, ThrowOnError>({
+      url: "/api/v1/jobs/{jid}/release",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Retry Job
    */
   public static retryJob<ThrowOnError extends boolean = false>(
@@ -7076,13 +7170,32 @@ export class Routines {
   /**
    * Run Routine
    *
-   * Run it as soon as the scheduler next looks (within half a minute), even when it is off.
+   * Run it as soon as the scheduler next looks (within half a minute), even when it is off. A run over one of its
+   * budgets is refused (409, saying where the budget stands) unless over_budget is true (docs/budgets.md).
    */
   public static runRoutine<ThrowOnError extends boolean = false>(
     options: Options<RunRoutineData, ThrowOnError>,
   ): RequestResult<RunRoutineResponses, RunRoutineErrors, ThrowOnError> {
     return (options.client ?? client).post<RunRoutineResponses, RunRoutineErrors, ThrowOnError>({
       url: "/api/v1/routines/{rid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Decide Held Run
+   *
+   * Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.
+   */
+  public static decideHeldRun<ThrowOnError extends boolean = false>(
+    options: Options<DecideHeldRunData, ThrowOnError>,
+  ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
+    return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
+      url: "/api/v1/routines/runs/{run_id}/decide",
       ...options,
       headers: {
         "Content-Type": "application/json",

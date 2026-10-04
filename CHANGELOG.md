@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Budgets for routines, pipelines, workflows and namespaces.** An admin caps what a resource may cost, in USD,
+  tokens or both, per run, day, week or month. Before a routine runs or a job starts, Lens estimates the run from past
+  ones; one that would go over is held until someone picks run or skip (or is skipped, or the decision model weighs
+  it when asked to). Budgets near or over their cap are flagged once per period. Off unless set. See docs/budgets.md.
+- **Local models cost nothing unless you price them.** A model's price is by tokens (USD per million), by time (USD
+  per hour, for a model on your own machine) or off, the default for a model without one.
+
 - **Every resource has an activity history, with what it cost.** Lens now keeps a ledger of every request that
   changes something, every call it makes out (models, embeddings, the decision model, text to speech, webhooks, web
   tools) and every job and routine run, each counted for the resources it touched: a model call in a job a routine

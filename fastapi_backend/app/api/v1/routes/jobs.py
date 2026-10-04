@@ -19,6 +19,7 @@ from app.domain import auth, ingest, jobs, store
 from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.jobs import Job, JobList, JobLog, JobsCreate, JobsQueued, StepQueued, WorkerInfo
+from app.schemas.routines import HeldRunDecision
 
 router = APIRouter(tags=["jobs"])
 log = logging.getLogger("lens")
@@ -136,6 +137,17 @@ def cancel_job(jid: int, acl: Acl, user: Writer, db: Db) -> Ok:
     _job(db, acl, jid, "editor")
     with domain_errors():
         jobs.cancel(db, jid)
+    return Ok()
+
+
+@router.post("/jobs/{jid}/release")
+def release_job(jid: int, body: HeldRunDecision, acl: Acl, user: AdminWriter, db: Db) -> Ok:
+    """Pick for a job held over a budget (docs/budgets.md): run it now, once, whatever its budgets say, or skip it
+    (admins, who set the budgets)."""
+    _job(db, acl, jid, "editor")
+    with domain_errors():
+        jobs.release(db, jid, body.run, user.email)
+    auth.audit(db, user.as_audit(), "job.release" if body.run else "job.skip", f"job:{jid}")
     return Ok()
 
 

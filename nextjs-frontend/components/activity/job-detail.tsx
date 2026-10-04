@@ -8,6 +8,7 @@ import { useMemo, useState, type ReactNode } from "react";
 
 import { Jobs, Pipelines, Resources, Templates } from "@/app/openapi-client";
 import { CancelJobDialog } from "@/components/activity/cancel-dialog";
+import { Cost, HeldNotice } from "@/components/costs/costs";
 import {
   approx,
   canRetry,
@@ -224,6 +225,18 @@ export function JobDetail({ jobId }: { jobId: number }) {
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t start the run", body: e.message }),
   });
 
+  const release = useMutation({
+    mutationFn: (go: boolean) => data(Jobs.releaseJob({ client, path: { jid: jobId }, body: { run: go } })),
+    onSuccess: (_, go) => {
+      void qc.invalidateQueries({ queryKey: ["job", jobId] });
+      void qc.invalidateQueries({ queryKey: ["jobs"] });
+      toast(
+        go ? { tone: "green", title: "Running it once", body: "A worker picks it up next." } : { title: "Skipped" },
+      );
+    },
+    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t do that", body: e.message }),
+  });
+
   if (q.isLoading)
     return (
       <div className="flex flex-col gap-4 p-6" aria-busy="true" aria-label="Loading run">
@@ -345,6 +358,15 @@ export function JobDetail({ jobId }: { jobId: number }) {
       </Box>
     );
   } else if (job.status === "paused") box = <Box tone="neutral" glyph="॥" title="Paused with its batch." />;
+  else if (job.status === "held")
+    box = (
+      <HeldNotice
+        hold={job.hold as { why?: string }}
+        busy={release.isPending}
+        onRun={() => release.mutate(true)}
+        onSkip={() => release.mutate(false)}
+      />
+    );
   else
     box = (
       <Box tone="neutral" glyph="–" title={`Cancelled at ${cur?.label ?? "a step"}.`}>
@@ -449,6 +471,11 @@ export function JobDetail({ jobId }: { jobId: number }) {
               : ""}
           </span>
           {left && <span className="font-semibold text-fg">{left}</span>}
+          {(job.cost_usd != null || job.tokens != null) && (
+            <span>
+              Cost <Cost usd={job.cost_usd} tokens={job.tokens} estimate={job.cost_estimate} />
+            </span>
+          )}
           {ns && <span>{ns}</span>}
           {job.recording != null && (
             <Link href={`/resources/${job.recording}`} className="font-semibold text-fg-accent hover:underline">

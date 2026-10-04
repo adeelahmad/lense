@@ -25,17 +25,19 @@ Model:
 
 Todo:
 
-- [ ] Activity ledger: scopes, model/embedding/decision/webhook/web-tool calls, changing API requests, job and routine
+- [x] Activity ledger: scopes, model/embedding/decision/webhook/web-tool calls, changing API requests, job and routine
       run totals, per-resource history and cost summary API, retention sweep
 - [ ] Activity in the web app: a history panel on routines, pipelines, workflows and recordings; Settings → Activity
       and costs with totals by resource
 - [ ] Cost in every view (Adeel): every resource, entity and view shows what it cost and its budget; a figure that
       isn't exact (no price for a model, tokens the server didn't report, a run's forecast) is marked as an estimate
       (`≈`, with why on hover). The API says `exact` / `estimate` per figure
-- [ ] Budgets: set per routine, pipeline, workflow or namespace; spent and estimate; checked before routine runs and
+- [x] Budgets: set per routine, pipeline, workflow or namespace; spent and estimate; checked before routine runs and
       jobs; over budget waits for your pick (run once, skip), or the assistant decides
 - [ ] Budgets in the web app: set a budget, see where it stands, approve or skip a waiting run
-- [ ] Periodic check: warn at 80% and 100% of a budget (notifications and the assistant)
+- [x] Periodic check: warn at 80% and 100% of a budget, once per period (on the budget and in its history)
+- [x] Local model costs (Adeel): price per model by tokens, by time (per hour) or off; off by default
+- [ ] Budget warnings through notifications, and the assistant answering where budgets stand
 
 Refine later: compute time as a cost (CPU seconds × a rate for local models), per-person budgets, forecasting from
 schedules (a routine's next runs this period), budget alerts in the weekly digest.
