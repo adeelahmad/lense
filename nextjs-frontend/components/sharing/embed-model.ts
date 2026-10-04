@@ -63,7 +63,7 @@ const escUrl = (s: string) => s.replace(/"/g, "%22").replace(/</g, "%3C");
 /** The iframe snippet people paste into their site. */
 export function iframeSnippet({ src, size, title }: { src: string; size: Size; title: string }): string {
   const { width, height } = SIZES[size];
-  return `<iframe src="${escUrl(src)}"\n  width="${width}" height="${height}" title="Lens Archive player: ${esc(title)}"\n  loading="lazy" style="border:0"></iframe>`;
+  return `<iframe src="${escUrl(src)}"\n  width="${width}" height="${height}" title="Lens player: ${esc(title)}"\n  loading="lazy" style="border:0"></iframe>`;
 }
 
 /** "blog.example.com" or "https://blog.example.com/post" → "https://blog.example.com"; null when it isn't a site. */

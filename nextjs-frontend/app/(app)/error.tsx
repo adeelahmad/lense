@@ -8,7 +8,7 @@ import { startTransition } from "react";
 import { ErrorState, isUnreachable, ServerUnreachable } from "@/components/errors/error-states";
 import { Button } from "@/components/ui/button";
 
-/** Errors inside the app: "Can't reach Lens Archive" with automatic retries, or what failed and what to do next (AC6). */
+/** Errors inside the app: "Can't reach Lens" with automatic retries, or what failed and what to do next (AC6). */
 export default function AppError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const router = useRouter();
   const retry = () =>

@@ -1,16 +1,14 @@
 import type { ReactNode } from "react";
 
-import { Signature } from "@/components/ui/loop";
+import { LensMark } from "@/components/ui/lens-mark";
 import { cn } from "@/lib/utils";
 
-/** The four-dot signature and the wordmark, as on the sign-in card (Access AC1–AC2). */
+/** The Lens mark and wordmark, as on the sign-in card (Access AC1–AC2). */
 export function AuthBrand({ className, suffix }: { className?: string; suffix?: ReactNode }) {
   return (
     <div className={cn("flex items-center gap-[9px]", className)}>
-      <Signature grid size={8} gap={3} />
-      <span className="whitespace-nowrap text-[18px] font-extrabold leading-none tracking-[-0.03em] text-blue">
-        Lens Archive
-      </span>
+      <LensMark size={24} />
+      <span className="whitespace-nowrap text-[20px] font-bold leading-none tracking-[-0.02em] text-fg">Lens</span>
       {suffix && <span className="text-[12px] text-fg-muted">{suffix}</span>}
     </div>
   );

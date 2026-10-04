@@ -7,7 +7,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { useChats } from "@/components/chat/data";
 import { greeting } from "@/components/home/attention";
-import { Signature } from "@/components/ui/loop";
+import { LensMark } from "@/components/ui/lens-mark";
 import { useToast } from "@/components/ui/toast";
 import { relative } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
@@ -74,7 +74,7 @@ export function AssistantHome({ switcher }: { switcher?: ReactNode }) {
       {switcher && <div className="flex justify-end pt-5 md:pt-6">{switcher}</div>}
       <div className="mx-auto flex w-full max-w-[640px] flex-1 flex-col items-center justify-center gap-7 pb-[10vh] pt-8">
         <div className="flex flex-col items-center gap-3">
-          <Signature grid size={12} gap={6} />
+          <LensMark size={48} />
           <h1 className="text-center text-[30px] font-extrabold leading-[1.15] tracking-[-.025em] text-fg md:text-[36px]">
             {now ? `${greeting(now)}${first ? `, ${first}` : ""}` : "Welcome back"}
           </h1>

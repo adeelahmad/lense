@@ -64,6 +64,7 @@ describe("page chat model", () => {
     expect(tidyText("  A \t b c \n\n\n\n  d  ", 100)).toBe("A b c\n\nd");
     expect(tidyText("abcdef", 3)).toBe("abc");
     expect(pageTitle("Library · Lens Archive")).toBe("Library");
+    expect(pageTitle("Library · Lens")).toBe("Library");
     expect(pageTitle("Lens Archive")).toBe("Lens Archive");
   });
 
@@ -130,7 +131,7 @@ describe("PageChat", () => {
   beforeEach(() => {
     path = "/library";
     localStorage.clear();
-    document.title = "Library · Lens Archive";
+    document.title = "Library · Lens";
     m(Chats.chatCapabilities).mockReturnValue(
       ok({ configured: true, model: "m", tools: false, max_steps: 6, check: true, models: ["m"] }),
     );

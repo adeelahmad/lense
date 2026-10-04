@@ -319,7 +319,7 @@ export function IiifImport() {
 
           {noAudio && (
             <Banner tone="warning" title="Nothing here to listen to.">
-              None of its {canvases.length} items has audio or captions. Lens Archive imports audio (and audio with
+              None of its {canvases.length} items has audio or captions. Lens imports audio (and audio with
               transcripts) only.
             </Banner>
           )}
