@@ -7324,7 +7324,7 @@ export type NotePage = {
   /**
    * Body
    *
-   * Markdown, with mentions written @[label](kind:id) and #[label](entity:id)
+   * Markdown, with mentions written @[label](kind:id) and #[label](topic:id)
    */
   body?: string;
   /**
@@ -13858,7 +13858,7 @@ export type TopicAbout = {
   /**
    * Source
    *
-   * how it got there: person, entity or analysis
+   * how it got there: person, entity, analysis or assistant
    */
   source?: string | null;
   /**

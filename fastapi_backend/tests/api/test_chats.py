@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from app.domain import ai_tools, auth, chat, store
+from app.domain import ai_tools, auth, chat, store, topics
 from app.domain import llm as llm_mod
 from tests import fake_llm
 from tests.api._assist import Assist, sse, start_llm
@@ -556,3 +556,24 @@ def test_the_assistant_queries_the_graph(app, db, cfg, folder, new_client, llm):
     one = ai_tools.Toolbox(db, cfg, {"id": 1, "email": "e"}, pods, set(), {"recordings": [s.b]}, None)
     recs = json.loads(one.call("graph_query", {"query": "MATCH (r:Recording) RETURN id(r)"})[0])["rows"]
     assert recs == [[f"r{s.b}"]]
+
+
+def test_the_assistant_finds_and_suggests_topics(app, db, cfg, folder, new_client, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    pods = {s.pods}
+    bio = topics.create(db, s.pods, "Biology")
+    gene = topics.create(db, s.pods, "Gene therapy", alt=["GT"], broader=[bio])
+    topics.tag(db, gene, [s.a])
+    viewer = ai_tools.Toolbox(db, cfg, {"id": 1, "email": "e"}, pods, set(), {}, None)
+    names = {sp["function"]["name"] for sp in viewer.specs()}
+    assert {"find_topics", "topic_recordings"} <= names and "suggest_topic" not in names  # suggesting needs an editor
+    found = json.loads(viewer.call("find_topics", {"query": "gt"})[0])
+    assert found["topics"] == [
+        {"id": gene, "label": "Gene therapy", "namespace": "pods", "also": ["GT"], "broader": ["Biology"], "recordings": 1}
+    ]
+    t = json.loads(viewer.call("topic_recordings", {"topic_id": gene})[0])
+    assert [r["recording_id"] for r in t["recordings"]] == [s.a] and t["broader"] == [{"id": bio, "label": "Biology"}]
+    editor = ai_tools.Toolbox(db, cfg, {"id": 1, "email": "e"}, pods, pods, {}, None)
+    out = json.loads(editor.call("suggest_topic", {"topic_id": gene, "recording_ids": [s.a, s.b]})[0])
+    assert out["suggested_for"] == [s.b]  # what holds stays; the rest waits for someone to accept
+    assert [(x["label"], x["source"], x["status"]) for x in topics.of_recording(db, s.b)] == [("Gene therapy", "assistant", "suggested")]

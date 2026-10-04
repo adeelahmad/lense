@@ -3768,7 +3768,7 @@ export class Notes {
   /**
    * Page About
    *
-   * The page of a recording, entity, collection or speaker: its page, or a draft while nobody has written one.
+   * The page of a recording, entity, topic, collection or speaker: its page, or a draft while nobody has written one.
    */
   public static pageAbout<ThrowOnError extends boolean = false>(
     options: Options<PageAboutData, ThrowOnError>,

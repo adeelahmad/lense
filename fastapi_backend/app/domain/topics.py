@@ -3,7 +3,7 @@
 Entities are the named things a transcript mentions (people, organisations, places...). A topic is a subject someone
 chose for the vocabulary, as a SKOS concept: a preferred label, other labels it goes by, a definition, broader and
 related topics. Narrower topics are the ones that name it as broader. Recordings are about topics (`topic_about`),
-put there by a person, by turning an entity of type TERM into a topic, or (suggested) by analysis.
+put there by a person, by turning an entity of type TERM into a topic, or (suggested) by analysis or an assistant.
 
     topic        {space, key, tkey: "<space>:<key>", label, alt: [labels], definition, broader: [ids], related: [ids],
                   origin: {entity}, created, updated, by}
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from . import analyze, graph_history, store
+from . import analyze, graph_history, notebook, store
 
 R = store.R
 FIELDS = "record::id(id) AS id, space, key, label, alt, definition, broader, related, origin, created, updated, by"
@@ -29,7 +29,7 @@ LABEL_MAX = 200
 ALT_MAX = 50
 DEFINITION_MAX = 2000
 LINKS_MAX = 50
-SOURCES = ("person", "entity", "analysis")
+SOURCES = ("person", "entity", "analysis", "assistant")
 STATUSES = ("accepted", "suggested", "dismissed")
 SUGGEST_MIN = 2  # times a transcript says a label before analysis suggests its topic
 SUMMARY_WEIGHT = 5  # what a summary naming a topic adds to its weight
@@ -227,6 +227,7 @@ def delete(db, tid):
     _set_related(db, tid, t.get("related") or [], [])
     db.q("DELETE topic_about WHERE topic = $t", t=tid)
     db.q("DELETE $r", r=R("topic", tid))
+    notebook.release(db, f"topic:{tid}")  # its page stays, as a free note
     eid = (t.get("origin") or {}).get("entity")
     if eid and db.one("SELECT id FROM $r", r=R("entity", int(eid))):
         with graph_history.change(db, "entity.show", entities=[int(eid)], why=f"topic {tid} was deleted"):
@@ -271,6 +272,7 @@ def merge(db, keep, others, user=None):
             db.q("UPDATE $r SET broader = $b, related = $rel", r=R("topic", t["id"]), b=nb, rel=nr)
     for o in others:
         db.q("DELETE $r", r=R("topic", o))
+        notebook.release(db, f"topic:{o}")
     broader = [b for b in dict.fromkeys(broader) if b not in ids and b != keep]
     if _would_loop(db, k["space"], keep, broader):
         broader = list(k.get("broader") or [])
@@ -326,6 +328,27 @@ def tag(db, tid, recordings, remove=False, user=None):
             prior = db.one("SELECT source, weight FROM $r", r=_about_id(r, t["id"])) or {}
             _about(db, t["space"], r, t["id"], prior.get("source") or "person", prior.get("weight"), "accepted", user)
     return len(rids)
+
+
+def propose(db, tid, recordings, source="assistant", user=None):
+    """Suggest a topic for recordings of its namespace, for someone to accept: what already holds, waits or was
+    dismissed stays as it is. Returns the recordings it is now suggested for."""
+    t = _topic(db, tid)
+    rids = [int(r) for r in dict.fromkeys(recordings or [])]
+    if rids:
+        found = {
+            r["id"]: r["space"]
+            for r in db.rows("SELECT record::id(id) AS id, space FROM recording WHERE id IN $ids", ids=[R("recording", i) for i in rids])
+        }
+        for r in rids:
+            if found.get(r) != t["space"]:
+                raise KeyError(r)
+    made = []
+    for r in rids:
+        if not db.one("SELECT status FROM $r", r=_about_id(r, t["id"])):
+            _about(db, t["space"], r, t["id"], source, None, "suggested", user)
+            made.append(r)
+    return made
 
 
 def from_entity(db, eid, user=None):

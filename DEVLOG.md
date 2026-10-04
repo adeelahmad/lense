@@ -148,7 +148,7 @@ Todo:
 - [x] Topics page: the tree of broader and narrower topics, a topic's recordings, edit and merge; a recording's topics
 - [x] Analysis suggests topics (summary topics and keywords matched to the vocabulary; new ones as suggestions to
       accept); a namespace can keep its vocabulary fixed or open, as entities do
-- [ ] # links in notes point at topics; assistant and MCP tools for topics
+- [x] # links in notes point at topics; assistant and MCP tools for topics
 
 Refine later: shared vocabularies across namespaces and imported schemes (LCSH, Wikidata) with exactMatch; entities as
 authority records (variant names, external identifiers); topic history and undo for merges; a namespace setting

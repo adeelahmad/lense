@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.domain import deletion, entities, moving, notebook, store
+from app.domain import deletion, entities, moving, notebook, store, topics
 from tests.helpers import login, make_user, seed
 
 R = store.R
@@ -83,21 +83,23 @@ def test_tree(client, env):
 
 def test_links_and_backlinks(client, env, db):
     he, a = env["he"], env["a"]
-    topic, person = _entity(db, "Capsids", "TERM"), _entity(db, "Ada Lovelace", "PERSON")
-    # what @ and # offer
-    hits = client.get("/api/v1/notes/targets?ns=pods&sign=%23", headers=he).json()
-    assert hits and {h["kind"] for h in hits} == {"topic"}
+    term, person = _entity(db, "Capsids", "TERM"), _entity(db, "Ada Lovelace", "PERSON")
+    tid = topics.create(db, store.ns_id(db, "pods"), "Capsid design", alt=["AAV capsids"])
+    # what @ and # offer: # the topics, found by any of their labels
+    hits = client.get("/api/v1/notes/targets?ns=pods&sign=%23&q=aav", headers=he).json()
+    assert hits == [{"target": f"topic:{tid}", "label": "Capsid design", "kind": "topic"}]
     hits = client.get(f"/api/v1/notes/targets?ns=pods&q={person['name'][:3]}", headers=he).json()
     assert f"entity:{person['id']}" in [h["target"] for h in hits]
     other = _new(client, he, title="Background")
     body = (
-        f"Met @[{person['name']}](entity:{person['id']}) about #[{topic['name']}](entity:{topic['id']}) in "
+        f"Met @[{person['name']}](entity:{person['id']}) about #[Capsid design](topic:{tid}) and #[{term['name']}](entity:{term['id']}) in "
         f"@[the call](recording:{a}); see @[bg](page:{other['id']}) and @[gone](recording:999999)."
     )
     p = _new(client, he, title="Meeting", body=body)
     assert [(x["sign"], x["target"], x["name"] is not None) for x in p["links"]] == [
         ("@", f"entity:{person['id']}", True),
-        ("#", f"entity:{topic['id']}", True),
+        ("#", f"topic:{tid}", True),
+        ("#", f"entity:{term['id']}", True),  # links to terms written before topics still work
         ("@", f"recording:{a}", True),
         ("@", f"page:{other['id']}", True),
         ("@", "recording:999999", False),
@@ -106,6 +108,8 @@ def test_links_and_backlinks(client, env, db):
     assert [b["title"] for b in client.get(f"/api/v1/notes/{other['id']}", headers=he).json()["backlinks"]] == ["Meeting"]
     draft = client.get(f"/api/v1/notes/about/recording/{a}", headers=he).json()
     assert draft["id"] is None and draft["about"] == f"recording:{a}" and [b["title"] for b in draft["backlinks"]] == ["Meeting"]
+    t = client.get(f"/api/v1/notes/about/topic/{tid}", headers=he).json()  # a topic has a page of its own too
+    assert (t["title"], [b["title"] for b in t["backlinks"]]) == ("Capsid design", ["Meeting"])
     # the body's plain text drops the link syntax
     assert db.one("SELECT text FROM $r", r=R("note_page", p["id"]))["text"].startswith(f"Met {person['name']} about")
     # a new body replaces the links

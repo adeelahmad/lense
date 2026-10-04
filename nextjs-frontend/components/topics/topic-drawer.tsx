@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Merge, Trash2, X } from "lucide-react";
+import { Check, Merge, NotebookPen, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -128,15 +128,21 @@ export function TopicDrawer({
       title={d?.label ?? "Topic"}
       width={460}
       actions={
-        d &&
-        canEdit && (
+        d && (
           <>
-            <Button size="xs" variant="ghost" icon={<Merge />} onClick={() => setMerging(true)}>
-              Merge
+            <Button asChild size="xs" variant="ghost" icon={<NotebookPen />}>
+              <Link href={`/notes/about/topic/${id}`}>Page</Link>
             </Button>
-            <Button size="xs" variant="danger-ghost" icon={<Trash2 />} onClick={() => setDeleting(true)}>
-              Delete
-            </Button>
+            {canEdit && (
+              <>
+                <Button size="xs" variant="ghost" icon={<Merge />} onClick={() => setMerging(true)}>
+                  Merge
+                </Button>
+                <Button size="xs" variant="danger-ghost" icon={<Trash2 />} onClick={() => setDeleting(true)}>
+                  Delete
+                </Button>
+              </>
+            )}
           </>
         )
       }
