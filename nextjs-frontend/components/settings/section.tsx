@@ -345,7 +345,7 @@ export function SettingsSection({
                   {count(manifests)} Manifest{manifests === 1 ? "" : "s"} and {count(namespaces.length + 1)} Collections
                 </b>
                 . Links saved in other viewers, harvesters and citations stop resolving unless the old address keeps
-                redirecting — set that up on your web server; Lens Archive can’t redirect it itself.
+                redirecting — set that up on your web server; Lens can’t redirect it itself.
               </span>
             </div>
             <div className="grid grid-cols-[48px_minmax(0,1fr)] gap-1.5 font-mono text-[12.5px] leading-normal">

@@ -50,7 +50,7 @@ function Preview({ src, size, title }: { src: string | null; size: Size; title: 
         <iframe
           key={src}
           src={src}
-          title={`Lens Archive player: ${title} (preview)`}
+          title={`Lens player: ${title} (preview)`}
           width={width}
           height={height}
           className="origin-top-left rounded-md border border-border bg-background"

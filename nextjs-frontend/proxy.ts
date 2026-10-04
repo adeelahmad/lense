@@ -37,6 +37,6 @@ export const config = {
   // Under /iiif only the backend's IIIF resources are skipped (collection, discovery, auth, /iiif/<id>/…); the app's own
   // IIIF pages (/iiif, /iiif/collections/…, /iiif/import, /iiif/metadata/…) need the session like any other page.
   matcher: [
-    "/((?!api/|\\.well-known/|mcp(?:/|$)|_next/|embed/|s/|id/|ns$|iiif/(?:collection(?!s)|discovery|auth|\\d)|reports/|static/|fonts/|favicon\\.ico|icon\\.svg|robots\\.txt).*)",
+    "/((?!api/|\\.well-known/|mcp(?:/|$)|_next/|embed/|s/|id/|ns$|iiif/(?:collection(?!s)|discovery|auth|\\d)|reports/|static/|fonts/|favicon\\.ico|icon\\.svg|apple-icon\\.png|manifest\\.webmanifest|safari-pinned-tab\\.svg|pwa/|robots\\.txt).*)",
   ],
 };

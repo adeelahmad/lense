@@ -1,11 +1,11 @@
 import Link from "next/link";
 
-import { Signature } from "@/components/ui/loop";
+import { LensMark } from "@/components/ui/lens-mark";
 import { cn } from "@/lib/utils";
 
 /**
- * The Lens Archive wordmark: DM Sans 800, -0.03em, blue, over a four-segment loop bar
- * (blue → red → green → gold). Collapsed, it becomes the four-dot signature.
+ * The Lens lockup from the brand kit: the Search Lens mark beside "Lens" in DM Sans, ink on light and
+ * white on dark. Collapsed, it is the mark alone.
  */
 export function Brand({
   className,
@@ -19,26 +19,18 @@ export function Brand({
   size?: number;
 }) {
   return (
-    <Link href={href} aria-label="Lens Archive home" className={cn("inline-flex items-center", className)}>
-      {collapsed ? (
-        <span className="px-1.5 py-0.5">
-          <Signature grid size={8} gap={4} />
-        </span>
-      ) : (
-        <span className="inline-flex flex-col gap-1">
+    <Link href={href} aria-label="Lens home" className={cn("inline-flex items-center", className)}>
+      <span className="inline-flex items-center" style={{ gap: Math.round(size * 0.4) }}>
+        <LensMark size={Math.round(size * 1.35)} />
+        {!collapsed && (
           <span
-            className="whitespace-nowrap font-extrabold leading-none tracking-[-0.03em] text-blue"
-            style={{ fontSize: size }}
+            className="whitespace-nowrap font-bold leading-none tracking-[-0.02em] text-fg"
+            style={{ fontSize: size * 1.1 }}
           >
-            Lens Archive
+            Lens
           </span>
-          <span aria-hidden className="flex h-[3px] overflow-hidden rounded-pill">
-            {["var(--aladdin-blue)", "var(--aladdin-red)", "var(--aladdin-green)", "var(--aladdin-gold)"].map((c) => (
-              <span key={c} className="flex-1" style={{ background: c }} />
-            ))}
-          </span>
-        </span>
-      )}
+        )}
+      </span>
     </Link>
   );
 }
