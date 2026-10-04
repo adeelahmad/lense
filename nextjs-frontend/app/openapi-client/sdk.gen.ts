@@ -3778,7 +3778,8 @@ export class Notes {
   /**
    * Update Page
    *
-   * Change what's given. A new body without `doc` drops the editor's state, so it's rebuilt from the Markdown.
+   * Change what's given. A new body without `doc` keeps the editor's state (drawings on the canvas live there) but
+   * marks it stale (`doc_stale`), so the editor brings its text in line with the body.
    */
   public static updatePage<ThrowOnError extends boolean = false>(
     options: Options<UpdatePageData, ThrowOnError>,

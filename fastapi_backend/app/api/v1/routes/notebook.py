@@ -77,7 +77,18 @@ def create_page(body: NotePageCreate, user: Writer, acl: Acl, db: Db) -> NotePag
     sid = acl.namespace(body.ns, "editor")
     with domain_errors():
         pid = notebook.create(
-            db, sid, user.id, body.title, body.body, body.summary, body.date, body.place, body.parent, body.about, doc=body.doc
+            db,
+            sid,
+            user.id,
+            body.title,
+            body.body,
+            body.summary,
+            body.date,
+            body.place,
+            body.parent,
+            body.about,
+            doc=body.doc,
+            view=body.view,
         )
     return _out(acl, db, notebook.get(db, pid), user)
 
@@ -126,10 +137,13 @@ def get_page(pid: int, user: CurrentUser, acl: Acl, db: Db) -> NotePage:
 
 @router.patch("/{pid}")
 def update_page(pid: int, body: NotePageUpdate, user: Writer, acl: Acl, db: Db) -> NotePage:
-    """Change what's given. A new body without `doc` drops the editor's state, so it's rebuilt from the Markdown."""
+    """Change what's given. A new body without `doc` keeps the editor's state (drawings on the canvas live there) but
+    marks it stale (`doc_stale`), so the editor brings its text in line with the body."""
     _page(acl, db, pid, "editor")
     given = body.model_fields_set
     kw: dict[str, Any] = {k: getattr(body, k) for k in ("summary", "date", "doc") if k in given}
+    if body.view is not None:
+        kw["view"] = body.view
     if "place" in given:
         kw["place"] = body.place or None
     with domain_errors():

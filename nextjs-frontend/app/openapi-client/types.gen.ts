@@ -7264,6 +7264,16 @@ export type NotePage = {
    */
   place?: "project" | "area" | "resource" | "archive" | null;
   /**
+   * Place By
+   *
+   * who filed it
+   */
+  place_by?: "person" | "assistant" | null;
+  /**
+   * where the assistant would file it, when it wasn't sure
+   */
+  place_suggestion?: PlaceSuggestion | null;
+  /**
    * Parent
    *
    * the page it's inside, in the tree
@@ -7288,6 +7298,12 @@ export type NotePage = {
    */
   author?: "person" | "assistant";
   /**
+   * View
+   *
+   * how the editor shows it (default: page)
+   */
+  view?: "page" | "edgeless" | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -7311,6 +7327,12 @@ export type NotePage = {
    * the editor's own document state, if it kept one
    */
   doc?: string | null;
+  /**
+   * Doc Stale
+   *
+   * the body changed without the editor: its text follows the body
+   */
+  doc_stale?: boolean | null;
   /**
    * Created By
    *
@@ -7380,6 +7402,10 @@ export type NotePageCreate = {
    * Doc
    */
   doc?: string | null;
+  /**
+   * View
+   */
+  view?: "page" | "edgeless" | null;
 };
 
 /**
@@ -7454,6 +7480,16 @@ export type NotePageItem = {
    */
   place?: "project" | "area" | "resource" | "archive" | null;
   /**
+   * Place By
+   *
+   * who filed it
+   */
+  place_by?: "person" | "assistant" | null;
+  /**
+   * where the assistant would file it, when it wasn't sure
+   */
+  place_suggestion?: PlaceSuggestion | null;
+  /**
    * Parent
    *
    * the page it's inside, in the tree
@@ -7477,6 +7513,12 @@ export type NotePageItem = {
    * who wrote it
    */
   author?: "person" | "assistant";
+  /**
+   * View
+   *
+   * how the editor shows it (default: page)
+   */
+  view?: "page" | "edgeless" | null;
   /**
    * Created At
    */
@@ -7537,9 +7579,15 @@ export type NotePageUpdate = {
   /**
    * Doc
    *
-   * the editor's document state; a new body without it drops the old one
+   * the editor's document state; a new body without it marks the old one stale
    */
   doc?: string | null;
+  /**
+   * View
+   *
+   * show it as a page or on the edgeless canvas
+   */
+  view?: "page" | "edgeless" | null;
 };
 
 /**
@@ -8735,6 +8783,27 @@ export type PipelineVersionInfo = {
    * Created By
    */
   created_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PlaceSuggestion
+ */
+export type PlaceSuggestion = {
+  /**
+   * Place
+   */
+  place: "project" | "area" | "resource" | "archive";
+  /**
+   * Confidence
+   */
+  confidence: number;
+  /**
+   * By
+   *
+   * what decided: jev (a decision model) or llm
+   */
+  by: string;
   [key: string]: unknown;
 };
 

@@ -15,6 +15,10 @@ type Props = {
   /** The editor's own state (a Yjs update, base64) from the last save, when there is one. */
   doc: string | null;
   readOnly?: boolean;
+  /** "page" (a document) or "edgeless" (the endless canvas: shapes, connectors, mind maps, drawing). */
+  view?: "page" | "edgeless";
+  /** The Markdown changed without the editor (the assistant wrote it): bring the text in line, keep the drawings. */
+  stale?: boolean;
   onChange: (change: EditorChange) => void;
   /** What @ (resources, people, pages) and # (topics) offer for what was typed after them. */
   search: (sign: "@" | "#", query: string) => Promise<LinkTarget[]>;
@@ -42,12 +46,26 @@ function fromBase64(text: string): Uint8Array {
 /** AFFiNE's BlockSuite editor on one page. Its documents are Yjs CRDTs (what OctoBase stores and syncs). It keeps the
  * Markdown and its own state in step: @ and # open a menu of what to link, written as @[label](kind:id) in the
  * Markdown. Loaded in the browser only. */
-export default function BlockEditor({ markdown, doc, readOnly, onChange, search, onOpenLink, className }: Props) {
+export default function BlockEditor({
+  markdown,
+  doc,
+  readOnly,
+  view = "page",
+  stale,
+  onChange,
+  search,
+  onOpenLink,
+  className,
+}: Props) {
   const host = useRef<HTMLDivElement>(null);
   const latest = useRef({ onChange, search, onOpenLink });
   latest.current = { onChange, search, onOpenLink };
   // The page is read once per mount: the parent remounts the editor (key) for another page.
-  const initial = useRef({ markdown, doc, readOnly });
+  const initial = useRef({ markdown, doc, readOnly, view, stale });
+  const editorRef = useRef<{ mode: string } | null>(null);
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.mode !== view) editorRef.current.mode = view;
+  }, [view]);
 
   useEffect(() => {
     let disposed = false;
@@ -67,7 +85,7 @@ export default function BlockEditor({ markdown, doc, readOnly, onChange, search,
         presetEffects.effects();
       }
       if (disposed || !host.current) return;
-      const { markdown, doc: state, readOnly } = initial.current;
+      const { markdown, doc: state, readOnly, view, stale } = initial.current;
       const schema = new store.Schema().register(blocks.AffineSchemas);
       const collection = new store.DocCollection({ schema });
       collection.meta.initialize();
@@ -95,6 +113,23 @@ export default function BlockEditor({ markdown, doc, readOnly, onChange, search,
       const page = collection.getDoc(id, { readonly: Boolean(readOnly) });
       if (!page || disposed || !host.current) return;
       page.load();
+      if (state && stale && !readOnly) {
+        // The text follows the Markdown; the canvas's shapes and drawings (outside the notes) stay as they were.
+        const notes = page.getBlocksByFlavour("affine:note").map((b) => b.model);
+        for (const note of notes) for (const child of [...note.children]) page.deleteBlock(child);
+        const target = notes[0]?.id;
+        if (target && markdown.trim()) {
+          const job = new store.Job({ collection });
+          const slice = await new blocks.MarkdownAdapter(job).toSliceSnapshot({
+            file: markdown,
+            assets: job.assetsManager,
+            workspaceId: collection.id,
+            pageId: page.id,
+          });
+          for (const b of slice?.content.flatMap((x) => x.children) ?? []) await job.snapshotToBlock(b, page, target);
+        }
+        if (disposed || !host.current) return;
+      }
 
       const linkedWidget = {
         triggerKeys: ["@", "#"],
@@ -140,9 +175,12 @@ export default function BlockEditor({ markdown, doc, readOnly, onChange, search,
       };
 
       const editor = new presets.AffineEditorContainer();
-      editor.pageSpecs = [...blocks.PageEditorBlockSpecs, std.ConfigExtension("affine:page", { linkedWidget })];
+      const config = std.ConfigExtension("affine:page", { linkedWidget });
+      editor.pageSpecs = [...blocks.PageEditorBlockSpecs, config];
+      editor.edgelessSpecs = [...blocks.EdgelessEditorBlockSpecs, config];
       editor.doc = page;
-      editor.mode = "page";
+      editor.mode = view;
+      editorRef.current = editor;
       host.current.replaceChildren(editor);
 
       // Links to things in Lens open in the app, not as web addresses. Other links open only as web or mail addresses:
@@ -174,20 +212,35 @@ export default function BlockEditor({ markdown, doc, readOnly, onChange, search,
           doc: toBase64(Y.encodeStateAsUpdate(page.spaceDoc)),
         });
       };
-      const changed = page.slots.blockUpdated.on(() => {
+      // Any change to the document: text, and the canvas's shapes and drawings, which aren't blocks.
+      // Opening a page changes its document too (the editor sets itself up): only what someone does is saved.
+      let touched = false;
+      const touch = () => {
+        touched = true;
+      };
+      host.current.addEventListener("keydown", touch, true);
+      host.current.addEventListener("pointerdown", touch, true);
+      host.current.addEventListener("paste", touch, true);
+      host.current.addEventListener("drop", touch, true);
+      const onUpdate = () => {
+        if (!touched) return;
         clearTimeout(timer);
         timer = setTimeout(() => {
           timer = undefined;
           void save();
         }, 600);
-      });
+      };
+      page.spaceDoc.on("update", onUpdate);
       const el = host.current;
+      if (state && stale && !readOnly) void save(); // the brought-in-line text, so the page isn't stale any more
       cleanup = () => {
+        editorRef.current = null;
         if (timer) void save(true); // what was typed in the last moment before leaving the page
         clearTimeout(timer);
-        changed.dispose();
+        page.spaceDoc.off("update", onUpdate);
         el.removeEventListener("click", onClick, true);
         el.removeEventListener("auxclick", onClick, true);
+        for (const t of ["keydown", "pointerdown", "paste", "drop"]) el.removeEventListener(t, touch, true);
         el.replaceChildren();
         collection.dispose();
       };
@@ -199,5 +252,14 @@ export default function BlockEditor({ markdown, doc, readOnly, onChange, search,
   }, []);
 
   // The page's title is Lens's own field above the editor, so the editor's title line is hidden.
-  return <div ref={host} className={cn("lens-block-editor min-h-[240px] [&_doc-title]:hidden", className)} />;
+  return (
+    <div
+      ref={host}
+      className={cn(
+        "lens-block-editor min-h-[240px] [&_doc-title]:hidden",
+        view === "edgeless" && "h-[70vh] overflow-hidden rounded-md border border-border",
+        className,
+      )}
+    />
+  );
 }
