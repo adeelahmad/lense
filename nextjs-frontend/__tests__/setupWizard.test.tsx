@@ -15,6 +15,7 @@ jest.mock("@/app/openapi-client", () => ({
     detectLlm: jest.fn(),
     saveStorage: jest.fn(),
     saveTelemetry: jest.fn(),
+    saveOauth: jest.fn(),
     finish: jest.fn(),
   },
   Admin: { testLlm: jest.fn(), testTelemetry: jest.fn() },
@@ -41,6 +42,7 @@ const VIEW = (over: Partial<SetupView> = {}): SetupView => ({
     watches: 0,
   },
   telemetry: { enabled: false, endpoint: null, locked: [] },
+  oauth: { enabled: true, access_minutes: 60, refresh_days: 30 },
   ...over,
 });
 
@@ -89,13 +91,14 @@ describe("SetupWizard", () => {
     );
   });
 
-  it("walks through namespace, model provider, storage and telemetry, then finishes", async () => {
+  it("walks through namespace, model provider, storage, apps and telemetry, then finishes", async () => {
     m(Setup.getSetup).mockImplementation(() => ok(VIEW()));
     m(Setup.saveNamespace).mockImplementation(() => ok({ ok: true }));
     m(Setup.saveLlm).mockImplementation(() => ok({ ok: true }));
     m(Admin.testLlm).mockImplementation(() => ok({ ok: true, reply: "OK", ms: 120, model: "llama3" }));
     m(Setup.saveStorage).mockImplementation(() => ok({ ok: true }));
     m(Setup.saveTelemetry).mockImplementation(() => ok({ ok: true }));
+    m(Setup.saveOauth).mockImplementation(() => ok({ ok: true }));
     m(Setup.finish).mockImplementation(() => ok({ ok: true }));
     wrap(<SetupWizard />);
 
@@ -127,6 +130,12 @@ describe("SetupWizard", () => {
     await waitFor(() => expect(Setup.saveStorage).toHaveBeenCalled());
     expect(m(Setup.saveStorage).mock.calls[0][0].body).toEqual({ max_upload_mb: 2048, folder: null, namespace: null });
 
+    // apps signing in is optional: skipping keeps it as it is
+    expect(await screen.findByText("Apps and AI assistants")).toBeInTheDocument();
+    expect(screen.getByLabelText("MCP server address")).toHaveValue("http://localhost/mcp");
+    fireEvent.click(screen.getByRole("button", { name: "Skip this step" }));
+    expect(Setup.saveOauth).not.toHaveBeenCalled();
+
     // telemetry is off unless chosen: finishing with it off sends nothing anywhere
     expect(await screen.findByText(/off unless you turn it on/)).toBeInTheDocument();
     expect(screen.queryByLabelText("OTLP endpoint")).not.toBeInTheDocument();
@@ -157,6 +166,28 @@ describe("SetupWizard", () => {
     fireEvent.click(save);
     await waitFor(() => expect(Setup.finish).toHaveBeenCalled());
     expect(m(Setup.saveTelemetry).mock.calls[1][0].body).toEqual({ enabled: true, endpoint: "http://localhost:4318" });
+  });
+
+  it("lets apps sign in for a set time, or turns it off", async () => {
+    m(Setup.getSetup).mockImplementation(() => ok(VIEW({ namespace: { existing: ["media"], locked: false } })));
+    m(Setup.saveOauth).mockImplementation(() => ok({ ok: true }));
+    wrap(<SetupWizard />);
+    fireEvent.click(await screen.findByRole("button", { name: /Apps and AI/ }));
+    const minutes = await screen.findByLabelText(/Access token lasts/);
+    fireEvent.change(minutes, { target: { value: "2" } });
+    expect(screen.getByRole("button", { name: "Save and continue" })).toBeDisabled();
+    fireEvent.change(minutes, { target: { value: "30" } });
+    fireEvent.change(screen.getByLabelText(/stay signed in/), { target: { value: "14" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await waitFor(() => expect(Setup.saveOauth).toHaveBeenCalled());
+    expect(m(Setup.saveOauth).mock.calls[0][0].body).toEqual({ enabled: true, access_minutes: 30, refresh_days: 14 });
+    // on to telemetry; back to apps and off: nothing else to choose
+    fireEvent.click(await screen.findByRole("button", { name: /Apps and AI/ }));
+    fireEvent.click(await screen.findByRole("radio", { name: "Off" }));
+    expect(screen.queryByLabelText("MCP server address")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await waitFor(() => expect(m(Setup.saveOauth).mock.calls.length).toBe(2));
+    expect(m(Setup.saveOauth).mock.calls[1][0].body).toEqual({ enabled: false });
   });
 
   it("shows what .env sets as locked", async () => {

@@ -1619,7 +1619,7 @@
           "oauth"
         ],
         "summary": "Consent",
-        "description": "What the consent page shows for an app's request: the app, where it takes you back to and what it asks for.\n400 when the request can't be answered (an unknown app, an address it didn't register, no PKCE challenge).",
+        "description": "What the consent page shows for an app's request: the app, where it takes you back to and what it asks for.\n400 when the request can't be answered (an unknown app, an address it didn't register, no PKCE challenge); 403\nwhen apps can't sign in to this server.",
         "operationId": "consent",
         "parameters": [
           {
@@ -2846,6 +2846,48 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SetupTelemetry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/oauth": {
+      "put": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Save Oauth",
+        "description": "Let apps and AI assistants (MCP clients such as Claude or Cursor) sign people in with their Lens account, or\nnot, and how long their tokens last (docs/authentication.md#oauth). On unless turned off.",
+        "operationId": "save_oauth",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupOAuth"
               }
             }
           },
@@ -37681,6 +37723,64 @@
         ],
         "title": "SetupNamespaceView"
       },
+      "SetupOAuth": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "access_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Minutes"
+          },
+          "refresh_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Days"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SetupOAuth"
+      },
+      "SetupOAuthView": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "access_minutes": {
+            "type": "integer",
+            "title": "Access Minutes"
+          },
+          "refresh_days": {
+            "type": "integer",
+            "title": "Refresh Days"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "access_minutes",
+          "refresh_days"
+        ],
+        "title": "SetupOAuthView"
+      },
       "SetupRequest": {
         "properties": {
           "code": {
@@ -37907,6 +38007,9 @@
           },
           "telemetry": {
             "$ref": "#/components/schemas/SetupTelemetryView"
+          },
+          "oauth": {
+            "$ref": "#/components/schemas/SetupOAuthView"
           }
         },
         "additionalProperties": true,
@@ -37917,7 +38020,8 @@
           "namespace",
           "llm",
           "storage",
-          "telemetry"
+          "telemetry",
+          "oauth"
         ],
         "title": "SetupView"
       },

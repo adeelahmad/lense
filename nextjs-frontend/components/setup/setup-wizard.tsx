@@ -20,6 +20,7 @@ const STEPS = [
   { id: "namespace", label: "Namespace" },
   { id: "llm", label: "Model provider" },
   { id: "storage", label: "Storage" },
+  { id: "apps", label: "Apps and AI" },
   { id: "telemetry", label: "Telemetry" },
 ] as const;
 type StepId = (typeof STEPS)[number]["id"];
@@ -39,8 +40,9 @@ function errorText(e: unknown): string {
 }
 
 /**
- * First-run setup for a fresh install (the admin already exists): the first namespace, the model provider, storage
- * and whether to send telemetry (off unless chosen), one step at a time. Each step can be skipped, and the whole wizard too; everything stays in Settings.
+ * First-run setup for a fresh install (the admin already exists): the first namespace, the model provider, storage,
+ * whether apps and AI assistants may sign people in (OAuth, on unless turned off) and whether to send telemetry (off
+ * unless chosen), one step at a time. Each step can be skipped, and the whole wizard too; everything stays in Settings.
  * Fields .env sets are shown locked, since the environment wins.
  */
 export function SetupWizard() {
@@ -118,7 +120,7 @@ export function SetupWizard() {
         </p>
       </div>
 
-      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Setup steps">
+      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Setup steps">
         {STEPS.map((s, i) => {
           const on = s.id === step;
           const ok = done.has(s.id);
@@ -174,6 +176,8 @@ export function SetupWizard() {
           <LlmStep view={view.data} onNext={(saved) => next("llm", saved)} />
         ) : step === "storage" ? (
           <StorageStep view={view.data} onNext={(saved) => next("storage", saved)} />
+        ) : step === "apps" ? (
+          <AppsStep view={view.data} onNext={(saved) => next("apps", saved)} />
         ) : (
           <TelemetryStep view={view.data} pending={finish.isPending} onNext={(saved) => next("telemetry", saved)} />
         )}
@@ -611,6 +615,124 @@ function StorageStep({ view, onNext }: { view: SetupView; onNext: (saved: boolea
         onSave={() => save.mutate()}
         pending={save.isPending}
         disabled={!validMb || (Boolean(folder.trim()) && !namespace)}
+      />
+    </>
+  );
+}
+
+/** Apps and AI assistants (MCP clients) signing people in with their Lens account: OAuth (docs/authentication.md). */
+function AppsStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) => void }) {
+  const client = useApiClient();
+  const o = view.oauth;
+  const [on, setOn] = useState(o.enabled ? "on" : "off");
+  const [minutes, setMinutes] = useState(String(o.access_minutes));
+  const [days, setDays] = useState(String(o.refresh_days));
+  const [copied, setCopied] = useState(false);
+  const mcp = typeof window === "undefined" ? "/mcp" : `${window.location.origin}/mcp`;
+  const mins = Number(minutes);
+  const ds = Number(days);
+  const validMinutes = Number.isInteger(mins) && mins >= 5 && mins <= 1440;
+  const validDays = Number.isInteger(ds) && ds >= 1 && ds <= 3650;
+  const save = useMutation({
+    mutationFn: () =>
+      data(
+        Setup.saveOauth({
+          client,
+          body: on === "on" ? { enabled: true, access_minutes: mins, refresh_days: ds } : { enabled: false },
+        }),
+      ),
+    onSuccess: () => onNext(true),
+  });
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(mcp);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <>
+      <StepHead title="Apps and AI assistants">
+        Apps and AI assistants such as Claude, ChatGPT or Cursor can sign in with someone&apos;s Lens account instead of
+        asking them for a key. Each person approves an app once, it sees only what they can, and they can revoke it any
+        time under API tokens.
+      </StepHead>
+      <Field
+        label="Let apps sign in"
+        hint="Off: apps need an API key. You can change this any time in Settings → API keys."
+      >
+        {() => (
+          <SegmentedChoice
+            label="Let apps sign in"
+            value={on}
+            onChange={setOn}
+            options={[
+              { value: "off", label: "Off" },
+              { value: "on", label: "On" },
+            ]}
+            className="w-full max-w-[220px]"
+          />
+        )}
+      </Field>
+      {on === "on" && (
+        <>
+          <Field
+            label="MCP server address"
+            hint="Add this to an AI assistant as a connector; it asks people to sign in."
+          >
+            {({ id, describedBy }) => (
+              <div className="flex gap-2">
+                <Input id={id} aria-describedby={describedBy} mono readOnly value={mcp} />
+                <Button variant="secondary" onClick={copy}>
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            )}
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field
+              label="Access token lasts (minutes)"
+              hint="Apps renew it by themselves"
+              error={validMinutes ? undefined : "A whole number from 5 to 1440"}
+            >
+              {({ id, describedBy, invalid }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  inputMode="numeric"
+                  value={minutes}
+                  onChange={(e) => setMinutes(e.target.value.replace(/[^0-9]/g, ""))}
+                />
+              )}
+            </Field>
+            <Field
+              label="Apps stay signed in (days)"
+              hint="Counted from when an app last renewed"
+              error={validDays ? undefined : "A whole number from 1 to 3650"}
+            >
+              {({ id, describedBy, invalid }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  inputMode="numeric"
+                  value={days}
+                  onChange={(e) => setDays(e.target.value.replace(/[^0-9]/g, ""))}
+                />
+              )}
+            </Field>
+          </div>
+        </>
+      )}
+      {save.error && <AuthAlert tone="error">{errorText(save.error)}</AuthAlert>}
+      <Actions
+        onSkip={() => onNext(false)}
+        onSave={() => save.mutate()}
+        pending={save.isPending}
+        disabled={on === "on" && (!validMinutes || !validDays)}
       />
     </>
   );

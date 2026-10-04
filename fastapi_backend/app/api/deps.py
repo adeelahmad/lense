@@ -76,7 +76,8 @@ def _principal(request: Request, db: DB) -> Principal | None:
                 u["id"], u["email"], u.get("name"), bool(u.get("admin")), "token", "write" if u.get("scope") == "write" else "read"
             )
     elif raw.startswith("lo_"):
-        u = oauth.token_account(db, raw)
+        # with OAuth turned off, apps' tokens stop working at once (their grants stay, so turning it back on restores them)
+        u = oauth.token_account(db, raw) if oauth.enabled(request.app.state.settings.current()) else None
         if u:
             p = Principal(u["id"], u["email"], u.get("name"), bool(u.get("admin")), "oauth", u["scope"], resource=u.get("resource"))
     elif raw:

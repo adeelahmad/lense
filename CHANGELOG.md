@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Apps and AI assistants in the setup wizard.** A new optional step, Apps and AI, asks whether apps and AI
+  assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in with their Lens account, how long
+  their tokens last, and shows the MCP server's address to add to an assistant. Skipping it keeps OAuth on, as
+  before. Admins can also turn it off in Settings → API keys (`tokens.oauth_enabled`): discovery and registration go
+  away and apps' tokens stop working until it is back on. API: `PUT /api/v1/setup/oauth`.
 - **Hardening.** Sign-in throttles count each visitor behind the web app (Docker) instead of one bucket for everyone,
   so one person's wrong tries can't lock others out and nobody gets unlimited tries. The web app's pages send
   nosniff, referrer, permissions and frame policies, and HSTS when reached through Cloudflare. The containers run with

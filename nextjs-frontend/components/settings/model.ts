@@ -1550,6 +1550,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "tokens",
+    key: "oauth_enabled",
+    label: "Let apps and AI assistants sign in",
+    kind: "switch",
+    hint: "Claude, ChatGPT, Cursor and other apps sign in with a person’s Lens account (OAuth) and act with their roles. Off: apps need an API key, and the ones people allowed stop working until it’s back on",
+  },
+  {
+    section: "tokens",
     key: "oauth_access_minutes",
     label: "An app’s access token lasts (minutes)",
     kind: "int",
