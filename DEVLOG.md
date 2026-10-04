@@ -29,7 +29,7 @@ Todo:
       and graph changes, analysis, the entity map)
 - [x] Versions API: list, the graph as of a version, diff, an entity's history, named versions
 - [x] Rollback to a version, with a preview
-- [ ] Checkpoints, replay and verify (`lens graph verify`, nightly checkpoint)
+- [x] Checkpoints, replay and verify (`lens graph verify`, nightly checkpoint)
 - [ ] The explorer and Cypher as of a version (with the graph explorer thread)
 - [ ] Web app: a history timeline with diffs and rollback
 - [ ] Graph events in each resource's activity history (with the activity history thread)

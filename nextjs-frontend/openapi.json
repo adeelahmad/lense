@@ -11224,6 +11224,101 @@
         }
       }
     },
+    "/api/v1/graph/verify": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Verify",
+        "description": "Replay the history from its newest checkpoint and compare it with today's graph: what differs was written\nwithout being recorded. Admins.",
+        "operationId": "graph_verify",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Verify"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Verify Fix",
+        "description": "Record what differs from the replayed history as one change (`graph.drift`), so they match again. Admins.",
+        "operationId": "graph_verify_fix",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Verify Fix"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/checkpoints": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Checkpoints",
+        "description": "The versions the graph is kept whole at, to replay from (taken with the first change, then every 1000).",
+        "operationId": "graph_checkpoints",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Graph-Graph Checkpoints"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Checkpoint",
+        "description": "Keep the whole graph as it is now. Admins.",
+        "operationId": "graph_checkpoint",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Checkpoint"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/entity-setup": {
       "get": {
         "tags": [

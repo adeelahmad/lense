@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from app.api.deps import Acl, CurrentUser, Db, Writer, domain_errors
+from app.api.deps import Acl, AdminReader, AdminWriter, CurrentUser, Db, Writer, domain_errors
 from app.domain import auth, graph_history
 
 router = APIRouter(tags=["graph"])
@@ -144,3 +144,34 @@ def graph_rollback(request: Request, body: RollbackAsk, user: Writer, acl: Acl, 
         auth.audit(db, user.as_audit(), "graph.rollback", f"graph_event:{out['version']}", {"to": out["to"], "namespace": body.namespace})
         request.app.state.graph_cache.clear()
     return out
+
+
+@router.get("/graph/verify")
+def graph_verify(user: AdminReader, db: Db) -> dict[str, Any]:
+    """Replay the history from its newest checkpoint and compare it with today's graph: what differs was written
+    without being recorded. Admins."""
+    return graph_history.verify(db)
+
+
+@router.post("/graph/verify")
+def graph_verify_fix(request: Request, user: AdminWriter, db: Db) -> dict[str, Any]:
+    """Record what differs from the replayed history as one change (`graph.drift`), so they match again. Admins."""
+    out = graph_history.verify(db, fix=True)
+    if out.get("version"):
+        auth.audit(db, user.as_audit(), "graph.drift", f"graph_event:{out['version']}", {"differences": out["differences"]})
+        request.app.state.graph_cache.clear()
+    return out
+
+
+@router.get("/graph/checkpoints")
+def graph_checkpoints(user: AdminReader, db: Db) -> list[dict[str, Any]]:
+    """The versions the graph is kept whole at, to replay from (taken with the first change, then every 1000)."""
+    return graph_history.checkpoints(db)
+
+
+@router.post("/graph/checkpoints")
+def graph_checkpoint(user: AdminWriter, db: Db) -> dict[str, Any]:
+    """Keep the whole graph as it is now. Admins."""
+    v = graph_history.checkpoint(db)
+    auth.audit(db, user.as_audit(), "graph.checkpoint", f"graph_checkpoint:{v}")
+    return {"version": v}

@@ -77,3 +77,15 @@ def test_rollback_previews_then_takes_back(env):
     c.post(f"/api/v1/entities/{dyno}/link", headers=env.h["admin"], json={"with": env.eid("Dyno Therapeutics", "calls")})
     assert c.post("/api/v1/graph/rollback", headers=ed, json={"to": str(start)}).status_code == 403
     assert c.post("/api/v1/graph/rollback", headers=env.h["admin"], json={"to": str(start), "dry_run": False}).json()["done"]
+
+
+def test_verify_and_checkpoints_are_for_admins(env):
+    c, ed, ad = env.c, env.h["editor"], env.h["admin"]
+    assert c.get("/api/v1/graph/verify", headers=ed).status_code == 403
+    assert c.get("/api/v1/graph/verify", headers=ad).json()["same"] is True
+    v = c.post("/api/v1/graph/checkpoints", headers=ad).json()["version"]
+    assert v in [x["version"] for x in c.get("/api/v1/graph/checkpoints", headers=ad).json()]
+    env.db.q("UPDATE entity SET name = 'X' WHERE name = 'AWS'")
+    assert c.get("/api/v1/graph/verify", headers=ad).json()["differences"] == 1
+    assert c.post("/api/v1/graph/verify", headers=ad).json()["version"] == v + 1
+    assert c.get("/api/v1/graph/verify", headers=ad).json()["same"] is True

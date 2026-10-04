@@ -9,7 +9,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   analysis), through what (the web app, a token, an app, MCP) and why. `GET /api/v1/graph/history` lists versions
   (one entity's with `entity`), `/graph/as-of/{version}` shows the graph as it was, `/graph/diff` what changed
   between two versions, and `/graph/tags` names versions to come back to. `POST /graph/rollback` takes the graph back to a version, after a
-  preview, undoing merges with their mentions; a rollback can be rolled back too. See docs/graph-history.md.
+  preview, undoing merges with their mentions; a rollback can be rolled back too. Checkpoints let the graph be replayed
+  from its history, and `lens history verify` (or `/graph/verify`) checks the replay matches today's graph. See
+  docs/graph-history.md.
 - **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
   recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
   GQL) over the namespaces you can read; `/graph/related` gives a node's parents, children, ancestors, descendants or

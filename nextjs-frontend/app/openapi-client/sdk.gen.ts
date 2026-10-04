@@ -492,6 +492,10 @@ import type {
   GraphAsOfData,
   GraphAsOfErrors,
   GraphAsOfResponses,
+  GraphCheckpointData,
+  GraphCheckpointResponses,
+  GraphCheckpointsData,
+  GraphCheckpointsResponses,
   GraphDiffData,
   GraphDiffErrors,
   GraphDiffResponses,
@@ -524,6 +528,10 @@ import type {
   GraphUntagData,
   GraphUntagErrors,
   GraphUntagResponses,
+  GraphVerifyData,
+  GraphVerifyFixData,
+  GraphVerifyFixResponses,
+  GraphVerifyResponses,
   HideEntityData,
   HideEntityErrors,
   HideEntityResponses,
@@ -4950,6 +4958,63 @@ export class Graph {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Graph Verify
+   *
+   * Replay the history from its newest checkpoint and compare it with today's graph: what differs was written
+   * without being recorded. Admins.
+   */
+  public static graphVerify<ThrowOnError extends boolean = false>(
+    options?: Options<GraphVerifyData, ThrowOnError>,
+  ): RequestResult<GraphVerifyResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GraphVerifyResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/verify",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Verify Fix
+   *
+   * Record what differs from the replayed history as one change (`graph.drift`), so they match again. Admins.
+   */
+  public static graphVerifyFix<ThrowOnError extends boolean = false>(
+    options?: Options<GraphVerifyFixData, ThrowOnError>,
+  ): RequestResult<GraphVerifyFixResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<GraphVerifyFixResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/verify",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Checkpoints
+   *
+   * The versions the graph is kept whole at, to replay from (taken with the first change, then every 1000).
+   */
+  public static graphCheckpoints<ThrowOnError extends boolean = false>(
+    options?: Options<GraphCheckpointsData, ThrowOnError>,
+  ): RequestResult<GraphCheckpointsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GraphCheckpointsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/checkpoints",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Checkpoint
+   *
+   * Keep the whole graph as it is now. Admins.
+   */
+  public static graphCheckpoint<ThrowOnError extends boolean = false>(
+    options?: Options<GraphCheckpointData, ThrowOnError>,
+  ): RequestResult<GraphCheckpointResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<GraphCheckpointResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/checkpoints",
+      ...options,
     });
   }
 }

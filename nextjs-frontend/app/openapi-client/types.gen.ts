@@ -20842,6 +20842,86 @@ export type GraphRollbackResponses = {
 
 export type GraphRollbackResponse = GraphRollbackResponses[keyof GraphRollbackResponses];
 
+export type GraphVerifyData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/verify";
+};
+
+export type GraphVerifyResponses = {
+  /**
+   * Response Graph-Graph Verify
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphVerifyResponse = GraphVerifyResponses[keyof GraphVerifyResponses];
+
+export type GraphVerifyFixData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/verify";
+};
+
+export type GraphVerifyFixResponses = {
+  /**
+   * Response Graph-Graph Verify Fix
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphVerifyFixResponse = GraphVerifyFixResponses[keyof GraphVerifyFixResponses];
+
+export type GraphCheckpointsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/checkpoints";
+};
+
+export type GraphCheckpointsResponses = {
+  /**
+   * Response Graph-Graph Checkpoints
+   *
+   * Successful Response
+   */
+  200: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+export type GraphCheckpointsResponse = GraphCheckpointsResponses[keyof GraphCheckpointsResponses];
+
+export type GraphCheckpointData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/checkpoints";
+};
+
+export type GraphCheckpointResponses = {
+  /**
+   * Response Graph-Graph Checkpoint
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphCheckpointResponse = GraphCheckpointResponses[keyof GraphCheckpointResponses];
+
 export type GetEntitySetupData = {
   body?: never;
   path: {

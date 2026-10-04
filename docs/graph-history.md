@@ -4,9 +4,8 @@ Every change to the entity graph is kept, in order, as an event that is never ch
 graph's version. So the graph can be seen as it was at any version, two versions compared, and one entity's history
 read: who renamed it, who merged what into it, which routine linked it, and why.
 
-Built: the event log, versions, as-of, diffs, entity history, named versions, rollback to a version. Planned:
-checkpoints with replay and verify, the explorer and Cypher as of a version, a history timeline in the web app
-(DEVLOG.md).
+Built: the event log, versions, as-of, diffs, entity history, named versions, rollback to a version, checkpoints with
+replay and verify. Planned: the explorer and Cypher as of a version, a history timeline in the web app (DEVLOG.md).
 
 ## What is versioned
 
@@ -70,6 +69,24 @@ any other: rolling back to the version just before it brings everything back, me
 - An entity made since that is mentioned now stays (hide it instead); the reply lists it under `skipped`.
 - It needs editor access to every namespace the changes touched: a link to a namespace you can't edit stops it.
 
+## Replay and verify
+
+A checkpoint keeps the whole graph as it was at one version. The first is taken with the first recorded change (the
+graph as it was before it, so an archive that had entities before this feature replays too), then one every 1000
+changes. Replaying starts from the newest checkpoint and applies the events after it, without reading today's rows.
+
+Verify replays the history and compares it with the graph. Anything that differs was written without being recorded
+(by an older version of Lens, or by hand in the database). Fixing records it as one `graph.drift` change, so the
+history matches again.
+
+| Call | What it does |
+| --- | --- |
+| `GET /api/v1/graph/verify` | `{same, differences, from, head}` and what differs. Admins. |
+| `POST /api/v1/graph/verify` | Record what differs as one change. Admins. |
+| `GET /api/v1/graph/checkpoints`, `POST /api/v1/graph/checkpoints` | List checkpoints; keep one now. Admins. |
+
+On the command line: `lens history verify [--fix]`, `lens history checkpoint`, `lens history list`.
+
 ## How it works
 
 Code that changes the graph wraps its writes in `graph_history.change(db, op, entities=...)`. It reads the rows of
@@ -85,4 +102,4 @@ events between two versions: for each record, how it was before the first and af
 
 - Speakers (same-person links, names) in the history.
 - A mention-level history.
-- Checkpoints so very old versions don't walk back through every later event.
+- As-of from the nearest checkpoint, so very old versions don't walk back through every later event.

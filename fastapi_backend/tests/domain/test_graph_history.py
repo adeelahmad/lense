@@ -223,3 +223,33 @@ def test_rollback_keeps_what_analysis_found(db, cfg, spaces, folder):
     out = gh.rollback(db, v0, dry_run=False)
     assert out["kept"] == 1
     assert entities.detail(db, zebra, spaces)["name"] == "Zebra Robotics"  # found since: kept, its rename taken back
+
+
+def test_replay_from_checkpoints_and_verify(db, cfg, spaces, monkeypatch):
+    assert [c["version"] for c in gh.checkpoints(db)] == [0]  # taken with the first change
+    assert gh.checkpoints(db)[0]["counts"]["entity"] == 0
+    dyno = eid(db, spaces, "Dyno Therapeutics")
+    entities.rename(db, dyno, "Dyno")
+    state, base = gh.replay(db)
+    assert base == 0 and state == gh.live(db)  # the whole graph, from nothing but its history
+    assert gh.verify(db)["same"] is True
+    monkeypatch.setattr(gh, "PART_ROWS", 3)
+    v = gh.checkpoint(db)
+    assert gh.replay(db)[1] == v and gh.replay(db)[0] == gh.live(db)
+    assert gh.replay(db, v - 1)[0] == gh.state_at(db, v - 1)  # an older version replays from the older checkpoint
+    # a write that went around the history is found, and recorded when asked
+    db.q("UPDATE $r SET name = 'Sneaky'", r=store.R("entity", dyno))
+    found = gh.verify(db)
+    assert found["same"] is False and found["entities"]["changed"][0]["fields"]["name"] == ["Dyno", "Sneaky"]
+    fixed = gh.verify(db, fix=True)
+    assert gh.event(db, fixed["version"])["op"] == "graph.drift"
+    assert gh.verify(db)["same"] is True
+
+
+def test_checkpoints_every_so_often(db, cfg, spaces, monkeypatch):
+    monkeypatch.setattr(gh, "CHECKPOINT_EVERY", 2)
+    dyno = eid(db, spaces, "Dyno Therapeutics")
+    for n in range(4):
+        entities.rename(db, dyno, f"Dyno {n}")
+    assert len(gh.checkpoints(db)) >= 3
+    assert gh.replay(db)[0] == gh.live(db)

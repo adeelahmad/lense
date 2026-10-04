@@ -23,11 +23,13 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
+import logging
 import re
 
 from . import store
 
 R = store.R
+log = logging.getLogger("lens")
 TABLES = ("entity", "entity_alias", "entity_link", "entity_distinct")
 VIAS = ("web", "token", "oauth", "assistant", "mcp", "routine", "workflow", "analysis", "cli", "system")
 SUMMARY = "record::id(id) AS version, at, op, actor, via, why, spaces, entities, origin, array::len(ops) AS changes"
@@ -222,6 +224,11 @@ def record(db, op, ops, why=None, origin=None, actor=None, via=None, entities=()
         }
     )
     db.q("CREATE $r CONTENT $d", r=R("graph_event", n), d=row)
+    if n == 1 or n % CHECKPOINT_EVERY == 0:  # the graph before its first change, then every so often, to replay from
+        try:
+            checkpoint(db, 0 if n == 1 else n)
+        except Exception:  # noqa: BLE001 - a missed checkpoint is taken later; the change is still recorded
+            log.exception("graph checkpoint at %s failed", n)
     return n
 
 
@@ -620,3 +627,99 @@ def _restore(db, target):
     for t, k in sorted(back, key=lambda x: -order[x[0]]):
         db.q("UPSERT $r CONTENT $d", r=R(t, k), d=target[(t, k)])
     return skipped
+
+
+# ---------- checkpoints, replay and verify ----------
+CHECKPOINT_EVERY = 1000  # events between automatic checkpoints
+PART_ROWS = 2000  # records per stored part of a checkpoint
+
+
+def _flat(state):
+    return [[t, k, row] for t in TABLES for k, row in sorted(state[t].items(), key=lambda x: str(x[0]))]
+
+
+def checkpoint(db, version=None):
+    """Keep the whole graph as it was at `version` (default: now), so it can be replayed from there. Its version."""
+    v = head(db) if version is None else int(version)
+    state = state_at(db, v)
+    rows = _flat(state)
+    db.q("DELETE graph_checkpoint_part WHERE checkpoint = $v", v=v)
+    parts = [rows[i : i + PART_ROWS] for i in range(0, len(rows), PART_ROWS)]
+    for n, part in enumerate(parts):
+        db.q("CREATE $r CONTENT $d", r=R("graph_checkpoint_part", f"{v}-{n}"), d={"checkpoint": v, "n": n, "rows": part})
+    db.q(
+        "UPSERT $r CONTENT $d",
+        r=R("graph_checkpoint", v),
+        d={"version": v, "at": store.now(), "parts": len(parts), "counts": {t: len(state[t]) for t in TABLES}},
+    )
+    return v
+
+
+def checkpoints(db):
+    return db.rows("SELECT version, at, counts FROM graph_checkpoint ORDER BY version DESC")
+
+
+def _load(db, v):
+    s = {t: {} for t in TABLES}
+    for part in db.rows("SELECT n, rows FROM graph_checkpoint_part WHERE checkpoint = $v ORDER BY n", v=int(v)):
+        for t, k, row in part["rows"]:
+            s[t][_key(t, k)] = row
+    return s
+
+
+def replay(db, upto=None):
+    """The graph rebuilt from the newest checkpoint at or before `upto` (default: now) and the events after it, without
+    reading today's rows. (state, the checkpoint it started from)."""
+    top = head(db)
+    upto = top if upto is None else int(upto)
+    base = db.one("SELECT version FROM graph_checkpoint WHERE version <= $u ORDER BY version DESC LIMIT 1", u=upto)
+    if not base:
+        ensure_checkpoint(db)
+        base = db.one("SELECT version FROM graph_checkpoint WHERE version <= $u ORDER BY version DESC LIMIT 1", u=upto)
+    s = _load(db, base["version"])
+    for ev in _events_after(db, base["version"], upto):
+        for o in ev["ops"]:
+            k = _key(o["t"], o["k"])
+            if o.get("a") is None:
+                s[o["t"]].pop(k, None)
+            else:
+                s[o["t"]][k] = o["a"]
+    return s, base["version"]
+
+
+def verify(db, fix=False):
+    """Replay the history and compare it with today's rows. Anything that differs was written without being recorded;
+    `fix` records it as one `graph.drift` event, so the history matches again. {from, head, same, differences}."""
+    replayed, base = replay(db)
+    live_rows = live(db)
+    first = {(t, k): row for t in TABLES for k, row in replayed[t].items()}
+    last = {(t, k): row for t in TABLES for k, row in live_rows[t].items()}
+    keys = set(first) | set(last)
+    first = {k: first.get(k) for k in keys}
+    last = {k: last.get(k) for k in keys}
+    differ = [k for k in keys if first[k] != last[k]]
+    out = {"from": base, "head": head(db), "same": not differ, "differences": len(differ), **_describe(db, first, last, None)}
+    if differ and fix:
+        ents = {k: r for (t, k), r in {**first, **last}.items() if t == "entity" and r}
+
+        def space_of(e):
+            return (ents.get(int(e)) or {}).get("space") if e is not None else None
+
+        ops = [
+            store.clean({"t": t, "k": k, "b": first[(t, k)], "a": last[(t, k)]})
+            | {"s": sorted(_row_spaces(t, first[(t, k)], space_of) | _row_spaces(t, last[(t, k)], space_of))}
+            for t, k in sorted(differ, key=lambda x: (TABLES.index(x[0]), str(x[1])))
+        ]
+        out["version"] = record(db, "graph.drift", ops, why="written without being recorded; found by verify", actor="system", via="system")
+    return out
+
+
+def ensure_checkpoint(db):
+    """A first checkpoint (the graph before its first recorded change) once there is none, and another every
+    CHECKPOINT_EVERY events. Cheap when nothing is due."""
+    last = db.one("SELECT version FROM graph_checkpoint ORDER BY version DESC LIMIT 1")
+    if not last:
+        return checkpoint(db, 0)
+    if head(db) - last["version"] >= CHECKPOINT_EVERY:
+        return checkpoint(db)
+    return None
