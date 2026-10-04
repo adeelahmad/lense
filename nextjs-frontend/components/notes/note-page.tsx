@@ -51,7 +51,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
   const loadedFor = useRef<string | null>(null);
   useEffect(() => {
     if (!page) return;
-    const k = `${page.id ?? "draft"}:${page.about ?? ""}`;
+    const k = page.about ?? `page:${page.id}`;
     if (loadedFor.current === k) return;
     loadedFor.current = k;
     setTitle(page.title);
@@ -263,7 +263,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
         {saved?.updated_at && <span>Changed {shortDate(saved.updated_at)}</span>}
       </div>
       <BlockEditor
-        key={`${page.id ?? "draft"}:${page.about ?? ""}`}
+        key={page.about ?? `page:${page.id}`}
         markdown={page.body ?? ""}
         doc={saved?.doc ?? null}
         readOnly={!canEdit}
