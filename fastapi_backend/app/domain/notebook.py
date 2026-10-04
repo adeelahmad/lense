@@ -381,6 +381,25 @@ def labels(db, targets):
     return out
 
 
+def find(db, spaces, query="", place=None, limit=10):
+    """Pages in these namespaces whose title, summary or text has the words, those with them in the title first, then
+    the latest changed. Returns (how many matched, the first `limit` without their bodies)."""
+    q = " ".join(str(query or "").split()).casefold()
+    rows = db.rows(
+        "SELECT record::id(id) AS id, space, title, summary, place, about, updated_at, text FROM note_page WHERE space IN $s",
+        s=list(spaces),
+    )
+    hits = [
+        r
+        for r in rows
+        if (not place or r.get("place") == place)
+        and (not q or any(q in str(r.get(k) or "").casefold() for k in ("title", "summary", "text")))
+    ]
+    hits.sort(key=lambda r: r.get("updated_at") or "", reverse=True)
+    hits.sort(key=lambda r: q not in str(r["title"]).casefold())
+    return len(hits), [{k: v for k, v in r.items() if k != "text"} for r in hits[:limit]]
+
+
 def search_targets(db, sid, q="", sign="@", limit=20):
     """What a mention can link to in namespace sid, best matches first: for #, topics (by any of their labels); for @,
     pages, recordings, people and other entities, collections and speakers."""

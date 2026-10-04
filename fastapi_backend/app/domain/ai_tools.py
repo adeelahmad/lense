@@ -799,18 +799,7 @@ class Toolbox(ops_tools.OpsTools):
     def t_find_notes(self, query=None, namespace=None, place=None, limit=10):
         spaces = [self._space(namespace)] if namespace else sorted(self.readable)
         names = store.space_names(self.db)
-        q = " ".join(str(query or "").split()).casefold()
-        rows = self.db.rows(
-            "SELECT record::id(id) AS id, space, title, summary, place, about, updated_at, text FROM note_page WHERE space IN $s",
-            s=spaces,
-        )
-        hits = [
-            r
-            for r in rows
-            if (not place or r.get("place") == place)
-            and (not q or any(q in str(r.get(k) or "").casefold() for k in ("title", "summary", "text")))
-        ]
-        hits.sort(key=lambda r: (q not in str(r["title"]).casefold(), r.get("updated_at") or ""), reverse=False)
+        total, hits = notebook.find(self.db, spaces, query, place, min(int(limit or 10), 30))
         out = [
             store.clean(
                 {
@@ -822,9 +811,9 @@ class Toolbox(ops_tools.OpsTools):
                     "namespace": names.get(r["space"]),
                 }
             )
-            for r in hits[: min(int(limit or 10), 30)]
+            for r in hits
         ]
-        return {"total": len(hits), "notes": out}, f"Found {len(hits)} note(s)"
+        return {"total": total, "notes": out}, f"Found {total} note(s)"
 
     def t_read_note(self, note_id=None, about=None):
         if note_id is None and not about:
