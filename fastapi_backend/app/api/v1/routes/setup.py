@@ -109,8 +109,13 @@ def save_oauth(body: SetupOAuth, user: AdminWriter, request: Request, db: Db) ->
 
 
 @router.post("/finish")
-def finish(body: SetupFinish, user: AdminWriter, db: Db) -> SetupSaved:
-    """Finish (or skip) the wizard; the web app stops showing it. Everything stays changeable in Settings."""
-    setup.finish(db, user.email, body.skipped)
+def finish(body: SetupFinish, user: AdminWriter, request: Request, db: Db) -> SetupSaved:
+    """Finish (or skip) the wizard; the web app stops showing it. Everything stays changeable in Settings. With no
+    namespace yet, the default one is made (saved: ["namespace"])."""
+    made = setup.finish(db, user.email, body.skipped)
     auth.audit(db, user.as_audit(), "setup.finish", None, ["skipped"] if body.skipped else None)
-    return SetupSaved()
+    if not made:
+        return SetupSaved()
+    auth.audit(db, user.as_audit(), "namespace.create", made, ["setup"])
+    request.app.state.graph_cache.clear()
+    return SetupSaved(saved=["namespace"])

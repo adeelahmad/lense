@@ -35,11 +35,16 @@ export function homeMode(saved: HomeMode | null, hasContent: boolean): HomeMode 
   return saved ?? (hasContent ? "assistant" : "overview");
 }
 
+/** The mode a link asks for: the bell (Needs attention) opens /#attention, which only the overview has. */
+export function linkedMode(hash: string): HomeMode | null {
+  return hash === "#attention" ? "overview" : null;
+}
+
 /** Home: assistant mode (one field, one mic) or the overview (what needs you, what arrived, what's running). */
 export function HomePage() {
   const client = useApiClient();
   const [saved, setSaved] = useState<HomeMode | null | undefined>(undefined);
-  useEffect(() => setSaved(savedMode()), []);
+  useEffect(() => setSaved(linkedMode(window.location.hash) ?? savedMode()), []);
   const any = useQuery({
     queryKey: ["recordings", "any"],
     queryFn: () => data(Resources.listRecordings({ client, query: { limit: 1 } })),

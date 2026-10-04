@@ -42,7 +42,7 @@ export function EmptyChat({
             icon={admin ? undefined : <Settings />}
           >
             {admin ? (
-              <Link href="/settings#llm">
+              <Link href="/settings/llm">
                 <Settings /> Open LLM settings
               </Link>
             ) : (
