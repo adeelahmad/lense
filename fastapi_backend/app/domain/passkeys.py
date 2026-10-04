@@ -147,7 +147,9 @@ def _creation(db, cfg, kind, origin, uid, email, name, data=None):
     if not uid:
         data = {**(data or {}), "user": bytes_to_base64url(opts.user.id)}
     flow = _start(db, kind, origin, rp_id, opts.challenge, uid, data)
-    return {"flow": flow, "options": json.loads(options_to_json(opts))}
+    options = json.loads(options_to_json(opts))
+    options["extensions"] = {"prf": {}}  # so a security key turns on what vaults need (app/domain/vaults.py)
+    return {"flow": flow, "options": options}
 
 
 def _verify_creation(db, row, credential):
@@ -309,6 +311,17 @@ def login_options(db, origin):
 def login_finish(db, flow, credential):
     """The account the passkey belongs to (active), after checking the browser's signature. PasskeyError otherwise."""
     row = _claim(db, flow, "login")
+    pk = verified(db, row, credential)
+    u = auth.active_account(db, pk["account"])
+    if not u:
+        raise PasskeyError("this account is disabled")
+    db.q("UPDATE $r SET last_login_at = $t", r=R("account", u["id"]), t=store.now())
+    return u
+
+
+def verified(db, row, credential):
+    """The passkey that signed the browser's answer to a flow (`row`, claimed), with its use recorded; PasskeyError
+    when it isn't one of this site's or the signature doesn't check out."""
     cred_id = credential.get("id") if isinstance(credential, dict) else None
     pk = db.one("SELECT * FROM $r", r=R("passkey", auth.sha(cred_id))) if isinstance(cred_id, str) and cred_id else None
     if not pk or pk.get("rp_id") != row["rp_id"]:
@@ -329,9 +342,6 @@ def login_finish(db, flow, credential):
         )
     except (WebAuthnException, ValueError, KeyError, TypeError) as e:
         raise PasskeyError(f"the passkey couldn't be checked: {e}") from None
-    u = auth.active_account(db, pk["account"])
-    if not u:
-        raise PasskeyError("this account is disabled")
     db.q(
         "UPDATE $r SET sign_count = $c, last_used_at = $t, backed_up = $b",
         r=R("passkey", auth.sha(cred_id)),
@@ -339,8 +349,7 @@ def login_finish(db, flow, credential):
         t=store.now(),
         b=bool(v.credential_backed_up),
     )
-    db.q("UPDATE $r SET last_login_at = $t", r=R("account", u["id"]), t=store.now())
-    return u
+    return pk
 
 
 # ---------- login tickets ----------
@@ -401,6 +410,14 @@ def remove(db, uid, pid, passwords_on=False, here=None, others=0):
     r = _find(db, uid, pid)
     if not r:
         return False
+    from . import vaults
+
+    if only := vaults.guards(db, [pid]):
+        names = store.space_names(db)
+        raise ValueError(
+            f"this passkey is the only one that opens {', '.join(names.get(s, str(s)) for s in only)}: add another passkey to "
+            "the vault first, or its files are lost"
+        )
     if not (passwords_on and has_password(db, uid)) and not others:
         if count(db, uid) <= 1:
             raise ValueError("this is your last passkey: add another one first, or you couldn't sign in")
@@ -419,8 +436,18 @@ def has_password(db, uid):
     return bool((db.one("SELECT pw FROM $r", r=R("account", uid)) or {}).get("pw"))
 
 
-def remove_all(db, uid):
-    """An admin removes everyone's passkeys for an account (a lost or stolen device); their sessions end too."""
+def remove_all(db, uid, lose_vaults=False):
+    """An admin removes everyone's passkeys for an account (a lost or stolen device); their sessions end too. Refused
+    when they are the only way into a vault, unless `lose_vaults` says its files may be lost."""
+    from . import vaults
+
+    pids = [_pid(c) for c in db.values("SELECT VALUE cred_id FROM passkey WHERE account = $a", a=uid)]
+    if not lose_vaults and (only := vaults.guards(db, pids)):
+        names = store.space_names(db)
+        raise ValueError(
+            f"these passkeys are the only ones that open {', '.join(names.get(s, str(s)) for s in only)}: its files "
+            "would be lost for good. Have an owner unlock it and add another passkey (or make it ordinary) first"
+        )
     n = len(db.rows("DELETE passkey WHERE account = $a RETURN BEFORE", a=uid))
     db.q("DELETE login_session WHERE account = $a", a=uid)
     return n

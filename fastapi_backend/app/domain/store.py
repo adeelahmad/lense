@@ -352,7 +352,7 @@ DEFAULTS = {
     # endpoint's auth. prices: {model: {input, output}} in USD per million tokens, for cost estimates.
     # encryption at rest (docs/encryption.md): files Lens keeps under data_dir, encrypted with their namespace's key;
     # work_minutes: how long a plain working copy for ffmpeg and the other tools is kept after its last use
-    "encryption": {"files": False, "work_minutes": 30},
+    "encryption": {"files": False, "work_minutes": 30, "vault_minutes": 60},
     "telemetry": {
         "enabled": False,
         "endpoint": None,
