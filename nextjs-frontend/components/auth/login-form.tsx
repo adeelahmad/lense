@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import type { ExternalProvider } from "@/app/openapi-client";
 import { login } from "@/components/actions/login-action";
 import { AuthAlert, AuthCard } from "@/components/auth/auth-card";
 import { AuthField } from "@/components/auth/auth-field";
 import { AuthSubmit } from "@/components/auth/auth-submit";
+import { ExternalSignIn } from "@/components/auth/external-sign-in";
 import { PasskeySignIn } from "@/components/auth/passkey-button";
 import { useFormAction } from "@/components/auth/use-form-action";
 
@@ -14,20 +16,23 @@ import { useFormAction } from "@/components/auth/use-form-action";
 const COOL_DOWN_MS = 60_000;
 
 /**
- * Sign in with a passkey; with a password too where an admin left passwords on (wrong email or password, too many
- * attempts: Access AC2).
+ * Sign in with a passkey or an outside account an admin set up (Google, GitHub, ...); with a password too where an
+ * admin left passwords on (wrong email or password, too many attempts: Access AC2).
  */
 export function LoginForm({
   callbackUrl = "/",
   setupRequired = false,
   notice,
   passwords = false,
+  providers = [],
 }: {
   callbackUrl?: string;
   setupRequired?: boolean;
   notice?: string;
   /** Whether passwords sign in here (auth.passwords). */
   passwords?: boolean;
+  /** Outside accounts people can sign in with (Google, GitHub, ...). */
+  providers?: ExternalProvider[];
 }) {
   const { state, pending, onSubmit, action } = useFormAction(login);
   const [coolingDown, setCoolingDown] = useState(false);
@@ -73,7 +78,12 @@ export function LoginForm({
         </AuthAlert>
       )}
       {notice && <AuthAlert tone="success">{notice}</AuthAlert>}
-      <PasskeySignIn callbackUrl={callbackUrl} autoFocus={!setupRequired} hideIfUnavailable={passwords} />
+      <PasskeySignIn
+        callbackUrl={callbackUrl}
+        autoFocus={!setupRequired}
+        hideIfUnavailable={passwords || providers.length > 0}
+      />
+      <ExternalSignIn providers={providers} callbackUrl={callbackUrl} />
       {passwords && (
         <>
           <div className="flex items-center gap-3 text-[12px] text-fg-muted" aria-hidden>

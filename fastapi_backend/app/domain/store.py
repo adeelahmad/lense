@@ -713,6 +713,13 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS login_ticket SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS signin_link SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS signin_link_account ON signin_link FIELDS account",
+    # signing in with an outside account (domain/external_login.py): login_provider:<key> (sealed client secret),
+    # external_identity:<hash of provider|subject> (which Lens account it is) and external_flow:<hash of state>
+    "DEFINE TABLE IF NOT EXISTS login_provider SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS external_identity SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS external_identity_account ON external_identity FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS external_identity_provider ON external_identity FIELDS provider",
+    "DEFINE TABLE IF NOT EXISTS external_flow SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS api_token SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS api_token_hash ON api_token FIELDS hash UNIQUE",
     "DEFINE INDEX IF NOT EXISTS api_token_account ON api_token FIELDS account",

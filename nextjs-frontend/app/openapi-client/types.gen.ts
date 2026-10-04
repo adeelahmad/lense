@@ -3523,6 +3523,200 @@ export type ExtensionVersionInfo = {
 };
 
 /**
+ * ExternalIdentity
+ */
+export type ExternalIdentity = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Provider
+   */
+  provider: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Kind
+   */
+  kind: "google" | "github" | "microsoft" | "oidc";
+  /**
+   * Email
+   */
+  email?: string | null;
+  /**
+   * Created At
+   */
+  created_at: string;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalProvider
+ */
+export type ExternalProvider = {
+  /**
+   * Key
+   */
+  key: string;
+  /**
+   * Kind
+   */
+  kind: "google" | "github" | "microsoft" | "oidc";
+  /**
+   * Label
+   */
+  label: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalProviderAdmin
+ */
+export type ExternalProviderAdmin = {
+  /**
+   * Key
+   */
+  key: string;
+  /**
+   * Kind
+   */
+  kind: "google" | "github" | "microsoft" | "oidc";
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Client Id
+   */
+  client_id: string;
+  /**
+   * Secret Set
+   *
+   * a client secret is kept (never shown)
+   */
+  secret_set: boolean;
+  /**
+   * Issuer
+   *
+   * OpenID Connect: the provider's address
+   */
+  issuer?: string;
+  /**
+   * Tenant
+   *
+   * Microsoft: the directory (tenant) id, or common
+   */
+  tenant?: string;
+  /**
+   * Signup
+   *
+   * people without a Lens account get one when they sign in
+   */
+  signup: boolean;
+  /**
+   * Domains
+   *
+   * sign-up only for these email domains; empty means any
+   */
+  domains: Array<string>;
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * People
+   *
+   * Lens accounts connected through it
+   */
+  people: number;
+  /**
+   * Callback Path
+   *
+   * add this path on the web app's address as the redirect URI at the provider
+   */
+  callback_path: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalProviderSave
+ */
+export type ExternalProviderSave = {
+  /**
+   * Kind
+   *
+   * when adding one
+   */
+  kind?: "google" | "github" | "microsoft" | "oidc" | null;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Client Id
+   */
+  client_id?: string | null;
+  /**
+   * Client Secret
+   *
+   * leave out to keep the one kept
+   */
+  client_secret?: string | null;
+  /**
+   * Issuer
+   */
+  issuer?: string | null;
+  /**
+   * Tenant
+   */
+  tenant?: string | null;
+  /**
+   * Signup
+   */
+  signup?: boolean | null;
+  /**
+   * Domains
+   */
+  domains?: Array<string> | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+};
+
+/**
+ * ExternalRedirect
+ */
+export type ExternalRedirect = {
+  /**
+   * Url
+   *
+   * the provider's sign-in page; open it in this browser
+   */
+  url: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ExternalStart
+ */
+export type ExternalStart = {
+  /**
+   * Next
+   *
+   * the page to open after signing in
+   */
+  next?: string;
+};
+
+/**
  * FaceDismiss
  */
 export type FaceDismiss = {
@@ -14289,6 +14483,235 @@ export type RenamePasskeyResponses = {
 };
 
 export type RenamePasskeyResponse = RenamePasskeyResponses[keyof RenamePasskeyResponses];
+
+export type ExternalProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/external";
+};
+
+export type ExternalProvidersResponses = {
+  /**
+   * Response Auth-External Providers
+   *
+   * Successful Response
+   */
+  200: Array<ExternalProvider>;
+};
+
+export type ExternalProvidersResponse = ExternalProvidersResponses[keyof ExternalProvidersResponses];
+
+export type ExternalStartData = {
+  body: ExternalStart;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/external/{key}/start";
+};
+
+export type ExternalStartErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExternalStartError = ExternalStartErrors[keyof ExternalStartErrors];
+
+export type ExternalStartResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalRedirect;
+};
+
+export type ExternalStartResponse = ExternalStartResponses[keyof ExternalStartResponses];
+
+export type ExternalConnectData = {
+  body?: never;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/external/{key}/connect";
+};
+
+export type ExternalConnectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExternalConnectError = ExternalConnectErrors[keyof ExternalConnectErrors];
+
+export type ExternalConnectResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalRedirect;
+};
+
+export type ExternalConnectResponse = ExternalConnectResponses[keyof ExternalConnectResponses];
+
+export type ListIdentitiesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/identities";
+};
+
+export type ListIdentitiesResponses = {
+  /**
+   * Response Auth-List Identities
+   *
+   * Successful Response
+   */
+  200: Array<ExternalIdentity>;
+};
+
+export type ListIdentitiesResponse = ListIdentitiesResponses[keyof ListIdentitiesResponses];
+
+export type DisconnectIdentityData = {
+  body?: never;
+  path: {
+    /**
+     * Iid
+     */
+    iid: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/identities/{iid}";
+};
+
+export type DisconnectIdentityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DisconnectIdentityError = DisconnectIdentityErrors[keyof DisconnectIdentityErrors];
+
+export type DisconnectIdentityResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DisconnectIdentityResponse = DisconnectIdentityResponses[keyof DisconnectIdentityResponses];
+
+export type ListLoginProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/providers";
+};
+
+export type ListLoginProvidersResponses = {
+  /**
+   * Response Auth-List Login Providers
+   *
+   * Successful Response
+   */
+  200: Array<ExternalProviderAdmin>;
+};
+
+export type ListLoginProvidersResponse = ListLoginProvidersResponses[keyof ListLoginProvidersResponses];
+
+export type AddLoginProviderData = {
+  body: ExternalProviderSave;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/providers";
+};
+
+export type AddLoginProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddLoginProviderError = AddLoginProviderErrors[keyof AddLoginProviderErrors];
+
+export type AddLoginProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalProviderAdmin;
+};
+
+export type AddLoginProviderResponse = AddLoginProviderResponses[keyof AddLoginProviderResponses];
+
+export type RemoveLoginProviderData = {
+  body?: never;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/providers/{key}";
+};
+
+export type RemoveLoginProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveLoginProviderError = RemoveLoginProviderErrors[keyof RemoveLoginProviderErrors];
+
+export type RemoveLoginProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveLoginProviderResponse = RemoveLoginProviderResponses[keyof RemoveLoginProviderResponses];
+
+export type ChangeLoginProviderData = {
+  body: ExternalProviderSave;
+  path: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  query?: never;
+  url: "/api/v1/auth/providers/{key}";
+};
+
+export type ChangeLoginProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangeLoginProviderError = ChangeLoginProviderErrors[keyof ChangeLoginProviderErrors];
+
+export type ChangeLoginProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalProviderAdmin;
+};
+
+export type ChangeLoginProviderResponse = ChangeLoginProviderResponses[keyof ChangeLoginProviderResponses];
 
 export type MakeSigninLinkData = {
   body?: never;

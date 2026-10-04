@@ -394,13 +394,14 @@ def rename(db, uid, pid, name):
     return True
 
 
-def remove(db, uid, pid, passwords_on=False, here=None):
-    """Remove one of the account's passkeys. Refused for the last way in (no other passkey, and no password that works),
-    and for the last one that works on the site you're on (`here`, an RP ID): others for another site don't help here."""
+def remove(db, uid, pid, passwords_on=False, here=None, others=0):
+    """Remove one of the account's passkeys. Refused for the last way in (no other passkey, no password that works and
+    no outside account, `others`), and for the last one that works on the site you're on (`here`, an RP ID): others
+    for another site don't help here."""
     r = _find(db, uid, pid)
     if not r:
         return False
-    if not (passwords_on and has_password(db, uid)):
+    if not (passwords_on and has_password(db, uid)) and not others:
         if count(db, uid) <= 1:
             raise ValueError("this is your last passkey: add another one first, or you couldn't sign in")
         rp = (db.one("SELECT rp_id FROM $r", r=r) or {}).get("rp_id")

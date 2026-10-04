@@ -17,6 +17,9 @@ import type {
   AddFileData,
   AddFileErrors,
   AddFileResponses,
+  AddLoginProviderData,
+  AddLoginProviderErrors,
+  AddLoginProviderResponses,
   AddPasskeyData,
   AddPasskeyErrors,
   AddPasskeyOptionsData,
@@ -51,6 +54,9 @@ import type {
   CancelUploadData,
   CancelUploadErrors,
   CancelUploadResponses,
+  ChangeLoginProviderData,
+  ChangeLoginProviderErrors,
+  ChangeLoginProviderResponses,
   ChangePasswordData,
   ChangePasswordErrors,
   ChangePasswordResponses,
@@ -276,6 +282,9 @@ import type {
   DiffTemplateVersionsData,
   DiffTemplateVersionsErrors,
   DiffTemplateVersionsResponses,
+  DisconnectIdentityData,
+  DisconnectIdentityErrors,
+  DisconnectIdentityResponses,
   DismissFaceSuggestionData,
   DismissFaceSuggestionErrors,
   DismissFaceSuggestionResponses,
@@ -303,6 +312,14 @@ import type {
   ExportRecordingData,
   ExportRecordingErrors,
   ExportRecordingResponses,
+  ExternalConnectData,
+  ExternalConnectErrors,
+  ExternalConnectResponses,
+  ExternalProvidersData,
+  ExternalProvidersResponses,
+  ExternalStartData,
+  ExternalStartErrors,
+  ExternalStartResponses,
   FindGraphPathData,
   FindGraphPathErrors,
   FindGraphPathResponses,
@@ -562,6 +579,8 @@ import type {
   ListHighlightsData,
   ListHighlightsErrors,
   ListHighlightsResponses,
+  ListIdentitiesData,
+  ListIdentitiesResponses,
   ListIpGroupsData,
   ListIpGroupsErrors,
   ListIpGroupsResponses,
@@ -571,6 +590,8 @@ import type {
   ListLanguagesData,
   ListLanguagesErrors,
   ListLanguagesResponses,
+  ListLoginProvidersData,
+  ListLoginProvidersResponses,
   ListLoginsData,
   ListLoginsResponses,
   ListMembersData,
@@ -769,6 +790,9 @@ import type {
   RegisterResponses,
   ReindexSearchData,
   ReindexSearchResponses,
+  RemoveLoginProviderData,
+  RemoveLoginProviderErrors,
+  RemoveLoginProviderResponses,
   RemovePasskeyData,
   RemovePasskeyErrors,
   RemovePasskeyResponses,
@@ -1343,7 +1367,8 @@ export class Auth {
   /**
    * Passkey Login
    *
-   * Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session.
+   * Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session; 404 for a passkey
+   * this server doesn't know (removed, or from before Lens was set up again).
    */
   public static passkeyLogin<ThrowOnError extends boolean = false>(
     options: Options<PasskeyLoginData, ThrowOnError>,
@@ -1531,6 +1556,144 @@ export class Auth {
   ): RequestResult<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError> {
     return (options.client ?? client).patch<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError>({
       url: "/api/v1/auth/passkeys/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * External Providers
+   *
+   * The outside accounts people can sign in with here (for the sign-in page).
+   */
+  public static externalProviders<ThrowOnError extends boolean = false>(
+    options?: Options<ExternalProvidersData, ThrowOnError>,
+  ): RequestResult<ExternalProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ExternalProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/external",
+      ...options,
+    });
+  }
+
+  /**
+   * External Start
+   *
+   * Start signing in with an outside account: open the returned address in this browser.
+   */
+  public static externalStart<ThrowOnError extends boolean = false>(
+    options: Options<ExternalStartData, ThrowOnError>,
+  ): RequestResult<ExternalStartResponses, ExternalStartErrors, ThrowOnError> {
+    return (options.client ?? client).post<ExternalStartResponses, ExternalStartErrors, ThrowOnError>({
+      url: "/api/v1/auth/external/{key}/start",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * External Connect
+   *
+   * Connect an outside account to yours, so you can sign in with it: open the returned address in this browser.
+   */
+  public static externalConnect<ThrowOnError extends boolean = false>(
+    options: Options<ExternalConnectData, ThrowOnError>,
+  ): RequestResult<ExternalConnectResponses, ExternalConnectErrors, ThrowOnError> {
+    return (options.client ?? client).post<ExternalConnectResponses, ExternalConnectErrors, ThrowOnError>({
+      url: "/api/v1/auth/external/{key}/connect",
+      ...options,
+    });
+  }
+
+  /**
+   * List Identities
+   *
+   * The outside accounts you can sign in with.
+   */
+  public static listIdentities<ThrowOnError extends boolean = false>(
+    options?: Options<ListIdentitiesData, ThrowOnError>,
+  ): RequestResult<ListIdentitiesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListIdentitiesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/identities",
+      ...options,
+    });
+  }
+
+  /**
+   * Disconnect Identity
+   *
+   * Disconnect an outside account; not your only way to sign in. Audited as `external.disconnect`.
+   */
+  public static disconnectIdentity<ThrowOnError extends boolean = false>(
+    options: Options<DisconnectIdentityData, ThrowOnError>,
+  ): RequestResult<DisconnectIdentityResponses, DisconnectIdentityErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DisconnectIdentityResponses, DisconnectIdentityErrors, ThrowOnError>({
+      url: "/api/v1/auth/identities/{iid}",
+      ...options,
+    });
+  }
+
+  /**
+   * List Login Providers
+   *
+   * Every sign-in provider and its settings (never the client secret).
+   */
+  public static listLoginProviders<ThrowOnError extends boolean = false>(
+    options?: Options<ListLoginProvidersData, ThrowOnError>,
+  ): RequestResult<ListLoginProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListLoginProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/providers",
+      ...options,
+    });
+  }
+
+  /**
+   * Add Login Provider
+   *
+   * Add a sign-in provider. Audited as `login_provider.add`.
+   */
+  public static addLoginProvider<ThrowOnError extends boolean = false>(
+    options: Options<AddLoginProviderData, ThrowOnError>,
+  ): RequestResult<AddLoginProviderResponses, AddLoginProviderErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddLoginProviderResponses, AddLoginProviderErrors, ThrowOnError>({
+      url: "/api/v1/auth/providers",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Login Provider
+   *
+   * Remove a sign-in provider and the accounts connected through it. Audited as `login_provider.remove`.
+   */
+  public static removeLoginProvider<ThrowOnError extends boolean = false>(
+    options: Options<RemoveLoginProviderData, ThrowOnError>,
+  ): RequestResult<RemoveLoginProviderResponses, RemoveLoginProviderErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveLoginProviderResponses, RemoveLoginProviderErrors, ThrowOnError>({
+      url: "/api/v1/auth/providers/{key}",
+      ...options,
+    });
+  }
+
+  /**
+   * Change Login Provider
+   *
+   * Change a sign-in provider; leave the secret out to keep it. Audited as `login_provider.change`.
+   */
+  public static changeLoginProvider<ThrowOnError extends boolean = false>(
+    options: Options<ChangeLoginProviderData, ThrowOnError>,
+  ): RequestResult<ChangeLoginProviderResponses, ChangeLoginProviderErrors, ThrowOnError> {
+    return (options.client ?? client).patch<ChangeLoginProviderResponses, ChangeLoginProviderErrors, ThrowOnError>({
+      url: "/api/v1/auth/providers/{key}",
       ...options,
       headers: {
         "Content-Type": "application/json",
