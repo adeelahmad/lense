@@ -2,6 +2,43 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-04 · Graph history: versions, replay, rollback
+
+Goal (Adeel): make the graph replayable and versioned.
+
+Model (fastapi_backend/app/domain/graph_history.py, docs/graph-history.md):
+
+- Every change to the curated entity graph is one append-only `graph_event`: its number is the graph's version. It
+  says when, who (a person, a routine, the assistant, analysis), through what (web app, API token, OAuth app,
+  assistant, MCP, routine, analysis), why, and for every record it touched (entity, alias, cross-namespace link,
+  "not the same" pair) the row before and after.
+- Built on what is there: graph changes (organize.py: proposed, applied, dismissed, undone) and merges (entity_merge)
+  are recorded through the same entity functions, and their events point back at them.
+- As of: the graph at any version, rebuilt by walking back from today's rows. Diff between two versions. An entity's
+  history. Versions can be named ("before the cleanup").
+- Rollback to a version: a preview first, then later changes are undone as new events, so a rollback can itself be
+  undone. Merges are undone with their mentions.
+- Replay: checkpoints (the graph at a version) plus the events after them rebuild the graph; verify compares the
+  replay with the live rows and records any difference as an event, so nothing stays unrecorded.
+- Not versioned here: mentions (analysis makes them from transcripts, whose edits have their own history). As-of views
+  use today's mention counts.
+
+Todo:
+
+- [x] Event log with who, through what and why; every curation path records (entity page, assistant, MCP, routines
+      and graph changes, analysis, the entity map)
+- [x] Versions API: list, the graph as of a version, diff, an entity's history, named versions
+- [x] Rollback to a version, with a preview
+- [x] Checkpoints, replay and verify (`lens graph verify`, nightly checkpoint)
+- [x] The graph API and Cypher as of a version (`as_of`); the graph cache is keyed on the graph's version
+- [ ] An as-of picker in the explorer (with the graph explorer thread)
+- [x] Web app: a history timeline with diffs and rollback (Routines › History; an entity's History button)
+- [ ] Graph events in each resource's activity history (with the activity history thread)
+
+Refine later: speakers (same-person links, names) in the history; a mention-level history.
+
+
+
 ## 2026-10-04 · Activity history and budgets
 
 Goal (Adeel): every change and every call coming in or going out is tracked, with its cost, down to the resource, so

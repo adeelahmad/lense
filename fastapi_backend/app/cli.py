@@ -92,6 +92,13 @@ def _main_base(argv=None):
     p = sub.add_parser("graph")
     p.add_argument("--scope", default="global", help="global, or ns:<name>")
     p.add_argument("--out")
+    p = sub.add_parser("history", help="the entity graph's history: verify it replays to today's graph, or keep a checkpoint")
+    h2 = p.add_subparsers(dest="action", required=True)
+    h2.add_parser("verify", help="replay the history and compare it with the graph").add_argument(
+        "--fix", action="store_true", help="record what differs as one change"
+    )
+    h2.add_parser("checkpoint", help="keep the whole graph as it is now, to replay from")
+    h2.add_parser("list", help="the latest versions")
     p = sub.add_parser("serve")
     p.add_argument("--host")
     p.add_argument("--port", type=int)
@@ -175,6 +182,27 @@ def _main_base(argv=None):
             if a.out:
                 pathlib.Path(a.out).write_text(text, encoding="utf-8")
             print(f"{len(g['nodes'])} nodes, {len(g['edges'])} edges across {', '.join(g['namespaces']) or 'nothing'}")
+        elif a.cmd == "history":
+            from .domain import graph_history as gh
+
+            if a.action == "checkpoint":
+                print(f"checkpoint at version {gh.checkpoint(conn)}")
+            elif a.action == "list":
+                for v in gh.versions(conn, limit=20):
+                    print(
+                        f"  v{v['version']} {v['at']} {v['op']} by {v['actor']} via {v['via']}" + (f": {v['why']}" if v.get("why") else "")
+                    )
+            else:
+                with gh.acting(actor="cli", via="cli"):
+                    got = gh.verify(conn, fix=a.fix)
+                if got["same"]:
+                    print(f"the history replays to today's graph (version {got['head']}, from checkpoint {got['from']})")
+                else:
+                    print(
+                        f"{got['differences']} records differ from the replayed history"
+                        + (f"; recorded as version {got['version']}" if got.get("version") else "; --fix records them")
+                    )
+                    raise SystemExit(0 if got.get("version") else 1)
         elif a.cmd == "status":
             names = store.space_names(conn)
             agg: dict[tuple[str, str | None], tuple[int, int]] = {}

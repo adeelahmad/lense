@@ -80,6 +80,7 @@ nav:
   - Budgets: budgets.md
   - IIIF: iiif.md
   - Graph and Cypher: graph.md
+  - Graph history: graph-history.md
   - Topics: topics.md
   - Notes: notes.md
   - Linked data (RDF): rdf.md

@@ -39,7 +39,7 @@ import re
 import time
 from collections import Counter, defaultdict, deque
 
-from . import store
+from . import graph_history, store
 from .entities import QUIET, TYPES
 
 R = store.R
@@ -188,9 +188,10 @@ def spaces_for(db, scope, readable):
     return [(r["id"], r["name"], r.get("graph") != "isolated") for r in rows]
 
 
-def build(db, scope="global", readable=None, recordings=None):
+def build(db, scope="global", readable=None, recordings=None, as_of=None):
     """The graph of a scope over the namespaces in `readable` (None: all); `recordings` (a set of ids) keeps only those
-    recordings and what is said in them, for a conversation limited to some recordings."""
+    recordings and what is said in them, for a conversation limited to some recordings. `as_of` (a graph version) takes
+    entities and their links as they were then (docs/graph-history.md); mentions and the rest are today's."""
     nss = spaces_for(db, scope, readable)
     keep = (lambda rid: rid in recordings) if recordings is not None else (lambda rid: True)
     merged = not (scope or "").startswith("ns:")
@@ -258,7 +259,14 @@ def build(db, scope="global", readable=None, recordings=None):
 
     # entities: one node each, or one per name across namespaces in the global scope
     node_of, agg = {}, {}
-    for e in db.rows(f"SELECT {_ENTITY_FIELDS} FROM entity WHERE space IN $s", s=sids):
+    past = graph_history.state_at(db, as_of, sids) if as_of is not None else None
+    if past is None:
+        ents = db.rows(f"SELECT {_ENTITY_FIELDS} FROM entity WHERE space IN $s", s=sids)
+        links = db.rows("SELECT a, b FROM entity_link")
+    else:
+        ents = [{"id": k, **r} for k, r in sorted(past["entity"].items())]
+        links = list(past["entity_link"].values())
+    for e in ents:
         if e.get("hidden") or e["type"] in QUIET:
             continue
         nid = f"e:{e['key']}" if merged else f"e{e['id']}"
@@ -304,7 +312,7 @@ def build(db, scope="global", readable=None, recordings=None):
                 co[(a, b)] += 1
     for (a, b), n in co.items():
         g.link("MENTIONED_WITH", a, b, count=n)
-    for ln in db.rows("SELECT a, b FROM entity_link"):
+    for ln in links:
         a, b = node_of.get(ln["a"]), node_of.get(ln["b"])
         if a and b and a != b:
             g.link("SAME_THING", a, b)

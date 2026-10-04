@@ -4785,6 +4785,12 @@ export type GraphQuery = {
    * rows at most
    */
   limit?: number;
+  /**
+   * As Of
+   *
+   * query the graph as of a version: a number or a version's name
+   */
+  as_of?: string | null;
 };
 
 /**
@@ -10702,6 +10708,30 @@ export type Reviewed = {
 };
 
 /**
+ * RollbackAsk
+ */
+export type RollbackAsk = {
+  /**
+   * To
+   *
+   * the version to go back to: a number, a version's name
+   */
+  to: string;
+  /**
+   * Namespace
+   *
+   * only this namespace (default: every namespace you can edit)
+   */
+  namespace?: string | null;
+  /**
+   * Dry Run
+   *
+   * only say what would change (the default); false to roll back
+   */
+  dry_run?: boolean;
+};
+
+/**
  * Routine
  */
 export type Routine = {
@@ -13329,6 +13359,26 @@ export type Suggestion = {
    */
   reason: string;
   [key: string]: unknown;
+};
+
+/**
+ * TagAsk
+ */
+export type TagAsk = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Version
+   *
+   * a version or a version's name (default: head)
+   */
+  version?: string | null;
+  /**
+   * Note
+   */
+  note?: string | null;
 };
 
 /**
@@ -22771,6 +22821,12 @@ export type GraphSchemaData = {
      * "global" (every shared namespace you can read) or "ns:<namespace>"
      */
     scope?: string;
+    /**
+     * As Of
+     *
+     * the graph as of a version: a number or a version's name (default: today's)
+     */
+    as_of?: string | null;
   };
   url: "/api/v1/graph/schema";
 };
@@ -22831,6 +22887,12 @@ export type GraphRelatedData = {
      * "global" (every shared namespace you can read) or "ns:<namespace>"
      */
     scope?: string;
+    /**
+     * As Of
+     *
+     * the graph as of a version: a number or a version's name (default: today's)
+     */
+    as_of?: string | null;
   };
   url: "/api/v1/graph/related";
 };
@@ -22895,6 +22957,12 @@ export type GraphPathsData = {
      * "global" (every shared namespace you can read) or "ns:<namespace>"
      */
     scope?: string;
+    /**
+     * As Of
+     *
+     * the graph as of a version: a number or a version's name (default: today's)
+     */
+    as_of?: string | null;
   };
   url: "/api/v1/graph/paths";
 };
@@ -23007,6 +23075,373 @@ export type ProposeGraphChangeResponses = {
 };
 
 export type ProposeGraphChangeResponse = ProposeGraphChangeResponses[keyof ProposeGraphChangeResponses];
+
+export type GraphHistoryListData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Namespace
+     *
+     * one namespace (default: every namespace you can read)
+     */
+    namespace?: string | null;
+    /**
+     * Entity
+     *
+     * only the changes that touched this entity
+     */
+    entity?: number | null;
+    /**
+     * Before
+     *
+     * older than this version (the next page)
+     */
+    before?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/graph/history";
+};
+
+export type GraphHistoryListErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphHistoryListError = GraphHistoryListErrors[keyof GraphHistoryListErrors];
+
+export type GraphHistoryListResponses = {
+  /**
+   * Response Graph-Graph History List
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphHistoryListResponse = GraphHistoryListResponses[keyof GraphHistoryListResponses];
+
+export type GraphHistoryEventData = {
+  body?: never;
+  path: {
+    /**
+     * Version
+     */
+    version: string;
+  };
+  query?: never;
+  url: "/api/v1/graph/history/{version}";
+};
+
+export type GraphHistoryEventErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphHistoryEventError = GraphHistoryEventErrors[keyof GraphHistoryEventErrors];
+
+export type GraphHistoryEventResponses = {
+  /**
+   * Response Graph-Graph History Event
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphHistoryEventResponse = GraphHistoryEventResponses[keyof GraphHistoryEventResponses];
+
+export type GraphAsOfData = {
+  body?: never;
+  path: {
+    /**
+     * Version
+     */
+    version: string;
+  };
+  query?: {
+    /**
+     * Namespace
+     *
+     * one namespace (default: every namespace you can read)
+     */
+    namespace?: string | null;
+  };
+  url: "/api/v1/graph/as-of/{version}";
+};
+
+export type GraphAsOfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphAsOfError = GraphAsOfErrors[keyof GraphAsOfErrors];
+
+export type GraphAsOfResponses = {
+  /**
+   * Response Graph-Graph As Of
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphAsOfResponse = GraphAsOfResponses[keyof GraphAsOfResponses];
+
+export type GraphDiffData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * From
+     *
+     * a version, a version's name, or head
+     */
+    from: string;
+    /**
+     * To
+     *
+     * a version, a version's name, or head
+     */
+    to?: string;
+    /**
+     * Namespace
+     *
+     * one namespace (default: every namespace you can read)
+     */
+    namespace?: string | null;
+  };
+  url: "/api/v1/graph/diff";
+};
+
+export type GraphDiffErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphDiffError = GraphDiffErrors[keyof GraphDiffErrors];
+
+export type GraphDiffResponses = {
+  /**
+   * Response Graph-Graph Diff
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphDiffResponse = GraphDiffResponses[keyof GraphDiffResponses];
+
+export type GraphTagsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/tags";
+};
+
+export type GraphTagsResponses = {
+  /**
+   * Response Graph-Graph Tags
+   *
+   * Successful Response
+   */
+  200: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+export type GraphTagsResponse = GraphTagsResponses[keyof GraphTagsResponses];
+
+export type GraphTagData = {
+  body: TagAsk;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/tags";
+};
+
+export type GraphTagErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphTagError = GraphTagErrors[keyof GraphTagErrors];
+
+export type GraphTagResponses = {
+  /**
+   * Response Graph-Graph Tag
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphTagResponse = GraphTagResponses[keyof GraphTagResponses];
+
+export type GraphUntagData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/graph/tags/{name}";
+};
+
+export type GraphUntagErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphUntagError = GraphUntagErrors[keyof GraphUntagErrors];
+
+export type GraphUntagResponses = {
+  /**
+   * Response Graph-Graph Untag
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphUntagResponse = GraphUntagResponses[keyof GraphUntagResponses];
+
+export type GraphRollbackData = {
+  body: RollbackAsk;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/rollback";
+};
+
+export type GraphRollbackErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphRollbackError = GraphRollbackErrors[keyof GraphRollbackErrors];
+
+export type GraphRollbackResponses = {
+  /**
+   * Response Graph-Graph Rollback
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphRollbackResponse = GraphRollbackResponses[keyof GraphRollbackResponses];
+
+export type GraphVerifyData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/verify";
+};
+
+export type GraphVerifyResponses = {
+  /**
+   * Response Graph-Graph Verify
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphVerifyResponse = GraphVerifyResponses[keyof GraphVerifyResponses];
+
+export type GraphVerifyFixData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/verify";
+};
+
+export type GraphVerifyFixResponses = {
+  /**
+   * Response Graph-Graph Verify Fix
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphVerifyFixResponse = GraphVerifyFixResponses[keyof GraphVerifyFixResponses];
+
+export type GraphCheckpointsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/checkpoints";
+};
+
+export type GraphCheckpointsResponses = {
+  /**
+   * Response Graph-Graph Checkpoints
+   *
+   * Successful Response
+   */
+  200: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+export type GraphCheckpointsResponse = GraphCheckpointsResponses[keyof GraphCheckpointsResponses];
+
+export type GraphCheckpointData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/checkpoints";
+};
+
+export type GraphCheckpointResponses = {
+  /**
+   * Response Graph-Graph Checkpoint
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphCheckpointResponse = GraphCheckpointResponses[keyof GraphCheckpointResponses];
 
 export type GetEntitySetupData = {
   body?: never;

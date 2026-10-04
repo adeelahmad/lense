@@ -4,6 +4,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The entity graph keeps its history.** Every change to entities, their other names, links across namespaces and
+  "not the same" pairs is recorded as a numbered version: what changed, who (a person, a routine, the assistant,
+  analysis), through what (the web app, a token, an app, MCP) and why. `GET /api/v1/graph/history` lists versions
+  (one entity's with `entity`), `/graph/as-of/{version}` shows the graph as it was, `/graph/diff` what changed
+  between two versions, and `/graph/tags` names versions to come back to; the graph API and Cypher take `as_of` to read the graph at a version. `POST /graph/rollback` takes the graph back to a version, after a
+  preview, undoing merges with their mentions; a rollback can be rolled back too. Checkpoints let the graph be replayed
+  from its history, and `lens history verify` (or `/graph/verify`) checks the replay matches today's graph. See
+  docs/graph-history.md.
+  In the web app, Routines › History shows every change and what it did, and names or rolls back to a version; an
+  entity's History button shows its own.
 - **Apps and AI assistants in the setup wizard.** A new optional step, Apps and AI, asks whether apps and AI
   assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in with their Lens account, how long
   their tokens last, and shows the MCP server's address to add to an assistant. Skipping it keeps OAuth on, as

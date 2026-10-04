@@ -23,6 +23,9 @@ def test_import_file_and_stdin_then_run(tmp_path, monkeypatch, capsys):
     run("search", "capsid")
     run("speakers", "list", "pods")
     run("status")
+    run("history", "verify")
+    run("history", "checkpoint")
+    run("history", "list")
     monkeypatch.setattr("sys.stdin", io.StringIO("cli password 123\n"))
     run("users", "add", "cli@x.io", "--admin", "--password-stdin")
     run("users", "list")
@@ -38,6 +41,7 @@ def test_import_file_and_stdin_then_run(tmp_path, monkeypatch, capsys):
     assert "match(es)" in text
     assert "Zed" in text
     assert "surrealkv://" in text
+    assert "the history replays to today's graph" in text and "analysis by analysis via analysis" in text
     assert (tmp_path / "data" / "reports" / "pods" / "index.html").exists()
 
 

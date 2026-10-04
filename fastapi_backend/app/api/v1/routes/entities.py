@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Access, Acl, CurrentUser, Db, Writer, domain_errors
-from app.domain import auth, entity_map, entity_setup, hierarchy, jobs
+from app.domain import auth, entity_map, entity_setup, graph_history, hierarchy, jobs
 from app.domain import entities as ents
 from app.domain.store import DB, R
 from app.schemas.common import Ok
@@ -258,7 +258,8 @@ def update_entity(eid: int, body: EntityUpdate, request: Request, user: Writer, 
         if body.defined is not None:
             if db.one("SELECT builtin FROM $r", r=R("entity", eid)).get("builtin"):
                 raise ValueError("Unknown and Unlabeled are always there.")
-            db.q("UPDATE $r SET defined = $d", r=R("entity", eid), d=body.defined)
+            with graph_history.change(db, "entity.define" if body.defined else "entity.undefine", entities=[eid]):
+                db.q("UPDATE $r SET defined = $d", r=R("entity", eid), d=body.defined)
             if body.defined:
                 entity_map.builtins(db, sid)
     auth.audit(db, user.as_audit(), "entity.update", f"entity:{eid}", changes)

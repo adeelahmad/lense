@@ -88,6 +88,12 @@ def test_topic_from_entity(env):
     # deleting the topic shows the entity again
     c.delete(f"/api/v1/topics/{t['id']}", headers=ed)
     assert c.get(f"/api/v1/entities/{aws}", headers=vi).json()["hidden"] is False
+    # both are versions in the graph's history, with why
+    hist = c.get("/api/v1/graph/history", headers=vi, params={"entity": aws}).json()["versions"]
+    assert [(v["op"], v["why"]) for v in hist[:2]] == [
+        ("entity.show", f"topic {t['id']} was deleted"),
+        ("entity.hide", f"became topic {t['id']}"),
+    ]
 
 
 def test_topics_in_the_graph_and_rdf(env):

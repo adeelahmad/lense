@@ -521,6 +521,22 @@ import type {
   GetWorkflowData,
   GetWorkflowErrors,
   GetWorkflowResponses,
+  GraphAsOfData,
+  GraphAsOfErrors,
+  GraphAsOfResponses,
+  GraphCheckpointData,
+  GraphCheckpointResponses,
+  GraphCheckpointsData,
+  GraphCheckpointsResponses,
+  GraphDiffData,
+  GraphDiffErrors,
+  GraphDiffResponses,
+  GraphHistoryEventData,
+  GraphHistoryEventErrors,
+  GraphHistoryEventResponses,
+  GraphHistoryListData,
+  GraphHistoryListErrors,
+  GraphHistoryListResponses,
   GraphPathsData,
   GraphPathsErrors,
   GraphPathsResponses,
@@ -530,9 +546,24 @@ import type {
   GraphRelatedData,
   GraphRelatedErrors,
   GraphRelatedResponses,
+  GraphRollbackData,
+  GraphRollbackErrors,
+  GraphRollbackResponses,
   GraphSchemaData,
   GraphSchemaErrors,
   GraphSchemaResponses,
+  GraphTagData,
+  GraphTagErrors,
+  GraphTagResponses,
+  GraphTagsData,
+  GraphTagsResponses,
+  GraphUntagData,
+  GraphUntagErrors,
+  GraphUntagResponses,
+  GraphVerifyData,
+  GraphVerifyFixData,
+  GraphVerifyFixResponses,
+  GraphVerifyResponses,
   HideEntityData,
   HideEntityErrors,
   HideEntityResponses,
@@ -5407,6 +5438,188 @@ export class Graph {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Graph History List
+   *
+   * The graph's versions, newest first: what changed, who changed it, through what (web, token, oauth, assistant,
+   * mcp, routine, workflow, analysis, cli, system) and why, with the entities each touched.
+   */
+  public static graphHistoryList<ThrowOnError extends boolean = false>(
+    options?: Options<GraphHistoryListData, ThrowOnError>,
+  ): RequestResult<GraphHistoryListResponses, GraphHistoryListErrors, ThrowOnError> {
+    return (options?.client ?? client).get<GraphHistoryListResponses, GraphHistoryListErrors, ThrowOnError>({
+      url: "/api/v1/graph/history",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph History Event
+   *
+   * One version in full: every record it changed, as it was before and after.
+   */
+  public static graphHistoryEvent<ThrowOnError extends boolean = false>(
+    options: Options<GraphHistoryEventData, ThrowOnError>,
+  ): RequestResult<GraphHistoryEventResponses, GraphHistoryEventErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphHistoryEventResponses, GraphHistoryEventErrors, ThrowOnError>({
+      url: "/api/v1/graph/history/{version}",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph As Of
+   *
+   * The graph as it was at a version: entities (with their other names), cross-namespace links and the pairs someone
+   * said are different. Mentions aren't versioned: counts elsewhere are today's.
+   */
+  public static graphAsOf<ThrowOnError extends boolean = false>(
+    options: Options<GraphAsOfData, ThrowOnError>,
+  ): RequestResult<GraphAsOfResponses, GraphAsOfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphAsOfResponses, GraphAsOfErrors, ThrowOnError>({
+      url: "/api/v1/graph/as-of/{version}",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Diff
+   *
+   * What changed between two versions: entities added, removed and changed (field by field), and other names,
+   * links and distinct pairs added and removed.
+   */
+  public static graphDiff<ThrowOnError extends boolean = false>(
+    options: Options<GraphDiffData, ThrowOnError>,
+  ): RequestResult<GraphDiffResponses, GraphDiffErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphDiffResponses, GraphDiffErrors, ThrowOnError>({
+      url: "/api/v1/graph/diff",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Tags
+   *
+   * Named versions, newest first.
+   */
+  public static graphTags<ThrowOnError extends boolean = false>(
+    options?: Options<GraphTagsData, ThrowOnError>,
+  ): RequestResult<GraphTagsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GraphTagsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/tags",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Tag
+   *
+   * Name a version ("before the cleanup") to come back to it; naming again moves the name. Editors of a namespace
+   * (or admins) can.
+   */
+  public static graphTag<ThrowOnError extends boolean = false>(
+    options: Options<GraphTagData, ThrowOnError>,
+  ): RequestResult<GraphTagResponses, GraphTagErrors, ThrowOnError> {
+    return (options.client ?? client).post<GraphTagResponses, GraphTagErrors, ThrowOnError>({
+      url: "/api/v1/graph/tags",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Graph Untag
+   */
+  public static graphUntag<ThrowOnError extends boolean = false>(
+    options: Options<GraphUntagData, ThrowOnError>,
+  ): RequestResult<GraphUntagResponses, GraphUntagErrors, ThrowOnError> {
+    return (options.client ?? client).delete<GraphUntagResponses, GraphUntagErrors, ThrowOnError>({
+      url: "/api/v1/graph/tags/{name}",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Rollback
+   *
+   * Take the graph back to a version: every change since then in these namespaces is undone, newest first, as one
+   * new version (so it can be rolled back too). Merges come undone with their mentions and moved mentions go back;
+   * what analysis found since stays. Preview first (`dry_run`, the default). Needs editor access to every namespace the
+   * changes touched.
+   */
+  public static graphRollback<ThrowOnError extends boolean = false>(
+    options: Options<GraphRollbackData, ThrowOnError>,
+  ): RequestResult<GraphRollbackResponses, GraphRollbackErrors, ThrowOnError> {
+    return (options.client ?? client).post<GraphRollbackResponses, GraphRollbackErrors, ThrowOnError>({
+      url: "/api/v1/graph/rollback",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Graph Verify
+   *
+   * Replay the history from its newest checkpoint and compare it with today's graph: what differs was written
+   * without being recorded. Admins.
+   */
+  public static graphVerify<ThrowOnError extends boolean = false>(
+    options?: Options<GraphVerifyData, ThrowOnError>,
+  ): RequestResult<GraphVerifyResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GraphVerifyResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/verify",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Verify Fix
+   *
+   * Record what differs from the replayed history as one change (`graph.drift`), so they match again. Admins.
+   */
+  public static graphVerifyFix<ThrowOnError extends boolean = false>(
+    options?: Options<GraphVerifyFixData, ThrowOnError>,
+  ): RequestResult<GraphVerifyFixResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<GraphVerifyFixResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/verify",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Checkpoints
+   *
+   * The versions the graph is kept whole at, to replay from (taken with the first change, then every 1000).
+   */
+  public static graphCheckpoints<ThrowOnError extends boolean = false>(
+    options?: Options<GraphCheckpointsData, ThrowOnError>,
+  ): RequestResult<GraphCheckpointsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GraphCheckpointsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/checkpoints",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Checkpoint
+   *
+   * Keep the whole graph as it is now. Admins.
+   */
+  public static graphCheckpoint<ThrowOnError extends boolean = false>(
+    options?: Options<GraphCheckpointData, ThrowOnError>,
+  ): RequestResult<GraphCheckpointResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<GraphCheckpointResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/checkpoints",
+      ...options,
     });
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, NotebookPen, Tags, Waypoints } from "lucide-react";
+import { Eye, EyeOff, History, NotebookPen, Tags, Waypoints } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -148,6 +148,9 @@ export function EntityDrawer({
           <>
             <Button asChild size="xs" variant="ghost" icon={<NotebookPen />}>
               <Link href={`/notes/about/entity/${id}`}>Page</Link>
+            </Button>
+            <Button asChild size="xs" variant="ghost" icon={<History />}>
+              <Link href={`/routines/history?entity=${id}`}>History</Link>
             </Button>
             <Button asChild size="xs" variant="ghost" icon={<Waypoints />}>
               <Link href={`/graph?focus=e${id}`}>Graph</Link>

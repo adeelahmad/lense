@@ -23,8 +23,8 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
 
-/** "Routines" with the Routines / Proposed changes tabs; people who aren't admins see only the changes. */
-export function RoutinesHeader({ tab }: { tab: "routines" | "changes" }) {
+/** "Routines" with the Routines / Proposed changes / History tabs; people who aren't admins see only the graph tabs. */
+export function RoutinesHeader({ tab }: { tab: "routines" | "changes" | "history" }) {
   const { admin } = useArchive();
   const routines = useRoutines();
   const proposed = useGraphChanges("proposed");
@@ -50,6 +50,7 @@ export function RoutinesHeader({ tab }: { tab: "routines" | "changes" }) {
             ? [{ value: "routines", label: "Routines", count: routines.data?.routines.length, href: "/routines" }]
             : []),
           { value: "changes", label: "Proposed changes", count: proposed.data?.length, href: "/routines/changes" },
+          { value: "history", label: "History", href: "/routines/history" },
         ]}
       />
     </div>

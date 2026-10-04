@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from . import analyze, store
+from . import analyze, graph_history, store
 
 R = store.R
 FIELDS = "record::id(id) AS id, space, key, label, alt, definition, broader, related, origin, created, updated, by"
@@ -229,7 +229,8 @@ def delete(db, tid):
     db.q("DELETE $r", r=R("topic", tid))
     eid = (t.get("origin") or {}).get("entity")
     if eid and db.one("SELECT id FROM $r", r=R("entity", int(eid))):
-        db.q("UPDATE $r SET hidden = false, hidden_reason = NONE", r=R("entity", int(eid)))
+        with graph_history.change(db, "entity.show", entities=[int(eid)], why=f"topic {tid} was deleted"):
+            db.q("UPDATE $r SET hidden = false, hidden_reason = NONE", r=R("entity", int(eid)))
         return int(eid)
     return None
 
@@ -350,7 +351,8 @@ def from_entity(db, eid, user=None):
         prior = db.one("SELECT status FROM $r", r=_about_id(m["recording"], tid))
         if not prior or prior.get("status") != "accepted":
             _about(db, sid, m["recording"], tid, "entity", m["n"], "accepted", user)
-    db.q("UPDATE $r SET hidden = true, hidden_reason = $why", r=R("entity", e["id"]), why=f"became topic {tid}")
+    with graph_history.change(db, "entity.hide", entities=[e["id"]], why=f"became topic {tid}", topic=tid):
+        db.q("UPDATE $r SET hidden = true, hidden_reason = $why", r=R("entity", e["id"]), why=f"became topic {tid}")
     return tid
 
 

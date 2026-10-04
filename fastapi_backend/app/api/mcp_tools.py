@@ -24,7 +24,7 @@ from app.api.v1.routes import graph as graph_routes
 from app.api.v1.routes import namespaces as namespace_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import search as search_routes
-from app.domain import analyze, library, rdf, render, store
+from app.domain import analyze, graph_history, library, rdf, render, store
 from app.domain import entities as ents
 from app.domain import speakers as spk
 from app.domain.store import DB
@@ -210,7 +210,8 @@ def call(ctx: Context, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if unknown:
             raise ToolError(f"unknown argument {', '.join(unknown)}; {name} takes {', '.join(a.name for a in t.args) or 'none'}")
         values = {a.name: a.parse(arguments.get(a.name)) for a in t.args}
-        return _text(t.run(ctx, **values))
+        with graph_history.acting(via="mcp", tool=name):
+            return _text(t.run(ctx, **values))
     except ToolError as e:
         return _text({"error": str(e)}, error=True)
     except HTTPException as e:

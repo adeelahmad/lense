@@ -12031,6 +12031,24 @@
               "title": "Scope"
             },
             "description": "\"global\" (every shared namespace you can read) or \"ns:<namespace>\""
+          },
+          {
+            "name": "as_of",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the graph as of a version: a number or a version's name (default: today's)",
+              "title": "As Of"
+            },
+            "description": "the graph as of a version: a number or a version's name (default: today's)"
           }
         ],
         "responses": {
@@ -12149,6 +12167,24 @@
               "title": "Scope"
             },
             "description": "\"global\" (every shared namespace you can read) or \"ns:<namespace>\""
+          },
+          {
+            "name": "as_of",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the graph as of a version: a number or a version's name (default: today's)",
+              "title": "As Of"
+            },
+            "description": "the graph as of a version: a number or a version's name (default: today's)"
           }
         ],
         "responses": {
@@ -12275,6 +12311,24 @@
               "title": "Scope"
             },
             "description": "\"global\" (every shared namespace you can read) or \"ns:<namespace>\""
+          },
+          {
+            "name": "as_of",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the graph as of a version: a number or a version's name (default: today's)",
+              "title": "As Of"
+            },
+            "description": "the graph as of a version: a number or a version's name (default: today's)"
           }
         ],
         "responses": {
@@ -12428,6 +12482,546 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/history": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph History List",
+        "description": "The graph's versions, newest first: what changed, who changed it, through what (web, token, oauth, assistant,\nmcp, routine, workflow, analysis, cli, system) and why, with the entities each touched.",
+        "operationId": "graph_history_list",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace (default: every namespace you can read)",
+              "title": "Namespace"
+            },
+            "description": "one namespace (default: every namespace you can read)"
+          },
+          {
+            "name": "entity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only the changes that touched this entity",
+              "title": "Entity"
+            },
+            "description": "only the changes that touched this entity"
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "older than this version (the next page)",
+              "title": "Before"
+            },
+            "description": "older than this version (the next page)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph History List"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/history/{version}": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph History Event",
+        "description": "One version in full: every record it changed, as it was before and after.",
+        "operationId": "graph_history_event",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph History Event"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/as-of/{version}": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph As Of",
+        "description": "The graph as it was at a version: entities (with their other names), cross-namespace links and the pairs someone\nsaid are different. Mentions aren't versioned: counts elsewhere are today's.",
+        "operationId": "graph_as_of",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace (default: every namespace you can read)",
+              "title": "Namespace"
+            },
+            "description": "one namespace (default: every namespace you can read)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph As Of"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/diff": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Diff",
+        "description": "What changed between two versions: entities added, removed and changed (field by field), and other names,\nlinks and distinct pairs added and removed.",
+        "operationId": "graph_diff",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "a version, a version's name, or head",
+              "title": "From"
+            },
+            "description": "a version, a version's name, or head"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "a version, a version's name, or head",
+              "default": "head",
+              "title": "To"
+            },
+            "description": "a version, a version's name, or head"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace (default: every namespace you can read)",
+              "title": "Namespace"
+            },
+            "description": "one namespace (default: every namespace you can read)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph Diff"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/tags": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Tags",
+        "description": "Named versions, newest first.",
+        "operationId": "graph_tags",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Graph-Graph Tags"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Tag",
+        "description": "Name a version (\"before the cleanup\") to come back to it; naming again moves the name. Editors of a namespace\n(or admins) can.",
+        "operationId": "graph_tag",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagAsk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Tag"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/tags/{name}": {
+      "delete": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Untag",
+        "operationId": "graph_untag",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph Untag"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/rollback": {
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Rollback",
+        "description": "Take the graph back to a version: every change since then in these namespaces is undone, newest first, as one\nnew version (so it can be rolled back too). Merges come undone with their mentions and moved mentions go back;\nwhat analysis found since stays. Preview first (`dry_run`, the default). Needs editor access to every namespace the\nchanges touched.",
+        "operationId": "graph_rollback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackAsk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Rollback"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/verify": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Verify",
+        "description": "Replay the history from its newest checkpoint and compare it with today's graph: what differs was written\nwithout being recorded. Admins.",
+        "operationId": "graph_verify",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Verify"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Verify Fix",
+        "description": "Record what differs from the replayed history as one change (`graph.drift`), so they match again. Admins.",
+        "operationId": "graph_verify_fix",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Verify Fix"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/checkpoints": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Checkpoints",
+        "description": "The versions the graph is kept whole at, to replay from (taken with the first change, then every 1000).",
+        "operationId": "graph_checkpoints",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Graph-Graph Checkpoints"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Checkpoint",
+        "description": "Keep the whole graph as it is now. Admins.",
+        "operationId": "graph_checkpoint",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Checkpoint"
                 }
               }
             }
@@ -29634,6 +30228,18 @@
             "title": "Limit",
             "description": "rows at most",
             "default": 500
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of",
+            "description": "query the graph as of a version: a number or a version's name"
           }
         },
         "type": "object",
@@ -39824,6 +40430,38 @@
         ],
         "title": "Reviewed"
       },
+      "RollbackAsk": {
+        "properties": {
+          "to": {
+            "type": "string",
+            "title": "To",
+            "description": "the version to go back to: a number, a version's name"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "only this namespace (default: every namespace you can edit)"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "description": "only say what would change (the default); false to roll back",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "to"
+        ],
+        "title": "RollbackAsk"
+      },
       "Routine": {
         "properties": {
           "id": {
@@ -44436,6 +45074,45 @@
           "reason"
         ],
         "title": "Suggestion"
+      },
+      "TagAsk": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "a version or a version's name (default: head)"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "TagAsk"
       },
       "TagCount": {
         "properties": {
