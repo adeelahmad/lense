@@ -22,6 +22,7 @@ routines scheduler. Writing a row never breaks the work it describes.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import contextvars
 import datetime as dt
@@ -289,7 +290,8 @@ class Middleware:
             raise
         finally:
             try:
-                self._log(scope_, app, db, status[0], error, t0, head[0])
+                # off the event loop: the reply is already sent, and the write shouldn't hold up other requests
+                await asyncio.to_thread(self._log, scope_, app, db, status[0], error, t0, head[0])
             finally:
                 _scope.reset(token)
 
