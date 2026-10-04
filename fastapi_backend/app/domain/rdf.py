@@ -12,6 +12,9 @@ migrated. URIs live under `/id/` of the address Lens publishes (`iiif.base_url`,
     /id/entity/<id>      a skos:Concept (also foaf:Person, foaf:Organization, dcterms:Location or dcmitype:Event by
                          its type), with owl:sameAs to the same thing in other namespaces
     /id/speaker/<id>     a foaf:Person, with owl:sameAs to the speakers declared the same person
+    /id/topic/<id>       a skos:Concept of the namespace's topics (`/id/namespace/<name>#topics`, a skos:ConceptScheme),
+                         with its labels, definition and skos:broader, skos:narrower and skos:related topics; recordings
+                         about it name it as dcterms:subject
     /id/field/<id>       a custom field (fields.py), used as the property its values are given with
 
 The Lens vocabulary is `<address>/ns#` (served there, as Turtle). Refine later: a permanent vocabulary address shared by
@@ -70,6 +73,13 @@ class Uris:
     def entity(self, eid):
         return URIRef(f"{self.base}/id/entity/{int(eid)}")
 
+    def topic(self, tid):
+        return URIRef(f"{self.base}/id/topic/{int(tid)}")
+
+    def topics(self, name):
+        """A namespace's vocabulary of topics."""
+        return URIRef(f"{self.namespace(name)}#topics")
+
     def speaker(self, sid):
         return URIRef(f"{self.base}/id/speaker/{int(sid)}")
 
@@ -123,9 +133,10 @@ def _namespace_name(db, sid):
     return (db.one("SELECT name FROM $s", s=R("space", sid)) or {}).get("name")
 
 
-def add_recording(g, db, cfg, u: Uris, rid, member=False, entities=None):
-    """A recording's description. `member`: the requester has a role where it is (entities, access, internal fields).
-    `entities` collects the entities it references, for the caller to describe (add_entities)."""
+def add_recording(g, db, cfg, u: Uris, rid, member=False, entities=None, topics=None):
+    """A recording's description. `member`: the requester has a role where it is (entities, topics, access, internal
+    fields). `entities` and `topics` collect the entities it references and the topics it is about, for the caller to
+    describe (add_entities, add_topics)."""
     rid = int(rid)
     row = db.one("SELECT space, collection, source, media, path, duration_ms, title FROM $r", r=R("recording", rid))
     if not row:
@@ -230,6 +241,10 @@ def add_recording(g, db, cfg, u: Uris, rid, member=False, entities=None):
         for i in ids:
             if i in shown:
                 g.add((s, DCTERMS.references, u.entity(i)))
+        for t in db.values("SELECT VALUE topic FROM topic_about WHERE recording = $r AND status = 'accepted'", r=rid):
+            g.add((s, DCTERMS.subject, u.topic(t)))
+            if topics is not None:
+                topics.add(int(t))
     defs, frow = fieldsmod.resource_fields(db, rid)
     vals = fieldsmod.values_of(frow)
     for f in defs:
@@ -276,6 +291,46 @@ def add_entities(g, db, u: Uris, eids):
         g.add((s, SKOS.inScheme, u.namespace(names[e["space"]])))
     for link in db.rows("SELECT a, b FROM entity_link WHERE a IN $e OR b IN $e", e=eids):
         g.add((u.entity(link["a"]), OWL.sameAs, u.entity(link["b"])))
+
+
+def add_topics(g, db, u: Uris, tids):
+    """Topics as SKOS concepts of their namespace's vocabulary, with how they nest and relate."""
+    tids = sorted({int(t) for t in tids})
+    if not tids:
+        return
+    rows = db.rows(
+        "SELECT record::id(id) AS id, space, label, alt, definition, broader, related FROM topic WHERE id IN $ids",
+        ids=[R("topic", i) for i in tids],
+    )
+    names = {}
+    for t in rows:
+        if t["space"] not in names:
+            names[t["space"]] = _namespace_name(db, t["space"])
+        scheme = u.topics(names[t["space"]])
+        s = u.topic(t["id"])
+        g.add((s, RDF.type, SKOS.Concept))
+        g.add((s, RDF.type, u.vocab.Topic))
+        g.add((s, SKOS.prefLabel, Literal(t["label"])))
+        for a in t.get("alt") or []:
+            g.add((s, SKOS.altLabel, Literal(a)))
+        if t.get("definition"):
+            g.add((s, SKOS.definition, Literal(t["definition"])))
+        g.add((s, SKOS.inScheme, scheme))
+        g.add((scheme, RDF.type, SKOS.ConceptScheme))
+        g.add((scheme, DCTERMS.title, Literal(f"Topics of {names[t['space']]}")))
+        if t.get("broader"):
+            for b in t["broader"]:
+                g.add((s, SKOS.broader, u.topic(b)))
+                g.add((u.topic(b), SKOS.narrower, s))
+        else:
+            g.add((s, SKOS.topConceptOf, scheme))
+            g.add((scheme, SKOS.hasTopConcept, s))
+        for r in t.get("related") or []:
+            g.add((s, SKOS.related, u.topic(r)))
+    for n in db.rows("SELECT record::id(id) AS id, broader FROM topic WHERE broader CONTAINSANY $t", t=tids):
+        for b in n.get("broader") or []:
+            if b in tids:
+                g.add((u.topic(b), SKOS.narrower, u.topic(n["id"])))
 
 
 def add_speakers(g, db, u: Uris, space=None, ids=None):
@@ -328,10 +383,11 @@ def add_collection(g, db, u: Uris, c, ns_name):
 def recording_graph(db, cfg, base, rid, member=False):
     u = Uris(base)
     g = new_graph(u)
-    ents = set()
-    add_recording(g, db, cfg, u, rid, member, ents)
+    ents, tops = set(), set()
+    add_recording(g, db, cfg, u, rid, member, ents, tops)
     if member:
         add_entities(g, db, u, ents)
+        add_topics(g, db, u, tops)
     return g
 
 
@@ -348,6 +404,7 @@ def namespace_graph(db, cfg, base, sid):
         add_recording(g, db, cfg, u, rid, True, ents)
     ents |= set(db.values("SELECT VALUE record::id(id) FROM entity WHERE space = $s", s=sid))
     add_entities(g, db, u, ents)
+    add_topics(g, db, u, db.values("SELECT VALUE record::id(id) FROM topic WHERE space = $s", s=sid))
     add_speakers(g, db, u, space=sid)
     return g
 
@@ -363,6 +420,13 @@ def entity_graph(db, base, eid):
     u = Uris(base)
     g = new_graph(u)
     add_entities(g, db, u, [eid])
+    return g
+
+
+def topic_graph(db, base, tid):
+    u = Uris(base)
+    g = new_graph(u)
+    add_topics(g, db, u, [tid])
     return g
 
 
@@ -392,6 +456,7 @@ def vocabulary(base):
         (v.Collection, "A collection of items inside a namespace."),
         (v.Namespace, "A namespace: a separate archive, with its own collections, people, entities and settings."),
         (v.Entity, "A named thing found in, or defined for, a namespace."),
+        (v.Topic, "A topic of a namespace's controlled vocabulary: what its items are about."),
     ):
         g.add((cls, RDF.type, OWL.Class))
         g.add((cls, RDFS.comment, Literal(label, lang="en")))

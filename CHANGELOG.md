@@ -18,6 +18,20 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   come from the prices in Settings. `GET /api/v1/activity?resource=routine:3` gives a resource's history (with its
   audit log entries), `/activity/totals` what it cost this day, week or month, `/activity/top` what cost most. On by
   default; `activity.keep_days` (365) keeps it in bounds. See docs/activity.md.
+- **Safer upgrades of existing installs.** Data upgrades are now named steps that run once per database, under a lock
+  so only one process runs them while the others wait, with a record of when each ran and why one failed.
+  `lens migrations` lists them. A database with data is backed up into `<data_dir>/backups` before it is upgraded
+  (the newest three are kept), and `lens backup` takes one on demand. See docs/database.md, Upgrades.
+- **Routine choices on your own Mac with Laya.** `decisions.engine: laya` takes routine choices with a Laya typed
+  decision model on MLX (English, multilingual or typed-decisions), fetched by Lens itself, free and offline. Lens in
+  Docker on a Mac asks `lens decide-server` on the Mac. Elsewhere it says Laya isn't available and the LLM decides.
+  Jev stays the default. Settings → AI assistant → Routine choices has a Test button. See docs/assistant.md.
+- **Topics, apart from entities.** Each namespace has a controlled vocabulary of topics (SKOS): a label, other
+  labels, a definition, and broader, narrower and related topics. Recordings are about topics, said by a person or
+  brought over when a topic-like entity (type TERM) becomes a topic; the entity is hidden until the topic is deleted.
+  Editors create, edit, merge and delete topics through `/api/v1/topics`. Topics are in the graph (`Topic`, with
+  `ABOUT`, `NARROWER` and `RELATED`; TERM entities are now labelled `Term` there) and in RDF (`/id/topic/<id>`). See
+  docs/topics.md.
 
 - **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
   recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
@@ -25,6 +39,17 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   neighbours, `/graph/paths` the paths between two nodes, and `/graph/schema` what a query can ask about. Agents with
   a write-scope token and editor access ask for merges and links with `POST /api/v1/graph/changes`; they wait in
   Proposed changes unless asked to apply. See docs/graph.md.
+
+- **Explore the graph on a canvas.** Drag nodes, pan and zoom with a mouse or by touch (pinch, long-press), switch
+  between force, BFS tree, DFS tree and radial layouts in one click, and reset. Right-click a node (or long-press it)
+  for its parents, children, ancestors, descendants, neighbours and paths, or to route through it; what is found
+  joins the canvas. Recordings, collections and namespaces show on the canvas alongside speakers and entities.
+- **Ask the graph.** The bar under the canvas takes a question in plain words or Cypher. A language model writes the
+  Cypher for a question (`POST /api/v1/graph/ask`); the answer shows the query, to edit and run again, and lights up
+  what it found.
+- **The assistant and MCP clients can query the graph.** Chat's assistant has graph schema, query, related and paths
+  tools over the chat's namespaces; the MCP server has the same, read-only, and `propose_graph_change` for
+  write-scope tokens.
 
 - **Lock a namespace to your passkeys.** An owner turns a namespace into a vault (Admin › Namespaces › Vault): its
   files open only after one of its passkeys unlocks it, for an hour by default (`encryption.vault_minutes`), and its

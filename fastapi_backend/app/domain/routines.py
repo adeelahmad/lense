@@ -27,6 +27,7 @@ from . import (
     budgets,
     fedora,
     jobs,
+    notebook,
     organize,
     schedule,
     semantic,
@@ -581,6 +582,8 @@ def decide_held(db, run_id, run=True, by=None):
         raise KeyError(run_id)
     if row["status"] != "held":
         raise ValueError(f"this run isn't waiting on a budget (it's {row['status']})")
+    if run:  # first, so a routine that can't start now (it's running) leaves the run held to pick again
+        request_run(db, row["routine"], by=by, over_budget=True)
     t = store.now()
     db.q(
         "UPDATE $r SET status = $s, finished_at = $t, hold.decided = $d WHERE status = 'held'",
@@ -589,8 +592,6 @@ def decide_held(db, run_id, run=True, by=None):
         t=t,
         d={"run": run, "by": by, "at": t},
     )
-    if run:
-        request_run(db, row["routine"], by=by, over_budget=True)
     return row["routine"]
 
 
@@ -657,6 +658,7 @@ def start(db, cfg_fn, stop, log=None):
         every(lambda: cfg_fn()["sources"]["check_seconds"], sources.poll_due, "watched folders"),
         every(lambda: CHECK_SECONDS, run_due, "routines"),
         every(lambda: cfg_fn()["fedora"]["sync_seconds"], fedora.sync_due, "fedora"),
+        every(lambda: notebook.QUIET_SECONDS / 2, notebook.refine_due, "notes"),
     ]
 
 

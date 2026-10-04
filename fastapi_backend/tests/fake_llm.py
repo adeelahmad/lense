@@ -14,6 +14,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     blind = False  # behave like a server whose model can't see images
     names = None  # namespace names suggested for a question (auto_scope.py)
     decision = None  # the answer to a decision (decide.py) when no decision model is set up; else the first option
+    cypher_script = []  # Cypher to answer graph questions with (graph_ask.py), in order
     usage = None  # token counts to report with each answer (and as a streamed answer's last chunk), like OpenAI
 
     def _json(self, obj):
@@ -84,6 +85,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "importance": 9,
                 }
             )
+        elif "cypher" in schema.get("properties", {}):
+            # graph questions: the scripted queries in order, else one that finds organisations
+            q = Handler.cypher_script.pop(0) if Handler.cypher_script else "MATCH (e:Organisation) RETURN e, e.name LIMIT 50"
+            content = json.dumps({"cypher": q, "explanation": "Looks for organisations."})
         elif "judgements" in schema.get("properties", {}):
             # graph tidying: sure that the first pair is one thing, less sure of the rest, and the last isn't
             pairs = re.findall(r"^(\d+)\. a:", body["messages"][-1]["content"], re.M)
@@ -124,6 +129,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             )
         elif set(schema.get("properties", {})) == {"names"}:
             content = json.dumps({"names": Handler.names or ["travel", "Family Trips", "calls"]})
+        elif set(schema.get("properties", {})) == {"title", "summary"}:
+            # a note's title and summary (notebook.refine): the title kept, the first line of the note as its summary
+            text = body["messages"][-1]["content"]
+            title = re.search(r"^Title: (.*)$", text, re.M).group(1)
+            first = text.split("Note:\n", 1)[1].strip().splitlines()[0]
+            content = json.dumps({"title": "Capsid plan" if title == "Untitled" else title, "summary": f"About {first}"})
         elif set(schema.get("properties", {})) == {"choice", "confidence"}:
             content = json.dumps(Handler.decision or {"choice": schema["properties"]["choice"]["enum"][0], "confidence": 0.9})
         elif body.get("response_format"):

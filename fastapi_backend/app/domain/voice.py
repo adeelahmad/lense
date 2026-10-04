@@ -1,8 +1,10 @@
 """Talking to Lens: what someone said into the mic, as text, by the server's own speech-to-text engine; and answers
 read aloud by a text-to-speech model when one is set up (else the browser reads them).
 
-Speech stays on the server: the clip is decoded with ffmpeg and transcribed by the engine that transcribes recordings
-(SenseVoice, Whisper), kept loaded while people are talking and let go after VOICE_IDLE_SECONDS.
+Speech stays on the server by default: the clip is decoded with ffmpeg and transcribed by the engine that transcribes
+recordings (SenseVoice, Whisper), kept loaded while people are talking and let go after VOICE_IDLE_SECONDS. voice.stt
+can pick another engine for talking, including a speech provider (domain/speech.py), and voice.tts_provider who reads
+answers aloud.
 """
 
 from __future__ import annotations
@@ -13,10 +15,8 @@ import os
 import tempfile
 import threading
 import time
-import urllib.error
-import urllib.request
 
-from . import activity, ingest
+from . import activity, ingest, speech
 
 log = logging.getLogger(__name__)
 IDLE_SECONDS = 600
@@ -25,15 +25,26 @@ _LOCK = threading.Lock()
 _ENGINE = {"key": None, "engine": None, "used": 0.0}
 
 
+def _talk(cfg):
+    """The settings with the engine voice chat uses (voice.stt, else the transcription engine)."""
+    stt = (cfg.get("voice") or {}).get("stt") or "same"
+    if stt == "same" or stt == cfg["transcribe"]["engine"]:
+        return cfg
+    return {**cfg, "transcribe": {**cfg["transcribe"], "engine": stt}}
+
+
 def _key(cfg):
-    return json.dumps(cfg["transcribe"], sort_keys=True, default=str)
+    return json.dumps([cfg["transcribe"], cfg.get("speech")], sort_keys=True, default=str)
 
 
 def can_transcribe(cfg):
     """The engine that would transcribe what's said here, or None when none is installed."""
     if (cfg.get("voice") or {}).get("input") == "browser":
         return None
+    cfg = _talk(cfg)
     e = cfg["transcribe"]["engine"]
+    if e in speech.PROVIDERS:
+        return e if speech.ready(cfg, e) else None
     for x in [e] + [x for x in ingest.ENGINE_MODULES if x != e]:
         try:
             if x in ingest.ENGINE_MODULES and ingest.installed(x):
@@ -45,6 +56,7 @@ def can_transcribe(cfg):
 
 def engine(cfg):
     """The loaded engine, loaded on first use (or when the transcription settings changed)."""
+    cfg = _talk(cfg)
     with _LOCK:
         if _ENGINE["engine"] is None or _ENGINE["key"] != _key(cfg):
             _ENGINE["engine"] = None
@@ -108,32 +120,21 @@ def transcribe(cfg, data):
 
 
 def can_speak(cfg):
-    v = cfg.get("voice") or {}
-    return bool(v.get("tts_model") and (v.get("tts_base_url") or cfg["llm"].get("base_url")))
+    return speech.tts_ready(cfg)
 
 
 def speak(cfg, text):
-    """The text read aloud by the text-to-speech model (an OpenAI-compatible /audio/speech), as (bytes, media type);
-    None when there's none or it failed, so the browser reads it instead."""
+    """The text read aloud by the text-to-speech provider (an OpenAI-compatible /audio/speech, ElevenLabs or Deepgram),
+    as (bytes, media type); None when there's none or it failed, so the browser reads it instead."""
     if not can_speak(cfg) or not text.strip():
         return None
-    v = cfg["voice"]
-    base = (v.get("tts_base_url") or cfg["llm"]["base_url"]).rstrip("/")
-    key = v.get("tts_api_key") or (cfg["llm"].get("api_key") if not v.get("tts_base_url") else None)
-    body = {"model": v["tts_model"], "input": text[:4000], "voice": v.get("tts_voice") or "alloy", "response_format": "mp3"}
-    req = urllib.request.Request(
-        base + "/audio/speech",
-        data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json", **({"Authorization": f"Bearer {key}"} if key else {})},
-        method="POST",
-    )
-    ledger = activity.call("model.speech", cfg, v["tts_model"], detail={"chars": len(body["input"])})
+    v = cfg.get("voice") or {}
+    ledger = activity.call("model.speech", cfg, v.get("tts_model") or v.get("tts_provider"), detail={"chars": len(text[:4000])})
     try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            out = r.read(), r.headers.get_content_type() or "audio/mpeg"
+        out = speech.speak(cfg, text)
         ledger.end()
         return out
-    except (urllib.error.URLError, TimeoutError, OSError) as e:
+    except speech.ProviderError as e:
         ledger.end(e)
         log.info("voice: text-to-speech failed, the browser reads it: %s", e)
         return None

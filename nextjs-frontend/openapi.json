@@ -2329,6 +2329,50 @@
         }
       }
     },
+    "/api/v1/settings/decisions/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Decision Status",
+        "description": "Who takes routine decisions, and whether a local Laya model can here: on this machine (Apple Silicon, once\nfetched) or at a Laya server's address.",
+        "operationId": "decision_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/decisions/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Decisions",
+        "description": "Take one made-up decision with the settings, to check them; says who answered.",
+        "operationId": "test_decisions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/embeddings/test": {
       "post": {
         "tags": [
@@ -2344,6 +2388,50 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EmbedTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/speech/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Speech",
+        "description": "Check a speech provider's address and key with the saved settings (lists its models; nothing is billed).",
+        "operationId": "test_speech",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(openai|elevenlabs|assemblyai|deepgram)$",
+              "title": "Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeechTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -2619,485 +2707,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Started"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/activity": {
-      "get": {
-        "tags": [
-          "activity"
-        ],
-        "summary": "Resource History",
-        "description": "A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the\ndecision model, webhooks, web tools) with tokens and cost, runs that ended, and its audit log entries.",
-        "operationId": "resource_history",
-        "parameters": [
-          {
-            "name": "resource",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "table:id, like routine:3, pipeline:2, workflow:4, recording:12, account:1",
-              "title": "Resource"
-            },
-            "description": "table:id, like routine:3, pipeline:2, workflow:4, recording:12, account:1"
-          },
-          {
-            "name": "kind",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "in",
-                    "out",
-                    "run",
-                    "change"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Kind"
-            }
-          },
-          {
-            "name": "before",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "only entries before this time (the last `at` of the page before)",
-              "title": "Before"
-            },
-            "description": "only entries before this time (the last `at` of the page before)"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 1000,
-              "minimum": 1,
-              "default": 100,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ActivityEntry"
-                  },
-                  "title": "Response Activity-Resource History"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/activity/totals": {
-      "get": {
-        "tags": [
-          "activity"
-        ],
-        "summary": "Resource Totals",
-        "description": "What a resource's calls cost this day, week (from Monday), month (UTC) or all time: calls, tokens, USD, time.",
-        "operationId": "resource_totals",
-        "parameters": [
-          {
-            "name": "resource",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "table:id; none for everything (admins)",
-              "title": "Resource"
-            },
-            "description": "table:id; none for everything (admins)"
-          },
-          {
-            "name": "period",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "day",
-                "week",
-                "month",
-                "all"
-              ],
-              "type": "string",
-              "default": "month",
-              "title": "Period"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActivityTotals"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/activity/costs": {
-      "get": {
-        "tags": [
-          "activity"
-        ],
-        "summary": "Resource Costs",
-        "description": "What each of many resources cost this period, for lists; ones you can't see are left out. `estimate` says a\nfigure is a floor (some calls had no price or token counts).",
-        "operationId": "resource_costs",
-        "parameters": [
-          {
-            "name": "resource",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "table:id, repeated (up to 500): every row of a list at once",
-              "title": "Resource"
-            },
-            "description": "table:id, repeated (up to 500): every row of a list at once"
-          },
-          {
-            "name": "period",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "day",
-                "week",
-                "month",
-                "all"
-              ],
-              "type": "string",
-              "default": "month",
-              "title": "Period"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActivityCosts"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/activity/top": {
-      "get": {
-        "tags": [
-          "activity"
-        ],
-        "summary": "Top Resources",
-        "description": "The resources that cost most this period (admins).",
-        "operationId": "top_resources",
-        "parameters": [
-          {
-            "name": "table",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "pattern": "^[a-z_]{1,40}$"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "only this kind of resource: routine, pipeline, workflow, space",
-              "title": "Table"
-            },
-            "description": "only this kind of resource: routine, pipeline, workflow, space"
-          },
-          {
-            "name": "period",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "day",
-                "week",
-                "month",
-                "all"
-              ],
-              "type": "string",
-              "default": "month",
-              "title": "Period"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 20,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActivityTop"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/budgets": {
-      "get": {
-        "tags": [
-          "budgets"
-        ],
-        "summary": "List Budgets",
-        "description": "Every budget, with where it stands now.",
-        "operationId": "list_budgets",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BudgetStatus"
-                  },
-                  "title": "Response Budgets-List Budgets"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "budgets"
-        ],
-        "summary": "Set Budget",
-        "operationId": "set_budget",
-        "parameters": [
-          {
-            "name": "resource",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
-              "title": "Resource"
-            },
-            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BudgetSet"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BudgetStatus"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "budgets"
-        ],
-        "summary": "Remove Budget",
-        "operationId": "remove_budget",
-        "parameters": [
-          {
-            "name": "resource",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
-              "title": "Resource"
-            },
-            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Ok"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/budgets/status": {
-      "get": {
-        "tags": [
-          "budgets"
-        ],
-        "summary": "Budget Status",
-        "description": "Where a resource's budget stands, and what its next run will likely cost (also without a budget).",
-        "operationId": "budget_status",
-        "parameters": [
-          {
-            "name": "resource",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
-              "title": "Resource"
-            },
-            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BudgetStatus"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -6800,6 +6409,426 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "List Pages",
+        "description": "The namespace's free notes for the tree (no bodies), in order; `all=true` adds the pages of things.",
+        "operationId": "list_pages",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ns"
+            }
+          },
+          {
+            "name": "all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "All"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteTree"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Create Page",
+        "description": "Write a free note (optionally inside `parent`), or the page of a thing (`about`, like \"recording:12\"), which\neach thing has one of. Needs editor access to the namespace.",
+        "operationId": "create_page",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotePageCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/targets": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Link Targets",
+        "description": "What a mention can link to, best matches first: `#` for topics; `@` for pages, recordings, people and other\nentities, collections and speakers.",
+        "operationId": "link_targets",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ns"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "sign",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "@",
+              "title": "Sign"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NoteLinkTarget"
+                  },
+                  "title": "Response Notes-Link Targets"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/about/{kind}/{key}": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Page About",
+        "description": "The page of a recording, entity, collection or speaker: its page, or a draft while nobody has written one.",
+        "operationId": "page_about",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotePage"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotePageDraft"
+                    }
+                  ],
+                  "title": "Response Notes-Page About"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Get Page",
+        "description": "A page with its body, its links (with their targets' current names) and the pages linking to it.",
+        "operationId": "get_page",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Update Page",
+        "description": "Change what's given. A new body without `doc` drops the editor's state, so it's rebuilt from the Markdown.",
+        "operationId": "update_page",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotePageUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Delete Page",
+        "description": "Delete a page; the pages inside it move up a level. Needs editor access.",
+        "operationId": "delete_page",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}/move": {
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Move Page",
+        "description": "Move a free note in the tree: inside `parent` (null: the top), before `before` (null: at the end).",
+        "operationId": "move_page",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotePageMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
                 }
               }
             }
@@ -10878,6 +10907,479 @@
         }
       }
     },
+    "/api/v1/topics": {
+      "get": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "List Topics",
+        "description": "Topics of the namespaces you can read (or of `ns`), by label. `q` matches labels and other labels, `top` keeps\nthose with no broader topic, `broader` lists the narrower topics of one.",
+        "operationId": "list_topics",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Ns"
+            }
+          },
+          {
+            "name": "top",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Top"
+            }
+          },
+          {
+            "name": "broader",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Broader"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topics/{tid}": {
+      "get": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Get Topic",
+        "description": "A topic with its broader, narrower and related topics and the recordings about it.",
+        "operationId": "get_topic",
+        "parameters": [
+          {
+            "name": "tid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Update Topic",
+        "description": "Rename it, change its other labels or definition, or what it is narrower than or related to.",
+        "operationId": "update_topic",
+        "parameters": [
+          {
+            "name": "tid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopicUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Delete Topic",
+        "description": "Delete it: its narrower topics move up, recordings stop being about it, and an entity it was made from shows again.",
+        "operationId": "delete_topic",
+        "parameters": [
+          {
+            "name": "tid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/topics": {
+      "post": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Create Topic",
+        "description": "Add a topic to the namespace's vocabulary.",
+        "operationId": "create_topic",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopicCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topics/merge": {
+      "post": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Merge Topics",
+        "description": "Fold topics into one: their labels become its other labels and their recordings are about it.",
+        "operationId": "merge_topics",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopicMerge"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topics/{tid}/recordings": {
+      "post": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Tag Recordings",
+        "description": "Say recordings of the topic's namespace are about it (accepting suggestions too), or with `remove` that they aren't.",
+        "operationId": "tag_recordings",
+        "parameters": [
+          {
+            "name": "tid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopicRecordings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/topics": {
+      "get": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Recording Topics",
+        "description": "The topics a recording is about, and those suggested for it.",
+        "operationId": "recording_topics",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecordingTopic"
+                  },
+                  "title": "Response Topics-Recording Topics"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entities/{eid}/topic": {
+      "post": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Entity To Topic",
+        "description": "Make a topic-like entity (type TERM) a topic: its names become the topic's labels and the recordings that\nmention it are about the topic. The entity is hidden; deleting the topic shows it again.",
+        "operationId": "entity_to_topic",
+        "parameters": [
+          {
+            "name": "eid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Eid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/graph/schema": {
       "get": {
         "tags": [
@@ -11197,6 +11699,50 @@
                   "additionalProperties": true,
                   "type": "object",
                   "title": "Response Graph-Graph Query"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/ask": {
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Ask Graph",
+        "description": "A question in plain language: the language model writes read-only Cypher, Lens runs it over the graph you can\nread, and you get the answer with the query that found it ({question, cypher, explanation, result}).",
+        "operationId": "ask_graph",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GraphQuestion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Ask Graph"
                 }
               }
             }
@@ -13586,59 +14132,6 @@
             }
           }
         ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Ok"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/jobs/{jid}/release": {
-      "post": {
-        "tags": [
-          "jobs"
-        ],
-        "summary": "Release Job",
-        "description": "Pick for a job held over a budget (docs/budgets.md): run it now, once, whatever its budgets say, or skip it\n(admins, who set the budgets).",
-        "operationId": "release_job",
-        "parameters": [
-          {
-            "name": "jid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Jid"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/HeldRunDecision"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -18326,7 +18819,7 @@
           "routines"
         ],
         "summary": "Run Routine",
-        "description": "Run it as soon as the scheduler next looks (within half a minute), even when it is off. A run over one of its\nbudgets is refused (409, saying where the budget stands) unless over_budget is true (docs/budgets.md).",
+        "description": "Run it as soon as the scheduler next looks (within half a minute), even when it is off.",
         "operationId": "run_routine",
         "parameters": [
           {
@@ -18345,59 +18838,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RoutineRunRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Ok"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/routines/runs/{run_id}/decide": {
-      "post": {
-        "tags": [
-          "routines"
-        ],
-        "summary": "Decide Held Run",
-        "description": "Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.",
-        "operationId": "decide_held_run",
-        "parameters": [
-          {
-            "name": "run_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Run Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/HeldRunDecision"
               }
             }
           }
@@ -20329,311 +20769,6 @@
         "title": "AccountToken",
         "description": "Anyone's key, for admins."
       },
-      "ActivityCosts": {
-        "properties": {
-          "period": {
-            "type": "string",
-            "title": "Period"
-          },
-          "since": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Since"
-          },
-          "costs": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ResourceSpend"
-            },
-            "type": "object",
-            "title": "Costs",
-            "description": "by resource; ones you can't see are left out"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "period",
-          "costs"
-        ],
-        "title": "ActivityCosts"
-      },
-      "ActivityEntry": {
-        "properties": {
-          "id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Id",
-            "description": "the ledger row's id; none for an audit log entry"
-          },
-          "at": {
-            "type": "string",
-            "title": "At"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "in",
-              "out",
-              "run",
-              "change"
-            ],
-            "title": "Kind",
-            "description": "in: an API request; out: a call Lens made (a model, embeddings, the decision model, a webhook, a web tool); run: a job or routine run ended; change: an audit log entry"
-          },
-          "action": {
-            "type": "string",
-            "title": "Action",
-            "description": "what it was: `POST /api/v1/routines/{rid}/run`, `model.chat`, `job.succeeded`, `routine.update`"
-          },
-          "resources": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Resources",
-            "description": "every resource it counts for, as table:id"
-          },
-          "actor": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Actor",
-            "description": "the account that made it, when a person did"
-          },
-          "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email"
-          },
-          "model": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Model"
-          },
-          "tokens_in": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tokens In"
-          },
-          "tokens_out": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tokens Out"
-          },
-          "cost_usd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cost Usd",
-            "description": "estimated from the prices in Settings; none when the model has no price"
-          },
-          "ms": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ms"
-          },
-          "ok": {
-            "type": "boolean",
-            "title": "Ok",
-            "default": true
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error",
-            "description": "the error's type or HTTP status; never its message"
-          },
-          "detail": {
-            "title": "Detail"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "at",
-          "kind",
-          "action"
-        ],
-        "title": "ActivityEntry"
-      },
-      "ActivityTop": {
-        "properties": {
-          "period": {
-            "type": "string",
-            "title": "Period"
-          },
-          "since": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Since"
-          },
-          "resources": {
-            "items": {
-              "$ref": "#/components/schemas/ResourceCost"
-            },
-            "type": "array",
-            "title": "Resources"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "period",
-          "resources"
-        ],
-        "title": "ActivityTop"
-      },
-      "ActivityTotals": {
-        "properties": {
-          "resource": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Resource"
-          },
-          "period": {
-            "type": "string",
-            "title": "Period"
-          },
-          "since": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Since"
-          },
-          "calls": {
-            "type": "integer",
-            "title": "Calls"
-          },
-          "failed": {
-            "type": "integer",
-            "title": "Failed"
-          },
-          "tokens_in": {
-            "type": "integer",
-            "title": "Tokens In"
-          },
-          "tokens_out": {
-            "type": "integer",
-            "title": "Tokens Out"
-          },
-          "cost_usd": {
-            "type": "number",
-            "title": "Cost Usd",
-            "description": "what its calls cost (run rows repeat their calls' cost and aren't added again)"
-          },
-          "ms": {
-            "type": "integer",
-            "title": "Ms"
-          },
-          "unpriced": {
-            "type": "integer",
-            "title": "Unpriced",
-            "description": "calls that cost something but have no figure (a model with no price, a reply without token counts)",
-            "default": 0
-          },
-          "estimate": {
-            "type": "boolean",
-            "title": "Estimate",
-            "description": "true when unpriced calls make cost_usd a floor rather than exact",
-            "default": false
-          },
-          "by_kind": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/KindTotals"
-            },
-            "type": "object",
-            "title": "By Kind"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "period",
-          "calls",
-          "failed",
-          "tokens_in",
-          "tokens_out",
-          "cost_usd",
-          "ms",
-          "by_kind"
-        ],
-        "title": "ActivityTotals"
-      },
       "AnswerCheck": {
         "properties": {
           "claims": {
@@ -22047,279 +22182,6 @@
           "dir"
         ],
         "title": "BrowseEntry"
-      },
-      "Budget": {
-        "properties": {
-          "resource": {
-            "type": "string",
-            "title": "Resource"
-          },
-          "usd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Usd"
-          },
-          "tokens": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tokens"
-          },
-          "period": {
-            "type": "string",
-            "title": "Period"
-          },
-          "on_over": {
-            "type": "string",
-            "title": "On Over"
-          },
-          "warn_at": {
-            "type": "number",
-            "title": "Warn At"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
-          },
-          "by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "By"
-          },
-          "updated_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Updated At"
-          },
-          "alert": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Alert",
-            "description": "the last warning: {state near|over, since, at, share}"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "resource",
-          "period",
-          "on_over",
-          "warn_at"
-        ],
-        "title": "Budget"
-      },
-      "BudgetSet": {
-        "properties": {
-          "usd": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Usd",
-            "description": "the cap in USD (from the costs in the activity ledger)"
-          },
-          "tokens": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tokens",
-            "description": "the cap in tokens (in and out)"
-          },
-          "period": {
-            "type": "string",
-            "enum": [
-              "run",
-              "day",
-              "week",
-              "month"
-            ],
-            "title": "Period",
-            "description": "what the cap is for: one run, or a day, week or month (UTC)",
-            "default": "month"
-          },
-          "on_over": {
-            "type": "string",
-            "enum": [
-              "ask",
-              "skip",
-              "assistant"
-            ],
-            "title": "On Over",
-            "description": "a run that would go over: ask (hold it until someone picks run or skip), skip, or assistant (the decision model weighs it; it runs only when sure, else asks)",
-            "default": "ask"
-          },
-          "warn_at": {
-            "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.1,
-            "title": "Warn At",
-            "description": "the share spent at which it's marked near (and warned about)",
-            "default": 0.8
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 300
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "BudgetSet"
-      },
-      "BudgetStatus": {
-        "properties": {
-          "resource": {
-            "type": "string",
-            "title": "Resource"
-          },
-          "budget": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Budget"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "state": {
-            "type": "string",
-            "enum": [
-              "none",
-              "ok",
-              "near",
-              "over"
-            ],
-            "title": "State"
-          },
-          "since": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Since",
-            "description": "the start of the period being counted"
-          },
-          "spent": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Spent"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "next": {
-            "$ref": "#/components/schemas/NextRun",
-            "description": "what one more run will likely cost: always an estimate"
-          },
-          "left": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "number"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Left"
-          },
-          "share": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Share",
-            "description": "the largest share of a cap spent (1 is all of it)"
-          },
-          "share_after_next": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Share After Next",
-            "description": "the share once the next run (estimated) is done"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "resource",
-          "state",
-          "next"
-        ],
-        "title": "BudgetStatus"
       },
       "ChangeAsk": {
         "properties": {
@@ -25218,6 +25080,122 @@
           "graph"
         ],
         "title": "CustomNodeVersionCreate"
+      },
+      "DecisionStatus": {
+        "properties": {
+          "engine": {
+            "type": "string",
+            "title": "Engine",
+            "description": "the setting: auto, jev, laya, llm or off"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who answers now: jev, laya, llm, or none"
+          },
+          "apple_silicon": {
+            "type": "boolean",
+            "title": "Apple Silicon",
+            "description": "this machine can run MLX models"
+          },
+          "laya": {
+            "$ref": "#/components/schemas/LayaStatus"
+          },
+          "laya_models": {
+            "items": {
+              "$ref": "#/components/schemas/LayaModel"
+            },
+            "type": "array",
+            "title": "Laya Models"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "engine",
+          "apple_silicon",
+          "laya",
+          "laya_models"
+        ],
+        "title": "DecisionStatus",
+        "description": "Who takes routine decisions now, and whether a local Laya model could."
+      },
+      "DecisionTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who answered: jev, laya or llm (the language model when the decision model failed)"
+          },
+          "choice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choice"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "DecisionTestResult"
       },
       "Description": {
         "properties": {
@@ -28349,6 +28327,34 @@
         ],
         "title": "GraphQuery"
       },
+      "GraphQuestion": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Question",
+            "description": "a question in plain language"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": "global"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 2000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 200
+          }
+        },
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "GraphQuestion"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -28740,21 +28746,6 @@
           "text"
         ],
         "title": "Heard"
-      },
-      "HeldRunDecision": {
-        "properties": {
-          "run": {
-            "type": "boolean",
-            "title": "Run",
-            "description": "true: run it now, once, whatever its budgets say; false: skip it"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "run"
-        ],
-        "title": "HeldRunDecision"
       },
       "Highlight": {
         "properties": {
@@ -30024,54 +30015,6 @@
             ],
             "title": "Cancel Requested"
           },
-          "cost_usd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cost Usd",
-            "description": "what its calls cost, from the activity ledger (docs/activity.md); set when it ends"
-          },
-          "tokens": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tokens"
-          },
-          "cost_estimate": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cost Estimate",
-            "description": "true: some calls had no price or token counts, so cost_usd is a floor"
-          },
-          "hold": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hold",
-            "description": "held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}"
-          },
           "log": {
             "anyOf": [
               {
@@ -30397,43 +30340,6 @@
         ],
         "title": "JobsQueued"
       },
-      "KindTotals": {
-        "properties": {
-          "calls": {
-            "type": "integer",
-            "title": "Calls",
-            "default": 0
-          },
-          "tokens_in": {
-            "type": "integer",
-            "title": "Tokens In",
-            "default": 0
-          },
-          "tokens_out": {
-            "type": "integer",
-            "title": "Tokens Out",
-            "default": 0
-          },
-          "cost_usd": {
-            "type": "number",
-            "title": "Cost Usd",
-            "default": 0
-          },
-          "ms": {
-            "type": "integer",
-            "title": "Ms",
-            "default": 0
-          },
-          "failed": {
-            "type": "integer",
-            "title": "Failed",
-            "default": 0
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "title": "KindTotals"
-      },
       "LanguageCount": {
         "properties": {
           "language": {
@@ -30512,6 +30418,69 @@
           "ok"
         ],
         "title": "LastSend"
+      },
+      "LayaModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the Hugging Face repository"
+          },
+          "about": {
+            "type": "string",
+            "title": "About"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "about"
+        ],
+        "title": "LayaModel"
+      },
+      "LayaStatus": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "where": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Where",
+            "description": "here (this machine runs it), server (a Laya server), or none"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "why it can't answer, when it can't"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "available",
+          "model"
+        ],
+        "title": "LayaStatus"
       },
       "LlmEstimate": {
         "properties": {
@@ -31818,48 +31787,6 @@
         "title": "NamespaceUpdate",
         "description": "Only the fields you send change; send ``pipeline: null`` to go back to the default pipeline."
       },
-      "NextRun": {
-        "properties": {
-          "usd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Usd"
-          },
-          "tokens": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tokens"
-          },
-          "runs": {
-            "type": "integer",
-            "title": "Runs",
-            "description": "the past runs the estimate is drawn from"
-          },
-          "basis": {
-            "type": "string",
-            "title": "Basis"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "runs",
-          "basis"
-        ],
-        "title": "NextRun"
-      },
       "NodeParam": {
         "properties": {
           "name": {
@@ -32197,6 +32124,47 @@
         ],
         "title": "Note"
       },
+      "NoteBacklink": {
+        "properties": {
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "page",
+          "title"
+        ],
+        "title": "NoteBacklink"
+      },
       "NoteCreate": {
         "properties": {
           "text": {
@@ -32257,6 +32225,729 @@
           "text"
         ],
         "title": "NoteCreate"
+      },
+      "NoteLink": {
+        "properties": {
+          "sign": {
+            "type": "string",
+            "enum": [
+              "@",
+              "#"
+            ],
+            "title": "Sign"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "description": "what it links to, like \"recording:12\" or \"page:3\""
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "the text the link shows"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "the target's current name; null when it's gone or you can't see it"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "sign",
+          "target",
+          "label"
+        ],
+        "title": "NoteLink"
+      },
+      "NoteLinkTarget": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "page",
+              "recording",
+              "entity",
+              "topic",
+              "collection",
+              "speaker"
+            ],
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "target",
+          "label",
+          "kind"
+        ],
+        "title": "NoteLinkTarget"
+      },
+      "NotePage": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary",
+            "description": "one line on what the page holds: the context the assistant reads first"
+          },
+          "summary_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "person",
+                  "assistant"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary By",
+            "description": "who wrote the summary"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "project",
+                  "area",
+                  "resource",
+                  "archive"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place",
+            "description": "where it's filed (PARA): project, area, resource or archive"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the page it's inside, in the tree"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position",
+            "description": "its order among its siblings"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About",
+            "description": "what this is the page of, like \"recording:12\"; null for a free note"
+          },
+          "author": {
+            "type": "string",
+            "enum": [
+              "person",
+              "assistant"
+            ],
+            "title": "Author",
+            "description": "who wrote it",
+            "default": "person"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body",
+            "description": "Markdown, with mentions written @[label](kind:id) and #[label](entity:id)",
+            "default": ""
+          },
+          "doc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc",
+            "description": "the editor's own document state, if it kept one"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By",
+            "description": "its writer's email"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/NoteLink"
+            },
+            "type": "array",
+            "title": "Links",
+            "default": []
+          },
+          "backlinks": {
+            "items": {
+              "$ref": "#/components/schemas/NoteBacklink"
+            },
+            "type": "array",
+            "title": "Backlinks",
+            "default": []
+          },
+          "can_edit": {
+            "type": "boolean",
+            "title": "Can Edit",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "namespace"
+        ],
+        "title": "NotePage"
+      },
+      "NotePageCreate": {
+        "properties": {
+          "ns": {
+            "type": "string",
+            "title": "Ns",
+            "description": "the namespace it goes in"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 200000,
+            "title": "Body",
+            "default": ""
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date",
+            "description": "YYYY-MM-DD (default: today)"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "project",
+                  "area",
+                  "resource",
+                  "archive"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "put it inside this page"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About",
+            "description": "make the page of this thing, like \"recording:12\" or \"entity:5\""
+          },
+          "doc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ns",
+          "title"
+        ],
+        "title": "NotePageCreate"
+      },
+      "NotePageDraft": {
+        "properties": {
+          "id": {
+            "type": "null",
+            "title": "Id"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "about": {
+            "type": "string",
+            "title": "About"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body",
+            "default": ""
+          },
+          "backlinks": {
+            "items": {
+              "$ref": "#/components/schemas/NoteBacklink"
+            },
+            "type": "array",
+            "title": "Backlinks",
+            "default": []
+          },
+          "can_edit": {
+            "type": "boolean",
+            "title": "Can Edit",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "namespace",
+          "about",
+          "title"
+        ],
+        "title": "NotePageDraft",
+        "description": "A thing's page before anyone has written on it."
+      },
+      "NotePageItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary",
+            "description": "one line on what the page holds: the context the assistant reads first"
+          },
+          "summary_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "person",
+                  "assistant"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary By",
+            "description": "who wrote the summary"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "project",
+                  "area",
+                  "resource",
+                  "archive"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place",
+            "description": "where it's filed (PARA): project, area, resource or archive"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the page it's inside, in the tree"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position",
+            "description": "its order among its siblings"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About",
+            "description": "what this is the page of, like \"recording:12\"; null for a free note"
+          },
+          "author": {
+            "type": "string",
+            "enum": [
+              "person",
+              "assistant"
+            ],
+            "title": "Author",
+            "description": "who wrote it",
+            "default": "person"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "NotePageItem"
+      },
+      "NotePageMove": {
+        "properties": {
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the page to put it inside; null for the top"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before",
+            "description": "put it before this sibling; null for the end"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NotePageMove"
+      },
+      "NotePageUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary",
+            "description": "empty to clear it"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "project",
+                  "area",
+                  "resource",
+                  "archive"
+                ]
+              },
+              {
+                "type": "string",
+                "const": ""
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place",
+            "description": "\"\" to unfile it"
+          },
+          "doc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc",
+            "description": "the editor's document state; a new body without it drops the old one"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NotePageUpdate"
+      },
+      "NoteTree": {
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/NotePageItem"
+            },
+            "type": "array",
+            "title": "Pages"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "namespace",
+          "pages"
+        ],
+        "title": "NoteTree"
       },
       "NoteUpdate": {
         "properties": {
@@ -36977,6 +37668,58 @@
         ],
         "title": "RecordingSummary"
       },
+      "RecordingTopic": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "RecordingTopic"
+      },
       "RecordingUpdate": {
         "properties": {
           "title": {
@@ -37173,35 +37916,6 @@
           "password"
         ],
         "title": "ResetPasswordRequest"
-      },
-      "ResourceCost": {
-        "properties": {
-          "resource": {
-            "type": "string",
-            "title": "Resource"
-          },
-          "cost_usd": {
-            "type": "number",
-            "title": "Cost Usd"
-          },
-          "tokens": {
-            "type": "integer",
-            "title": "Tokens"
-          },
-          "calls": {
-            "type": "integer",
-            "title": "Calls"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "resource",
-          "cost_usd",
-          "tokens",
-          "calls"
-        ],
-        "title": "ResourceCost"
       },
       "ResourceFile": {
         "properties": {
@@ -37414,41 +38128,6 @@
           "can_change"
         ],
         "title": "ResourceFiles"
-      },
-      "ResourceSpend": {
-        "properties": {
-          "cost_usd": {
-            "type": "number",
-            "title": "Cost Usd"
-          },
-          "tokens": {
-            "type": "integer",
-            "title": "Tokens"
-          },
-          "calls": {
-            "type": "integer",
-            "title": "Calls"
-          },
-          "unpriced": {
-            "type": "integer",
-            "title": "Unpriced"
-          },
-          "estimate": {
-            "type": "boolean",
-            "title": "Estimate",
-            "description": "true: cost_usd is a floor (unpriced calls); show it as an estimate"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "cost_usd",
-          "tokens",
-          "calls",
-          "unpriced",
-          "estimate"
-        ],
-        "title": "ResourceSpend"
       },
       "Reviewed": {
         "properties": {
@@ -37840,54 +38519,6 @@
               }
             ],
             "title": "Log"
-          },
-          "cost_usd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cost Usd",
-            "description": "what its calls cost, from the activity ledger (docs/activity.md); set when it ends"
-          },
-          "tokens": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tokens"
-          },
-          "cost_estimate": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cost Estimate",
-            "description": "true: some calls had no price or token counts, so cost_usd is a floor"
-          },
-          "hold": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hold",
-            "description": "held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}"
           }
         },
         "additionalProperties": true,
@@ -37906,12 +38537,6 @@
             "type": "boolean",
             "title": "Propose Only",
             "description": "graph workflows propose every change instead of making the sure ones",
-            "default": false
-          },
-          "over_budget": {
-            "type": "boolean",
-            "title": "Over Budget",
-            "description": "run it even though it's over a budget (docs/budgets.md); without it, a run over budget is refused (409)",
             "default": false
           }
         },
@@ -41588,30 +42213,53 @@
         ],
         "title": "SpeakerSuggestion"
       },
-      "Spent": {
+      "SpeechTestResult": {
         "properties": {
-          "usd": {
-            "type": "number",
-            "title": "Usd"
-          },
-          "tokens": {
-            "type": "integer",
-            "title": "Tokens"
-          },
-          "estimate": {
+          "ok": {
             "type": "boolean",
-            "title": "Estimate",
-            "description": "true: some calls had no figure, so usd is a floor"
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "what the provider answered, when it did"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
           }
         },
         "additionalProperties": true,
         "type": "object",
         "required": [
-          "usd",
-          "tokens",
-          "estimate"
+          "ok"
         ],
-        "title": "Spent"
+        "title": "SpeechTestResult"
       },
       "Started": {
         "properties": {
@@ -42766,6 +43414,494 @@
           "tool"
         ],
         "title": "ToolStep"
+      },
+      "TopicAbout": {
+        "properties": {
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "how it got there: person, entity or analysis"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "accepted",
+                  "suggested"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recording"
+        ],
+        "title": "TopicAbout"
+      },
+      "TopicCreate": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "alt": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Alt",
+            "default": []
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition"
+          },
+          "broader": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Broader",
+            "default": []
+          },
+          "related": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Related",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "TopicCreate"
+      },
+      "TopicDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "alt": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Alt",
+            "default": []
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition"
+          },
+          "broader": {
+            "items": {
+              "$ref": "#/components/schemas/TopicRef"
+            },
+            "type": "array",
+            "title": "Broader",
+            "default": []
+          },
+          "narrower": {
+            "items": {
+              "$ref": "#/components/schemas/TopicRef"
+            },
+            "type": "array",
+            "title": "Narrower",
+            "default": []
+          },
+          "related": {
+            "items": {
+              "$ref": "#/components/schemas/TopicRef"
+            },
+            "type": "array",
+            "title": "Related",
+            "default": []
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "default": 0
+          },
+          "from_entity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Entity"
+          },
+          "updated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated"
+          },
+          "about": {
+            "items": {
+              "$ref": "#/components/schemas/TopicAbout"
+            },
+            "type": "array",
+            "title": "About",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "TopicDetail"
+      },
+      "TopicItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "alt": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Alt",
+            "description": "other labels it goes by (skos:altLabel)",
+            "default": []
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition"
+          },
+          "broader": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Broader",
+            "default": []
+          },
+          "related": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Related",
+            "default": []
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "description": "recordings about it (accepted)",
+            "default": 0
+          },
+          "narrower": {
+            "type": "integer",
+            "title": "Narrower",
+            "description": "topics that have it as broader",
+            "default": 0
+          },
+          "from_entity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Entity",
+            "description": "the entity it was made from, hidden while the topic exists"
+          },
+          "updated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "TopicItem"
+      },
+      "TopicList": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TopicItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "total",
+          "items"
+        ],
+        "title": "TopicList"
+      },
+      "TopicMerge": {
+        "properties": {
+          "keep": {
+            "type": "integer",
+            "title": "Keep"
+          },
+          "others": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Others"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "keep",
+          "others"
+        ],
+        "title": "TopicMerge"
+      },
+      "TopicRecordings": {
+        "properties": {
+          "recordings": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Recordings"
+          },
+          "remove": {
+            "type": "boolean",
+            "title": "Remove",
+            "description": "say they aren't about it",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recordings"
+        ],
+        "title": "TopicRecordings"
+      },
+      "TopicRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "TopicRef"
+      },
+      "TopicUpdate": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "alt": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition",
+            "description": "an empty string clears it"
+          },
+          "broader": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Broader"
+          },
+          "related": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Related"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TopicUpdate"
       },
       "TunnelStatus": {
         "properties": {
