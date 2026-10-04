@@ -7,6 +7,7 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import http.server
+import socket
 import threading
 from email.message import EmailMessage
 
@@ -300,6 +301,12 @@ def test_calendar_addresses(feed, client, db, cfg, admin, monkeypatch):
     assert [h for h, _ in _Feed.sent_auth if h.startswith("localhost")] == []
     # without a password, a redirect is followed (and still only to addresses allowed)
     _Feed.auth = None
+    real = socket.getaddrinfo  # where localhost is ::1 too (Ubuntu), only its IPv4 address: the test server's
+    monkeypatch.setattr(
+        netguard.socket,
+        "getaddrinfo",
+        lambda host, *a, **k: real(host, *a, **({**k, "family": socket.AF_INET} if host == "localhost" else k)),
+    )
     try:
         assert health(feed.replace("/team.ics", "/elsewhere"), password=None)["ok"]
     finally:

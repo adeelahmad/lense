@@ -315,7 +315,7 @@ def _proxy_hosts() -> tuple[str, ...]:
         hit = _PROXY_HOSTS.get(name)
         if not hit or time.monotonic() - hit[0] > 30:
             try:
-                found = tuple(sorted({i[4][0] for i in socket.getaddrinfo(name, None)}))
+                found = tuple(sorted({str(i[4][0]) for i in socket.getaddrinfo(name, None)}))
             except OSError:
                 found = ()
             hit = _PROXY_HOSTS[name] = (time.monotonic(), found)

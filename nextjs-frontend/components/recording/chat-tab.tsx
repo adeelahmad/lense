@@ -80,7 +80,10 @@ function ChatPanel() {
       box.current?.setSelectionRange(n, n);
     });
   }, [chatDraft, clearChatDraft]);
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [answer?.text, chat.data?.messages?.length]);
+  // Braces: scrollIntoView returns a Promise in current Chromium, and an effect may only return a clean-up function.
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end" });
+  }, [answer?.text, chat.data?.messages?.length]);
   useEffect(() => () => abort.current?.abort(), []);
 
   const send = async () => {
