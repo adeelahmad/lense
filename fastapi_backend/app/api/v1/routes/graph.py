@@ -149,6 +149,7 @@ class GraphQuestion(BaseModel):
     question: str = Field(min_length=1, max_length=1000, description="a question in plain language")
     scope: str = "global"
     limit: int = Field(200, ge=1, le=2000)
+    as_of: str | None = Field(None, description="ask the graph as of a version: a number or a version's name")
 
 
 @router.post("/graph/ask")
@@ -157,7 +158,7 @@ def ask_graph(request: Request, body: GraphQuestion, user: CurrentUser, acl: Acl
     read, and you get the answer with the query that found it ({question, cypher, explanation, result})."""
     if not llm.configured(cfg):
         raise HTTPException(409, "no language model is set up; ask in Cypher instead, or set one up in Settings")
-    g = projection(request, db, acl, body.scope)
+    g = projection(request, db, acl, body.scope, body.as_of)
     try:
         out = graph_ask.ask(cfg, g, body.question, graph_ask.EXAMPLES, max_rows=body.limit)
     except cypher.CypherError as e:

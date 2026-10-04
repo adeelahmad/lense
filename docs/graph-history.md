@@ -5,8 +5,8 @@ graph's version. So the graph can be seen as it was at any version, two versions
 read: who renamed it, who merged what into it, which routine linked it, and why.
 
 Built: the event log, versions, as-of, diffs, entity history, named versions, rollback to a version, checkpoints with
-replay and verify, the History tab, the graph API and Cypher as of a version. Planned: an as-of picker in the
-explorer (DEVLOG.md).
+replay and verify, the History tab, the graph API and Cypher as of a version, and an as-of picker on the graph
+canvas.
 
 In the web app, Routines › History lists every version; open one to see what changed, name it, or roll back to it
 (with a preview). An entity's History button shows only its changes.
@@ -102,10 +102,14 @@ routines, workflows and analysis set their own.
 The graph as of a version is today's rows with every later event walked back, newest first. A diff composes the
 events between two versions: for each record, how it was before the first and after the last.
 
-The graph API (`/graph/schema`, `/graph/related`, `/graph/paths`) and Cypher (`POST /graph/query`) take `as_of`, a
-version or a version's name: entities and their cross-namespace links are as they were then; mentions, recordings and
+The graph API (`/graph/schema`, `/graph/related`, `/graph/paths`), Cypher (`POST /graph/query`), questions
+(`POST /graph/ask`) and the canvas overview (`GET /graph`) take `as_of`, a version or a version's name: entities and their cross-namespace links are as they were then; mentions, recordings and
 speakers are today's, so an entity merged away since shows only if it is still mentioned. The explorer's graph is
 cached per graph version, so any recorded change shows at once.
+
+On the graph canvas, the clock menu in the toolbar shows the graph as of a named version or as it was before one of
+the latest changes; what you explore, the paths you find and what you ask then use that version too. The chip under
+the toolbar says which version is shown and goes back to now.
 
 Graph changes also show in each resource's activity history (docs/activity.md, `GET /api/v1/activity`): an entity's
 changes under `entity:<id>` (anyone who can read its namespace), a namespace's curation under `space:<id>` (what

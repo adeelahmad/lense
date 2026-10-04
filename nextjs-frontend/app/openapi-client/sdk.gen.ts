@@ -4491,6 +4491,7 @@ export class Search {
    * Get Graph
    *
    * Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).
+   * `as_of` shows the entities as they were at an earlier version (docs/graph-history.md); mentions are today's.
    */
   public static getGraph<ThrowOnError extends boolean = false>(
     options?: Options<GetGraphData, ThrowOnError>,

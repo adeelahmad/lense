@@ -4811,6 +4811,12 @@ export type GraphQuestion = {
    * Limit
    */
   limit?: number;
+  /**
+   * As Of
+   *
+   * ask the graph as of a version: a number or a version's name
+   */
+  as_of?: string | null;
 };
 
 /**
@@ -21267,6 +21273,12 @@ export type GetGraphData = {
      * "global" or "ns:<namespace>"
      */
     scope?: string;
+    /**
+     * As Of
+     *
+     * the entities as of a graph version: a number, a version's name, or head
+     */
+    as_of?: string | null;
   };
   url: "/api/v1/graph";
 };
